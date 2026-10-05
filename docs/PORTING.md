@@ -123,3 +123,12 @@ own packages (`go test ./internal/semver/...`), not `./...`. Add a
 dependency with `go get module@version` only; never run `go mod tidy`.
 Don't edit other packages. If you need something from one that doesn't
 exist yet, say so in your report.
+
+## Plugin requirements on every package
+
+Plugins run against maestro's Go state through the PHP shim specified in
+docs/PLUGINS.md. Its section 7 lists what the other packages must provide
+(change counters on packages, the local repository and Config; installer
+calls routed through an overridable interface; no package-level mutable
+state, so Installer, Factory and Application are re-entrant; ...). Read it
+before porting any package it names.

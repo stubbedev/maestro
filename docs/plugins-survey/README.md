@@ -10,7 +10,7 @@ on 2026-10-05 from the latest stable release of each package on Packagist.
 | `plugins.md` | Behaviour notes for each plugin, read from the source: which events it listens to, what it changes, which internals it touches, and the traps for an out-of-process host |
 | `tools/` | Scripts that regenerate the TSVs |
 
-To regenerate, from a scratch directory, inside `devenv shell`:
+To regenerate, from a scratch directory (the last run used `.ref/plugins/`, which is gitignored), inside `devenv shell`:
 
 ```sh
 php  <repo>/docs/plugins-survey/tools/apiindex.php       # writes apiindex.json (public API of .ref/composer/src via reflection)

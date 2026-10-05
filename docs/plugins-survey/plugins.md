@@ -214,6 +214,8 @@ and `POST_*_CMD` (priority 10):
   - composer.lock hash: `new Locker`, `Locker::getContentHash`, `JsonFile::write`;
   - **`$composer->setLocker()`**, `localRepo->removePackage()`, `setDevPackageNames()` and `localRepo->write()`;
   - a possible full re-run: `Factory::create` + `clone $installer; ->__construct(...); ->run()`.
+- `activate()` calls `IM::addInstaller(new SymfonyPackInstaller($io))`, which **extends `Composer\Installer\MetapackageInstaller`** (type `symfony-pack`).
+- `activate()` loads every PHP file of its own `src/` with `class_exists` so all Flex classes come from one version.
 - It uses HttpDownloader `add`/`get`, `new Loop`, `new Cache`, `RepositoryManager::getRepositories()->loadPackages`, `RepositorySet` + `VersionSelector`, and **array-cast reads of protected properties**.
 - `UpdateEvent extends Script\Event` and **skips the parent constructor**.
 - It prompts with `askAndValidate`, `askConfirmation` and `select`.
@@ -302,3 +304,9 @@ Composer's classes ends up in the project autoloader.
 - The constructor calls `Factory::getComposerFile()`.
 - `activate` stores Composer in a static.
 - Command `repl` (alias `shell`) calls `setComposer()`, `Config::disableProcessTimeout()` and `requireComposer()`, then runs a TTY Symfony Process.
+
+## Not plugins
+
+**stubbedev/laravel-stoli 0.2.4** (required as `dev-master` by the Kontainer
+project) is a `library` with only `extra.laravel`. It touches no Composer API
+and needs nothing from the shim.
