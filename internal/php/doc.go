@@ -62,6 +62,47 @@
 // PREG_JIT_STACKLIMIT_ERROR. Compilation errors carry PCRE2's message
 // texts, but their offsets may differ.
 //
+// # Why not a regex library
+//
+// The engine was compared (October 2026) with every pure-Go option, each
+// adapted behind this package's API and run against the goldens in
+// testdata/preg: 596 Composer patterns (55,792 checks) and 304 engine
+// feature patterns (17,752 checks). Exact patterns, Composer / feature:
+//
+//	in-house engine                             596/596  304/304
+//	PCRE2 10.48 transpiled with ccgo v4 (local) 596/596  304/304
+//	go.elara.ws/pcre (ccgo PCRE2 10.40, 2023)   596/596  297/304
+//	github.com/KarpelesLab/gopcre2 v0.1.0       564/596  181/304
+//	github.com/dlclark/regexp2 v1.12.0          491/596  205/304
+//
+// gopcre2 has no byte mode, start offset or PCRE2_NOTEMPTY_ATSTART, hangs
+// on lookbehinds and panics on \g{-1}. regexp2 has .NET semantics with no
+// recursion and no possessive quantifiers. Elara's PCRE2 10.40 predates
+// syntax and \w changes up to 10.48, is unmaintained, and builds only for
+// linux and darwin. Also rejected without a full run:
+// github.com/bobby-stripe/go-pcre (PCRE2 10.38 in a naive wasm
+// interpreter, no start offset, about 2500 times slower: 1.9 ms for one
+// version match) and github.com/dwisiswant0/pcregexp (loads a shared
+// libpcre2 at run time, so it cannot build a static binary).
+//
+// Only a PCRE2 10.48 transpiled to Go is exact as well. It is slower where
+// Composer spends its time: time per run relative to this engine, on
+// amd64.
+//
+//	                                in-house  ccgo 10.48
+//	whole corpus (match, all, repl)   237 ms       +27%
+//	semver/VersionParser patterns    0.67 ms      2.15x
+//	one version match                 764 ns      1.45x
+//	class-map patterns, 700 KB PHP    34 ms       1.8x
+//	JsonManipulator, 66 KB json       95 ms     0.13x
+//	compiling the corpus, uncached    18 ms     0.29x
+//
+// Both give PHP's results on the JsonManipulator run, including its 18
+// backtrack-limit errors. That run (and compilation) is where this engine
+// trails PCRE2, so it is the place to optimise; adopting a transpiled
+// PCRE2 would also mean maintaining about 4 MB of generated Go per
+// platform. This engine stays.
+//
 // # Errors
 //
 // PHP warnings that Composer never relies on are not reproduced. Errors
