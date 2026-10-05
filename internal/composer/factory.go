@@ -1,0 +1,774 @@
+// Ports src/Composer/Factory.php.
+
+package composer
+
+import (
+	"errors"
+	"os"
+	"strings"
+
+	"github.com/stubbedev/maestro/internal/autoload"
+	"github.com/stubbedev/maestro/internal/cache"
+	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/downloader"
+	dvcs "github.com/stubbedev/maestro/internal/downloader/vcs"
+	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/installer"
+	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/json"
+	"github.com/stubbedev/maestro/internal/locker"
+	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/archiver"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
+	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/repository/composerrepo"
+	rvcs "github.com/stubbedev/maestro/internal/repository/vcs"
+	"github.com/stubbedev/maestro/internal/store"
+	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/http"
+)
+
+// Factory ports Composer\Factory: it creates configured Composer instances.
+//
+// The function fields are the protected methods tests (FactoryMock) and
+// the plugin runtime override; nil means Composer's own implementation.
+// A Factory holds no other state, so it may be reused and nested.
+type Factory struct {
+	// Runtime is the process the instances are created in; nil is a new
+	// one (with no client version).
+	Runtime *Runtime
+
+	// CreateConfigFunc replaces static::createConfig.
+	CreateConfigFunc func(out io.IO, cwd string) (*config.Config, error)
+	// LoadRootPackageFunc replaces loadRootPackage: the loader of the
+	// root package.
+	LoadRootPackageFunc func(rm *repository.RepositoryManager, cfg *config.Config, parser *pkg.VersionParser, guesser loader.VersionGuesser, out io.IO) *loader.RootPackageLoader
+	// AddLocalRepositoryFunc replaces addLocalRepository.
+	AddLocalRepositoryFunc func(out io.IO, rm *repository.RepositoryManager, vendorDir string, root pkg.RootPackageInterface, process *util.ProcessExecutor) error
+	// CreateInstallationManagerFunc replaces createInstallationManager.
+	CreateInstallationManagerFunc func(loop *http.Loop, out io.IO, dispatcher *eventdispatcher.EventDispatcher) (InstallationManager, error)
+	// CreateDefaultInstallersFunc replaces createDefaultInstallers.
+	CreateDefaultInstallersFunc func(im InstallationManager, c *PartialComposer, full *Composer, out io.IO, process *util.ProcessExecutor) error
+	// PurgePackagesFunc replaces purgePackages.
+	PurgePackagesFunc func(repo repository.InstalledRepositoryInterface, im InstallationManager) error
+	// CreatePluginManagerFunc replaces createPluginManager: the plugin
+	// runtime's seam. nil installs NoPluginManager.
+	CreatePluginManagerFunc func(out io.IO, c *Composer, globalComposer *PartialComposer, disablePlugins DisablePlugins) (PluginManager, error)
+	// ScriptRuntime is the runtime PHP listeners run in (the plugin
+	// runtime); nil runs no PHP listeners.
+	ScriptRuntime eventdispatcher.ScriptRuntime
+	// EnsureComposerBinary extracts the COMPOSER_BINARY launcher before a
+	// script process starts (eventdispatcher.SetEnsureComposerBinary).
+	EnsureComposerBinary func() error
+}
+
+func (f *Factory) runtime() *Runtime {
+	if f.Runtime == nil {
+		f.Runtime = NewRuntime("", nil)
+	}
+
+	return f.Runtime
+}
+
+// CreateConfig ports Factory::createConfig: the global configuration with
+// cwd ("" for null) as base directory.
+func (f *Factory) CreateConfig(out io.IO, cwd string) (*config.Config, error) {
+	if f.CreateConfigFunc != nil {
+		return f.CreateConfigFunc(out, cwd)
+	}
+
+	return config.CreateConfig(out, cwd)
+}
+
+// GetComposerFile ports Factory::getComposerFile.
+func GetComposerFile() (string, error) { return config.ComposerFile() }
+
+// GetLockFile ports Factory::getLockFile.
+func GetLockFile(composerFile string) string { return config.LockFile(composerFile) }
+
+// CreateAdditionalStyles ports Factory::createAdditionalStyles: the
+// highlight and warning styles of Composer's output.
+func CreateAdditionalStyles() []console.NamedStyle {
+	highlight, _ := console.NewOutputFormatterStyle("red", "")
+	warning, _ := console.NewOutputFormatterStyle("black", "yellow")
+
+	return []console.NamedStyle{
+		{Name: "highlight", Style: highlight},
+		{Name: "warning", Style: warning},
+	}
+}
+
+// CreateOutput ports Factory::createOutput: a ConsoleOutput with
+// Composer's styles.
+func CreateOutput() *console.ConsoleOutput {
+	return console.NewConsoleOutput(console.VerbosityNormal, nil, console.NewOutputFormatter(false, CreateAdditionalStyles()...))
+}
+
+// CreateHttpDownloader ports Factory::createHttpDownloader.
+func (f *Factory) CreateHttpDownloader(out io.IO, cfg *config.Config, options *php.Array) (*http.HttpDownloader, error) {
+	return http.CreateHttpDownloader(out, cfg.ForHTTP(), options, f.runtime())
+}
+
+// CreateComposer ports createComposer($io, $localConfig, $disablePlugins,
+// $cwd, true, $disableScripts). localConfig is nil (the default
+// composer.json), a file name or the configuration as a *php.Array; cwd
+// "" is null.
+func (f *Factory) CreateComposer(out io.IO, localConfig any, disablePlugins DisablePlugins, cwd string, disableScripts bool) (*Composer, error) {
+	_, full, err := f.createComposer(out, localConfig, disablePlugins, cwd, true, disableScripts)
+
+	return full, err
+}
+
+// CreatePartialComposer ports createComposer with $fullLoad false.
+func (f *Factory) CreatePartialComposer(out io.IO, localConfig any, disablePlugins DisablePlugins, cwd string, disableScripts bool) (*PartialComposer, error) {
+	partial, _, err := f.createComposer(out, localConfig, disablePlugins, cwd, false, disableScripts)
+
+	return partial, err
+}
+
+// Create ports Factory::create: for BC, a configuration given as an array
+// or a path other than the default composer.json disables local plugins.
+func (f *Factory) Create(out io.IO, cfg any, disablePlugins DisablePlugins, disableScripts bool) (*Composer, error) {
+	if cfg != nil && disablePlugins == PluginsEnabled {
+		composerFile, err := GetComposerFile()
+		if err != nil {
+			return nil, err
+		}
+		if s, ok := cfg.(string); !ok || s != composerFile {
+			disablePlugins = PluginsDisabledLocal
+		}
+	}
+
+	return f.CreateComposer(out, cfg, disablePlugins, "", disableScripts)
+}
+
+// CreateGlobal ports Factory::createGlobal: the global Composer (fully
+// loaded), nil when it cannot be created.
+func (f *Factory) CreateGlobal(out io.IO, disablePlugins, disableScripts bool) (*Composer, error) {
+	cfg, err := f.CreateConfig(out, "")
+	if err != nil {
+		return nil, err
+	}
+	disable := PluginsEnabled
+	if disablePlugins {
+		disable = PluginsDisabled
+	}
+	_, full := f.createGlobalComposer(out, cfg, disable, disableScripts, true)
+
+	return full, nil
+}
+
+func isFile(path string) bool {
+	st, err := os.Stat(path)
+
+	return err == nil && st.Mode().IsRegular()
+}
+
+// realpath is PHP's realpath(), false giving ok false.
+func realpath(path string) (string, bool) { return util.RealpathOK(path) }
+
+func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins DisablePlugins, cwd string, fullLoad, disableScripts bool) (*PartialComposer, *Composer, error) {
+	// if a custom composer.json path is given, we change the default cwd to be that file's directory
+	if s, ok := localConfig.(string); ok && isFile(s) && cwd == "" {
+		cwd = util.Dirname(s)
+	}
+
+	if cwd == "" {
+		var err error
+		if cwd, err = util.GetCwd(true); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// load Composer configuration
+	if localConfig == nil {
+		composerFile, err := GetComposerFile()
+		if err != nil {
+			return nil, nil, err
+		}
+		localConfig = composerFile
+	}
+
+	localConfigSource := config.SourceUnknown
+	composerFile := ""
+	var localConfigArray *php.Array
+	switch lc := localConfig.(type) {
+	case string:
+		composerFile = lc
+
+		file, err := json.NewFile(lc, nil, out)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if !file.Exists() {
+			var message string
+			if lc == "./composer.json" || lc == "composer.json" {
+				message = "Composer could not find a composer.json file in " + cwd
+			} else {
+				message = "Composer could not find the config file: " + lc
+			}
+			instructions := ""
+			if fullLoad {
+				instructions = "To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage"
+			}
+
+			return nil, nil, &util.InvalidArgumentError{Message: message + "\n" + instructions}
+		}
+
+		if !util.IsInputCompletionProcess() {
+			if err := file.ValidateSchema(json.LaxSchema, ""); err != nil {
+				var ve *json.ValidationError
+				if !errors.As(err, &ve) {
+					return nil, nil, err
+				}
+
+				errs := " - " + strings.Join(ve.Errors, "\n - ")
+
+				return nil, nil, &json.ValidationError{Message: ve.Message + ":\n" + errs}
+			}
+		}
+
+		data, err := file.Read()
+		if err != nil {
+			return nil, nil, err
+		}
+		a, ok := data.(*php.Array)
+		if !ok {
+			return nil, nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.TypeName(data) + " given"}
+		}
+		localConfigArray = a
+		localConfigSource = file.Path()
+	case *php.Array:
+		localConfigArray = lc
+	default:
+		return nil, nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.TypeName(localConfig) + " given"}
+	}
+
+	// Load config and override with local config/auth config
+	cfg, err := f.CreateConfig(out, cwd)
+	if err != nil {
+		return nil, nil, err
+	}
+	isGlobal := false
+	if localConfigSource != config.SourceUnknown {
+		home, _ := cfg.Get("home", 0)
+		homePath, homeOK := realpath(php.ToString(home))
+		dirPath, dirOK := realpath(util.Dirname(localConfigSource))
+		isGlobal = homeOK == dirOK && homePath == dirPath
+	}
+	if err := cfg.Merge(localConfigArray, localConfigSource); err != nil {
+		return nil, nil, err
+	}
+
+	if composerFile != "" {
+		composerRealpath, _ := realpath(composerFile)
+		out.WriteError("Loading config file "+composerFile+" ("+composerRealpath+")", true, io.Debug)
+		configFile, err := json.NewFile(composerRealpath, nil, out)
+		if err != nil {
+			return nil, nil, err
+		}
+		cfg.SetConfigSource(config.NewJSONConfigSource(configFile, false))
+
+		localAuthFile, err := json.NewFile(util.Dirname(composerRealpath)+"/auth.json", nil, out)
+		if err != nil {
+			return nil, nil, err
+		}
+		if localAuthFile.Exists() {
+			out.WriteError("Loading config file "+localAuthFile.Path(), true, io.Debug)
+			if err := config.ValidateJSONSchema(out, localAuthFile, json.AuthSchema, ""); err != nil {
+				return nil, nil, err
+			}
+			auth, err := localAuthFile.Read()
+			if err != nil {
+				return nil, nil, err
+			}
+			if err := cfg.Merge(php.ArrayOf("config", auth), localAuthFile.Path()); err != nil {
+				return nil, nil, err
+			}
+			cfg.SetLocalAuthConfigSource(config.NewJSONConfigSource(localAuthFile, true))
+		}
+	}
+
+	// make sure we load the auth env again over the local auth.json + composer.json config
+	if err := config.LoadComposerAuthEnv(cfg, out); err != nil {
+		return nil, nil, err
+	}
+
+	vendorDirValue, err := cfg.Get("vendor-dir", 0)
+	if err != nil {
+		return nil, nil, err
+	}
+	vendorDir := php.ToString(vendorDirValue)
+
+	rt := f.runtime()
+
+	// initialize composer
+	var partial *PartialComposer
+	var full *Composer
+	if fullLoad {
+		full = &Composer{}
+		partial = &full.PartialComposer
+	} else {
+		partial = &PartialComposer{}
+	}
+	partial.runtime = rt
+	partial.SetConfig(cfg)
+	if isGlobal {
+		partial.SetGlobal()
+	}
+
+	if fullLoad {
+		// load auth configs into the IO instance
+		out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
+
+		// load existing Composer\InstalledVersions instance if available and scripts/plugins are allowed, as they might need it
+		// we only load if the InstalledVersions class wasn't defined yet so that this is only loaded once
+		installedVersionsPath := vendorDir + "/composer/installed.php"
+		if disablePlugins == PluginsEnabled && !disableScripts && fileExists(installedVersionsPath) && !rt.MarkInstalledVersionsLoaded() {
+			if data, ok := repository.SafelyLoadInstalledVersions(installedVersionsPath); ok {
+				rt.SetInstalledVersions(data)
+			}
+		}
+	}
+
+	httpDownloader, err := f.CreateHttpDownloader(out, cfg, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	process := http.NewProcessExecutor(out)
+	partial.process = process
+	loop := http.NewLoop(httpDownloader, process)
+	partial.SetLoop(loop)
+
+	// initialize event dispatcher
+	var dispatcherComposer eventdispatcher.PartialComposer = partial
+	if full != nil {
+		dispatcherComposer = full
+	}
+	dispatcher := eventdispatcher.New(dispatcherComposer, out, process)
+	dispatcher.SetRunScripts(!disableScripts)
+	dispatcher.SetPHP(rt.PlatformPHP())
+	if f.ScriptRuntime != nil {
+		dispatcher.SetScriptRuntime(f.ScriptRuntime)
+	}
+	if f.EnsureComposerBinary != nil {
+		dispatcher.SetEnsureComposerBinary(f.EnsureComposerBinary)
+	}
+	partial.SetEventDispatcher(dispatcher)
+
+	// initialize repository manager
+	rm := repository.Manager(out, cfg, httpDownloader, dispatcher, process, repository.ExternalTypes{
+		Composer: composerrepo.Constructor,
+		VCS:      rvcs.NewRepository,
+	})
+	partial.SetRepositoryManager(rm)
+
+	// force-set the version of the global package if not defined as
+	// guessing it adds no value and only takes time
+	if !fullLoad {
+		if v, ok := localConfigArray.Get("version"); !ok || v == nil {
+			localConfigArray = localConfigArray.Clone()
+			localConfigArray.Set("version", "1.0.0")
+		}
+	}
+
+	// load package
+	parser := pkg.NewVersionParser()
+	guesser := version.NewVersionGuesser(version.NewProcessExecutor(process), out)
+	rootLoader := f.loadRootPackage(rm, cfg, parser, guesser, out)
+	loaded, err := rootLoader.LoadIn(localConfigArray, pkg.ClassRootPackage, cwd)
+	if err != nil {
+		return nil, nil, err
+	}
+	root, ok := loaded.(pkg.RootPackageInterface)
+	if !ok {
+		return nil, nil, &util.LogicError{Message: "the root package loader returned a " + loaded.Class()}
+	}
+	partial.SetPackage(root)
+
+	// load local repository
+	if err := f.addLocalRepository(out, rm, vendorDir, root, process); err != nil {
+		return nil, nil, err
+	}
+
+	// initialize installation manager
+	im, err := f.createInstallationManager(loop, out, dispatcher)
+	if err != nil {
+		return nil, nil, err
+	}
+	partial.SetInstallationManager(im)
+
+	if full != nil {
+		// initialize download manager
+		metadata := downloader.NewMetadata()
+		if manager, ok := im.(*installer.Manager); ok {
+			manager.SetDownloadMetadata(metadata)
+		}
+		dm, err := f.createDownloadManager(out, cfg, httpDownloader, process, dispatcher, metadata)
+		if err != nil {
+			return nil, nil, err
+		}
+		full.SetDownloadManager(dm)
+
+		// initialize autoload generator
+		generator := autoload.NewGenerator(dispatcher, out)
+		if view, _, err := rt.ComposerView(); err == nil && view != nil {
+			generator.Parser.ShortOpenTag = view.ShortOpenTag()
+		}
+		full.SetAutoloadGenerator(generator)
+
+		// initialize archive manager
+		full.SetArchiveManager(f.CreateArchiveManager(cfg, dm, loop))
+	}
+
+	// add installers to the manager (must happen after download manager is created since they read it out of $composer)
+	if err := f.createDefaultInstallers(im, partial, full, out, process); err != nil {
+		return nil, nil, err
+	}
+
+	// init locker if possible
+	if full != nil {
+		if err := f.initLocker(out, full, cfg, composerFile, localConfigArray, process); err != nil {
+			return nil, nil, err
+		}
+
+		var globalComposer *PartialComposer
+		if !full.IsGlobal() {
+			globalComposer, _ = f.createGlobalComposer(out, cfg, disablePlugins, disableScripts, false)
+		}
+
+		pm, err := f.createPluginManager(out, full, globalComposer, disablePlugins)
+		if err != nil {
+			return nil, nil, err
+		}
+		full.SetPluginManager(pm)
+
+		if full.IsGlobal() {
+			pm.SetRunningInGlobalDir(true)
+		}
+
+		if err := pm.LoadInstalledPlugins(); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if fullLoad {
+		initEvent := eventdispatcher.NewEvent(eventdispatcher.PluginInit, nil, nil)
+		if _, err := partial.EventDispatcher().Dispatch(initEvent.Name(), initEvent); err != nil {
+			return nil, nil, err
+		}
+
+		// once everything is initialized we can
+		// purge packages from local repos if they have been deleted on the filesystem
+		if err := f.purgePackages(rm.LocalRepository(), im); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return partial, full, nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+
+	return err == nil
+}
+
+// initLocker is createComposer's "init locker if possible".
+func (f *Factory) initLocker(out io.IO, c *Composer, cfg *config.Config, composerFile string, localConfig *php.Array, process *util.ProcessExecutor) error {
+	var lockPath, contents string
+	if composerFile != "" {
+		lockFile := GetLockFile(composerFile)
+		lock, err := cfg.Get("lock", 0)
+		if err != nil {
+			return err
+		}
+		if !php.ToBool(lock) && fileExists(lockFile) {
+			out.WriteError("<warning>"+lockFile+" is present but ignored as the \"lock\" config option is disabled.</warning>", true, io.Normal)
+		}
+
+		lockPath = util.GetDevNull()
+		if php.ToBool(lock) {
+			lockPath = lockFile
+		}
+		data, err := os.ReadFile(composerFile)
+		if err != nil {
+			return err
+		}
+		contents = string(data)
+	} else {
+		lockPath = util.GetDevNull()
+		encoded, err := json.EncodeDefault(localConfig)
+		if err != nil {
+			return err
+		}
+		contents = encoded
+	}
+
+	file, err := json.NewFile(lockPath, nil, out)
+	if err != nil {
+		return err
+	}
+	l, err := locker.New(out, file, c.InstallationManager(), contents, process)
+	if err != nil {
+		return err
+	}
+	c.SetLocker(l)
+
+	return nil
+}
+
+// createGlobalComposer ports createGlobalComposer: nil (with a debug
+// message) when the global composer.json cannot be loaded.
+func (f *Factory) createGlobalComposer(out io.IO, cfg *config.Config, disablePlugins DisablePlugins, disableScripts, fullLoad bool) (*PartialComposer, *Composer) {
+	// make sure if disable plugins was 'local' it is now turned off
+	disable := PluginsEnabled
+	if disablePlugins == PluginsDisabledGlobal || disablePlugins == PluginsDisabled {
+		disable = PluginsDisabled
+	}
+
+	home, err := cfg.Get("home", 0)
+	if err == nil {
+		homeDir := php.ToString(home)
+		var partial *PartialComposer
+		var full *Composer
+		partial, full, err = f.createComposer(out, homeDir+"/composer.json", disable, homeDir, fullLoad, disableScripts)
+		if err == nil {
+			return partial, full
+		}
+	}
+	out.WriteError("Failed to initialize global composer: "+err.Error(), true, io.Debug)
+
+	return nil, nil
+}
+
+func (f *Factory) loadRootPackage(rm *repository.RepositoryManager, cfg *config.Config, parser *pkg.VersionParser, guesser loader.VersionGuesser, out io.IO) *loader.RootPackageLoader {
+	if f.LoadRootPackageFunc != nil {
+		return f.LoadRootPackageFunc(rm, cfg, parser, guesser, out)
+	}
+
+	return NewRootPackageLoader(rm, cfg, parser, guesser, out)
+}
+
+// NewRootPackageLoader is new RootPackageLoader($rm, $config, $parser,
+// $guesser, $io).
+func NewRootPackageLoader(rm *repository.RepositoryManager, cfg *config.Config, parser *pkg.VersionParser, guesser loader.VersionGuesser, out io.IO) *loader.RootPackageLoader {
+	return loader.NewRootPackageLoader(rootRepositoryManager{rm, cfg}, cfg, parser, guesser, out)
+}
+
+// rootRepositoryManager gives RootPackageLoader the repository manager it
+// adds the configured repositories to.
+type rootRepositoryManager struct {
+	rm  *repository.RepositoryManager
+	cfg *config.Config
+}
+
+func (m rootRepositoryManager) AddDefaultRepositories() error {
+	repos, err := repository.DefaultRepos(nil, m.cfg, m.rm)
+	if err != nil {
+		return err
+	}
+	for _, repo := range repos.All() {
+		m.rm.AddRepository(repo)
+	}
+
+	return nil
+}
+
+func (f *Factory) addLocalRepository(out io.IO, rm *repository.RepositoryManager, vendorDir string, root pkg.RootPackageInterface, process *util.ProcessExecutor) error {
+	if f.AddLocalRepositoryFunc != nil {
+		return f.AddLocalRepositoryFunc(out, rm, vendorDir, root, process)
+	}
+
+	file, err := json.NewFile(vendorDir+"/composer/installed.json", nil, out)
+	if err != nil {
+		return err
+	}
+	repo, err := repository.NewInstalledFilesystemRepository(file, true, root)
+	if err != nil {
+		return err
+	}
+	rt := f.runtime()
+	rt.mu.Lock()
+	sink := rt.installedVersionsSink
+	rt.mu.Unlock()
+	if sink != nil {
+		repo.SetInstalledVersionsSink(sink)
+	}
+	rm.SetLocalRepository(repo)
+
+	return nil
+}
+
+// CreateDownloadManager ports createDownloadManager: the download manager
+// with every downloader registered.
+func (f *Factory) CreateDownloadManager(out io.IO, cfg *config.Config, httpDownloader *http.HttpDownloader, process *util.ProcessExecutor, dispatcher *eventdispatcher.EventDispatcher) (*downloader.DownloadManager, error) {
+	return f.createDownloadManager(out, cfg, httpDownloader, process, dispatcher, downloader.NewMetadata())
+}
+
+// createDownloadManager is CreateDownloadManager with the
+// FileDownloader::$downloadMetadata the installation manager shares.
+func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownloader *http.HttpDownloader, process *util.ProcessExecutor, dispatcher *eventdispatcher.EventDispatcher, metadata *downloader.Metadata) (*downloader.DownloadManager, error) {
+	var filesCache downloader.Cache
+	ttl, err := cfg.Get("cache-files-ttl", 0)
+	if err != nil {
+		return nil, err
+	}
+	fs := util.NewFilesystem(process)
+	if php.ToInt(ttl) > 0 {
+		dir, err := cfg.Get("cache-files-dir", 0)
+		if err != nil {
+			return nil, err
+		}
+		readOnly, err := cfg.Get("cache-read-only", 0)
+		if err != nil {
+			return nil, err
+		}
+		c, err := cache.New(out, php.ToString(dir), "a-z0-9_./", fs, php.ToBool(readOnly))
+		if err != nil {
+			return nil, err
+		}
+		filesCache = c
+	}
+
+	dm := downloader.NewDownloadManager(out, false, fs)
+	preferred, err := cfg.Get("preferred-install", 0)
+	if err != nil {
+		return nil, err
+	}
+	switch preferred {
+	case "dist":
+		dm.SetPreferDist(true)
+	case "source":
+		dm.SetPreferSource(true)
+	}
+
+	if a, ok := preferred.(*php.Array); ok {
+		if _, err := dm.SetPreferences(a); err != nil {
+			return nil, err
+		}
+	}
+
+	sourceFallback, err := cfg.Get("source-fallback", 0)
+	if err != nil {
+		return nil, err
+	}
+	if php.ToBool(sourceFallback) {
+		dm.SetSourceFallback(true)
+	}
+
+	dvcs.Register(dm, dvcs.Deps{IO: out, Config: cfg.ForHTTP(), Process: process, Filesystem: fs})
+
+	method, err := store.ParseMethod(os.Getenv(store.MethodEnv))
+	if err != nil {
+		return nil, err
+	}
+	st, err := store.Open(cache.Store(), &store.Options{Method: method})
+	if err != nil {
+		return nil, err
+	}
+	deps := downloader.Deps{
+		IO:             out,
+		Config:         cfg.ForHTTP(),
+		HTTPDownloader: httpDownloader,
+		Cache:          filesCache,
+		Filesystem:     fs,
+		Process:        process,
+		Store:          st,
+		Metadata:       metadata,
+		IniFiles:       f.runtime().Environment().IniFiles,
+	}
+	if dispatcher != nil {
+		deps.EventDispatcher = dispatcher
+	}
+
+	for _, d := range []struct {
+		typ string
+		new func(downloader.Deps) (downloader.Downloader, error)
+	}{
+		{"zip", archiveDownloader(downloader.NewZipDownloader)},
+		{"rar", archiveDownloader(downloader.NewRarDownloader)},
+		{"tar", archiveDownloader(downloader.NewTarDownloader)},
+		{"gzip", archiveDownloader(downloader.NewGzipDownloader)},
+		{"xz", archiveDownloader(downloader.NewXzDownloader)},
+		{"phar", archiveDownloader(downloader.NewPharDownloader)},
+		{"file", func(deps downloader.Deps) (downloader.Downloader, error) { return downloader.NewFileDownloader(deps) }},
+		{"path", func(deps downloader.Deps) (downloader.Downloader, error) { return downloader.NewPathDownloader(deps) }},
+	} {
+		dl, err := d.new(deps)
+		if err != nil {
+			return nil, err
+		}
+		dm.SetDownloader(d.typ, dl)
+	}
+
+	return dm, nil
+}
+
+func archiveDownloader(ctor func(downloader.Deps) (*downloader.ArchiveDownloader, error)) func(downloader.Deps) (downloader.Downloader, error) {
+	return func(deps downloader.Deps) (downloader.Downloader, error) { return ctor(deps) }
+}
+
+// CreateArchiveManager ports createArchiveManager: ZipArchive and Phar are
+// always available.
+func (f *Factory) CreateArchiveManager(_ *config.Config, dm *downloader.DownloadManager, loop *http.Loop) *archiver.ArchiveManager {
+	am := archiver.NewArchiveManager(dm.Sync(), loop)
+	am.AddArchiver(archiver.NewZipArchiver())
+	am.AddArchiver(archiver.NewPharArchiver())
+
+	return am
+}
+
+func (f *Factory) createPluginManager(out io.IO, c *Composer, globalComposer *PartialComposer, disablePlugins DisablePlugins) (PluginManager, error) {
+	if f.CreatePluginManagerFunc != nil {
+		return f.CreatePluginManagerFunc(out, c, globalComposer, disablePlugins)
+	}
+
+	return NewNoPluginManager(disablePlugins), nil
+}
+
+func (f *Factory) createInstallationManager(loop *http.Loop, out io.IO, dispatcher *eventdispatcher.EventDispatcher) (InstallationManager, error) {
+	if f.CreateInstallationManagerFunc != nil {
+		return f.CreateInstallationManagerFunc(loop, out, dispatcher)
+	}
+
+	return defaultInstallationManager(loop, out, dispatcher)
+}
+
+func (f *Factory) createDefaultInstallers(im InstallationManager, c *PartialComposer, full *Composer, out io.IO, process *util.ProcessExecutor) error {
+	if f.CreateDefaultInstallersFunc != nil {
+		return f.CreateDefaultInstallersFunc(im, c, full, out, process)
+	}
+
+	return defaultInstallers(im, c, full, out, process)
+}
+
+// purgePackages removes the packages that are no longer installed on the
+// filesystem from the local repository.
+func (f *Factory) purgePackages(repo repository.InstalledRepositoryInterface, im InstallationManager) error {
+	if f.PurgePackagesFunc != nil {
+		return f.PurgePackagesFunc(repo, im)
+	}
+
+	packages, err := repo.Packages()
+	if err != nil {
+		return err
+	}
+	for _, p := range packages {
+		installed, err := im.IsPackageInstalled(repo, p)
+		if err != nil {
+			return err
+		}
+		if !installed {
+			if err := repo.RemovePackage(p); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
