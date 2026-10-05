@@ -59,3 +59,23 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 ## Cleanup (DRY) once internal/php is final (from internal/util/http)
 - internal/util/http/phpfuncs.go holds rawurlencode, rawurldecode, urlencode, http_build_query and a date() subset; move them into internal/php.
 - `util.IO` (int verbosities) and `io.IO` (io.Verbosity) differ; internal/util/http adapts with `utilIO` (deps.go) to build a ProcessExecutor. Unify them.
+
+## Users of internal/pkg (from internal/pkg)
+- `pkg.PackageInterface` is sealed (unexported `base()`): only the six pkg types implement it. `instanceof AliasPackage` is a type assertion to `pkg.Alias`, `instanceof Package`/`CompletePackage` are `pkg.AsPackage`/`pkg.AsCompletePackage`; `clone` is `pkg.Clone`.
+- PHP `?string` is `pkg.NullString`; free-form arrays are `*php.Array`, shared not copied (Clone before modifying). Getters never return a nil array except for PHP null (source/dist mirrors, php-ext).
+- Link maps are `pkg.Links` (immutable, key order and non-target keys kept); build them with `pkg.LinksBuilder` (`Set` = `$links[$k] = $l`). `Link.PrettyConstraint()` returns an error where PHP throws.
+- Share one `*pkg.VersionParser` between loaders: Composer's static parsed-constraint cache is per parser here.
+- `pkg.IsPlatformPackage` is PlatformRepository::isPlatformPackage; repository code should call it, not re-implement the regex.
+- Repositories implement `pkg.Repository` (`RepoName()`); PlatformRepository also `pkg.PlatformRepositoryMarker` (`IsPlatformRepository() bool`), which `IsPlatform()` checks.
+- `loader.ArrayLoader.LoadPackages` expects expanded metadata (ComposerRepository runs MetadataMinifier::expand first).
+- RootPackageLoader needs a non-nil `loader.VersionGuesser` (Composer builds one itself): pass `version.NewVersionGuesser(version.NewProcessExecutor(pe), io)` with `pe.EnableAsync()` done; plus `loader.RepositoryManager` (`AddDefaultRepositories`: RepositoryFactory::defaultRepos + addRepository) and `loader.RootConfig` (`Repositories()`).
+- `version.VersionSelector` takes the platform repository's packages and a `RepositorySet` interface; set `PHPVersion` from the detected PHP (Composer uses the PHP running it). Platform filters implement `version.PlatformRequirementFilter` (+ `IgnoreAllPlatformRequirementFilter` / `IgnoreListPlatformRequirementFilter`).
+- Locker's lock-entry tweaks (dropping version_normalized, ...) are not in `dumper.ArrayDumper`, as in Composer.
+- PackageSorter and PackageInfo (Composer\Util) live in internal/pkg (`pkg.SortPackages`, `pkg.GetViewSourceURL`, ...): internal/util cannot import packages.
+- Plugin shim: there is no snapshot constructor yet (build packages with the constructors and setters); `AliasPackage::hasSelfVersionRequires` has no setter.
+
+## Cleanup (DRY) from internal/pkg
+- internal/pkg/loader/phpfilters.go copies internal/util's unexported parse_url port (for ValidatingArrayLoader::filterUrl) and holds filter_var(FILTER_VALIDATE_EMAIL); export parse_url (internal/php or util) and share.
+- internal/pkg/loader/datetime.go is a subset of PHP's date parser (new \DateTime): ISO 8601 style dates, "@timestamp", offsets, common abbreviations and zone identifiers; relative formats and timelib's exact error positions are not reproduced. Move to internal/php if anything else needs DateTime.
+- `loader.IsValidPerforcePort` is Composer\Util\Perforce::isValidPort; the Perforce port should use it (or own it and have the loader call it).
+- internal/pkg/version keeps private ports of Git::cleanEnv/getVersion/buildRevListCommand/getNoShowSignatureFlags/parseRevListOutput/checkForRepoOwnershipError, Svn::cleanEnv and HgDriver::getBranches (git version cached per guesser, not statically); switch to the util Git/Svn ports when they exist.
