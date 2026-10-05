@@ -1,6 +1,7 @@
 /maestro
 /result
 *.test
+!**/testdata/**/*.test
 /.ref/
 
 # Devenv
