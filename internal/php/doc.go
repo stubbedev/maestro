@@ -54,13 +54,21 @@
 // properties (\w is \p{L}\p{N}\p{Mn}\p{Pc}, as in PCRE2 10.43+).
 //
 // Deliberately not reproduced: \X, \C, backtracking control verbs
-// ((*VERB)), callouts, (?C), \p{...} by script extension (scripts match
-// by their Script property only), and PCRE2's exact match-limit
-// accounting: the limit (pcre.backtrack_limit, 1000000) counts
-// resumptions after backtracking, and recursion that loops or nests past
-// 100000 calls fails like PHP's default JIT does, with
-// PREG_JIT_STACKLIMIT_ERROR. Compilation errors carry PCRE2's message
-// texts, but their offsets may differ.
+// ((*VERB)), callouts, (?C), and \p{...} by script extension (scripts
+// match by their Script property only). Compilation errors carry PCRE2's
+// message texts, but their offsets may differ.
+//
+// The match limit (pcre.backtrack_limit, 1000000) is counted as PHP
+// counts it, so the same subjects fail with PREG_BACKTRACK_LIMIT_ERROR:
+// as PCRE2's JIT does (at iterator backtracks, group exits, recursion
+// entries, with its early-fail, character-position and repeat
+// optimisations), and as pcre2_match does (one per backtracking frame)
+// for the anchored retry after an empty match, which PHP runs without the
+// JIT. Each start position is counted from zero. Counts may differ by a
+// few at start positions that PCRE2 skips with heuristics of its own
+// (testdata/preg/counts.json holds PHP's counts). Recursion that loops or
+// nests past 100000 calls fails like PHP's JIT running out of stack, with
+// PREG_JIT_STACKLIMIT_ERROR.
 //
 // # Why not a regex library
 //
@@ -86,20 +94,24 @@
 // libpcre2 at run time, so it cannot build a static binary).
 //
 // Only a PCRE2 10.48 transpiled to Go is exact as well. It is slower where
-// Composer spends its time: time per run relative to this engine, on
-// amd64.
+// Composer spends its time (testdata/preg/jsonmanipulator holds the
+// JsonManipulator workload: its patterns over a 66 KB composer.json, with
+// PHP's results); time per run on amd64 (pcre_bench_test.go):
 //
-//	                                in-house  ccgo 10.48
-//	whole corpus (match, all, repl)   237 ms       +27%
-//	semver/VersionParser patterns    0.67 ms      2.15x
-//	one version match                 764 ns      1.45x
-//	class-map patterns, 700 KB PHP    34 ms       1.8x
-//	JsonManipulator, 66 KB json       95 ms     0.13x
-//	compiling the corpus, uncached    18 ms     0.29x
+//	                                    in-house  ccgo 10.48
+//	whole corpus (match, all, repl)       233 ms      221 ms
+//	semver/VersionParser patterns       0.53 ms     0.93 ms
+//	one version match                     438 ns      827 ns
+//	class-map patterns, Composer source  0.045 ms    0.155 ms
+//	class-map patterns, 700 KB PHP        5.9 ms       47 ms
+//	JsonManipulator, completing           5.1 ms      9.0 ms
+//	JsonManipulator, backtrack limit      549 ms      488 ms
+//	compiling the corpus, uncached        6.8 ms      3.8 ms
 //
-// Both give PHP's results on the JsonManipulator run, including its 18
-// backtrack-limit errors. That run (and compilation) is where this engine
-// trails PCRE2, so it is the place to optimise; adopting a transpiled
+// Runs that end in the backtrack limit (most of the corpus time is one
+// such pattern) cost about what PCRE2's JIT spends reaching the limit,
+// which this engine counts the same way. Compilation, which the Compile
+// cache does once per pattern, is where it trails; adopting a transpiled
 // PCRE2 would also mean maintaining about 4 MB of generated Go per
 // platform. This engine stays.
 //

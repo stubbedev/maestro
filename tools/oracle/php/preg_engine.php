@@ -115,6 +115,13 @@ $patterns = [
     "/\xff/u" => ['a'], '/(?<1a>x)/' => ['x'], '/[[.a.]]/' => ['a'], '/\o{8}/' => ['a'], '/\p{Foo}/' => ['a'], '/a\\' => ['a'],
 ];
 
+// JsonManipulator patterns on documents where PHP's JIT is close to
+// pcre.backtrack_limit (where pcre2_match without the JIT decides
+// differently), from the internal/json oracle.
+foreach (json_decode(file_get_contents(__DIR__.'/preg_engine_limits.json'), true, 512, JSON_THROW_ON_ERROR) as $c) {
+    $patterns[$c['pattern']] = array_merge($patterns[$c['pattern']] ?? [], $c['subjects']);
+}
+
 $corpus = [];
 foreach ($patterns as $p => $subjects) {
     $p = (string) $p;

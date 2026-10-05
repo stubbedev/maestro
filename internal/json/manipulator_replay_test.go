@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
@@ -211,13 +210,6 @@ func callManipulator(m *Manipulator, method string, a []any) (any, error) {
 func checkResult(t *testing.T, where string, got any, err error, want any) bool {
 	t.Helper()
 	if rec, ok := want.(recordedError); ok {
-		if err == nil && rec.class == "PcreException" && strings.HasSuffix(rec.message, ": Backtrack limit exhausted") {
-			// internal/php does not reproduce PCRE2's exact match-limit
-			// accounting (see its package doc): PHP gave up on a pattern
-			// that the Go engine decided within its budget.
-			t.Logf("%s: known divergence: PHP hit the backtrack limit, Go returned %s", where, php.VarExport(got))
-			return true
-		}
 		if err == nil {
 			t.Errorf("%s: got %s, want %s: %s", where, php.VarExport(got), rec.class, rec.message)
 			return false

@@ -9,6 +9,7 @@ package php
 import (
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 )
 
@@ -160,6 +161,16 @@ func (b *classBuilder) build(neg bool) *charClass {
 			}
 		}
 	}
+	if !c.foldU {
+		// Below 256, membership is the raw set.
+		c.bits = c.raw
+		if neg {
+			for i := range c.bits {
+				c.bits[i] = ^c.bits[i]
+			}
+		}
+		return c
+	}
 	for r := range rune(256) {
 		if c.member(r) != neg {
 			c.bits[r>>6] |= 1 << (r & 63)
@@ -210,9 +221,28 @@ func isWordChar(r rune, utf bool) bool {
 	return isASCIIWord(r)
 }
 
+// typeClasses caches the classes of the character type escapes: classes
+// are not modified once built.
+var typeClasses sync.Map
+
 // typeClass returns the class of a character type escape (d, s, w, h, v
 // and their negations as upper case letters).
 func typeClass(c byte, utf bool) *charClass {
+	key := int(c)
+	if utf {
+		key += 256
+	}
+	if v, ok := typeClasses.Load(key); ok {
+		if cls, ok := v.(*charClass); ok {
+			return cls
+		}
+	}
+	cls := buildTypeClass(c, utf)
+	typeClasses.Store(key, cls)
+	return cls
+}
+
+func buildTypeClass(c byte, utf bool) *charClass {
 	var p func(rune) bool
 	switch c | 0x20 {
 	case 'd':

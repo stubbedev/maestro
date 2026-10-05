@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
+	"sync"
 	"testing"
 	"unicode/utf8"
 )
@@ -151,6 +153,13 @@ func testPregGolden(t *testing.T, file string) {
 	if err := json.Unmarshal(data, &g); err != nil {
 		t.Fatal(err)
 	}
+	// The subjects run concurrently; their results are compared in order.
+	type job struct {
+		re      *Regexp
+		subject string
+		got     map[string]any
+	}
+	var jobs []*job
 	failures, subjects := 0, 0
 	report := func(format string, args ...any) {
 		failures++
@@ -166,9 +175,34 @@ func testPregGolden(t *testing.T, file string) {
 			continue
 		}
 		for _, r := range p.Results {
+			jobs = append(jobs, &job{re: re, subject: goldenString(r["subject"])})
+		}
+	}
+	next := make(chan *job)
+	var wg sync.WaitGroup
+	for range runtime.GOMAXPROCS(0) {
+		wg.Go(func() {
+			for j := range next {
+				j.got = pregOps(j.re, j.subject)
+			}
+		})
+	}
+	for _, j := range jobs {
+		next <- j
+	}
+	close(next)
+	wg.Wait()
+	k := 0
+	for _, p := range g.Patterns {
+		if _, err := Compile(goldenString(p.Pattern)); err != nil {
+			continue
+		}
+		pattern := goldenString(p.Pattern)
+		for _, r := range p.Results {
+			j := jobs[k]
+			k++
 			subjects++
-			subject := goldenString(r["subject"])
-			got := normalizeJSON(t, pregOps(re, subject)).(map[string]any)
+			got := normalizeJSON(t, j.got).(map[string]any)
 			for name, want := range r {
 				if name == "subject" {
 					continue
@@ -176,7 +210,7 @@ func testPregGolden(t *testing.T, file string) {
 				if g := got[name]; !reflect.DeepEqual(g, want) {
 					gj, _ := json.Marshal(g)
 					wj, _ := json.Marshal(want)
-					report("%q %s %q:\n got %s\nwant %s", pattern, name, subject, gj, wj)
+					report("%q %s %q:\n got %s\nwant %s", pattern, name, j.subject, gj, wj)
 				}
 			}
 		}
@@ -189,8 +223,14 @@ func testPregGolden(t *testing.T, file string) {
 
 // TestPregGolden runs every pattern Composer uses (collected by
 // tools/oracle/php/preg_collect.php) against PHP's results.
-func TestPregGolden(t *testing.T) { testPregGolden(t, "testdata/preg/golden.json") }
+func TestPregGolden(t *testing.T) {
+	t.Parallel()
+	testPregGolden(t, "testdata/preg/golden.json")
+}
 
 // TestPregEngineGolden runs the engine feature corpus of
 // tools/oracle/php/preg_engine.php against PHP's results.
-func TestPregEngineGolden(t *testing.T) { testPregGolden(t, "testdata/preg/engine_golden.json") }
+func TestPregEngineGolden(t *testing.T) {
+	t.Parallel()
+	testPregGolden(t, "testdata/preg/engine_golden.json")
+}

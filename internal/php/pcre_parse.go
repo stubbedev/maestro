@@ -87,7 +87,31 @@ type reNode struct {
 	offset   int     // pattern offset, for errors on unresolved references
 	relative bool    // reCall: the number was relative ((?+1), (?-1))
 	dups     []int   // reBackref, reCond: all groups of a duplicated name
+	pf       *pform  // reClass: what PCRE2 compiles it to
+	info     pinfo   // single-character items: the PCRE2 opcode data, computed once
+	hasInfo  bool
+	dollar   bool // reAnchor: written as $
 }
+
+// pform records the PCRE2 opcode a reClass node compiles to, which
+// auto-possessification (pcre_possess.go) depends on.
+type pform struct {
+	kind     uint8  // pfEscape, pfProp or pfBracket
+	esc      byte   // pfEscape: d D s S w W h H v V
+	prop     string // pfProp: the property name
+	neg      bool   // pfProp: \P or \p{^...}; pfBracket: [^...]
+	lits     []rune // pfBracket: its characters, when it lists only literal characters
+	litsOnly bool
+	hasProp  bool // pfBracket: contains a Unicode property (UTF mode)
+	hasWide  bool // pfBracket: contains characters above 255 (UTF mode)
+	fold     bool // compiled caseless
+}
+
+const (
+	pfEscape uint8 = iota
+	pfProp
+	pfBracket
+)
 
 // reFlags are the options that can change inside a pattern.
 type reFlags struct {
@@ -221,6 +245,10 @@ type parser struct {
 	utf       bool
 	dollarEnd bool
 	dupNames  bool
+	dupCap    bool // (?| was used: group numbers repeat (PCRE2_DUPCAPUSED)
+	slab      *slab[reNode]
+	seqs      *sliceSlab[*reNode]
+	stack     []*reNode // items of the sequences being parsed
 	ncap      int
 	names     []groupName
 	refs      []*reNode // nodes referring to groups by name or number, checked after parsing
@@ -279,19 +307,20 @@ func (p *parser) parseAlt(flags *reFlags) *reNode {
 	if len(alts) == 1 {
 		return alts[0]
 	}
-	return &reNode{op: reAlt, subs: alts}
+	return p.node(reNode{op: reAlt, subs: alts})
 }
 
 // parseBranches parses '|'-separated sequences. With reset, each branch
 // numbers its groups from the same number ((?|...)).
 func (p *parser) parseBranches(flags *reFlags, reset bool) []*reNode {
-	var alts []*reNode
+	mark := len(p.stack)
 	base, maxCap := p.ncap, p.ncap
 	for {
 		if reset {
 			p.ncap = base
 		}
-		alts = append(alts, p.parseSeq(flags))
+		alt := p.parseSeq(flags)
+		p.stack = append(p.stack, alt)
 		maxCap = max(maxCap, p.ncap)
 		if p.err != nil || p.peek() != '|' || p.pos >= len(p.src) {
 			break
@@ -301,6 +330,9 @@ func (p *parser) parseBranches(flags *reFlags, reset bool) []*reNode {
 	if reset {
 		p.ncap = maxCap
 	}
+	alts := p.seqs.alloc(len(p.stack) - mark)
+	copy(alts, p.stack[mark:])
+	p.stack = p.stack[:mark]
 	return alts
 }
 
@@ -332,7 +364,7 @@ func (p *parser) skipExtended(flags *reFlags) {
 
 // parseSeq parses a sequence of quantified items.
 func (p *parser) parseSeq(flags *reFlags) *reNode {
-	var items []*reNode
+	mark := len(p.stack)
 	for {
 		p.skipExtended(flags)
 		if !p.more() {
@@ -344,11 +376,11 @@ func (p *parser) parseSeq(flags *reFlags) *reNode {
 				p.inQuote = false
 				continue
 			}
-			items = append(items, p.lit(p.nextChar(), flags))
+			p.stack = append(p.stack, p.lit(p.nextChar(), flags))
 			if p.peek() == '\\' && p.peekAt(1) == 'E' {
 				p.pos += 2
 				p.inQuote = false
-				items = p.quantify(items, flags)
+				p.quantify(p.stack[mark:], flags)
 			}
 			continue
 		}
@@ -366,27 +398,36 @@ func (p *parser) parseSeq(flags *reFlags) *reNode {
 			continue
 		}
 		atom.offset = start
-		items = p.quantify(append(items, atom), flags)
+		p.stack = append(p.stack, atom)
+		p.quantify(p.stack[mark:], flags)
 	}
+	items := p.stack[mark:]
+	var n *reNode
 	switch len(items) {
 	case 0:
-		return &reNode{op: reEmpty}
+		n = p.node(reNode{op: reEmpty})
 	case 1:
-		return items[0]
+		n = items[0]
+	default:
+		subs := p.seqs.alloc(len(items))
+		copy(subs, items)
+		n = p.node(reNode{op: reConcat, subs: subs})
 	}
-	return &reNode{op: reConcat, subs: items}
+	p.stack = p.stack[:mark]
+	return n
 }
 
-// quantify applies a quantifier following the last item, if any.
-func (p *parser) quantify(items []*reNode, flags *reFlags) []*reNode {
+// quantify applies a quantifier following the last item, if any, in
+// place.
+func (p *parser) quantify(items []*reNode, flags *reFlags) {
 	p.skipExtended(flags)
 	if !p.more() {
-		return items
+		return
 	}
 	start := p.pos
 	minN, maxN, ok := p.parseQuantifier()
 	if !ok {
-		return items
+		return
 	}
 	mode := repGreedy
 	if flags.ungreedy {
@@ -408,21 +449,18 @@ func (p *parser) quantify(items []*reNode, flags *reFlags) []*reNode {
 	switch last.op {
 	case reAnchor, reKeep, reEmpty:
 		p.fail("quantifier does not follow a repeatable item", start)
-		return items
+		return
 	case reLook:
-		// PCRE2 obeys a repeated assertion at most once.
-		switch {
-		case maxN == 0:
-			items[len(items)-1] = &reNode{op: reEmpty}
-		case minN == 0:
-			items[len(items)-1] = &reNode{op: reRepeat, subs: []*reNode{last}, min: 0, max: 1, mode: repGreedy}
+		// PCRE2 repeats an assertion at most one more time than the
+		// minimum.
+		if maxN < 0 {
+			maxN = minN + 1
 		}
-		return items
 	}
 	if minN == 1 && maxN == 1 && mode != repPossessive {
-		return items
+		return
 	}
-	items[len(items)-1] = &reNode{op: reRepeat, subs: []*reNode{last}, min: minN, max: maxN, mode: mode}
+	items[len(items)-1] = p.node(reNode{op: reRepeat, subs: []*reNode{last}, min: minN, max: maxN, mode: mode})
 	// A quantifier following a quantifier is an error, except for the
 	// lazy and possessive suffixes handled above.
 	p.skipExtended(flags)
@@ -433,7 +471,6 @@ func (p *parser) quantify(items []*reNode, flags *reFlags) []*reNode {
 		}
 		p.pos = save
 	}
-	return items
 }
 
 // parseQuantifier reads *, +, ? or a {n,m} quantifier (PCRE2 10.43+ syntax,
@@ -507,7 +544,7 @@ func (p *parser) parseQuantifier() (minN, maxN int, ok bool) {
 
 // lit returns a literal character node.
 func (p *parser) lit(r rune, flags *reFlags) *reNode {
-	return &reNode{op: reLit, r: r, fold: flags.caseless}
+	return p.node(reNode{op: reLit, r: r, fold: flags.caseless})
 }
 
 // parseAtom parses one item. It returns nil for constructs that match
@@ -523,22 +560,22 @@ func (p *parser) parseAtom(flags *reFlags) *reNode {
 		return p.parseClass(flags)
 	case '.':
 		p.pos++
-		return &reNode{op: reAny, dotall: flags.dotall}
+		return p.node(reNode{op: reAny, dotall: flags.dotall})
 	case '^':
 		p.pos++
 		if flags.multiline {
-			return &reNode{op: reAnchor, anchor: anchorMBOL}
+			return p.node(reNode{op: reAnchor, anchor: anchorMBOL})
 		}
-		return &reNode{op: reAnchor, anchor: anchorBOL}
+		return p.node(reNode{op: reAnchor, anchor: anchorBOL})
 	case '$':
 		p.pos++
 		switch {
 		case flags.multiline:
-			return &reNode{op: reAnchor, anchor: anchorMEOL}
+			return p.node(reNode{op: reAnchor, anchor: anchorMEOL, dollar: true})
 		case p.dollarEnd:
-			return &reNode{op: reAnchor, anchor: anchorEnd}
+			return p.node(reNode{op: reAnchor, anchor: anchorEnd, dollar: true})
 		}
-		return &reNode{op: reAnchor, anchor: anchorEOL}
+		return p.node(reNode{op: reAnchor, anchor: anchorEOL, dollar: true})
 	case '\\':
 		p.pos++
 		return p.parseEscape(flags)
@@ -567,42 +604,42 @@ func (p *parser) parseEscape(flags *reFlags) *reNode {
 	switch c {
 	case 'd', 'D', 's', 'S', 'w', 'W', 'h', 'H', 'v', 'V':
 		p.pos++
-		return &reNode{op: reClass, cls: typeClass(c, p.utf)}
+		return p.node(reNode{op: reClass, cls: typeClass(c, p.utf), pf: &pform{kind: pfEscape, esc: c}})
 	case 'p', 'P':
 		p.pos++
-		cls := p.parseProperty(c == 'P', flags.caseless)
+		cls, name, neg := p.parseProperty(c == 'P', flags.caseless)
 		if cls == nil {
 			return nil
 		}
-		return &reNode{op: reClass, cls: cls}
+		return p.node(reNode{op: reClass, cls: cls, pf: &pform{kind: pfProp, prop: name, neg: neg, fold: flags.caseless}})
 	case 'b':
 		p.pos++
-		return &reNode{op: reAnchor, anchor: anchorWordB}
+		return p.node(reNode{op: reAnchor, anchor: anchorWordB})
 	case 'B':
 		p.pos++
-		return &reNode{op: reAnchor, anchor: anchorNotWordB}
+		return p.node(reNode{op: reAnchor, anchor: anchorNotWordB})
 	case 'A':
 		p.pos++
-		return &reNode{op: reAnchor, anchor: anchorStart}
+		return p.node(reNode{op: reAnchor, anchor: anchorStart})
 	case 'Z':
 		p.pos++
-		return &reNode{op: reAnchor, anchor: anchorEndZ}
+		return p.node(reNode{op: reAnchor, anchor: anchorEndZ})
 	case 'z':
 		p.pos++
-		return &reNode{op: reAnchor, anchor: anchorEnd}
+		return p.node(reNode{op: reAnchor, anchor: anchorEnd})
 	case 'G':
 		p.pos++
-		return &reNode{op: reAnchor, anchor: anchorG}
+		return p.node(reNode{op: reAnchor, anchor: anchorG})
 	case 'K':
 		p.pos++
-		return &reNode{op: reKeep}
+		return p.node(reNode{op: reKeep})
 	case 'R':
 		p.pos++
-		return &reNode{op: reNewline}
+		return p.node(reNode{op: reNewline})
 	case 'N':
 		if p.peekAt(1) != '{' {
 			p.pos++
-			return &reNode{op: reAny}
+			return p.node(reNode{op: reAny})
 		}
 	case 'Q':
 		p.pos++
@@ -632,7 +669,7 @@ func (p *parser) parseEscape(flags *reFlags) *reNode {
 		if p.err != nil {
 			return nil
 		}
-		return p.ref(&reNode{op: reBackref, name: name, fold: flags.caseless, offset: start})
+		return p.ref(p.node(reNode{op: reBackref, name: name, fold: flags.caseless, offset: start}))
 	case 'X', 'C':
 		p.fail("escape sequence \\"+string(c)+" is not supported", p.pos)
 		return nil
@@ -648,7 +685,7 @@ func (p *parser) parseEscape(flags *reFlags) *reNode {
 		}
 		if v < 10 || c >= '8' || v <= p.ncap {
 			p.pos = i
-			return p.ref(&reNode{op: reBackref, n: v, fold: flags.caseless, offset: start})
+			return p.ref(p.node(reNode{op: reBackref, n: v, fold: flags.caseless, offset: start}))
 		}
 	}
 	r, ok := p.parseCharEscape(false)
@@ -671,20 +708,20 @@ func (p *parser) parseGRef(flags *reFlags) *reNode {
 		}
 		p.pos++
 		if n, rel, ok := p.parseGroupNumber(term); ok {
-			return p.ref(&reNode{op: reCall, n: n, relative: rel, offset: start})
+			return p.ref(p.node(reNode{op: reCall, n: n, relative: rel, offset: start}))
 		}
 		name := p.parseName(term)
-		return p.ref(&reNode{op: reCall, name: name, offset: start})
+		return p.ref(p.node(reNode{op: reCall, name: name, offset: start}))
 	case '{':
 		p.pos++
 		if n, rel, ok := p.parseGroupNumber('}'); ok {
 			if n == 0 || rel && n > p.ncap {
 				p.fail("reference to non-existent subpattern", p.pos)
 			}
-			return p.ref(&reNode{op: reBackref, n: n, fold: flags.caseless, offset: start})
+			return p.ref(p.node(reNode{op: reBackref, n: n, fold: flags.caseless, offset: start}))
 		}
 		name := p.parseName('}')
-		return p.ref(&reNode{op: reBackref, name: name, fold: flags.caseless, offset: start})
+		return p.ref(p.node(reNode{op: reBackref, name: name, fold: flags.caseless, offset: start}))
 	}
 	n, rel, ok := p.parseGroupNumber(0)
 	if !ok || n == 0 {
@@ -694,7 +731,7 @@ func (p *parser) parseGRef(flags *reFlags) *reNode {
 	if rel && n > p.ncap {
 		p.fail("reference to non-existent subpattern", p.pos)
 	}
-	return p.ref(&reNode{op: reBackref, n: n, fold: flags.caseless, offset: start})
+	return p.ref(p.node(reNode{op: reBackref, n: n, fold: flags.caseless, offset: start}))
 }
 
 // parseGroupNumber reads [+-]digits followed by term (or anything when
@@ -740,6 +777,9 @@ func (p *parser) parseGroupNumber(term byte) (n int, relative, ok bool) {
 	p.pos = i
 	return v, sign != 0, true
 }
+
+// node allocates a node.
+func (p *parser) node(n reNode) *reNode { return p.slab.alloc(n) }
 
 // ref records a node that refers to a group, to check after parsing.
 func (p *parser) ref(n *reNode) *reNode {
@@ -790,10 +830,10 @@ func (p *parser) parseGroup(flags *reFlags) *reNode {
 	}
 	if p.peek() != '?' {
 		if flags.noAutoCapture {
-			return p.groupBody(flags, &reNode{op: reGroup})
+			return p.groupBody(flags, p.node(reNode{op: reGroup}))
 		}
 		p.ncap++
-		return p.groupBody(flags, &reNode{op: reCapture, n: p.ncap})
+		return p.groupBody(flags, p.node(reNode{op: reCapture, n: p.ncap}))
 	}
 	p.pos++
 	c := p.peek()
@@ -810,35 +850,36 @@ func (p *parser) parseGroup(flags *reFlags) *reNode {
 		return nil
 	case ':':
 		p.pos++
-		return p.groupBody(flags, &reNode{op: reGroup})
+		return p.groupBody(flags, p.node(reNode{op: reGroup}))
 	case '|':
 		p.pos++
+		p.dupCap = true
 		local := *flags
 		alts := p.parseBranches(&local, true)
 		if !p.closeParen() {
 			return nil
 		}
 		if len(alts) == 1 {
-			return &reNode{op: reGroup, subs: alts}
+			return p.node(reNode{op: reGroup, subs: alts})
 		}
-		return &reNode{op: reGroup, subs: []*reNode{{op: reAlt, subs: alts}}}
+		return p.node(reNode{op: reGroup, subs: []*reNode{{op: reAlt, subs: alts}}})
 	case '>':
 		p.pos++
-		return p.groupBody(flags, &reNode{op: reAtomic})
+		return p.groupBody(flags, p.node(reNode{op: reAtomic}))
 	case '=':
 		p.pos++
-		return p.groupBody(flags, &reNode{op: reLook})
+		return p.groupBody(flags, p.node(reNode{op: reLook}))
 	case '!':
 		p.pos++
-		return p.groupBody(flags, &reNode{op: reLook, look: lookNeg})
+		return p.groupBody(flags, p.node(reNode{op: reLook, look: lookNeg}))
 	case '<':
 		switch p.peekAt(1) {
 		case '=':
 			p.pos += 2
-			return p.groupBody(flags, &reNode{op: reLook, look: lookBehind})
+			return p.groupBody(flags, p.node(reNode{op: reLook, look: lookBehind}))
 		case '!':
 			p.pos += 2
-			return p.groupBody(flags, &reNode{op: reLook, look: lookBehind | lookNeg})
+			return p.groupBody(flags, p.node(reNode{op: reLook, look: lookBehind | lookNeg}))
 		}
 		p.pos++
 		return p.namedGroup('>', flags)
@@ -854,22 +895,22 @@ func (p *parser) parseGroup(flags *reFlags) *reNode {
 		case '=':
 			p.pos++
 			name := p.parseName(')')
-			return p.ref(&reNode{op: reBackref, name: name, fold: flags.caseless, offset: start})
+			return p.ref(p.node(reNode{op: reBackref, name: name, fold: flags.caseless, offset: start}))
 		case '>':
 			p.pos++
 			name := p.parseName(')')
-			return p.ref(&reNode{op: reCall, name: name, offset: start})
+			return p.ref(p.node(reNode{op: reCall, name: name, offset: start}))
 		}
 		p.fail("unrecognized character after (?P", p.pos)
 		return nil
 	case '&':
 		p.pos++
 		name := p.parseName(')')
-		return p.ref(&reNode{op: reCall, name: name, offset: start})
+		return p.ref(p.node(reNode{op: reCall, name: name, offset: start}))
 	case 'R':
 		if p.peekAt(1) == ')' {
 			p.pos += 2
-			return p.ref(&reNode{op: reCall, n: 0, offset: start})
+			return p.ref(p.node(reNode{op: reCall, n: 0, offset: start}))
 		}
 	case '(':
 		p.pos++
@@ -877,7 +918,7 @@ func (p *parser) parseGroup(flags *reFlags) *reNode {
 	}
 	if c == '+' || c == '-' && isDigit(p.peekAt(1)) || isDigit(c) {
 		if n, rel, ok := p.parseGroupNumber(')'); ok {
-			return p.ref(&reNode{op: reCall, n: n, relative: rel, offset: start})
+			return p.ref(p.node(reNode{op: reCall, n: n, relative: rel, offset: start}))
 		}
 		if p.err == nil {
 			p.fail("digit expected after (?+ or (?-", p.pos)
@@ -931,7 +972,7 @@ func (p *parser) parseOptions(flags *reFlags) *reNode {
 			*flags = local
 			return nil
 		case ':':
-			return p.groupBody(&local, &reNode{op: reGroup})
+			return p.groupBody(&local, p.node(reNode{op: reGroup}))
 		default:
 			p.fail("unrecognized character after (? or (?-", p.pos-1)
 			return nil
@@ -955,7 +996,7 @@ func (p *parser) namedGroup(term byte, flags *reFlags) *reNode {
 		}
 	}
 	p.names = append(p.names, groupName{name, p.ncap})
-	return p.groupBody(flags, &reNode{op: reCapture, n: p.ncap, name: name})
+	return p.groupBody(flags, p.node(reNode{op: reCapture, n: p.ncap, name: name}))
 }
 
 // groupBody parses the alternatives of a group and its ')'. Option
@@ -985,7 +1026,7 @@ func (p *parser) closeParen() bool {
 
 // parseCond parses a conditional group after "(?(".
 func (p *parser) parseCond(flags *reFlags, start int) *reNode {
-	n := &reNode{op: reCond, offset: start}
+	n := p.node(reNode{op: reCond, offset: start})
 	switch {
 	case p.peek() == '?' && (p.peekAt(1) == '=' || p.peekAt(1) == '!' || p.peekAt(1) == '<' && (p.peekAt(2) == '=' || p.peekAt(2) == '!')):
 		// p.pos is at the '?', just after a '(' as parseGroup expects.
@@ -1065,14 +1106,15 @@ func (p *parser) parseCond(flags *reFlags, start int) *reNode {
 	return n
 }
 
-// parseProperty parses the name after \p or \P.
-func (p *parser) parseProperty(neg, fold bool) *charClass {
+// parseProperty parses the name after \p or \P; it also returns the name
+// and whether the property is negated.
+func (p *parser) parseProperty(neg, fold bool) (*charClass, string, bool) {
 	name := ""
 	if p.peek() == '{' {
 		end := strings.IndexByte(p.src[p.pos:], '}')
 		if end < 0 {
 			p.fail("malformed \\P or \\p sequence", p.pos)
-			return nil
+			return nil, "", false
 		}
 		name = p.src[p.pos+1 : p.pos+end]
 		p.pos += end + 1
@@ -1087,11 +1129,11 @@ func (p *parser) parseProperty(neg, fold bool) *charClass {
 	prop := unicodeProperty(name)
 	if prop == nil {
 		p.fail("unknown property name after \\P or \\p", p.pos)
-		return nil
+		return nil, "", false
 	}
 	b := newClassBuilder(p.utf, fold)
 	b.addProp(prop, false)
-	return b.build(neg)
+	return b.build(neg), name, neg
 }
 
 // parseCharEscape parses an escape that stands for one character, with
@@ -1276,6 +1318,7 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 		neg = true
 		p.pos++
 	}
+	pf := &pform{kind: pfBracket, litsOnly: true, fold: flags.caseless}
 	first, inQuote := true, false
 	// prev is a character that may still start a range; rangeLo is set
 	// once "x-" has been seen.
@@ -1284,6 +1327,10 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 	flushPrev := func() {
 		if havePrev {
 			b.addRune(prev)
+			pf.lits = append(pf.lits, prev)
+			if prev > 0xFF {
+				pf.hasWide = true
+			}
 			havePrev = false
 		}
 	}
@@ -1336,6 +1383,15 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 				p.fail("unknown POSIX class name", p.pos)
 				return nil
 			}
+			if p.utf {
+				switch strings.TrimPrefix(name, "^") {
+				case "ascii", "xdigit", "cntrl":
+				case "blank":
+					pf.hasWide = true
+				default:
+					pf.hasProp = true
+				}
+			}
 			p.pos = end + 2
 		case c == '\\':
 			p.pos++
@@ -1347,11 +1403,20 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 			case 'd', 'D', 's', 'S', 'w', 'W', 'h', 'H', 'v', 'V':
 				p.pos++
 				setCls = typeClass(e, p.utf)
+				if p.utf {
+					switch e | 0x20 {
+					case 'h', 'v':
+						pf.hasWide = true
+					default:
+						pf.hasProp = true
+					}
+				}
 			case 'p', 'P':
 				p.pos++
-				if setCls = p.parseProperty(e == 'P', false); setCls == nil {
+				if setCls, _, _ = p.parseProperty(e == 'P', false); setCls == nil {
 					return nil
 				}
+				pf.hasProp = true
 			case 'Q':
 				p.pos++
 				inQuote = true
@@ -1379,6 +1444,7 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 				return nil
 			}
 			flushPrev()
+			pf.litsOnly = false
 			if set != nil {
 				b.addProp(set, setNeg)
 			} else {
@@ -1393,6 +1459,10 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 				return nil
 			}
 			b.addRange(rangeLo, r)
+			pf.litsOnly = false
+			if r > 0xFF {
+				pf.hasWide = true
+			}
 			inRange = false
 		case r == '-' && !literal && havePrev && p.peek() != ']':
 			rangeLo, inRange, havePrev = prev, true, false
@@ -1404,7 +1474,9 @@ func (p *parser) parseClass(flags *reFlags) *reNode {
 	if inRange {
 		b.addRune(rangeLo)
 		b.addRune('-')
+		pf.lits = append(pf.lits, rangeLo, '-')
 	}
 	flushPrev()
-	return &reNode{op: reClass, cls: b.build(neg)}
+	pf.neg = neg
+	return p.node(reNode{op: reClass, cls: b.build(neg), pf: pf})
 }

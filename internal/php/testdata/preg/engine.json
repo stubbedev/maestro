@@ -4143,6 +4143,85 @@
             "subjects": [
                 "a"
             ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"keywords\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\r\n    \"require-dev\": {\r\n    },\r\n    \"name\": [\"alpha\\/a10\", 1],\r\n    \"policy\": {\r\n        \"a\\/b\": [\"\", -5, \"Some ñ text\"]\r\n    },\r\n    \"scripts\": {\r\n        \"branch-alias.dev-main\": { \"foo\\/bar\": \"\\\\\" },\r\n        \"packagist.org\": 42,\r\n        \"foo\\/bar\": { \"packagist.org\": null }\r\n    },\r\n    \"keywords\": [\r\n        \"0\",\r\n        \"bar\",\r\n        \"a\\/b\"\r\n    ],\r\n    \"repositories\": [{ \"type\": \"composer\", \"url\": \"file:\\/\\/\\/tmp\\/$1\" }, { \"scalar\": false }],\r\n    \"suggest\": {\r\n        \"monolog/monolog\": \"\"\r\n    }\r\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"repositories\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{ \"authors\":\t[], \"repositories\":\t[], \"require\":\t{ \"php-64bit\":\t\"$1\", \"php\":\t\"*\", \"Vendor/B\":\t\"1.0.*@dev\" }, \"prefer-stable\":\t[], \"support\":\t{ \"a\":\t\"alpha/a2\" }, \"scripts\":\t{ \"vendor/a\":\t1.5, \"branch-alias.dev-main\":\tnull, \"a/b\":\t{ \"0\":\t\"$1\" } }, \"autoload\":\t{ \"a/b\":\t{ \"branch-alias.dev-main\":\ttrue }, \"foo.bar\":\t[] } }"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"suggest\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n\t\"homepage\":\t[\"😀\", \"€\", false],\n\t\"repositories\":\t{\n\t\t\"1\":\t{\n\t\t\t\"url\":\t\"http://x/y\",\n\t\t\t\"type\":\t\"composer\"\n\t\t}\n\t},\n\t\"config\":\t{\n\t\t\"preferred-install\":\t{\n\t\t\t\"foo/*\":\t\"</script>\"\n\t\t}\n\t},\n\t\"é\":\t\"$1\",\n\t\"description\":\t\"Some ñ text\",\n\t\"suggest\":\t{\n\t\t\"php-64bit\":\t\">=7.4\",\n\t\t\"ext-foo\":\t\"^8.1\",\n\t\t\"Vendor/B\":\t\"a\\\"b\"\n\t}\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"license\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n\t\"autoload\" : {\n\t\t\"Foo\\\\Bar\\\\\" : {\"0\" : \"\"},\n\t\t\"vendor/a\" : {}\n\t},\n\t\"prefer-stable\" : 2.5e-5,\n\t\"0\" : [false,null,\"foo\"],\n\t\"support\" : [\n\t\tnull\n\t],\n\t\"minimum-stability\" : null,\n\t\"scripts\" : {\n\t\t\"Foo\\\\Bar\\\\\" : null\n\t},\n\t\"license\" : [\n\t\tnull,\n\t\t\"x\",\n\t\t\"0\",\n\t\t\"😀\"\n\t]\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"name\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n    \"name\":\t-0.0,\n    \"a.b\":\t[],\n    \"license\":\t[\n        \"a/b\"\n    ],\n    \"require\":\t{\n        \"ext-json\":\t\">=7.4\"\n    },\n    \"support\":\tnull,\n    \"config\":\t{\n        \"process-timeout\":\t{\n        },\n        \"vendor-dir\":\t{\n        }\n    },\n    \"keywords\":\t[\n        \"\\\"q\\\"\",\n        \"1.0\",\n        \"Some ñ text\"\n    ]\n}",
+                "{\r\n  \"support\": {\r\n  },\r\n  \"require-dev\": {\"alpha/a2\": \"*\",\"Vendor/B\": \"^8.1\",\"0\": \"\",\"vendor/b\": \"\"},\r\n  \"homepage\": null,\r\n  \"prefer-stable\": [\"\\\\\\\\1\"],\r\n  \"name\": \"ext-json\",\r\n  \"license\": [\"line\\nbreak\",\"Some \\u00f1 text\",\"\\\\\\\\1\"],\r\n  \"scripts\": {\r\n  }\r\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"homepage\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n    \"\" : \"alpha\\/a10\",\n    \"name\" : \"😀\",\n    \"suggest\" : {\n        \"hhvm\" : \"^1.0 || ^2.0\",\n        \"zeta\\/z\" : \"^1.0 || ^2.0\",\n        \"psr\\/log\" : \"dev-main\"\n    },\n    \"homepage\" : [true, \"\\\\\", null],\n    \"config\": {\n        \"policy\": {\n            \"custom\": {\n                \"ignore\": [\"composer-plugin-api\", true]\n            }\n        }\n    },\n    \"repositories\": {\n        \"bar\": {\n        }\n    }\n}",
+                "{\"scripts\":\t{\"foo.bar\":\t\"foo\",\"psr-4\":\t{\"packagist.org\":\t-5},\"test\":\t\"${1}\"},\"description\":\t[],\"0\":\tnull,\"homepage\":\t\"ext-mbstring\",\"name\":\t[],\"config\":\t{},\"with space\":\t1.0e+20}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"require\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n   \"scripts\": {},\n   \"a.b\": \"$1\",\n   \"homepage\": -0.0,\n   \"support\": \"\\\\\\\\1\",\n   \"require\": {\n      \"php-64bit\": \"dev-main\"\n   },\n   \"extra\": {\n      \"Foo\\\\Bar\\\\\": [\n         null,\n         \"alpha/a1\",\n         null\n      ]\n   }\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"extra\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{ \"autoload-dev\" : { \"vendor/a\" : false, \"packagist.org\" : 1.0e+20 }, \"config\" : { \"policy\" : { \"malware\" : { \"block-scope\" : \"\\\"q\\\"\" }, \"a\" : { \"b\" : { \"c\" : {\n          } } } }, \"process-timeout\" : 3.0, \"vendor-dir\" : \"\\\"q\\\"\" }, \"extra\" : { \"foo\" : { \"bar\" : \"monolog/monolog\" }, \"foo.bar\" : [1.0e+20, null] }, \"require\" : {\n  }, \"policy\" : { \"branch-alias.dev-main\" : [false], \"x.y.z\" : 2.5e-5 }, \"é\" : \"ext-json\", \"license\" : [\"${1}\", \"a/b\", \"1.0\"] }"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"config\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n  \"foo\" : \"é/ü\",\n  \"authors\" : [{\"name\" : \"\\\\\\\\1\"}],\n  \"suggest\" : { },\n  \"require-dev\" : {\"php-64bit\" : \"\\\\1\",\"foo/bar\" : \"\\\\\"},\n  \"autoload-dev\" : {\"foo/bar\" : null,\"bar\" : {\"foo.bar\" : \"😀\"},\"branch-alias.dev-main\" : 1.0e+20},\n  \"config\" : {\"policy\" : {\"malware\" : {\"block-scope\" : { }},\"a\" : {\"b\" : {\"c\" : { }}}},\"process-timeout\" : false,\"vendor-dir\" : { },\"foo\" : {\"bar\" : true}}\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?)(?P<removal>\"with space\"\\s*:\\s*(?&json))\\s*,?\\s*(?P<end>.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n\t\"0\" : {\n\t\t\"foo\" : \"Some ñ text\"\n\t},\n\t\"with space\" : [],\n\t\"policy\" : {\n\t},\n\t\"require\" : {\n\t\t\"foo/*\" : \"1.0.*@dev\",\n\t\t\"vendor/b\" : \"*\",\n\t\t\"php\" : \"^8.1\"\n\t},\n\t\"authors\" : [{ \"name\" : \"bar\" }, { \"name\" : \"x\" }],\n\t\"scripts\" : {\n\t\t\"foo.bar\" : [\"a/b\", \"$1\"],\n\t\t\"psr-4\" : \"a/b\",\n\t\t\"0\" : [\"lib-icu\"]\n\t},\n\t\"homepage\" : {\n\t}\n}"
+            ]
+        },
+        {
+            "pattern": "{(?(DEFINE)\n       (?<number>    -? (?= [1-9]|0(?!\\d) ) \\d++ (?:\\.\\d++)? (?:[eE] [+-]?+ \\d++)? )\n       (?<boolean>   true | false | null )\n       (?<string>    \" (?:[^\"\\\\]*+ | \\\\ [\"\\\\bfnrt\\/] | \\\\ u [0-9A-Fa-f]{4} )* \" )\n       (?<array>     \\[  (?:  (?&json) \\s*+ (?: , (?&json) \\s*+ )*+  )?+  \\s*+ \\] )\n       (?<pair>      \\s*+ (?&string) \\s*+ : (?&json) \\s*+ )\n       (?<object>    \\{  (?:  (?&pair)  (?: , (?&pair)  )*+  )?+  \\s*+ \\} )\n       (?<json>      \\s*+ (?: (?&number) | (?&boolean) | (?&string) | (?&array) | (?&object) ) )\n    )^(?P<start>\\s*\\{\\s*(?:(?&string)\\s*:\\s*(?&json)\\s*,\\s*)*?\"a\\.b\"\\s*:\\s*)(?P<removal>\\{(?P<removal_space>\\s*+)\\})(?P<end>\\s*,?\\s*.*)}sx",
+            "origin": "engine",
+            "subjects": [
+                "{\n\t\"homepage\": [\"\\\\\\\\1\", null, null],\n\t\"foo\": \"\\\\\",\n\t\"autoload\": { \"vendor/a\": \"foo/*\", \"branch-alias.dev-main\": \"foo bar/baz\" },\n\t\"a.b\": \"php-64bit\",\n\t\"with space\": null,\n\t\"config\": {\n\t\t\"foo\": {\n\t\t\t\"bar\": \"\"\n\t\t}\n\t}\n}"
+            ]
         }
     ]
 }

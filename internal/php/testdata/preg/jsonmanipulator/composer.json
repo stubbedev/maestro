@@ -1,0 +1,1722 @@
+{
+    "name": "composer/composer",
+    "type": "library",
+    "description": "Composer helps you declare, manage and install dependencies of PHP projects. It ensures you have the right stack everywhere.",
+    "keywords": [
+        "package",
+        "dependency",
+        "autoload"
+    ],
+    "homepage": "https://getcomposer.org/",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Nils Adermann",
+            "email": "naderman@naderman.de",
+            "homepage": "https://www.naderman.de"
+        },
+        {
+            "name": "Jordi Boggiano",
+            "email": "j.boggiano@seld.be",
+            "homepage": "https://seld.be"
+        }
+    ],
+    "require": {
+        "php": "^7.2.5 || ^8.0",
+        "ext-filter": "*",
+        "ext-hash": "*",
+        "ext-json": "*",
+        "composer/ca-bundle": "^1.5",
+        "composer/class-map-generator": "^1.4.0",
+        "composer/metadata-minifier": "^1.0",
+        "composer/semver": "^3.3",
+        "composer/spdx-licenses": "^1.5.7",
+        "composer/xdebug-handler": "^2.0.2 || ^3.0.3",
+        "justinrainbow/json-schema": "^6.5.1",
+        "psr/log": "^1.0 || ^2.0 || ^3.0",
+        "seld/jsonlint": "^1.4",
+        "seld/phar-utils": "^1.2",
+        "symfony/console": "^5.4.47 || ^6.4.25 || ^7.1.10 || ^8.0",
+        "symfony/filesystem": "^5.4.45 || ^6.4.24 || ^7.1.10 || ^8.0",
+        "symfony/finder": "^5.4.45 || ^6.4.24 || ^7.1.10 || ^8.0",
+        "symfony/process": "^5.4.47 || ^6.4.25 || ^7.1.10 || ^8.0",
+        "react/promise": "^3.3",
+        "composer/pcre": "^2.3 || ^3.3",
+        "symfony/polyfill-php73": "^1.24",
+        "symfony/polyfill-php80": "^1.24",
+        "symfony/polyfill-php81": "^1.24",
+        "symfony/polyfill-php84": "^1.30",
+        "seld/signal-handler": "^2.0",
+        "vendor0/package-number-0": "^0.0|~0.0.0 || >=0.0 <1.0-dev",
+        "vendor1/package-number-1": "^1.1|~1.1.0 || >=1.0 <2.0-dev",
+        "vendor2/package-number-2": "^2.2|~2.2.0 || >=2.0 <3.0-dev",
+        "vendor3/package-number-3": "^3.3|~3.3.0 || >=0.0 <1.0-dev",
+        "vendor4/package-number-4": "^4.4|~4.4.0 || >=1.0 <2.0-dev",
+        "vendor5/package-number-5": "^5.5|~0.5.0 || >=2.0 <3.0-dev",
+        "vendor6/package-number-6": "^6.6|~1.6.0 || >=0.0 <1.0-dev",
+        "vendor7/package-number-7": "^7.7|~2.0.0 || >=1.0 <2.0-dev",
+        "vendor8/package-number-8": "^8.8|~3.1.0 || >=2.0 <3.0-dev",
+        "vendor9/package-number-9": "^0.9|~4.2.0 || >=0.0 <1.0-dev",
+        "vendor10/package-number-10": "^1.10|~0.3.0 || >=1.0 <2.0-dev",
+        "vendor11/package-number-11": "^2.11|~1.4.0 || >=2.0 <3.0-dev",
+        "vendor12/package-number-12": "^3.12|~2.5.0 || >=0.0 <1.0-dev",
+        "vendor13/package-number-13": "^4.0|~3.6.0 || >=1.0 <2.0-dev",
+        "vendor14/package-number-14": "^5.1|~4.0.0 || >=2.0 <3.0-dev",
+        "vendor15/package-number-15": "^6.2|~0.1.0 || >=0.0 <1.0-dev",
+        "vendor16/package-number-16": "^7.3|~1.2.0 || >=1.0 <2.0-dev",
+        "vendor17/package-number-17": "^8.4|~2.3.0 || >=2.0 <3.0-dev",
+        "vendor18/package-number-18": "^0.5|~3.4.0 || >=0.0 <1.0-dev",
+        "vendor19/package-number-19": "^1.6|~4.5.0 || >=1.0 <2.0-dev",
+        "vendor20/package-number-20": "^2.7|~0.6.0 || >=2.0 <3.0-dev",
+        "vendor21/package-number-21": "^3.8|~1.0.0 || >=0.0 <1.0-dev",
+        "vendor22/package-number-22": "^4.9|~2.1.0 || >=1.0 <2.0-dev",
+        "vendor23/package-number-23": "^5.10|~3.2.0 || >=2.0 <3.0-dev",
+        "vendor24/package-number-24": "^6.11|~4.3.0 || >=0.0 <1.0-dev",
+        "vendor25/package-number-25": "^7.12|~0.4.0 || >=1.0 <2.0-dev",
+        "vendor26/package-number-26": "^8.0|~1.5.0 || >=2.0 <3.0-dev",
+        "vendor27/package-number-27": "^0.1|~2.6.0 || >=0.0 <1.0-dev",
+        "vendor28/package-number-28": "^1.2|~3.0.0 || >=1.0 <2.0-dev",
+        "vendor29/package-number-29": "^2.3|~4.1.0 || >=2.0 <3.0-dev",
+        "vendor30/package-number-30": "^3.4|~0.2.0 || >=0.0 <1.0-dev",
+        "vendor31/package-number-31": "^4.5|~1.3.0 || >=1.0 <2.0-dev",
+        "vendor32/package-number-32": "^5.6|~2.4.0 || >=2.0 <3.0-dev",
+        "vendor33/package-number-33": "^6.7|~3.5.0 || >=0.0 <1.0-dev",
+        "vendor34/package-number-34": "^7.8|~4.6.0 || >=1.0 <2.0-dev",
+        "vendor35/package-number-35": "^8.9|~0.0.0 || >=2.0 <3.0-dev",
+        "vendor36/package-number-36": "^0.10|~1.1.0 || >=0.0 <1.0-dev",
+        "vendor0/package-number-37": "^1.11|~2.2.0 || >=1.0 <2.0-dev",
+        "vendor1/package-number-38": "^2.12|~3.3.0 || >=2.0 <3.0-dev",
+        "vendor2/package-number-39": "^3.0|~4.4.0 || >=0.0 <1.0-dev",
+        "vendor3/package-number-40": "^4.1|~0.5.0 || >=1.0 <2.0-dev",
+        "vendor4/package-number-41": "^5.2|~1.6.0 || >=2.0 <3.0-dev",
+        "vendor5/package-number-42": "^6.3|~2.0.0 || >=0.0 <1.0-dev",
+        "vendor6/package-number-43": "^7.4|~3.1.0 || >=1.0 <2.0-dev",
+        "vendor7/package-number-44": "^8.5|~4.2.0 || >=2.0 <3.0-dev",
+        "vendor8/package-number-45": "^0.6|~0.3.0 || >=0.0 <1.0-dev",
+        "vendor9/package-number-46": "^1.7|~1.4.0 || >=1.0 <2.0-dev",
+        "vendor10/package-number-47": "^2.8|~2.5.0 || >=2.0 <3.0-dev",
+        "vendor11/package-number-48": "^3.9|~3.6.0 || >=0.0 <1.0-dev",
+        "vendor12/package-number-49": "^4.10|~4.0.0 || >=1.0 <2.0-dev",
+        "vendor13/package-number-50": "^5.11|~0.1.0 || >=2.0 <3.0-dev",
+        "vendor14/package-number-51": "^6.12|~1.2.0 || >=0.0 <1.0-dev",
+        "vendor15/package-number-52": "^7.0|~2.3.0 || >=1.0 <2.0-dev",
+        "vendor16/package-number-53": "^8.1|~3.4.0 || >=2.0 <3.0-dev",
+        "vendor17/package-number-54": "^0.2|~4.5.0 || >=0.0 <1.0-dev",
+        "vendor18/package-number-55": "^1.3|~0.6.0 || >=1.0 <2.0-dev",
+        "vendor19/package-number-56": "^2.4|~1.0.0 || >=2.0 <3.0-dev",
+        "vendor20/package-number-57": "^3.5|~2.1.0 || >=0.0 <1.0-dev",
+        "vendor21/package-number-58": "^4.6|~3.2.0 || >=1.0 <2.0-dev",
+        "vendor22/package-number-59": "^5.7|~4.3.0 || >=2.0 <3.0-dev",
+        "vendor23/package-number-60": "^6.8|~0.4.0 || >=0.0 <1.0-dev",
+        "vendor24/package-number-61": "^7.9|~1.5.0 || >=1.0 <2.0-dev",
+        "vendor25/package-number-62": "^8.10|~2.6.0 || >=2.0 <3.0-dev",
+        "vendor26/package-number-63": "^0.11|~3.0.0 || >=0.0 <1.0-dev",
+        "vendor27/package-number-64": "^1.12|~4.1.0 || >=1.0 <2.0-dev",
+        "vendor28/package-number-65": "^2.0|~0.2.0 || >=2.0 <3.0-dev",
+        "vendor29/package-number-66": "^3.1|~1.3.0 || >=0.0 <1.0-dev",
+        "vendor30/package-number-67": "^4.2|~2.4.0 || >=1.0 <2.0-dev",
+        "vendor31/package-number-68": "^5.3|~3.5.0 || >=2.0 <3.0-dev",
+        "vendor32/package-number-69": "^6.4|~4.6.0 || >=0.0 <1.0-dev",
+        "vendor33/package-number-70": "^7.5|~0.0.0 || >=1.0 <2.0-dev",
+        "vendor34/package-number-71": "^8.6|~1.1.0 || >=2.0 <3.0-dev",
+        "vendor35/package-number-72": "^0.7|~2.2.0 || >=0.0 <1.0-dev",
+        "vendor36/package-number-73": "^1.8|~3.3.0 || >=1.0 <2.0-dev",
+        "vendor0/package-number-74": "^2.9|~4.4.0 || >=2.0 <3.0-dev",
+        "vendor1/package-number-75": "^3.10|~0.5.0 || >=0.0 <1.0-dev",
+        "vendor2/package-number-76": "^4.11|~1.6.0 || >=1.0 <2.0-dev",
+        "vendor3/package-number-77": "^5.12|~2.0.0 || >=2.0 <3.0-dev",
+        "vendor4/package-number-78": "^6.0|~3.1.0 || >=0.0 <1.0-dev",
+        "vendor5/package-number-79": "^7.1|~4.2.0 || >=1.0 <2.0-dev",
+        "vendor6/package-number-80": "^8.2|~0.3.0 || >=2.0 <3.0-dev",
+        "vendor7/package-number-81": "^0.3|~1.4.0 || >=0.0 <1.0-dev",
+        "vendor8/package-number-82": "^1.4|~2.5.0 || >=1.0 <2.0-dev",
+        "vendor9/package-number-83": "^2.5|~3.6.0 || >=2.0 <3.0-dev",
+        "vendor10/package-number-84": "^3.6|~4.0.0 || >=0.0 <1.0-dev",
+        "vendor11/package-number-85": "^4.7|~0.1.0 || >=1.0 <2.0-dev",
+        "vendor12/package-number-86": "^5.8|~1.2.0 || >=2.0 <3.0-dev",
+        "vendor13/package-number-87": "^6.9|~2.3.0 || >=0.0 <1.0-dev",
+        "vendor14/package-number-88": "^7.10|~3.4.0 || >=1.0 <2.0-dev",
+        "vendor15/package-number-89": "^8.11|~4.5.0 || >=2.0 <3.0-dev",
+        "vendor16/package-number-90": "^0.12|~0.6.0 || >=0.0 <1.0-dev",
+        "vendor17/package-number-91": "^1.0|~1.0.0 || >=1.0 <2.0-dev",
+        "vendor18/package-number-92": "^2.1|~2.1.0 || >=2.0 <3.0-dev",
+        "vendor19/package-number-93": "^3.2|~3.2.0 || >=0.0 <1.0-dev",
+        "vendor20/package-number-94": "^4.3|~4.3.0 || >=1.0 <2.0-dev",
+        "vendor21/package-number-95": "^5.4|~0.4.0 || >=2.0 <3.0-dev",
+        "vendor22/package-number-96": "^6.5|~1.5.0 || >=0.0 <1.0-dev",
+        "vendor23/package-number-97": "^7.6|~2.6.0 || >=1.0 <2.0-dev",
+        "vendor24/package-number-98": "^8.7|~3.0.0 || >=2.0 <3.0-dev",
+        "vendor25/package-number-99": "^0.8|~4.1.0 || >=0.0 <1.0-dev",
+        "vendor26/package-number-100": "^1.9|~0.2.0 || >=1.0 <2.0-dev",
+        "vendor27/package-number-101": "^2.10|~1.3.0 || >=2.0 <3.0-dev",
+        "vendor28/package-number-102": "^3.11|~2.4.0 || >=0.0 <1.0-dev",
+        "vendor29/package-number-103": "^4.12|~3.5.0 || >=1.0 <2.0-dev",
+        "vendor30/package-number-104": "^5.0|~4.6.0 || >=2.0 <3.0-dev",
+        "vendor31/package-number-105": "^6.1|~0.0.0 || >=0.0 <1.0-dev",
+        "vendor32/package-number-106": "^7.2|~1.1.0 || >=1.0 <2.0-dev",
+        "vendor33/package-number-107": "^8.3|~2.2.0 || >=2.0 <3.0-dev",
+        "vendor34/package-number-108": "^0.4|~3.3.0 || >=0.0 <1.0-dev",
+        "vendor35/package-number-109": "^1.5|~4.4.0 || >=1.0 <2.0-dev",
+        "vendor36/package-number-110": "^2.6|~0.5.0 || >=2.0 <3.0-dev",
+        "vendor0/package-number-111": "^3.7|~1.6.0 || >=0.0 <1.0-dev",
+        "vendor1/package-number-112": "^4.8|~2.0.0 || >=1.0 <2.0-dev",
+        "vendor2/package-number-113": "^5.9|~3.1.0 || >=2.0 <3.0-dev",
+        "vendor3/package-number-114": "^6.10|~4.2.0 || >=0.0 <1.0-dev",
+        "vendor4/package-number-115": "^7.11|~0.3.0 || >=1.0 <2.0-dev",
+        "vendor5/package-number-116": "^8.12|~1.4.0 || >=2.0 <3.0-dev",
+        "vendor6/package-number-117": "^0.0|~2.5.0 || >=0.0 <1.0-dev",
+        "vendor7/package-number-118": "^1.1|~3.6.0 || >=1.0 <2.0-dev",
+        "vendor8/package-number-119": "^2.2|~4.0.0 || >=2.0 <3.0-dev",
+        "vendor9/package-number-120": "^3.3|~0.1.0 || >=0.0 <1.0-dev",
+        "vendor10/package-number-121": "^4.4|~1.2.0 || >=1.0 <2.0-dev",
+        "vendor11/package-number-122": "^5.5|~2.3.0 || >=2.0 <3.0-dev",
+        "vendor12/package-number-123": "^6.6|~3.4.0 || >=0.0 <1.0-dev",
+        "vendor13/package-number-124": "^7.7|~4.5.0 || >=1.0 <2.0-dev",
+        "vendor14/package-number-125": "^8.8|~0.6.0 || >=2.0 <3.0-dev",
+        "vendor15/package-number-126": "^0.9|~1.0.0 || >=0.0 <1.0-dev",
+        "vendor16/package-number-127": "^1.10|~2.1.0 || >=1.0 <2.0-dev",
+        "vendor17/package-number-128": "^2.11|~3.2.0 || >=2.0 <3.0-dev",
+        "vendor18/package-number-129": "^3.12|~4.3.0 || >=0.0 <1.0-dev",
+        "vendor19/package-number-130": "^4.0|~0.4.0 || >=1.0 <2.0-dev",
+        "vendor20/package-number-131": "^5.1|~1.5.0 || >=2.0 <3.0-dev",
+        "vendor21/package-number-132": "^6.2|~2.6.0 || >=0.0 <1.0-dev",
+        "vendor22/package-number-133": "^7.3|~3.0.0 || >=1.0 <2.0-dev",
+        "vendor23/package-number-134": "^8.4|~4.1.0 || >=2.0 <3.0-dev",
+        "vendor24/package-number-135": "^0.5|~0.2.0 || >=0.0 <1.0-dev",
+        "vendor25/package-number-136": "^1.6|~1.3.0 || >=1.0 <2.0-dev",
+        "vendor26/package-number-137": "^2.7|~2.4.0 || >=2.0 <3.0-dev",
+        "vendor27/package-number-138": "^3.8|~3.5.0 || >=0.0 <1.0-dev",
+        "vendor28/package-number-139": "^4.9|~4.6.0 || >=1.0 <2.0-dev",
+        "vendor29/package-number-140": "^5.10|~0.0.0 || >=2.0 <3.0-dev",
+        "vendor30/package-number-141": "^6.11|~1.1.0 || >=0.0 <1.0-dev",
+        "vendor31/package-number-142": "^7.12|~2.2.0 || >=1.0 <2.0-dev",
+        "vendor32/package-number-143": "^8.0|~3.3.0 || >=2.0 <3.0-dev",
+        "vendor33/package-number-144": "^0.1|~4.4.0 || >=0.0 <1.0-dev",
+        "vendor34/package-number-145": "^1.2|~0.5.0 || >=1.0 <2.0-dev",
+        "vendor35/package-number-146": "^2.3|~1.6.0 || >=2.0 <3.0-dev",
+        "vendor36/package-number-147": "^3.4|~2.0.0 || >=0.0 <1.0-dev",
+        "vendor0/package-number-148": "^4.5|~3.1.0 || >=1.0 <2.0-dev",
+        "vendor1/package-number-149": "^5.6|~4.2.0 || >=2.0 <3.0-dev",
+        "vendor2/package-number-150": "^6.7|~0.3.0 || >=0.0 <1.0-dev",
+        "vendor3/package-number-151": "^7.8|~1.4.0 || >=1.0 <2.0-dev",
+        "vendor4/package-number-152": "^8.9|~2.5.0 || >=2.0 <3.0-dev",
+        "vendor5/package-number-153": "^0.10|~3.6.0 || >=0.0 <1.0-dev",
+        "vendor6/package-number-154": "^1.11|~4.0.0 || >=1.0 <2.0-dev",
+        "vendor7/package-number-155": "^2.12|~0.1.0 || >=2.0 <3.0-dev",
+        "vendor8/package-number-156": "^3.0|~1.2.0 || >=0.0 <1.0-dev",
+        "vendor9/package-number-157": "^4.1|~2.3.0 || >=1.0 <2.0-dev",
+        "vendor10/package-number-158": "^5.2|~3.4.0 || >=2.0 <3.0-dev",
+        "vendor11/package-number-159": "^6.3|~4.5.0 || >=0.0 <1.0-dev",
+        "vendor12/package-number-160": "^7.4|~0.6.0 || >=1.0 <2.0-dev",
+        "vendor13/package-number-161": "^8.5|~1.0.0 || >=2.0 <3.0-dev",
+        "vendor14/package-number-162": "^0.6|~2.1.0 || >=0.0 <1.0-dev",
+        "vendor15/package-number-163": "^1.7|~3.2.0 || >=1.0 <2.0-dev",
+        "vendor16/package-number-164": "^2.8|~4.3.0 || >=2.0 <3.0-dev",
+        "vendor17/package-number-165": "^3.9|~0.4.0 || >=0.0 <1.0-dev",
+        "vendor18/package-number-166": "^4.10|~1.5.0 || >=1.0 <2.0-dev",
+        "vendor19/package-number-167": "^5.11|~2.6.0 || >=2.0 <3.0-dev",
+        "vendor20/package-number-168": "^6.12|~3.0.0 || >=0.0 <1.0-dev",
+        "vendor21/package-number-169": "^7.0|~4.1.0 || >=1.0 <2.0-dev",
+        "vendor22/package-number-170": "^8.1|~0.2.0 || >=2.0 <3.0-dev",
+        "vendor23/package-number-171": "^0.2|~1.3.0 || >=0.0 <1.0-dev",
+        "vendor24/package-number-172": "^1.3|~2.4.0 || >=1.0 <2.0-dev",
+        "vendor25/package-number-173": "^2.4|~3.5.0 || >=2.0 <3.0-dev",
+        "vendor26/package-number-174": "^3.5|~4.6.0 || >=0.0 <1.0-dev",
+        "vendor27/package-number-175": "^4.6|~0.0.0 || >=1.0 <2.0-dev",
+        "vendor28/package-number-176": "^5.7|~1.1.0 || >=2.0 <3.0-dev",
+        "vendor29/package-number-177": "^6.8|~2.2.0 || >=0.0 <1.0-dev",
+        "vendor30/package-number-178": "^7.9|~3.3.0 || >=1.0 <2.0-dev",
+        "vendor31/package-number-179": "^8.10|~4.4.0 || >=2.0 <3.0-dev",
+        "vendor32/package-number-180": "^0.11|~0.5.0 || >=0.0 <1.0-dev",
+        "vendor33/package-number-181": "^1.12|~1.6.0 || >=1.0 <2.0-dev",
+        "vendor34/package-number-182": "^2.0|~2.0.0 || >=2.0 <3.0-dev",
+        "vendor35/package-number-183": "^3.1|~3.1.0 || >=0.0 <1.0-dev",
+        "vendor36/package-number-184": "^4.2|~4.2.0 || >=1.0 <2.0-dev",
+        "vendor0/package-number-185": "^5.3|~0.3.0 || >=2.0 <3.0-dev",
+        "vendor1/package-number-186": "^6.4|~1.4.0 || >=0.0 <1.0-dev",
+        "vendor2/package-number-187": "^7.5|~2.5.0 || >=1.0 <2.0-dev",
+        "vendor3/package-number-188": "^8.6|~3.6.0 || >=2.0 <3.0-dev",
+        "vendor4/package-number-189": "^0.7|~4.0.0 || >=0.0 <1.0-dev",
+        "vendor5/package-number-190": "^1.8|~0.1.0 || >=1.0 <2.0-dev",
+        "vendor6/package-number-191": "^2.9|~1.2.0 || >=2.0 <3.0-dev",
+        "vendor7/package-number-192": "^3.10|~2.3.0 || >=0.0 <1.0-dev",
+        "vendor8/package-number-193": "^4.11|~3.4.0 || >=1.0 <2.0-dev",
+        "vendor9/package-number-194": "^5.12|~4.5.0 || >=2.0 <3.0-dev",
+        "vendor10/package-number-195": "^6.0|~0.6.0 || >=0.0 <1.0-dev",
+        "vendor11/package-number-196": "^7.1|~1.0.0 || >=1.0 <2.0-dev",
+        "vendor12/package-number-197": "^8.2|~2.1.0 || >=2.0 <3.0-dev",
+        "vendor13/package-number-198": "^0.3|~3.2.0 || >=0.0 <1.0-dev",
+        "vendor14/package-number-199": "^1.4|~4.3.0 || >=1.0 <2.0-dev",
+        "vendor15/package-number-200": "^2.5|~0.4.0 || >=2.0 <3.0-dev",
+        "vendor16/package-number-201": "^3.6|~1.5.0 || >=0.0 <1.0-dev",
+        "vendor17/package-number-202": "^4.7|~2.6.0 || >=1.0 <2.0-dev",
+        "vendor18/package-number-203": "^5.8|~3.0.0 || >=2.0 <3.0-dev",
+        "vendor19/package-number-204": "^6.9|~4.1.0 || >=0.0 <1.0-dev",
+        "vendor20/package-number-205": "^7.10|~0.2.0 || >=1.0 <2.0-dev",
+        "vendor21/package-number-206": "^8.11|~1.3.0 || >=2.0 <3.0-dev",
+        "vendor22/package-number-207": "^0.12|~2.4.0 || >=0.0 <1.0-dev",
+        "vendor23/package-number-208": "^1.0|~3.5.0 || >=1.0 <2.0-dev",
+        "vendor24/package-number-209": "^2.1|~4.6.0 || >=2.0 <3.0-dev",
+        "vendor25/package-number-210": "^3.2|~0.0.0 || >=0.0 <1.0-dev",
+        "vendor26/package-number-211": "^4.3|~1.1.0 || >=1.0 <2.0-dev",
+        "vendor27/package-number-212": "^5.4|~2.2.0 || >=2.0 <3.0-dev",
+        "vendor28/package-number-213": "^6.5|~3.3.0 || >=0.0 <1.0-dev",
+        "vendor29/package-number-214": "^7.6|~4.4.0 || >=1.0 <2.0-dev",
+        "vendor30/package-number-215": "^8.7|~0.5.0 || >=2.0 <3.0-dev",
+        "vendor31/package-number-216": "^0.8|~1.6.0 || >=0.0 <1.0-dev",
+        "vendor32/package-number-217": "^1.9|~2.0.0 || >=1.0 <2.0-dev",
+        "vendor33/package-number-218": "^2.10|~3.1.0 || >=2.0 <3.0-dev",
+        "vendor34/package-number-219": "^3.11|~4.2.0 || >=0.0 <1.0-dev",
+        "vendor35/package-number-220": "^4.12|~0.3.0 || >=1.0 <2.0-dev",
+        "vendor36/package-number-221": "^5.0|~1.4.0 || >=2.0 <3.0-dev",
+        "vendor0/package-number-222": "^6.1|~2.5.0 || >=0.0 <1.0-dev",
+        "vendor1/package-number-223": "^7.2|~3.6.0 || >=1.0 <2.0-dev",
+        "vendor2/package-number-224": "^8.3|~4.0.0 || >=2.0 <3.0-dev",
+        "vendor3/package-number-225": "^0.4|~0.1.0 || >=0.0 <1.0-dev",
+        "vendor4/package-number-226": "^1.5|~1.2.0 || >=1.0 <2.0-dev",
+        "vendor5/package-number-227": "^2.6|~2.3.0 || >=2.0 <3.0-dev",
+        "vendor6/package-number-228": "^3.7|~3.4.0 || >=0.0 <1.0-dev",
+        "vendor7/package-number-229": "^4.8|~4.5.0 || >=1.0 <2.0-dev",
+        "vendor8/package-number-230": "^5.9|~0.6.0 || >=2.0 <3.0-dev",
+        "vendor9/package-number-231": "^6.10|~1.0.0 || >=0.0 <1.0-dev",
+        "vendor10/package-number-232": "^7.11|~2.1.0 || >=1.0 <2.0-dev",
+        "vendor11/package-number-233": "^8.12|~3.2.0 || >=2.0 <3.0-dev",
+        "vendor12/package-number-234": "^0.0|~4.3.0 || >=0.0 <1.0-dev",
+        "vendor13/package-number-235": "^1.1|~0.4.0 || >=1.0 <2.0-dev",
+        "vendor14/package-number-236": "^2.2|~1.5.0 || >=2.0 <3.0-dev",
+        "vendor15/package-number-237": "^3.3|~2.6.0 || >=0.0 <1.0-dev",
+        "vendor16/package-number-238": "^4.4|~3.0.0 || >=1.0 <2.0-dev",
+        "vendor17/package-number-239": "^5.5|~4.1.0 || >=2.0 <3.0-dev",
+        "vendor18/package-number-240": "^6.6|~0.2.0 || >=0.0 <1.0-dev",
+        "vendor19/package-number-241": "^7.7|~1.3.0 || >=1.0 <2.0-dev",
+        "vendor20/package-number-242": "^8.8|~2.4.0 || >=2.0 <3.0-dev",
+        "vendor21/package-number-243": "^0.9|~3.5.0 || >=0.0 <1.0-dev",
+        "vendor22/package-number-244": "^1.10|~4.6.0 || >=1.0 <2.0-dev",
+        "vendor23/package-number-245": "^2.11|~0.0.0 || >=2.0 <3.0-dev",
+        "vendor24/package-number-246": "^3.12|~1.1.0 || >=0.0 <1.0-dev",
+        "vendor25/package-number-247": "^4.0|~2.2.0 || >=1.0 <2.0-dev",
+        "vendor26/package-number-248": "^5.1|~3.3.0 || >=2.0 <3.0-dev",
+        "vendor27/package-number-249": "^6.2|~4.4.0 || >=0.0 <1.0-dev",
+        "vendor28/package-number-250": "^7.3|~0.5.0 || >=1.0 <2.0-dev",
+        "vendor29/package-number-251": "^8.4|~1.6.0 || >=2.0 <3.0-dev",
+        "vendor30/package-number-252": "^0.5|~2.0.0 || >=0.0 <1.0-dev",
+        "vendor31/package-number-253": "^1.6|~3.1.0 || >=1.0 <2.0-dev",
+        "vendor32/package-number-254": "^2.7|~4.2.0 || >=2.0 <3.0-dev",
+        "vendor33/package-number-255": "^3.8|~0.3.0 || >=0.0 <1.0-dev",
+        "vendor34/package-number-256": "^4.9|~1.4.0 || >=1.0 <2.0-dev",
+        "vendor35/package-number-257": "^5.10|~2.5.0 || >=2.0 <3.0-dev",
+        "vendor36/package-number-258": "^6.11|~3.6.0 || >=0.0 <1.0-dev",
+        "vendor0/package-number-259": "^7.12|~4.0.0 || >=1.0 <2.0-dev",
+        "vendor1/package-number-260": "^8.0|~0.1.0 || >=2.0 <3.0-dev",
+        "vendor2/package-number-261": "^0.1|~1.2.0 || >=0.0 <1.0-dev",
+        "vendor3/package-number-262": "^1.2|~2.3.0 || >=1.0 <2.0-dev",
+        "vendor4/package-number-263": "^2.3|~3.4.0 || >=2.0 <3.0-dev",
+        "vendor5/package-number-264": "^3.4|~4.5.0 || >=0.0 <1.0-dev",
+        "vendor6/package-number-265": "^4.5|~0.6.0 || >=1.0 <2.0-dev",
+        "vendor7/package-number-266": "^5.6|~1.0.0 || >=2.0 <3.0-dev",
+        "vendor8/package-number-267": "^6.7|~2.1.0 || >=0.0 <1.0-dev",
+        "vendor9/package-number-268": "^7.8|~3.2.0 || >=1.0 <2.0-dev",
+        "vendor10/package-number-269": "^8.9|~4.3.0 || >=2.0 <3.0-dev",
+        "vendor11/package-number-270": "^0.10|~0.4.0 || >=0.0 <1.0-dev",
+        "vendor12/package-number-271": "^1.11|~1.5.0 || >=1.0 <2.0-dev",
+        "vendor13/package-number-272": "^2.12|~2.6.0 || >=2.0 <3.0-dev",
+        "vendor14/package-number-273": "^3.0|~3.0.0 || >=0.0 <1.0-dev",
+        "vendor15/package-number-274": "^4.1|~4.1.0 || >=1.0 <2.0-dev",
+        "vendor16/package-number-275": "^5.2|~0.2.0 || >=2.0 <3.0-dev",
+        "vendor17/package-number-276": "^6.3|~1.3.0 || >=0.0 <1.0-dev",
+        "vendor18/package-number-277": "^7.4|~2.4.0 || >=1.0 <2.0-dev",
+        "vendor19/package-number-278": "^8.5|~3.5.0 || >=2.0 <3.0-dev",
+        "vendor20/package-number-279": "^0.6|~4.6.0 || >=0.0 <1.0-dev",
+        "vendor21/package-number-280": "^1.7|~0.0.0 || >=1.0 <2.0-dev",
+        "vendor22/package-number-281": "^2.8|~1.1.0 || >=2.0 <3.0-dev",
+        "vendor23/package-number-282": "^3.9|~2.2.0 || >=0.0 <1.0-dev",
+        "vendor24/package-number-283": "^4.10|~3.3.0 || >=1.0 <2.0-dev",
+        "vendor25/package-number-284": "^5.11|~4.4.0 || >=2.0 <3.0-dev",
+        "vendor26/package-number-285": "^6.12|~0.5.0 || >=0.0 <1.0-dev",
+        "vendor27/package-number-286": "^7.0|~1.6.0 || >=1.0 <2.0-dev",
+        "vendor28/package-number-287": "^8.1|~2.0.0 || >=2.0 <3.0-dev",
+        "vendor29/package-number-288": "^0.2|~3.1.0 || >=0.0 <1.0-dev",
+        "vendor30/package-number-289": "^1.3|~4.2.0 || >=1.0 <2.0-dev",
+        "vendor31/package-number-290": "^2.4|~0.3.0 || >=2.0 <3.0-dev",
+        "vendor32/package-number-291": "^3.5|~1.4.0 || >=0.0 <1.0-dev",
+        "vendor33/package-number-292": "^4.6|~2.5.0 || >=1.0 <2.0-dev",
+        "vendor34/package-number-293": "^5.7|~3.6.0 || >=2.0 <3.0-dev",
+        "vendor35/package-number-294": "^6.8|~4.0.0 || >=0.0 <1.0-dev",
+        "vendor36/package-number-295": "^7.9|~0.1.0 || >=1.0 <2.0-dev",
+        "vendor0/package-number-296": "^8.10|~1.2.0 || >=2.0 <3.0-dev",
+        "vendor1/package-number-297": "^0.11|~2.3.0 || >=0.0 <1.0-dev",
+        "vendor2/package-number-298": "^1.12|~3.4.0 || >=1.0 <2.0-dev",
+        "vendor3/package-number-299": "^2.0|~4.5.0 || >=2.0 <3.0-dev",
+        "vendor4/package-number-300": "^3.1|~0.6.0 || >=0.0 <1.0-dev",
+        "vendor5/package-number-301": "^4.2|~1.0.0 || >=1.0 <2.0-dev",
+        "vendor6/package-number-302": "^5.3|~2.1.0 || >=2.0 <3.0-dev",
+        "vendor7/package-number-303": "^6.4|~3.2.0 || >=0.0 <1.0-dev",
+        "vendor8/package-number-304": "^7.5|~4.3.0 || >=1.0 <2.0-dev",
+        "vendor9/package-number-305": "^8.6|~0.4.0 || >=2.0 <3.0-dev",
+        "vendor10/package-number-306": "^0.7|~1.5.0 || >=0.0 <1.0-dev",
+        "vendor11/package-number-307": "^1.8|~2.6.0 || >=1.0 <2.0-dev",
+        "vendor12/package-number-308": "^2.9|~3.0.0 || >=2.0 <3.0-dev",
+        "vendor13/package-number-309": "^3.10|~4.1.0 || >=0.0 <1.0-dev",
+        "vendor14/package-number-310": "^4.11|~0.2.0 || >=1.0 <2.0-dev",
+        "vendor15/package-number-311": "^5.12|~1.3.0 || >=2.0 <3.0-dev",
+        "vendor16/package-number-312": "^6.0|~2.4.0 || >=0.0 <1.0-dev",
+        "vendor17/package-number-313": "^7.1|~3.5.0 || >=1.0 <2.0-dev",
+        "vendor18/package-number-314": "^8.2|~4.6.0 || >=2.0 <3.0-dev",
+        "vendor19/package-number-315": "^0.3|~0.0.0 || >=0.0 <1.0-dev",
+        "vendor20/package-number-316": "^1.4|~1.1.0 || >=1.0 <2.0-dev",
+        "vendor21/package-number-317": "^2.5|~2.2.0 || >=2.0 <3.0-dev",
+        "vendor22/package-number-318": "^3.6|~3.3.0 || >=0.0 <1.0-dev",
+        "vendor23/package-number-319": "^4.7|~4.4.0 || >=1.0 <2.0-dev",
+        "vendor24/package-number-320": "^5.8|~0.5.0 || >=2.0 <3.0-dev",
+        "vendor25/package-number-321": "^6.9|~1.6.0 || >=0.0 <1.0-dev",
+        "vendor26/package-number-322": "^7.10|~2.0.0 || >=1.0 <2.0-dev",
+        "vendor27/package-number-323": "^8.11|~3.1.0 || >=2.0 <3.0-dev",
+        "vendor28/package-number-324": "^0.12|~4.2.0 || >=0.0 <1.0-dev",
+        "vendor29/package-number-325": "^1.0|~0.3.0 || >=1.0 <2.0-dev",
+        "vendor30/package-number-326": "^2.1|~1.4.0 || >=2.0 <3.0-dev",
+        "vendor31/package-number-327": "^3.2|~2.5.0 || >=0.0 <1.0-dev",
+        "vendor32/package-number-328": "^4.3|~3.6.0 || >=1.0 <2.0-dev",
+        "vendor33/package-number-329": "^5.4|~4.0.0 || >=2.0 <3.0-dev",
+        "vendor34/package-number-330": "^6.5|~0.1.0 || >=0.0 <1.0-dev",
+        "vendor35/package-number-331": "^7.6|~1.2.0 || >=1.0 <2.0-dev",
+        "vendor36/package-number-332": "^8.7|~2.3.0 || >=2.0 <3.0-dev",
+        "vendor0/package-number-333": "^0.8|~3.4.0 || >=0.0 <1.0-dev",
+        "vendor1/package-number-334": "^1.9|~4.5.0 || >=1.0 <2.0-dev",
+        "vendor2/package-number-335": "^2.10|~0.6.0 || >=2.0 <3.0-dev",
+        "vendor3/package-number-336": "^3.11|~1.0.0 || >=0.0 <1.0-dev",
+        "vendor4/package-number-337": "^4.12|~2.1.0 || >=1.0 <2.0-dev",
+        "vendor5/package-number-338": "^5.0|~3.2.0 || >=2.0 <3.0-dev",
+        "vendor6/package-number-339": "^6.1|~4.3.0 || >=0.0 <1.0-dev",
+        "vendor7/package-number-340": "^7.2|~0.4.0 || >=1.0 <2.0-dev",
+        "vendor8/package-number-341": "^8.3|~1.5.0 || >=2.0 <3.0-dev",
+        "vendor9/package-number-342": "^0.4|~2.6.0 || >=0.0 <1.0-dev",
+        "vendor10/package-number-343": "^1.5|~3.0.0 || >=1.0 <2.0-dev",
+        "vendor11/package-number-344": "^2.6|~4.1.0 || >=2.0 <3.0-dev",
+        "vendor12/package-number-345": "^3.7|~0.2.0 || >=0.0 <1.0-dev",
+        "vendor13/package-number-346": "^4.8|~1.3.0 || >=1.0 <2.0-dev",
+        "vendor14/package-number-347": "^5.9|~2.4.0 || >=2.0 <3.0-dev",
+        "vendor15/package-number-348": "^6.10|~3.5.0 || >=0.0 <1.0-dev",
+        "vendor16/package-number-349": "^7.11|~4.6.0 || >=1.0 <2.0-dev",
+        "vendor17/package-number-350": "^8.12|~0.0.0 || >=2.0 <3.0-dev",
+        "vendor18/package-number-351": "^0.0|~1.1.0 || >=0.0 <1.0-dev",
+        "vendor19/package-number-352": "^1.1|~2.2.0 || >=1.0 <2.0-dev",
+        "vendor20/package-number-353": "^2.2|~3.3.0 || >=2.0 <3.0-dev",
+        "vendor21/package-number-354": "^3.3|~4.4.0 || >=0.0 <1.0-dev",
+        "vendor22/package-number-355": "^4.4|~0.5.0 || >=1.0 <2.0-dev",
+        "vendor23/package-number-356": "^5.5|~1.6.0 || >=2.0 <3.0-dev",
+        "vendor24/package-number-357": "^6.6|~2.0.0 || >=0.0 <1.0-dev",
+        "vendor25/package-number-358": "^7.7|~3.1.0 || >=1.0 <2.0-dev",
+        "vendor26/package-number-359": "^8.8|~4.2.0 || >=2.0 <3.0-dev",
+        "vendor27/package-number-360": "^0.9|~0.3.0 || >=0.0 <1.0-dev",
+        "vendor28/package-number-361": "^1.10|~1.4.0 || >=1.0 <2.0-dev",
+        "vendor29/package-number-362": "^2.11|~2.5.0 || >=2.0 <3.0-dev",
+        "vendor30/package-number-363": "^3.12|~3.6.0 || >=0.0 <1.0-dev",
+        "vendor31/package-number-364": "^4.0|~4.0.0 || >=1.0 <2.0-dev",
+        "vendor32/package-number-365": "^5.1|~0.1.0 || >=2.0 <3.0-dev",
+        "vendor33/package-number-366": "^6.2|~1.2.0 || >=0.0 <1.0-dev",
+        "vendor34/package-number-367": "^7.3|~2.3.0 || >=1.0 <2.0-dev",
+        "vendor35/package-number-368": "^8.4|~3.4.0 || >=2.0 <3.0-dev",
+        "vendor36/package-number-369": "^0.5|~4.5.0 || >=0.0 <1.0-dev",
+        "vendor0/package-number-370": "^1.6|~0.6.0 || >=1.0 <2.0-dev",
+        "vendor1/package-number-371": "^2.7|~1.0.0 || >=2.0 <3.0-dev",
+        "vendor2/package-number-372": "^3.8|~2.1.0 || >=0.0 <1.0-dev",
+        "vendor3/package-number-373": "^4.9|~3.2.0 || >=1.0 <2.0-dev",
+        "vendor4/package-number-374": "^5.10|~4.3.0 || >=2.0 <3.0-dev",
+        "vendor5/package-number-375": "^6.11|~0.4.0 || >=0.0 <1.0-dev",
+        "vendor6/package-number-376": "^7.12|~1.5.0 || >=1.0 <2.0-dev",
+        "vendor7/package-number-377": "^8.0|~2.6.0 || >=2.0 <3.0-dev",
+        "vendor8/package-number-378": "^0.1|~3.0.0 || >=0.0 <1.0-dev",
+        "vendor9/package-number-379": "^1.2|~4.1.0 || >=1.0 <2.0-dev",
+        "vendor10/package-number-380": "^2.3|~0.2.0 || >=2.0 <3.0-dev",
+        "vendor11/package-number-381": "^3.4|~1.3.0 || >=0.0 <1.0-dev",
+        "vendor12/package-number-382": "^4.5|~2.4.0 || >=1.0 <2.0-dev",
+        "vendor13/package-number-383": "^5.6|~3.5.0 || >=2.0 <3.0-dev",
+        "vendor14/package-number-384": "^6.7|~4.6.0 || >=0.0 <1.0-dev",
+        "vendor15/package-number-385": "^7.8|~0.0.0 || >=1.0 <2.0-dev",
+        "vendor16/package-number-386": "^8.9|~1.1.0 || >=2.0 <3.0-dev",
+        "vendor17/package-number-387": "^0.10|~2.2.0 || >=0.0 <1.0-dev",
+        "vendor18/package-number-388": "^1.11|~3.3.0 || >=1.0 <2.0-dev",
+        "vendor19/package-number-389": "^2.12|~4.4.0 || >=2.0 <3.0-dev",
+        "vendor20/package-number-390": "^3.0|~0.5.0 || >=0.0 <1.0-dev",
+        "vendor21/package-number-391": "^4.1|~1.6.0 || >=1.0 <2.0-dev",
+        "vendor22/package-number-392": "^5.2|~2.0.0 || >=2.0 <3.0-dev",
+        "vendor23/package-number-393": "^6.3|~3.1.0 || >=0.0 <1.0-dev",
+        "vendor24/package-number-394": "^7.4|~4.2.0 || >=1.0 <2.0-dev",
+        "vendor25/package-number-395": "^8.5|~0.3.0 || >=2.0 <3.0-dev",
+        "vendor26/package-number-396": "^0.6|~1.4.0 || >=0.0 <1.0-dev",
+        "vendor27/package-number-397": "^1.7|~2.5.0 || >=1.0 <2.0-dev",
+        "vendor28/package-number-398": "^2.8|~3.6.0 || >=2.0 <3.0-dev",
+        "vendor29/package-number-399": "^3.9|~4.0.0 || >=0.0 <1.0-dev",
+        "vendor30/package-number-400": "^4.10|~0.1.0 || >=1.0 <2.0-dev",
+        "vendor31/package-number-401": "^5.11|~1.2.0 || >=2.0 <3.0-dev",
+        "vendor32/package-number-402": "^6.12|~2.3.0 || >=0.0 <1.0-dev",
+        "vendor33/package-number-403": "^7.0|~3.4.0 || >=1.0 <2.0-dev",
+        "vendor34/package-number-404": "^8.1|~4.5.0 || >=2.0 <3.0-dev",
+        "vendor35/package-number-405": "^0.2|~0.6.0 || >=0.0 <1.0-dev",
+        "vendor36/package-number-406": "^1.3|~1.0.0 || >=1.0 <2.0-dev",
+        "vendor0/package-number-407": "^2.4|~2.1.0 || >=2.0 <3.0-dev",
+        "vendor1/package-number-408": "^3.5|~3.2.0 || >=0.0 <1.0-dev",
+        "vendor2/package-number-409": "^4.6|~4.3.0 || >=1.0 <2.0-dev",
+        "vendor3/package-number-410": "^5.7|~0.4.0 || >=2.0 <3.0-dev",
+        "vendor4/package-number-411": "^6.8|~1.5.0 || >=0.0 <1.0-dev",
+        "vendor5/package-number-412": "^7.9|~2.6.0 || >=1.0 <2.0-dev",
+        "vendor6/package-number-413": "^8.10|~3.0.0 || >=2.0 <3.0-dev",
+        "vendor7/package-number-414": "^0.11|~4.1.0 || >=0.0 <1.0-dev",
+        "vendor8/package-number-415": "^1.12|~0.2.0 || >=1.0 <2.0-dev",
+        "vendor9/package-number-416": "^2.0|~1.3.0 || >=2.0 <3.0-dev",
+        "vendor10/package-number-417": "^3.1|~2.4.0 || >=0.0 <1.0-dev",
+        "vendor11/package-number-418": "^4.2|~3.5.0 || >=1.0 <2.0-dev",
+        "vendor12/package-number-419": "^5.3|~4.6.0 || >=2.0 <3.0-dev",
+        "vendor13/package-number-420": "^6.4|~0.0.0 || >=0.0 <1.0-dev",
+        "vendor14/package-number-421": "^7.5|~1.1.0 || >=1.0 <2.0-dev",
+        "vendor15/package-number-422": "^8.6|~2.2.0 || >=2.0 <3.0-dev",
+        "vendor16/package-number-423": "^0.7|~3.3.0 || >=0.0 <1.0-dev",
+        "vendor17/package-number-424": "^1.8|~4.4.0 || >=1.0 <2.0-dev",
+        "vendor18/package-number-425": "^2.9|~0.5.0 || >=2.0 <3.0-dev",
+        "vendor19/package-number-426": "^3.10|~1.6.0 || >=0.0 <1.0-dev",
+        "vendor20/package-number-427": "^4.11|~2.0.0 || >=1.0 <2.0-dev",
+        "vendor21/package-number-428": "^5.12|~3.1.0 || >=2.0 <3.0-dev",
+        "vendor22/package-number-429": "^6.0|~4.2.0 || >=0.0 <1.0-dev",
+        "vendor23/package-number-430": "^7.1|~0.3.0 || >=1.0 <2.0-dev",
+        "vendor24/package-number-431": "^8.2|~1.4.0 || >=2.0 <3.0-dev",
+        "vendor25/package-number-432": "^0.3|~2.5.0 || >=0.0 <1.0-dev",
+        "vendor26/package-number-433": "^1.4|~3.6.0 || >=1.0 <2.0-dev",
+        "vendor27/package-number-434": "^2.5|~4.0.0 || >=2.0 <3.0-dev",
+        "vendor28/package-number-435": "^3.6|~0.1.0 || >=0.0 <1.0-dev",
+        "vendor29/package-number-436": "^4.7|~1.2.0 || >=1.0 <2.0-dev",
+        "vendor30/package-number-437": "^5.8|~2.3.0 || >=2.0 <3.0-dev",
+        "vendor31/package-number-438": "^6.9|~3.4.0 || >=0.0 <1.0-dev",
+        "vendor32/package-number-439": "^7.10|~4.5.0 || >=1.0 <2.0-dev",
+        "vendor33/package-number-440": "^8.11|~0.6.0 || >=2.0 <3.0-dev",
+        "vendor34/package-number-441": "^0.12|~1.0.0 || >=0.0 <1.0-dev",
+        "vendor35/package-number-442": "^1.0|~2.1.0 || >=1.0 <2.0-dev",
+        "vendor36/package-number-443": "^2.1|~3.2.0 || >=2.0 <3.0-dev",
+        "vendor0/package-number-444": "^3.2|~4.3.0 || >=0.0 <1.0-dev",
+        "vendor1/package-number-445": "^4.3|~0.4.0 || >=1.0 <2.0-dev",
+        "vendor2/package-number-446": "^5.4|~1.5.0 || >=2.0 <3.0-dev",
+        "vendor3/package-number-447": "^6.5|~2.6.0 || >=0.0 <1.0-dev",
+        "vendor4/package-number-448": "^7.6|~3.0.0 || >=1.0 <2.0-dev",
+        "vendor5/package-number-449": "^8.7|~4.1.0 || >=2.0 <3.0-dev",
+        "vendor6/package-number-450": "^0.8|~0.2.0 || >=0.0 <1.0-dev",
+        "vendor7/package-number-451": "^1.9|~1.3.0 || >=1.0 <2.0-dev",
+        "vendor8/package-number-452": "^2.10|~2.4.0 || >=2.0 <3.0-dev",
+        "vendor9/package-number-453": "^3.11|~3.5.0 || >=0.0 <1.0-dev",
+        "vendor10/package-number-454": "^4.12|~4.6.0 || >=1.0 <2.0-dev",
+        "vendor11/package-number-455": "^5.0|~0.0.0 || >=2.0 <3.0-dev",
+        "vendor12/package-number-456": "^6.1|~1.1.0 || >=0.0 <1.0-dev",
+        "vendor13/package-number-457": "^7.2|~2.2.0 || >=1.0 <2.0-dev",
+        "vendor14/package-number-458": "^8.3|~3.3.0 || >=2.0 <3.0-dev",
+        "vendor15/package-number-459": "^0.4|~4.4.0 || >=0.0 <1.0-dev",
+        "vendor16/package-number-460": "^1.5|~0.5.0 || >=1.0 <2.0-dev",
+        "vendor17/package-number-461": "^2.6|~1.6.0 || >=2.0 <3.0-dev",
+        "vendor18/package-number-462": "^3.7|~2.0.0 || >=0.0 <1.0-dev",
+        "vendor19/package-number-463": "^4.8|~3.1.0 || >=1.0 <2.0-dev",
+        "vendor20/package-number-464": "^5.9|~4.2.0 || >=2.0 <3.0-dev",
+        "vendor21/package-number-465": "^6.10|~0.3.0 || >=0.0 <1.0-dev",
+        "vendor22/package-number-466": "^7.11|~1.4.0 || >=1.0 <2.0-dev",
+        "vendor23/package-number-467": "^8.12|~2.5.0 || >=2.0 <3.0-dev",
+        "vendor24/package-number-468": "^0.0|~3.6.0 || >=0.0 <1.0-dev",
+        "vendor25/package-number-469": "^1.1|~4.0.0 || >=1.0 <2.0-dev",
+        "vendor26/package-number-470": "^2.2|~0.1.0 || >=2.0 <3.0-dev",
+        "vendor27/package-number-471": "^3.3|~1.2.0 || >=0.0 <1.0-dev",
+        "vendor28/package-number-472": "^4.4|~2.3.0 || >=1.0 <2.0-dev",
+        "vendor29/package-number-473": "^5.5|~3.4.0 || >=2.0 <3.0-dev",
+        "vendor30/package-number-474": "^6.6|~4.5.0 || >=0.0 <1.0-dev",
+        "vendor31/package-number-475": "^7.7|~0.6.0 || >=1.0 <2.0-dev",
+        "vendor32/package-number-476": "^8.8|~1.0.0 || >=2.0 <3.0-dev",
+        "vendor33/package-number-477": "^0.9|~2.1.0 || >=0.0 <1.0-dev",
+        "vendor34/package-number-478": "^1.10|~3.2.0 || >=1.0 <2.0-dev",
+        "vendor35/package-number-479": "^2.11|~4.3.0 || >=2.0 <3.0-dev",
+        "vendor36/package-number-480": "^3.12|~0.4.0 || >=0.0 <1.0-dev",
+        "vendor0/package-number-481": "^4.0|~1.5.0 || >=1.0 <2.0-dev",
+        "vendor1/package-number-482": "^5.1|~2.6.0 || >=2.0 <3.0-dev",
+        "vendor2/package-number-483": "^6.2|~3.0.0 || >=0.0 <1.0-dev",
+        "vendor3/package-number-484": "^7.3|~4.1.0 || >=1.0 <2.0-dev",
+        "vendor4/package-number-485": "^8.4|~0.2.0 || >=2.0 <3.0-dev",
+        "vendor5/package-number-486": "^0.5|~1.3.0 || >=0.0 <1.0-dev",
+        "vendor6/package-number-487": "^1.6|~2.4.0 || >=1.0 <2.0-dev",
+        "vendor7/package-number-488": "^2.7|~3.5.0 || >=2.0 <3.0-dev",
+        "vendor8/package-number-489": "^3.8|~4.6.0 || >=0.0 <1.0-dev",
+        "vendor9/package-number-490": "^4.9|~0.0.0 || >=1.0 <2.0-dev",
+        "vendor10/package-number-491": "^5.10|~1.1.0 || >=2.0 <3.0-dev",
+        "vendor11/package-number-492": "^6.11|~2.2.0 || >=0.0 <1.0-dev",
+        "vendor12/package-number-493": "^7.12|~3.3.0 || >=1.0 <2.0-dev",
+        "vendor13/package-number-494": "^8.0|~4.4.0 || >=2.0 <3.0-dev",
+        "vendor14/package-number-495": "^0.1|~0.5.0 || >=0.0 <1.0-dev",
+        "vendor15/package-number-496": "^1.2|~1.6.0 || >=1.0 <2.0-dev",
+        "vendor16/package-number-497": "^2.3|~2.0.0 || >=2.0 <3.0-dev",
+        "vendor17/package-number-498": "^3.4|~3.1.0 || >=0.0 <1.0-dev",
+        "vendor18/package-number-499": "^4.5|~4.2.0 || >=1.0 <2.0-dev",
+        "vendor19/package-number-500": "^5.6|~0.3.0 || >=2.0 <3.0-dev",
+        "vendor20/package-number-501": "^6.7|~1.4.0 || >=0.0 <1.0-dev",
+        "vendor21/package-number-502": "^7.8|~2.5.0 || >=1.0 <2.0-dev",
+        "vendor22/package-number-503": "^8.9|~3.6.0 || >=2.0 <3.0-dev",
+        "vendor23/package-number-504": "^0.10|~4.0.0 || >=0.0 <1.0-dev",
+        "vendor24/package-number-505": "^1.11|~0.1.0 || >=1.0 <2.0-dev",
+        "vendor25/package-number-506": "^2.12|~1.2.0 || >=2.0 <3.0-dev",
+        "vendor26/package-number-507": "^3.0|~2.3.0 || >=0.0 <1.0-dev",
+        "vendor27/package-number-508": "^4.1|~3.4.0 || >=1.0 <2.0-dev",
+        "vendor28/package-number-509": "^5.2|~4.5.0 || >=2.0 <3.0-dev",
+        "vendor29/package-number-510": "^6.3|~0.6.0 || >=0.0 <1.0-dev",
+        "vendor30/package-number-511": "^7.4|~1.0.0 || >=1.0 <2.0-dev",
+        "vendor31/package-number-512": "^8.5|~2.1.0 || >=2.0 <3.0-dev",
+        "vendor32/package-number-513": "^0.6|~3.2.0 || >=0.0 <1.0-dev",
+        "vendor33/package-number-514": "^1.7|~4.3.0 || >=1.0 <2.0-dev",
+        "vendor34/package-number-515": "^2.8|~0.4.0 || >=2.0 <3.0-dev",
+        "vendor35/package-number-516": "^3.9|~1.5.0 || >=0.0 <1.0-dev",
+        "vendor36/package-number-517": "^4.10|~2.6.0 || >=1.0 <2.0-dev",
+        "vendor0/package-number-518": "^5.11|~3.0.0 || >=2.0 <3.0-dev",
+        "vendor1/package-number-519": "^6.12|~4.1.0 || >=0.0 <1.0-dev",
+        "vendor2/package-number-520": "^7.0|~0.2.0 || >=1.0 <2.0-dev",
+        "vendor3/package-number-521": "^8.1|~1.3.0 || >=2.0 <3.0-dev",
+        "vendor4/package-number-522": "^0.2|~2.4.0 || >=0.0 <1.0-dev",
+        "vendor5/package-number-523": "^1.3|~3.5.0 || >=1.0 <2.0-dev",
+        "vendor6/package-number-524": "^2.4|~4.6.0 || >=2.0 <3.0-dev",
+        "vendor7/package-number-525": "^3.5|~0.0.0 || >=0.0 <1.0-dev",
+        "vendor8/package-number-526": "^4.6|~1.1.0 || >=1.0 <2.0-dev",
+        "vendor9/package-number-527": "^5.7|~2.2.0 || >=2.0 <3.0-dev",
+        "vendor10/package-number-528": "^6.8|~3.3.0 || >=0.0 <1.0-dev",
+        "vendor11/package-number-529": "^7.9|~4.4.0 || >=1.0 <2.0-dev",
+        "vendor12/package-number-530": "^8.10|~0.5.0 || >=2.0 <3.0-dev",
+        "vendor13/package-number-531": "^0.11|~1.6.0 || >=0.0 <1.0-dev",
+        "vendor14/package-number-532": "^1.12|~2.0.0 || >=1.0 <2.0-dev",
+        "vendor15/package-number-533": "^2.0|~3.1.0 || >=2.0 <3.0-dev",
+        "vendor16/package-number-534": "^3.1|~4.2.0 || >=0.0 <1.0-dev"
+    },
+    "require-dev": {
+        "symfony/phpunit-bridge": "^6.4.25 || ^7.3.3 || ^8.0",
+        "phpstan/phpstan": "^1.11.8",
+        "phpstan/phpstan-phpunit": "^1.4.0",
+        "phpstan/phpstan-deprecation-rules": "^1.2.0",
+        "phpstan/phpstan-strict-rules": "^1.6.0",
+        "phpstan/phpstan-symfony": "^1.4.0"
+    },
+    "suggest": {
+        "ext-curl": "Provides HTTP support (will fallback to PHP streams if missing)",
+        "ext-openssl": "Enables access to repositories and packages over HTTPS",
+        "ext-zip": "Allows direct extraction of ZIP archives (unzip/7z binaries will be used instead if available)",
+        "ext-zlib": "Enables gzip for HTTP requests"
+    },
+    "config": {
+        "platform": {
+            "php": "7.2.5"
+        },
+        "platform-check": false
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "2.10-dev"
+        },
+        "phpstan": {
+            "includes": [
+                "phpstan/rules.neon"
+            ]
+        },
+        "things": {
+            "key5": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key10": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key15": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key20": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key25": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key30": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key35": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key40": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key45": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key50": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key55": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key60": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key65": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key70": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key75": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key80": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key85": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key90": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key95": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key100": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key105": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key110": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key115": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key120": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key125": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key130": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key135": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key140": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key145": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key150": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key155": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key160": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key165": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key170": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key175": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key180": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key185": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key190": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key195": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key200": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key205": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key210": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key215": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key220": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key225": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key230": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key235": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key240": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key245": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key250": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key255": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key260": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key265": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key270": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key275": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key280": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key285": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key290": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key295": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key300": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key305": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key310": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key315": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key320": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key325": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key330": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key335": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key340": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key345": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key350": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key355": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key360": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key365": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key370": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key375": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key380": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key385": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key390": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key395": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key400": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key405": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key410": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key415": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key420": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key425": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key430": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key435": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key440": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key445": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key450": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key455": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key460": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key465": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key470": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key475": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key480": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key485": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key490": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key495": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key500": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key505": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key510": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key515": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key520": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key525": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key530": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            },
+            "key535": {
+                "list": [
+                    1,
+                    2,
+                    {
+                        "a": "b\\\"c"
+                    }
+                ],
+                "s": "üé"
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Composer\\": "src/Composer/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Composer\\Test\\": "tests/Composer/Test/"
+        },
+        "exclude-from-classmap": [
+            "tests/Composer/Test/Fixtures/",
+            "tests/Composer/Test/Autoload/Fixtures",
+            "tests/Composer/Test/Autoload/MinimumVersionSupport",
+            "tests/Composer/Test/Plugin/Fixtures"
+        ]
+    },
+    "bin": [
+        "bin/composer"
+    ],
+    "scripts": {
+        "compile": "@php -dphar.readonly=0 bin/compile",
+        "test": "@php simple-phpunit",
+        "phpstan": "@php vendor/bin/phpstan analyse --configuration=phpstan/config.neon"
+    },
+    "scripts-descriptions": {
+        "compile": "Compile composer.phar",
+        "test": "Run all tests",
+        "phpstan": "Runs PHPStan"
+    },
+    "support": {
+        "issues": "https://github.com/composer/composer/issues",
+        "irc": "ircs://irc.libera.chat:6697/composer",
+        "security": "https://github.com/composer/composer/security/policy"
+    }
+}
