@@ -210,6 +210,12 @@ func (l *Loop) Await(promise Waitable, err error) error {
 // $warned: the TLS warning is shown once per process.
 var createHTTPDownloaderWarned atomic.Bool
 
+// ResetCreateHttpDownloaderWarning forgets that the TLS warning was shown,
+// as a fresh process would; for tests.
+func ResetCreateHttpDownloaderWarning() {
+	createHTTPDownloaderWarned.Store(false)
+}
+
 // CreateHttpDownloader is Factory::createHttpDownloader($io, $config,
 // $options): a downloader using the configured CA file or path, warning
 // when TLS is disabled.

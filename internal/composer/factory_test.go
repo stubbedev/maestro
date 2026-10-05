@@ -10,9 +10,13 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/http"
 )
 
 func TestFactory_DefaultValuesAreAsExpected(t *testing.T) {
+	http.ResetCreateHttpDownloaderWarning()
+	t.Cleanup(http.ResetCreateHttpDownloaderWarning)
+
 	out := newBufferIO(t)
 	cfg := config.New(false, "")
 	if err := cfg.Merge(php.ArrayOf("config", php.ArrayOf("disable-tls", true)), config.SourceUnknown); err != nil {
