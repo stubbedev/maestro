@@ -109,3 +109,15 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 
 ## Cleanup (DRY) from internal/eventdispatcher
 - `determineBinaryCaller` (eventdispatcher.go) is a private port of BinaryInstaller::determineBinaryCaller; internal/installer's BinaryInstaller should share one copy (internal/installer may import eventdispatcher, or move it to internal/util).
+
+## Users of internal/autoload (internal/composer, internal/eventdispatcher, internal/plugin, internal/installer, internal/repository, internal/command)
+- `autoload.NewGenerator(dispatcher, io)` is AutoloadGenerator; set `Generator.Parser.ShortOpenTag` from the user's php `short_open_tag` (internal/platform) before dumping. Setters as in PHP; `SetApcu(apcu, prefix *string)` (nil prefix: random).
+- Collaborators are narrow interfaces defined in autoload: `Config` (`Get(key, flags) (any, error)`, i.e. `*config.Config`), `InstalledRepository` (`DevPackageNames()`, `CanonicalPackages()`), `InstallationManager` (`InstallPath(p) (path string, ok bool, err error)`, ok=false for null), `EventDispatcher` (`DispatchScript(name, devMode, args, flags *php.Array) (int, error)`), `Locker` (`IsLocked() (bool, error)`, `LockData() (*php.Array, error)`). Platform requirement filters are `version.PlatformRequirementFilter` / `version.IgnoreAllPlatformRequirementFilter` (internal/pkg/version).
+- `Dump(config, localRepo, root, im, targetDir, scanPsr, suffix, locker, strictAmbiguous)`: suffix "" is null, locker may be nil. Returns the `*classmap.ClassMap` (DumpAutoloadCommand counts it for "Generated optimized autoload files containing N classes"; that output line is the command's, not the generator's).
+- `BuildPackageMap`/`ParseAutoloads(packageMap, root, DevFilter)` (`NoDevFilter`, `LegacyDevFilter`, `DevPackageNames(names)` for false/true/list) and `CreateLoader(autoloads, vendorDir) (*ClassLoader, error)`: the ClassLoader holds the registered PSR-0/4/classmap arrays (PHP key order); the plugin runtime builds the PHP ClassLoader from them.
+- `autoload.ClassLoaderPHP`, `autoload.InstalledVersionsPHP` and `autoload.License` are Composer's files, embedded verbatim: FilesystemRepository::write must write `InstalledVersionsPHP` to vendor/composer/InstalledVersions.php; the plugin shim can reuse `ClassLoaderPHP`.
+- ClassLoader.php and LICENSE are written only when their content differs (safeCopy), without copying the source mtime (Composer touches them with the phar's mtime).
+
+## internal/util (from internal/autoload)
+- Added exports `util.Dirname` (PHP dirname) and `util.RealpathOK` (realpath() with its false result).
+- Fixed `phpRealpath` (behind `util.Realpath`/`RealpathOK`): it cleaned the path lexically (filepath.Abs) before resolving symlinks, so `realpath('/missing/..')` succeeded where PHP returns false.

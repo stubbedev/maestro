@@ -1,0 +1,214 @@
+package autoload
+
+import (
+	"compress/gzip"
+	"io"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
+)
+
+// oracleRepo is the repository of an oracle scenario.
+type oracleRepo struct {
+	packages []pkg.PackageInterface
+	devNames []string
+}
+
+func (r *oracleRepo) DevPackageNames() []string                 { return r.devNames }
+func (r *oracleRepo) CanonicalPackages() []pkg.PackageInterface { return r.packages }
+
+// oracleLocker is a locked Locker with the given content-hash.
+type oracleLocker struct{ hash string }
+
+func (l oracleLocker) IsLocked() (bool, error) { return true, nil }
+func (l oracleLocker) LockData() (*php.Array, error) {
+	return php.ArrayOf("content-hash", l.hash), nil
+}
+
+// TestOracle_Dump replays the scenarios of tools/oracle/autoload/generate.php
+// and compares every file written, the class map and the output with what
+// Composer's AutoloadGenerator produced.
+func TestOracle_Dump(t *testing.T) {
+	f, err := os.Open("testdata/oracle/dump.json.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(zr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := php.JSONDecode(string(data), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, v := range decoded.(*php.Array).Values() {
+		s := v.(*php.Array)
+		name, _ := s.GetString("name")
+		t.Run(name, func(t *testing.T) { runOracleScenario(t, s) })
+	}
+}
+
+func runOracleScenario(t *testing.T, s *php.Array) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	str := func(a *php.Array, k string) string { v, _ := a.Get(k); return php.ToString(v) }
+	sub := func(a *php.Array, k string) *php.Array { v, _ := a.GetArray(k); return v }
+	val := func(a *php.Array, k string) any { v, _ := a.Get(k); return v }
+
+	for path, content := range sub(s, "files").All() {
+		writeFile(t, root+"/"+path.String(), php.ToString(content))
+	}
+	for link, target := range sub(s, "symlinks").All() {
+		mkdirAll(t, filepath.Dir(root+"/"+link.String()))
+		if err := os.Symlink(root+"/"+php.ToString(target), root+"/"+link.String()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	workDir := root + "/" + str(s, "workDir")
+	mkdirAll(t, workDir)
+	vendorDir := root + "/" + str(s, "vendorDir")
+	if dev := val(s, "installedDev"); dev != nil {
+		encoded, _ := php.JSONEncode(php.ArrayOf("packages", php.NewArray(), "dev", dev), 0)
+		writeFile(t, vendorDir+"/composer/installed.json", encoded)
+	}
+	if existing := val(s, "existingAutoload"); existing != nil {
+		writeFile(t, vendorDir+"/autoload.php", php.ToString(existing))
+	}
+
+	l := loader.NewArrayLoader(pkg.NewVersionParser(), false)
+	rootPackage, err := l.Load(sub(s, "root"), pkg.ClassRootPackage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &oracleRepo{}
+	for _, c := range sub(s, "packages").Values() {
+		p, err := l.Load(c.(*php.Array), pkg.ClassCompletePackage)
+		if err != nil {
+			t.Fatal(err)
+		}
+		repo.packages = append(repo.packages, p)
+		if alias := val(c.(*php.Array), "alias"); alias != nil {
+			repo.packages = append(repo.packages, pkg.NewAliasPackage(p, "9999999-dev", php.ToString(alias)))
+		}
+	}
+	for _, n := range sub(s, "devPackageNames").Values() {
+		repo.devNames = append(repo.devNames, php.ToString(n))
+	}
+
+	bio := newBufferIO(t)
+	g := NewGenerator(&testDispatcher{}, bio)
+	if dev := val(s, "devMode"); dev != nil {
+		g.SetDevMode(dev.(bool))
+	}
+	g.SetClassMapAuthoritative(val(s, "authoritative").(bool))
+	prefix := str(s, "apcuPrefix")
+	g.SetApcu(val(s, "apcu").(bool), &prefix)
+	switch ignore := val(s, "ignore").(type) {
+	case bool:
+		if ignore {
+			g.SetPlatformRequirementFilter(ignoreAllFilter{})
+		}
+	case *php.Array:
+		var reqs []string
+		for _, r := range ignore.Values() {
+			reqs = append(reqs, php.ToString(r))
+		}
+		g.SetPlatformRequirementFilter(newIgnoreListFilter(reqs))
+	}
+	config := testConfig{"vendor-dir": vendorDir}
+	for k, v := range sub(s, "config").All() {
+		config[k.String()] = v
+	}
+
+	t.Chdir(workDir)
+	targetDir := str(s, "targetDir")
+	classMap, err := g.Dump(config, repo, rootPackage.(pkg.RootPackageInterface), testIM{vendorDir: func() string { return vendorDir }},
+		targetDir, val(s, "scanPsr").(bool), str(s, "suffix"), oracleLocker{str(s, "lockHash")}, val(s, "strictAmbiguous").(bool))
+
+	result := sub(s, "result")
+	replace := func(v string) string { return strings.ReplaceAll(v, root, "%ROOT%") }
+
+	if wantErr := sub(result, "error"); wantErr != nil {
+		if err == nil || replace(err.Error()) != str(wantErr, "message") {
+			t.Errorf("error %v, want %s: %s", err, str(wantErr, "class"), str(wantErr, "message"))
+		}
+	} else if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	} else {
+		var want []string
+		for _, c := range sub(result, "classes").Values() {
+			want = append(want, php.ToString(c))
+		}
+		if got := classMap.Classes(); !slices.Equal(got, want) {
+			t.Errorf("classes %q, want %q", got, want)
+		}
+	}
+
+	if got, want := sortedLines(replace(bio.Output())), sortedLines(str(result, "output")); !slices.Equal(got, want) {
+		t.Errorf("output:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+
+	wantFiles := sub(result, "files")
+	realVendor, _ := filepath.EvalSymlinks(vendorDir)
+	for _, name := range append([]string{"autoload.php"}, oracleFiles(targetDir)...) {
+		path := vendorDir + "/" + name
+		if name != "autoload.php" {
+			path = realVendor + "/" + name
+		}
+		got, readErr := os.ReadFile(path)
+		want, ok := wantFiles.GetString(name)
+		switch {
+		case !ok && readErr == nil:
+			t.Errorf("%s written, PHP did not", name)
+		case ok && readErr != nil:
+			t.Errorf("%s not written: %v", name, readErr)
+		case ok && replace(string(got)) != want:
+			t.Errorf("%s:\n%s\nwant:\n%s", name, replace(string(got)), want)
+		}
+	}
+}
+
+func oracleFiles(targetDir string) []string {
+	names := []string{"autoload_real.php", "autoload_static.php", "autoload_namespaces.php", "autoload_psr4.php", "autoload_classmap.php", "autoload_files.php", "include_paths.php", "platform_check.php"}
+	for i, n := range names {
+		names[i] = targetDir + "/" + n
+	}
+
+	return names
+}
+
+func sortedLines(s string) []string {
+	lines := strings.Split(s, "\n")
+	slices.Sort(lines)
+
+	return lines
+}
+
+func mkdirAll(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	mkdirAll(t, filepath.Dir(path))
+	if err := os.WriteFile(path, []byte(content), 0o666); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -40,11 +40,17 @@ func Realpath(path string) string {
 }
 
 // phpRealpath ports PHP's realpath(): the absolute, symlink-free path of an
-// existing file; realpath("") is the working directory.
+// existing file; realpath("") is the working directory. Every component
+// must exist, also one followed by "..", so the path is not cleaned
+// lexically before resolving.
 func phpRealpath(path string) (string, bool) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", false
+	abs := path
+	if !filepath.IsAbs(path) {
+		cwd, err := getwd()
+		if err != nil {
+			return "", false
+		}
+		abs = cwd + string(filepath.Separator) + path
 	}
 
 	real, err := filepath.EvalSymlinks(abs)
