@@ -49,8 +49,16 @@ func (s *stream) open() (*countingReader, error) {
 			return nil, errorf(s.format, ErrCorrupt, "", "invalid gzip data: %v", err)
 		}
 
-		z.Multistream(s.format == Gzip)
-		r = &gzipEnd{z: z, raw: raw, format: s.format}
+		if s.format == Gzip {
+			// gzip -cd decompresses every member and fails on anything
+			// else after them.
+			r = &gzipEnd{z: z, raw: raw, format: s.format}
+		} else {
+			// PHP's zlib.inflate filter stops at the end of the first
+			// member and ignores what follows.
+			z.Multistream(false)
+			r = &gzipData{z: z, format: s.format}
+		}
 	case compressBzip2:
 		r = bzip2.NewReader(raw)
 	case compressXz:
@@ -65,8 +73,23 @@ func (s *stream) open() (*countingReader, error) {
 	return &countingReader{r: bufio.NewReaderSize(r, 64<<10), limit: s.limit, format: s.format}, nil
 }
 
-// gzipEnd fails if bytes follow the gzip data it decodes, which gzip and
-// PHP's zlib filter treat differently.
+// gzipData reports invalid gzip data as ErrCorrupt.
+type gzipData struct {
+	z      *gzip.Reader
+	format Format
+}
+
+func (g *gzipData) Read(p []byte) (int, error) {
+	n, err := g.z.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return n, errorf(g.format, ErrCorrupt, "", "invalid gzip data: %v", err)
+	}
+
+	return n, err
+}
+
+// gzipEnd fails if bytes that are not gzip members follow the data it
+// decodes, which gzip and PHP's gzread treat differently.
 type gzipEnd struct {
 	z      *gzip.Reader
 	raw    *bufio.Reader
@@ -105,6 +128,12 @@ func (c *countingReader) Read(p []byte) (int, error) {
 
 	if c.off > c.limit {
 		return n, errorf(c.format, ErrLimit, "", "decompresses to more than %d bytes", c.limit)
+	}
+
+	if err != nil && !errors.Is(err, io.EOF) {
+		if _, ok := errors.AsType[*Error](err); !ok {
+			err = errorf(c.format, ErrCorrupt, "", "invalid compressed data: %v", err)
+		}
 	}
 
 	return n, err
@@ -163,6 +192,47 @@ func detectCompression(f *os.File) (compression, error) {
 	return compressNone, nil
 }
 
+// bzip2Concatenated reports whether another bzip2 stream starts after the
+// first one: the byte-aligned header of a stream ("BZh" and a block size
+// digit) directly followed by a block or end-of-stream magic number, at any
+// offset past the start. PHP's bzip2.decompress filter stops after the
+// first stream, where Go's reader goes on.
+func bzip2Concatenated(f *os.File, size int64) (bool, error) {
+	const window = 1 << 20
+
+	buf := make([]byte, window+9)
+	carry := 0
+
+	for off := int64(0); off < size; off += window {
+		n, err := f.ReadAt(buf[carry:carry+window], off)
+		if err != nil && !errors.Is(err, io.EOF) {
+			return false, err
+		}
+
+		data := buf[:carry+n]
+
+		for i := bytes.Index(data, []byte("BZh")); i >= 0; {
+			at := off - int64(carry) + int64(i)
+			if at > 0 && i+10 <= len(data) && data[i+3] >= '1' && data[i+3] <= '9' &&
+				(bytes.Equal(data[i+4:i+10], []byte("1AY&SY")) || bytes.Equal(data[i+4:i+10], []byte("\x17rE8P\x90"))) {
+				return true, nil
+			}
+
+			j := bytes.Index(data[i+1:], []byte("BZh"))
+			if j < 0 {
+				break
+			}
+
+			i += 1 + j
+		}
+
+		carry = min(9, len(data))
+		copy(buf, data[len(data)-carry:])
+	}
+
+	return false, nil
+}
+
 // streamLimit bounds a decompressed tar: the content limit plus room for a
 // header per entry.
 func streamLimit(l Limits) int64 {
@@ -171,9 +241,9 @@ func streamLimit(l Limits) int64 {
 
 // readSection hands fn exactly size bytes of the stream, failing if it ends
 // first.
-func readSection(c *countingReader, e *Entry, size int64, fn func(e *Entry, r io.Reader) error) error {
+func readSection(c *countingReader, i int, e *Entry, size int64, fn FileFunc) error {
 	r := &exactReader{r: io.LimitReader(c, size), left: size, entry: e.Path, format: c.format}
-	return consume(e, r, fn)
+	return consume(i, r, fn)
 }
 
 // exactReader fails if the stream ends before left bytes were read.

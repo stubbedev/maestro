@@ -5,17 +5,17 @@
 // extract.c (extract_or_test_files, store_info,
 // extract_or_test_entrylist, the overlap "cover"), unix/unix.c (mapattr,
 // mapname, checkdir, close_outfile, set_direc_attribs) and unzpriv.h
-// (Ext_ASCII_TO_Native).
+// (Ext_ASCII_TO_Native's test).
 
 package archive
 
 import (
 	"bufio"
-	"cmp"
 	"bytes"
 	"compress/bzip2"
 	"compress/flate"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
 	"io"
 	"io/fs"
@@ -94,6 +94,7 @@ type zipEntry struct {
 	nameRaw []byte
 	extra   []byte
 	name    string // after unzip's decoding (do_string + Unicode handling)
+	unipath bool   // a Unicode Path extra field gave the name
 	offset  int64
 	csize   int64
 	usize   int64
@@ -107,6 +108,7 @@ type zipEntry struct {
 
 type zipPlanner struct {
 	f      *os.File
+	buf    []byte // local header reads
 	b      *builder
 	files  []zipFile
 	cover  cover
@@ -262,28 +264,26 @@ func (z *zipPlanner) parseCentral(cd []byte, e *zipEntry) (int, error) {
 	e.nameRaw = cd[zipCentralLen : zipCentralLen+nameLen]
 	e.extra = cd[zipCentralLen+nameLen : zipCentralLen+nameLen+extraLen]
 
-	name := string(e.nameRaw)
-
-	switch {
+	switch name := e.nameRaw; {
 	case csize == 0xffffffff || usize == 0xffffffff || offset == 0xffffffff || diskStart == 0xffff:
-		return 0, z.fail(ErrIrreproducible, 0, name, "zip64 entries are not supported")
+		return 0, z.fail(ErrIrreproducible, 0, string(name), "zip64 entries are not supported")
 	case diskStart != 0:
-		return 0, z.fail(ErrIrreproducible, pkErr, name, "entry starts on another disk")
+		return 0, z.fail(ErrIrreproducible, pkErr, string(name), "entry starts on another disk")
 	case neededHost == hostVMS:
 		// unzip asks on stdin whether to extract VMS-format files.
-		return 0, z.fail(ErrIrreproducible, izUnsup, name, "VMS file format")
+		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "VMS file format")
 	case neededVer > unzipVersion:
-		return 0, z.fail(ErrIrreproducible, izUnsup, name, "need PK compat. v%d.%d (can do v4.6)", neededVer/10, neededVer%10)
+		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "need PK compat. v%d.%d (can do v4.6)", neededVer/10, neededVer%10)
 	case e.method != methodStored && e.method != methodDeflate && e.method != methodBzip2:
 		// Deflate64, shrink and implode are left out; unzip skips the rest.
-		return 0, z.fail(ErrIrreproducible, izUnsup, name, "unsupported compression method %d", e.method)
+		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "unsupported compression method %d", e.method)
 	case e.flags&1 != 0:
 		// unzip would prompt for a password on stdin.
-		return 0, z.fail(ErrIrreproducible, izUnsup, name, "encrypted entry")
+		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "encrypted entry")
 	}
 
 	var err error
-	if e.name, _, err = z.decodeName(e.nameRaw, e.extra, e, false); err != nil {
+	if e.name, e.unipath, err = z.decodeName(e.nameRaw, e.extra, e, false); err != nil {
 		return 0, err
 	}
 
@@ -297,25 +297,42 @@ func (z *zipPlanner) extract(e *zipEntry) error {
 		return z.fail(ErrBomb, pkBomb, e.name, "invalid zip file with overlapped components (possible zip bomb)")
 	}
 
-	var hdr [zipLocalLen]byte
-	if _, err := z.f.ReadAt(hdr[:], e.offset); err != nil || binary.LittleEndian.Uint32(hdr[:]) != zipSigLocal {
+	// One read covers the local header, name and extra field when they are
+	// as long as the central ones, as they almost always are.
+	want := zipLocalLen + len(e.nameRaw) + len(e.extra)
+	if cap(z.buf) < want {
+		z.buf = make([]byte, want)
+	}
+
+	n, err := z.f.ReadAt(z.buf[:want], e.offset)
+	if n < zipLocalLen || binary.LittleEndian.Uint32(z.buf) != zipSigLocal {
 		return z.fail(ErrIrreproducible, pkErr, e.name, "bad zipfile offset (local header sig)")
 	}
 
+	hdr := z.buf[:zipLocalLen]
 	flags := binary.LittleEndian.Uint16(hdr[6:])
 	method := binary.LittleEndian.Uint16(hdr[8:])
 	crc := binary.LittleEndian.Uint32(hdr[14:])
 	csize := int64(binary.LittleEndian.Uint32(hdr[18:]))
 	usize := int64(binary.LittleEndian.Uint32(hdr[22:]))
-	nameLen := int64(binary.LittleEndian.Uint16(hdr[26:]))
-	extraLen := int64(binary.LittleEndian.Uint16(hdr[28:]))
+	nameLen := int(binary.LittleEndian.Uint16(hdr[26:]))
+	extraLen := int(binary.LittleEndian.Uint16(hdr[28:]))
 
-	dataStart := e.offset + zipLocalLen + nameLen + extraLen
+	dataStart := e.offset + zipLocalLen + int64(nameLen) + int64(extraLen)
 
-	local := make([]byte, nameLen+extraLen)
-	if _, err := z.f.ReadAt(local, e.offset+zipLocalLen); err != nil {
-		return z.fail(ErrCorrupt, pkErr, e.name, "truncated local header")
+	if have := zipLocalLen + nameLen + extraLen; have > want || (have < want && err != nil) {
+		if cap(z.buf) < have {
+			z.buf = append(z.buf[:want], make([]byte, have-want)...)
+		}
+
+		if n, err = z.f.ReadAt(z.buf[:have], e.offset); n < have {
+			return z.fail(ErrCorrupt, pkErr, e.name, "truncated local header: %v", err)
+		}
+	} else if n < have {
+		return z.fail(ErrCorrupt, pkErr, e.name, "truncated local header: %v", err)
 	}
+
+	local := z.buf[zipLocalLen : zipLocalLen+nameLen+extraLen]
 
 	descriptor := e.flags&8 != 0
 
@@ -333,13 +350,19 @@ func (z *zipPlanner) extract(e *zipEntry) error {
 		return z.fail(ErrIrreproducible, pkWarn, e.name, "compressed and uncompressed sizes differ for a stored entry")
 	}
 
-	localName, unipath, err := z.decodeName(local[:nameLen], local[nameLen:], e, true)
-	if err != nil {
-		return err
-	}
+	// The local name decodes as the central one did when its bytes, extra
+	// field and the host test agree.
+	unipath := e.unipath
+	if !bytes.Equal(local[:nameLen], e.nameRaw) || !bytes.Equal(local[nameLen:], e.extra) || e.extAttr&0xffff0000 == 0 {
+		var localName string
 
-	if localName != e.name {
-		return z.fail(ErrIrreproducible, pkWarn, e.name, "mismatching local filename (%s)", localName)
+		if localName, unipath, err = z.decodeName(local[:nameLen], local[nameLen:], e, true); err != nil {
+			return err
+		}
+
+		if localName != e.name {
+			return z.fail(ErrIrreproducible, pkWarn, e.name, "mismatching local filename (%s)", localName)
+		}
 	}
 
 	return z.place(e, zipFile{dataStart: dataStart, csize: e.csize, usize: e.usize, crc: e.crc, method: e.method}, unipath)
@@ -380,7 +403,7 @@ func (z *zipPlanner) descriptorEnd(e *zipEntry, off int64) (int64, error) {
 	end := off + 12
 
 	if crc == zipSigDesc && (e.crc != zipSigDesc ||
-		(clen == zipSigDesc && (uint32(e.csize) != zipSigDesc || (ulen == zipSigDesc && uint32(e.usize) != zipSigDesc)))) {
+		(clen == zipSigDesc && (e.csize != zipSigDesc || (ulen == zipSigDesc && e.usize != zipSigDesc)))) {
 		end += 4
 		if end > z.size {
 			return 0, z.fail(ErrCorrupt, pkErr, e.name, "truncated data descriptor")
@@ -410,33 +433,38 @@ func (z *zipPlanner) place(e *zipEntry, file zipFile, unipath bool) error {
 
 	attr, umasked, symlink := mapattr(e)
 
-	dirs, last, isDir, err := z.mapname(name)
+	path, isDir, err := z.mapname(name)
 	if err != nil {
 		return err
 	}
 
 	// checkdir(APPEND_DIR): each directory component is created with
 	// mkdir(0777) unless it exists, and must be a directory.
-	created := false
-	path := ""
+	dirEnd := len(path)
+	if !isDir {
+		dirEnd = max(strings.LastIndexByte(path, '/'), 0)
+	}
 
-	for _, c := range dirs {
-		if path != "" {
-			path += "/"
+	created := false
+
+	for start := 0; start < dirEnd; {
+		end := dirEnd
+		if i := strings.IndexByte(path[start:dirEnd], '/'); i >= 0 {
+			end = start + i
 		}
 
-		path += c
-
-		switch n := z.b.get(path); {
+		switch n := z.b.get(path[:end]); {
 		case n == nil:
-			if _, err := z.b.add(Entry{Path: path, Kind: Dir, Mode: 0o777, Umask: true}); err != nil {
+			if err := z.b.add(Entry{Path: path[:end], Kind: Dir, Mode: 0o777, Umask: true}); err != nil {
 				return err
 			}
 
 			created = true
 		case n.Kind != Dir:
-			return z.fail(ErrIrreproducible, pkErr, name, "checkdir error:  %s exists but is not directory", path)
+			return z.fail(ErrIrreproducible, pkErr, name, "checkdir error:  %s exists but is not directory", path[:end])
 		}
+
+		start = end + 1
 	}
 
 	if isDir {
@@ -451,12 +479,6 @@ func (z *zipPlanner) place(e *zipEntry, file zipFile, unipath bool) error {
 
 		return nil
 	}
-
-	if path != "" {
-		path += "/"
-	}
-
-	path += last
 
 	if z.b.get(path) != nil {
 		// unzip asks whether to replace it, reads EOF and skips it.
@@ -478,12 +500,12 @@ func (z *zipPlanner) place(e *zipEntry, file zipFile, unipath bool) error {
 			return err
 		}
 
-		_, err = z.b.add(Entry{Path: path, Kind: Symlink, Link: target})
+		err = z.b.add(Entry{Path: path, Kind: Symlink, Link: target})
 
 		return err
 	}
 
-	_, err = z.b.add(Entry{
+	err = z.b.add(Entry{
 		Path:  path,
 		Kind:  File,
 		Mode:  fs.FileMode(attr) & fs.ModePerm,
@@ -524,68 +546,115 @@ func isVolumeLabel(e *zipEntry) bool {
 		(e.hostNum == hostFAT || e.hostNum == hostHPFS || e.hostNum == hostNTFS || e.hostNum == hostAtari)
 }
 
-// mapname splits an entry name into the directories to create and the final
-// name as unix.c's mapname() does: "." components and empty ones vanish,
+// mapname maps an entry name to the path unzip extracts it to, as
+// unix.c's mapname() does: empty, "." and ".." directory components vanish
+// (the warning about ".." is only shown, and only counts, without -qq),
 // control characters are dropped, a VMS version suffix is removed and a
-// final "." or ".." becomes "_" or "__". A ".." directory component makes
-// unzip warn, so it is refused.
-func (z *zipPlanner) mapname(name string) (dirs []string, last string, isDir bool, err error) {
-	var comp []byte
+// final "." or ".." becomes "_" or "__". isDir reports a directory entry
+// (a name ending in "/"); its path may be "", the extraction directory.
+func (z *zipPlanner) mapname(name string) (path string, isDir bool, err error) {
+	if cleanName(name) {
+		return strings.TrimSuffix(name, "/"), strings.HasSuffix(name, "/"), nil
+	}
 
-	lastSemi := -1
+	return z.mapnameSlow(name)
+}
+
+// mapnameSlow is mapname for names that need changing.
+func (z *zipPlanner) mapnameSlow(name string) (path string, isDir bool, err error) {
+	isDir = strings.HasSuffix(name, "/")
+	out := make([]byte, 0, len(name))
+	comp, lastSemi := len(out), -1
 
 	for i := range len(name) {
 		c := name[i]
 		switch {
 		case c == '/':
-			switch s := string(comp); s {
-			case "", ".":
-			case "..":
-				return nil, "", false, z.fail(ErrIrreproducible, pkWarn, name, "warning:  skipped \"../\" path component(s) in %s", name)
+			switch string(out[comp:]) {
+			case "", ".", "..":
+				out = out[:comp]
 			default:
-				dirs = append(dirs, s)
+				out = append(out, '/')
 			}
 
-			comp, lastSemi = comp[:0], -1
+			comp, lastSemi = len(out), -1
 		case c == ';':
-			lastSemi = len(comp)
-			comp = append(comp, c)
+			lastSemi = len(out)
+			out = append(out, c)
 		case c >= 0x20 && c <= 0x7e, c >= 0x80 && c <= 0xfe:
-			comp = append(comp, c)
+			out = append(out, c)
 		case c == 0xff && z.locale == LocaleOther:
 			// isprint(0xff) depends on the locale.
-			return nil, "", false, z.fail(ErrIrreproducible, 0, name, "name contains byte 0xff")
+			return "", false, z.fail(ErrIrreproducible, 0, name, "name contains byte 0xff")
 		default:
 			// isprint() fails: the character is dropped.
 		}
 	}
 
-	if strings.HasSuffix(name, "/") {
-		return dirs, "", true, nil
+	if isDir {
+		return strings.TrimSuffix(string(out), "/"), true, nil
 	}
 
 	// Without -V, a trailing ";<digits>" is a VMS version number.
 	if lastSemi >= 0 {
 		j := lastSemi + 1
-		for j < len(comp) && comp[j] >= '0' && comp[j] <= '9' {
+		for j < len(out) && out[j] >= '0' && out[j] <= '9' {
 			j++
 		}
 
-		if j == len(comp) {
-			comp = comp[:lastSemi]
+		if j == len(out) {
+			out = out[:lastSemi]
 		}
 	}
 
-	switch last = string(comp); last {
+	switch string(out[comp:]) {
 	case ".":
-		last = "_"
+		out = append(out[:comp], '_')
 	case "..":
-		last = "__"
+		out = append(out[:comp], "__"...)
 	case "":
-		return nil, "", false, z.fail(ErrIrreproducible, pkErr, name, "mapname:  conversion of %s failed", name)
+		return "", false, z.fail(ErrIrreproducible, pkErr, name, "mapname:  conversion of %s failed", name)
 	}
 
-	return dirs, last, false, nil
+	return string(out), false, nil
+}
+
+// cleanName reports whether mapname would leave name as it is (but for a
+// directory's trailing slash): printable bytes only, no ';', no empty, "."
+// or ".." component.
+func cleanName(name string) bool {
+	if name == "" || name[0] == '/' {
+		return false
+	}
+
+	start := 0
+
+	for i := 0; i <= len(name); i++ {
+		if i < len(name) {
+			c := name[i]
+			if c != '/' {
+				if c < 0x20 || c == 0x7f || c == 0xff || c == ';' {
+					return false
+				}
+
+				continue
+			}
+		}
+
+		switch name[start:i] {
+		case ".", "..":
+			return false
+		case "":
+			// Only a directory's trailing slash may end an empty component.
+			if i != len(name) || i == 0 || name[i-1] != '/' || start != i {
+				return false
+			}
+		}
+
+		start = i + 1
+	}
+
+	return true
 }
 
 // decodeName turns a stored name into the one unzip works with: do_string()
@@ -605,10 +674,21 @@ func (z *zipPlanner) decodeName(raw, extra []byte, e *zipEntry, local bool) (nam
 		return "", false, z.fail(ErrIrreproducible, pkWarn, entry, "warning:  filename too long--truncating.")
 	}
 
-	name = extASCIIToNative(raw, e, local)
+	name, oem := entry, oemName(raw, e, local)
+
+	// Distributions patch how unzip translates MS-DOS code pages (Debian
+	// keeps the bytes, upstream maps them to ISO 8859-1), so a non-ASCII
+	// name taken from one is refused unless a UTF-8 name replaces it.
+	translated := func() (string, bool, error) {
+		if oem {
+			return "", false, z.fail(ErrIrreproducible, 0, entry, "non-ASCII name in an MS-DOS code page")
+		}
+
+		return name, false, nil
+	}
 
 	if len(extra) == 0 {
-		return name, false, nil
+		return translated()
 	}
 
 	var utf8Name []byte
@@ -620,7 +700,7 @@ func (z *zipPlanner) decodeName(raw, extra []byte, e *zipEntry, local bool) (nam
 	}
 
 	if utf8Name == nil {
-		return name, false, nil
+		return translated()
 	}
 
 	switch z.locale {
@@ -692,28 +772,16 @@ func (z *zipPlanner) unicodePath(raw, extra []byte, entry string) ([]byte, bool,
 	return found, found != nil, nil
 }
 
-// extASCIIToNative is Ext_ASCII_TO_Native: names from DOS, OS/2 and WinZip
-// 5.0 hosts are in the OEM code page and become ISO 8859-1; every other name
-// is kept as is.
-func extASCIIToNative(raw []byte, e *zipEntry, local bool) string {
+// oemName is Ext_ASCII_TO_Native's test: names from DOS, OS/2 and WinZip
+// 5.0 hosts are in an OEM code page and get translated; every other name is
+// kept as is. It reports a non-ASCII name that would be translated, which
+// the caller refuses, so the translation itself is never needed.
+func oemName(raw []byte, e *zipEntry, local bool) bool {
 	hasUxAtt := e.extAttr&0xffff0000 != 0
-	oem := (e.hostNum == hostFAT && !((local || hasUxAtt) && (e.hostVer == 25 || e.hostVer == 26 || e.hostVer == 40))) ||
-		e.hostNum == hostHPFS || (e.hostNum == hostNTFS && e.hostVer == 50)
+	winZip5 := (local || hasUxAtt) && (e.hostVer == 25 || e.hostVer == 26 || e.hostVer == 40)
+	fromOEM := (e.hostNum == hostFAT && !winZip5) || e.hostNum == hostHPFS || (e.hostNum == hostNTFS && e.hostVer == 50)
 
-	if !oem || isASCII(raw) {
-		return string(raw)
-	}
-
-	out := make([]byte, len(raw))
-	for i, c := range raw {
-		if c >= 0x80 {
-			c = oem2iso850[c&0x7f]
-		}
-
-		out[i] = c
-	}
-
-	return string(out)
+	return fromOEM && !isASCII(raw)
 }
 
 // escapeToC is utf8_to_local_string() in the C locale: ASCII stays, every
@@ -907,27 +975,18 @@ type zipContent struct {
 	files []zipFile
 }
 
-func (c *zipContent) readFiles(a *Archive, fn func(e *Entry, r io.Reader) error) error {
-	order := make([]*Entry, 0, len(c.files))
-	for i := range a.entries {
-		if a.entries[i].Kind == File {
-			order = append(order, &a.entries[i])
-		}
-	}
-
-	slices.SortFunc(order, func(x, y *Entry) int {
-		return cmp.Compare(c.files[x.src].dataStart, c.files[y.src].dataStart)
-	})
-
+func (c *zipContent) readFiles(a *Archive, fn FileFunc) error {
 	dec := &zipDecoders{}
 
-	for _, e := range order {
+	for _, i := range a.fileOrder(func(src int) int64 { return c.files[src].dataStart }) {
+		e := &a.entries[i]
+
 		r, err := newZipReader(a.file, c.files[e.src], e.Path, dec)
 		if err != nil {
 			return err
 		}
 
-		if err := consume(e, r, fn); err != nil {
+		if err := consume(i, r, fn); err != nil {
 			return err
 		}
 	}
@@ -935,41 +994,76 @@ func (c *zipContent) readFiles(a *Archive, fn func(e *Entry, r io.Reader) error)
 	return nil
 }
 
-// zipDecoders keeps decompressors for reuse across entries.
+// zipDecoders holds the readers one entry after another reuses.
 type zipDecoders struct {
 	buf   *bufio.Reader
-	flate io.ReadCloser
+	flate io.Reader
+	reset flate.Resetter
+	sec   section
+	chk   checkReader
 }
 
+// section reads [off, end) of a file with pread.
+type section struct {
+	f        *os.File
+	off, end int64
+}
+
+func (s *section) Read(p []byte) (int, error) {
+	if s.off >= s.end {
+		return 0, io.EOF
+	}
+
+	if rest := s.end - s.off; int64(len(p)) > rest {
+		p = p[:rest]
+	}
+
+	n, err := s.f.ReadAt(p, s.off)
+	s.off += int64(n)
+
+	if errors.Is(err, io.EOF) && s.off < s.end {
+		err = io.ErrUnexpectedEOF
+	} else if n > 0 && errors.Is(err, io.EOF) {
+		err = nil
+	}
+
+	return n, err
+}
+
+// newZipReader returns a reader of the entry's checked content, valid
+// until the next call with the same dec (nil: a fresh one).
 func newZipReader(f *os.File, file zipFile, entry string, dec *zipDecoders) (io.Reader, error) {
 	if dec == nil {
 		dec = &zipDecoders{}
 	}
 
-	src := io.NewSectionReader(f, file.dataStart, file.csize)
+	dec.sec = section{f: f, off: file.dataStart, end: file.dataStart + file.csize}
 
 	var r io.Reader
 
 	switch file.method {
 	case methodStored:
-		r = src
+		r = &dec.sec
 	case methodDeflate:
 		if dec.buf == nil {
-			dec.buf = bufio.NewReaderSize(src, 32<<10)
-			dec.flate = flate.NewReader(dec.buf)
+			dec.buf = bufio.NewReaderSize(&dec.sec, 32<<10)
+			fr := flate.NewReader(dec.buf)
+			dec.flate, dec.reset = fr, fr.(flate.Resetter) //nolint:errcheck // flate's reader always is a Resetter.
 		} else {
-			dec.buf.Reset(src)
-			if err := dec.flate.(flate.Resetter).Reset(dec.buf, nil); err != nil {
+			dec.buf.Reset(&dec.sec)
+			if err := dec.reset.Reset(dec.buf, nil); err != nil {
 				return nil, err
 			}
 		}
 
 		r = dec.flate
 	case methodBzip2:
-		r = bzip2.NewReader(src)
+		r = bzip2.NewReader(&dec.sec)
 	}
 
-	return &checkReader{r: r, size: file.usize, want: file.crc, entry: entry}, nil
+	dec.chk = checkReader{r: r, size: file.usize, want: file.crc, entry: entry}
+
+	return &dec.chk, nil
 }
 
 // checkReader passes through exactly size bytes whose CRC-32 is want, and
@@ -1014,7 +1108,7 @@ func (c *checkReader) Read(p []byte) (int, error) {
 		c.err = errorf(Zip, ErrIrreproducible, c.entry, "invalid compressed data: %v", err)
 	}
 
-	if c.err != nil && c.err != io.EOF {
+	if c.err != nil && !errors.Is(c.err, io.EOF) {
 		return 0, c.err
 	}
 

@@ -1,11 +1,13 @@
 package archive
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"slices"
 	"strconv"
 )
 
@@ -286,7 +288,7 @@ type Archive struct {
 
 // contentReader streams the content of the files of a planned extraction.
 type contentReader interface {
-	readFiles(a *Archive, fn func(e *Entry, r io.Reader) error) error
+	readFiles(a *Archive, fn FileFunc) error
 }
 
 // Open plans the extraction of the archive at path as Composer's extractor
@@ -347,14 +349,34 @@ func (a *Archive) Format() Format {
 	return a.format
 }
 
+// FileFunc receives the content of the file Entries()[i]. It must not
+// retain r.
+type FileFunc func(i int, r io.Reader) error
+
 // ReadFiles calls fn for every File entry, in the order the archive stores
 // their content, with a reader of exactly that content. The reader fails if
 // the archive's data does not match what was planned (wrong length, bad
 // CRC, corrupt compression); fn must then fail too, and ReadFiles returns
 // the reader's error. A reader fn leaves unread is drained, so the checks
-// still run. fn must not retain r.
-func (a *Archive) ReadFiles(fn func(e *Entry, r io.Reader) error) error {
+// still run.
+func (a *Archive) ReadFiles(fn FileFunc) error {
 	return a.content.readFiles(a, fn)
+}
+
+// fileOrder lists the indexes of the File entries, ordered by where their
+// content lies (pos of their src).
+func (a *Archive) fileOrder(pos func(src int) int64) []int {
+	order := make([]int, 0, len(a.entries))
+
+	for i := range a.entries {
+		if a.entries[i].Kind == File {
+			order = append(order, i)
+		}
+	}
+
+	slices.SortFunc(order, func(x, y int) int { return cmp.Compare(pos(a.entries[x].src), pos(a.entries[y].src)) })
+
+	return order
 }
 
 // Close releases the archive file.
@@ -371,10 +393,10 @@ func errorf(format Format, kind error, entry, reason string, args ...any) *Error
 	return &Error{Format: format, Err: kind, Entry: entry, Reason: reason}
 }
 
-// consume hands r to fn, then drains what fn left so the reader's checks run
-// to the end, and reports the first failure.
-func consume(e *Entry, r io.Reader, fn func(e *Entry, r io.Reader) error) error {
-	if err := fn(e, r); err != nil {
+// consume hands r to fn as the content of file i, then drains what fn left
+// so the reader's checks run to the end, and reports the first failure.
+func consume(i int, r io.Reader, fn FileFunc) error {
+	if err := fn(i, r); err != nil {
 		return err
 	}
 
