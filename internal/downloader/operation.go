@@ -7,18 +7,18 @@ package downloader
 
 import "github.com/stubbedev/maestro/internal/pkg"
 
-// formatInstall is InstallOperation::format($package).
-func formatInstall(p pkg.PackageInterface) string {
+// FormatInstall is InstallOperation::format($package).
+func FormatInstall(p pkg.PackageInterface) string {
 	return "Installing <info>" + p.PrettyName() + "</info> (<comment>" + p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev) + "</comment>)"
 }
 
-// formatUninstall is UninstallOperation::format($package).
-func formatUninstall(p pkg.PackageInterface) string {
+// FormatUninstall is UninstallOperation::format($package).
+func FormatUninstall(p pkg.PackageInterface) string {
 	return "Removing <info>" + p.PrettyName() + "</info> (<comment>" + p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev) + "</comment>)"
 }
 
-// formatUpdate is UpdateOperation::format($initial, $target).
-func formatUpdate(initial, target pkg.PackageInterface) (string, error) {
+// FormatUpdate is UpdateOperation::format($initial, $target).
+func FormatUpdate(initial, target pkg.PackageInterface) (string, error) {
 	fromVersion := initial.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
 	toVersion := target.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
 

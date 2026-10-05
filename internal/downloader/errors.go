@@ -28,22 +28,6 @@ func (e *FilesystemError) Error() string { return e.Message }
 // Unwrap returns the previous exception.
 func (e *FilesystemError) Unwrap() error { return e.Previous }
 
-// isRuntimeException reports whether PHP would see err as a
-// \RuntimeException (catch (\RuntimeException $e)).
-func isRuntimeException(err error) bool {
-	var (
-		runtime    *util.RuntimeError
-		transport  *util.TransportError
-		unexpected *util.UnexpectedValueError
-		ioErr      *util.IOError
-		timedOut   *util.ProcessTimedOutError
-		signaled   *util.ProcessSignaledError
-	)
-
-	return errors.As(err, &runtime) || errors.As(err, &transport) || errors.As(err, &unexpected) ||
-		errors.As(err, &ioErr) || errors.As(err, &timedOut) || errors.As(err, &signaled)
-}
-
 // isIrrecoverable is $e instanceof IrrecoverableDownloadException.
 func isIrrecoverable(err error) bool {
 	var e *util.IrrecoverableDownloadError
@@ -51,9 +35,9 @@ func isIrrecoverable(err error) bool {
 	return errors.As(err, &e)
 }
 
-// phpClassOf names err's PHP exception class and code, as get_class($e) and
+// PHPClassOf names err's PHP exception class and code, as get_class($e) and
 // $e->getCode() show them.
-func phpClassOf(err error) (string, int) {
+func PHPClassOf(err error) (string, int) {
 	var (
 		maxSize    *util.MaxFileSizeExceededError
 		transport  *util.TransportError

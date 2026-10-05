@@ -317,3 +317,7 @@ func (s *Svn) BinaryVersion() (string, bool, error) {
 		return versionMatch(s.process, util.Cmd("svn", "--version"), `{(\d+(?:\.\d+)+)}`)
 	}, true)
 }
+
+// SetSvnVersion sets the cached svn binary version (Svn::$version), for
+// tests; known false clears it.
+func SetSvnVersion(version string, known bool) { svnVersion.set(version, known) }

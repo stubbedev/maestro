@@ -108,3 +108,11 @@ func RemoveJunction(junction string) (bool, error) {
 
 	return true, nil
 }
+
+// IsWritable is PHP's is_writable() on Windows: a file without the
+// read-only attribute (directories are always writable for PHP).
+func IsWritable(path string) bool {
+	fi, err := os.Stat(path)
+
+	return err == nil && (fi.IsDir() || fi.Mode().Perm()&0o200 != 0)
+}

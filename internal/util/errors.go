@@ -4,6 +4,12 @@
 
 package util
 
+import (
+	"errors"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
+
 // RuntimeError is PHP's \RuntimeException.
 type RuntimeError struct{ Message string }
 
@@ -43,3 +49,26 @@ func (e *UnexpectedValueError) Error() string { return e.Message }
 type SecurityError struct{ Message string }
 
 func (e *SecurityError) Error() string { return e.Message }
+
+// IsRuntimeException reports whether PHP would see err as a
+// \RuntimeException (`catch (\RuntimeException $e)`): RuntimeError,
+// TransportError (and MaxFileSizeExceededError), UnexpectedValueError,
+// SecurityError, IOError, IrrecoverableDownloadError, the process
+// failures and PCRE errors.
+func IsRuntimeException(err error) bool {
+	var (
+		runtime    *RuntimeError
+		transport  *TransportError
+		unexpected *UnexpectedValueError
+		security   *SecurityError
+		ioErr      *IOError
+		irrecov    *IrrecoverableDownloadError
+		timedOut   *ProcessTimedOutError
+		signaled   *ProcessSignaledError
+		pcre       *php.PcreError
+	)
+
+	return errors.As(err, &runtime) || errors.As(err, &transport) || errors.As(err, &unexpected) ||
+		errors.As(err, &security) || errors.As(err, &ioErr) || errors.As(err, &irrecov) ||
+		errors.As(err, &timedOut) || errors.As(err, &signaled) || errors.As(err, &pcre)
+}

@@ -65,3 +65,8 @@ func IsJunction(string) bool {
 func RemoveJunction(string) (bool, error) {
 	return false, nil
 }
+
+// IsWritable is PHP's is_writable(): access(2) with W_OK.
+func IsWritable(path string) bool {
+	return unix.Access(path, unix.W_OK) == nil
+}
