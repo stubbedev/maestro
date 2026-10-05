@@ -1,0 +1,10 @@
+{
+    "name": "maestro/e2e-config",
+    "description": "config reads and writes.",
+    "require": {
+        "psr/log": "^3.0"
+    },
+    "config": {
+        "sort-packages": false
+    }
+}

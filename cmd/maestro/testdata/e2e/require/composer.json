@@ -1,0 +1,5 @@
+{
+    "name": "maestro/e2e-require",
+    "description": "Starts empty: require and remove edit composer.json and pick versions.",
+    "require": {}
+}

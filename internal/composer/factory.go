@@ -683,6 +683,15 @@ func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownl
 		Store:          st,
 		Metadata:       metadata,
 		IniFiles:       f.runtime().Environment().IniFiles,
+		// extension_loaded() of the PHP Composer runs on; without php,
+		// maestro extracts everything natively.
+		ExtensionLoaded: func(name string) bool {
+			if view, _, err := f.runtime().ComposerView(); err != nil || view == nil {
+				return true
+			}
+
+			return f.runtime().Environment().ExtensionLoaded(name)
+		},
 	}
 	if dispatcher != nil {
 		deps.EventDispatcher = dispatcher

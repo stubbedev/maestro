@@ -1,0 +1,50 @@
+{
+    "name": "maestro/e2e-scripts",
+    "description": "Scripts of every kind.",
+    "require": {
+        "psr/log": "1.1.4"
+    },
+    "autoload": {
+        "psr-4": {"Acme\\": "src/"}
+    },
+    "scripts": {
+        "pre-install-cmd": "echo pre-install-cmd",
+        "post-install-cmd": [
+            "@php -r \"echo 'php: ', PHP_MAJOR_VERSION > 7 ? 'yes' : 'no', PHP_EOL;\"",
+            "@hello"
+        ],
+        "pre-update-cmd": "echo pre-update-cmd",
+        "post-update-cmd": "@hello",
+        "pre-autoload-dump": "echo pre-autoload-dump",
+        "post-autoload-dump": "@php -r \"file_put_contents('dumped.txt', 'dev=' . getenv('COMPOSER_DEV_MODE') . PHP_EOL);\"",
+        "hello": "echo hello dev=$COMPOSER_DEV_MODE",
+        "env-test": [
+            "@putenv FOO=bar",
+            "echo FOO=$FOO",
+            "@putenv FOO",
+            "echo FOO=$FOO"
+        ],
+        "composer-call": [
+            "@composer validate --no-check-publish",
+            "@composer show --name-only"
+        ],
+        "args": "echo args:",
+        "fail": [
+            "echo before",
+            "exit 3",
+            "echo after"
+        ],
+        "callable": "Acme\\Scripts::run",
+        "callable-io": "Acme\\Scripts::io",
+        "nested": ["@hello", "@args nested"],
+        "timeout": "Composer\\Config::disableProcessTimeout",
+        "bin-path": "echo path-has-vendor-bin=$(echo $PATH | grep -c vendor/bin)",
+        "php-binary": "@php -r \"echo PHP_VERSION === phpversion() ? 'php ok' : 'no', PHP_EOL;\""
+    },
+    "scripts-descriptions": {
+        "hello": "Says hello."
+    },
+    "scripts-aliases": {
+        "hello": ["hi"]
+    }
+}

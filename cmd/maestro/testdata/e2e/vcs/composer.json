@@ -1,0 +1,12 @@
+{
+    "name": "maestro/e2e-vcs",
+    "description": "VCS repositories (generated git repositories): tags, branches and source installs.",
+    "repositories": [
+        {"type": "vcs", "url": "@ROOT@/repos/lib"},
+        {"type": "git", "url": "@ROOT@/repos/tool"}
+    ],
+    "require": {
+        "acme/lib": "^1.0",
+        "acme/tool": "dev-main"
+    }
+}

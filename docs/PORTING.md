@@ -40,6 +40,9 @@ deviations listed below.
 4. **self-update** updates maestro from its GitHub releases.
 5. **Plugins** run in maestro's own PHP shim (`internal/plugin/php`), which
    reimplements Composer's public PHP plugin API, not Composer's code.
+6. **`--version`** prints Composer's exact lines, then one extra stderr
+   line, `maestro version X`, so people can tell which tool they run;
+   anything parsing stdout or the first line sees Composer's output.
 
 ## Layout
 

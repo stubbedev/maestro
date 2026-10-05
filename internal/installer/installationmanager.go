@@ -615,7 +615,11 @@ func (m *Manager) waitOnPromises(promises []*Promise) error {
 		}
 	}
 
-	err := wait(m.loop, promises, progress)
+	// Loop::wait throws the first rejection, which skips the clean-up of
+	// the progress bar below (the exception's rendering ends its line)
+	if err := wait(m.loop, promises, progress); err != nil {
+		return err
+	}
 
 	if progress != nil {
 		progress.Clear()
@@ -626,7 +630,7 @@ func (m *Manager) waitOnPromises(promises []*Promise) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 // Download is download(), which, as in Composer, runs the installer's

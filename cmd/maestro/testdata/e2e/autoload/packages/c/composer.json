@@ -1,0 +1,12 @@
+{
+    "name": "acme/c",
+    "description": "A path package with bins, files and a target of aliases.",
+    "version": "1.4.0",
+    "license": "MIT",
+    "bin": ["bin/c-run", "bin/c-run.php"],
+    "require": {"psr/log": "^1.0"},
+    "autoload": {
+        "psr-4": {"Acme\\C\\": "src/"},
+        "files": ["src/functions.php"]
+    }
+}

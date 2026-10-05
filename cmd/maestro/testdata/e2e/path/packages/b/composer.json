@@ -1,0 +1,9 @@
+{
+    "name": "acme/b",
+    "description": "Mirrored path package with a binary.",
+    "type": "library",
+    "version": "2.1.0",
+    "license": "MIT",
+    "bin": ["bin/b-tool"],
+    "autoload": {"classmap": ["src/"], "files": ["src/helpers.php"]}
+}

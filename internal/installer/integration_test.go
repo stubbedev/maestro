@@ -14,7 +14,9 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive/archivetest"
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/downloader"
+	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -333,5 +335,52 @@ func TestInstallationManager_NotifyInstalls(t *testing.T) {
 
 	if !slices.Equal(got, want) {
 		t.Errorf("requests:\n%v\nwant\n%v", got, want)
+	}
+}
+
+// TestInstallationManager_ExecuteFailureLeavesProgressLine: Loop::wait
+// throws the rejection, so waitOnPromises never clears the progress bar or
+// writes the line break ending it (the exception's rendering does).
+func TestInstallationManager_ExecuteFailureLeavesProgressLine(t *testing.T) {
+	rec := &recorder{}
+	installer := newMockInstaller(rec, func(string) bool { return true })
+	installer.result = func(method string, p pkg.PackageInterface) (*Promise, error) {
+		if method == "install" && p.Name() == "b/b" {
+			return Rejected(&util.RuntimeError{Message: "boom"}), nil
+		}
+
+		return Resolved(), nil
+	}
+
+	in, err := console.NewArrayInput(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out := console.NewBufferedOutput(console.VerbosityNormal, false, nil)
+	cio := mio.NewConsoleIO(in, out, console.NewHelperSet())
+
+	h, err := http.NewHttpDownloader(cio, config.New(false, "").ForHTTP(), nil, true, http.NewStaticRuntime("8.4.0", "2.10.3"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manager := NewManager(http.NewLoop(h, nil), cio, nil)
+	manager.SetOutputProgress(true)
+	manager.AddInstaller(installer)
+
+	repo := newMockRepo(t)
+	repo.rec = rec
+
+	err = manager.Execute(repo, []operation.Operation{
+		operation.NewInstallOperation(installedPackage("a/a", "1.0.0", "library")),
+		operation.NewInstallOperation(installedPackage("b/b", "1.0.0", "library")),
+	}, true, true, false)
+	if err == nil || err.Error() != "boom" {
+		t.Fatalf("err = %v", err)
+	}
+
+	if got := out.Fetch(); strings.HasSuffix(got, "\n") || !strings.Contains(got, "    Install of b/b failed\n") {
+		t.Errorf("output %q: want the progress bar's last line without a line break", got)
 	}
 }

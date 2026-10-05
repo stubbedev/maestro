@@ -1,0 +1,8 @@
+{
+    "name": "maestro/e2e-unsatisfiable",
+    "description": "Requirements no set of packages satisfies.",
+    "require": {
+        "monolog/monolog": "1.27.1",
+        "psr/log": "^2.0"
+    }
+}

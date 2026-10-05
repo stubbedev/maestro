@@ -135,6 +135,21 @@ func pharDataCheck(file string) error {
 	return nil
 }
 
+// pharCompressionCheck reproduces new \PharData($file) on a compressed tar
+// when the PHP running Composer lacks the extension that decompresses it
+// (ext/phar's phar_open_from_fp recognises gzip and bzip2 by their magic
+// bytes and needs zlib or bz2 for them).
+func pharCompressionCheck(file string, extensionLoaded func(name string) bool) error {
+	switch {
+	case hasPrefix(file, []byte{0x1f, 0x8b}) && !extensionLoaded("zlib"):
+		return &util.UnexpectedValueError{Message: `unable to decompress gzipped phar archive "` + file + `" to temporary file, enable zlib extension in php.ini`, Site: phperr.At("TarDownloader.php", 37)}
+	case hasPrefix(file, []byte("BZh")) && !extensionLoaded("bz2"):
+		return &util.UnexpectedValueError{Message: `unable to decompress bzipped phar archive "` + file + `" to temporary file, enable bz2 extension in php.ini`, Site: phperr.At("TarDownloader.php", 37)}
+	}
+
+	return nil
+}
+
 // extractRar is RarDownloader::extract. maestro's PHP has no RarArchive
 // class, so only unrar is tried.
 func (a *ArchiveDownloader) extractRar(_ pkg.PackageInterface, file, path string) error {

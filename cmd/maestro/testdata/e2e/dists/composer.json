@@ -1,0 +1,24 @@
+{
+    "name": "maestro/e2e-dists",
+    "description": "Every archive type Composer extracts, with modes, symlinks and layouts (deviation 2).",
+    "repositories": [
+        {"type": "package", "package": {"name": "acme/zip-nested", "version": "1.0.0", "dist": {"type": "zip", "url": "@ROOT@/dists/zip-nested.zip"}, "bin": ["bin/run"]}},
+        {"type": "package", "package": {"name": "acme/zip-flat", "version": "1.0.0", "dist": {"type": "zip", "url": "@ROOT@/dists/zip-flat.zip"}}},
+        {"type": "package", "package": {"name": "acme/tar-plain", "version": "1.0.0", "dist": {"type": "tar", "url": "@ROOT@/dists/tar-plain.tar"}}},
+        {"type": "package", "package": {"name": "acme/tar-gz", "version": "1.0.0", "dist": {"type": "tar", "url": "@ROOT@/dists/tar-gz.tar.gz"}}},
+        {"type": "package", "package": {"name": "acme/tar-bz2", "version": "1.0.0", "dist": {"type": "tar", "url": "@ROOT@/dists/tar-bz2.tar.bz2"}}},
+        {"type": "package", "package": {"name": "acme/xz", "version": "1.0.0", "dist": {"type": "xz", "url": "@ROOT@/dists/xz.tar.xz"}}},
+        {"type": "package", "package": {"name": "acme/gzip", "version": "1.0.0", "dist": {"type": "gzip", "url": "@ROOT@/dists/single.php.gz"}}},
+        {"type": "package", "package": {"name": "acme/file", "version": "1.0.0", "dist": {"type": "file", "url": "@ROOT@/dists/tool.phar"}, "bin": ["tool.phar"]}}
+    ],
+    "require": {
+        "acme/zip-nested": "1.0.0",
+        "acme/zip-flat": "1.0.0",
+        "acme/tar-plain": "1.0.0",
+        "acme/tar-gz": "1.0.0",
+        "acme/tar-bz2": "1.0.0",
+        "acme/xz": "1.0.0",
+        "acme/gzip": "1.0.0",
+        "acme/file": "1.0.0"
+    }
+}

@@ -911,3 +911,37 @@ func TestFileDownloader_FilesCache(t *testing.T) {
 		t.Fatalf("%d requests, want 1", n)
 	}
 }
+
+// new \PharData() on a tar.bz2 (tar.gz) when the PHP running Composer
+// lacks bz2 (zlib): the UnexpectedValueException ext/phar throws, before
+// anything is extracted.
+func TestTarDownloader_PharDataNeedsCompressionExtension(t *testing.T) {
+	dir := t.TempDir()
+
+	for _, c := range []struct {
+		name, ext string
+		data      []byte
+		want      string
+	}{
+		{"tmp-a.bz2", "bz2", []byte("BZh91AY&SY"), `unable to decompress bzipped phar archive "` + dir + `/tmp-a.bz2" to temporary file, enable bz2 extension in php.ini`},
+		{"tmp-b.gz", "zlib", []byte{0x1f, 0x8b, 8, 0}, `unable to decompress gzipped phar archive "` + dir + `/tmp-b.gz" to temporary file, enable zlib extension in php.ini`},
+	} {
+		file := filepath.Join(dir, c.name)
+		if err := os.WriteFile(file, c.data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := pharCompressionCheck(file, func(name string) bool { return name != c.ext })
+		if err == nil || err.Error() != c.want {
+			t.Errorf("%s: %v, want %s", c.name, err, c.want)
+		}
+
+		if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+			t.Errorf("%s: %T, want an UnexpectedValueException", c.name, err)
+		}
+
+		if err := pharCompressionCheck(file, func(string) bool { return true }); err != nil {
+			t.Errorf("%s with the extension: %v", c.name, err)
+		}
+	}
+}

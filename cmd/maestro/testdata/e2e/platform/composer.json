@@ -1,0 +1,14 @@
+{
+    "name": "maestro/e2e-platform",
+    "description": "config.platform overrides and ignored platform requirements.",
+    "require": {
+        "psr/log": "*",
+        "psr/container": "*"
+    },
+    "config": {
+        "platform": {
+            "php": "7.4.33",
+            "ext-foo": "1.0"
+        }
+    }
+}

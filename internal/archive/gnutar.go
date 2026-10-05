@@ -7,6 +7,7 @@ package archive
 
 import (
 	"archive/tar"
+	"bytes"
 	"errors"
 	"io"
 	"io/fs"
@@ -72,7 +73,8 @@ func (g *gnuTar) readError(err error) error {
 
 // entry places one member as GNU tar extracts it, refusing everything it
 // would warn about, fail on, or that maestro does not reproduce (hard
-// links, special files, sparse files, overwriting).
+// links to anything but a file extracted before, special files, sparse
+// files, overwriting).
 func (g *gnuTar) entry(hdr *tar.Header, ordinal int) error {
 	name := hdr.Name
 
@@ -90,7 +92,7 @@ func (g *gnuTar) entry(hdr *tar.Header, ordinal int) error {
 		}
 
 		return nil
-	case tar.TypeReg, tar.TypeCont, tar.TypeDir, tar.TypeSymlink:
+	case tar.TypeReg, tar.TypeCont, tar.TypeDir, tar.TypeSymlink, tar.TypeLink:
 	default:
 		return g.fail(ErrIrreproducible, name, "unsupported tar entry type %q", hdr.Typeflag)
 	}
@@ -143,6 +145,8 @@ func (g *gnuTar) entry(hdr *tar.Header, ordinal int) error {
 	var err error
 
 	switch hdr.Typeflag {
+	case tar.TypeLink:
+		return g.hardLink(path, name, hdr.Linkname)
 	case tar.TypeDir:
 		err = g.b.add(Entry{Path: path, Kind: Dir, Mode: perm, Umask: true})
 		g.explicit[path] = true
@@ -158,6 +162,33 @@ func (g *gnuTar) entry(hdr *tar.Header, ordinal int) error {
 	}
 
 	return err
+}
+
+// hardLink places a hard link as tar extracts it: link(2) to the member
+// extracted earlier under the (leading-slash-stripped) link name. The link
+// shares the file's inode, so it is a file with the same content and
+// mode. Links to anything but a regular file extracted before (a missing
+// member, a directory, a symlink) and link names with a ".." component
+// are not reproduced.
+func (g *gnuTar) hardLink(path, name, linkname string) error {
+	parts := make([]string, 0, strings.Count(linkname, "/")+1)
+
+	for c := range strings.SplitSeq(strings.TrimLeft(linkname, "/"), "/") {
+		switch c {
+		case "", ".":
+		case "..":
+			return g.fail(ErrIrreproducible, name, "hard link target %q contains '..'", linkname)
+		default:
+			parts = append(parts, c)
+		}
+	}
+
+	target := g.b.get(strings.Join(parts, "/"))
+	if target == nil || target.Kind != File {
+		return g.fail(ErrIrreproducible, name, "hard link to %q, which is not a file extracted before", linkname)
+	}
+
+	return g.b.add(Entry{Path: path, Kind: File, Mode: target.Mode, Umask: target.Umask, Size: target.Size, src: target.src})
 }
 
 // setDir gives a directory the mode of an entry naming it, which tar
@@ -212,11 +243,14 @@ type gnuContent struct {
 }
 
 func (g *gnuContent) readFiles(a *Archive, fn FileFunc) error {
-	byOrdinal := make(map[int64]int, len(g.files))
+	// the entries reading each member's content: more than one for a file
+	// with hard links to it
+	byOrdinal := make(map[int64][]int, len(g.files))
 
 	for i := range a.entries {
 		if e := &a.entries[i]; e.Kind == File {
-			byOrdinal[g.files[e.src].off] = i
+			off := g.files[e.src].off
+			byOrdinal[off] = append(byOrdinal[off], i)
 		}
 	}
 
@@ -232,18 +266,35 @@ func (g *gnuContent) readFiles(a *Archive, fn FileFunc) error {
 			return (&gnuTar{}).readError(err)
 		}
 
-		i, ok := byOrdinal[ordinal]
+		entries, ok := byOrdinal[ordinal]
 		if !ok {
 			continue
 		}
 
 		delete(byOrdinal, ordinal)
 
-		e := &a.entries[i]
+		e := &a.entries[entries[0]]
 		r := &exactReader{r: tr, left: e.Size, entry: e.Path, format: Xz}
 
-		if err := consume(i, r, fn); err != nil {
+		if len(entries) == 1 {
+			if err := consume(entries[0], r, fn); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		// hard links: the content is read once and given to each entry
+		data, err := io.ReadAll(r)
+		if err != nil {
 			return err
+		}
+
+		for _, i := range entries {
+			r := &exactReader{r: bytes.NewReader(data), left: e.Size, entry: a.entries[i].Path, format: Xz}
+			if err := consume(i, r, fn); err != nil {
+				return err
+			}
 		}
 	}
 

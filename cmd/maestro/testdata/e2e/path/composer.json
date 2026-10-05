@@ -1,0 +1,14 @@
+{
+    "name": "maestro/e2e-path",
+    "description": "Path repositories: one symlinked, one mirrored.",
+    "repositories": [
+        {"type": "path", "url": "packages/a"},
+        {"type": "path", "url": "packages/b", "options": {"symlink": false}}
+    ],
+    "require": {
+        "acme/a": "*@dev",
+        "acme/b": "*@dev"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

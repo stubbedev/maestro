@@ -519,6 +519,10 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 		if err := pharDataCheck(fileName); err != nil {
 			return err
 		}
+
+		if err := pharCompressionCheck(fileName, d.extensionLoaded); err != nil {
+			return err
+		}
 	}
 
 	s := d.store

@@ -1,0 +1,43 @@
+{
+    "name": "maestro/e2e-autoload",
+    "description": "Every autoload kind, PSR violations, custom directories, aliases, replace and provide.",
+    "version": "2.0.0",
+    "repositories": [
+        {"type": "path", "url": "packages/*"}
+    ],
+    "require": {
+        "acme/c": "^1.0",
+        "psr/log": "1.1.4"
+    },
+    "replace": {
+        "acme/replaced": "self.version"
+    },
+    "provide": {
+        "psr/log-implementation": "1.0.0"
+    },
+    "suggest": {
+        "ext-intl": "For something."
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/",
+            "App\\Psr4\\": ["src/Psr4/", "classes/"]
+        },
+        "psr-0": {
+            "Legacy_": "lib/Psr0/",
+            "Legacy\\": "lib/Psr0/"
+        },
+        "classmap": ["classes/", "files/one.php"],
+        "files": ["files/helpers.php"],
+        "exclude-from-classmap": ["classes/sub/Excluded.php", "/excluded/"]
+    },
+    "autoload-dev": {
+        "classmap": ["excluded/"]
+    },
+    "config": {
+        "vendor-dir": "lib/vendor",
+        "bin-dir": "tools",
+        "bin-compat": "full",
+        "optimize-autoloader": false
+    }
+}

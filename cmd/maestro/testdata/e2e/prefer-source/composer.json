@@ -1,0 +1,8 @@
+{
+    "name": "maestro/e2e-prefer-source",
+    "description": "Packages installed from their git sources on GitHub.",
+    "require": {
+        "psr/log": "1.1.4",
+        "psr/container": "1.1.2"
+    }
+}

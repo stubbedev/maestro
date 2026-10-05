@@ -56,6 +56,10 @@ type Deps struct {
 	// IniFiles lists the php.ini files of the user's php, for IniHelper's
 	// messages.
 	IniFiles func() []string
+	// ExtensionLoaded is extension_loaded() of the PHP Composer would run
+	// on: PharData decompresses tar.gz and tar.bz2 dists only with zlib and
+	// bz2. nil counts every extension as loaded.
+	ExtensionLoaded func(name string) bool
 }
 
 // hooks are the methods subclasses of FileDownloader override; the base
@@ -87,8 +91,10 @@ type FileDownloader struct {
 	store    *store.Store
 	metadata *Metadata
 	iniFiles func() []string
-	self     hooks
-	class    string
+	// extensionLoaded is Deps.ExtensionLoaded (never nil).
+	extensionLoaded func(name string) bool
+	self            hooks
+	class           string
 	// format is the archive format store-backed downloaders extract (0
 	// for none).
 	format archive.Format
@@ -127,6 +133,7 @@ func newFileDownloader(deps Deps, class string) *FileDownloader {
 		store:                  deps.Store,
 		metadata:               deps.Metadata,
 		iniFiles:               deps.IniFiles,
+		extensionLoaded:        deps.ExtensionLoaded,
 		class:                  class,
 		umask:                  store.Umask(),
 		retryDelay:             500 * time.Millisecond,
@@ -146,6 +153,10 @@ func newFileDownloader(deps Deps, class string) *FileDownloader {
 
 	if d.iniFiles == nil {
 		d.iniFiles = func() []string { return nil }
+	}
+
+	if d.extensionLoaded == nil {
+		d.extensionLoaded = func(string) bool { return true }
 	}
 
 	d.self = d

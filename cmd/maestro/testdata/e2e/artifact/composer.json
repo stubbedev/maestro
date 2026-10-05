@@ -1,0 +1,10 @@
+{
+    "name": "maestro/e2e-artifact",
+    "description": "An artifact repository of generated zip archives.",
+    "repositories": [
+        {"type": "artifact", "url": "../artifacts"}
+    ],
+    "require": {
+        "acme/art": "^1.0"
+    }
+}
