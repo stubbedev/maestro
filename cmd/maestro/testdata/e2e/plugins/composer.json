@@ -1,0 +1,26 @@
+{
+    "name": "maestro/e2e-plugins",
+    "description": "An allowed plugin and a PHP-callable script, which need Composer's own runtime.",
+    "require": {
+        "php": ">=8.2",
+        "symfony/yaml": "^7.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "App\\Scripts::postInstall"
+        ]
+    }
+}

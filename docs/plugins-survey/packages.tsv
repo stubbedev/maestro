@@ -1,0 +1,48 @@
+package	version	plugin_class	composer_plugin_api	php_files_scanned	files_using_composer_api
+bamarni/composer-bin-plugin	1.9.1	Bamarni\Composer\Bin\BamarniBinPlugin	^2.0	14	11
+cakephp/plugin-installer	2.0.2	Cake\Composer\Plugin	^2.0	1	1
+captainhook/hook-installer	1.0.5	CaptainHook\HookInstaller\ComposerPlugin	^1.1|^2.0	3	2
+civicrm/composer-downloads-plugin	v4.0.0	LastCall\DownloadsPlugin\Plugin	^2.0	8	8
+composer/installers	v2.3.0	Composer\Installers\Plugin	^1.0 || ^2.0	100	11
+composer/package-versions-deprecated	1.11.99.5	PackageVersions\Installer	^1.1.0 || ^2.0	3	2
+cweagans/composer-patches	1.7.3	cweagans\Composer\Patches	^1.0 || ^2.0	3	2
+cweagans/composer-patches	2.0.0	cweagans\Composer\Plugin\Patches	^2.0	40	27
+dealerdirect/phpcodesniffer-composer-installer	v1.2.1	PHPCSStandards\Composer\Plugin\Installers\PHPCodeSniffer\Plugin	^2.2	1	1
+drupal/core-composer-scaffold	11.4.8	Drupal\Composer\Plugin\Scaffold\Plugin	^2	25	20
+drupal/core-project-message	11.4.8	Drupal\Composer\Plugin\ProjectMessage\MessagePlugin	^2	2	2
+drupal/core-vendor-hardening	11.4.8	Drupal\Composer\Plugin\VendorHardening\VendorHardeningPlugin	^2	3	2
+endroid/installer	1.5.2	Endroid\Installer\Installer	^2.0	1	1
+ergebnis/composer-normalize	2.54.0	Ergebnis\Composer\Normalize\NormalizePlugin	^2.0.0	5	3
+infection/extension-installer	0.1.2	Infection\ExtensionInstaller\Plugin	^1.1 || ^2.0	2	1
+johnpbloch/wordpress-core-installer	2.0.0	johnpbloch\Composer\WordPressCorePlugin	^1.0 || ^2.0	2	2
+laminas/laminas-component-installer	3.8.0	Laminas\ComponentInstaller\ComponentInstaller	^2.6	34	5
+laminas/laminas-dependency-plugin	2.7.0	Laminas\DependencyPlugin\DependencyRewriterPluginDelegator	>=1.1.0 <2.3.0	11	8
+laravel/framework	v13.34.0			1	1
+magento/magento-composer-installer	0.5.0	MagentoHackathon\Composer\Magento\Plugin	^1.1 || ^2.0	18	6
+mcaskill/composer-exclude-files	5.0.0	McAskill\Composer\ExcludeFilePlugin	^2.9	4	3
+mnsami/composer-custom-directory-installer	2.2.1	['Composer\\CustomDirectoryInstaller\\LibraryPlugin', 'Composer\\CustomDirectoryInstaller\\PearPlugin', 'Composer\\CustomDirectoryInstaller\\PluginPlugin']	^2.0	8	7
+ocramius/package-versions	2.12.0			1	1
+oomphinc/composer-installers-extender	2.0.1	OomphInc\ComposerInstallersExtender\Plugin	^1.1 || ^2.0	3	3
+pestphp/pest-plugin	v4.0.0	Pest\Plugin\Manager	^2.0.0	4	3
+pestphp/pest-plugin	v5.0.0	Pest\Plugin\Manager	^2.0.0	4	3
+php-http/discovery	1.20.0	Http\Discovery\Composer\Plugin	^1.0|^2.0	1	1
+phpro/grumphp	v2.25.0	GrumPHP\Composer\GrumPHPPlugin	^2.0	2	2
+phpstan/extension-installer	1.4.3	PHPStan\ExtensionInstaller\Plugin	^2.0	2	1
+pyrech/composer-changelogs	v2.2.0	Pyrech\ComposerChangelogs\ChangelogsPlugin	^1.0 || ^2.0	20	7
+ramsey/composer-repl-lib	1.4.0			9	8
+ramsey/composer-repl	1.5.1	Ramsey\Dev\Repl\Composer\ReplPlugin	^2.0	0	0
+stubbedev/atlassian-mcp	v0.5.24	Stubbedev\AtlassianMcp\ComposerPlugin	^2.0	2	1
+stubbedev/ds-mcp	v0.3.15	Stubbedev\DsMcp\ComposerPlugin	^2.0	2	1
+stubbedev/jenkins-mcp	v0.2.7	Stubbedev\JenkinsMcp\ComposerPlugin	^2.0	2	1
+stubbedev/laravel-dev-mcp	v0.0.15	Stubbedev\LaravelDevMcp\ComposerPlugin	^2.0	2	2
+stubbedev/sentry-mcp	v0.2.9	Stubbedev\SentryMcp\ComposerPlugin	^2.0	2	1
+symfony/flex	v2.11.0	Symfony\Flex\Flex	^2.1	42	28
+symfony/runtime	v8.1.0	Symfony\Component\Runtime\Internal\ComposerPlugin	^1.0|^2.0	11	1
+symfony/thanks	v1.4.1	Symfony\Thanks\Thanks	^1.0|^2.0	4	4
+tbachert/spi	v1.0.5	Nevay\SPI\Composer\Plugin	^2.0	8	3
+typo3/class-alias-loader	v2.0.1	TYPO3\ClassAliasLoader\Plugin	^2.0	11	6
+typo3/cms-composer-installers	v5.0.2	TYPO3\CMS\Composer\Installer\Plugin	^2.1.0	18	14
+vaimo/composer-patches	6.0.3	Vaimo\ComposerPatches\Plugin	^2.0	169	74
+wikimedia/composer-merge-plugin	v2.1.0	Wikimedia\Composer\Merge\V2\MergePlugin	^1.1||^2.0	8	6
+yiisoft/yii2-composer	2.0.11	yii\composer\Plugin	^1.0 | ^2.0	2	2
+zaporylie/composer-drupal-optimizations	1.2.0	zaporylie\ComposerDrupalOptimizations\Plugin	^1.1 || ^2.0	3	3

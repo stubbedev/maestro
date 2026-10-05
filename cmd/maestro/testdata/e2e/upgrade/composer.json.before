@@ -1,0 +1,9 @@
+{
+    "name": "maestro/e2e-upgrade",
+    "description": "Installed from composer.lock.before, then moved to composer.lock: updates, removals and new packages.",
+    "require": {
+        "monolog/monolog": "3.5.0",
+        "symfony/console": "6.4.0",
+        "psr/http-message": "^2.0"
+    }
+}

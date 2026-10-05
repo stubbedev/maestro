@@ -1,0 +1,107 @@
+//go:build windows
+
+package util
+
+import (
+	"os"
+	"strings"
+	"syscall"
+	"time"
+)
+
+// unlinkPath is PHP's unlink() on Windows.
+func unlinkPath(path string) error {
+	p, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+
+	return syscall.DeleteFile(p)
+}
+
+func rmdirPath(path string) error {
+	p, err := syscall.UTF16PtrFromString(path)
+	if err != nil {
+		return err
+	}
+
+	return syscall.RemoveDirectory(p)
+}
+
+// isReadableAccess is PHP's is_readable on Windows: the file exists.
+func isReadableAccess(path string) bool {
+	return fileExists(path)
+}
+
+// isExecutable approximates PHP's is_executable on Windows, which asks
+// GetBinaryType: an existing .exe or .com file.
+func isExecutable(path string) bool {
+	if !isFile(path) {
+		return false
+	}
+
+	ext := strings.ToLower(path[strings.LastIndexByte(path, '.')+1:])
+
+	return ext == "exe" || ext == "com"
+}
+
+func chownLike(string, os.FileInfo) {}
+
+func fileAtime(fi os.FileInfo) time.Time {
+	if d, ok := fi.Sys().(*syscall.Win32FileAttributeData); ok {
+		return time.Unix(0, d.LastAccessTime.Nanoseconds())
+	}
+
+	return fi.ModTime()
+}
+
+// Junction ports Filesystem::junction: creates an NTFS junction at junction
+// pointing to target.
+func (fs *Filesystem) Junction(target, junction string) error {
+	if !isDir(target) {
+		return &IOError{Message: "Cannot junction to \"" + target + "\" as it is not a directory.", Path: target}
+	}
+
+	// Removing any previous junction to ensure clean execution.
+	if !isDir(junction) || IsJunction(junction) {
+		_ = rmdirPath(junction)
+	}
+
+	cmd := Cmd("mklink", "/J", strings.ReplaceAll(junction, "/", `\`), Realpath(target))
+	if code, err := fs.process().Execute(cmd, new(string), ""); err != nil || code != 0 {
+		if err != nil {
+			return err
+		}
+
+		return &IOError{Message: "Failed to create junction to \"" + target + "\" at \"" + junction + "\".", Path: target}
+	}
+
+	return nil
+}
+
+// IsJunction ports Filesystem::isJunction: a directory that is no symlink
+// but whose own lstat mode is not a directory. Go reports junctions (mount
+// point reparse points) as irregular files.
+func IsJunction(junction string) bool {
+	if !isDir(junction) || isLink(junction) {
+		return false
+	}
+
+	fi, err := os.Lstat(junction)
+
+	return err == nil && !fi.IsDir()
+}
+
+// RemoveJunction ports Filesystem::removeJunction.
+func (fs *Filesystem) RemoveJunction(junction string) (bool, error) {
+	junction = strings.TrimRight(strings.ReplaceAll(junction, "/", `\`), `\`)
+	if !IsJunction(junction) {
+		return false, &IOError{Message: junction + " is not a junction and thus cannot be removed as one"}
+	}
+
+	if err := fs.Rmdir(junction); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
