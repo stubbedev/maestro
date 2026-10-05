@@ -5,8 +5,6 @@ package util
 
 import (
 	"errors"
-	"strconv"
-	"strings"
 	"syscall"
 	"unicode"
 	"unicode/utf8"
@@ -81,30 +79,6 @@ func phpBasename(path string, windows bool) string {
 	return path[start:end]
 }
 
-// varExportString ports var_export($s, true) for a string.
-func varExportString(s string) string {
-	var b strings.Builder
-
-	b.Grow(len(s) + 2)
-	b.WriteByte('\'')
-
-	for i := range len(s) {
-		switch c := s[i]; c {
-		case '\'', '\\':
-			b.WriteByte('\\')
-			b.WriteByte(c)
-		case 0:
-			b.WriteString(`' . "\0" . '`)
-		default:
-			b.WriteByte(c)
-		}
-	}
-
-	b.WriteByte('\'')
-
-	return b.String()
-}
-
 func isASCIIAlpha(c byte) bool {
 	return (c|0x20) >= 'a' && (c|0x20) <= 'z'
 }
@@ -115,35 +89,6 @@ func isASCIIDigit(c byte) bool {
 
 func isASCIIAlnum(c byte) bool {
 	return isASCIIDigit(c) || isASCIIAlpha(c)
-}
-
-// hasPrefixFold reports whether s starts with prefix, ignoring ASCII case
-// only, as PHP 8's stripos and PCRE's caseless non-UTF matching do.
-func hasPrefixFold(s, prefix string) bool {
-	if len(s) < len(prefix) {
-		return false
-	}
-
-	for i := range len(prefix) {
-		if lowerASCII(s[i]) != lowerASCII(prefix[i]) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// equalFoldASCII reports whether a and b are equal ignoring ASCII case only.
-func equalFoldASCII(a, b string) bool {
-	return len(a) == len(b) && hasPrefixFold(a, b)
-}
-
-func lowerASCII(c byte) byte {
-	if c >= 'A' && c <= 'Z' {
-		return c + 'a' - 'A'
-	}
-
-	return c
 }
 
 // isPCRESpace reports whether c matches PCRE2's \s without UCP: space, \t,
@@ -187,65 +132,4 @@ func streamWarning(fn, arg string, err error) error {
 // RecursiveDirectoryIterator throws for a directory it cannot open.
 func dirIteratorError(dir string, err error) error {
 	return &UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + strerror(err)}
-}
-
-// phpTrimChars are the characters PHP's trim() strips by default.
-const phpTrimChars = " \t\n\r\x00\x0B"
-
-// phpNumeric ports is_numeric for strings and returns the number: optional
-// leading and trailing whitespace, a sign, digits with an optional fraction
-// and exponent.
-func phpNumeric(s string) (float64, bool) {
-	s = strings.TrimLeft(s, " \t\n\r\v\f")
-	s = strings.TrimRight(s, " \t\n\r\v\f")
-
-	i := 0
-	if i < len(s) && (s[i] == '+' || s[i] == '-') {
-		i++
-	}
-
-	digits := 0
-	for i < len(s) && isASCIIDigit(s[i]) {
-		i++
-		digits++
-	}
-
-	if i < len(s) && s[i] == '.' {
-		i++
-
-		for i < len(s) && isASCIIDigit(s[i]) {
-			i++
-			digits++
-		}
-	}
-
-	if digits == 0 {
-		return 0, false
-	}
-
-	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
-		j := i + 1
-		if j < len(s) && (s[j] == '+' || s[j] == '-') {
-			j++
-		}
-
-		if j < len(s) && isASCIIDigit(s[j]) {
-			for j < len(s) && isASCIIDigit(s[j]) {
-				j++
-			}
-
-			i = j
-		}
-	}
-
-	if i != len(s) {
-		return 0, false
-	}
-
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil && !errors.Is(err, strconv.ErrRange) {
-		return 0, false
-	}
-
-	return f, true
 }

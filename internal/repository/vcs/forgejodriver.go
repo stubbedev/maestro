@@ -63,7 +63,7 @@ func (d *ForgejoDriver) FileContent(file, identifier string) (string, bool, erro
 		return d.gitDriver.FileContent(file, identifier)
 	}
 
-	resource, err := d.getJSON(d.forgejoURL.APIURL+"/contents/"+file+"?ref="+http.Urlencode(identifier), false)
+	resource, err := d.getJSON(d.forgejoURL.APIURL+"/contents/"+file+"?ref="+php.Urlencode(identifier), false)
 	if err != nil {
 		return "", false, err
 	}
@@ -94,7 +94,7 @@ func (d *ForgejoDriver) ChangeDate(identifier string) (time.Time, bool, error) {
 		return d.gitDriver.ChangeDate(identifier)
 	}
 
-	commit, err := d.getJSON(d.forgejoURL.APIURL+"/git/commits/"+http.Urlencode(identifier)+"?verification=false&files=false", false)
+	commit, err := d.getJSON(d.forgejoURL.APIURL+"/git/commits/"+php.Urlencode(identifier)+"?verification=false&files=false", false)
 	if err != nil {
 		return time.Time{}, false, err
 	}
@@ -176,7 +176,9 @@ func (d *ForgejoDriver) paginate(resource, commitKey string) (*php.Array, error)
 			}
 		}
 
-		resource = nextPage(response)
+		if resource, err = nextPage(response); err != nil {
+			return nil, err
+		}
 	}
 
 	return refs, nil
@@ -277,9 +279,9 @@ func (d *ForgejoDriver) URL() string {
 
 // forgejoSupports ports ForgejoDriver::supports.
 func forgejoSupports(deps Deps, url string, _ bool) (bool, error) {
-	forgejoURL := util.TryForgejoURL(url)
-	if forgejoURL == nil {
-		return false, nil
+	forgejoURL, err := util.TryForgejoURL(url)
+	if err != nil || forgejoURL == nil {
+		return false, err
 	}
 
 	domains, _ := deps.Config.Get("forgejo-domains").(*php.Array)

@@ -3,7 +3,7 @@
 /*
  * Runs every pattern of a PCRE corpus against its subjects in real PHP and
  * writes the goldens the Go PCRE tests compare against:
- *   internal/php/testdata/preg/corpus.json -> golden.json  (Composer's patterns, see preg_collect.php)
+ *   internal/php/testdata/preg/corpus.json -> golden.json.gz  (Composer's patterns, see preg_collect.php)
  *   internal/php/testdata/preg/engine.json -> engine_golden.json  (engine features, see preg_engine.php)
  *
  * Usage (from the repo root, inside the devenv shell):
@@ -152,9 +152,10 @@ function golden(string $in, string $out): void
     $json = '{"php_version":'.json_encode(PHP_VERSION).',"pcre_version":'.json_encode(PCRE_VERSION).",\"patterns\":[\n";
     $json .= implode(",\n", array_map(static fn ($l) => json_encode($l, $flags), $lines));
     $json .= "\n]}\n";
-    file_put_contents($out, $json);
+    // Goldens over 1 MB are committed gzipped (docs/PORTING.md).
+    file_put_contents($out, substr($out, -3) === '.gz' ? gzencode($json, 9) : $json);
     fwrite(STDERR, sprintf("%s: %d patterns, %d subjects, %d bytes\n", basename($out), count($lines), $results, strlen($json)));
 }
 
-golden($dir.'/corpus.json', $dir.'/golden.json');
+golden($dir.'/corpus.json', $dir.'/golden.json.gz');
 golden($dir.'/engine.json', $dir.'/engine_golden.json');

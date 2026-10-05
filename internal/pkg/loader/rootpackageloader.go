@@ -90,7 +90,7 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 	} else {
 		name, ok := get(config, "name").(string)
 		if !ok {
-			return nil, typeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name"))
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name"))
 		}
 
 		if msg, bad, err := HasPackageNamingError(name, false); err != nil {
@@ -130,7 +130,7 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 	if ms := get(config, "minimum-stability"); ms != nil {
 		s, ok := ms.(string)
 		if !ok {
-			return nil, typeError(`Composer\Semver\VersionParser::normalizeStability`, 1, "stability", "string", ms)
+			return nil, pkg.ArgumentTypeError(`Composer\Semver\VersionParser::normalizeStability`, 1, "stability", "string", ms)
 		}
 
 		normalized, err := semver.NormalizeStability(s)
@@ -266,7 +266,7 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 
 		for k := range links.All() {
 			if k.IsInt() {
-				return typeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", k.Value())
+				return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", k.Value())
 			}
 
 			if msg, bad, err := HasPackageNamingError(k.String(), true); err != nil {

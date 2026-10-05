@@ -5,7 +5,7 @@
 // .ref/composer) over a generated corpus of composer.json, auth.json and
 // composer.lock documents:
 //
-// schema.json holds one record per document, with:
+// schema.json.gz holds one record per document, with:
 //
 //   errors / e      JsonSchema\Validator::validate($data, $schema) with
 //                   json_decode($doc) data and the schema objects JsonFile
@@ -369,5 +369,5 @@ $lines = [];
 foreach ($cases as $case) {
     $lines[] = json_encode($case, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 }
-file_put_contents($out.'/schema.json', "[\n".implode(",\n", $lines)."\n]\n");
+file_put_contents($out.'/schema.json.gz', gzencode("[\n".implode(",\n", $lines)."\n]\n", 9));
 fprintf(STDERR, "%d cases\n", count($cases));

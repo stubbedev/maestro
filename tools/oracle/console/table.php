@@ -1,5 +1,5 @@
 <?php
-// Generates internal/console/testdata/oracle/table.json:
+// Generates internal/console/testdata/oracle/table.json.gz:
 //  - "provider", "setTitle", "horizontal": the data providers of Symfony's
 //    Tests/Helper/TableTest.php (renderProvider, renderSetTitle,
 //    provideRenderHorizontalTests) with their expected output, extracted
@@ -210,5 +210,5 @@ namespace {
         $out['oracle'][] = $case;
     }
 
-    file_put_contents(dirname(__DIR__, 3).'/internal/console/testdata/oracle/table.json', json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION)."\n");
+    file_put_contents(dirname(__DIR__, 3).'/internal/console/testdata/oracle/table.json.gz', gzencode(json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION)."\n", 9));
 }

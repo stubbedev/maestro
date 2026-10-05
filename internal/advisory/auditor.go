@@ -115,7 +115,11 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 		}
 		unreachableRepos = append(unreachableRepos, filterResult.UnreachableRepos...)
 		for _, p := range packages {
-			for _, entry := range filterAuditor.GetMatchingAuditEntries(p, filterResult.Filter, policyConfig) {
+			entries, err := filterAuditor.GetMatchingAuditEntries(p, filterResult.Filter, policyConfig)
+			if err != nil {
+				return 0, err
+			}
+			for _, entry := range entries {
 				list, _ := filteredPackages.Get(p.Name())
 				filteredPackages.Set(p.Name(), append(list, entry))
 

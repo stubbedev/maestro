@@ -178,6 +178,7 @@ func FindStatusCode(headers []string) (int, bool) {
 	value, found := 0, false
 
 	for _, header := range headers {
+		// \S+ is possessive before the space: Preg::isMatch cannot throw.
 		if m, _ := statusCodeRegex.Match(header); m != nil {
 			value, found = int(php.ToInt(m.Get(1))), true
 		}
@@ -243,7 +244,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	}
 
 	if _, ok := path(options, "http"); ok {
-		httpArray(options).Set("ignore_errors", true)
+		HTTPOptions(options).Set("ignore_errors", true)
 	}
 
 	degradedPackagist := false
@@ -312,9 +313,14 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	if err == nil && len(headers) > 0 && headers[0] != "" {
 		statusCode, _ := FindStatusCode(headers)
 
-		if contentType, ok := FindHeaderValue(headers, "content-type"); statusCode >= 300 && ok && contentType == "application/json" {
-			data, _ := php.JSONDecode(result, true)
-			_, err = OutputWarnings(r.io, originURL, data)
+		if statusCode >= 300 {
+			contentType, ok, herr := FindHeaderValueChecked(headers, "content-type")
+			if herr != nil {
+				err = herr
+			} else if ok && contentType == "application/json" {
+				data, _ := php.JSONDecode(result, true)
+				_, err = OutputWarnings(r.io, originURL, data)
+			}
 		}
 
 		if err == nil && (statusCode == 401 || statusCode == 403) && retryAuthFailure {
@@ -324,8 +330,10 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	}
 
 	if err == nil && len(headers) > 0 && headers[0] != "" {
-		contentLength, ok := FindHeaderValue(headers, "content-length")
-		if ok && php.ToBool(contentLength) && php.Compare(int64(len(result)), contentLength) < 0 {
+		contentLength, ok, herr := FindHeaderValueChecked(headers, "content-length")
+		if herr != nil {
+			err = herr
+		} else if ok && php.ToBool(contentLength) && php.Compare(int64(len(result)), contentLength) < 0 {
 			// alas, this is not possible via the stream callback because
 			// STREAM_NOTIFY_COMPLETED is documented, but not implemented
 			// anywhere in PHP
@@ -385,8 +393,13 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 
 	if len(headers) > 0 && headers[0] != "" {
 		statusCode, _ = FindStatusCode(headers)
-		contentType, _ = FindHeaderValue(headers, "content-type")
-		locationHeader, _ = FindHeaderValue(headers, "location")
+		var err error
+		if contentType, _, err = FindHeaderValueChecked(headers, "content-type"); err != nil {
+			return "", false, err
+		}
+		if locationHeader, _, err = FindHeaderValueChecked(headers, "location"); err != nil {
+			return "", false, err
+		}
 	}
 
 	// check for bitbucket login page asking to authenticate
@@ -615,19 +628,19 @@ func (r *RemoteFilesystem) optionsForURL(originURL string, additionalOptions *ph
 	if !r.degradedMode {
 		// degraded mode disables HTTP/1.1 which causes issues with some bad
 		// proxies/software due to the use of chunked encoding
-		httpArray(options).Set("protocol_version", 1.1)
+		HTTPOptions(options).Set("protocol_version", 1.1)
 		headers = append(headers, "Connection: close")
 	}
 
 	if h, ok := path(options, "http", "header"); ok {
 		if s, isString := h.(string); isString {
-			httpArray(options).Set("header", php.StringList(splitCRLF(php.TrimSet(s, "\r\n"))))
+			HTTPOptions(options).Set("header", php.StringList(splitCRLF(php.TrimSet(s, "\r\n"))))
 		}
 	}
 
 	options = r.authHelper.AddAuthenticationOptions(options, originURL, r.fileURL)
 
-	httpArray(options).Set("follow_location", 0)
+	HTTPOptions(options).Set("follow_location", 0)
 
 	for _, header := range headers {
 		appendHeader(options, header)
@@ -641,7 +654,11 @@ func (r *RemoteFilesystem) optionsForURL(originURL string, additionalOptions *ph
 func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOptions *php.Array, result string, resultOK bool) (string, bool, error) {
 	var targetURL string
 
-	if locationHeader, ok := FindHeaderValue(responseHeaders, "location"); ok && php.ToBool(locationHeader) {
+	locationHeader, ok, err := FindHeaderValueChecked(responseHeaders, "location")
+	if err != nil {
+		return "", false, err
+	}
+	if ok && php.ToBool(locationHeader) {
 		switch {
 		case util.URLScheme(locationHeader) != "":
 			// Absolute URL; e.g. https://example.com/composer
@@ -706,7 +723,10 @@ func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOp
 // false for null.
 func (r *RemoteFilesystem) decodeResult(result string, ok bool, responseHeaders []string) (string, bool, error) {
 	if ok && php.ToBool(result) {
-		contentEncoding, found := FindHeaderValue(responseHeaders, "content-encoding")
+		contentEncoding, found, err := FindHeaderValueChecked(responseHeaders, "content-encoding")
+		if err != nil {
+			return "", false, err
+		}
 		if found && php.ToBool(contentEncoding) && strings.ToLower(contentEncoding) == "gzip" {
 			decoded, err := zlibDecode([]byte(result))
 			if err != nil {
@@ -827,7 +847,7 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 	isHTTPS := strings.HasPrefix(strings.ToLower(fileURL), "https://")
 
 	for _, line := range headerList(ctx) {
-		if hasPrefixFold(line, "proxy-authorization:") && isHTTPS {
+		if php.Strncasecmp(line, "proxy-authorization:", 20) == 0 && isHTTPS {
 			// sent with the CONNECT request, as the wrapper does
 			req.key.proxyHeader = strings.TrimSpace(line[len("proxy-authorization:"):])
 

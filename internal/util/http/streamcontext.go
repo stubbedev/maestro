@@ -38,7 +38,7 @@ func GetContext(url string, defaultOptions *php.Array, rt Runtime) (*php.Array, 
 	options = php.ArrayReplaceRecursive(options, defaults).Clone()
 
 	if v, ok := path(options, "http", "header"); ok {
-		httpArray(options).Set("header", fixHTTPHeaderField(v))
+		HTTPOptions(options).Set("header", fixHTTPHeaderField(v))
 	}
 
 	return options, nil
@@ -54,7 +54,7 @@ func InitOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php
 
 // initOptions is InitOptions modifying options, which the caller owns.
 func initOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php.Array, error) {
-	httpOptions := httpArray(options)
+	httpOptions := HTTPOptions(options)
 
 	// Make sure the headers are in an array form.
 	switch h, _ := httpOptions.Get("header"); h := h.(type) {
@@ -82,7 +82,7 @@ func initOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php
 			// Header will be a Proxy-Authorization string or not set.
 			if header, ok := path(proxyOptions, "http", "header"); ok {
 				appendHeader(options, php.ToString(header))
-				httpArray(proxyOptions).Delete("header")
+				HTTPOptions(proxyOptions).Delete("header")
 			}
 
 			// both sides are private copies, so the result may share them
@@ -97,6 +97,8 @@ func initOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php
 	return options, nil
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var runningCommandStrip = php.MustCompile(`{[^a-z0-9:_-]}i`)
 
 // UserAgent is the User-Agent header initOptions adds:
@@ -255,7 +257,7 @@ func fixHTTPHeaderField(header any) *php.Array {
 	var contentType []php.Key
 
 	for k, v := range lines.All() {
-		if hasPrefixFold(php.ToString(v), "content-type") {
+		if php.Strncasecmp(php.ToString(v), "content-type", 12) == 0 {
 			contentType = append(contentType, k)
 
 			continue
@@ -273,64 +275,39 @@ func fixHTTPHeaderField(header any) *php.Array {
 }
 
 // appendHeader is $options['http']['header'][] = $line.
-func appendHeader(options *php.Array, line string) {
-	httpOptions := httpArray(options)
-	headers, ok := httpOptions.Get("header")
+func appendHeader(options *php.Array, line string) { AppendHeader(HTTPOptions(options), line) }
 
-	a, isArray := headers.(*php.Array)
-	if !ok || !isArray {
-		a = php.NewArray()
-		if ok && headers != nil {
-			a.Append(headers)
+// AppendHeader performs
+//
+//	if (isset($http['header'])) { $http['header'] = (array) $http['header']; }
+//	$http['header'][] = $header;
+//
+// on the $options['http'] array (FilterListApiClient, ComposerRepository
+// and the stream context code).
+func AppendHeader(httpOptions *php.Array, header string) {
+	headers, _ := httpOptions.Get("header")
+	var list *php.Array
+	switch h := headers.(type) {
+	case *php.Array:
+		list = h
+	case *php.Object:
+		list = h.ToArray()
+		httpOptions.Set("header", list)
+	default:
+		list = php.NewArray()
+		if headers != nil {
+			list.Append(headers)
 		}
-
-		httpOptions.Set("header", a)
+		httpOptions.Set("header", list)
 	}
 
-	a.Append(line)
+	list.Append(header)
 }
 
 // headerContains is stripos(implode(”, $options['http']['header']),
 // $needle) !== false.
 func headerContains(options *php.Array, needle string) bool {
-	return containsFold(strings.Join(headerList(options), ""), needle)
-}
-
-// containsFold is stripos($haystack, $needle) !== false for an ASCII
-// needle.
-func containsFold(haystack, needle string) bool {
-	n := len(needle)
-	for i := 0; i+n <= len(haystack); i++ {
-		if hasPrefixFold(haystack[i:], needle) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// hasPrefixFold is stripos($s, $prefix) === 0.
-func hasPrefixFold(s, prefix string) bool {
-	if len(s) < len(prefix) {
-		return false
-	}
-
-	for i := range len(prefix) {
-		a, b := s[i], prefix[i]
-		if a >= 'A' && a <= 'Z' {
-			a += 'a' - 'A'
-		}
-
-		if b >= 'A' && b <= 'Z' {
-			b += 'a' - 'A'
-		}
-
-		if a != b {
-			return false
-		}
-	}
-
-	return true
+	return php.Stripos(strings.Join(headerList(options), ""), needle) >= 0
 }
 
 // isDir is is_dir().

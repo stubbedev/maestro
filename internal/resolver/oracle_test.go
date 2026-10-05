@@ -1,9 +1,7 @@
 package resolver
 
 import (
-	"compress/gzip"
 	"errors"
-	"io"
 	"os"
 	"slices"
 	"sync"
@@ -13,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // The real-world oracle: tools/oracle/resolver/record.php recorded what
@@ -30,16 +29,7 @@ var (
 )
 
 func readGzipJSON(path string) (*php.Array, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, err
-	}
-	data, err := io.ReadAll(r)
+	data, err := testutil.ReadGoldenFile(path)
 	if err != nil {
 		return nil, err
 	}

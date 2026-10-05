@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha1" //nolint:gosec // hash('sha1') names archives, as in Composer
 	"encoding/hex"
-	"os"
 	"slices"
 	"strings"
 
@@ -177,7 +176,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 		sourcePath = util.Realpath(".")
 	} else {
 		// Directory used to download the sources
-		sourcePath = sysGetTempDir() + "/composer_archive" + randomHex(5)
+		sourcePath = php.SysGetTempDir() + "/composer_archive" + randomHex(5)
 		if err := util.EnsureDirectoryExists(sourcePath); err != nil {
 			return "", err
 		}
@@ -225,7 +224,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 	}
 
 	// Create the archive
-	tempTarget := sysGetTempDir() + "/composer_archive" + randomHex(5) + "." + format
+	tempTarget := php.SysGetTempDir() + "/composer_archive" + randomHex(5) + "." + format
 	if err := util.EnsureDirectoryExists(util.Dirname(tempTarget)); err != nil {
 		return "", err
 	}
@@ -287,7 +286,7 @@ func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string)
 	if name := arrayGet(archive, "name"); php.ToBool(name) {
 		s, ok := name.(string)
 		if !ok {
-			return typeError(class+"::setArchiveName", "name", "?string", name)
+			return pkg.ArgumentTypeError(class+"::setArchiveName", 1, "name", "?string", name)
 		}
 
 		p.SetArchiveName(pkg.Str(s))
@@ -296,7 +295,7 @@ func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string)
 	if exclude := arrayGet(archive, "exclude"); php.ToBool(exclude) {
 		a, ok := exclude.(*php.Array)
 		if !ok {
-			return typeError(class+"::setArchiveExcludes", "excludes", "array", exclude)
+			return pkg.ArgumentTypeError(class+"::setArchiveExcludes", 1, "excludes", "array", exclude)
 		}
 
 		p.SetArchiveExcludes(a)
@@ -325,24 +324,13 @@ func stringList(a *php.Array) ([]string, error) {
 	for _, v := range a.Values() {
 		s, ok := v.(string)
 		if !ok {
-			return nil, typeError(`Composer\Package\Archiver\BaseExcludeFilter::generatePattern`, "rule", "string", v)
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Archiver\BaseExcludeFilter::generatePattern`, 1, "rule", "string", v)
 		}
 
 		out = append(out, s)
 	}
 
 	return out, nil
-}
-
-// typeError is the TypeError of passing given to the first parameter of fn.
-func typeError(fn, param, expected string, given any) error {
-	// zend_zval_value_name: booleans are named by their value
-	name := php.TypeName(given)
-	if b, ok := given.(bool); ok {
-		name = pick(b, "true", "false")
-	}
-
-	return &pkg.TypeError{Message: fn + "(): Argument #1 ($" + param + ") must be of type " + expected + ", " + name + " given"}
 }
 
 // buildExcludePatterns ports ArchiveManager::buildExcludePatterns: the
@@ -386,16 +374,6 @@ func (m *ArchiveManager) supportedFormats() []string {
 	}
 
 	return unique
-}
-
-// sysGetTempDir is sys_get_temp_dir(): $TMPDIR without one trailing
-// slash, else /tmp.
-func sysGetTempDir() string {
-	if dir := os.Getenv("TMPDIR"); dir != "" {
-		return strings.TrimSuffix(dir, "/")
-	}
-
-	return "/tmp"
 }
 
 // randomHex is bin2hex(random_bytes(n)).

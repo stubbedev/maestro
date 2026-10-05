@@ -4,15 +4,15 @@ package util
 
 import (
 	"errors"
-	"math"
 	"os"
 	"os/signal"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Command is what ProcessExecutor runs: a shell command line or an
@@ -137,7 +137,9 @@ func (p *ProcessExecutor) ExecuteTty(command Command, cwd string) (int, error) {
 }
 
 func (p *ProcessExecutor) doExecute(command Command, cwd string, tty, capture bool, output *string, handler func(typ, buffer string)) (int, error) {
-	p.outputCommandRun(command, cwd, false)
+	if err := p.outputCommandRun(command, cwd, false); err != nil {
+		return 0, err
+	}
 
 	p.mu.Lock()
 	p.errorOutput = ""
@@ -154,7 +156,7 @@ func (p *ProcessExecutor) doExecute(command Command, cwd string, tty, capture bo
 			return 0, err
 		}
 
-		if strings.Trim(configValue, phpTrimChars) == "explicit" {
+		if strings.Trim(configValue, php.TrimChars) == "explicit" {
 			env = map[string]string{"GIT_DIR": cwd}
 		}
 	}
@@ -332,7 +334,15 @@ func (p *ProcessExecutor) startJob(job *asyncJob) {
 	job.status = statusStarted
 	p.runningJobs++
 
-	p.outputCommandRun(job.command, job.cwd, true)
+	if err := p.outputCommandRun(job.command, job.cwd, true); err != nil {
+		// PHP throws before starting the process; the job fails with it.
+		job.status = statusFailed
+		p.markJobDone()
+
+		job.promise.reject(err)
+
+		return
+	}
 
 	timeout := time.Duration(GetProcessTimeout()) * time.Second
 
@@ -418,8 +428,8 @@ func (p *ProcessExecutor) SetMaxJobs(maxJobs int) {
 func (p *ProcessExecutor) ResetMaxJobs() {
 	maxJobs := 10
 	if v, ok := GetEnv("COMPOSER_MAX_PARALLEL_PROCESSES"); ok {
-		if f, ok := phpNumeric(v); ok {
-			maxJobs = int(max(1, min(50, numericToInt(v, f))))
+		if php.IsNumeric(v) {
+			maxJobs = int(max(1, min(50, php.ToInt(v))))
 		}
 	}
 
@@ -478,7 +488,7 @@ func (p *ProcessExecutor) SplitLines(output string) []string {
 // SplitLines ports ProcessExecutor::splitLines, which does not depend on
 // the executor.
 func SplitLines(output string) []string {
-	output = strings.Trim(output, phpTrimChars)
+	output = strings.Trim(output, php.TrimChars)
 	if output == "" {
 		return []string{}
 	}
@@ -515,16 +525,20 @@ func (p *ProcessExecutor) outputHandler(typ, buffer string) {
 	}
 }
 
-var passwordArg = regexp.MustCompile(`--password (.*[^\\]') `)
+var passwordArg = php.MustCompile(`{--password (.*[^\\]') }`)
 
 // outputCommandRun ports ProcessExecutor::outputCommandRun: the debug line
 // announcing a command, with credentials masked.
-func (p *ProcessExecutor) outputCommandRun(command Command, cwd string, async bool) {
+func (p *ProcessExecutor) outputCommandRun(command Command, cwd string, async bool) error {
 	if p.io == nil || !p.io.IsDebug() {
-		return
+		return nil
 	}
 
-	safeCommand := passwordArg.ReplaceAllLiteralString(SanitizeURL(command.String()), `--password '***' `)
+	// Preg::replace throws a PcreException when matching fails.
+	safeCommand, _, err := passwordArg.Replace(SanitizeURL(command.String()), `--password '***' `, -1)
+	if err != nil {
+		return err
+	}
 
 	mode := "Executing"
 	if async {
@@ -536,6 +550,8 @@ func (p *ProcessExecutor) outputCommandRun(command Command, cwd string, async bo
 	}
 
 	p.io.WriteError(mode+" command ("+cwd+"): "+safeCommand, true, VerbosityNormal)
+
+	return nil
 }
 
 // Escape ports ProcessExecutor::escape: a shell argument for /bin/sh, or
@@ -575,7 +591,7 @@ func escapeArgument(argument string, windows bool) string {
 	}
 
 	if !windows {
-		return escapeShellArg(argument)
+		return quoteSingle(argument)
 	}
 
 	argument = windowsLookalikes.Replace(argument)
@@ -679,25 +695,6 @@ func intersectIsList(cmd, gitCmd []string) bool {
 	}
 
 	return n == len(gitCmd)
-}
-
-// numericToInt ports PHP's (int) cast of the numeric string s, whose value
-// is f: truncation, with out-of-range integer strings saturating and
-// out-of-range floats becoming 0.
-func numericToInt(s string, f float64) float64 {
-	if f > -1<<63 && f < 1<<63 {
-		return math.Trunc(f)
-	}
-
-	if strings.ContainsAny(s, ".eE") {
-		return 0
-	}
-
-	if f < 0 {
-		return math.MinInt64
-	}
-
-	return math.MaxInt64
 }
 
 var (

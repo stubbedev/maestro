@@ -10,7 +10,6 @@ package console
 
 import (
 	"iter"
-	"regexp"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -26,7 +25,8 @@ type Questioner interface {
 // error (PHP throws, usually an InvalidArgumentException).
 type Validator func(answer any) (any, error)
 
-// Normalizer normalizes a raw answer before validation.
+// Normalizer normalizes a raw answer before validation. A normalizer that
+// returns an error throws it (QuestionHelper::ask returns it).
 type Normalizer func(answer any) any
 
 // Question is a question asked to the user.
@@ -213,15 +213,15 @@ func isAssoc(a *php.Array) bool {
 // ConfirmationQuestion is a yes/no question.
 type ConfirmationQuestion struct {
 	*Question
-	trueAnswerRegex *regexp.Regexp
+	trueAnswerRegex *php.Regexp
 }
 
 // defaultTrueAnswerRegex is '/^y/i'.
-var defaultTrueAnswerRegex = regexp.MustCompile(`(?i)^y`)
+var defaultTrueAnswerRegex = php.MustCompile(`/^y/i`)
 
 // NewConfirmationQuestion mirrors new ConfirmationQuestion($question,
 // $default, $trueAnswerRegex); a nil regex is the default '/^y/i'.
-func NewConfirmationQuestion(question string, def bool, trueAnswerRegex *regexp.Regexp) *ConfirmationQuestion {
+func NewConfirmationQuestion(question string, def bool, trueAnswerRegex *php.Regexp) *ConfirmationQuestion {
 	if trueAnswerRegex == nil {
 		trueAnswerRegex = defaultTrueAnswerRegex
 	}
@@ -231,7 +231,8 @@ func NewConfirmationQuestion(question string, def bool, trueAnswerRegex *regexp.
 			return b
 		}
 		s := php.ToString(answer)
-		answerIsTrue := trueAnswerRegex.MatchString(s)
+		// (bool) preg_match(): a failed match (false) is not true.
+		answerIsTrue, _ := trueAnswerRegex.IsMatch(s)
 		if !def {
 			return php.ToBool(answer) && answerIsTrue
 		}
@@ -246,21 +247,20 @@ func NewConfirmationQuestion(question string, def bool, trueAnswerRegex *regexp.
 // accepts yes, y, no and n (by default).
 type StrictConfirmationQuestion struct {
 	*Question
-	trueAnswerRegex  *regexp.Regexp
-	falseAnswerRegex *regexp.Regexp
+	trueAnswerRegex  *php.Regexp
+	falseAnswerRegex *php.Regexp
 }
 
-// The default Composer regexes '/^y(?:es)?$/i' and '/^no?$/i' ("$" also
-// matches before a final newline).
+// The default Composer regexes.
 var (
-	strictTrueAnswerRegex  = regexp.MustCompile(`(?i)^y(?:es)?\n?$`)
-	strictFalseAnswerRegex = regexp.MustCompile(`(?i)^no?\n?$`)
+	strictTrueAnswerRegex  = php.MustCompile(`/^y(?:es)?$/i`)
+	strictFalseAnswerRegex = php.MustCompile(`/^no?$/i`)
 )
 
 // NewStrictConfirmationQuestion mirrors new
 // StrictConfirmationQuestion($question, $default, $trueRegex, $falseRegex);
 // nil regexes use Composer's defaults.
-func NewStrictConfirmationQuestion(question string, def bool, trueAnswerRegex, falseAnswerRegex *regexp.Regexp) *StrictConfirmationQuestion {
+func NewStrictConfirmationQuestion(question string, def bool, trueAnswerRegex, falseAnswerRegex *php.Regexp) *StrictConfirmationQuestion {
 	if trueAnswerRegex == nil {
 		trueAnswerRegex = strictTrueAnswerRegex
 	}
@@ -280,10 +280,15 @@ func NewStrictConfirmationQuestion(question string, def bool, trueAnswerRegex, f
 			return true
 		}
 		s := php.ToString(answer)
-		if trueAnswerRegex.MatchString(s) {
+		// Preg::isMatch throws a PcreException when matching fails.
+		if ok, err := trueAnswerRegex.IsMatch(s); err != nil {
+			return err
+		} else if ok {
 			return true
 		}
-		if falseAnswerRegex.MatchString(s) {
+		if ok, err := falseAnswerRegex.IsMatch(s); err != nil {
+			return err
+		} else if ok {
 			return false
 		}
 
@@ -363,8 +368,8 @@ func (q *ChoiceQuestion) SetErrorMessage(errorMessage string) *ChoiceQuestion {
 	return q
 }
 
-// multiselectRegex is '/^[^,]+(?:,[^,]+)*$/'.
-var multiselectRegex = regexp.MustCompile(`^[^,]+(?:,[^,]+)*$`)
+// multiselectRegex is ChoiceQuestion's pattern.
+var multiselectRegex = php.MustCompile(`/^[^,]+(?:,[^,]+)*$/`)
 
 func (q *ChoiceQuestion) defaultValidator() Validator {
 	choices := q.choices
@@ -377,9 +382,8 @@ func (q *ChoiceQuestion) defaultValidator() Validator {
 		if multiselect {
 			// Check for a separated comma values
 			s := php.ToString(selected)
-			// Go's "$" is the end of text; PCRE's also matches before a
-			// final newline, but [^,]+ can always consume that newline.
-			if !multiselectRegex.MatchString(s) {
+			// !preg_match(): a failed match (false) also throws.
+			if ok, _ := multiselectRegex.IsMatch(s); !ok {
 				return nil, newError(KindInvalidArgument, "ChoiceQuestion.php", 129, "%s", phpSprintf(errorMessage, s))
 			}
 			for part := range strings.SplitSeq(s, ",") {

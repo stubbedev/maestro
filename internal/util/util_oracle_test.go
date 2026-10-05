@@ -5,9 +5,11 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
-// utilOracle is testdata/oracle/util.json, written by
+// utilOracle is testdata/oracle/util.json.gz, written by
 // tools/oracle/util/util.php from the PHP sources.
 type utilOracle struct {
 	Paths []struct {
@@ -78,7 +80,7 @@ type utilOracle struct {
 }
 
 var loadUtilOracle = sync.OnceValues(func() (*utilOracle, error) {
-	data, err := os.ReadFile("testdata/oracle/util.json")
+	data, err := testutil.ReadGoldenFile("testdata/oracle/util.json.gz")
 	if err != nil {
 		return nil, err
 	}
@@ -228,8 +230,8 @@ func TestOracle_URL(t *testing.T) {
 		}
 
 		if c.Dist != nil {
-			if got := UpdateDistReference(c.In, c.Ref, o.GithubDomains, o.GitlabDomains); got != *c.Dist {
-				t.Errorf("UpdateDistReference(%q, %q) = %q, want %q", c.In, c.Ref, got, *c.Dist)
+			if got, err := UpdateDistReference(c.In, c.Ref, o.GithubDomains, o.GitlabDomains); err != nil || got != *c.Dist {
+				t.Errorf("UpdateDistReference(%q, %q) = %q, %v, want %q", c.In, c.Ref, got, err, *c.Dist)
 			}
 		}
 	}

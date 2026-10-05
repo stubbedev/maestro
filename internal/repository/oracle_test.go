@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"compress/gzip"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,19 +10,14 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
 // readGolden reads a golden of tools/oracle/repository.
 func readGolden(t *testing.T, path string) *php.Array {
 	t.Helper()
-	f := must(os.Open(path))
-	defer f.Close()
-	var r io.Reader = f
-	if filepath.Ext(path) == ".gz" {
-		r = must(gzip.NewReader(f))
-	}
-	decoded, ok := must(php.JSONDecode(string(must(io.ReadAll(r))), true)).(*php.Array)
+	decoded, ok := must(php.JSONDecode(string(testutil.ReadGolden(t, path)), true)).(*php.Array)
 	if !ok {
 		t.Fatal("golden is not an object")
 	}

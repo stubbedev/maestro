@@ -18,12 +18,12 @@ package you port.
 ## internal/platform (from internal/util)
 - `util.IniGetAll`/`IniGetMessage` take a callback supplying the loaded ini files; platform detection must provide it.
 
-## Cleanup (DRY): done; remaining internal/util follow-ups
-semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, StripTags, Levenshtein, Stripcslashes, Escapeshellarg, Basename, Add, StringsLooseEqual, SortSlice, Regexp). Left in internal/util because that package was being extended concurrently; switch them when convenient:
-- `phpNumeric` (php.go) duplicates `php.IsNumeric`/`php.ToFloat`; `phpTrimChars` duplicates `php.TrimChars`; `varExportString` duplicates `php.VarExport` for strings; `lowerASCII`/`hasPrefixFold`/`equalFoldASCII` overlap `php.Strtolower`/`php.Strcasecmp`.
-- `phpBasename(path, false)` equals `php.Basename(path, "")` (keep the Windows variant).
-- `escapeShellArg` (executablefinder.go) is only a true `escapeshellarg()` in ExecutableFinder (`command -v -- ...`); use `php.Escapeshellarg` there (it drops invalid UTF-8 and rejects NUL like PHP). ProcessExecutor/Process::escapeArgument are `str_replace`-based in PHP, not escapeshellarg, so they keep their own quoting.
-- `passwordArg` (processexecutor.go) and console's private patterns (table, input_argv, progress_bar, formatter, html_formatter, question) still use Go's `regexp`; PORTING.md asks for `php.MustCompile` with the verbatim pattern. `NewConfirmationQuestion`/`NewStrictConfirmationQuestion` take `*regexp.Regexp`, so changing those is an API change.
+## Cleanup (DRY): done, including the internal/util follow-ups
+semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, StripTags, Levenshtein, Stripcslashes, Escapeshellarg, Basename, Add, StringsLooseEqual, SortSlice, Regexp). The internal/util follow-ups (hygiene task):
+- Done: `phpNumeric`/`numericToInt` are `php.IsNumeric`/`php.ToInt` (fixes `(int)"1e30"`, which saturates in PHP); `phpTrimChars` is `php.TrimChars`; `varExportString` is `php.VarExport`; `hasPrefixFold`/`equalFoldASCII` (util and util/http, with util/http's `containsFold`) are the new `php.Strncasecmp`/`php.Strcasecmp`/`php.Stripos`.
+- Done: `phpBasename(path, false)` is `php.Basename(path, "")` (the Windows variant stays).
+- Done: ExecutableFinder uses `php.Escapeshellarg` (a NUL in the name, a ValueError in PHP, is "not found" since find() has no error result); the `str_replace` quoting of Process/ProcessExecutor::escapeArgument is `quoteSingle` (process.go).
+- Done: `passwordArg` and console's patterns (table, input_argv/StringInput, progress_bar, formatter, html_formatter, question) are `php.MustCompile` with the verbatim patterns and PHP's error handling: raw preg_* failures read as no match; Preg::* failures are returned (ProcessExecutor's debug line: from Execute / the async job; StrictConfirmationQuestion: a Normalizer may now return an error, which QuestionHelper::ask returns) or, where the Go signature has no error (HtmlOutputFormatter::format, ProgressBar::buildLine's TypeError), panic. `NewConfirmationQuestion`/`NewStrictConfirmationQuestion` now take `*php.Regexp` (no caller passed a regex outside console's tests).
 
 ## internal/composer, internal/util/http, internal/io (from internal/config, internal/json)
 - `config.Config.Get` is `Get(key, flags) (any, error)` (PLUGINS.md §7). `io.Config` and `http.Config` want `Get(key) any` and return types tied to their own `ConfigSource`; internal/composer adapts `*config.Config` to both (the methods of `config.ConfigSource` are a superset of `http.ConfigSource`).
@@ -32,13 +32,13 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Composer's ErrorHandler makes PHP warnings ErrorExceptions; config, json and the manipulator return `*util.ErrorException` at those sites. Later ports should do the same.
 
 ## Cleanup (DRY), from internal/config, internal/json, internal/policy
-- internal/config/filterurl.go ports filter_var(FILTER_VALIDATE_URL) (oracle-tested) and duplicates util's private validateIPv4/IPv6; move it into internal/util (or php) and use it from internal/json/jsonschema's URI check, which approximates it.
-- PLATFORM_PACKAGE_REGEX is copied in internal/json/manipulator.go; use internal/repository's once it exists.
-- BasePackage::packageNameToRegexp is copied in internal/policy; use internal/pkg's.
-- `.ref/jsonlint` (seld/jsonlint 1.12.1) should be added to `ref-sync` in devenv.nix.
+- Done: filter_var(FILTER_VALIDATE_URL) is `util.FilterValidateURL` (internal/util/filterurl.go, using util's IPv4/IPv6 validators; config's oracle test still covers it). jsonschema does not need it: justinrainbow/json-schema 6's "uri" format uses UriValidator, not filter_var, and jsonschema ports that.
+- Done: PLATFORM_PACKAGE_REGEX lives in internal/pkg (`pkg.PlatformPackageRegex`, compiled `pkg.PlatformPackageRegexp`; `repository.PlatformPackageRegex` is the same constant). JsonManipulator::sortPackages uses the compiled regex, not `pkg.IsPlatformPackage`, because Preg::isMatch can throw on a pathological name and the hand matcher cannot.
+- Done: internal/policy uses `pkg.PackageNameToRegexp`.
+- Done: `.ref/jsonlint` was already in `ref-sync`.
 
 ## Repo hygiene (when no agent is editing the packages involved)
-- Gzip every existing golden over 1 MB (internal/{classmap,util,json,json/jsonlint,json/jsonschema,semver,php,config,...}/testdata), updating oracle scripts to write .json.gz and tests to read it.
+- Done: every oracle golden over 1 MB is now `*.json.gz`, written by its oracle script (decompressed output byte-identical to the old files); Composer's own fixtures (classmap's LargeClass.php/LargeGap.php) stay verbatim. Tests read goldens with `internal/testutil` (`ReadGolden(tb, path)`, `ReadGoldenFile(path)`, `LoadJSONGolden(tb, path, v)`; `.gz` is gunzipped transparently); use it for new goldens instead of a per-package gzip reader.
 
 ## internal/config (from internal/util/http)
 - `*config.Config` must satisfy `http.Config`: `Get(key string) any` (same as `io.Config`), `ProhibitURLByConfig(url string, io io.IO, repoOptions *php.Array) error` (returns `*util.TransportError`), `ConfigSource()`, `AuthConfigSource()`, `LocalAuthConfigSource()` (nil for null), each returning a value with `Name() string`, `AddConfigSetting(name string, value any) error`, `RemoveConfigSetting(name string) error`.
@@ -57,8 +57,8 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Response::decodeJson errors are `*jsonlint.ParsingError` naming only the URL.
 
 ## Cleanup (DRY) once internal/php is final (from internal/util/http)
-- internal/util/http/phpfuncs.go holds rawurlencode, rawurldecode, urlencode, http_build_query and a date() subset; move them into internal/php.
-- `util.IO` (int verbosities) and `io.IO` (io.Verbosity) differ; internal/util/http adapts with `utilIO` (deps.go) to build a ProcessExecutor. Unify them.
+- Done: `php.Rawurlencode`, `php.Rawurldecode`, `php.Urlencode`, `php.HTTPBuildQuery`, `php.Date` (internal/php/url.go); phpfuncs.go and console's private urlencode are gone; util/http's exported `Rawurlencode`/`Rawurldecode`/`Urlencode`/`HTTPBuildQuery` forward to them for existing callers.
+- Done: `util.IO` takes `io.Verbosity` (util imports internal/io), so every `io.IO` is a `util.IO`; `utilIO` is gone and `util.Verbosity*` are io's constants.
 
 ## Users of internal/pkg (from internal/pkg)
 - `pkg.PackageInterface` is sealed (unexported `base()`): only the six pkg types implement it. `instanceof AliasPackage` is a type assertion to `pkg.Alias`, `instanceof Package`/`CompletePackage` are `pkg.AsPackage`/`pkg.AsCompletePackage`; `clone` is `pkg.Clone`.
@@ -75,20 +75,19 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Plugin shim: there is no snapshot constructor yet (build packages with the constructors and setters); `AliasPackage::hasSelfVersionRequires` has no setter.
 
 ## Cleanup (DRY) from internal/pkg
-- internal/pkg/loader/phpfilters.go copies internal/util's unexported parse_url port (for ValidatingArrayLoader::filterUrl) and holds filter_var(FILTER_VALIDATE_EMAIL); export parse_url (internal/php or util) and share.
-- internal/pkg/loader/datetime.go is a subset of PHP's date parser (new \DateTime): ISO 8601 style dates, "@timestamp", offsets, common abbreviations and zone identifiers; relative formats and timelib's exact error positions are not reproduced. Move to internal/php if anything else needs DateTime.
-- `loader.IsValidPerforcePort` is Composer\Util\Perforce::isValidPort; the Perforce port should use it (or own it and have the loader call it).
-- internal/pkg/version keeps private ports of Git::cleanEnv/getVersion/buildRevListCommand/getNoShowSignatureFlags/parseRevListOutput/checkForRepoOwnershipError, Svn::cleanEnv and HgDriver::getBranches (git version cached per guesser, not statically); switch to the util Git/Svn ports when they exist.
+- Done: ValidatingArrayLoader::filterUrl uses `util.ParseURL`; phpfilters.go keeps only filter_var(FILTER_VALIDATE_EMAIL).
+- Open (conditional): internal/pkg/loader/datetime.go is a subset of PHP's date parser (new \DateTime): ISO 8601 style dates, "@timestamp", offsets, common abbreviations and zone identifiers; relative formats and timelib's exact error positions are not reproduced. Move to internal/php if anything else needs DateTime (nothing does yet).
+- Done: `loader.IsValidPerforcePort` forwards to `vcs.IsValidPort` (kept for callers).
+- Done: the VersionGuesser uses `vcs.CleanEnv`, `vcs.GetVersion` (now the process-wide Git::$version cache, as in Composer; tests reset it with `vcs.SetVersion("", false)` like VersionGuesserTest's setUp/tearDown), `vcs.BuildRevListCommand`, `vcs.GetNoShowSignatureFlags`, `vcs.ParseRevListOutput`, `vcs.CheckForRepoOwnershipError` and `vcs.SvnCleanEnv`. HgDriver::getBranches stays private (internal/repository/vcs is above internal/pkg).
 
 ## internal/repository/vcs, internal/downloader, internal/pkg, internal/command (from internal/util/vcs)
 - Git/Hg/Svn/Perforce take `vcs.Process` (Execute, ExecuteFunc, GetErrorOutput: `*util.ProcessExecutor` or `*processmock.Mock`) and `http.Config` (adapt `*config.Config` as for util/http; Svn reads `Get("http-basic")`, a null value counting as absent like Config::has).
 - Static caches stay process-wide: `vcs.GetVersion`/`GetHgVersion`/`Svn.BinaryVersion` run the binary once per process. Tests that pin the version (GitDownloaderTest/VersionGuesserTest `initGitVersion`) call `vcs.SetVersion("1.0.0", true)` and reset with `vcs.SetVersion("", false)` in t.Cleanup; such tests must not run in parallel.
 - Process mock for every package: `internal/util/processmock` (ProcessExecutorMock): `processmock.Cmd(args...)` is a list expectation, `processmock.Shell(line)` a string one (PHP `===`: they never match each other); unexpected commands in strict mode return `*processmock.AssertionError` from Execute.
 - `util.Process.SetInput` gives a Process stdin (Symfony's $input); `util.NewFinishedProcess` builds an already-run Process for test doubles; `util.Command.Args/Line/IsShell`; `util.SplitLines`.
-- `util.SecurityError` is Composer\Exception\SecurityException (Perforce raises it); `pkg.SecurityError` duplicates it: make it `type SecurityError = util.SecurityError` so errors.As works across.
-- `vcs.IsValidPort` is Perforce::isValidPort; `loader.IsValidPerforcePort` duplicates it: call `vcs.IsValidPort` (pkg/loader may import util/vcs).
-- internal/pkg/version's private Git/Svn helpers (see above) can now use `vcs.CleanEnv`, `vcs.GetVersion`, `vcs.BuildRevListCommand`, `vcs.GetNoShowSignatureFlags`, `vcs.ParseRevListOutput`, `vcs.CheckForRepoOwnershipError`, `vcs.SvnCleanEnv`.
-- util/http now exports `Rawurlencode`, `Rawurldecode`, `StoreAuthOf`, `ConfigList`, `NewProcessExecutor(io.IO)` (exports.go); they still belong in internal/php (see the cleanup note above).
+- `util.SecurityError` is Composer\Exception\SecurityException (Perforce raises it); `pkg.SecurityError` is now `= util.SecurityError` (done).
+- Done: `loader.IsValidPerforcePort` forwards to `vcs.IsValidPort`; the guesser uses the vcs Git/Svn helpers (see above).
+- util/http exports `Rawurlencode`, `Rawurldecode`, `StoreAuthOf`, `ConfigList`, `NewProcessExecutor(io.IO)` (exports.go); the URL functions now forward to internal/php (done).
 
 ## internal/repository, internal/composer, internal/plugin, internal/autoload, internal/command (from internal/platform)
 - `platform.Detector` probes `php` on the PATH once per process (no disk cache; doc.go says why). Create one per process in internal/composer, call `Start()` early so the ~20 ms probe overlaps loading, and share it; `Snapshot()`/`Runtime()` wait.
@@ -96,7 +95,7 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - PlatformRepository takes a `platform.Runtime` and a `platform.HhvmVersionDetector`; port PlatformRepositoryTest with `platform/platformmock` (`Runtime` with per-method funcs and call recording, `ConstantMap`, `InvokeMap`, `HhvmDetector`). Invoke takes `platform.Func(name)`/`platform.StaticMethod(class, method)`; ResourceBundle/Imagick results implement `platform.ResourceBundle`/`platform.Imagick`. `testdata/oracle/*.json` hold Composer's `platform_packages` for six php builds, a ready golden for the PlatformRepository port.
 - Without php `Detector` returns a `*PHPNotFoundError` (`errors.Is(err, platform.ErrPHPNotFound)`). PlatformRepository should then proceed with only the config.platform overrides when `php` is overridden, and return that error otherwise.
 - The php binary for plugins/scripts is `platform.FindPHP()` (PLUGINS.md §7 puts `PhpBinary()` in internal/util; it lives here because util is owned elsewhere; move it if wanted). `util.IniGetAll(snapshot.IniFiles)` is IniHelper; `classmap.Parser.ShortOpenTag = snapshot.ShortOpenTag()`; `http.Runtime.PHPVersion()` is `snapshot.Version` ("" without php).
-- `platform.HTMLEntityDecode` ports html_entity_decode (HTML 4.01, PHP 8.1 default flags); move it into internal/php when convenient.
+- html_entity_decode (HTML 4.01, PHP 8.1 default flags) is `php.HTMLEntityDecode`; `platform.HTMLEntityDecode` forwards to it (done).
 
 ## internal/composer, internal/command, internal/installer, internal/plugin, internal/autoload, internal/downloader, internal/repository, internal/resolver (from internal/eventdispatcher)
 - Every event type lives in internal/eventdispatcher (the dispatcher creates them, and all their dispatchers sit above it): `Event`/`BaseEvent`, `ScriptEvent` (Composer\Script\Event), `PackageEvent`, `InstallerEvent`, `CommandEvent`, `PreCommandRunEvent`, `PreFileDownloadEvent`, `PostFileDownloadEvent`, `PrePoolCreateEvent`, `PHPEvent` (PHP-owned), plus the PackageEvents/InstallerEvents/PluginEvents name constants. internal/script holds only the ScriptEvents constants (`script.PostInstallCmd`, ...), which the dispatcher imports.
@@ -108,7 +107,7 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Plugin runtime: PHP string listeners become `eventdispatcher.Script`, other callables `PHPCallable`; `removeListener` maps to `MatchCallable`/`MatchObject`/`MatchScript`. A PHP \Error crossing to Go must implement `eventdispatcher.PHPError`; a PHP ScriptExecutionException must be an `*eventdispatcher.ScriptExecutionError` for `errors.As`.
 
 ## Cleanup (DRY) from internal/eventdispatcher
-- `determineBinaryCaller` (eventdispatcher.go) is a private port of BinaryInstaller::determineBinaryCaller; internal/installer's BinaryInstaller should share one copy (internal/installer may import eventdispatcher, or move it to internal/util).
+- Open (internal/installer was being written during the hygiene task, so it was left alone): `determineBinaryCaller` (eventdispatcher.go) is a private port of BinaryInstaller::determineBinaryCaller; internal/installer's BinaryInstaller should share one copy (internal/installer may import eventdispatcher, or move it to internal/util).
 
 ## Users of internal/autoload (internal/composer, internal/eventdispatcher, internal/plugin, internal/installer, internal/repository, internal/command)
 - `autoload.NewGenerator(dispatcher, io)` is AutoloadGenerator; set `Generator.Parser.ShortOpenTag` from the user's php `short_open_tag` (internal/platform) before dumping. Setters as in PHP; `SetApcu(apcu, prefix *string)` (nil prefix: random).
@@ -131,9 +130,9 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Operations return `(*downloader.Promise, error)`: the error is a synchronous throw. Downloaders implement `downloader.Classer` for get_class().
 
 ## Cleanup (DRY), from internal/downloader
-- internal/downloader/operation.go repeats Install/Update/UninstallOperation::format; internal/resolver owns the operations (it is above the downloader, so the downloader keeps its copy unless format moves lower).
+- Done: the downloaders call internal/resolver/operation's format helpers directly; internal/downloader/operation.go only keeps `FormatInstall`/`FormatUpdate`/`FormatUninstall` as forwarders for other callers.
 - Done: PathDownloader mirrors with `archiver.NewArchivableFilesFinder` (internal/pkg/archiver owns the finder, the exclude filters and Glob::toRegex); internal/downloader/mirror.go keeps only Symfony's mirror/copy/symlink.
-- `isBinPathInsidePackage` (filedownloader.go) is BinaryInstaller::isBinPathInsidePackage; internal/installer may use or own it.
+- Open (installer-facing; internal/installer was being written during the hygiene task): `isBinPathInsidePackage` (filedownloader.go) is BinaryInstaller::isBinPathInsidePackage; internal/installer may use or own it.
 - Added exports: `util.IsExecutable` (is_executable()), `store.Umask` (the process umask).
 
 ## internal/composer, internal/command, internal/plugin (from internal/pkg/archiver)
@@ -143,8 +142,8 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Plugin archivers (Archiver interface) take excludes as `[]string`; ArchiveManager's getSupportedFormats only knows the two built-in classes, as in PHP.
 
 ## Cleanup (DRY), from internal/pkg/archiver
-- `sysGetTempDir` (archivemanager.go) duplicates console's private `sysTempDir` (sys_get_temp_dir()); `typeError` duplicates internal/pkg/loader's TypeError message builder. Move both into internal/php (or util) and share them.
-- go.mod lists github.com/dsnet/compress (bzip2 writer) as `// indirect` though archiver imports it directly; a `go mod tidy` when no port is running fixes the marker.
+- Done: sys_get_temp_dir() is `php.SysGetTempDir` (archiver and console; console's copy stripped every trailing slash where PHP strips one). The TypeError builder is `pkg.ArgumentTypeError` (archiver, pkg/loader, and internal/repository's copy, which named booleans "bool" where PHP 8.4 says "true"/"false").
+- Done: go.mod no longer marks github.com/dsnet/compress `// indirect`.
 
 ## Users of internal/repository and internal/locker (internal/composer, internal/resolver, internal/installer, internal/command, internal/plugin, composerrepo, vcs)
 - Every RepositoryInterface method returns an error where PHP can throw (remote repositories fail anywhere); `RepoName()` cannot and counts the packages loaded so far. String constraints are parsed by the caller (`repository.ParseConstraint`); a nil constraint is PHP's null (any version). `search()`'s `?string $type` is `""` for null; results are `SearchResult` (Abandoned nil = unset), providers `[]ProviderInfo` keyed by name. `Class()` gives the PHP class (plugin mirrors); writable repositories have `Rev()`.
@@ -162,9 +161,9 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - ArtifactRepository walks directories in byte order of names; PHP's RecursiveDirectoryIterator uses readdir() order (file-system dependent).
 
 ## Cleanup (DRY), from internal/repository
-- internal/pkg/version's private Git helpers (versionguesser.go) should use internal/util/vcs, as PathRepository and the Locker now do.
-- `pkg.IsPlatformPackage` is matched by hand; `repository.IsPlatformPackage` and `PlatformPackageRegex` wrap/document it. internal/json/manipulator.go's copy of PLATFORM_PACKAGE_REGEX can use `repository.PlatformPackageRegex` (or pkg's function).
-- Exports added for this port: `php.Serialize`/`AppendSerialize` (serialize()), `classmap.GlobOnlyDir` (glob() with GLOB_ONLYDIR|GLOB_BRACE|GLOB_MARK; move with the rest of glob.go into internal/util when convenient), `loader.ParseDateTime` (the loader's external test hook of the same name was dropped), `config.Config.ForIO()` (io.Config adapter for loadConfiguration; internal/composer can reuse it).
+- Done: internal/pkg/version's Git helpers use internal/util/vcs.
+- Done: PLATFORM_PACKAGE_REGEX is `pkg.PlatformPackageRegex`/`pkg.PlatformPackageRegexp`, used by internal/json/manipulator.go (see above).
+- Exports added for this port: `php.Serialize`/`AppendSerialize` (serialize()), `classmap.GlobOnlyDir` (glob() with GLOB_ONLYDIR|GLOB_BRACE|GLOB_MARK; left in classmap: class-map-generator needs glob itself and internal/util now pulls in internal/io and console, too heavy for classmap), `loader.ParseDateTime` (the loader's external test hook of the same name was dropped), `config.Config.ForIO()` (io.Config adapter for loadConfiguration; internal/composer can reuse it).
 
 ## internal/composer, internal/command, internal/plugin (from internal/repository/vcs, internal/downloader/vcs)
 - `*config.Config` adapts to `http.Config` (util/http, util/vcs, the VCS drivers and downloaders) with `cfg.ForHTTP()` (internal/config/httpconfig.go), as to `io.Config` with `ForIO()`.
@@ -178,8 +177,8 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - Types outside internal/repository can now extend ArrayRepository (PHP `extends ArrayRepository`): embed it, call `r.Extend(outer, initialize)` first, and start `initialize` with `r.InitializeBase()` (parent::initialize()); AddPackage/FindPackage/... then work as in PHP. composerrepo may use it instead of reimplementing the ArrayRepository methods.
 
 ## Cleanup (DRY), from internal/repository/vcs and internal/downloader/vcs
-- New shared exports: `util.IsRuntimeException(err)` (`catch (\RuntimeException)`; internal/downloader now uses it), `util.IsWritable` (is_writable(); internal/config/writable_*.go and internal/cache/sys_*.go keep private copies: switch them), `php.Base64Decode(s, strict)` (base64_decode, oracle-checked), `http.Urlencode`, `http.HTTPBuildQuery` (belong in internal/php with the other phpfuncs.go helpers), `vcs.SetSvnVersion`.
-- `downloader.FilesystemError` is a \RuntimeException in PHP, but `util.IsRuntimeException` does not cover it (util cannot import internal/downloader; DownloadManager's update fallback checks it): add the check in the downloader or move the type into util.
+- New shared exports: `util.IsRuntimeException(err)` (`catch (\RuntimeException)`; internal/downloader now uses it), `util.IsWritable` (is_writable(); config's and cache's private copies are gone, done), `php.Base64Decode(s, strict)` (base64_decode, oracle-checked), `http.Urlencode`, `http.HTTPBuildQuery` (now forwarders to internal/php, done), `vcs.SetSvnVersion`.
+- Resolved, no change: Composer\Downloader\FilesystemException extends \Exception, not \RuntimeException, so `util.IsRuntimeException` correctly leaves `downloader.FilesystemError` out.
 - internal/downloader: `formatInstall`/`formatUpdate`/`formatUninstall`/`phpClassOf` are exported (`FormatInstall`, ..., `PHPClassOf`) for the VCS downloaders.
 
 ## internal/composer, internal/command, internal/plugin, internal/resolver (from internal/repository/composerrepo, internal/advisory, internal/filterlist)
@@ -188,15 +187,25 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - `getPackageNames` is `ComposerRepository.PackageNames(filter)` (values only; PHP's Preg::grep keeps keys, which no caller uses).
 - `repository.SearchResult.Raw` (new field) holds a search API result array with all its keys (downloads, favers, repository, url, ...): SearchCommand's JSON output must encode `Raw` when it is set.
 - Auditor: `advisory.Auditor.Audit(io, repoSet, policyConfig, packages, format, warningOnly, providerSet)`; the provider set is `filterlist.CreateFilterListProviderSet(policyConfig, repos, httpDownloader)` (nil for none). `RepositorySet` satisfies `advisory.RepositorySet`.
-- composer/metadata-minifier is `internal/metadataminifier` (`Expand`, `Minify`); internal/pkg/loader's test helper `expand` duplicates `Expand` and can use it.
+- composer/metadata-minifier is `internal/metadataminifier` (`Expand`, `Minify`); internal/pkg/loader's tests use `Expand` (their copy is gone).
 
 ## Cleanup (DRY), from internal/repository/composerrepo, internal/advisory, internal/filterlist
-- Exports added: `repository.SearchResult.Raw`, `repository.PackageVersionsConstraintMap(packages)` (the name => OR of `== version` map RepositorySet::getMatchingSecurityAdvisories and FilterListProviderSet build; RepositorySet uses it), `filterlist.PostOptions`/`HTTPOptions`/`AppendHeader` (`$options['http']` manipulation shared by FilterListApiClient and ComposerRepository; util/http's private `appendHeader`/`httpArray` do the same and could use them or move them into util/http).
-- `composerrepo.exceptionClass` (get_class of a loader exception) overlaps `downloader.PHPClassOf`; a shared `util.PHPClassOf` would serve both.
-- `Response::decodeJson` errors name only the URL (internal/util/http, see above); Composer's message also has jsonlint's details. ComposerRepository passes them through unchanged.
+- Exports added: `repository.SearchResult.Raw`, `repository.PackageVersionsConstraintMap(packages)` (the name => OR of `== version` map RepositorySet::getMatchingSecurityAdvisories and FilterListProviderSet build; RepositorySet uses it), `filterlist.PostOptions`/`HTTPOptions`/`AppendHeader` (`$options['http']` manipulation shared by FilterListApiClient and ComposerRepository). Done: `HTTPOptions`/`AppendHeader` now live in internal/util/http (which uses them instead of its private `httpArray`/`appendHeader`); filterlist's names forward to them.
+- Done: `util.PHPClassOf(err)` (get_class/getCode) serves `composerrepo.exceptionClass` and the downloaders (`downloader.PHPClassOf` forwards); error types of higher packages name their class through `util.PHPClasser` (`downloader.FilesystemError` does).
+- Resolved, no change: Composer 2.10.3's Response::decodeJson deliberately rethrows a ParsingException naming only the sanitized URL (the body may hold secrets), which is what the Go does.
 
 ## Audit: regex errors must surface as Composer does
-Several ports treat a regex engine failure (backtrack/recursion limit) as "no match". In PHP that depends on the call: Composer\Pcre\Preg::* throws PcreException (a RuntimeException); bare preg_match/preg_replace return false/null and the caller decides. Audit every internal/php Preg/Regexp call site across the tree and make each one follow its PHP call exactly (throw where Preg throws, false/null where raw preg_* is used). Do this after the regex engine's backtrack-limit accounting is final (pcre-perf task).
+Several ports treated a regex engine failure (backtrack/recursion limit, bad UTF-8 under /u) as "no match". In PHP it depends on the call: Composer\Pcre\Preg::* throws PcreException (a RuntimeException); bare preg_match/preg_replace/preg_grep return false/null (preg_grep: the entries collected before the error) and the caller decides.
+
+Done (hygiene task) for every package except internal/installer and internal/composer. The engine counts the match limit per start position like PHP's JIT, and many "simple" patterns do fail on subjects of 1 MB or less (`^[a-z0-9]+(\.[a-z0-9]+)*$`, `(.+?)\s*$` already at ~10 KB of whitespace, `.*.*.*.*.*c` built from user globs at ~150 bytes), so "cannot fail" needs a reason, not a feeling.
+
+Rule for internal/installer, internal/composer and later ports:
+- Preg::* in PHP: return the `*php.PcreError` up the stack, through whatever PHP lets it pass (check for `catch (\Exception)`/`catch (\RuntimeException)` on the way, e.g. Git::getMirrorDefaultBranch logs and returns null).
+- raw preg_*: the error is false/null; do what the PHP caller does with that (`!preg_match` is true, preg_replace's null concatenates as "").
+- Ignoring the error (`_`) is allowed only where the pattern provably cannot fail on any input: bounded work per start position (a single character class, an anchored fixed-length prefix, possessive/auto-possessified quantifiers before a disjoint literal) or a subject bounded far below the limit. Say why in a comment at the site.
+- Helpers that panic or swallow (`mustMatch`, `matches`, ...) must not wrap patterns that can fail; repository/vcs's `matches`/`match`/`replace` now return errors and `replaceInfallible` is for the provably safe ones.
+- New exports for this: `json` detectIndenting is internal (DetectIndenting keeps its signature), `http.FindHeaderValueChecked`/`Response.HeaderChecked`, `repository.SafelyLoadInstalledVersionsChecked` (Factory must use it: a large installed.php can exhaust the limit and Composer lets the exception through), `util.UpdateDistReference` and `util.TryForgejoURL` return errors, `filterlist.FilterListAuditor.GetMatching{Audit,Block}Entries` return errors, `platform.ParseHtmlExtensionInfo` returns an error.
+- Known, documented divergence: `util.SanitizeURL` (~100 callers, mostly building messages) keeps its error-less signature and returns "" where Preg::replaceCallback would throw (a ~1 MB run of [a-z0-9+.-] with an unreachable '@'); `util.ComposerMirrorProcessGitURL` reads a failure on a ~1 MB URL as no match.
 
 ## Users of internal/resolver (internal/composer, internal/installer, internal/plugin, internal/command)
 - Installer::doUpdate/doInstall build the inputs themselves (createRepositorySet, createRequest, requirePackagesForUpdate, createPolicy, createPoolOptimizer); internal/resolver/oracle_test.go's `buildOracleRequest` mirrors the update path and can serve as the template. Pools: `resolver.CreatePool(set, request, io, CreatePoolOptions{EventDispatcher, PoolOptimizer, IgnoredTypes, AllowedTypes (nil = null), SecurityAdvisoryPoolFilter, FilterListPoolFilter})`, `CreatePoolWithAllPackages(set)`, `CreatePoolForPackage(s)(set, names, lockedRepo)`; solving: `resolver.NewSolver(policy, pool, io).Solve(request, platformRequirementFilter)` returns a `*LockTransaction` or a `*SolverProblemsError` (`Code()` 2). Never pass a typed-nil `EventDispatcher`.
@@ -211,5 +220,13 @@ Several ports treat a regex engine failure (backtrack/recursion limit) as "no ma
 ## From internal/resolver (changes in other packages)
 - `version.RepositorySet.FindPackages` now returns `([]pkg.PackageInterface, error)` and `VersionSelector.FindBestCandidate` passes the error on; `*repository.RepositorySet` satisfies the interface (asserted in internal/resolver).
 - internal/repository: `RepositorySet.RootAliasList()` (the root aliases in the order given, for the PHP array of PRE_POOL_CREATE) and the exported `RootAliasesPerPackage` (was rootAliasesPerPackage).
-- internal/downloader/operation.go: `FormatInstall`/`FormatUninstall`/`FormatUpdate` now call internal/resolver/operation, which owns InstallOperation/UninstallOperation/UpdateOperation::format; callers may switch to the operation package directly and the file can go.
+- internal/downloader/operation.go: `FormatInstall`/`FormatUninstall`/`FormatUpdate` now call internal/resolver/operation, which owns InstallOperation/UninstallOperation/UpdateOperation::format; the downloaders call the operation package directly and the file only keeps forwarders.
 - Real-world oracle: tools/oracle/resolver/record.php (needs the network) recorded what PoolBuilder loads from Packagist for the kontainer project (private repositories dropped), laravel/laravel and symfony/symfony-demo into internal/resolver/testdata/oracle/*.json.gz; tools/oracle/resolver/solve.php resolves them offline in 7 variants into solve.json, and `--bench` times them for comparison with `BenchmarkOracleSolve`.
+
+## internal/composer, internal/plugin, internal/command (from internal/installer; API stable, port in progress)
+- Factory::createInstallationManager: `installer.NewManager(loop *http.Loop, io, dispatcher installer.EventDispatcher)` (nil dispatcher = null; never a typed nil), then `im.SetDownloadMetadata(deps.Metadata)` (FileDownloader::$downloadMetadata, the same `*downloader.Metadata` as `downloader.Deps.Metadata`). `*eventdispatcher.EventDispatcher` satisfies `installer.EventDispatcher`.
+- Factory::createDefaultInstallers: `bi, err := installer.NewBinaryInstaller(io, binDir, binCompat, fs, pkg.Str(vendorDir))`, then `AddInstaller` of `installer.NewLibraryInstaller(io, composer, pkg.NullString{} /* null type */, fs, bi)`, `installer.NewPluginInstaller(io, composer, fs, bi)`, `installer.NewMetapackageInstaller(io)`. `composer` is an `installer.PartialComposer` (`Config() *config.Config`); a full Composer also implements `installer.Composer` (`DownloadManager() *downloader.DownloadManager`) and, for PluginInstaller, `installer.PluginComposer` (`InstallerPluginManager() installer.PluginManager`, read lazily as Composer does: the plugin manager is set after the installers are created).
+- Installer methods return `(*installer.Promise, error)`: the error is a synchronous throw, a nil promise PHP's null. Promises are driven on the calling goroutine: then() callbacks of a settled promise run at once (as React's do), others when the manager (or `installer.Await(loop, p)`, SyncHelper::await) waits. Wrap a downloader/util promise with `installer.Of(p)`.
+- `Manager.Execute(repo, ops []operation.Operation, devMode, runScripts, downloadOnly)`, `InstallPath(p) (string, ok, error)` (satisfies `repository.InstallationManager` and autoload's), `IsPackageInstalled`, `EnsureBinariesPresence`, `NotifyInstalls(io)`, `SetOutputProgress`, `DisablePlugins`, `Installer(type)`, `AddInstaller`/`RemoveInstaller`, `MarkAliasInstalled`/`MarkAliasUninstalled`.
+- `installer.NewSuggestedPackagesReporter(io)`: `AddPackage`, `AddSuggestionsFromPackage`, `Packages()`, `Output(mode, installedRepo *repository.InstalledRepository (nil = null), onlyDependentsOf pkg.PackageInterface)`, `OutputMinimalistic(...)`; modes `installer.ModeList`, `ModeByPackage`, `ModeBySuggestion`.
+- create-project: `installer.NewProjectInstaller(installPath, dm, fs)`.

@@ -167,7 +167,10 @@ var sha1Identifier = php.MustCompile(`{^[a-f0-9]{40}$}iD`)
 // shouldCache is shouldCache(): whether composer.json of identifier is
 // cached.
 func (d *vcsDriver) shouldCache(identifier string) bool {
-	return d.cache != nil && matches(sha1Identifier, identifier)
+	// Anchored and fixed-length: Preg::isMatch cannot throw.
+	isSha, _ := sha1Identifier.IsMatch(identifier)
+
+	return d.cache != nil && isSha
 }
 
 // ComposerInformation ports VcsDriver::getComposerInformation.

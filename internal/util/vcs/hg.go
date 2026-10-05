@@ -62,13 +62,13 @@ func (h *Hg) RunCommand(commandCallable CommandFunc, url, cwd string) error {
 		if proto == "ssh" {
 			user := ""
 			if u, ok := matches.Named("user"); ok {
-				user = http.Rawurlencode(u) + "@"
+				user = php.Rawurlencode(u) + "@"
 			}
 
 			authenticatedURL = proto + "://" + user + host + path
 		} else {
 			auth := h.io.Authentication(host)
-			authenticatedURL = proto + "://" + http.Rawurlencode(strOf(auth.Username)) + ":" + http.Rawurlencode(strOf(auth.Password)) + "@" + host + path
+			authenticatedURL = proto + "://" + php.Rawurlencode(strOf(auth.Username)) + ":" + php.Rawurlencode(strOf(auth.Password)) + "@" + host + path
 		}
 
 		if code, err := h.process.Execute(commandCallable(authenticatedURL), &ignoredOutput, cwd); err != nil || code == 0 {

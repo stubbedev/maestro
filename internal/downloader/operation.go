@@ -1,7 +1,7 @@
 // The format() helpers of
 // src/Composer/DependencyResolver/Operation/{InstallOperation,UpdateOperation,UninstallOperation}.php,
-// which the downloaders print, are ported in internal/resolver/operation;
-// these are the downloader's names for them.
+// which the downloaders print, are owned by internal/resolver/operation;
+// these forwarders are kept for existing callers.
 
 package downloader
 

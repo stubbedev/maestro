@@ -64,7 +64,7 @@ func (d *FossilDriver) Initialize() error {
 			return &util.RuntimeError{Message: "FossilDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 		}
 
-		localName := replace(alnumOnly, "-", d.url)
+		localName := replaceInfallible(alnumOnly, "-", d.url)
 		d.repoFile = repoDir + "/" + localName + ".fossil"
 		d.checkoutDir = vcsDir + "/" + localName + "/"
 
@@ -239,7 +239,7 @@ var leadingStar = php.MustCompile(`/^\*/`)
 func (d *FossilDriver) Branches() (*php.Array, error) {
 	if d.branches == nil {
 		branches, err := d.list([]string{"fossil", "branch", "list"}, func(line string) string {
-			return php.Trim(replace(leadingStar, "", php.Trim(line)))
+			return php.Trim(replaceInfallible(leadingStar, "", php.Trim(line)))
 		})
 		if err != nil {
 			return nil, err
@@ -275,8 +275,11 @@ var (
 
 // fossilSupports ports FossilDriver::supports.
 func fossilSupports(deps Deps, url string, _ bool) (bool, error) {
-	if matches(fossilHostURL, url) || matches(fossilPathURL, url) {
-		return true, nil
+	if ok, err := matches(fossilHostURL, url); err != nil || ok {
+		return ok, err
+	}
+	if ok, err := matches(fossilPathURL, url); err != nil || ok {
+		return ok, err
 	}
 
 	// local filesystem

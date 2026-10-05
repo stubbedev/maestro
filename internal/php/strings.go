@@ -215,6 +215,24 @@ func Strcmp(a, b string) int { return binaryStrcmp(a, b) }
 // Strcasecmp ports strcasecmp(): ASCII case-insensitive.
 func Strcasecmp(a, b string) int { return strcasecmpASCII(a, b) }
 
+// Strncasecmp ports strncasecmp(): strcasecmp() of at most the first n
+// bytes of a and b (n >= 0).
+func Strncasecmp(a, b string, n int) int {
+	return strcasecmpASCII(a[:min(n, len(a))], b[:min(n, len(b))])
+}
+
+// Stripos ports stripos($haystack, $needle): the byte offset of the first
+// ASCII case-insensitive occurrence of needle, or -1 for false.
+func Stripos(haystack, needle string) int {
+	n := len(needle)
+	for i := 0; i+n <= len(haystack); i++ {
+		if strcasecmpASCII(haystack[i:i+n], needle) == 0 {
+			return i
+		}
+	}
+	return -1
+}
+
 // Strtr ports strtr($s, $from, $to): byte-wise translation of the first
 // min(len(from), len(to)) bytes.
 func Strtr(s, from, to string) string {

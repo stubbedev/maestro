@@ -63,20 +63,21 @@ func ksort[V any](m *repository.NameMap[V]) *repository.NameMap[V] {
 	return sorted
 }
 
-// GetMatchingAuditEntries ports getMatchingAuditEntries.
-func (a FilterListAuditor) GetMatchingAuditEntries(p pkg.PackageInterface, filterListMap *FilterListMap, policyConfig *policy.PolicyConfig) []*FilterListEntry {
+// GetMatchingAuditEntries ports getMatchingAuditEntries. The error is the
+// PcreException Preg::isMatch throws on the ignore patterns.
+func (a FilterListAuditor) GetMatchingAuditEntries(p pkg.PackageInterface, filterListMap *FilterListMap, policyConfig *policy.PolicyConfig) ([]*FilterListEntry, error) {
 	return a.matchingEntries(p, filterListMap, policyConfig.ActiveAuditFilterLists(), "audit")
 }
 
 // GetMatchingBlockEntries ports getMatchingBlockEntries; blockScope is
 // one of the policy.BlockScope* values.
-func (a FilterListAuditor) GetMatchingBlockEntries(p pkg.PackageInterface, filterListMap *FilterListMap, policyConfig *policy.PolicyConfig, blockScope string) []*FilterListEntry {
+func (a FilterListAuditor) GetMatchingBlockEntries(p pkg.PackageInterface, filterListMap *FilterListMap, policyConfig *policy.PolicyConfig, blockScope string) ([]*FilterListEntry, error) {
 	return a.matchingEntries(p, filterListMap, policyConfig.ActiveBlockFilterLists(blockScope), "block")
 }
 
-func (a FilterListAuditor) matchingEntries(p pkg.PackageInterface, filterListMap *FilterListMap, activeListConfigs *policy.OrderedMap[policy.ListPolicyConfig], operation string) []*FilterListEntry {
+func (a FilterListAuditor) matchingEntries(p pkg.PackageInterface, filterListMap *FilterListMap, activeListConfigs *policy.OrderedMap[policy.ListPolicyConfig], operation string) ([]*FilterListEntry, error) {
 	if _, ok := p.(pkg.RootPackageInterface); ok || filterListMap.Len() == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if malware, ok := activeListConfigs.Get(policy.MalwareName); ok {
@@ -111,12 +112,25 @@ func (a FilterListAuditor) matchingEntries(p pkg.PackageInterface, filterListMap
 			}
 		}
 
-		if ignored, _ := php.PregIsMatch(allIgnoredPackageNamesRegex, packageName); ignored {
+		ignored, err := php.PregIsMatch(allIgnoredPackageNamesRegex, packageName)
+		if err != nil {
+			return nil, err
+		}
+		if ignored {
+			var ignoreErr error
 			packageEntries = slices.DeleteFunc(packageEntries, func(e listEntries) bool {
+				if ignoreErr != nil {
+					return false
+				}
 				listConfig, _ := activeListConfigs.Get(e.name)
+				var isIgnored bool
+				isIgnored, ignoreErr = isPackageIgnored(packageName, packageConstraint, listConfig, operation)
 
-				return isPackageIgnored(packageName, packageConstraint, listConfig, operation)
+				return isIgnored
 			})
+			if ignoreErr != nil {
+				return nil, ignoreErr
+			}
 		}
 
 		for _, e := range packageEntries {
@@ -128,19 +142,23 @@ func (a FilterListAuditor) matchingEntries(p pkg.PackageInterface, filterListMap
 		}
 	}
 
-	return matchingEntries
+	return matchingEntries, nil
 }
 
-func isPackageIgnored(packageName string, packageConstraint semver.ConstraintInterface, listConfig policy.ListPolicyConfig, operation string) bool {
+func isPackageIgnored(packageName string, packageConstraint semver.ConstraintInterface, listConfig policy.ListPolicyConfig, operation string) (bool, error) {
 	for _, ignorePackageRules := range listConfig.List().IgnoreForOperation(operation).All() {
 		for _, ignorePackageRule := range ignorePackageRules {
-			if matched, _ := php.PregIsMatch(ignorePackageRule.PackageNameRegex, packageName); matched && ignorePackageRule.Constraint.Matches(packageConstraint) {
-				return true
+			matched, err := php.PregIsMatch(ignorePackageRule.PackageNameRegex, packageName)
+			if err != nil {
+				return false, err
+			}
+			if matched && ignorePackageRule.Constraint.Matches(packageConstraint) {
+				return true, nil
 			}
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // applyMalwareIgnoreSource ports applyMalwareIgnoreSource: it drops the

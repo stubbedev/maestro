@@ -16,6 +16,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -351,7 +352,7 @@ func runManipulatorTest(t *testing.T, name string) {
 // generated documents and operation sequences of
 // tools/oracle/json/manipulator.php.
 func TestJsonManipulator_Oracle(t *testing.T) {
-	data, err := os.ReadFile("testdata/manipulator/oracle.json")
+	data, err := testutil.ReadGoldenFile("testdata/manipulator/oracle.json.gz")
 	if err != nil {
 		t.Fatal(err)
 	}

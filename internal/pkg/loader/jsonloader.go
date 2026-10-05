@@ -50,7 +50,7 @@ func (l *JsonLoader) Load(source any) (pkg.PackageInterface, error) {
 
 	a, ok := config.(*php.Array)
 	if !ok {
-		return nil, typeError(`Composer\Package\Loader\LoaderInterface::load`, 1, "config", "array", config)
+		return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\LoaderInterface::load`, 1, "config", "array", config)
 	}
 
 	return l.loader.Load(a, pkg.ClassCompletePackage)

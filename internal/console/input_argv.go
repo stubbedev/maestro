@@ -5,7 +5,6 @@ package console
 import (
 	"errors"
 	"os"
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -465,15 +464,20 @@ func (in *StringInput) Clone() Input {
 	return &StringInput{ArgvInput: a}
 }
 
+// StringInput::REGEX_UNQUOTED_STRING and REGEX_QUOTED_STRING.
+const regexUnquotedString = `([^\s\\]+?)`
+
 const regexQuotedString = `(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)')`
 
+// StringInput's patterns, compiled once.
 var (
-	stringInputSpace        = regexp.MustCompile(`^[ \t\n\v\f\r]+`)
-	stringInputQuotedOption = regexp.MustCompile(`^([^="' \t\n\v\f\r]+?)(=?)(` + regexQuotedString + `+)`)
-	stringInputQuoted       = regexp.MustCompile(`^` + regexQuotedString)
-	stringInputUnquoted     = regexp.MustCompile(`^([^ \t\n\v\f\r\\]+?)`)
-	quoteJoins              = []string{`"'`, `'"`, `''`, `""`}
+	stringInputSpace        = php.MustCompile(`/\s+/A`)
+	stringInputQuotedOption = php.MustCompile(`/([^="'\s]+?)(=?)(` + regexQuotedString + `+)/A`)
+	stringInputQuoted       = php.MustCompile(`/` + regexQuotedString + `/A`)
+	stringInputUnquoted     = php.MustCompile(`/` + regexUnquotedString + `/A`)
 )
+
+var quoteJoins = []string{`"'`, `'"`, `''`, `""`}
 
 func tokenizeString(input string) ([]string, error) {
 	var tokens []string
@@ -493,31 +497,31 @@ func tokenizeString(input string) ([]string, error) {
 			continue
 		}
 
-		rest := input[cursor:]
+		// Raw preg_match(): a failed match (false) tries the next branch.
 		var matched int
-		if m := stringInputSpace.FindString(rest); m != "" {
+		if m, _ := stringInputSpace.MatchAt(input, cursor); m != nil {
 			if hasToken {
 				tokens = append(tokens, token.String())
 				token.Reset()
 				hasToken = false
 			}
-			matched = len(m)
-		} else if m := stringInputQuotedOption.FindStringSubmatch(rest); m != nil {
-			inner := m[3][1 : len(m[3])-1]
+			matched = len(m.Get(0))
+		} else if m, _ := stringInputQuotedOption.MatchAt(input, cursor); m != nil {
+			inner := php.SubstrLen(m.Get(3), 1, -1)
 			for _, q := range quoteJoins {
 				inner = strings.ReplaceAll(inner, q, "")
 			}
-			token.WriteString(m[1] + m[2] + php.Stripcslashes(inner))
+			token.WriteString(m.Get(1) + m.Get(2) + php.Stripcslashes(inner))
 			hasToken = true
-			matched = len(m[0])
-		} else if m := stringInputQuoted.FindString(rest); m != "" {
-			token.WriteString(php.Stripcslashes(m[1 : len(m)-1]))
+			matched = len(m.Get(0))
+		} else if m, _ := stringInputQuoted.MatchAt(input, cursor); m != nil {
+			token.WriteString(php.Stripcslashes(php.SubstrLen(m.Get(0), 1, -1)))
 			hasToken = true
-			matched = len(m)
-		} else if m := stringInputUnquoted.FindStringSubmatch(rest); m != nil {
-			token.WriteString(m[1])
+			matched = len(m.Get(0))
+		} else if m, _ := stringInputUnquoted.MatchAt(input, cursor); m != nil {
+			token.WriteString(m.Get(1))
 			hasToken = true
-			matched = len(m[0])
+			matched = len(m.Get(0))
 		} else {
 			// should never happen
 			return nil, newError(KindInvalidArgument, "StringInput.php", 72, `Unable to parse input near "... %s ...".`, php.SubstrLen(input, cursor, 10))

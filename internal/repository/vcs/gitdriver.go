@@ -50,7 +50,7 @@ func (d *GitDriver) Initialize() error {
 	var cacheURL string
 
 	if util.IsLocalPath(d.url) {
-		d.url = replace(gitDirSuffix, "", d.url)
+		d.url = replaceInfallible(gitDirSuffix, "", d.url)
 		if !isDir(d.url) {
 			return &util.RuntimeError{Message: "Failed to read package information from " + util.SanitizeURL(d.url) + " as the path does not exist"}
 		}
@@ -63,7 +63,7 @@ func (d *GitDriver) Initialize() error {
 			return &util.RuntimeError{Message: "GitDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 		}
 
-		d.repoDir = cacheVcsDir + "/" + replace(cacheNameChars, "-", util.SanitizeURL(d.url)) + "/"
+		d.repoDir = cacheVcsDir + "/" + replaceInfallible(cacheNameChars, "-", util.SanitizeURL(d.url)) + "/"
 
 		if err := uvcs.CleanEnv(d.process); err != nil {
 			return err
@@ -78,7 +78,9 @@ func (d *GitDriver) Initialize() error {
 			return &util.RuntimeError{Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + parent + `" directory is not writable by the current user.`}
 		}
 
-		if matches(sshURLWithoutPort, d.url) {
+		if ok, err := matches(sshURLWithoutPort, d.url); err != nil {
+			return err
+		} else if ok {
 			return &util.InvalidArgumentError{Message: "The source URL " + util.SanitizeURL(d.url) + ` is invalid, ssh URLs should have a port number after ":".` + "\n" + "Use ssh://git@example.com:22/path or just git@example.com:path if you do not want to provide a password or custom port."}
 		}
 
@@ -108,7 +110,7 @@ func (d *GitDriver) Initialize() error {
 		return err
 	}
 
-	return d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replace(cacheNameChars, "-", util.SanitizeURL(cacheURL)))
+	return d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replaceInfallible(cacheNameChars, "-", util.SanitizeURL(cacheURL)))
 }
 
 var currentBranch = php.MustCompile(`{^\* +(\S+)}`)
@@ -143,7 +145,11 @@ func (d *GitDriver) RootIdentifier() (string, error) {
 				continue
 			}
 
-			if m := match(currentBranch, branch); m != nil {
+			m, err := match(currentBranch, branch)
+			if err != nil {
+				return "", err
+			}
+			if m != nil {
 				d.rootIdentifier = m.Get(1)
 
 				break
@@ -239,7 +245,11 @@ func (d *GitDriver) Tags() (*php.Array, error) {
 			continue
 		}
 
-		if m := match(tagRef, tag); m != nil {
+		m, err := match(tagRef, tag)
+		if err != nil {
+			return nil, err
+		}
+		if m != nil {
 			tags.Set(m.Get(2), m.Get(1))
 		}
 	}
@@ -268,11 +278,20 @@ func (d *GitDriver) Branches() (*php.Array, error) {
 	branches := php.NewArray()
 
 	for _, branch := range util.SplitLines(output) {
-		if branch == "" || matches(remoteHead, branch) {
+		if branch == "" {
+			continue
+		}
+		if isHead, err := matches(remoteHead, branch); err != nil {
+			return nil, err
+		} else if isHead {
 			continue
 		}
 
-		if m := match(branchLine, branch); m != nil && m.Get(1)[0] != '-' {
+		m, err := match(branchLine, branch)
+		if err != nil {
+			return nil, err
+		}
+		if m != nil && m.Get(1)[0] != '-' {
 			branches.Set(m.Get(1), m.Get(2))
 		}
 	}
@@ -286,8 +305,8 @@ var gitURL = php.MustCompile(`#(^git://|\.git/?$|git(?:olite)?@|//git\.|//github
 
 // gitSupports ports GitDriver::supports.
 func gitSupports(deps Deps, url string, deep bool) (bool, error) {
-	if matches(gitURL, url) {
-		return true, nil
+	if ok, err := matches(gitURL, url); err != nil || ok {
+		return ok, err
 	}
 
 	// local filesystem

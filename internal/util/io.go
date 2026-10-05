@@ -1,19 +1,21 @@
 package util
 
-// IO is the part of Composer\IO\IOInterface the Util classes write to.
-// Verbosity values are IOInterface's constants.
+import "github.com/stubbedev/maestro/internal/io"
+
+// IO is the part of Composer\IO\IOInterface the Util classes write to;
+// every io.IO is one.
 type IO interface {
 	IsDebug() bool
-	WriteError(message string, newline bool, verbosity int)
-	WriteRaw(message string, newline bool, verbosity int)
-	WriteErrorRaw(message string, newline bool, verbosity int)
+	WriteError(message string, newline bool, verbosity io.Verbosity)
+	WriteRaw(message string, newline bool, verbosity io.Verbosity)
+	WriteErrorRaw(message string, newline bool, verbosity io.Verbosity)
 }
 
-// IOInterface verbosity levels.
+// IOInterface verbosity levels (io's constants).
 const (
-	VerbosityQuiet       = 1
-	VerbosityNormal      = 2
-	VerbosityVerbose     = 4
-	VerbosityVeryVerbose = 8
-	VerbosityDebug       = 16
+	VerbosityQuiet       = io.Quiet
+	VerbosityNormal      = io.Normal
+	VerbosityVerbose     = io.Verbose
+	VerbosityVeryVerbose = io.VeryVerbose
+	VerbosityDebug       = io.Debug
 )

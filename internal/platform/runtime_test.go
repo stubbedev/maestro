@@ -20,8 +20,8 @@ SQLite Library => 3.40.1`,
 	}
 
 	for name, c := range cases {
-		if got := ParseHtmlExtensionInfo(c[0]); got != c[1] {
-			t.Errorf("%s: got %q, want %q", name, got, c[1])
+		if got, err := ParseHtmlExtensionInfo(c[0]); err != nil || got != c[1] {
+			t.Errorf("%s: got %q, %v, want %q", name, got, err, c[1])
 		}
 	}
 }

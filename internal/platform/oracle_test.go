@@ -198,8 +198,8 @@ func checkOracle(t *testing.T, s *Snapshot, g *php.Array) {
 
 	for _, row := range rows(g, "parseHtmlExtensionInfo") {
 		in, _ := row[0].(string)
-		if got := ParseHtmlExtensionInfo(in); got != row[1] {
-			t.Errorf("ParseHtmlExtensionInfo(%q) = %q, want %q", in, got, row[1])
+		if got, err := ParseHtmlExtensionInfo(in); err != nil || got != row[1] {
+			t.Errorf("ParseHtmlExtensionInfo(%q) = %q, %v, want %q", in, got, err, row[1])
 		}
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/metadataminifier"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -32,7 +33,12 @@ func p2Inputs(t *testing.T) map[string][]*php.Array {
 
 		for _, versions := range packages.All() {
 			list, _ := versions.(*php.Array)
-			out[name] = expand(list.Values())
+			versionList := make([]*php.Array, 0, list.Len())
+			for _, v := range list.Values() {
+				a, _ := v.(*php.Array)
+				versionList = append(versionList, a)
+			}
+			out[name] = metadataminifier.Expand(versionList)
 		}
 	}
 

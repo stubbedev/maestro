@@ -7,6 +7,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // NoProxyPattern ports Composer\Util\NoProxyPattern: tests URLs against a
@@ -148,7 +150,7 @@ func (n *NoProxyPattern) match(index int, hostName string, url *noProxyRule) boo
 			haystack = haystack[len(haystack)-len(rule.name):]
 		}
 
-		matched = hasPrefixFold(haystack, rule.name)
+		matched = php.Strncasecmp(haystack, rule.name, len(rule.name)) == 0
 	}
 
 	if matched && rule.port != 0 {

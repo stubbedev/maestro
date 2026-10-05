@@ -63,7 +63,10 @@ const bitbucketAPI = "https://api.bitbucket.org/2.0/repositories/"
 
 // Initialize ports GitBitbucketDriver::initialize.
 func (d *GitBitbucketDriver) Initialize() error {
-	m := match(bitbucketRepoURL, d.url)
+	m, err := match(bitbucketRepoURL, d.url)
+	if err != nil {
+		return err
+	}
 	if m == nil {
 		return &util.InvalidArgumentError{Message: "The Bitbucket repository URL " + util.SanitizeURL(d.url) + " is invalid. It must be the HTTPS URL of a Bitbucket repository."}
 	}
@@ -87,7 +90,7 @@ func (d *GitBitbucketDriver) URL() string {
 // getRepoData ports getRepoData(): fetches the repository data; false
 // when the driver fell back to git.
 func (d *GitBitbucketDriver) getRepoData() (bool, error) {
-	resource := bitbucketAPI + d.owner + "/" + d.repository + "?" + http.HTTPBuildQuery("fields", "-project,-owner")
+	resource := bitbucketAPI + d.owner + "/" + d.repository + "?" + php.HTTPBuildQuery("fields", "-project,-owner")
 
 	repoData, err := d.getJSON(resource, true)
 	if err != nil {
@@ -98,7 +101,9 @@ func (d *GitBitbucketDriver) getRepoData() (bool, error) {
 		return false, nil
 	}
 
-	d.parseCloneURLs(arrayPath(repoData, "links", "clone"))
+	if err := d.parseCloneURLs(arrayPath(repoData, "links", "clone")); err != nil {
+		return false, err
+	}
 
 	d.hasIssues = php.ToBool(arrayPath(repoData, "has_issues"))
 	d.branchesURL = pathString(repoData, "links", "branches", "href")
@@ -305,7 +310,7 @@ func (d *GitBitbucketDriver) Branches() (*php.Array, error) {
 // references reads every page of a refs list: names to target hashes.
 func (d *GitBitbucketDriver) references(url, fields string) (*php.Array, error) {
 	refs := php.NewArray()
-	resource := url + "?" + http.HTTPBuildQuery("pagelen", "100", "fields", fields, "sort", "-target.date")
+	resource := url + "?" + php.HTTPBuildQuery("pagelen", "100", "fields", fields, "sort", "-target.date")
 
 	for {
 		data, err := d.getJSON(resource, false)
@@ -398,10 +403,10 @@ func (d *GitBitbucketDriver) setupFallbackDriver(url string) error {
 
 // parseCloneURLs ports parseCloneUrls: the https clone url, without the
 // username of private repositories.
-func (d *GitBitbucketDriver) parseCloneURLs(cloneLinks any) {
+func (d *GitBitbucketDriver) parseCloneURLs(cloneLinks any) error {
 	links, _ := cloneLinks.(*php.Array)
 	if links == nil {
-		return
+		return nil
 	}
 
 	for _, v := range links.All() {
@@ -409,9 +414,15 @@ func (d *GitBitbucketDriver) parseCloneURLs(cloneLinks any) {
 		if arrayPath(link, "name") == "https" {
 			// Format: https://(user@)bitbucket.org/{user}/{repo}
 			// Strip username from URL (only present in clone URL's for private repositories)
-			d.cloneHTTPSURL = replace(cloneURLUser, "https://", pathString(link, "href"))
+			url, err := replace(cloneURLUser, "https://", pathString(link, "href"))
+			if err != nil {
+				return err
+			}
+			d.cloneHTTPSURL = url
 		}
 	}
+
+	return nil
 }
 
 // RootIdentifier ports GitBitbucketDriver::getRootIdentifier.
@@ -453,5 +464,5 @@ func (d *GitBitbucketDriver) RootIdentifier() (string, error) {
 
 // gitBitbucketSupports ports GitBitbucketDriver::supports.
 func gitBitbucketSupports(_ Deps, url string, _ bool) (bool, error) {
-	return matches(bitbucketSupportsURL, url), nil
+	return matches(bitbucketSupportsURL, url)
 }

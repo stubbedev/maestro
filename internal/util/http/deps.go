@@ -22,23 +22,6 @@ type Process interface {
 	Execute(command util.Command, output *string, cwd string) (int, error)
 }
 
-// utilIO lets util.ProcessExecutor write to an io.IO.
-type utilIO struct{ io io.IO }
-
-func (u utilIO) IsDebug() bool { return u.io.IsDebug() }
-
-func (u utilIO) WriteError(message string, newline bool, verbosity int) {
-	u.io.WriteError(message, newline, io.Verbosity(verbosity))
-}
-
-func (u utilIO) WriteRaw(message string, newline bool, verbosity int) {
-	u.io.WriteRaw(message, newline, io.Verbosity(verbosity))
-}
-
-func (u utilIO) WriteErrorRaw(message string, newline bool, verbosity int) {
-	u.io.WriteErrorRaw(message, newline, io.Verbosity(verbosity))
-}
-
 // newProcess is new ProcessExecutor($io).
 func newProcess(ioi io.IO) Process {
 	return NewProcessExecutor(ioi)

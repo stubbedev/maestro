@@ -333,7 +333,9 @@ func (r *ComposerRepository) canonicalizeURL(url string) (string, error) {
 	}
 
 	if strings.HasPrefix(url, "/") {
-		if m, _ := urlOriginRegex.Match(r.url); m != nil {
+		if m, err := urlOriginRegex.Match(r.url); err != nil {
+			return "", err
+		} else if m != nil {
 			return m.Get(0) + url, nil
 		}
 
@@ -596,16 +598,17 @@ func (r *ComposerRepository) initializePartialPackages() error {
 // lazyProvidersRepoContains ports lazyProvidersRepoContains: whether the
 // name is in available-packages or matches available-package-patterns.
 // Callers check hasAvailablePackageList first.
-func (r *ComposerRepository) lazyProvidersRepoContains(name string) bool {
+// The error is the PcreException Preg::isMatch throws.
+func (r *ComposerRepository) lazyProvidersRepoContains(name string) (bool, error) {
 	if _, ok := r.availablePackageSet[name]; ok {
-		return true
+		return true, nil
 	}
 
 	for _, providerRegex := range r.availablePackagePatterns {
-		if m, _ := providerRegex.IsMatch(name); m {
-			return true
+		if m, err := providerRegex.IsMatch(name); err != nil || m {
+			return m, err
 		}
 	}
 
-	return false
+	return false, nil
 }

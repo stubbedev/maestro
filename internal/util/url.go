@@ -18,8 +18,8 @@ var NonSecretCredentials = []string{"private-token", "x-token-auth", "oauth2", "
 // gitHubTokenRegex is GitHub::GITHUB_TOKEN_REGEX.
 var gitHubTokenRegex = php.MustCompile(`{^([a-f0-9]{12,}|gh[a-z]_[a-zA-Z0-9_.-]+|github_pat_[a-zA-Z0-9_]+)$}`)
 
-// The patterns of this file cannot fail to match (no /u, no runaway
-// backtracking), so their errors (PHP's PcreException) are not checked.
+// The patterns of UpdateDistReference: Preg::isMatch/Preg::replace throw
+// a PcreException (*php.PcreError) on them for very long URLs.
 var (
 	githubLegacyArchive = php.MustCompile(`{^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/(zip|tar)ball/(.+)$}i`)
 	githubWebArchive    = php.MustCompile(`{^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/archive/.+\.(zip|tar)(?:\.gz)?$}i`)
@@ -33,39 +33,61 @@ var (
 // UpdateDistReference ports Url::updateDistReference: points a GitHub,
 // Bitbucket or GitLab archive URL at ref. githubDomains and gitlabDomains
 // are the github-domains and gitlab-domains config values.
-func UpdateDistReference(url, ref string, githubDomains, gitlabDomains []string) string {
+func UpdateDistReference(url, ref string, githubDomains, gitlabDomains []string) (string, error) {
 	u, _ := parseURL(url)
 	host := u.host
 
+	// firstMatch is the if/elseif chain of Preg::isMatch calls.
+	firstMatch := func(res ...*php.Regexp) (*php.Match, error) {
+		for _, re := range res {
+			if m, err := re.Match(url); err != nil || m != nil {
+				return m, err
+			}
+		}
+
+		return nil, nil
+	}
+
 	switch {
 	case u.hasHost && (host == "api.github.com" || host == "github.com" || host == "www.github.com"):
-		if m, _ := githubLegacyArchive.Match(url); m != nil {
-			// Update legacy GitHub archives to API calls with the proper
-			// reference.
-			url = "https://api.github.com/repos/" + m.Get(1) + "/" + m.Get(2) + "/" + m.Get(3) + "ball/" + ref
-		} else if m, _ := githubWebArchive.Match(url); m != nil {
-			// Update current GitHub web archives to API calls with the
-			// proper reference.
-			url = "https://api.github.com/repos/" + m.Get(1) + "/" + m.Get(2) + "/" + m.Get(3) + "ball/" + ref
-		} else if m, _ := githubAPIArchive.Match(url); m != nil {
-			// Update API archives to the proper reference.
+		// Update legacy GitHub archives, current GitHub web archives and
+		// API archives to API calls with the proper reference.
+		m, err := firstMatch(githubLegacyArchive, githubWebArchive, githubAPIArchive)
+		if err != nil {
+			return "", err
+		}
+		if m != nil {
 			url = "https://api.github.com/repos/" + m.Get(1) + "/" + m.Get(2) + "/" + m.Get(3) + "ball/" + ref
 		}
 	case u.hasHost && (host == "bitbucket.org" || host == "www.bitbucket.org"):
-		if m, _ := bitbucketArchive.Match(url); m != nil {
+		m, err := firstMatch(bitbucketArchive)
+		if err != nil {
+			return "", err
+		}
+		if m != nil {
 			url = "https://bitbucket.org/" + m.Get(1) + "/" + m.Get(2) + "/get/" + ref + "." + m.Get(4)
 		}
 	case u.hasHost && (host == "gitlab.com" || host == "www.gitlab.com"):
-		if m, _ := gitlabArchive.Match(url); m != nil {
+		m, err := firstMatch(gitlabArchive)
+		if err != nil {
+			return "", err
+		}
+		if m != nil {
 			url = "https://gitlab.com/api/v4/projects/" + m.Get(1) + "/repository/archive." + m.Get(2) + "?sha=" + ref
 		}
 	case u.hasHost && slices.Contains(githubDomains, host):
-		url, _, _ = githubDomainArchive.Replace(url, "$1/"+ref, -1)
+		var err error
+		if url, _, err = githubDomainArchive.Replace(url, "$1/"+ref, -1); err != nil {
+			return "", err
+		}
 	case u.hasHost && slices.Contains(gitlabDomains, host):
-		url, _, _ = gitlabDomainArchive.Replace(url, "${1}"+ref, -1)
+		var err error
+		if url, _, err = gitlabDomainArchive.Replace(url, "${1}"+ref, -1); err != nil {
+			return "", err
+		}
 	}
 
-	return url
+	return url, nil
 }
 
 var hostPortPrefix = php.MustCompile(`{^([^/]+):\d+}`)
@@ -103,6 +125,8 @@ func GetOrigin(url string, gitlabDomains []string) string {
 		for _, gitlabDomain := range gitlabDomains {
 			// Configured domains may spell out a port the URL omits, see
 			// GitLab::authorizeOAuth.
+			// gitlab-domains entries are short host names, far below what
+			// could exhaust the backtrack limit: Preg::replace cannot throw.
 			bcDomain, _, _ := hostPortPrefix.Replace(gitlabDomain, "$1", -1)
 			if gitlabDomain != "" && (bcDomain == origin || strings.HasPrefix(bcDomain, origin+"/")) {
 				return gitlabDomain
@@ -118,7 +142,7 @@ func GetOrigin(url string, gitlabDomains []string) string {
 func IsAllowedRedirect(url string) bool {
 	u, ok := parseURL(url)
 
-	return ok && u.hasScheme && (equalFoldASCII(u.scheme, "http") || equalFoldASCII(u.scheme, "https"))
+	return ok && u.hasScheme && (php.Strcasecmp(u.scheme, "http") == 0 || php.Strcasecmp(u.scheme, "https") == 0)
 }
 
 var (
@@ -128,6 +152,12 @@ var (
 
 // SanitizeURL ports Url::sanitize: masks access tokens and the credentials
 // of every scheme://user:pass@ in s (plus a scheme-less one at its start).
+//
+// Divergence: the credentials pattern exhausts the backtrack limit on a
+// run of about a megabyte of [a-z0-9+.-] followed by an unreachable '@',
+// where Preg::replaceCallback throws a PcreException. SanitizeURL has no
+// error result (it is called from ~100 places, mostly while building
+// messages), so it returns "" then, which leaks nothing.
 func SanitizeURL(s string) string {
 	// GitHub repository renames redirect to locations holding the
 	// access_token as GET parameter.
@@ -147,6 +177,8 @@ func SanitizeURL(s string) string {
 	return s
 }
 
+// urlUserinfo and gitHubTokenRegex cannot exhaust PCRE's limits (checked
+// against megabyte subjects): their errors are not checked.
 var urlUserinfo = php.MustCompile(`{://[^/\s?#]+@}`)
 
 // StripCredentials ports Url::stripCredentials: removes the whole userinfo

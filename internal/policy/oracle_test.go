@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"os"
 	"reflect"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -96,7 +96,7 @@ func normalise(t *testing.T, v any) any {
 }
 
 func TestOracle_FromConfig(t *testing.T) {
-	data, err := os.ReadFile("testdata/oracle/policy.json")
+	data, err := testutil.ReadGoldenFile("testdata/oracle/policy.json.gz")
 	if err != nil {
 		t.Fatal(err)
 	}

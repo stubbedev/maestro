@@ -454,7 +454,7 @@ func TestQuestionHelper_AskConfirmation(t *testing.T) {
 func TestQuestionHelper_AskConfirmationWithCustomTrueAnswer(t *testing.T) {
 	inputStream := getInputStream("j\ny\n")
 	for range 2 {
-		q := NewConfirmationQuestion("Do you like French fries?", false, regexp.MustCompile(`(?i)^(j|y)`))
+		q := NewConfirmationQuestion("Do you like French fries?", false, php.MustCompile(`/^(j|y)/i`))
 		assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(inputStream, true), createOutputInterface(), q), true)
 	}
 }

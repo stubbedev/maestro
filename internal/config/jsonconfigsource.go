@@ -407,7 +407,7 @@ func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...an
 	exists := s.file.Exists()
 	switch {
 	case exists:
-		if !isWritable(path) {
+		if !util.IsWritable(path) {
 			return &util.RuntimeError{Message: `The file "` + path + `" is not writable.`}
 		}
 		if !util.IsReadable(path) {

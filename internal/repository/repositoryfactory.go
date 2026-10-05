@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -197,7 +198,7 @@ func createRepos(rm *RepositoryManager, repoConfigs *php.Array) (*NameMap[Reposi
 		}
 		typ, ok := typeValue.(string)
 		if !ok {
-			return nil, typeError(`Composer\Repository\RepositoryManager::createRepository`, 1, "type", "string", typeValue)
+			return nil, pkg.ArgumentTypeError(`Composer\Repository\RepositoryManager::createRepository`, 1, "type", "string", typeValue)
 		}
 
 		name := GenerateRepositoryName(index, repo, repos.Has)
@@ -233,6 +234,7 @@ var httpScheme = php.MustCompile(`{^https?://}i`)
 func GenerateRepositoryName(index php.Key, repo *php.Array, exists func(name string) bool) string {
 	name := index.String()
 	if url, ok := repo.Get("url"); index.IsInt() && ok && url != nil {
+		// Anchored and fixed-length: Preg::replace cannot fail here.
 		name, _, _ = httpScheme.Replace(php.ToString(url), "", -1)
 	}
 	for exists(name) {

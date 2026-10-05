@@ -13,8 +13,8 @@ func TestForgejoUrl_Create(t *testing.T) {
 		"https://codeberg.org/acme/repo",
 		"https://codeberg.org/acme/repo.git",
 	} {
-		u := TryForgejoURL(repoURL)
-		if u == nil {
+		u, err := TryForgejoURL(repoURL)
+		if err != nil || u == nil {
 			t.Fatalf("%s: expected a Forgejo URL", repoURL)
 		}
 
@@ -37,11 +37,11 @@ func TestForgejoUrl_GenerateSshUrl(t *testing.T) {
 		t.Fatalf("got %v %v", u, err)
 	}
 
-	if TryForgejoURL("HTTPS://CodeBerg.org/acme/repo/") != nil {
+	if u, _ := TryForgejoURL("HTTPS://CodeBerg.org/acme/repo/"); u != nil {
 		t.Fatal("the scheme is matched case-sensitively")
 	}
 
-	if u := TryForgejoURL("https://CodeBerg.org/acme/repo/"); u == nil || u.OriginURL != "codeberg.org" || u.Repository != "repo" {
+	if u, _ := TryForgejoURL("https://CodeBerg.org/acme/repo/"); u == nil || u.OriginURL != "codeberg.org" || u.Repository != "repo" {
 		t.Fatalf("got %+v", u)
 	}
 }

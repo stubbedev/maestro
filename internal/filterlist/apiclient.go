@@ -58,39 +58,8 @@ func PostOptions(options *php.Array, contentTypeHeader, content string) *php.Arr
 	return options
 }
 
-// HTTPOptions returns $options['http'], creating it (or replacing a
-// value that is not an array) as PHP's $options['http'][...] = ... does.
-func HTTPOptions(options *php.Array) *php.Array {
-	if a, ok := options.GetArray("http"); ok {
-		return a
-	}
+// HTTPOptions forwards to http.HTTPOptions, which owns it.
+func HTTPOptions(options *php.Array) *php.Array { return http.HTTPOptions(options) }
 
-	a := php.NewArray()
-	options.Set("http", a)
-
-	return a
-}
-
-// AppendHeader performs
-//
-//	if (isset($http['header'])) { $http['header'] = (array) $http['header']; }
-//	$http['header'][] = $header;
-func AppendHeader(httpOptions *php.Array, header string) {
-	headers, _ := httpOptions.Get("header")
-	var list *php.Array
-	switch h := headers.(type) {
-	case *php.Array:
-		list = h
-	case *php.Object:
-		list = h.ToArray()
-		httpOptions.Set("header", list)
-	default:
-		list = php.NewArray()
-		if headers != nil {
-			list.Append(headers)
-		}
-		httpOptions.Set("header", list)
-	}
-
-	list.Append(header)
-}
+// AppendHeader forwards to http.AppendHeader, which owns it.
+func AppendHeader(httpOptions *php.Array, header string) { http.AppendHeader(httpOptions, header) }

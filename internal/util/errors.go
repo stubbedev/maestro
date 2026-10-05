@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/semver"
 )
 
 // RuntimeError is PHP's \RuntimeException.
@@ -71,4 +72,52 @@ func IsRuntimeException(err error) bool {
 	return errors.As(err, &runtime) || errors.As(err, &transport) || errors.As(err, &unexpected) ||
 		errors.As(err, &security) || errors.As(err, &ioErr) || errors.As(err, &irrecov) ||
 		errors.As(err, &timedOut) || errors.As(err, &signaled) || errors.As(err, &pcre)
+}
+
+// PHPClasser is implemented by error types of packages above util that
+// stand for a PHP exception class PHPClassOf cannot know, such as
+// Composer\Downloader\FilesystemException.
+type PHPClasser interface {
+	error
+	// PHPClass returns get_class($e) and $e->getCode().
+	PHPClass() (class string, code int)
+}
+
+// PHPClassOf names err's PHP exception class and code, as get_class($e) and
+// $e->getCode() show them; errors it does not recognise are
+// RuntimeException.
+func PHPClassOf(err error) (string, int) {
+	var (
+		maxSize          *MaxFileSizeExceededError
+		transport        *TransportError
+		irrecov          *IrrecoverableDownloadError
+		unexpected       *UnexpectedValueError
+		semverUnexpected *semver.UnexpectedValueError
+		invalid          *InvalidArgumentError
+		semverInvalid    *semver.InvalidArgumentError
+		logic            *LogicError
+		classer          PHPClasser
+		errExc           *ErrorException
+	)
+
+	switch {
+	case errors.As(err, &maxSize):
+		return `Composer\Downloader\MaxFileSizeExceededException`, maxSize.Code
+	case errors.As(err, &transport):
+		return `Composer\Downloader\TransportException`, transport.Code
+	case errors.As(err, &irrecov):
+		return `Composer\Exception\IrrecoverableDownloadException`, 0
+	case errors.As(err, &unexpected), errors.As(err, &semverUnexpected):
+		return "UnexpectedValueException", 0
+	case errors.As(err, &invalid), errors.As(err, &semverInvalid):
+		return "InvalidArgumentException", 0
+	case errors.As(err, &logic):
+		return "LogicException", 0
+	case errors.As(err, &classer):
+		return classer.PHPClass()
+	case errors.As(err, &errExc):
+		return "ErrorException", 0
+	}
+
+	return "RuntimeException", 0
 }

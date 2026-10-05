@@ -3,8 +3,9 @@
 package console
 
 import (
-	"regexp"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // HTMLOutputFormatter renders decorated output as HTML spans.
@@ -30,17 +31,22 @@ var htmlBackgroundColors = map[int]string{
 
 const htmlClearEscapeCodes = `(?:39|49|0|22|24|25|27|28)`
 
-var htmlEscapeRe = regexp.MustCompile("(?s)\033\\[([0-9;]+)m(.*?)\033\\[(?:" + htmlClearEscapeCodes + ";)*?" + htmlClearEscapeCodes + "m")
+var htmlEscapeRe = php.MustCompile("{\033\\[([0-9;]+)m(.*?)\033\\[(?:" + htmlClearEscapeCodes + ";)*?" + htmlClearEscapeCodes + "m}s")
 
 // Format implements Formatter.
 func (f *HTMLOutputFormatter) Format(message string) string {
 	formatted := f.OutputFormatter.Format(message)
 
-	return htmlEscapeRe.ReplaceAllStringFunc(formatted, func(m string) string {
-		sub := htmlEscapeRe.FindStringSubmatch(m)
+	out, _, err := htmlEscapeRe.ReplaceCallback(formatted, func(m *php.Match) string {
+		return formatHTML(m.Get(1), m.Get(2))
+	}, -1)
+	if err != nil {
+		// Preg::replaceCallback throws; Format has no error result, so the
+		// PcreException escapes like the formatter's other throws.
+		panic(err)
+	}
 
-		return formatHTML(sub[1], sub[2])
-	})
+	return out
 }
 
 func formatHTML(codes, text string) string {

@@ -163,11 +163,13 @@ var perforceURL = php.MustCompile(`#\b(perforce|p4)\b#i`)
 
 // perforceSupports ports PerforceDriver::supports.
 func perforceSupports(deps Deps, url string, deep bool) (bool, error) {
-	if deep || matches(perforceURL, url) {
-		return uvcs.CheckServerExists(url, deps.Process)
+	if !deep {
+		if ok, err := matches(perforceURL, url); err != nil || !ok {
+			return false, err
+		}
 	}
 
-	return false, nil
+	return uvcs.CheckServerExists(url, deps.Process)
 }
 
 // Cleanup ports PerforceDriver::cleanup.

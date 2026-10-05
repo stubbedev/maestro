@@ -94,7 +94,7 @@ func (d *SvnDriver) Initialize() error {
 		d.baseURL = d.url[:pos]
 	}
 
-	if err := d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replace(cacheNameChars, "-", util.SanitizeURL(d.baseURL))); err != nil {
+	if err := d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replaceInfallible(cacheNameChars, "-", util.SanitizeURL(d.baseURL))); err != nil {
 		return err
 	}
 
@@ -131,7 +131,11 @@ var svnRevision = php.MustCompile(`{@\d+$}`)
 
 // shouldCache ports SvnDriver::shouldCache.
 func (d *SvnDriver) shouldCache(identifier string) bool {
-	return d.cache != nil && matches(svnRevision, identifier)
+	// \d+ is possessive before $, so each start position does constant
+	// work: Preg::isMatch cannot throw.
+	hasRevision, _ := svnRevision.IsMatch(identifier)
+
+	return d.cache != nil && hasRevision
 }
 
 // ComposerInformation ports SvnDriver::getComposerInformation.
@@ -197,21 +201,28 @@ func (d *SvnDriver) ComposerInformation(identifier string) (*php.Array, error) {
 var svnIdentifier = php.MustCompile(`{^(.+?)(@\d+)?/$}`)
 
 // splitIdentifier splits an identifier into its path and "@rev" (or "").
-func splitIdentifier(identifier string) (path, rev string) {
+func splitIdentifier(identifier string) (path, rev string, err error) {
 	identifier = "/" + php.TrimSet(identifier, "/") + "/"
 
-	if m := match(svnIdentifier, identifier); m != nil {
+	m, err := match(svnIdentifier, identifier)
+	if err != nil {
+		return "", "", err
+	}
+	if m != nil {
 		if r, ok := m.Group(2); ok {
-			return m.Get(1), r
+			return m.Get(1), r, nil
 		}
 	}
 
-	return identifier, ""
+	return identifier, "", nil
 }
 
 // FileContent ports SvnDriver::getFileContent.
 func (d *SvnDriver) FileContent(file, identifier string) (string, bool, error) {
-	path, rev := splitIdentifier(identifier)
+	path, rev, err := splitIdentifier(identifier)
+	if err != nil {
+		return "", false, err
+	}
 
 	output, err := d.execute([]string{"svn", "cat"}, d.baseURL+path+file+rev)
 	if err != nil {
@@ -233,7 +244,10 @@ var lastChangedDate = php.MustCompile(`{^Last Changed Date: ([^(]+)}`)
 
 // ChangeDate ports SvnDriver::getChangeDate.
 func (d *SvnDriver) ChangeDate(identifier string) (time.Time, bool, error) {
-	path, rev := splitIdentifier(identifier)
+	path, rev, err := splitIdentifier(identifier)
+	if err != nil {
+		return time.Time{}, false, err
+	}
 
 	output, err := d.execute([]string{"svn", "info"}, d.baseURL+path+rev)
 	if err != nil {
@@ -245,7 +259,11 @@ func (d *SvnDriver) ChangeDate(identifier string) (time.Time, bool, error) {
 			continue
 		}
 
-		if m := match(lastChangedDate, line); m != nil {
+		m, err := match(lastChangedDate, line)
+		if err != nil {
+			return time.Time{}, false, err
+		}
+		if m != nil {
 			date, err := parseDate(m.Get(1))
 
 			return date, err == nil, err
@@ -275,7 +293,11 @@ func (d *SvnDriver) listEntries(url string, trimOutput bool, fn func(rev int, na
 			continue
 		}
 
-		if m := match(svnListEntry, line); m != nil && !fn(int(php.ToInt(m.Get(1))), m.Get(2)) {
+		m, err := match(svnListEntry, line)
+		if err != nil {
+			return err
+		}
+		if m != nil && !fn(int(php.ToInt(m.Get(1))), m.Get(2)) {
 			break
 		}
 	}
@@ -362,8 +384,8 @@ var svnURL = php.MustCompile(`#(^svn://|^svn\+ssh://|svn\.)#i`)
 // svnSupports ports SvnDriver::supports.
 func svnSupports(deps Deps, url string, deep bool) (bool, error) {
 	url = svnNormalizeURL(url)
-	if matches(svnURL, url) {
-		return true, nil
+	if ok, err := matches(svnURL, url); err != nil || ok {
+		return ok, err
 	}
 
 	// proceed with deep check for local urls since they are fast to process

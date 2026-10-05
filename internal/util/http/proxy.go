@@ -52,12 +52,12 @@ func NewProxyItem(proxyURL, envName string) (*ProxyItem, error) {
 	if proxy.HasUser {
 		safe = "***"
 		user := proxy.User
-		auth := rawurldecode(proxy.User)
+		auth := php.Rawurldecode(proxy.User)
 
 		if proxy.HasPass {
 			safe += ":***"
 			user += ":" + proxy.Pass
-			auth += ":" + rawurldecode(proxy.Pass)
+			auth += ":" + php.Rawurldecode(proxy.Pass)
 		}
 
 		safe += "@"

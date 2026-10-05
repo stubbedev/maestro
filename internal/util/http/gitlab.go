@@ -31,6 +31,8 @@ func NewGitLab(ioi io.IO, config Config, process Process, httpDownloader Getter)
 	return &GitLab{io: ioi, config: config, process: process, http: lazyGetter(ioi, config, httpDownloader, nil), now: time.Now}
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var portRegex = php.MustCompile(`{:\d+}`)
 
 // AuthorizeOAuth is authorizeOAuth($originUrl): use a token from git
@@ -238,7 +240,7 @@ func (g *GitLab) createToken(scheme, originURL string) (*php.Array, error) {
 		return nil, err
 	}
 
-	data := httpBuildQuery(
+	data := php.HTTPBuildQuery(
 		"username", php.ToString(username),
 		"password", php.ToString(password),
 		"grant_type", "password",
@@ -275,7 +277,7 @@ func (g *GitLab) refreshToken(scheme, originURL string) (*php.Array, error) {
 		return nil, &util.RuntimeError{Message: "No GitLab refresh token present for " + originURL + "."}
 	}
 
-	data := httpBuildQuery(
+	data := php.HTTPBuildQuery(
 		"refresh_token", php.ToString(refreshToken),
 		"grant_type", "refresh_token",
 	)

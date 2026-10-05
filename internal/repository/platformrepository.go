@@ -25,7 +25,7 @@ const (
 
 // PlatformPackageRegex is PlatformRepository::PLATFORM_PACKAGE_REGEX;
 // IsPlatformPackage matches it.
-const PlatformPackageRegex = `{^(?:php(?:-64bit|-ipv6|-zts|-debug)?|hhvm|(?:ext|lib)-[a-z0-9](?:[_.-]?[a-z0-9]+)*|composer(?:-(?:plugin|runtime)-api)?)$}iD`
+const PlatformPackageRegex = pkg.PlatformPackageRegex
 
 // IsPlatformPackage ports PlatformRepository::isPlatformPackage.
 func IsPlatformPackage(name string) bool { return pkg.IsPlatformPackage(name) }
@@ -290,7 +290,7 @@ func nullableString(v any) (pkg.NullString, error) {
 		return pkg.Str(v), nil
 	}
 
-	return pkg.NullString{}, typeError(`Composer\Repository\PlatformRepository::addLibrary`, 3, "prettyVersion", "?string", v)
+	return pkg.NullString{}, pkg.ArgumentTypeError(`Composer\Repository\PlatformRepository::addLibrary`, 3, "prettyVersion", "?string", v)
 }
 
 // addPhpPackages adds php and its flavours.
@@ -301,7 +301,7 @@ func (r *PlatformRepository) addPhpPackages() error {
 	}
 	phpVersionString, ok := phpVersion.(string)
 	if !ok {
-		return typeError(`Composer\Package\Version\VersionParser::normalize`, 1, "version", "string", phpVersion)
+		return pkg.ArgumentTypeError(`Composer\Package\Version\VersionParser::normalize`, 1, "version", "string", phpVersion)
 	}
 	prettyVersion, version, err := r.normalizeRuntimeVersion(phpVersionString)
 	if err != nil {
@@ -377,21 +377,22 @@ func (r *PlatformRepository) extensionInfo(name string) (string, error) {
 // matchNamed matches pattern against subject: the named group (strict
 // groups variants fail when it did not participate, as an unmatched
 // group cannot be used).
-func matchNamed(pattern *php.Regexp, subject string, groups ...string) (map[string]string, bool) {
+// The error is the PcreException Preg throws.
+func matchNamed(pattern *php.Regexp, subject string, groups ...string) (map[string]string, bool, error) {
 	m, err := pattern.Match(subject)
 	if err != nil || m == nil {
-		return nil, false
+		return nil, false, err
 	}
 	values := make(map[string]string, len(groups))
 	for _, g := range groups {
 		v, ok := m.Named(g)
 		if !ok {
-			return nil, false
+			return nil, false, nil
 		}
 		values[g] = v
 	}
 
-	return values, true
+	return values, true, nil
 }
 
 var (
@@ -436,7 +437,11 @@ var (
 // libraryFromInfo adds the library whose version the extension info of
 // name holds in the group "version" of pattern.
 func (r *PlatformRepository) libraryFromInfo(libraries platformLibraries, info string, pattern *php.Regexp, libName, description string) error {
-	if m, ok := matchNamed(pattern, info, "version"); ok {
+	m, ok, err := matchNamed(pattern, info, "version")
+	if err != nil {
+		return err
+	}
+	if ok {
 		return r.addLibrary(libraries, libName, pkg.Str(m["version"]), description, nil, nil)
 	}
 
@@ -458,7 +463,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 
 		// AMQP protocol version => 0-9-1
-		if m, ok := matchNamed(reAmqpProtocol, info, "version"); ok {
+		m, ok, err := matchNamed(reAmqpProtocol, info, "version")
+		if err != nil {
+			return err
+		}
+		if ok {
 			return r.addLibrary(libraries, name+"-protocol", pkg.Str(strings.ReplaceAll(m["version"], "-", ".")), "AMQP protocol version", nil, nil)
 		}
 
@@ -495,7 +504,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 
 		// SSL Version => OpenSSL/1.0.1t
 		// unversioned backends (=> Schannel) are not reported, the library must not span lines (#12615)
-		if m, ok := matchNamed(reCurlSSL, info, "library", "version"); ok {
+		m, ok, err := matchNamed(reCurlSSL, info, "library", "version")
+		if err != nil {
+			return err
+		}
+		if ok {
 			library := php.Strtolower(m["library"])
 			if library == "openssl" {
 				parsedVersion, isFips, ok := platform.ParseOpenssl(m["version"])
@@ -509,7 +522,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			} else {
 				shortlib, sslLib := library, "curl-openssl"
 				if strings.HasPrefix(library, "(securetransport)") {
-					if sm, _ := reSecureTransport.Match(library); sm != nil {
+					sm, err := reSecureTransport.Match(library)
+					if err != nil {
+						return err
+					}
+					if sm != nil {
 						shortlib, sslLib = "securetransport", "curl-"+sm.Get(1)
 					}
 				}
@@ -520,7 +537,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 
 		// libSSH Version => libssh2/1.4.3
-		if m, ok := matchNamed(reCurlSSH, info, "library", "version"); ok {
+		m, ok, err = matchNamed(reCurlSSH, info, "library", "version")
+		if err != nil {
+			return err
+		}
+		if ok {
 			if err := r.addLibrary(libraries, name+"-"+php.Strtolower(m["library"]), pkg.Str(m["version"]), "curl "+m["library"]+" version", nil, nil); err != nil {
 				return err
 			}
@@ -541,9 +562,17 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 
 		// Timezone Database => internal
-		if m, ok := matchNamed(reZoneinfoSource, info, "source"); ok {
+		m, ok, err := matchNamed(reZoneinfoSource, info, "source")
+		if err != nil {
+			return err
+		}
+		if ok {
 			external := m["source"] == "external"
-			if zm, ok := matchNamed(reZoneinfoVersion, info, "version"); ok {
+			zm, ok, err := matchNamed(reZoneinfoVersion, info, "version")
+			if err != nil {
+				return err
+			}
+			if ok {
 				// If the timezonedb is provided by ext/timezonedb, register that version as a replacement
 				if external && slices.Contains(loadedExtensions, "timezonedb") {
 					return r.addLibrary(libraries, "timezonedb-zoneinfo", pkg.Str(zm["version"]), `zoneinfo ("Olson") database for date (replaced by timezonedb)`, []string{name + "-zoneinfo"}, nil)
@@ -576,7 +605,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 
-		if m, ok := matchNamed(reLibjpeg, info, "version"); ok {
+		m, ok, err := matchNamed(reLibjpeg, info, "version")
+		if err != nil {
+			return err
+		}
+		if ok {
 			libjpeg, ok := platform.ParseLibjpeg(m["version"])
 			if err := r.addLibrary(libraries, name+"-libjpeg", pkg.NullString{S: libjpeg, Valid: ok}, "libjpeg version for gd", nil, nil); err != nil {
 				return err
@@ -591,7 +624,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 
-		if m, ok := matchNamed(reLibxpm, info, "versionId"); ok {
+		m, ok, err = matchNamed(reLibxpm, info, "versionId")
+		if err != nil {
+			return err
+		}
+		if ok {
 			return r.addLibrary(libraries, name+"-libxpm", pkg.Str(platform.ConvertLibxpmVersionId(php.ToInt(m["versionId"]))), "libxpm version for gd", nil, nil)
 		}
 
@@ -623,7 +660,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 		// 6.x: ImageMagick 6.2.9 08/24/06 Q16 http://www.imagemagick.org
 		// 7.x: ImageMagick 7.0.8-34 Q16 x86_64 2019-03-23 https://imagemagick.org
-		if m, _ := reImageMagick.Match(versionString); m != nil {
+		m, err := reImageMagick.Match(versionString)
+		if err != nil {
+			return err
+		}
+		if m != nil {
 			version, _ := m.Named("version")
 			if patch, ok := m.Named("patch"); ok {
 				version += "." + patch
@@ -638,8 +679,16 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 
-		if m, ok := matchNamed(reLdapVendorVersion, info, "versionId"); ok {
-			if vm, ok := matchNamed(reLdapVendorName, info, "vendor"); ok {
+		m, ok, err := matchNamed(reLdapVendorVersion, info, "versionId")
+		if err != nil {
+			return err
+		}
+		if ok {
+			vm, ok, err := matchNamed(reLdapVendorName, info, "vendor")
+			if err != nil {
+				return err
+			}
+			if ok {
 				return r.addLibrary(libraries, name+"-"+php.Strtolower(vm["vendor"]), pkg.Str(platform.ConvertOpenldapVersionId(php.ToInt(m["versionId"]))), vm["vendor"]+" version of ldap", nil, nil)
 			}
 		}
@@ -703,7 +752,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 		// OpenSSL 1.1.1g  21 Apr 2020
-		if m, ok := matchNamed(reOpenssl, text.S, "version"); ok {
+		m, ok, err := matchNamed(reOpenssl, text.S, "version")
+		if err != nil {
+			return err
+		}
+		if ok {
 			parsedVersion, isFips, ok := platform.ParseOpenssl(m["version"])
 			libName, provides := name, []string(nil)
 			if isFips {
@@ -774,7 +827,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 
 		// Used Library => Compiled => Linked
 		// libpq => 14.3 (Ubuntu 14.3-1.pgdg22.04+1) => 15.0.2
-		if m, ok := matchNamed(rePqLibpq, info, "linked"); ok {
+		m, ok, err := matchNamed(rePqLibpq, info, "linked")
+		if err != nil {
+			return err
+		}
+		if ok {
 			return r.addLibrary(libraries, name+"-libpq", pkg.Str(m["linked"]), "libpq for "+name, nil, nil)
 		}
 
@@ -893,7 +950,11 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 	}
 
 	// ICU TZData version => 2019c
-	if m, ok := matchNamed(reICUTZData, info, "version"); ok {
+	m, ok, err := matchNamed(reICUTZData, info, "version")
+	if err != nil {
+		return err
+	}
+	if ok {
 		if version, ok := platform.ParseZoneinfoVersion(m["version"]); ok {
 			if err := r.addLibrary(libraries, "icu-zoneinfo", pkg.Str(version), `zoneinfo ("Olson") database for icu`, nil, nil); err != nil {
 				return err
@@ -933,7 +994,7 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 		}
 		parts, ok := unicodeVersion.(*php.Array)
 		if !ok {
-			return typeError("array_slice", 1, "array", "array", unicodeVersion)
+			return pkg.ArgumentTypeError("array_slice", 1, "array", "array", unicodeVersion)
 		}
 		var version []string
 		for _, v := range php.ArraySlice(parts, 0, 3, false).All() {
@@ -1054,7 +1115,11 @@ func (r *PlatformRepository) addExtension(name, prettyVersion string) error {
 	version, err := r.versionParser.Normalize(prettyVersion)
 	if isUnexpectedValue(err) {
 		extraDescription = " (actual version: " + prettyVersion + ")"
-		if m, _ := reExtensionVersion.Match(prettyVersion); m != nil {
+		m, merr := reExtensionVersion.Match(prettyVersion)
+		if merr != nil {
+			return merr
+		}
+		if m != nil {
 			prettyVersion = m.Get(1)
 		} else {
 			prettyVersion = "0"

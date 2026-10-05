@@ -134,6 +134,8 @@ func (c *CurlDownloader) download(resolve func(*Response), reject func(error), o
 	return job.id, c.initDownload(job, origin, url, options, attributes)
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var insecurePackagistRegex = php.MustCompile(`{^http://(repo\.)?packagist\.org/p/}`)
 
 // initDownload is initDownload: it checks the URL may be accessed, builds
@@ -177,7 +179,7 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	}
 
 	options = options.Clone()
-	httpOptions := httpArray(options)
+	httpOptions := HTTPOptions(options)
 
 	headers := php.NewArray()
 
@@ -219,7 +221,7 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	usingProxy, _ := proxy.StatusFormat(" using proxy (%s)")
 
 	ifModified := ""
-	if containsFold(strings.Join(headerList(options), ","), "if-modified-since:") {
+	if php.Stripos(strings.Join(headerList(options), ","), "if-modified-since:") >= 0 {
 		ifModified = " if modified"
 	}
 
@@ -493,12 +495,17 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 
 		warningsOutput := false
 
-		if contentType, ok := response.Header("content-type"); status >= 300 && ok && contentType == "application/json" {
-			data, _ := php.JSONDecode(response.Body(), true)
-
-			var err error
-			if warningsOutput, err = OutputWarnings(c.io, job.origin, data); err != nil {
+		if status >= 300 {
+			contentType, ok, err := response.HeaderChecked("content-type")
+			if err != nil {
 				return err
+			}
+			if ok && contentType == "application/json" {
+				data, _ := php.JSONDecode(response.Body(), true)
+
+				if warningsOutput, err = OutputWarnings(c.io, job.origin, data); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -593,6 +600,7 @@ func isGetRequest(options *php.Array) bool {
 }
 
 var (
+	// Infallible (anchored, fixed-length): call sites ignore the error.
 	textHTMLRegex     = php.MustCompile(`{^text/html\b}i`)
 	relativePathRegex = php.MustCompile(`{^(.+/)[^/?]*(?:\?.*)?$}`)
 )
@@ -623,9 +631,9 @@ func (c *CurlDownloader) handleRedirect(job *curlJob, response *Response) (strin
 // redirectTarget resolves the Location header of response against url as
 // Composer does; "" when there is none.
 func redirectTarget(url string, response *Response) (string, error) {
-	locationHeader, ok := response.Header("location")
-	if !ok || locationHeader == "" || locationHeader == "0" {
-		return "", nil
+	locationHeader, ok, err := response.HeaderChecked("location")
+	if err != nil || !ok || locationHeader == "" || locationHeader == "0" {
+		return "", err
 	}
 
 	switch {
@@ -670,7 +678,10 @@ func (c *CurlDownloader) isAuthenticatedRetryNeeded(job *curlJob, response *Resp
 		}
 	}
 
-	locationHeader, _ := response.Header("location")
+	locationHeader, _, err := response.HeaderChecked("location")
+	if err != nil {
+		return AuthResult{}, err
+	}
 	needsAuthRetry := ""
 
 	// check for bitbucket login page asking to authenticate
@@ -678,7 +689,11 @@ func (c *CurlDownloader) isAuthenticatedRetryNeeded(job *curlJob, response *Resp
 		!IsPublicBitBucketDownload(job.url) &&
 		strings.HasSuffix(job.url, ".zip") &&
 		(locationHeader == "" || locationHeader == "0" || !strings.HasSuffix(locationHeader, ".zip")) {
-		if contentType, ok := response.Header("content-type"); ok {
+		contentType, ok, err := response.HeaderChecked("content-type")
+		if err != nil {
+			return AuthResult{}, err
+		}
+		if ok {
 			if isHTML, _ := textHTMLRegex.IsMatch(contentType); isHTML {
 				needsAuthRetry = "Bitbucket requires authentication and it was not provided"
 			}
@@ -733,14 +748,19 @@ func (c *CurlDownloader) restartJobWithDelay(job *curlJob, url string, attribute
 
 // failResponse is failResponse(): the TransportException of a 4xx/5xx
 // response, with the start of a JSON body unless warnings showed it.
-func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMessage string, warningsOutput bool) *util.TransportError {
+// The error is that TransportException, or the PcreException reading the
+// content-type header throws.
+func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMessage string, warningsOutput bool) error {
 	if job.hasFile {
 		_ = os.Remove(job.filename + "~")
 	}
 
 	details := ""
 
-	contentType, _ := response.Header("content-type")
+	contentType, _, err := response.HeaderChecked("content-type")
+	if err != nil {
+		return err
+	}
 	if ct := strings.ToLower(contentType); !warningsOutput && (ct == "application/json" || ct == "application/json; charset=utf-8") {
 		body := response.Body()
 		details = ":\n" + body[:min(200, len(body))]

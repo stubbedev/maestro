@@ -12,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Filesystem ports Composer\Util\Filesystem. Operations that never shell
@@ -709,14 +711,14 @@ func findShortestPathCode(from, to string, directories, staticCode, preferRelati
 
 	// No commonality at all.
 	if !strings.HasPrefix(from, commonPath) || commonPath == "." {
-		return varExportString(to), nil
+		return php.VarExport(to), nil
 	}
 
 	commonPath = strings.TrimRight(commonPath, "/") + "/"
 
 	// str_starts_with($to, $from.'/'), from and to differing.
 	if isPathPrefix(to, from) {
-		return "__DIR__ . " + varExportString(to[len(from):]), nil
+		return "__DIR__ . " + php.VarExport(to[len(from):]), nil
 	}
 
 	sourcePathDepth := strings.Count(substrFrom(from, len(commonPath)), "/")
@@ -727,7 +729,7 @@ func findShortestPathCode(from, to string, directories, staticCode, preferRelati
 	// Allow top level /foo & /bar dirs to be addressed relatively as this is
 	// common in Docker setups.
 	if !preferRelative && commonPath == "/" && sourcePathDepth > 1 {
-		return varExportString(to), nil
+		return php.VarExport(to), nil
 	}
 
 	var commonPathCode string
@@ -742,7 +744,7 @@ func findShortestPathCode(from, to string, directories, staticCode, preferRelati
 		return commonPathCode, nil
 	}
 
-	return commonPathCode + "." + varExportString("/"+relTarget), nil
+	return commonPathCode + "." + php.VarExport("/"+relTarget), nil
 }
 
 // findCommonPath walks up from to until it is a path prefix of from, the
@@ -983,7 +985,7 @@ func IsLocalPath(path string) bool {
 func isLocalPath(path string, windows bool) bool {
 	isSep := func(i int) bool { return i < len(path) && (path[i] == '/' || path[i] == '\\') }
 
-	if hasPrefixFold(path, "file://") && (!windows || !strings.HasPrefix(path[7:], "//")) {
+	if php.Strncasecmp(path, "file://", 7) == 0 && (!windows || !strings.HasPrefix(path[7:], "//")) {
 		return true
 	}
 
@@ -1017,13 +1019,13 @@ func GetPlatformPath(path string) string {
 
 func getPlatformPath(path string, windows bool) string {
 	// {^(?:file:///([a-z]):?/)}i => file://$1:/
-	if windows && hasPrefixFold(path, "file:///") && len(path) > 8 && isASCIIAlpha(path[8]) {
+	if windows && php.Strncasecmp(path, "file:///", 8) == 0 && len(path) > 8 && isASCIIAlpha(path[8]) {
 		if rest := strings.TrimPrefix(path[9:], ":"); strings.HasPrefix(rest, "/") {
 			path = "file://" + path[8:9] + ":/" + rest[1:]
 		}
 	}
 
-	if hasPrefixFold(path, "file://") {
+	if php.Strncasecmp(path, "file://", 7) == 0 {
 		return path[7:]
 	}
 

@@ -56,7 +56,7 @@ func TestFilterListAuditor_GetMatchingEntriesUnfilteredPackages(t *testing.T) {
 			)
 			pc := policyConfig(t, php.ArrayOf("list", php.ArrayOf("ignore", tc.ignorePackageConfig)))
 
-			entries := filterlist.FilterListAuditor{}.GetMatchingBlockEntries(p, m, pc, policy.BlockScopeUpdate)
+			entries := blockEntries(t, p, m, pc, policy.BlockScopeUpdate)
 			if len(entries) != tc.expectedCount {
 				t.Errorf("got %d entries, want %d", len(entries), tc.expectedCount)
 			}
@@ -90,9 +90,9 @@ func TestFilterListAuditor_GetMatchingEntriesIgnoreSource(t *testing.T) {
 			var entries []*filterlist.FilterListEntry
 			switch tc.operation {
 			case "audit":
-				entries = filterlist.FilterListAuditor{}.GetMatchingAuditEntries(p, m, pc)
+				entries = auditEntries(t, p, m, pc)
 			case "block":
-				entries = filterlist.FilterListAuditor{}.GetMatchingBlockEntries(p, m, pc, policy.BlockScopeUpdate)
+				entries = blockEntries(t, p, m, pc, policy.BlockScopeUpdate)
 			}
 			if len(entries) != tc.expectedCount {
 				t.Errorf("got %d entries, want %d", len(entries), tc.expectedCount)
@@ -109,7 +109,7 @@ func TestFilterListAuditor_GetMatchingEntriesKeepsNonIgnoredSourcesAndDropsIgnor
 	)
 	pc := policyConfig(t, php.ArrayOf("malware", php.ArrayOf("ignore-source", php.ListOf("untrusted"))))
 
-	entries := filterlist.FilterListAuditor{}.GetMatchingBlockEntries(p, m, pc, policy.BlockScopeUpdate)
+	entries := blockEntries(t, p, m, pc, policy.BlockScopeUpdate)
 	if len(entries) != 1 || entries[0].Source.S != "trusted" {
 		t.Errorf("entries = %+v", entries)
 	}
@@ -126,7 +126,7 @@ func TestFilterListAuditor_GetMatchingEntriesIgnoresUnconfiguredLists(t *testing
 	m := filterListMap(createEntry(t, "unconfigured", php.ArrayOf("package", "acme/package", "constraint", "*")))
 	pc := policyConfig(t, php.ArrayOf("list", php.ArrayOf("ignore", php.ListOf("acme/package"))))
 
-	if entries := (filterlist.FilterListAuditor{}).GetMatchingBlockEntries(p, m, pc, policy.BlockScopeUpdate); len(entries) != 0 {
+	if entries := blockEntries(t, p, m, pc, policy.BlockScopeUpdate); len(entries) != 0 {
 		t.Errorf("entries = %+v", entries)
 	}
 }
@@ -139,8 +139,28 @@ func TestFilterListAuditor_GetMatchingEntriesDropsUnconfiguredListEntriesForNonI
 	)
 	pc := policyConfig(t, php.ArrayOf("configured", true))
 
-	entries := filterlist.FilterListAuditor{}.GetMatchingBlockEntries(p, m, pc, policy.BlockScopeUpdate)
+	entries := blockEntries(t, p, m, pc, policy.BlockScopeUpdate)
 	if len(entries) != 1 || entries[0].ListName != "configured" {
 		t.Errorf("entries = %+v", entries)
 	}
+}
+
+func blockEntries(t *testing.T, p pkg.PackageInterface, m *filterlist.FilterListMap, pc *policy.PolicyConfig, blockScope string) []*filterlist.FilterListEntry {
+	t.Helper()
+	entries, err := filterlist.FilterListAuditor{}.GetMatchingBlockEntries(p, m, pc, blockScope)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return entries
+}
+
+func auditEntries(t *testing.T, p pkg.PackageInterface, m *filterlist.FilterListMap, pc *policy.PolicyConfig) []*filterlist.FilterListEntry {
+	t.Helper()
+	entries, err := filterlist.FilterListAuditor{}.GetMatchingAuditEntries(p, m, pc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return entries
 }

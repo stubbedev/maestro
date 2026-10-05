@@ -1,7 +1,7 @@
 // Ports Tests/Helper/TableTest.php (symfony/console). The data providers
 // renderProvider, renderSetTitle and provideRenderHorizontalTests are
 // extracted verbatim by tools/oracle/console/table.php into
-// testdata/oracle/table.json, together with oracle renderings.
+// testdata/oracle/table.json.gz, together with oracle renderings.
 //
 // Not ported: testSectionOutput, testSectionOutputDoesntClearIfTableIsntRendered,
 // testSectionOutputWithoutDecoration, testSectionOutputHandlesZeroRowsAfterRender
@@ -15,12 +15,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 func newTableOutput(decorated bool) (*StreamOutput, *bytes.Buffer) {
@@ -143,7 +143,7 @@ type tableOracle struct {
 
 func loadTableOracle(t *testing.T) *tableOracle {
 	t.Helper()
-	data, err := os.ReadFile("testdata/oracle/table.json")
+	data, err := testutil.ReadGoldenFile("testdata/oracle/table.json.gz")
 	if err != nil {
 		t.Fatal(err)
 	}

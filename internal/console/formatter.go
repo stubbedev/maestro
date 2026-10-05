@@ -5,7 +5,6 @@
 package console
 
 import (
-	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -286,20 +285,22 @@ func unescapeFormatted(s string) string {
 	return b.String()
 }
 
-var inlineStyleRe = regexp.MustCompile(`([^=]+)=([^;]+)(;|$)`)
+var inlineStyleRe = php.MustCompile(`/([^=]+)=([^;]+)(;|$)/`)
 
 func (f *OutputFormatter) createStyleFromString(s string) Style {
 	if style, ok := f.styles[s]; ok {
 		return style
 	}
 
-	matches := inlineStyleRe.FindAllStringSubmatch(s, -1)
-	if matches == nil {
+	// !preg_match_all(): no match and failure (false) both return null.
+	matches, err := inlineStyleRe.MatchAll(s)
+	if err != nil || len(matches) == 0 {
 		return nil
 	}
 
 	style := MustStyle("", "")
-	for _, m := range matches {
+	for _, match := range matches {
+		m := []string{match.Get(0), match.Get(1), match.Get(2)}
 		key := php.Strtolower(m[1])
 		switch key {
 		case "fg":

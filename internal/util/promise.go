@@ -11,6 +11,9 @@ type Promise[T any] struct {
 	value  T
 	err    error
 	cancel func()
+	// immediate is set by Resolved and Rejected: the promise was settled
+	// when it was created.
+	immediate bool
 }
 
 func newPromise[T any]() *Promise[T] {
@@ -20,6 +23,7 @@ func newPromise[T any]() *Promise[T] {
 // Resolved returns a promise already fulfilled with value.
 func Resolved[T any](value T) *Promise[T] {
 	p := newPromise[T]()
+	p.immediate = true
 	p.resolve(value)
 
 	return p
@@ -88,6 +92,7 @@ func Then[T, U any](p *Promise[T], f func(T) (U, error)) *Promise[U] {
 // Rejected returns a promise already rejected with err.
 func Rejected[T any](err error) *Promise[T] {
 	p := newPromise[T]()
+	p.immediate = true
 	p.reject(err)
 
 	return p
@@ -111,3 +116,9 @@ func (p *Promise[T]) Err() error {
 
 	return p.err
 }
+
+// Immediate reports whether the promise was created settled (Resolved,
+// Rejected): React runs then() callbacks of such a promise synchronously,
+// which callers that drive promise chains themselves (internal/installer)
+// reproduce without depending on goroutine timing.
+func (p *Promise[T]) Immediate() bool { return p.immediate }

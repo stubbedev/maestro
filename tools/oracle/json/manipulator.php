@@ -1,5 +1,5 @@
 <?php
-// Generates internal/json/testdata/manipulator/oracle.json: the real
+// Generates internal/json/testdata/manipulator/oracle.json.gz: the real
 // Composer\Json\JsonManipulator run over thousands of generated
 // composer.json documents (varied indentation, newlines, spacing, one-line
 // nodes, escapes, assoc and list repositories, empty nodes, a few invalid
@@ -378,5 +378,5 @@ for ($n = 0; $n < 6; $n++) {
     $cases[] = runCase(largeDocument(), 3);
 }
 
-writeJson(dirname(__DIR__, 3).'/internal/json/testdata/manipulator/oracle.json', $cases);
+writeJson(dirname(__DIR__, 3).'/internal/json/testdata/manipulator/oracle.json.gz', $cases);
 fprintf(STDERR, "%d cases\n", count($cases));

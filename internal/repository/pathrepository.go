@@ -50,7 +50,7 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 	}
 	rawURL, ok := urlValue.(string)
 	if !ok {
-		return nil, typeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue)
+		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue)
 	}
 
 	r.loader = loader.NewArrayLoader(nil, true)
@@ -66,7 +66,7 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 	if v, _ := repoConfig.Get("options"); v != nil {
 		options, ok := v.(*php.Array)
 		if !ok {
-			return nil, typeError(`Composer\Repository\PathRepository::__construct`, 1, "repoConfig", "array{url?: string, options?: array}", v)
+			return nil, pkg.ArgumentTypeError(`Composer\Repository\PathRepository::__construct`, 1, "repoConfig", "array{url?: string, options?: array}", v)
 		}
 		r.options = options.Clone()
 	}
@@ -90,6 +90,8 @@ func (r *PathRepository) RepoName() string {
 // RepoConfig ports PathRepository::getRepoConfig.
 func (r *PathRepository) RepoConfig() *php.Array { return r.repoConfig }
 
+// pathWildcard does constant work per start position, so Preg::isMatch
+// cannot fail on it.
 var pathWildcard = php.MustCompile(`{[*{}]}`)
 
 // initialize ports PathRepository::initialize: it reads the composer.json

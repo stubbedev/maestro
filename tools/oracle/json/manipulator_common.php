@@ -61,5 +61,7 @@ function encException(\Throwable $e): array
 
 function writeJson(string $path, $data): void
 {
-    file_put_contents($path, json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n");
+    $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n";
+    // Goldens over 1 MB are committed gzipped (docs/PORTING.md).
+    file_put_contents($path, substr($path, -3) === '.gz' ? gzencode($json, 9) : $json);
 }

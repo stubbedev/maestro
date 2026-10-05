@@ -25,6 +25,11 @@ func NewFilesystemError(message string, code int, previous error) *FilesystemErr
 
 func (e *FilesystemError) Error() string { return e.Message }
 
+// PHPClass implements util.PHPClasser.
+func (e *FilesystemError) PHPClass() (string, int) {
+	return `Composer\Downloader\FilesystemException`, e.Code
+}
+
 // Unwrap returns the previous exception.
 func (e *FilesystemError) Unwrap() error { return e.Previous }
 
@@ -35,38 +40,5 @@ func isIrrecoverable(err error) bool {
 	return errors.As(err, &e)
 }
 
-// PHPClassOf names err's PHP exception class and code, as get_class($e) and
-// $e->getCode() show them.
-func PHPClassOf(err error) (string, int) {
-	var (
-		maxSize    *util.MaxFileSizeExceededError
-		transport  *util.TransportError
-		irrecov    *util.IrrecoverableDownloadError
-		unexpected *util.UnexpectedValueError
-		invalid    *util.InvalidArgumentError
-		logic      *util.LogicError
-		fsErr      *FilesystemError
-		errExc     *util.ErrorException
-	)
-
-	switch {
-	case errors.As(err, &maxSize):
-		return `Composer\Downloader\MaxFileSizeExceededException`, maxSize.Code
-	case errors.As(err, &transport):
-		return `Composer\Downloader\TransportException`, transport.Code
-	case errors.As(err, &irrecov):
-		return `Composer\Exception\IrrecoverableDownloadException`, 0
-	case errors.As(err, &unexpected):
-		return "UnexpectedValueException", 0
-	case errors.As(err, &invalid):
-		return "InvalidArgumentException", 0
-	case errors.As(err, &logic):
-		return "LogicException", 0
-	case errors.As(err, &fsErr):
-		return `Composer\Downloader\FilesystemException`, fsErr.Code
-	case errors.As(err, &errExc):
-		return "ErrorException", 0
-	}
-
-	return "RuntimeException", 0
-}
+// PHPClassOf forwards to util.PHPClassOf, which owns it.
+func PHPClassOf(err error) (string, int) { return util.PHPClassOf(err) }

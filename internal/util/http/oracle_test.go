@@ -239,7 +239,10 @@ func TestOracle_GitHub(t *testing.T) {
 func TestOracle_ForgejoURL(t *testing.T) {
 	for _, c := range oracleCases(t, "forgejo") {
 		url := str(c, "url")
-		f := util.TryForgejoURL(url)
+		f, err := util.TryForgejoURL(url)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		var got any
 		if f != nil {

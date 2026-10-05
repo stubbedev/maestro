@@ -181,7 +181,10 @@ func (h *QuestionHelper) doAsk(out Output, q Questioner) (any, error) {
 	}
 
 	if normalizer := question.Normalizer(); normalizer != nil {
-		return normalizer(answer), nil
+		answer = normalizer(answer)
+		if err, ok := answer.(error); ok {
+			return nil, err
+		}
 	}
 
 	return answer, nil

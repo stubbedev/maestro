@@ -88,7 +88,9 @@ func (c *Cache) IsReadOnly() bool { return c.readOnly }
 
 var unusableRegex = php.MustCompile(`{(^|[\\/])(\$null|nul|NUL|/dev/null)([\\/]|$)}`)
 
-// IsUsable is Cache::isUsable($path): false for the null devices.
+// IsUsable is Cache::isUsable($path): false for the null devices. The
+// pattern does constant work per start position, so Preg::isMatch cannot
+// throw.
 func IsUsable(path string) bool {
 	m, _ := unusableRegex.IsMatch(path)
 
@@ -101,7 +103,7 @@ func (c *Cache) IsEnabled() bool {
 	if c.enabled == 0 {
 		c.enabled = 1
 
-		if !c.readOnly && ((!isDir(c.root) && os.MkdirAll(c.root, 0o777) != nil) || !isWritable(c.root)) {
+		if !c.readOnly && ((!isDir(c.root) && os.MkdirAll(c.root, 0o777) != nil) || !util.IsWritable(c.root)) {
 			c.io.WriteError("<warning>Cannot create cache directory "+c.root+", or directory is not writable. Proceeding without cache. See also cache-read-only config if your filesystem is read-only.</warning>", true, mio.Normal)
 			c.enabled = -1
 		}
@@ -113,7 +115,8 @@ func (c *Cache) IsEnabled() bool {
 // Root is getRoot().
 func (c *Cache) Root() string { return c.root }
 
-// key sanitises a cache file name with the allowlist.
+// key sanitises a cache file name with the allowlist. The pattern is a
+// single character class, so Preg::replace cannot throw.
 func (c *Cache) key(file string) string {
 	out, _, err := c.sanitize.Replace(file, "-", -1)
 	if err != nil {

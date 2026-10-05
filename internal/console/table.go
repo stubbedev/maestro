@@ -14,7 +14,6 @@ package console
 
 import (
 	"math"
-	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -520,8 +519,8 @@ func (t *Table) renderRow(row []any, cellFormat, firstCellFormat string) {
 	t.output.Writeln(b.String())
 }
 
-// tableStyledByTag is '/^<(\w+|(\w+=[\w,]+;?)*)>.+<\/(\w+|(\w+=\w+;?)*)?>$/'.
-var tableStyledByTag = regexp.MustCompile(`^<(\w+|(\w+=[\w,]+;?)*)>.+</(\w+|(\w+=\w+;?)*)?>\n?$`)
+// tableStyledByTag is Table::renderCell's pattern.
+var tableStyledByTag = php.MustCompile(`/^<(\w+|(\w+=[\w,]+;?)*)>.+<\/(\w+|(\w+=\w+;?)*)?>$/`)
 
 // renderCell renders a table cell with padding.
 func (t *Table) renderCell(row []any, column int, cellFormat string) string {
@@ -555,7 +554,8 @@ func (t *Table) renderCell(row []any, column int, cellFormat string) string {
 
 	padType := style.padType
 	if c != nil && c.style != nil {
-		if !tableStyledByTag.MatchString(s) {
+		// !preg_match(): a failed match (false) counts as not styled.
+		if styled, _ := tableStyledByTag.IsMatch(s); !styled {
 			cellFormat = c.style.CellFormat()
 			if cellFormat == "" {
 				cellFormat = "<" + c.style.tagOptions() + ">%s</>"

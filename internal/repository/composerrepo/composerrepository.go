@@ -181,7 +181,11 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	if !ok {
 		return nil, &pkg.TypeError{Message: "Composer\\Pcre\\Preg::isMatch(): Argument #2 ($subject) must be of type string, " + php.TypeName(rawURL) + " given"}
 	}
-	if m, _ := schemeRegex.IsMatch(url); !m {
+	hasScheme, err := schemeRegex.IsMatch(url)
+	if err != nil {
+		return nil, err
+	}
+	if !hasScheme {
 		if localFilePath, ok := util.RealpathOK(url); ok {
 			// it is a local path, add file scheme
 			url = "file://" + localFilePath
@@ -226,7 +230,9 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	r.url = url
 
 	// force url for packagist.org to repo.packagist.org
-	if m, _ := packagistRegex.Match(r.url); m != nil {
+	if m, err := packagistRegex.Match(r.url); err != nil {
+		return nil, err
+	} else if m != nil {
 		r.url = m.Get(1) + "://repo.packagist.org"
 	}
 
@@ -342,8 +348,10 @@ func (r *ComposerRepository) FindPackage(name string, constraint semver.Constrai
 			return firstMatch(nameMapValues(packages), constraint), nil
 		}
 
-		if r.hasAvailablePackageList && !r.lazyProvidersRepoContains(name) {
-			return nil, nil
+		if r.hasAvailablePackageList {
+			if contains, err := r.lazyProvidersRepoContains(name); err != nil || !contains {
+				return nil, err
+			}
 		}
 
 		result, err := r.loadAsyncPackages(repository.NewConstraintMap(name, constraint), nil, nil, nil)
@@ -400,8 +408,10 @@ func (r *ComposerRepository) FindPackages(name string, constraint semver.Constra
 			return filterPackages(nameMapValues(packages), constraint), nil
 		}
 
-		if r.hasAvailablePackageList && !r.lazyProvidersRepoContains(name) {
-			return nil, nil
+		if r.hasAvailablePackageList {
+			if contains, err := r.lazyProvidersRepoContains(name); err != nil || !contains {
+				return nil, err
+			}
 		}
 
 		result, err := r.loadAsyncPackages(repository.NewConstraintMap(name, constraint), nil, nil, nil)
@@ -659,7 +669,7 @@ func (r *ComposerRepository) loadPackageList(packageFilter string) ([]string, er
 
 	url := r.listURL
 	if packageFilter != "" {
-		url += "?filter=" + http.Urlencode(packageFilter)
+		url += "?filter=" + php.Urlencode(packageFilter)
 
 		return r.getPackageNamesList(url)
 	}
@@ -784,7 +794,11 @@ func (r *ComposerRepository) LoadPackages(packageNameMap *repository.ConstraintM
 	if r.lazyProvidersURL != "" && packageNameMap.Len() > 0 {
 		if r.hasAvailablePackageList {
 			for name := range packageNameMap.Clone().All() {
-				if !r.lazyProvidersRepoContains(php.Strtolower(name)) {
+				contains, err := r.lazyProvidersRepoContains(php.Strtolower(name))
+				if err != nil {
+					return repository.LoadResult{}, err
+				}
+				if !contains {
 					packageNameMap.Delete(name)
 				}
 			}
@@ -839,7 +853,7 @@ func (r *ComposerRepository) Search(query string, mode int, typ string) ([]repos
 	}
 
 	if r.searchURL != "" && mode == repository.SearchFulltext {
-		url := strings.ReplaceAll(r.searchURL, "%query%", http.Urlencode(query))
+		url := strings.ReplaceAll(r.searchURL, "%query%", php.Urlencode(query))
 		url = strings.ReplaceAll(url, "%type%", typ)
 
 		search, err := r.getJSON(url, r.options)
@@ -891,7 +905,7 @@ func (r *ComposerRepository) Search(query string, mode int, typ string) ([]repos
 		} else if m != nil && r.listURL != "" {
 			vendor, _ := m.Named("vendor")
 			q, _ := m.Named("query")
-			url := r.listURL + "?vendor=" + http.Urlencode(vendor) + "&filter=" + http.Urlencode(q+"*")
+			url := r.listURL + "?vendor=" + php.Urlencode(vendor) + "&filter=" + php.Urlencode(q+"*")
 			names, err := r.getPackageNamesList(url)
 			if err != nil {
 				return nil, err

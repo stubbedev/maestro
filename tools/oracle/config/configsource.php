@@ -1,5 +1,5 @@
 <?php
-// Generates internal/config/testdata/oracle/configsource.json:
+// Generates internal/config/testdata/oracle/configsource.json.gz:
 // Composer\Config\JsonConfigSource over generated composer.json, config.json
 // and auth.json files (or none) and sequences of its operations, recording
 // after each operation the exception, the file's contents and its mode.
@@ -112,6 +112,6 @@ for ($n = 0; $n < 1500; $n++) {
 @unlink($path);
 @rmdir($dir);
 
-$out = dirname(__DIR__, 3).'/internal/config/testdata/oracle/configsource.json';
-file_put_contents($out, json_encode($cases, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+$out = dirname(__DIR__, 3).'/internal/config/testdata/oracle/configsource.json.gz';
+file_put_contents($out, gzencode(json_encode($cases, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), 9));
 echo count($cases), " cases\n";

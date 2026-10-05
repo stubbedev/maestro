@@ -895,6 +895,8 @@ var absolutePathPattern = php.MustCompile(`{^(?:/|[a-z]:|[a-z0-9.]+://|\\\\)}i`)
 // realpath ports Config::realpath: turns relative paths in absolute paths
 // without realpath(), since the dirs might not exist yet.
 func (c *Config) realpath(path string) string {
+	// Anchored, and [a-z0-9.]+ is possessive before ':': Preg::isMatch
+	// cannot throw on this pattern.
 	if m, _ := absolutePathPattern.IsMatch(path); m {
 		return path
 	}
@@ -929,7 +931,8 @@ func (c *Config) disableRepoByName(name string) {
 // io may be nil; repoOptions may be nil.
 func (c *Config) ProhibitURLByConfig(url string, out io.IO, repoOptions *php.Array) error {
 	// Return right away if the URL is malformed or custom (see issue #5173), but only for non-HTTP(S) URLs
-	if !filterValidateURL(url) {
+	if !util.FilterValidateURL(url) {
+		// Anchored and fixed-length: Preg::isMatch cannot throw.
 		if m, _ := httpURLPattern.IsMatch(url); !m {
 			return nil
 		}

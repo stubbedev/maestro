@@ -564,6 +564,14 @@ func placeholderName(s string) (string, bool) {
 	return s[:n], true
 }
 
+// quoteSingle is the Unix branch of Process::escapeArgument and
+// ProcessExecutor::escapeArgument: s in single quotes, each ' written as
+// '\' followed by a new quote (str_replace, not escapeshellarg(), so every
+// byte is kept).
+func quoteSingle(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 // symfonyEscapeArgument ports Process::escapeArgument.
 func symfonyEscapeArgument(argument string, windows bool) string {
 	if argument == "" {
@@ -571,7 +579,7 @@ func symfonyEscapeArgument(argument string, windows bool) string {
 	}
 
 	if !windows {
-		return escapeShellArg(argument)
+		return quoteSingle(argument)
 	}
 
 	argument = strings.ReplaceAll(argument, "\x00", "?")

@@ -1,5 +1,5 @@
 <?php
-// Generates internal/json/jsonschema/testdata/oracle/generic.json: the errors
+// Generates internal/json/jsonschema/testdata/oracle/generic.json.gz: the errors
 // (or exception message) of the real justinrainbow/json-schema 6.10.0
 // Validator for hand-written schemas exercising every draft-03/04 keyword
 // the default check mode implements (beyond what Composer's own schemas
@@ -140,5 +140,5 @@ $lines = [];
 foreach ($cases as $case) {
     $lines[] = json_encode($case, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 }
-file_put_contents($root.'/internal/json/jsonschema/testdata/oracle/generic.json', "[\n".implode(",\n", $lines)."\n]\n");
+file_put_contents($root.'/internal/json/jsonschema/testdata/oracle/generic.json.gz', gzencode("[\n".implode(",\n", $lines)."\n]\n", 9));
 fprintf(STDERR, "%d cases\n", count($cases));

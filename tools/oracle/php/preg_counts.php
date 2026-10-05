@@ -2,7 +2,7 @@
 
 /*
  * Writes internal/php/testdata/preg/counts.json: for every pattern and
- * subject of golden.json, engine_golden.json and the JsonManipulator
+ * subject of golden.json.gz, engine_golden.json and the JsonManipulator
  * workload (jsonmanipulator/), how far preg_match($p, $s, $m) gets
  * against pcre.backtrack_limit, with the JIT (as PHP runs it) and with
  * pcre2_match (pcre.jit=0, as PHP runs the anchored retry after an empty
@@ -26,8 +26,8 @@ function cases(string $dir): array
 {
     $dec = static fn ($v): string => is_array($v) ? base64_decode($v['base64']) : $v;
     $out = [];
-    foreach (['golden.json', 'engine_golden.json'] as $f) {
-        foreach (json_decode(file_get_contents($dir.'/'.$f), true, 512, JSON_THROW_ON_ERROR)['patterns'] as $p) {
+    foreach (['compress.zlib://'.$dir.'/golden.json.gz', $dir.'/engine_golden.json'] as $f) {
+        foreach (json_decode(file_get_contents($f), true, 512, JSON_THROW_ON_ERROR)['patterns'] as $p) {
             if (!$p['valid']) {
                 continue;
             }

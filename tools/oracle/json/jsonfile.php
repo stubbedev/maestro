@@ -1,5 +1,5 @@
 <?php
-// Generates internal/json/testdata/oracle/jsonfile.json: JsonFile::encode
+// Generates internal/json/testdata/oracle/jsonfile.json.gz: JsonFile::encode
 // (all option combinations Composer uses, custom indents),
 // JsonFormatter::format, JsonFile::parseJson (with and without a file
 // name, lock merge conflicts, malformed and non-UTF-8 input) and
@@ -176,7 +176,7 @@ foreach ($mutations as $text) {
     $parse[] = ['text' => base64_encode($text), 'file' => $file, 'r' => outcome(static function () use ($text, $file) { return var_export(JsonFile::parseJson($text, $file), true); }), 'indent' => base64_encode(JsonFile::detectIndenting($text))];
 }
 
-$out = dirname(__DIR__, 3).'/internal/json/testdata/oracle/jsonfile.json';
+$out = dirname(__DIR__, 3).'/internal/json/testdata/oracle/jsonfile.json.gz';
 @mkdir(dirname($out), 0777, true);
-file_put_contents($out, json_encode(['encode' => $encode, 'format' => $format, 'parse' => $parse], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
+file_put_contents($out, gzencode(json_encode(['encode' => $encode, 'format' => $format, 'parse' => $parse], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE), 9));
 echo count($encode), ' ', count($format), ' ', count($parse), "\n";

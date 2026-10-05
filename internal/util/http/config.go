@@ -89,10 +89,10 @@ func path(options *php.Array, keys ...string) (any, bool) {
 	return cur, cur != nil
 }
 
-// httpArray returns $options['http'] as an array, creating it (and
+// HTTPOptions returns $options['http'] as an array, creating it (and
 // replacing a non-array value) when needed, as PHP's
 // $options['http'][...] = ... does.
-func httpArray(options *php.Array) *php.Array {
+func HTTPOptions(options *php.Array) *php.Array {
 	if v, ok := options.Get("http"); ok {
 		if a, ok := v.(*php.Array); ok {
 			return a

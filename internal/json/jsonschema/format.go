@@ -211,10 +211,16 @@ func validateColor(color string) bool {
 	return ok
 }
 
-// validateStyle ports FormatConstraint::validateStyle.
+// validateStyle ports FormatConstraint::validateStyle. preg_grep stops at
+// a matching error and returns the entries collected so far, so an error
+// ends the check with the properties before it.
 func validateStyle(style string) bool {
 	for prop := range strings.SplitSeq(php.RtrimSet(style, ";"), ";") {
-		if ok, _ := styleRegexp.IsMatch(prop); !ok {
+		ok, err := styleRegexp.IsMatch(prop)
+		if err != nil {
+			return true
+		}
+		if !ok {
 			return false
 		}
 	}

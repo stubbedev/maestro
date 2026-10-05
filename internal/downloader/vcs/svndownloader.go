@@ -194,8 +194,16 @@ func plural(n int) string {
 }
 
 func (d *SvnDownloader) commitLogs(fromReference, toReference, path string) (string, error) {
-	fromOK, _ := svnRevision.IsMatch(fromReference)
-	toOK, _ := svnRevision.IsMatch(toReference)
+	fromOK, err := svnRevision.IsMatch(fromReference)
+	if err != nil {
+		return "", err
+	}
+	toOK := false
+	if fromOK {
+		if toOK, err = svnRevision.IsMatch(toReference); err != nil {
+			return "", err
+		}
+	}
 
 	if !fromOK || !toOK {
 		return "Could not retrieve changes between " + fromReference + " and " + toReference + " due to missing revision information", nil

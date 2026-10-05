@@ -1,5 +1,5 @@
 <?php
-// Generates internal/spdx/testdata/oracle/spdx.json: SpdxLicenses::validate
+// Generates internal/spdx/testdata/oracle/spdx.json.gz: SpdxLicenses::validate
 // over thousands of generated license strings and lists, and the
 // identifier lookups over case variants, from the real composer/spdx-licenses.
 // Run: php tools/oracle/spdx/spdx.php
@@ -212,7 +212,7 @@ foreach ($spdx->getLicenses() as $key => $l) {
 
 $out = ['validate' => $validate, 'lookup' => $lookups, 'byName' => $names, 'licenses' => $licenses];
 file_put_contents(
-    dirname(__DIR__, 3).'/internal/spdx/testdata/oracle/spdx.json',
-    json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n"
+    dirname(__DIR__, 3).'/internal/spdx/testdata/oracle/spdx.json.gz',
+    gzencode(json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n", 9)
 );
 fprintf(STDERR, "validate: %d, lookup: %d, byName: %d\n", count($validate), count($lookups), count($names));

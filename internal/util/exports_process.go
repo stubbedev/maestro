@@ -4,6 +4,11 @@
 
 package util
 
+import (
+	"os"
+	"slices"
+)
+
 // Args is the argument list of an argument-list command (nil for a shell
 // command line).
 func (c Command) Args() []string { return c.args }
@@ -26,3 +31,15 @@ func NewFinishedProcess(command Command, exitCode int, stdout, stderr string) *P
 
 	return p
 }
+
+// HandledSignals are the signals Composer's SignalHandler::create([SIGINT,
+// SIGTERM, SIGHUP]) intercepts (only Ctrl+C on Windows).
+func HandledSignals() []os.Signal { return slices.Clone(handledSignals) }
+
+// SignalName is SignalHandler's name for a handled signal ("SIGINT", ...).
+func SignalName(sig os.Signal) string { return signalName(sig) }
+
+// ExitWithSignal is SignalHandler::exitWithLastSignal: it restores the
+// default action, re-raises sig and exits with 128+sig should that not end
+// the process.
+func ExitWithSignal(sig os.Signal) { exitWithSignal(sig) }

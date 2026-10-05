@@ -292,18 +292,6 @@ func (c *CompleteCommand) findCommand(completionInput *CompletionInput) (Command
 	return cmd, nil
 }
 
-// sysTempDir is sys_get_temp_dir(): $TMPDIR without trailing slashes, else /tmp.
-func sysTempDir() string {
-	if d := strings.TrimRight(os.Getenv("TMPDIR"), "/"); d != "" {
-		return d
-	}
-	if os.Getenv("TMPDIR") != "" {
-		return "/"
-	}
-
-	return os.TempDir()
-}
-
 // completionLogFile is sys_get_temp_dir().'/sf_'.basename($_SERVER['argv'][0]).'.log'.
 func completionLogFile() string {
 	name := ""
@@ -311,7 +299,7 @@ func completionLogFile() string {
 		name = php.Basename(os.Args[0], "")
 	}
 
-	return sysTempDir() + "/sf_" + name + ".log"
+	return php.SysGetTempDir() + "/sf_" + name + ".log"
 }
 
 func (c *CompleteCommand) log(messages ...string) {
@@ -454,7 +442,7 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 // tailDebugLog runs `tail -f` on the completion debug log, forwarding its
 // output. Like Process::run(), a failing tail is not an error.
 func tailDebugLog(commandName string, out Output) {
-	debugFile := sysTempDir() + "/sf_" + commandName + ".log"
+	debugFile := php.SysGetTempDir() + "/sf_" + commandName + ".log"
 	if _, err := os.Stat(debugFile); err != nil {
 		if f, err := os.OpenFile(debugFile, os.O_CREATE|os.O_WRONLY, 0o666); err == nil { //nolint:gosec // touch() creates files with mode 0666 & ~umask.
 			_ = f.Close()

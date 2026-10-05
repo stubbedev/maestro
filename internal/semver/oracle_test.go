@@ -8,13 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // phpException is an {"e": [class, message]} golden.
@@ -87,7 +87,7 @@ func isPHPException(err error, class string) bool {
 
 func loadOracle(t *testing.T, name string, rows any) {
 	t.Helper()
-	data, err := os.ReadFile("testdata/oracle/" + name)
+	data, err := testutil.ReadGoldenFile("testdata/oracle/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestOracle_Versions(t *testing.T) {
 		NS oracleResult `json:"ns"`
 		D  string       `json:"d"`
 	}
-	loadOracle(t, "versions.json", &rows)
+	loadOracle(t, "versions.json.gz", &rows)
 	var p VersionParser
 	for _, row := range rows {
 		normalized, err := p.Normalize(row.V)
@@ -195,7 +195,7 @@ func TestOracle_Constraints(t *testing.T) {
 		R   oracleResult   `json:"r"`
 		Sat []oracleResult `json:"sat"`
 	}
-	loadOracle(t, "constraints.json", &rows)
+	loadOracle(t, "constraints.json.gz", &rows)
 	valid := 0
 	for _, row := range rows {
 		c, err := VersionParser{}.ParseConstraints(row.C)
@@ -266,7 +266,7 @@ func TestOracle_Pairs(t *testing.T) {
 
 func TestOracle_Compare(t *testing.T) {
 	var rows []json.RawMessage
-	loadOracle(t, "compare.json", &rows)
+	loadOracle(t, "compare.json.gz", &rows)
 	constraint := mustConstraint(t, "==", "1")
 	for _, raw := range rows {
 		var a, b, op string

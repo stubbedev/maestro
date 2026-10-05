@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // licenseCase is a provider value: a string or, when list is set, an array.
@@ -260,7 +261,7 @@ func TestSpdxLicenses_IsDeprecatedByIdentifier(t *testing.T) {
 func loadOracle(t *testing.T, v any) {
 	t.Helper()
 
-	data, err := os.ReadFile("testdata/oracle/spdx.json")
+	data, err := testutil.ReadGoldenFile("testdata/oracle/spdx.json.gz")
 	if err != nil {
 		t.Fatal(err)
 	}

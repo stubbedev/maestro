@@ -47,8 +47,8 @@ func TestUrl_UpdateDistReference(t *testing.T) {
 		githubDomains := append([]string{"github.com"}, c.githubDomains...)
 		gitlabDomains := append([]string{"gitlab.com"}, c.gitlabExtra...)
 
-		if got := UpdateDistReference(c.url, ref, githubDomains, gitlabDomains); got != c.expectedURL {
-			t.Errorf("UpdateDistReference(%q, %q) = %q, want %q", c.url, ref, got, c.expectedURL)
+		if got, err := UpdateDistReference(c.url, ref, githubDomains, gitlabDomains); err != nil || got != c.expectedURL {
+			t.Errorf("UpdateDistReference(%q, %q) = %q, %v, want %q", c.url, ref, got, err, c.expectedURL)
 		}
 	}
 }

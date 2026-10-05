@@ -6,9 +6,9 @@ package policy
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -131,14 +131,8 @@ func NewIgnorePackageRule(packageName string, constraint semver.ConstraintInterf
 		Reason:           reason,
 		OnBlock:          onBlock,
 		OnAudit:          onAudit,
-		PackageNameRegex: packageNameToRegexp(packageName),
+		PackageNameRegex: pkg.PackageNameToRegexp(packageName, "{^%s$}i"),
 	}
-}
-
-// packageNameToRegexp ports BasePackage::packageNameToRegexp with its
-// default wrap; internal/pkg owns the original.
-func packageNameToRegexp(allowPattern string) string {
-	return "{^" + strings.ReplaceAll(php.PregQuote(allowPattern, ""), `\*`, ".*") + "$}i"
 }
 
 // IgnoreMap is the package-level ignore rules of a list, by package name.

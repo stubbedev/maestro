@@ -22,19 +22,19 @@ type ForgejoURL struct {
 
 // CreateForgejoURL is ForgejoUrl::create.
 func CreateForgejoURL(repoURL string) (*ForgejoURL, error) {
-	if u := TryForgejoURL(repoURL); u != nil {
-		return u, nil
+	if u, err := TryForgejoURL(repoURL); err != nil || u != nil {
+		return u, err
 	}
 
 	return nil, &InvalidArgumentError{Message: "This is not a valid Forgejo URL: " + repoURL}
 }
 
 // TryForgejoURL is ForgejoUrl::tryFrom; nil when repoURL is not a Forgejo
-// repository URL.
-func TryForgejoURL(repoURL string) *ForgejoURL {
+// repository URL. The error is the PcreException Preg::isMatch throws.
+func TryForgejoURL(repoURL string) (*ForgejoURL, error) {
 	m, err := forgejoURLRegex.Match(repoURL)
 	if err != nil || m == nil {
-		return nil
+		return nil, err
 	}
 
 	origin, ok := m.Group(1)
@@ -50,7 +50,7 @@ func TryForgejoURL(repoURL string) *ForgejoURL {
 		Repository: repo,
 		OriginURL:  origin,
 		APIURL:     "https://" + origin + "/api/v1/repos/" + owner + "/" + repo,
-	}
+	}, nil
 }
 
 // GenerateSSHURL is ForgejoUrl::generateSshUrl.

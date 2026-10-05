@@ -247,9 +247,12 @@ func (f *FilterListPoolFilter) Filter(pool *Pool, request *Request) (*Pool, erro
 
 		var matchingEntries []*repository.FilterListEntry
 		if checkLockedAgainstInstall && isLockedEquivalent(p, request, lockedNameVersionMap) {
-			matchingEntries = f.filterListAuditor.GetMatchingBlockEntries(p, installScopeMap, f.policyConfig, policy.BlockScopeInstall)
+			matchingEntries, err = f.filterListAuditor.GetMatchingBlockEntries(p, installScopeMap, f.policyConfig, policy.BlockScopeInstall)
 		} else {
-			matchingEntries = f.filterListAuditor.GetMatchingBlockEntries(p, configuredScopeMap, f.policyConfig, f.blockScope)
+			matchingEntries, err = f.filterListAuditor.GetMatchingBlockEntries(p, configuredScopeMap, f.policyConfig, f.blockScope)
+		}
+		if err != nil {
+			return nil, err
 		}
 
 		if len(matchingEntries) > 0 {

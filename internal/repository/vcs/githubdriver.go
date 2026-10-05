@@ -59,7 +59,10 @@ var (
 
 // Initialize ports GitHubDriver::initialize.
 func (d *GitHubDriver) Initialize() error {
-	m := match(gitHubRepoURL, d.url)
+	m, err := match(gitHubRepoURL, d.url)
+	if err != nil {
+		return err
+	}
 	if m == nil {
 		return &util.InvalidArgumentError{Message: "The GitHub repository URL " + util.SanitizeURL(d.url) + " is invalid."}
 	}
@@ -236,8 +239,13 @@ func (d *GitHubDriver) getFundingInfo() (*php.Array, error) {
 		return nil, err
 	}
 
-	result := parseFunding(funding)
-	d.fundingInfo = d.normalizeFunding(result)
+	result, err := parseFunding(funding)
+	if err != nil {
+		return nil, err
+	}
+	if d.fundingInfo, err = d.normalizeFunding(result); err != nil {
+		return nil, err
+	}
 
 	return d.fundingInfo, nil
 }
@@ -278,12 +286,16 @@ func (d *GitHubDriver) fetchFundingFile() (string, error) {
 	return funding, nil
 }
 
-// parseFunding parses FUNDING.yml into [type, url] entries.
-func parseFunding(funding string) *php.Array {
+// parseFunding parses FUNDING.yml into [type, url] entries. The error is
+// the PcreException Preg throws.
+func parseFunding(funding string) (*php.Array, error) {
 	result := php.NewArray()
 	add := func(typ, url string) { result.Append(php.ArrayOf("type", typ, "url", url)) }
 
-	lines, _ := lineBreak.Split(funding, -1, 0)
+	lines, err := lineBreak.Split(funding, -1, 0)
+	if err != nil {
+		return nil, err
+	}
 
 	var key string
 
@@ -292,30 +304,55 @@ func parseFunding(funding string) *php.Array {
 	for _, line := range lines {
 		line = php.Trim(line)
 
-		if m := match(fundingEntry, line); m != nil {
-			typ, value := m.Get(1), m.Get(2)
+		entry, err := match(fundingEntry, line)
+		if err != nil {
+			return nil, err
+		}
+		if entry != nil {
+			typ, value := entry.Get(1), entry.Get(2)
 			if value == "[" {
 				key, hasKey = typ, true
 
 				continue
 			}
 
-			if m2 := match(fundingInlineList, value); m2 != nil {
-				items, _ := fundingListSep.Split(m2.Get(1), -1, 0)
+			inline, err := match(fundingInlineList, value)
+			if err != nil {
+				return nil, err
+			}
+			if inline != nil {
+				items, err := fundingListSep.Split(inline.Get(1), -1, 0)
+				if err != nil {
+					return nil, err
+				}
 				for _, item := range items {
 					add(typ, php.TrimSet(php.Trim(item), fundingQuotes))
 				}
-			} else if m2 := match(fundingValue, value); m2 != nil {
-				add(typ, php.TrimSet(m2.Get(1), fundingQuotes))
+			} else if single, err := match(fundingValue, value); err != nil {
+				return nil, err
+			} else if single != nil {
+				add(typ, php.TrimSet(single.Get(1), fundingQuotes))
 			}
 
 			hasKey = false
-		} else if m := match(fundingKeyOnly, line); m != nil {
-			key, hasKey = m.Get(1), true
+
+			continue
+		}
+		keyOnly, err := match(fundingKeyOnly, line)
+		if err != nil {
+			return nil, err
+		}
+		if keyOnly != nil {
+			key, hasKey = keyOnly.Get(1), true
 		} else if hasKey {
-			m := match(fundingDashItem, line)
+			m, err := match(fundingDashItem, line)
+			if err != nil {
+				return nil, err
+			}
 			if m == nil {
-				m = match(fundingCommaItem, line)
+				if m, err = match(fundingCommaItem, line); err != nil {
+					return nil, err
+				}
 			}
 
 			if m != nil {
@@ -326,7 +363,7 @@ func parseFunding(funding string) *php.Array {
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 // fundingURLs maps the funding platforms to their URL prefix, and whether
@@ -352,7 +389,7 @@ var fundingURLs = map[string]struct {
 // normalizeFunding turns the platform names of the entries into URLs,
 // dropping custom URLs Composer does not support (their keys are not
 // renumbered, as in PHP).
-func (d *GitHubDriver) normalizeFunding(result *php.Array) *php.Array {
+func (d *GitHubDriver) normalizeFunding(result *php.Array) (*php.Array, error) {
 	for _, k := range result.Keys() {
 		v, _ := result.GetKey(k)
 		item, _ := v.(*php.Array)
@@ -381,7 +418,9 @@ func (d *GitHubDriver) normalizeFunding(result *php.Array) *php.Array {
 		}
 
 		if !bits.HasScheme && !bits.HasHost {
-			if matches(fundingSimpleDomain, url) {
+			if ok, err := matches(fundingSimpleDomain, url); err != nil {
+				return nil, err
+			} else if ok {
 				item.Set("url", "https://"+url)
 
 				continue
@@ -392,7 +431,7 @@ func (d *GitHubDriver) normalizeFunding(result *php.Array) *php.Array {
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 // FileContent ports GitHubDriver::getFileContent.
@@ -401,7 +440,7 @@ func (d *GitHubDriver) FileContent(file, identifier string) (string, bool, error
 		return d.gitDriver.FileContent(file, identifier)
 	}
 
-	resource, err := d.getJSON(d.repoAPIURL()+"/contents/"+file+"?ref="+http.Urlencode(identifier), false)
+	resource, err := d.getJSON(d.repoAPIURL()+"/contents/"+file+"?ref="+php.Urlencode(identifier), false)
 	if err != nil {
 		return "", false, err
 	}
@@ -448,7 +487,7 @@ func (d *GitHubDriver) ChangeDate(identifier string) (time.Time, bool, error) {
 		return d.gitDriver.ChangeDate(identifier)
 	}
 
-	commit, err := d.getJSON(d.repoAPIURL()+"/commits/"+http.Urlencode(identifier), false)
+	commit, err := d.getJSON(d.repoAPIURL()+"/commits/"+php.Urlencode(identifier), false)
 	if err != nil {
 		return time.Time{}, false, err
 	}
@@ -530,7 +569,9 @@ func (d *GitHubDriver) paginate(resource string, add func(refs, item *php.Array)
 			}
 		}
 
-		resource = nextPage(response)
+		if resource, err = nextPage(response); err != nil {
+			return nil, err
+		}
 	}
 
 	return refs, nil
@@ -538,9 +579,9 @@ func (d *GitHubDriver) paginate(resource string, add func(refs, item *php.Array)
 
 // gitHubSupports ports GitHubDriver::supports.
 func gitHubSupports(deps Deps, url string, _ bool) (bool, error) {
-	m := match(gitHubSupportsURL, url)
-	if m == nil {
-		return false, nil
+	m, err := match(gitHubSupportsURL, url)
+	if err != nil || m == nil {
+		return false, err
 	}
 
 	origin, ok := m.Group(2)
@@ -548,7 +589,7 @@ func gitHubSupports(deps Deps, url string, _ bool) (bool, error) {
 		origin = m.Get(3)
 	}
 
-	return inConfigList(deps.Config, "github-domains", php.Strtolower(replace(wwwPrefix, "", origin))), nil
+	return inConfigList(deps.Config, "github-domains", php.Strtolower(replaceInfallible(wwwPrefix, "", origin))), nil
 }
 
 // inConfigList is in_array($value, $config->get($key)).
@@ -753,17 +794,21 @@ var nextLink = php.MustCompile(`{<(.+?)>; *rel="next"}`)
 
 // nextPage ports getNextPage: the url of the next page of a paginated
 // API response, "" for null.
-func nextPage(response *http.Response) string {
+func nextPage(response *http.Response) (string, error) {
 	header, ok := response.Header("link")
 	if !ok || !php.ToBool(header) {
-		return ""
+		return "", nil
 	}
 
 	for link := range strings.SplitSeq(header, ",") {
-		if m := match(nextLink, link); m != nil {
-			return m.Get(1)
+		if m, err := match(nextLink, link); err != nil || m != nil {
+			if err != nil {
+				return "", err
+			}
+
+			return m.Get(1), nil
 		}
 	}
 
-	return ""
+	return "", nil
 }

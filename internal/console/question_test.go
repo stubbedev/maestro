@@ -7,7 +7,6 @@ package console
 import (
 	"errors"
 	"reflect"
-	"regexp"
 	"slices"
 	"testing"
 
@@ -410,7 +409,7 @@ func TestStrictConfirmationQuestion_AskConfirmation(t *testing.T) {
 }
 
 func TestStrictConfirmationQuestion_AskConfirmationWithCustomTrueAndFalseAnswer(t *testing.T) {
-	q := NewStrictConfirmationQuestion("Do you like French fries?", false, regexp.MustCompile(`(?i)^ja\n?$`), regexp.MustCompile(`(?i)^nein\n?$`))
+	q := NewStrictConfirmationQuestion("Do you like French fries?", false, php.MustCompile(`/^ja$/i`), php.MustCompile(`/^nein$/i`))
 
 	if got, err := NewQuestionHelper().Ask(newQuestionInput("ja\n"), createOutputInterface(), q); err != nil || got != true {
 		t.Fatalf("ja: got %#v, %v", got, err)

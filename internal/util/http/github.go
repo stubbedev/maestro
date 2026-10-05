@@ -98,8 +98,8 @@ func (g *GitHub) AuthorizeOAuthInteractively(originURL, message string) (bool, e
 		}
 	}
 
-	note += " " + phpDate("Y-m-d Hi", g.now().Unix())
-	encodedNote := strings.ReplaceAll(rawurlencode(note), "%20", "+")
+	note += " " + php.Date("Y-m-d Hi", g.now().Unix())
+	encodedNote := strings.ReplaceAll(php.Rawurlencode(note), "%20", "+")
 
 	localAuthConfig := g.config.LocalAuthConfigSource()
 
@@ -226,7 +226,7 @@ func (g *GitHub) RateLimit(headers []string) RateLimit {
 
 	for _, header := range headers {
 		header = php.Trim(header)
-		if !containsFold(header, "x-ratelimit-") {
+		if php.Stripos(header, "x-ratelimit-") < 0 {
 			continue
 		}
 
@@ -236,20 +236,22 @@ func (g *GitHub) RateLimit(headers []string) RateLimit {
 		case "x-ratelimit-limit":
 			rateLimit.Limit, rateLimit.HasLimit = int(php.ToInt(php.Trim(value))), true
 		case "x-ratelimit-reset":
-			rateLimit.Reset = phpDate("Y-m-d H:i:s", php.ToInt(php.Trim(value)))
+			rateLimit.Reset = php.Date("Y-m-d H:i:s", php.ToInt(php.Trim(value)))
 		}
 	}
 
 	return rateLimit
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var ssoURLRegex = php.MustCompile(`{\burl=(?P<url>[^\s;]+)}`)
 
 // SSOURL is getSsoUrl($headers); false for null.
 func (g *GitHub) SSOURL(headers []string) (string, bool) {
 	for _, header := range headers {
 		header = php.Trim(header)
-		if !containsFold(header, "x-github-sso: required") {
+		if php.Stripos(header, "x-github-sso: required") < 0 {
 			continue
 		}
 
@@ -261,6 +263,8 @@ func (g *GitHub) SSOURL(headers []string) (string, bool) {
 	return "", false
 }
 
+// Infallible: anchored, and ' *' is possessive; call sites ignore the
+// error.
 var (
 	rateLimitedRegex = php.MustCompile(`{^x-ratelimit-remaining: *0$}i`)
 	requiresSSORegex = php.MustCompile(`{^x-github-sso: required}i`)

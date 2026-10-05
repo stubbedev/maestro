@@ -69,10 +69,11 @@ type gitLabURLParts struct {
 }
 
 // parseGitLabURL matches url against URL_REGEX.
-func parseGitLabURL(url string) (gitLabURLParts, bool) {
-	m := match(gitLabURL, url)
-	if m == nil {
-		return gitLabURLParts{}, false
+// The error is the PcreException Preg::isMatch throws.
+func parseGitLabURL(url string) (gitLabURLParts, bool, error) {
+	m, err := match(gitLabURL, url)
+	if err != nil || m == nil {
+		return gitLabURLParts{}, false, err
 	}
 
 	p := gitLabURLParts{}
@@ -88,14 +89,17 @@ func parseGitLabURL(url string) (gitLabURLParts, bool) {
 	p.urlParts = strings.Split(parts, "/")
 	p.repo, _ = m.Named("repo")
 
-	return p, true
+	return p, true, nil
 }
 
 // Initialize ports GitLabDriver::initialize: SSH urls use https by
 // default; set "secure-http": false on the repository config to use http
 // instead.
 func (d *GitLabDriver) Initialize() error {
-	p, ok := parseGitLabURL(d.url)
+	p, ok, err := parseGitLabURL(d.url)
+	if err != nil {
+		return err
+	}
 	if !ok {
 		return &util.InvalidArgumentError{Message: "The GitLab repository URL " + util.SanitizeURL(d.url) + " is invalid. It must be the HTTP URL of a GitLab project."}
 	}
@@ -133,7 +137,7 @@ func (d *GitLabDriver) Initialize() error {
 	}
 
 	d.namespace = strings.Join(p.urlParts, "/")
-	d.repository = replace(dotGitSuffix, "", p.repo)
+	d.repository = replaceInfallible(dotGitSuffix, "", p.repo)
 
 	if err := d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + d.originURL + "/" + d.namespace + "/" + d.repository); err != nil {
 		return err
@@ -201,7 +205,8 @@ func (d *GitLabDriver) FileContent(file, identifier string) (string, bool, error
 	}
 
 	// Convert the root identifier to a cacheable commit id
-	if !matches(sha1Anywhere, identifier) {
+	// At most 40 characters per start position: Preg::isMatch cannot throw.
+	if isSha, _ := sha1Anywhere.IsMatch(identifier); !isSha {
 		branches, err := d.Branches()
 		if err != nil {
 			return "", false, err
@@ -385,7 +390,10 @@ func (d *GitLabDriver) references(typ string) (*php.Array, error) {
 
 		resource = ""
 		if data.Len() >= perPage {
-			resource = nextPage(response)
+			var err error
+			if resource, err = nextPage(response); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -599,9 +607,9 @@ func (d *GitLabDriver) tryGetContents(url string, fetchingRepoData bool) (*http.
 // gitLabSupports ports GitLabDriver::supports: whether gitlab-domains
 // names the host of url.
 func gitLabSupports(deps Deps, url string, _ bool) (bool, error) {
-	p, ok := parseGitLabURL(url)
-	if !ok {
-		return false, nil
+	p, ok, err := parseGitLabURL(url)
+	if err != nil || !ok {
+		return false, err
 	}
 
 	_, ok = determineOrigin(deps.Config.Get("gitlab-domains"), p.guessedDomain, &p.urlParts, p.port, p.hasPort)
@@ -651,7 +659,7 @@ func determineOrigin(configuredDomains any, guessedDomain string, urlParts *[]st
 		*urlParts = (*urlParts)[1:]
 		guessedDomain += "/" + part
 
-		if configured(guessedDomain) || (hasPort && configured(replace(portNumber, "", guessedDomain))) {
+		if configured(guessedDomain) || (hasPort && configured(replaceInfallible(portNumber, "", guessedDomain))) {
 			return guessedDomain, true
 		}
 	}

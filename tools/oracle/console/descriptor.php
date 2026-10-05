@@ -1,5 +1,5 @@
 <?php
-// Generates internal/console/testdata/oracle/descriptor.json: the exact
+// Generates internal/console/testdata/oracle/descriptor.json.gz: the exact
 // bytes the txt, xml, json and md descriptors write for the objects of
 // Tests/Descriptor/ObjectsProvider.php plus extra cases (negatable options,
 // namespaces, short descriptions, json_encoding flags).
@@ -160,4 +160,4 @@ foreach ($objects as $name => $factory) {
     }
 }
 
-file_put_contents(dirname(__DIR__, 3).'/internal/console/testdata/oracle/descriptor.json', json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");
+file_put_contents(dirname(__DIR__, 3).'/internal/console/testdata/oracle/descriptor.json.gz', gzencode(json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n", 9));

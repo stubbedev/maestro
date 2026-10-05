@@ -260,8 +260,16 @@ func (d *GitDownloader) doUpdate(_, target pkg.PackageInterface, path, url strin
 	}
 
 	if code == 0 {
-		originMatch, _ := originRemote.Match(output)
-		composerMatch, _ := composerRmt.Match(output)
+		originMatch, err := originRemote.Match(output)
+		if err != nil {
+			return err
+		}
+		var composerMatch *php.Match
+		if originMatch != nil {
+			if composerMatch, err = composerRmt.Match(output); err != nil {
+				return err
+			}
+		}
 
 		if originMatch != nil && composerMatch != nil {
 			originURL, _ := originMatch.Named("url")
@@ -597,21 +605,26 @@ func (d *GitDownloader) updateToCommit(p pkg.PackageInterface, path, reference, 
 		branches = &branchesOut
 	}
 
-	hasRemoteBranch := func(name string) bool {
+	hasRemoteBranch := func(name string) (bool, error) {
 		if branches == nil {
-			return false
+			return false, nil
 		}
 
-		ok, _ := php.PregIsMatch(`{^\s+composer/`+php.PregQuote(name, "")+`$}m`, *branches)
-
-		return ok
+		return php.PregIsMatch(`{^\s+composer/`+php.PregQuote(name, "")+`$}m`, *branches)
 	}
 
+	// Anchored and fixed-length: Preg::isMatch cannot throw.
 	isSha, _ := sha1Reference.IsMatch(reference)
 
 	// check whether non-commitish are branches or tags, and fetch branches with the remote name
 	gitRef := reference
-	if !isSha && hasRemoteBranch(reference) {
+	hasReference := false
+	if !isSha {
+		if hasReference, err = hasRemoteBranch(reference); err != nil {
+			return err
+		}
+	}
+	if hasReference {
 		command1 := slices.Concat([]string{"git", "checkout"}, force, []string{"-B", branch, "composer/" + reference, "--"})
 		command2 := []string{"git", "reset", "--hard", "composer/" + reference, "--"}
 
@@ -623,8 +636,20 @@ func (d *GitDownloader) updateToCommit(p pkg.PackageInterface, path, reference, 
 	// try to checkout branch by name and then reset it so it's on the proper branch name
 	if isSha {
 		// add 'v' in front of the branch if it was stripped when generating the pretty name
-		if branches != nil && !hasRemoteBranch(branch) && hasRemoteBranch("v"+branch) {
-			branch = "v" + branch
+		if branches != nil {
+			hasBranch, err := hasRemoteBranch(branch)
+			if err != nil {
+				return err
+			}
+			if !hasBranch {
+				hasVBranch, err := hasRemoteBranch("v" + branch)
+				if err != nil {
+					return err
+				}
+				if hasVBranch {
+					branch = "v" + branch
+				}
+			}
 		}
 
 		command := []string{"git", "checkout", branch, "--"}
@@ -825,7 +850,8 @@ func (d *GitDownloader) hasMetadataRepository(path string) bool {
 	return isDir(d.normalizePath(path) + "/.git")
 }
 
-// shortHash is getShortHash().
+// shortHash is getShortHash(). The pattern is anchored and fixed-length,
+// so Preg::isMatch cannot throw.
 func (d *GitDownloader) shortHash(reference string) string {
 	if ok, _ := shortHashable.IsMatch(reference); !d.io.IsVerbose() && ok {
 		return reference[:10]

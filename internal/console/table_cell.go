@@ -137,7 +137,7 @@ func (s *TableCellStyle) tagOptions() string {
 		}
 		b.WriteString(kv[0])
 		b.WriteByte('=')
-		b.WriteString(urlencode(kv[1]))
+		b.WriteString(php.Urlencode(kv[1]))
 	}
 
 	return b.String()
@@ -152,28 +152,6 @@ func (s *TableCellStyle) PadByAlign() int {
 
 // CellFormat returns the cell format ("" when none).
 func (s *TableCellStyle) CellFormat() string { return s.options.CellFormat }
-
-// urlencode ports PHP's urlencode().
-func urlencode(s string) string {
-	const hex = "0123456789ABCDEF"
-	var b strings.Builder
-	b.Grow(len(s))
-	for i := range len(s) {
-		c := s[i]
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '-', c == '_', c == '.':
-			b.WriteByte(c)
-		case c == ' ':
-			b.WriteByte('+')
-		default:
-			b.WriteByte('%')
-			b.WriteByte(hex[c>>4])
-			b.WriteByte(hex[c&15])
-		}
-	}
-
-	return b.String()
-}
 
 // tableCellOf returns the TableCell behind a cell value (a *TableCell or a
 // *TableSeparator), or nil.

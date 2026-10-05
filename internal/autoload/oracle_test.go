@@ -1,8 +1,6 @@
 package autoload
 
 import (
-	"compress/gzip"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // oracleRepo is the repository of an oracle scenario.
@@ -35,19 +34,7 @@ func (l oracleLocker) LockData() (*php.Array, error) {
 // and compares every file written, the class map and the output with what
 // Composer's AutoloadGenerator produced.
 func TestOracle_Dump(t *testing.T) {
-	f, err := os.Open("testdata/oracle/dump.json.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	zr, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := io.ReadAll(zr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	data := testutil.ReadGolden(t, "testdata/oracle/dump.json.gz")
 	decoded, err := php.JSONDecode(string(data), true)
 	if err != nil {
 		t.Fatal(err)

@@ -36,7 +36,7 @@ func TestURLOracle(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if got := filterValidateURL(c.URL); got != c.Valid {
+		if got := util.FilterValidateURL(c.URL); got != c.Valid {
 			t.Errorf("filter_var(%q, FILTER_VALIDATE_URL): got %v, want %v", c.URL, got, c.Valid)
 		}
 

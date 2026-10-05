@@ -11,6 +11,8 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/spdx"
+	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/vcs"
 )
 
 // ValidatingArrayLoader flags: ValidatingArrayLoader::CHECK_*.
@@ -100,7 +102,7 @@ func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 	if name := get(config, "name"); name != nil {
 		s, ok := name.(string)
 		if !ok {
-			return typeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name)
+			return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name)
 		}
 
 		if msg, bad, err := HasPackageNamingError(s, false); err != nil {
@@ -768,7 +770,7 @@ func (l *ValidatingArrayLoader) validateLinks() error {
 			if linkType == "conflict" && isset(l.config, "replace") {
 				replace, ok := get(l.config, "replace").(*php.Array)
 				if !ok {
-					return typeError("array_intersect_key", 1, "array", "array", get(l.config, "replace"))
+					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", get(l.config, "replace"))
 				}
 
 				if php.ArrayIntersectKey(replace, links).Len() > 0 {
@@ -1079,25 +1081,23 @@ func filterURL(value any, schemes ...string) (bool, error) {
 
 	s, ok := value.(string)
 	if !ok {
-		return false, typeError("parse_url", 1, "url", "string", value)
+		return false, pkg.ArgumentTypeError("parse_url", 1, "url", "string", value)
 	}
 
-	bits, ok := parseURL(s)
-	if !ok || bits.scheme == "" || bits.scheme == "0" || bits.host == "" || bits.host == "0" {
+	bits, ok := util.ParseURL(s)
+	if !ok || bits.Scheme == "" || bits.Scheme == "0" || bits.Host == "" || bits.Host == "0" {
 		return false, nil
 	}
 
-	return slices.Contains(schemes, bits.scheme), nil
+	return slices.Contains(schemes, bits.Scheme), nil
 }
 
 var (
-	reservedNames      = [...]string{"nul", "con", "prn", "aux", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"}
-	validPackageName   = php.MustCompile(`{^[a-z0-9](?:[_.-]?[a-z0-9]++)*+/[a-z0-9](?:(?:[_.]|-{1,2})?[a-z0-9]++)*+$}iD`)
-	jsonSuffix         = php.MustCompile(`{\.json$}`)
-	uppercase          = php.MustCompile(`{[A-Z]}`)
-	camelCaseBoundary  = php.MustCompile(`{(?:([a-z])([A-Z])|([A-Z])([A-Z][a-z]))}`)
-	perforceTransport  = php.MustCompile(`{^\s*+(?:rsh|jsh)\s*+:}i`)
-	perforcePortFormat = php.MustCompile(`{^(?:(?:tcp|ssl)(?:4|6|46|64)?:)?(?:\[[0-9a-f:.]++\]|[a-z0-9._][a-z0-9._-]*+)(?::[a-z0-9._][a-z0-9._-]*+)?$}iD`)
+	reservedNames     = [...]string{"nul", "con", "prn", "aux", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"}
+	validPackageName  = php.MustCompile(`{^[a-z0-9](?:[_.-]?[a-z0-9]++)*+/[a-z0-9](?:(?:[_.]|-{1,2})?[a-z0-9]++)*+$}iD`)
+	jsonSuffix        = php.MustCompile(`{\.json$}`)
+	uppercase         = php.MustCompile(`{[A-Z]}`)
+	camelCaseBoundary = php.MustCompile(`{(?:([a-z])([A-Z])|([A-Z])([A-Z][a-z]))}`)
 )
 
 // HasPackageNamingError ports ValidatingArrayLoader::hasPackageNamingError:
@@ -1138,15 +1138,9 @@ func HasPackageNamingError(name string, isLink bool) (string, bool, error) {
 	return "", false, nil
 }
 
-// IsValidPerforcePort ports Perforce::isValidPort: whether url has the
-// [transport:][host:]port form, and no rsh/jsh transport.
-func IsValidPerforcePort(url string) bool {
-	if mustMatch(perforceTransport, url) {
-		return false
-	}
-
-	return mustMatch(perforcePortFormat, url)
-}
+// IsValidPerforcePort is Perforce::isValidPort, which vcs.IsValidPort
+// owns; it is kept for existing callers.
+func IsValidPerforcePort(url string) bool { return vcs.IsValidPort(url) }
 
 // ValidatePackage ports ValidatingArrayLoader::validatePackage: it rejects
 // names, URLs, references and binaries that could be abused, failing with

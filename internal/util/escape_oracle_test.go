@@ -101,7 +101,12 @@ func TestOracle_PasswordMasking(t *testing.T) {
 	o := loadEscapeOracle(t)
 
 	for _, c := range o.Password {
-		if got := passwordArg.ReplaceAllLiteralString(c.Input, `--password '***' `); got != c.Output {
+		got, _, err := passwordArg.Replace(c.Input, `--password '***' `, -1)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got != c.Output {
 			t.Errorf("mask(%q) = %q, want %q", c.Input, got, c.Output)
 		}
 	}

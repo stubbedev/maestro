@@ -386,6 +386,8 @@ func (h *AuthHelper) AddAuthenticationHeader(headers []string, origin, url strin
 	return headerList(options)
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var gitHubAPIRegex = php.MustCompile(`{^https?://api\.github\.com/}`)
 
 // AddAuthenticationOptions is addAuthenticationOptions($options, $origin,
@@ -398,7 +400,7 @@ func (h *AuthHelper) AddAuthenticationOptions(options *php.Array, origin, url st
 // addAuthenticationOptions is AddAuthenticationOptions modifying options,
 // which the caller owns.
 func (h *AuthHelper) addAuthenticationOptions(options *php.Array, origin, url string) *php.Array {
-	httpOptions := httpArray(options)
+	httpOptions := HTTPOptions(options)
 
 	headerLines, isArray := arrayValue(httpOptions, "header").(*php.Array)
 	if !isArray {

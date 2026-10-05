@@ -184,8 +184,8 @@ func (g *Git) runCommand(commandCallables []CommandFunc, url, cwd string, initia
 		}
 
 		if match != nil && !g.io.HasAuthentication(match.Get(3)) {
-			password := http.Rawurldecode(match.Get(2))
-			g.io.SetAuthentication(match.Get(3), http.Rawurldecode(match.Get(1)), &password)
+			password := php.Rawurldecode(match.Get(2))
+			g.io.SetAuthentication(match.Get(3), php.Rawurldecode(match.Get(1)), &password)
 		}
 	}
 
@@ -280,7 +280,7 @@ func (g *Git) retryWithAuth(url, origCwd string, initialClone bool, succeeded fu
 
 		if g.io.HasAuthentication(host) {
 			auth := g.io.Authentication(host)
-			user, pass := http.Rawurlencode(strOf(auth.Username)), http.Rawurlencode(strOf(auth.Password))
+			user, pass := php.Rawurlencode(strOf(auth.Username)), php.Rawurlencode(strOf(auth.Password))
 			authURL := "https://" + user + ":" + pass + "@" + host + "/" + match.Get(2) + ".git"
 
 			if ok, err := succeeded(authURL); ok || err != nil {
@@ -325,7 +325,7 @@ func (g *Git) retryWithAuth(url, origCwd string, initialClone bool, succeeded fu
 
 		if g.io.HasAuthentication(host) {
 			auth := g.io.Authentication(host)
-			user, pass := http.Rawurlencode(strOf(auth.Username)), http.Rawurlencode(strOf(auth.Password))
+			user, pass := php.Rawurlencode(strOf(auth.Username)), php.Rawurlencode(strOf(auth.Password))
 
 			var authURL string
 
@@ -411,7 +411,7 @@ func (g *Git) retryBitbucket(domain, repoWithGitPart string, succeeded func(stri
 			username = "x-bitbucket-api-token-auth"
 		}
 
-		authURL := "https://" + http.Rawurlencode(username) + ":" + http.Rawurlencode(password) + "@" + domain + "/" + repoWithGitPart
+		authURL := "https://" + php.Rawurlencode(username) + ":" + php.Rawurlencode(password) + "@" + domain + "/" + repoWithGitPart
 
 		if ok, err := succeeded(authURL); ok || err != nil {
 			// Well if that succeeded on our first try, let's just
@@ -434,7 +434,7 @@ func (g *Git) retryBitbucket(domain, repoWithGitPart string, succeeded func(stri
 
 	if g.io.HasAuthentication(domain) {
 		auth := g.io.Authentication(domain)
-		user, pass := http.Rawurlencode(strOf(auth.Username)), http.Rawurlencode(strOf(auth.Password))
+		user, pass := php.Rawurlencode(strOf(auth.Username)), php.Rawurlencode(strOf(auth.Password))
 		authURL := "https://" + user + ":" + pass + "@" + domain + "/" + repoWithGitPart
 
 		if ok, err := succeeded(authURL); ok || err != nil {
@@ -498,7 +498,7 @@ func (g *Git) retryPrompted(match *php.Match, errorMsg string, succeeded func(st
 		return false, nil, nil
 	}
 
-	user, pass := http.Rawurlencode(php.ToString(username)), http.Rawurlencode(php.ToString(password))
+	user, pass := php.Rawurlencode(php.ToString(username)), php.Rawurlencode(php.ToString(password))
 	authURL := match.Get(1) + user + ":" + pass + "@" + host + match.Get(3)
 
 	if ok, err := succeeded(authURL); err != nil {
@@ -613,6 +613,7 @@ func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, e
 	}
 
 	if inMirror {
+		// Anchored and fixed-length: Preg::isMatch cannot throw.
 		if isSha, _ := sha1Ref.IsMatch(ref); isSha && prettyVersion != "" {
 			branch, _, err := php.PregReplace(`{(?:^dev-|(?:\.x)?-dev$)}i`, "", prettyVersion, -1)
 			if err != nil {
@@ -639,15 +640,25 @@ func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, e
 			// nor as a tag, then we sync the mirror as otherwise it will likely fail during install.
 			// this can occur if a git tag gets created *after* the reference is already put into the cache, as the ref check above will then not sync the new tags
 			// see https://github.com/composer/composer/discussions/11002
-			if hasBranches && hasTags {
-				quoted := php.PregQuote(branch, "")
-				inBranches, _ := php.PregIsMatch(`{^[\s*]*v?`+quoted+`$}m`, branches)
-				inTags, _ := php.PregIsMatch(`{^[\s*]*`+quoted+`$}m`, tags)
-
-				if !inBranches && !inTags {
-					if _, err := g.SyncMirror(url, dir); err != nil {
-						return false, err
-					}
+			quoted := php.PregQuote(branch, "")
+			notFound := hasBranches
+			if notFound {
+				inBranches, err := php.PregIsMatch(`{^[\s*]*v?`+quoted+`$}m`, branches)
+				if err != nil {
+					return false, err
+				}
+				notFound = !inBranches && hasTags
+			}
+			if notFound {
+				inTags, err := php.PregIsMatch(`{^[\s*]*`+quoted+`$}m`, tags)
+				if err != nil {
+					return false, err
+				}
+				notFound = !inTags
+			}
+			if notFound {
+				if _, err := g.SyncMirror(url, dir); err != nil {
+					return false, err
 				}
 			}
 		}
@@ -738,7 +749,14 @@ func (g *Git) GetMirrorDefaultBranch(url, dir string, isLocalPathRepository bool
 	}
 
 	for _, line := range util.SplitLines(output) {
-		if m, _ := headBranch.Match(line); m != nil {
+		m, err := headBranch.Match(line)
+		if err != nil {
+			// the PcreException is caught like the command failures above
+			g.io.WriteError("<error>Failed to fetch root identifier from remote: "+err.Error()+"</error>", true, io.Debug)
+
+			return "", false
+		}
+		if m != nil {
 			return m.Get(1), true
 		}
 	}

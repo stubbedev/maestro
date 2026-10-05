@@ -1,5 +1,5 @@
 <?php
-// Generates internal/policy/testdata/oracle/policy.json: PolicyConfig::fromConfig
+// Generates internal/policy/testdata/oracle/policy.json.gz: PolicyConfig::fromConfig
 // over thousands of generated config.policy / config.audit shapes and
 // environment combinations, from the real Composer\Policy classes.
 //
@@ -324,7 +324,7 @@ foreach (array_keys($envVars) as $name) {
     Platform::clearEnv($name);
 }
 
-$out = dirname(__DIR__, 3).'/internal/policy/testdata/oracle/policy.json';
-file_put_contents($out, json_encode($cases, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");
+$out = dirname(__DIR__, 3).'/internal/policy/testdata/oracle/policy.json.gz';
+file_put_contents($out, gzencode(json_encode($cases, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n", 9));
 $errors = count(array_filter($cases, static function ($c) { return isset($c['error']); }));
 fwrite(STDERR, count($cases)." cases ($errors errors) written to $out\n");

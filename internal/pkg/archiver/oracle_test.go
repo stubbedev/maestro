@@ -20,6 +20,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -99,22 +100,8 @@ type oracleGolden struct {
 func loadOracle(t *testing.T) *oracleGolden {
 	t.Helper()
 
-	f, err := os.Open("testdata/oracle/archiver.json.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer f.Close()
-
-	zr, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	var g oracleGolden
-	if err := json.NewDecoder(zr).Decode(&g); err != nil {
-		t.Fatal(err)
-	}
+	testutil.LoadJSONGolden(t, "testdata/oracle/archiver.json.gz", &g)
 
 	return &g
 }

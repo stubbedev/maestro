@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"golang.org/x/term"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // GetCwd ports Platform::getCwd: the physical working directory (getcwd(3),
@@ -261,7 +263,7 @@ func IsTty(f *os.File) bool {
 
 	// Detect msysgit/mingw and assume this is a tty because detection does
 	// not work correctly, see https://github.com/composer/composer/issues/9690
-	if msystem, _ := GetEnv("MSYSTEM"); equalFoldASCII(msystem, "MINGW32") || equalFoldASCII(msystem, "MINGW64") {
+	if msystem, _ := GetEnv("MSYSTEM"); php.Strcasecmp(msystem, "MINGW32") == 0 || php.Strcasecmp(msystem, "MINGW64") == 0 {
 		return true
 	}
 

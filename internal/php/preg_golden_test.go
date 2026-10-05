@@ -4,12 +4,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"runtime"
 	"sync"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // The goldens are written by tools/oracle/php/preg_golden.php; see there
@@ -145,7 +146,7 @@ func pregOps(re *Regexp, subject string) map[string]any {
 const goldenReplacement = `<$0|\1|${2}|$10>`
 
 func testPregGolden(t *testing.T, file string) {
-	data, err := os.ReadFile(file)
+	data, err := testutil.ReadGoldenFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +226,7 @@ func testPregGolden(t *testing.T, file string) {
 // tools/oracle/php/preg_collect.php) against PHP's results.
 func TestPregGolden(t *testing.T) {
 	t.Parallel()
-	testPregGolden(t, "testdata/preg/golden.json")
+	testPregGolden(t, "testdata/preg/golden.json.gz")
 }
 
 // TestPregEngineGolden runs the engine feature corpus of

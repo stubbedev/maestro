@@ -1,14 +1,10 @@
 package loader_test
 
 import (
-	"bytes"
-	"compress/gzip"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -45,23 +42,7 @@ func md5hex(s string) string {
 func readFile(t *testing.T, name string) []byte {
 	t.Helper()
 
-	data, err := os.ReadFile(filepath.Join("testdata", name))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if strings.HasSuffix(name, ".gz") {
-		r, err := gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if data, err = io.ReadAll(r); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	return data
+	return testutil.ReadGolden(t, filepath.Join("testdata", name))
 }
 
 // readGolden reads a golden written by the oracle's write_golden.
@@ -165,44 +146,6 @@ func checkException(t *testing.T, what string, err error, class, message string)
 	if err.Error() != message {
 		t.Errorf("%s: got %q, want %q", what, err, message)
 	}
-}
-
-// expand is MetadataMinifier::expand. Like PHP's copy-on-write arrays,
-// the versions share the values they inherit.
-func expand(versions []any) []*php.Array {
-	var (
-		out []*php.Array
-		cur *php.Array
-	)
-
-	for _, v := range versions {
-		data, _ := v.(*php.Array)
-		if cur == nil {
-			cur = data
-			out = append(out, cur)
-
-			continue
-		}
-
-		next := php.NewArrayCap(cur.Len())
-		for k, val := range cur.All() {
-			next.SetKey(k, val)
-		}
-
-		cur = next
-
-		for k, val := range data.All() {
-			if val == "__unset" {
-				cur.DeleteKey(k)
-			} else {
-				cur.SetKey(k, val)
-			}
-		}
-
-		out = append(out, cur)
-	}
-
-	return out
 }
 
 func shortClass(p pkg.PackageInterface) string {

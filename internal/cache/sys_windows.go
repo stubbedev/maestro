@@ -3,20 +3,10 @@
 package cache
 
 import (
-	"os"
-
 	"golang.org/x/sys/windows"
 
 	"github.com/stubbedev/maestro/internal/php"
 )
-
-// isWritable is is_writable(): on Windows, a file without the read-only
-// attribute (directories are always writable for PHP).
-func isWritable(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && (fi.IsDir() || fi.Mode().Perm()&0o200 != 0)
-}
 
 // diskFreeSpace is disk_free_space($dir) as PHP prints the float, or
 // "unknown".

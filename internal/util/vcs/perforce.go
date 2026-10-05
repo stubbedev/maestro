@@ -120,7 +120,8 @@ var (
 // IsValidPort ports Perforce::isValidPort: whether url is a P4PORT
 // network endpoint ([transport:][host:]port). An rsh:/jsh: P4PORT makes
 // the p4 client run the rest of the value as a local command
-// (GHSA-rvx4-ffvw-m9q3).
+// (GHSA-rvx4-ffvw-m9q3). Both patterns are anchored with possessive
+// quantifiers only, so Preg::isMatch cannot throw on them.
 func IsValidPort(url string) bool {
 	// rsh/jsh are transport keywords to p4, so "rsh:foo" never parses as host "rsh" port "foo"
 	// and has to be rejected before the shape check below would happily accept it

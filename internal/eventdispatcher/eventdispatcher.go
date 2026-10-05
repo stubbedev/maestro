@@ -3,7 +3,6 @@
 package eventdispatcher
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -577,7 +576,7 @@ func (d *EventDispatcher) replaceLocalBinary(callable, exec string) (string, err
 			continue
 		}
 
-		caller, err := determineBinaryCaller(localExec)
+		caller, err := util.DetermineBinaryCaller(localExec)
 		if err != nil {
 			return "", err
 		}
@@ -967,33 +966,6 @@ func nativeScript(className, methodName string) func() {
 
 	return nil
 }
-
-// determineBinaryCaller ports BinaryInstaller::determineBinaryCaller: the
-// interpreter a binary runs with, from its shebang.
-func determineBinaryCaller(bin string) (string, error) {
-	if strings.HasSuffix(bin, ".bat") || strings.HasSuffix(bin, ".exe") {
-		return "call", nil
-	}
-
-	f, err := os.Open(bin)
-	if err != nil {
-		return "", &util.ErrorException{Message: "fopen(" + bin + "): Failed to open stream: " + util.Strerror(err)}
-	}
-	defer f.Close()
-
-	line, _ := bufio.NewReader(f).ReadString('\n')
-	m, err := shebangPattern.MatchStrictGroups(line)
-	if err != nil {
-		return "", err
-	}
-	if m != nil {
-		return php.Trim(m.Get(1)), nil
-	}
-
-	return "php", nil
-}
-
-var shebangPattern = php.MustCompile(`{^#!/(?:usr/bin/env )?(?:[^/]+/)*(.+)$}m`)
 
 func escapeArgs(args []string) string {
 	escaped := make([]string, len(args))

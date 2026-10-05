@@ -71,7 +71,7 @@ func TestArchiveDownloader_ProcessUrl(t *testing.T) {
 		"https://github.com/composer/composer/archive/master.tar.gz",
 		"https://api.github.com/repos/composer/composer/zipball/master",
 	} {
-		if got := newArchiveForURLs(t).processURL(dummyPackage(), expected); got != expected {
+		if got, err := newArchiveForURLs(t).processURL(dummyPackage(), expected); err != nil || got != expected {
 			t.Errorf("processUrl(%q) = %q", expected, got)
 		}
 	}
@@ -96,7 +96,7 @@ func TestArchiveDownloader_ProcessUrlRewriteDist(t *testing.T) {
 		p := dummyPackage()
 		p.SetDistReference(pkg.Str("ref"))
 
-		if got := newArchiveForURLs(t).processURL(p, url); got != expected {
+		if got, err := newArchiveForURLs(t).processURL(p, url); err != nil || got != expected {
 			t.Errorf("processUrl(%q) = %q, want %q", url, got, expected)
 		}
 	}
@@ -114,7 +114,7 @@ func TestArchiveDownloader_ProcessUrlRewriteBitbucketDist(t *testing.T) {
 		p := dummyPackage()
 		p.SetDistReference(pkg.Str("ref"))
 
-		if got := newArchiveForURLs(t).processURL(p, url); got != expected {
+		if got, err := newArchiveForURLs(t).processURL(p, url); err != nil || got != expected {
 			t.Errorf("processUrl(%q) = %q, want %q", url, got, expected)
 		}
 	}

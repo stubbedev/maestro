@@ -13,7 +13,6 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util/http"
 	"github.com/stubbedev/maestro/internal/util/http/httpmock"
 )
 
@@ -246,7 +245,7 @@ func securityAdvisoriesPostOptions(names ...string) *php.Array {
 		"method", "POST",
 		"header", php.ListOf("Content-type: application/x-www-form-urlencoded"),
 		"timeout", 10,
-		"content", http.HTTPBuildQuery(pairs...),
+		"content", php.HTTPBuildQuery(pairs...),
 	))
 }
 

@@ -5,7 +5,6 @@ package loader
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -154,18 +153,6 @@ func jsonEncode(v any) string {
 	return s
 }
 
-// typeError builds PHP's TypeError for argument n of fn.
-func typeError(fn string, n int, param, expected string, given any) error {
-	// zend_zval_value_name: booleans are named by their value.
-	name := php.TypeName(given)
-	if b, ok := given.(bool); ok {
-		name = strconv.FormatBool(b)
-	}
-
-	return &pkg.TypeError{Message: fn + "(): Argument #" + strconv.Itoa(n) + " ($" + param + ") must be of type " +
-		expected + ", " + name + " given"}
-}
-
 // nullableString checks a value passed to a ?string parameter.
 func nullableString(fn, param string, v any) (pkg.NullString, error) {
 	switch v := v.(type) {
@@ -175,7 +162,7 @@ func nullableString(fn, param string, v any) (pkg.NullString, error) {
 		return pkg.Str(v), nil
 	}
 
-	return pkg.NullString{}, typeError(fn, 1, param, "?string", v)
+	return pkg.NullString{}, pkg.ArgumentTypeError(fn, 1, param, "?string", v)
 }
 
 // arrayArg checks a value passed to an array parameter.
@@ -188,7 +175,7 @@ func arrayArg(fn, param, expected string, v any) (*php.Array, error) {
 		return nil, nil
 	}
 
-	return nil, typeError(fn, 1, param, expected, v)
+	return nil, pkg.ArgumentTypeError(fn, 1, param, expected, v)
 }
 
 const packageClass = `Composer\Package\Package`
@@ -237,7 +224,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 
 	name, ok := nameValue.(string)
 	if !ok {
-		return nil, typeError(packageClass+"::__construct", 1, "name", "string", nameValue)
+		return nil, pkg.ArgumentTypeError(packageClass+"::__construct", 1, "name", "string", nameValue)
 	}
 
 	switch class {
@@ -314,7 +301,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	if v := get(config, "type"); v != nil {
 		s, ok := v.(string)
 		if !ok {
-			return typeError("strtolower", 1, "string", "string", v)
+			return pkg.ArgumentTypeError("strtolower", 1, "string", "string", v)
 		}
 
 		typ = php.Strtolower(s)
@@ -405,7 +392,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	if t := get(config, "time"); !empty(t) {
 		s, ok := t.(string)
 		if !ok {
-			return typeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", t)
+			return pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", t)
 		}
 
 		if mustMatch(digitsOnly, s) {
@@ -420,7 +407,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	if u := get(config, "notification-url"); !empty(u) {
 		s, ok := u.(string)
 		if !ok {
-			return typeError(packageClass+"::setNotificationUrl", 1, "notificationUrl", "string", u)
+			return pkg.ArgumentTypeError(packageClass+"::setNotificationUrl", 1, "notificationUrl", "string", u)
 		}
 
 		p.SetNotificationURL(s)
@@ -452,7 +439,7 @@ func loadBinaries(bin any) (*php.Array, error) {
 	for k, v := range in.All() {
 		s, ok := v.(string)
 		if !ok {
-			return nil, typeError("ltrim", 1, "string", "string", v)
+			return nil, pkg.ArgumentTypeError("ltrim", 1, "string", "string", v)
 		}
 
 		out.SetKey(k, php.LtrimSet(s, "/"))
@@ -468,7 +455,7 @@ func loadSuggests(suggest *php.Array, prettyVersion string) (*php.Array, error) 
 	for target, reason := range suggest.All() {
 		s, ok := reason.(string)
 		if !ok {
-			return nil, typeError("trim", 1, "string", "string", reason)
+			return nil, pkg.ArgumentTypeError("trim", 1, "string", "string", reason)
 		}
 
 		if php.Trim(s) == "self.version" {
@@ -585,7 +572,7 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 	if name := get(archive, "name"); !empty(name) {
 		s, ok := name.(string)
 		if !ok {
-			return typeError(completePackageClass+"::setArchiveName", 1, "name", "?string", name)
+			return pkg.ArgumentTypeError(completePackageClass+"::setArchiveName", 1, "name", "?string", name)
 		}
 
 		p.SetArchiveName(pkg.Str(s))
@@ -777,7 +764,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 
 			for prettyTarget, c := range links.All() {
 				if prettyTarget.IsInt() {
-					return typeError("strtolower", 1, "string", "string", prettyTarget.Value())
+					return pkg.ArgumentTypeError("strtolower", 1, "string", "string", prettyTarget.Value())
 				}
 
 				target := php.Strtolower(prettyTarget.String())
@@ -789,7 +776,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 
 				constraint, ok := c.(string)
 				if !ok {
-					return typeError(`Composer\Package\Loader\ArrayLoader::createLink`, 5, "prettyConstraint", "string", c)
+					return pkg.ArgumentTypeError(`Composer\Package\Loader\ArrayLoader::createLink`, 5, "prettyConstraint", "string", c)
 				}
 
 				if constraint == "self.version" {
@@ -904,7 +891,7 @@ func (l *ArrayLoader) GetBranchAlias(config *php.Array) (string, bool, error) {
 
 			targetBranch, ok := v.(string)
 			if !ok {
-				return "", false, typeError("substr", 1, "string", "string", v)
+				return "", false, pkg.ArgumentTypeError("substr", 1, "string", "string", v)
 			}
 
 			// ensure it is an alias to a -dev package

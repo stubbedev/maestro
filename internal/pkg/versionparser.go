@@ -125,12 +125,17 @@ func isDefaultBranchName(v string) bool {
 	return v == "dev-master" || v == "dev-trunk" || v == "dev-default"
 }
 
+// PlatformPackageRegex is PlatformRepository::PLATFORM_PACKAGE_REGEX.
+const PlatformPackageRegex = `{^(?:php(?:-64bit|-ipv6|-zts|-debug)?|hhvm|(?:ext|lib)-[a-z0-9](?:[_.-]?[a-z0-9]+)*|composer(?:-(?:plugin|runtime)-api)?)$}iD`
+
+// PlatformPackageRegexp is PlatformPackageRegex compiled, for callers that
+// must see the PcreException Preg::isMatch throws when the engine gives up
+// (JsonManipulator::sortPackages); IsPlatformPackage cannot fail.
+var PlatformPackageRegexp = php.MustCompile(PlatformPackageRegex)
+
 // IsPlatformPackage ports PlatformRepository::isPlatformPackage: whether
-// name matches PlatformRepository::PLATFORM_PACKAGE_REGEX,
-//
-//	{^(?:php(?:-64bit|-ipv6|-zts|-debug)?|hhvm|(?:ext|lib)-[a-z0-9](?:[_.-]?[a-z0-9]+)*|composer(?:-(?:plugin|runtime)-api)?)$}iD
-//
-// matched by hand, as the solver calls it for every link.
+// name matches PlatformPackageRegex, matched by hand, as the solver calls
+// it for every link.
 func IsPlatformPackage(name string) bool {
 	if len(name) > 4 && (equalFoldASCII(name[:4], "ext-") || equalFoldASCII(name[:4], "lib-")) {
 		return isPlatformSuffix(name[4:])

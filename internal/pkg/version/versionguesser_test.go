@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/internal/pkgtest"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/util/vcs"
 )
 
 const (
@@ -33,9 +34,18 @@ func keepEnv(t *testing.T) {
 	}
 }
 
+// resetGitVersion clears Git::$version before and after the test, as
+// VersionGuesserTest's setUp and tearDown do.
+func resetGitVersion(t *testing.T) {
+	t.Helper()
+	vcs.SetVersion("", false)
+	t.Cleanup(func() { vcs.SetVersion("", false) })
+}
+
 func guess(t *testing.T, expectations []pkgtest.Expectation, config *php.Array) *loader.VersionData {
 	t.Helper()
 	keepEnv(t)
+	resetGitVersion(t)
 
 	process := pkgtest.NewProcessExecutorMock(t)
 	process.Expects(expectations, true, pkgtest.Expectation{})

@@ -1,5 +1,5 @@
 <?php
-// Generates internal/util/testdata/oracle/util.json from the Composer
+// Generates internal/util/testdata/oracle/util.json.gz from the Composer
 // sources in .ref/composer:
 //   paths     - Filesystem::normalizePath, isAbsolutePath, trimTrailingSlash,
 //               isLocalPath and getPlatformPath (POSIX and Windows)
@@ -295,7 +295,7 @@ foreach ($mirrors as $m) {
     }
 }
 
-$file = dirname(__DIR__, 3).'/internal/util/testdata/oracle/util.json';
+$file = dirname(__DIR__, 3).'/internal/util/testdata/oracle/util.json.gz';
 @mkdir(dirname($file), 0777, true);
-file_put_contents($file, json_encode($out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n");
+file_put_contents($file, gzencode(json_encode($out, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n", 9));
 fwrite(STDERR, sprintf("paths %d, shortest %d, urls %d, noproxy %d, filter %d, expand %d, mirror %d\n", count($out['paths']), count($out['shortest']), count($out['urls']), array_sum(array_map(fn ($c) => count($c['urls']), $out['noproxy'])), count($out['filter']), count($out['expand']), count($out['mirror'])));

@@ -33,21 +33,36 @@ var installedPhpDir = php.MustCompile(`{=>\s*+__DIR__\s*+\.\s*+(['"])}`)
 // installed.php at path, as Composer hands it to
 // InstalledVersions::reload, when the file only contains the code write()
 // generates (so that evaluating it is safe). ok is false otherwise.
+//
+// It treats the PcreException Preg throws as "not loaded"; Factory lets
+// that exception through, so callers porting Factory use
+// SafelyLoadInstalledVersionsChecked.
 func SafelyLoadInstalledVersions(path string) (data *php.Array, ok bool) {
+	data, ok, _ = SafelyLoadInstalledVersionsChecked(path)
+
+	return data, ok
+}
+
+// SafelyLoadInstalledVersionsChecked is SafelyLoadInstalledVersions with
+// the PcreException (a *php.PcreError) Preg::isMatch/Preg::replace throw,
+// e.g. when a large installed.php exhausts the backtrack limit.
+func SafelyLoadInstalledVersionsChecked(path string) (data *php.Array, ok bool, err error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, false
+		return nil, false, nil
 	}
 	installedVersionsData := string(content)
-	if matched, err := installedPhpPattern.IsMatch(php.Trim(installedVersionsData)); err != nil || !matched {
-		return nil, false
+	matched, err := installedPhpPattern.IsMatch(php.Trim(installedVersionsData))
+	if err != nil || !matched {
+		return nil, false, err
 	}
 	code, _, err := installedPhpDir.Replace(installedVersionsData, "=> "+php.VarExport(util.Dirname(path))+" . $1", -1)
 	if err != nil {
-		return nil, false
+		return nil, false, err
 	}
+	data, ok = evalInstalledPhp(code)
 
-	return evalInstalledPhp(code)
+	return data, ok, nil
 }
 
 // evalInstalledPhp evaluates `?>` . code for code in the grammar of

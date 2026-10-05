@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // countTolerance bounds the difference from PHP's count. PCRE2 skips
@@ -38,8 +40,8 @@ func TestPregMatchLimitCounts(t *testing.T) {
 	}
 	type countCase struct{ pattern, subject string }
 	var cases []countCase
-	for _, file := range []string{"testdata/preg/golden.json", "testdata/preg/engine_golden.json"} {
-		data, err := os.ReadFile(file)
+	for _, file := range []string{"testdata/preg/golden.json.gz", "testdata/preg/engine_golden.json"} {
+		data, err := testutil.ReadGoldenFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}

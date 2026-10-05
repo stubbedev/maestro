@@ -24,6 +24,7 @@ func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference,
 		ref = *reference
 		// if ($reference): "0" is falsy too.
 		if phpTruthy(ref) {
+			// [a-f0-9]* is possessive before $: Preg::isMatch cannot throw.
 			if isRef, _ := mirrorReference.IsMatch(ref); !isRef {
 				ref = md5Hex(ref)
 			}
@@ -51,8 +52,10 @@ func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference,
 // ComposerMirrorProcessGitURL ports ComposerMirror::processGitUrl. typ is
 // nil for PHP's null.
 func ComposerMirrorProcessGitURL(mirrorURL, packageName, url string, typ *string) string {
-	// These patterns cannot fail (PHP's PcreException), so errors are not
-	// checked.
+	// Preg::isMatch throws a PcreException on these patterns only for URLs
+	// of about a megabyte (the backtrack limit). Package::getSourceUrls and
+	// getDistUrls, which call this, have no error result here, so such a
+	// URL reads as no match (see the regex audit in docs/tasks/HANDOFF.md).
 	if m, _ := mirrorGitHub.Match(url); m != nil {
 		url = "gh-" + m.Get(1) + "/" + m.Get(2)
 	} else if m, _ := mirrorBitbucket.Match(url); m != nil {

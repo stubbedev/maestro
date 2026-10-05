@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // cmdBuiltins are cmd.exe's built-in commands, which exist as no file.
@@ -99,7 +101,14 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 		return "", false
 	}
 
-	out, _ := exec.Command("/bin/sh", "-c", "command -v -- "+escapeShellArg(name)).Output() //nolint:gosec // the name is escaped, as exec() is in Symfony.
+	// A name with a NUL byte makes escapeshellarg() throw a ValueError in
+	// PHP; find() has no error result here, so it is not found.
+	quoted, err := php.Escapeshellarg(name)
+	if err != nil {
+		return "", false
+	}
+
+	out, _ := exec.Command("/bin/sh", "-c", "command -v -- "+quoted).Output() //nolint:gosec // the name is escaped, as exec() is in Symfony.
 
 	if result := phpExecLastLine(string(out)); result != "" && isExecutable(result) {
 		return result, true
@@ -127,11 +136,6 @@ func pathinfoExtension(path string, windows bool) string {
 	}
 
 	return ""
-}
-
-// escapeShellArg ports PHP's escapeshellarg on Unix.
-func escapeShellArg(arg string) string {
-	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
 }
 
 // PhpExecutableFinder ports Symfony\Component\Process\PhpExecutableFinder.

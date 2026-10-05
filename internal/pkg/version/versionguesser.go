@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/vcs"
 )
 
 // ProcessResult is the part of a finished Symfony Process the guesser
@@ -56,15 +57,12 @@ func (p processExecutor) ExecuteAsync(command []string, cwd string) (*util.Promi
 // VersionGuesser ports Composer\Package\Version\VersionGuesser: it guesses
 // the root package's version from the VCS checkout it lives in.
 //
-// Composer's Git::getVersion caches the git version in a static
-// property; here the cache belongs to the guesser.
+// The git version is Git::getVersion's process-wide cache
+// (vcs.GetVersion), as in Composer.
 type VersionGuesser struct {
 	process       ProcessExecutor
 	versionParser semver.VersionParser
 	io            io.IO
-
-	gitVersionChecked bool
-	gitVersion        string // "" when git --version failed
 }
 
 // NewVersionGuesser ports VersionGuesser::__construct (Composer also takes
@@ -154,14 +152,12 @@ var (
 	gitCurrentBranch = php.MustCompile(`{^(?:\* ) *(\(no branch\)|\(detached from \S+\)|\(HEAD detached at \S+\)|\S+) *([a-f0-9]+) .*$}`)
 	gitRemoteHead    = php.MustCompile(`{^ *.+/HEAD }`)
 	gitBranch        = php.MustCompile(`{^(?:\* )? *((?:remotes/(?:origin|upstream)/)?[^\s/]+) *([a-f0-9]+) .*$}`)
-	gitVersionOutput = php.MustCompile(`/^git version (\d+(?:\.\d+)+)/m`)
-	revListCommit    = php.MustCompile(`{^commit [a-f0-9]{40}\n?}m`)
 	remotePrefix     = php.MustCompile(`{^remotes/\S+/}`)
 	rootVersionDev   = php.MustCompile(`{^(\d+(?:\.\d+)*)-dev$}i`)
 )
 
 func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) (*versionData, error) {
-	if err := g.gitCleanEnv(); err != nil {
+	if err := vcs.CleanEnv(g.vcsProcess()); err != nil {
 		return nil, err
 	}
 
@@ -210,7 +206,11 @@ func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) 
 				commit = pkg.Str(match.Get(2))
 			}
 
-			if !mustMatch(gitRemoteHead, branch) {
+			isRemoteHead, err := gitRemoteHead.IsMatch(branch)
+			if err != nil {
+				return nil, err
+			}
+			if !isRemoteHead {
 				if match, err := gitBranch.MatchStrictGroups(branch); err != nil {
 					return nil, err
 				} else if match != nil {
@@ -231,7 +231,7 @@ func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) 
 		}
 	}
 
-	if err := g.checkForRepoOwnershipError(g.process.GetErrorOutput(), path); err != nil {
+	if err := vcs.CheckForRepoOwnershipError(g.process.GetErrorOutput(), path, g.io); err != nil {
 		return nil, err
 	}
 
@@ -263,12 +263,12 @@ func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) 
 
 // headCommit runs git rev-list for HEAD's commit hash.
 func (g *VersionGuesser) headCommit(path string) (pkg.NullString, error) {
-	noShowSignature, err := g.gitNoShowSignatureFlags()
+	noShowSignature, err := vcs.GetNoShowSignatureFlags(g.vcsProcess())
 	if err != nil {
 		return pkg.NullString{}, err
 	}
 
-	command, err := g.gitBuildRevListCommand(append([]string{"--format=%H", "-n1", "HEAD"}, noShowSignature...))
+	command, err := vcs.BuildRevListCommand(g.vcsProcess(), append([]string{"--format=%H", "-n1", "HEAD"}, noShowSignature...))
 	if err != nil {
 		return pkg.NullString{}, err
 	}
@@ -280,7 +280,7 @@ func (g *VersionGuesser) headCommit(path string) (pkg.NullString, error) {
 		return pkg.NullString{}, err
 	}
 
-	parsed, err := g.gitParseRevListOutput(output)
+	parsed, err := vcs.ParseRevListOutput(output, g.vcsProcess())
 	if err != nil {
 		return pkg.NullString{}, err
 	}
@@ -575,8 +575,7 @@ func (g *VersionGuesser) guessFossilVersion(path string) (*versionData, error) {
 }
 
 func (g *VersionGuesser) guessSvnVersion(packageConfig *php.Array, path string) (*versionData, error) {
-	// Svn::cleanEnv: clean up env for OSX, see https://github.com/composer/composer/issues/2146#issuecomment-35478940
-	util.ClearEnv("DYLD_LIBRARY_PATH")
+	vcs.SvnCleanEnv()
 
 	// try to fetch current version from svn
 	var output string
@@ -641,134 +640,35 @@ func (g *VersionGuesser) RootVersionFromEnv() (string, error) {
 		return "", &util.RuntimeError{Message: "COMPOSER_ROOT_VERSION not set or empty"}
 	}
 
-	if match := mustMatchGroups(rootVersionDev, version); match != nil {
+	// COMPOSER_ROOT_VERSION can be long enough to exhaust the backtrack
+	// limit: Preg::isMatch's PcreException is returned.
+	match, err := rootVersionDev.Match(version)
+	if err != nil {
+		return "", err
+	}
+	if match != nil {
 		version = match.Get(1) + ".x-dev"
 	}
 
 	return version, nil
 }
 
-// Composer\Util\Git helpers.
+// vcsProcess adapts the guesser's process executor to the Composer\Util\Git
+// helpers of internal/util/vcs.
+func (g *VersionGuesser) vcsProcess() vcs.Process { return vcsProcess{g.process} }
 
-// getGitVersion ports Git::getVersion.
-func (g *VersionGuesser) getGitVersion() (string, error) {
-	if !g.gitVersionChecked {
-		g.gitVersionChecked = true
+type vcsProcess struct{ ProcessExecutor }
 
-		var output string
-
-		code, err := g.process.Execute([]string{"git", "--version"}, &output, "")
-		if err != nil {
-			return "", err
-		}
-
-		if code == 0 {
-			if match := mustMatchGroups(gitVersionOutput, output); match != nil {
-				g.gitVersion = match.Get(1)
-			}
-		}
+func (p vcsProcess) Execute(command util.Command, output *string, cwd string) (int, error) {
+	if command.IsShell() {
+		return 0, &util.RuntimeError{Message: "VersionGuesser runs argument lists only: " + command.Line()}
 	}
 
-	return g.gitVersion, nil
+	return p.ProcessExecutor.Execute(command.Args(), output, cwd)
 }
 
-// gitVersionAtLeast reports $gitVersion !== null && version_compare($gitVersion, min, '>=').
-func (g *VersionGuesser) gitVersionAtLeast(minVersion string) (bool, error) {
-	v, err := g.getGitVersion()
-	if err != nil || v == "" {
-		return false, err
-	}
-
-	return semver.VersionCompare(v, minVersion) >= 0, nil
-}
-
-// gitCleanEnv ports Git::cleanEnv.
-func (g *VersionGuesser) gitCleanEnv() error {
-	recent, err := g.gitVersionAtLeast("2.3.0")
-	if err != nil {
-		return err
-	}
-
-	if recent {
-		// added in git 2.3.0, prevents prompting the user for username/password
-		if v, _ := util.GetEnv("GIT_TERMINAL_PROMPT"); v != "0" {
-			util.PutEnv("GIT_TERMINAL_PROMPT", "0")
-		}
-	} else if v, _ := util.GetEnv("GIT_ASKPASS"); v != "echo" {
-		// added in git 1.7.1, prevents prompting the user for username/password
-		util.PutEnv("GIT_ASKPASS", "echo")
-	}
-
-	// clean up rogue git env vars in case this is running in a git hook
-	for _, name := range [...]string{"GIT_DIR", "GIT_WORK_TREE"} {
-		if v, _ := util.GetEnv(name); php.ToBool(v) {
-			util.ClearEnv(name)
-		}
-	}
-
-	// Run processes with predictable LANGUAGE
-	if v, _ := util.GetEnv("LANGUAGE"); v != "C" {
-		util.PutEnv("LANGUAGE", "C")
-	}
-
-	// clean up env for OSX, see https://github.com/composer/composer/issues/2146#issuecomment-35478940
-	util.ClearEnv("DYLD_LIBRARY_PATH")
-
-	return nil
-}
-
-// checkForRepoOwnershipError ports Git::checkForRepoOwnershipError.
-func (g *VersionGuesser) checkForRepoOwnershipError(output, path string) error {
-	if !strings.Contains(output, "fatal: detected dubious ownership") {
-		return nil
-	}
-
-	msg := "The repository at \"" + path + "\" does not have the correct ownership and git refuses to use it:\n\n" + output
-	if g.io == nil {
-		return &util.RuntimeError{Message: msg}
-	}
-
-	g.io.WriteError("<warning>"+msg+"</warning>", true, io.Normal)
-
-	return nil
-}
-
-// gitBuildRevListCommand ports Git::buildRevListCommand.
-func (g *VersionGuesser) gitBuildRevListCommand(arguments []string) ([]string, error) {
-	command := []string{"git", "rev-list"}
-
-	supported, err := g.gitVersionAtLeast("2.33.0-rc0")
-	if err != nil {
-		return nil, err
-	}
-
-	if supported {
-		command = append(command, "--no-commit-header")
-	}
-
-	return append(command, arguments...), nil
-}
-
-// gitNoShowSignatureFlags ports Git::getNoShowSignatureFlags.
-func (g *VersionGuesser) gitNoShowSignatureFlags() ([]string, error) {
-	supported, err := g.gitVersionAtLeast("2.10.0-rc0")
-	if err != nil || !supported {
-		return nil, err
-	}
-
-	return []string{"--no-show-signature"}, nil
-}
-
-// gitParseRevListOutput ports Git::parseRevListOutput.
-func (g *VersionGuesser) gitParseRevListOutput(output string) (string, error) {
-	// If git supports --no-commit-header, output is already clean
-	supported, err := g.gitVersionAtLeast("2.33.0-rc0")
-	if err != nil || supported {
-		return output, err
-	}
-
-	// Filter out "commit <hash>" lines for older git versions
-	return mustReplace(revListCommit, output, ""), nil
+func (p vcsProcess) ExecuteFunc(command util.Command, _ func(typ, buffer string), _ string) (int, error) {
+	return 0, &util.RuntimeError{Message: "VersionGuesser cannot stream the output of " + command.String()}
 }
 
 // Helpers.
@@ -795,13 +695,4 @@ func jsonEncode(v any) string {
 	s, _ := php.JSONEncode(v, 0)
 
 	return s
-}
-
-func mustMatchGroups(re *php.Regexp, subject string) *php.Match {
-	m, err := re.Match(subject)
-	if err != nil {
-		panic(err)
-	}
-
-	return m
 }

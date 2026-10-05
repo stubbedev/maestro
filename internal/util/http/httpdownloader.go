@@ -195,6 +195,8 @@ func (h *HttpDownloader) SetOptions(options *php.Array) {
 	h.options = php.ArrayReplaceRecursive(h.options, options).Clone()
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var urlCredentialsRegex = php.MustCompile(`{^https?://([^:/]+):([^@/]+)@([^/]+)}i`)
 
 // addJob is addJob(); h.mu is held.
@@ -225,8 +227,8 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 
 	// capture username/password from URL if there is one
 	if m, _ := urlCredentialsRegex.MatchStrictGroups(url); m != nil {
-		password := rawurldecode(m.Get(2))
-		h.io.SetAuthentication(job.origin, rawurldecode(m.Get(1)), &password)
+		password := php.Rawurldecode(m.Get(2))
+		h.io.SetAuthentication(job.origin, php.Rawurldecode(m.Get(1)), &password)
 	}
 
 	promise, resolve, reject := util.NewDeferred[*Response](func() { h.cancelJob(job) })
@@ -327,7 +329,7 @@ func (h *HttpDownloader) startJob(job *httpJob) {
 	h.runningJobs++
 
 	if h.disabled {
-		if _, ok := path(job.options, "http", "header"); ok && containsFold(strings.Join(headerList(job.options), ""), "if-modified-since") {
+		if _, ok := path(job.options, "http", "header"); ok && php.Stripos(strings.Join(headerList(job.options), ""), "if-modified-since") >= 0 {
 			job.resolve(NewResponse(job.url, 304, []string{}, ""))
 		} else {
 			e := util.NewTransportError("Network disabled, request canceled: "+util.SanitizeURL(job.url), 499)
@@ -475,6 +477,8 @@ func (h *HttpDownloader) response(id int) (*Response, error) {
 	return job.response, nil
 }
 
+// Infallible: the pattern does bounded work per start position, so Preg
+// cannot throw on it and its call sites ignore the error.
 var httpURLRegex = php.MustCompile(`{^https?://}i`)
 
 // canUseCurl is canUseCurl(): http(s) requests not asking for

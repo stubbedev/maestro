@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -38,7 +39,6 @@ var (
 	trailingCommaCapture  = php.MustCompile(`#,(\s*)$#`)
 	emptyObjectDocument   = php.MustCompile(`#^\{\s*\}\s*$#`)
 	repositoryURLRegex    = php.MustCompile(`{` + manipulatorDefines + `^(?P<start>\s*\{\s*(?:(?&string)\s*:\s*(?&json)\s*,\s*)*?"url"\s*:\s*)(?P<url>(?&string))(?P<end>.*)}sx`)
-	platformPackageRegex  = php.MustCompile(`{^(?:php(?:-64bit|-ipv6|-zts|-debug)?|hhvm|(?:ext|lib)-[a-z0-9](?:[_.-]?[a-z0-9]+)*|composer(?:-(?:plugin|runtime)-api)?)$}iD`)
 	sortPrefixPatterns    = [...]*php.Regexp{php.MustCompile(`/^php/`), php.MustCompile(`/^hhvm/`), php.MustCompile(`/^ext/`), php.MustCompile(`/^lib/`), php.MustCompile(`/^\D/`)}
 	sortPrefixReplacement = [...]string{`0-$0`, `1-$0`, `2-$0`, `3-$0`, `4-$0`}
 )
@@ -137,7 +137,10 @@ func NewManipulator(contents string) (*Manipulator, error) {
 		contents = "{" + m.newline + "}"
 	}
 	m.contents = contents
-	m.indent = DetectIndenting(m.contents)
+	var err error
+	if m.indent, err = detectIndenting(m.contents); err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }
@@ -351,7 +354,7 @@ func sortPackageMap(packages *php.Array) error {
 			return typeError("Composer\\Repository\\PlatformRepository::isPlatformPackage(): Argument #1 ($name) must be of type string, int given")
 		}
 		requirement := k.String()
-		ok, err := platformPackageRegex.IsMatch(requirement)
+		ok, err := pkg.PlatformPackageRegexp.IsMatch(requirement)
 		if err != nil {
 			return err
 		}

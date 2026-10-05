@@ -63,7 +63,7 @@ func (d *HgDriver) updateClone() error {
 		return &util.RuntimeError{Message: "HgDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 	}
 
-	d.repoDir = cacheDir + "/" + replace(alnumOnly, "-", util.SanitizeURL(d.url)) + "/"
+	d.repoDir = cacheDir + "/" + replaceInfallible(alnumOnly, "-", util.SanitizeURL(d.url)) + "/"
 
 	fs := util.NewFilesystem(nil)
 	if err := util.EnsureDirectoryExists(cacheDir); err != nil {
@@ -195,7 +195,11 @@ func (d *HgDriver) Tags() (*php.Array, error) {
 			continue
 		}
 
-		if m := match(hgTag, tag); m != nil {
+		m, err := match(hgTag, tag)
+		if err != nil {
+			return nil, err
+		}
+		if m != nil {
 			tags.Set(m.Get(1), m.Get(2))
 		}
 	}
@@ -248,7 +252,11 @@ func (d *HgDriver) refs(command []string, re *php.Regexp) (*php.Array, error) {
 			continue
 		}
 
-		if m := match(re, line); m != nil && m.Get(1)[0] != '-' {
+		m, err := match(re, line)
+		if err != nil {
+			return nil, err
+		}
+		if m != nil && m.Get(1)[0] != '-' {
 			refs.Set(m.Get(1), m.Get(2))
 		}
 	}
@@ -260,8 +268,8 @@ var hgURL = php.MustCompile(`#(^(?:https?|ssh)://(?:[^@]+@)?bitbucket.org|https:
 
 // hgSupports ports HgDriver::supports.
 func hgSupports(deps Deps, url string, deep bool) (bool, error) {
-	if matches(hgURL, url) {
-		return true, nil
+	if ok, err := matches(hgURL, url); err != nil || ok {
+		return ok, err
 	}
 
 	var output string

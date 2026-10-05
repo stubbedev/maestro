@@ -89,20 +89,29 @@ var (
 // ParseHtmlExtensionInfo ports Runtime::parseHtmlExtensionInfo, which turns
 // the HTML ReflectionExtension::info() prints outside the CLI SAPI into the
 // CLI's text format. maestro only runs the CLI, so it is used by tests.
-func ParseHtmlExtensionInfo(html string) string {
+// The error is the PcreException Preg throws.
+func ParseHtmlExtensionInfo(html string) (string, error) {
 	var result []string
 
-	if m, _ := extensionInfoTitleRe.Match(html); m != nil {
-		result = append(result, php.Trim(HTMLEntityDecode(m.Get(1))), "")
+	m, err := extensionInfoTitleRe.Match(html)
+	if err != nil {
+		return "", err
+	}
+	if m != nil {
+		result = append(result, php.Trim(php.HTMLEntityDecode(m.Get(1))), "")
 	}
 
-	if matches, _ := extensionInfoRowRe.MatchAll(html); len(matches) > 0 {
+	matches, err := extensionInfoRowRe.MatchAll(html)
+	if err != nil {
+		return "", err
+	}
+	if len(matches) > 0 {
 		for _, m := range matches {
-			key := php.Trim(HTMLEntityDecode(php.StripTags(m.Get(1))))
-			value := php.Trim(HTMLEntityDecode(php.StripTags(m.Get(2))))
+			key := php.Trim(php.HTMLEntityDecode(php.StripTags(m.Get(1))))
+			value := php.Trim(php.HTMLEntityDecode(php.StripTags(m.Get(2))))
 			result = append(result, key+" => "+value)
 		}
 	}
 
-	return strings.Join(result, "\n")
+	return strings.Join(result, "\n"), nil
 }

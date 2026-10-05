@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/archive"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -102,7 +103,7 @@ func (a *ArchiveDownloader) installOperationAppendix(pkg.PackageInterface, strin
 
 func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+FormatInstall(p)+": Extracting archive", true, mio.Normal)
+		c.io.WriteError("  - "+operation.FormatInstall(p, false)+": Extracting archive", true, mio.Normal)
 	}
 
 	// clean up the target directory, unless it contains the vendor dir, as

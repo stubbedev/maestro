@@ -124,15 +124,15 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 
 	titleStr, ok := title.(string)
 	if !ok {
-		return nil, typeError("SecurityAdvisory::__construct", 4, "title", "string", title)
+		return nil, pkg.ArgumentTypeError("SecurityAdvisory::__construct", 4, "title", "string", title)
 	}
 	sourceList, ok := sources.(*php.Array)
 	if !ok {
-		return nil, typeError("SecurityAdvisory::__construct", 5, "sources", "array", sources)
+		return nil, pkg.ArgumentTypeError("SecurityAdvisory::__construct", 5, "sources", "array", sources)
 	}
 	reportedAtStr, ok := reportedAt.(string)
 	if !ok {
-		return nil, typeError("DateTimeImmutable::__construct", 1, "datetime", "string", reportedAt)
+		return nil, pkg.ArgumentTypeError("DateTimeImmutable::__construct", 1, "datetime", "string", reportedAt)
 	}
 	date, err := loader.ParseDateTime(reportedAtStr)
 	if err != nil {
@@ -150,7 +150,7 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 		case string:
 			*f.dst = pkg.Str(v)
 		default:
-			return nil, typeError("SecurityAdvisory::__construct", f.pos, f.key, "?string", v)
+			return nil, pkg.ArgumentTypeError("SecurityAdvisory::__construct", f.pos, f.key, "?string", v)
 		}
 	}
 
@@ -194,7 +194,7 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 		case string:
 			*f.dst = pkg.Str(v)
 		default:
-			return nil, typeError("Composer\\FilterList\\FilterListEntry::__construct", f.pos, f.key, "?string", v)
+			return nil, pkg.ArgumentTypeError("Composer\\FilterList\\FilterListEntry::__construct", f.pos, f.key, "?string", v)
 		}
 	}
 
@@ -211,16 +211,10 @@ func arrayString(data *php.Array, key, fn string) (string, error) {
 	}
 	s, ok := v.(string)
 	if !ok {
-		return "", typeError(fn, 1, key, "string", v)
+		return "", pkg.ArgumentTypeError(fn, 1, key, "string", v)
 	}
 
 	return s, nil
-}
-
-// typeError is the TypeError strict_types raises when fn's argument n is
-// given a value of the wrong type.
-func typeError(fn string, n int, param, want string, got any) error {
-	return &pkg.TypeError{Message: fn + "(): Argument #" + itoa(n) + " ($" + param + ") must be of type " + want + ", " + php.TypeName(got) + " given"}
 }
 
 // isUnexpectedValue reports whether err is (or wraps) PHP's

@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/internal/pkgtest"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/util/vcs"
 )
 
 type repositoryManagerStub struct{}
@@ -22,9 +23,13 @@ type rootConfigStub struct{}
 func (rootConfigStub) Repositories() *php.Array { return php.NewArray() }
 
 // keepGitEnv restores the variables the version guesser's Git::cleanEnv
-// changes.
+// changes, and clears the process-wide git version cache (Git::$version)
+// so that each test sees its own git --version call.
 func keepGitEnv(t *testing.T) {
 	t.Helper()
+
+	vcs.SetVersion("", false)
+	t.Cleanup(func() { vcs.SetVersion("", false) })
 
 	for _, name := range []string{"GIT_TERMINAL_PROMPT", "GIT_ASKPASS", "GIT_DIR", "GIT_WORK_TREE", "LANGUAGE", "DYLD_LIBRARY_PATH", "COMPOSER_ROOT_VERSION"} {
 		t.Setenv(name, os.Getenv(name))

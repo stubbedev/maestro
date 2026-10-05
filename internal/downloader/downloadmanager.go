@@ -385,23 +385,27 @@ func (m *DownloadManager) Cleanup(typ string, p pkg.PackageInterface, targetDir 
 }
 
 // resolvePackageInstallPreference is resolvePackageInstallPreference():
-// "dist" or "source".
-func (m *DownloadManager) resolvePackageInstallPreference(p pkg.PackageInterface) string {
+// "dist" or "source", or the PcreException Preg::isMatch throws.
+func (m *DownloadManager) resolvePackageInstallPreference(p pkg.PackageInterface) (string, error) {
 	for _, pref := range m.packagePreferences {
-		if ok, _ := pref.pattern.IsMatch(p.Name()); ok {
+		ok, err := pref.pattern.IsMatch(p.Name())
+		if err != nil {
+			return "", err
+		}
+		if ok {
 			if pref.preference == "dist" || (!p.IsDev() && pref.preference == "auto") {
-				return "dist"
+				return "dist", nil
 			}
 
-			return "source"
+			return "source", nil
 		}
 	}
 
 	if p.IsDev() {
-		return "source"
+		return "source", nil
 	}
 
-	return "dist"
+	return "dist", nil
 }
 
 // availableSources is getAvailableSources().
@@ -440,8 +444,18 @@ func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]stri
 	}
 
 	// reverse sources in case dist is the preferred source for this package
-	if !m.preferSource && (m.preferDist || m.resolvePackageInstallPreference(p) == "dist") {
-		slices.Reverse(sources)
+	if !m.preferSource {
+		preferDist := m.preferDist
+		if !preferDist {
+			preference, err := m.resolvePackageInstallPreference(p)
+			if err != nil {
+				return nil, err
+			}
+			preferDist = preference == "dist"
+		}
+		if preferDist {
+			slices.Reverse(sources)
+		}
 	}
 
 	return sources, nil

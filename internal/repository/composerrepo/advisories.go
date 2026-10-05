@@ -29,17 +29,21 @@ func (r *ComposerRepository) HasSecurityAdvisories() (bool, error) {
 
 // withoutUnavailable drops the names the repository's available-packages
 // / available-package-patterns directives leave out.
-func (r *ComposerRepository) withoutUnavailable(packageConstraintMap *repository.ConstraintMap) *repository.ConstraintMap {
+func (r *ComposerRepository) withoutUnavailable(packageConstraintMap *repository.ConstraintMap) (*repository.ConstraintMap, error) {
 	packageConstraintMap = packageConstraintMap.Clone()
 	if r.hasAvailablePackageList {
 		for name := range packageConstraintMap.Clone().All() {
-			if !r.lazyProvidersRepoContains(php.Strtolower(name)) {
+			contains, err := r.lazyProvidersRepoContains(php.Strtolower(name))
+			if err != nil {
+				return nil, err
+			}
+			if !contains {
 				packageConstraintMap.Delete(name)
 			}
 		}
 	}
 
-	return packageConstraintMap
+	return packageConstraintMap, nil
 }
 
 // metadataNames are the lowercased names of a constraint map the
@@ -73,7 +77,10 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 	apiURL := r.securityAdvisoryConfig.apiURL
 
 	// respect available-package-patterns / available-packages directives from the repo
-	packageConstraintMap = r.withoutUnavailable(packageConstraintMap)
+	packageConstraintMap, err := r.withoutUnavailable(packageConstraintMap)
+	if err != nil {
+		return repository.AdvisoryResult{}, err
+	}
 
 	parser := pkg.NewVersionParser()
 	create := func(data any, name string) (repository.Advisory, error) {
@@ -164,7 +171,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 		for i, name := range packageConstraintMap.Keys() {
 			pairs = append(pairs, "packages["+strconv.Itoa(i)+"]", name)
 		}
-		options := filterlist.PostOptions(r.options, "Content-type: application/x-www-form-urlencoded", http.HTTPBuildQuery(pairs...))
+		options := filterlist.PostOptions(r.options, "Content-type: application/x-www-form-urlencoded", php.HTTPBuildQuery(pairs...))
 
 		advisoryData, err := r.getJSON(apiURL, options)
 		if err != nil {
@@ -232,7 +239,10 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 	}
 
 	// respect available-package-patterns / available-packages directives from the repo
-	packageConstraintMap = r.withoutUnavailable(packageConstraintMap)
+	packageConstraintMap, err := r.withoutUnavailable(packageConstraintMap)
+	if err != nil {
+		return nil, err
+	}
 
 	// api-url returns the matched filter entries directly: skip the summary + per-package
 	// metadata path entirely. As with summary-url below, fall through to the cached metadata

@@ -21,6 +21,9 @@
 //   looseequals.json  PHP semantics semver relies on: $a == $b on strings
 //   increment.json    and $numericString + $int, as a string
 //
+// versions, constraints and compare are over 1 MB and so written gzipped
+// (<name>.json.gz, docs/PORTING.md).
+//
 // Exceptions are recorded as {"e": [class, message]}. Every string in the
 // corpus is valid UTF-8 so that it survives JSON.
 //
@@ -410,14 +413,16 @@ function write(string $file, array $rows)
     foreach ($rows as $row) {
         $lines[] = json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
-    file_put_contents($file, "[\n".implode(",\n", $lines)."\n]\n");
+    $json = "[\n".implode(",\n", $lines)."\n]\n";
+    // Goldens over 1 MB are committed gzipped (docs/PORTING.md).
+    file_put_contents($file, substr($file, -3) === '.gz' ? gzencode($json, 9) : $json);
 }
 
-write($dir.'/versions.json', $versionsOut);
+write($dir.'/versions.json.gz', $versionsOut);
 write($dir.'/fullversions.json', $fullOut);
-write($dir.'/constraints.json', $constraintsOut);
+write($dir.'/constraints.json.gz', $constraintsOut);
 write($dir.'/pairs.json', $pairsOut);
-write($dir.'/compare.json', $compareOut);
+write($dir.'/compare.json.gz', $compareOut);
 write($dir.'/versioncompare.json', $vcPairsOut);
 write($dir.'/sort.json', $sortOut);
 write($dir.'/looseequals.json', $looseOut);

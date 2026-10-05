@@ -10,27 +10,29 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-// matches is Preg::isMatch($re, $s). Like the other ports, a PCRE failure
-// (only backtracking limits) reads as no match.
-func matches(re *php.Regexp, s string) bool {
-	ok, _ := re.IsMatch(s)
-
-	return ok
+// matches is Preg::isMatch($re, $s); the error is the PcreException Preg
+// throws.
+func matches(re *php.Regexp, s string) (bool, error) {
+	return re.IsMatch(s)
 }
 
 // match is Preg::match($re, $s, $match): nil when re does not match.
-func match(re *php.Regexp, s string) *php.Match {
-	m, _ := re.Match(s)
-
-	return m
+func match(re *php.Regexp, s string) (*php.Match, error) {
+	return re.Match(s)
 }
 
 // replace is Preg::replace($re, $replacement, $s).
-func replace(re *php.Regexp, replacement, s string) string {
+func replace(re *php.Regexp, replacement, s string) (string, error) {
 	out, _, err := re.Replace(s, replacement, -1)
-	if err != nil {
-		return s
-	}
+
+	return out, err
+}
+
+// replaceInfallible is replace for patterns that do bounded work per start
+// position (a character class, an anchored fixed-length prefix, ...),
+// which cannot exhaust PCRE's limits: Preg::replace never throws on them.
+func replaceInfallible(re *php.Regexp, replacement, s string) string {
+	out, _, _ := re.Replace(s, replacement, -1)
 
 	return out
 }

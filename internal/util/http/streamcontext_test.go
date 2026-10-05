@@ -182,7 +182,7 @@ func TestStreamContextFactory_InitOptionsDoesIncludeProxyAuthHeaders(t *testing.
 		t.Fatal(err)
 	}
 
-	if !containsFold(strings.Join(headerList(options), " "), "Proxy-Authorization") {
+	if php.Stripos(strings.Join(headerList(options), " "), "Proxy-Authorization") < 0 {
 		t.Fatal("expected a Proxy-Authorization header")
 	}
 }
@@ -196,7 +196,7 @@ func TestStreamContextFactory_InitOptionsForCurlDoesNotIncludeProxyAuthHeaders(t
 		t.Fatal(err)
 	}
 
-	if containsFold(strings.Join(headerList(options), " "), "Proxy-Authorization") {
+	if php.Stripos(strings.Join(headerList(options), " "), "Proxy-Authorization") >= 0 {
 		t.Fatal("expected no Proxy-Authorization header")
 	}
 }
@@ -210,7 +210,7 @@ func userAgentOf(t *testing.T, rt Runtime) string {
 	}
 
 	for _, header := range headerList(options) {
-		if hasPrefixFold(header, "User-Agent:") {
+		if php.Strncasecmp(header, "User-Agent:", 11) == 0 {
 			return header
 		}
 	}

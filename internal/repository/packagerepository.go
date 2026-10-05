@@ -84,7 +84,7 @@ func (r *PackageRepository) initialize() error {
 		if ok {
 			p, err = validating.Load(data, pkg.ClassCompletePackage)
 		} else {
-			err = typeError(`Composer\Package\Loader\ValidatingArrayLoader::load`, 1, "config", "array", definition)
+			err = pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::load`, 1, "config", "array", definition)
 		}
 		if err != nil {
 			encoded, _ := php.JSONEncode(definition, 0)
@@ -119,13 +119,13 @@ func (r *PackageRepository) SecurityAdvisories(packageConstraintMap *ConstraintM
 		}
 		list, ok := packageAdvisories.(*php.Array)
 		if !ok {
-			return AdvisoryResult{}, typeError("array_map", 2, "array", "array", packageAdvisories)
+			return AdvisoryResult{}, pkg.ArgumentTypeError("array_map", 2, "array", "array", packageAdvisories)
 		}
 		var matching []Advisory
 		for _, data := range list.All() {
 			advisoryData, ok := data.(*php.Array)
 			if !ok {
-				return AdvisoryResult{}, typeError(`Composer\Repository\PackageRepository::{closure}`, 1, "data", "array", data)
+				return AdvisoryResult{}, pkg.ArgumentTypeError(`Composer\Repository\PackageRepository::{closure}`, 1, "data", "array", data)
 			}
 			advisory, err := CreatePartialSecurityAdvisory(packageName, advisoryData, parser)
 			if err != nil {
@@ -165,7 +165,7 @@ func (r *PackageRepository) Filter(packageConstraintMap *ConstraintMap, _ []stri
 		for _, data := range entries.All() {
 			entryData, ok := data.(*php.Array)
 			if !ok {
-				return nil, typeError(`Composer\FilterList\FilterListEntry::create`, 2, "data", "array", data)
+				return nil, pkg.ArgumentTypeError(`Composer\FilterList\FilterListEntry::create`, 2, "data", "array", data)
 			}
 			entry, err := CreateFilterListEntry(listName, entryData, parser)
 			if err != nil {

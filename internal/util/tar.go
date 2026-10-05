@@ -14,6 +14,8 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // errNoComposerJSON is thrown when neither the archive root nor its single
@@ -173,7 +175,7 @@ func readPharTar(r io.Reader) (map[string]*pharEntry, error) {
 		entry := &pharEntry{isDir: isDir}
 
 		// Only a composer.json at the root or one level down can be read.
-		if !isDir && phpBasename(name, false) == "composer.json" && strings.Count(name, "/") <= 1 {
+		if !isDir && php.Basename(name, "") == "composer.json" && strings.Count(name, "/") <= 1 {
 			if entry.content, err = io.ReadAll(tr); err != nil {
 				return nil, err
 			}

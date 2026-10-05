@@ -1,11 +1,9 @@
 package composerrepo
 
 import (
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	stdio "io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -20,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -32,21 +31,7 @@ const p2Fixtures = "../../pkg/loader/testdata/oracle/p2"
 func readGzip(t testing.TB, path string) string {
 	t.Helper()
 
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := stdio.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return string(data)
+	return string(testutil.ReadGolden(t, path))
 }
 
 // fakeServer is the oracle's FakeServer: a repository server answering

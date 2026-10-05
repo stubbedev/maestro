@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
-	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
@@ -70,7 +69,7 @@ func (r *ComposerRepository) postFileDownload(checksum pkg.NullString, filename 
 // If-Modified-Since header.
 func withIfModifiedSince(options *php.Array, lastModifiedTime string) *php.Array {
 	options = cloneOptions(options)
-	filterlist.AppendHeader(filterlist.HTTPOptions(options), "If-Modified-Since: "+lastModifiedTime)
+	http.AppendHeader(http.HTTPOptions(options), "If-Modified-Since: "+lastModifiedTime)
 
 	return options
 }
@@ -105,7 +104,9 @@ func (r *ComposerRepository) fetchFile(filename, cacheKey, sha256 string, storeL
 
 	// url-encode $ signs in URLs as bad proxies choke on them
 	if pos := strings.IndexByte(filename, '$'); pos > 0 {
-		if m, _ := httpURLRegex.IsMatch(filename); m {
+		if m, err := httpURLRegex.IsMatch(filename); err != nil {
+			return nil, err
+		} else if m {
 			filename = filename[:pos] + "%24" + filename[pos+1:]
 		}
 	}
@@ -637,29 +638,9 @@ func isPHPError(err error) bool {
 // exceptionClass is get_class($e) for the exceptions package loading
 // raises.
 func exceptionClass(err error) string {
-	var (
-		semverUnexpected *semver.UnexpectedValueError
-		unexpected       *util.UnexpectedValueError
-		semverInvalid    *semver.InvalidArgumentError
-		invalid          *util.InvalidArgumentError
-		logic            *util.LogicError
-		errorException   *util.ErrorException
-		transport        *util.TransportError
-	)
-	switch {
-	case errors.As(err, &semverUnexpected), errors.As(err, &unexpected):
-		return "UnexpectedValueException"
-	case errors.As(err, &semverInvalid), errors.As(err, &invalid):
-		return "InvalidArgumentException"
-	case errors.As(err, &logic):
-		return "LogicException"
-	case errors.As(err, &errorException):
-		return "ErrorException"
-	case errors.As(err, &transport):
-		return `Composer\Downloader\TransportException`
-	}
+	class, _ := util.PHPClassOf(err)
 
-	return "RuntimeException"
+	return class
 }
 
 // RuntimeError is the \RuntimeException ComposerRepository raises with a

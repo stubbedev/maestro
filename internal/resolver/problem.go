@@ -915,6 +915,8 @@ func constraintToText(constraint semver.ConstraintInterface) string {
 	}
 
 	pretty := c.PrettyString()
+	// The pretty string of a parsed == constraint is a short version, far
+	// below what could exhaust the backtrack limit: Preg cannot throw.
 	if exact, _ := exactVersionRegex.IsMatch(pretty); !exact {
 		return " " + pretty + " (exact version match)"
 	}

@@ -1,7 +1,8 @@
-// PHP functions the HTTP layer needs that internal/php does not provide
-// yet: rawurlencode, rawurldecode, http_build_query and date.
+// Ports the URL functions of ext/standard/url.c (rawurlencode, urlencode,
+// rawurldecode), http_build_query for string pairs (ext/standard/http.c)
+// and a subset of date() (ext/date/php_date.c).
 
-package http
+package php
 
 import (
 	"strings"
@@ -10,9 +11,9 @@ import (
 
 const upperHex = "0123456789ABCDEF"
 
-// rawurlencode is PHP's rawurlencode (RFC 3986: all but A-Za-z0-9-_.~
+// Rawurlencode ports PHP's rawurlencode (RFC 3986: all but A-Za-z0-9-_.~
 // is percent-encoded).
-func rawurlencode(s string) string {
+func Rawurlencode(s string) string {
 	n := 0
 	for i := range len(s) {
 		if !isUnreserved(s[i]) {
@@ -41,9 +42,9 @@ func isUnreserved(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.' || c == '~'
 }
 
-// urlencode is PHP's urlencode (application/x-www-form-urlencoded: space
+// Urlencode ports PHP's urlencode (application/x-www-form-urlencoded: space
 // is +, ~ is encoded).
-func urlencode(s string) string {
+func Urlencode(s string) string {
 	var b strings.Builder
 
 	b.Grow(len(s))
@@ -66,9 +67,9 @@ func urlencode(s string) string {
 	return b.String()
 }
 
-// rawurldecode is PHP's rawurldecode: %XX sequences are decoded, invalid
+// Rawurldecode ports PHP's rawurldecode: %XX sequences are decoded, invalid
 // ones kept as is, + stays +.
-func rawurldecode(s string) string {
+func Rawurldecode(s string) string {
 	i := strings.IndexByte(s, '%')
 	if i < 0 {
 		return s
@@ -79,8 +80,8 @@ func rawurldecode(s string) string {
 
 	for ; i < len(s); i++ {
 		c := s[i]
-		if c == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]) {
-			b = append(b, unhex(s[i+1])<<4|unhex(s[i+2]))
+		if c == '%' && i+2 < len(s) && isURLHex(s[i+1]) && isURLHex(s[i+2]) {
+			b = append(b, urlUnhex(s[i+1])<<4|urlUnhex(s[i+2]))
 			i += 2
 
 			continue
@@ -92,11 +93,11 @@ func rawurldecode(s string) string {
 	return string(b)
 }
 
-func isHex(c byte) bool {
+func isURLHex(c byte) bool {
 	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
 }
 
-func unhex(c byte) byte {
+func urlUnhex(c byte) byte {
 	switch {
 	case c >= '0' && c <= '9':
 		return c - '0'
@@ -107,8 +108,9 @@ func unhex(c byte) byte {
 	return c - 'A' + 10
 }
 
-// httpBuildQuery is http_build_query($pairs, ”, '&') for string values.
-func httpBuildQuery(pairs ...string) string {
+// HTTPBuildQuery ports http_build_query() with an empty numeric prefix and
+// "&" as separator, for string pairs given as key, value, key, value, ...
+func HTTPBuildQuery(pairs ...string) string {
 	var b strings.Builder
 
 	for i := 0; i+1 < len(pairs); i += 2 {
@@ -116,18 +118,18 @@ func httpBuildQuery(pairs ...string) string {
 			b.WriteByte('&')
 		}
 
-		b.WriteString(urlencode(pairs[i]))
+		b.WriteString(Urlencode(pairs[i]))
 		b.WriteByte('=')
-		b.WriteString(urlencode(pairs[i+1]))
+		b.WriteString(Urlencode(pairs[i+1]))
 	}
 
 	return b.String()
 }
 
-// phpDate formats a Unix timestamp like date() with the default UTC time
-// zone (Composer runs with PHP's default unless php.ini sets
-// date.timezone). Only the Y, m, d, H, i and s characters are supported.
-func phpDate(format string, ts int64) string {
+// Date ports date($format, $ts) in PHP's default UTC time zone (Composer
+// runs with it unless php.ini sets date.timezone). Only the Y, m, d, H, i
+// and s format characters are supported.
+func Date(format string, ts int64) string {
 	t := time.Unix(ts, 0).UTC()
 
 	var b strings.Builder

@@ -1,5 +1,5 @@
 <?php
-// Generates internal/config/testdata/oracle/config.json: Composer\Config
+// Generates internal/config/testdata/oracle/config.json.gz: Composer\Config
 // over thousands of generated merge sequences and environments, recording
 // get() for every key (with and without RELATIVE_PATHS), getRepositories(),
 // raw(), all(), getSourceOfValue() and has(), or the exception thrown.
@@ -330,7 +330,7 @@ for ($n = 0; $n < 1000; $n++) {
     $cases[] = ['env' => (object) $env, 'useEnv' => $useEnv, 'baseDir' => $baseDir, 'ops' => $ops];
 }
 
-$out = dirname(__DIR__, 3).'/internal/config/testdata/oracle/config.json';
+$out = dirname(__DIR__, 3).'/internal/config/testdata/oracle/config.json.gz';
 @mkdir(dirname($out), 0777, true);
-file_put_contents($out, json_encode(['cases' => $cases], JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
+file_put_contents($out, gzencode(json_encode(['cases' => $cases], JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE), 9));
 echo count($cases), " cases\n";

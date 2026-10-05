@@ -6,10 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"os"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -59,7 +59,7 @@ type oracleUTF8 struct {
 
 func loadOracle(t *testing.T) (parse []oracleCase, utf8 []oracleUTF8) {
 	t.Helper()
-	data, err := os.ReadFile("testdata/oracle/jsonlint.json")
+	data, err := testutil.ReadGoldenFile("testdata/oracle/jsonlint.json.gz")
 	if err != nil {
 		t.Fatal(err)
 	}

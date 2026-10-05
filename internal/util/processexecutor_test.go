@@ -15,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	mio "github.com/stubbedev/maestro/internal/io"
 )
 
 // bufferIO stands in for Composer's BufferIO at debug verbosity and records
@@ -29,7 +31,7 @@ type bufferIO struct {
 
 func (b *bufferIO) IsDebug() bool { return b.debug }
 
-func (b *bufferIO) WriteError(message string, newline bool, _ int) {
+func (b *bufferIO) WriteError(message string, newline bool, _ mio.Verbosity) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -39,14 +41,14 @@ func (b *bufferIO) WriteError(message string, newline bool, _ int) {
 	}
 }
 
-func (b *bufferIO) WriteRaw(message string, _ bool, _ int) {
+func (b *bufferIO) WriteRaw(message string, _ bool, _ mio.Verbosity) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	b.raw = append(b.raw, message)
 }
 
-func (b *bufferIO) WriteErrorRaw(message string, _ bool, _ int) {
+func (b *bufferIO) WriteErrorRaw(message string, _ bool, _ mio.Verbosity) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

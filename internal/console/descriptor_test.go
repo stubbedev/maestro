@@ -474,7 +474,7 @@ func TestOracle_Descriptor(t *testing.T) {
 	defer func() { os.Args = prevArgs }()
 
 	var cases []descriptorOracleCase
-	loadOracle(t, "descriptor.json", &cases)
+	loadOracle(t, "descriptor.json.gz", &cases)
 	objects := descOracleObjects()
 	helper := NewDescriptorHelper()
 

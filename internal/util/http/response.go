@@ -44,6 +44,7 @@ func (r *Response) StatusMessage() (string, bool) {
 func findStatusMessage(headers []string) (string, bool) {
 	value, found := "", false
 	for _, header := range headers {
+		// \S+ is possessive before the space: Preg::isMatch cannot throw.
 		if ok, _ := statusLineRegex.IsMatch(header); ok {
 			value, found = header, true
 		}
@@ -55,9 +56,16 @@ func findStatusMessage(headers []string) (string, bool) {
 // Headers is getHeaders().
 func (r *Response) Headers() []string { return r.headers }
 
-// Header is getHeader($name); false for null.
+// Header is getHeader($name); false for null. A PcreException reads as
+// null here; HeaderChecked returns it as getHeader throws it.
 func (r *Response) Header(name string) (string, bool) {
 	return FindHeaderValue(r.headers, name)
+}
+
+// HeaderChecked is getHeader($name) with the PcreException (*php.PcreError)
+// Preg::isMatch throws, e.g. on a header holding a long run of whitespace.
+func (r *Response) HeaderChecked(name string) (string, bool, error) {
+	return FindHeaderValueChecked(r.headers, name)
 }
 
 // Body is getBody().
@@ -96,18 +104,32 @@ func (r *Response) Collect() {
 
 // FindHeaderValue is Response::findHeaderValue: the value of the last
 // header line named name (case-insensitively), trimmed; false for null.
+// A PcreException reads as null here; FindHeaderValueChecked returns it.
 func FindHeaderValue(headers []string, name string) (string, bool) {
+	value, found, _ := FindHeaderValueChecked(headers, name)
+
+	return value, found
+}
+
+// FindHeaderValueChecked is FindHeaderValue with the PcreException
+// (*php.PcreError) Preg::isMatch throws: `(.+?)\s*$` exhausts the
+// backtrack limit on a header line holding some 10 KB of whitespace.
+func FindHeaderValueChecked(headers []string, name string) (string, bool, error) {
 	re, err := php.Compile(`{^` + php.PregQuote(name, "") + `:\s*(.+?)\s*$}i`)
 	if err != nil {
-		return "", false
+		return "", false, err
 	}
 
 	value, found := "", false
 	for _, header := range headers {
-		if m, _ := re.Match(header); m != nil {
+		m, err := re.Match(header)
+		if err != nil {
+			return "", false, err
+		}
+		if m != nil {
 			value, found = m.Get(1), true
 		}
 	}
 
-	return value, found
+	return value, found, nil
 }

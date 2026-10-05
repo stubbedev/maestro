@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 type formatterOracle struct {
@@ -40,7 +42,7 @@ type formatterOracle struct {
 
 func loadOracle(t *testing.T, name string, v any) {
 	t.Helper()
-	data, err := os.ReadFile("testdata/oracle/" + name)
+	data, err := testutil.ReadGoldenFile("testdata/oracle/" + name)
 	if err != nil {
 		t.Fatal(err)
 	}

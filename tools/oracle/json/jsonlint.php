@@ -1,5 +1,5 @@
 <?php
-// Generates internal/json/jsonlint/testdata/oracle/jsonlint.json: the result
+// Generates internal/json/jsonlint/testdata/oracle/jsonlint.json.gz: the result
 // of Seld\JsonLint\JsonParser::parse (seld/jsonlint 1.12.1, as locked by
 // Composer 2.10.3) over thousands of valid, malformed and mutated JSON
 // inputs, under every flag combination, and Utf8Validator::validate over
@@ -203,5 +203,5 @@ for ($i = 0; $i < 1500; $i++) {
 
 $out = dirname(__DIR__, 3).'/internal/json/jsonlint/testdata/oracle';
 @mkdir($out, 0777, true);
-file_put_contents($out.'/jsonlint.json', json_encode(['parse' => $cases, 'utf8' => $utf8], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");
+file_put_contents($out.'/jsonlint.json.gz', gzencode(json_encode(['parse' => $cases, 'utf8' => $utf8], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n", 9));
 echo count($cases), " parse cases, ", count($utf8), " utf8 cases\n";

@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
@@ -197,7 +198,7 @@ func (d *vcsDownloader) Install(p pkg.PackageInterface, path string) (*downloade
 		return nil, missingReference(p)
 	}
 
-	d.io.WriteError("  - "+downloader.FormatInstall(p)+": ", false, mio.Normal)
+	d.io.WriteError("  - "+operation.FormatInstall(p, false)+": ", false, mio.Normal)
 
 	urls := prepareURLs(p.SourceURLs())
 	if r := d.eachURL(urls, func(url string) error { return d.self.doInstall(p, path, url) }); r.failedOnLast {
@@ -213,7 +214,7 @@ func (d *vcsDownloader) Update(initial, target pkg.PackageInterface, path string
 		return nil, missingReference(target)
 	}
 
-	msg, err := downloader.FormatUpdate(initial, target)
+	msg, err := operation.FormatUpdate(initial, target)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +265,7 @@ func (d *vcsDownloader) Update(initial, target pkg.PackageInterface, path string
 
 // Remove is remove().
 func (d *vcsDownloader) Remove(p pkg.PackageInterface, path string) (*downloader.Promise, error) {
-	d.io.WriteError("  - "+downloader.FormatUninstall(p), true, mio.Normal)
+	d.io.WriteError("  - "+operation.FormatUninstall(p), true, mio.Normal)
 
 	promise, err := d.filesystem.RemoveDirectoryAsync(path)
 	if err != nil {
@@ -348,7 +349,7 @@ func (d *vcsDownloader) eachURL(urls []string, run func(url string) error) urlRe
 		}
 
 		if d.io.IsDebug() {
-			class, _ := downloader.PHPClassOf(r.err)
+			class, _ := util.PHPClassOf(r.err)
 			d.io.WriteError("Failed: ["+class+"] "+r.err.Error(), true, mio.Normal)
 		} else if len(urls) > 0 {
 			d.io.WriteError("    Failed, trying the next URL", true, mio.Normal)
@@ -386,7 +387,7 @@ func prepareURLs(urls []string) []string {
 
 		// realpath() below will not understand %20 spaces etc.
 		if strings.Contains(url, "%") {
-			url = http.Rawurldecode(url)
+			url = php.Rawurldecode(url)
 		}
 
 		out[i], _ = util.RealpathOK(url)

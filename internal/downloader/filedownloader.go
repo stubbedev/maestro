@@ -23,6 +23,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/comparer"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -246,7 +247,10 @@ func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path stri
 	st := &dlState{c: c, p: p, retries: 3, urls: make([]dlURL, 0, len(distURLs))}
 
 	for _, url := range distURLs {
-		processed := d.processURL(p, url)
+		processed, err := d.processURL(p, url)
+		if err != nil {
+			return nil, err
+		}
 		// we use the complete download url here to avoid conflicting
 		// entries from different packages, which would potentially allow a
 		// given package in a third party repo to pre-populate the cache for
@@ -494,7 +498,7 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 	}
 
 	if len(st.urls) > 0 {
-		class, code := PHPClassOf(e)
+		class, code := util.PHPClassOf(e)
 		name := st.p.Name()
 
 		if st.c.io.IsDebug() {
@@ -561,7 +565,7 @@ func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, 
 
 func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+FormatInstall(p), true, mio.Normal)
+		c.io.WriteError("  - "+operation.FormatInstall(p, false), true, mio.Normal)
 	}
 
 	// clean up the target directory, unless it contains the vendor dir, as
@@ -592,7 +596,7 @@ func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*
 		// a bin resolving outside of the package would let it chmod an
 		// arbitrary host file, this is reported by BinaryInstaller later in
 		// the same install (GHSA-96h3-5x6v-m776)
-		if !isBinPathInsidePackage(path, binPath) {
+		if !util.IsBinPathInsidePackage(path, binPath) {
 			continue
 		}
 
@@ -610,19 +614,6 @@ func (d *FileDownloader) emptyUnlessContainsVendor(path string) error {
 	}
 
 	return d.fs.EmptyDirectory(path, true)
-}
-
-// isBinPathInsidePackage is BinaryInstaller::isBinPathInsidePackage.
-func isBinPathInsidePackage(installPath, binPath string) bool {
-	realBinPath, ok1 := util.RealpathOK(binPath)
-	realInstallPath, ok2 := util.RealpathOK(installPath)
-
-	// fail closed if either path cannot be resolved
-	if !ok1 || !ok2 {
-		return false
-	}
-
-	return strings.HasPrefix(realBinPath, realInstallPath+string(os.PathSeparator))
 }
 
 // distPath is getDistPath($package, PATHINFO_EXTENSION) (ext) or
@@ -679,7 +670,7 @@ func (d *FileDownloader) removeCleanupPath(p pkg.PackageInterface, path string) 
 
 // Update is update($initial, $target, $path).
 func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path string) (*Promise, error) {
-	msg, err := FormatUpdate(initial, target)
+	msg, err := operation.FormatUpdate(initial, target)
 	if err != nil {
 		return nil, err
 	}
@@ -705,7 +696,7 @@ func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path strin
 
 func (d *FileDownloader) remove(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+FormatUninstall(p), true, mio.Normal)
+		c.io.WriteError("  - "+operation.FormatUninstall(p), true, mio.Normal)
 	}
 
 	promise, err := d.fs.RemoveDirectoryAsync(path)
@@ -741,12 +732,12 @@ func (d *FileDownloader) installOperationAppendix(pkg.PackageInterface, string) 
 }
 
 // processURL is processUrl($package, $url).
-func (d *FileDownloader) processURL(p pkg.PackageInterface, url string) string {
+func (d *FileDownloader) processURL(p pkg.PackageInterface, url string) (string, error) {
 	if ref := p.DistReference(); ref.Valid {
-		url = util.UpdateDistReference(url, ref.S, configList(d.config, "github-domains"), configList(d.config, "gitlab-domains"))
+		return util.UpdateDistReference(url, ref.S, configList(d.config, "github-domains"), configList(d.config, "gitlab-domains"))
 	}
 
-	return url
+	return url, nil
 }
 
 // LocalChanges is getLocalChanges($package, $path).
@@ -798,7 +789,7 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 			return pkg.NullString{}, e
 		}
 
-		class, _ := PHPClassOf(e)
+		class, _ := util.PHPClassOf(e)
 
 		return pkg.Str("Failed to detect changes: [" + class + "] " + e.Error()), nil
 	}

@@ -2,7 +2,11 @@
 
 package util
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // phpURL is the result of parse_url(); hasX reports whether a component was
 // present.
@@ -85,7 +89,7 @@ func parseURL(str string) (phpURL, bool) {
 			if e+2 < ue && str[e+2] == '/' {
 				hostStart = e + 3
 
-				if equalFoldASCII(ret.scheme, "file") && e+3 < ue && str[e+3] == '/' {
+				if php.Strcasecmp(ret.scheme, "file") == 0 && e+3 < ue && str[e+3] == '/' {
 					// Support Windows drive letters as in
 					// file:///c:/somedir/file.txt
 					if e+5 < ue && str[e+5] == ':' {

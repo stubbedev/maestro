@@ -7,7 +7,6 @@ package semver
 import (
 	"encoding/json"
 	"math/rand/v2"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/dlclark/regexp2"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 const (
@@ -362,8 +362,8 @@ func oracleInputs(t testing.TB) []string {
 	var constraints []struct {
 		C string `json:"c"`
 	}
-	for name, dst := range map[string]any{"versions.json": &versions, "constraints.json": &constraints} {
-		data, err := os.ReadFile("testdata/oracle/" + name)
+	for name, dst := range map[string]any{"versions.json.gz": &versions, "constraints.json.gz": &constraints} {
+		data, err := testutil.ReadGoldenFile("testdata/oracle/" + name)
 		if err != nil {
 			t.Fatal(err)
 		}

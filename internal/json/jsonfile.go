@@ -67,7 +67,9 @@ var httpURL = php.MustCompile(`{^https?://}i`)
 // NewFile ports JsonFile::__construct. httpDownloader and io may be nil.
 func NewFile(path string, httpDownloader HTTPDownloader, io io.IO) (*File, error) {
 	if httpDownloader == nil {
-		if ok, _ := httpURL.IsMatch(path); ok {
+		if ok, err := httpURL.IsMatch(path); err != nil {
+			return nil, err
+		} else if ok {
 			return nil, &util.InvalidArgumentError{Message: "http urls require a HttpDownloader instance to be passed"}
 		}
 	}
@@ -117,7 +119,11 @@ func (f *File) Read() (any, error) {
 		json = string(data)
 	}
 
-	f.indent = DetectIndenting(json)
+	indent, err := detectIndenting(json)
+	if err != nil {
+		return nil, err
+	}
+	f.indent = indent
 
 	return ParseJSON(json, f.path)
 }
@@ -384,11 +390,23 @@ func validateSyntax(json, file string, decodeErr error) error {
 
 var indentPrefix = php.MustCompile(`#^([ \t]+)"#m`)
 
-// DetectIndenting ports JsonFile::detectIndenting.
+// DetectIndenting ports JsonFile::detectIndenting. The pattern cannot fail
+// (its [ \t]+ is possessive before the quote); detectIndenting returns the
+// PcreException Preg would throw anyway.
 func DetectIndenting(json string) string {
-	if m, err := indentPrefix.MatchStrictGroups(json); err == nil && m != nil {
-		return m.Get(1)
+	indent, _ := detectIndenting(json)
+
+	return indent
+}
+
+func detectIndenting(json string) (string, error) {
+	m, err := indentPrefix.MatchStrictGroups(json)
+	if err != nil {
+		return "", err
+	}
+	if m != nil {
+		return m.Get(1), nil
 	}
 
-	return IndentDefault
+	return IndentDefault, nil
 }

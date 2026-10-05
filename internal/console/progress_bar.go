@@ -5,7 +5,6 @@ package console
 import (
 	"iter"
 	"math"
-	"regexp"
 	"runtime/metrics"
 	"strings"
 	"sync"
@@ -605,44 +604,35 @@ func progressDefaultFormats() map[string]string {
 	}
 }
 
-// progressPlaceholderRe is "{%([a-z\-_]+)(?:\:([^%]+))?%}i".
-var progressPlaceholderRe = regexp.MustCompile(`(?i)%([a-z\-_]+)(?::([^%]+))?%`)
+var progressPlaceholderRe = php.MustCompile("{%([a-z\\-_]+)(?:\\:([^%]+))?%}i")
 
+// replacePlaceholders is buildLine's preg_replace_callback($regex,
+// $callback, $this->format).
 func (b *ProgressBar) replacePlaceholders() string {
-	format := b.format
-	matches := progressPlaceholderRe.FindAllStringSubmatchIndex(format, -1)
-	if matches == nil {
-		return format
-	}
-
-	var out strings.Builder
-	out.Grow(len(format) + 32)
-	last := 0
-	for _, m := range matches {
-		out.WriteString(format[last:m[0]])
-		last = m[1]
-
-		name := format[m[2]:m[3]]
+	line, _, err := progressPlaceholderRe.ReplaceCallback(b.format, func(m *php.Match) string {
+		name := m.Get(1)
 		var text any
 		if formatter := PlaceholderFormatterDefinition(name); formatter != nil {
 			text = formatter(b, b.output)
 		} else if msg, ok := b.messages[name]; ok {
 			text = msg
 		} else {
-			out.WriteString(format[m[0]:m[1]])
-
-			continue
+			return m.Get(0)
 		}
 
-		if m[4] >= 0 {
-			out.WriteString(phpSprintf("%"+format[m[4]:m[5]], text))
-		} else {
-			out.WriteString(php.ToString(text))
+		if spec, ok := m.Group(2); ok {
+			return phpSprintf("%"+spec, text)
 		}
+
+		return php.ToString(text)
+	}, -1)
+	if err != nil {
+		// preg_replace_callback() returns null, and buildLine(): string
+		// throws a TypeError returning it.
+		panic(&php.EngineError{Class: "TypeError", Message: "Symfony\\Component\\Console\\Helper\\ProgressBar::buildLine(): Return value must be of type string, null returned"})
 	}
-	out.WriteString(format[last:])
 
-	return out.String()
+	return line
 }
 
 func (b *ProgressBar) buildLine() string {

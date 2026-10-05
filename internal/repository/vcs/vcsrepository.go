@@ -454,8 +454,8 @@ func (r *VcsRepository) loadTag(driver Driver, tag, identifier, parsedTag string
 	}
 
 	// make sure tag packages have no -dev flag
-	data.Set("version", replace(devSuffix, "", pathString(data, "version")))
-	versionNormalized := replace(devPrefixSuffix, "", pathString(data, "version_normalized"))
+	data.Set("version", replaceInfallible(devSuffix, "", pathString(data, "version")))
+	versionNormalized := replaceInfallible(devPrefixSuffix, "", pathString(data, "version_normalized"))
 	data.Set("version_normalized", versionNormalized)
 
 	// make sure tag do not contain the default-branch marker
@@ -463,7 +463,8 @@ func (r *VcsRepository) loadTag(driver Driver, tag, identifier, parsedTag string
 
 	// broken package, version doesn't match tag
 	if versionNormalized != parsedTag {
-		if matches(devPrefixSuffix, parsedTag) {
+		// Constant work per start position: Preg::isMatch cannot throw.
+		if hasDev, _ := devPrefixSuffix.IsMatch(parsedTag); hasDev {
 			r.writeVeryVerbose("<warning>Skipped tag " + tag + ", invalid tag name, tags can not use dev prefixes or suffixes</warning>")
 		} else {
 			r.writeVeryVerbose("<warning>Skipped tag " + tag + ", tag (" + parsedTag + ") does not match version (" + versionNormalized + ") in composer.json</warning>")
@@ -556,7 +557,11 @@ func (r *VcsRepository) loadBranches(driver Driver, hasRootIdentifierComposerJSO
 				prefix = "v"
 			}
 
-			version = prefix + replace(nines, ".x", parsedBranch)
+			replaced, err := replace(nines, ".x", parsedBranch)
+			if err != nil {
+				return err
+			}
+			version = prefix + replaced
 		}
 
 		root, err := driver.RootIdentifier()

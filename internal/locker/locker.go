@@ -678,7 +678,9 @@ func (l *Locker) packageTime(p pkg.PackageInterface) (string, error) {
 				return "", err
 			}
 			parsed = php.Trim(parsed)
-			if matched, _ := gitTimestamp.IsMatch(parsed); matched {
+			if matched, err := gitTimestamp.IsMatch(parsed); err != nil {
+				return "", err
+			} else if matched {
 				timestamp = php.Trim(parsed)
 			}
 		}
@@ -690,7 +692,9 @@ func (l *Locker) packageTime(p pkg.PackageInterface) (string, error) {
 			return "", err
 		}
 		if code == 0 {
-			if m, _ := hgTimestamp.Match(output); m != nil {
+			if m, err := hgTimestamp.Match(output); err != nil {
+				return "", err
+			} else if m != nil {
 				timestamp = m.Get(1)
 			}
 		}
