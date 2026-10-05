@@ -18,12 +18,12 @@ import (
 
 // errNoComposerJSON is thrown when neither the archive root nor its single
 // top level directory holds a composer.json.
-var errNoComposerJSON = errors.New("No composer.json found either at the top level or within the topmost directory")
+var errNoComposerJSON = &RuntimeError{Message: "No composer.json found either at the top level or within the topmost directory"}
 
 // multipleTopLevelDirsError is thrown for archives without a root
 // composer.json and more than one top level directory.
 func multipleTopLevelDirsError(paths []string) error {
-	return errors.New("Archive has more than one top level directories, and no composer.json was found on the top level, so it's an invalid archive. Top level paths found were: " + strings.Join(paths, ","))
+	return &RuntimeError{Message: "Archive has more than one top level directories, and no composer.json was found on the top level, so it's an invalid archive. Top level paths found were: " + strings.Join(paths, ",")}
 }
 
 // TarGetComposerJSON ports Tar::getComposerJson: the root composer.json of
@@ -39,7 +39,7 @@ func TarGetComposerJSON(pathToArchive string) (content string, ok bool, err erro
 
 	entries, err := readPharTar(f)
 	if err != nil {
-		return "", false, errors.New(`internal corruption of phar "` + pathToArchive + `" (truncated entry)`)
+		return "", false, &UnexpectedValueError{Message: `internal corruption of phar "` + pathToArchive + `" (truncated entry)`}
 	}
 
 	// The root of a PharData lists the first path segment of each entry,
@@ -123,7 +123,7 @@ func pharLookup(entries map[string]*pharEntry, path string) (*pharEntry, bool) {
 // pharContent is PharFileInfo::getContent.
 func pharContent(entry *pharEntry, path, archive string) (string, error) {
 	if entry.isDir {
-		return "", errors.New(`phar error: Cannot retrieve contents, "` + path + `" in tar archive "` + archive + `" is a directory`)
+		return "", &UnexpectedValueError{Message: `phar error: Cannot retrieve contents, "` + path + `" in tar archive "` + archive + `" is a directory`}
 	}
 
 	return string(entry.content), nil
@@ -146,7 +146,7 @@ func readPharTar(r io.Reader) (map[string]*pharEntry, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer gz.Close()
+		defer func() { _ = gz.Close() }()
 
 		stream = gz
 	case bytes.HasPrefix(magic, []byte("BZh")):

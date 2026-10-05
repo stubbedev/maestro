@@ -7,8 +7,6 @@ package util
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -35,7 +33,7 @@ type ProcessTimedOutError struct {
 }
 
 func (e *ProcessTimedOutError) Error() string {
-	return fmt.Sprintf("The process %q exceeded the timeout of %s seconds.", e.CommandLine, strconv.FormatFloat(e.Timeout.Seconds(), 'f', -1, 64))
+	return `The process "` + e.CommandLine + `" exceeded the timeout of ` + strconv.FormatFloat(e.Timeout.Seconds(), 'f', -1, 64) + " seconds."
 }
 
 // ProcessSignaledError is Symfony's ProcessSignaledException: the process
@@ -45,8 +43,12 @@ type ProcessSignaledError struct {
 }
 
 func (e *ProcessSignaledError) Error() string {
-	return fmt.Sprintf("The process has been signaled with signal %q.", strconv.Itoa(e.Signal))
+	return `The process has been signaled with signal "` + strconv.Itoa(e.Signal) + `".`
 }
+
+// errLaunch is the RuntimeException Process::start throws when proc_open
+// fails.
+var errLaunch = &RuntimeError{Message: "Unable to launch a new process."}
 
 // Process ports Symfony\Component\Process\Process.
 type Process struct {
@@ -102,11 +104,11 @@ func envPairs(env map[string]string) []string {
 // SetTty ports Process::setTty.
 func (p *Process) SetTty(tty bool) error {
 	if tty && IsWindows() {
-		return errors.New("TTY mode is not supported on Windows platform.")
+		return &RuntimeError{Message: "TTY mode is not supported on Windows platform."}
 	}
 
 	if tty && !isTtySupported() {
-		return errors.New("TTY mode requires /dev/tty to be read/writable.")
+		return &RuntimeError{Message: "TTY mode requires /dev/tty to be read/writable."}
 	}
 
 	p.tty = tty
@@ -121,7 +123,7 @@ var isTtySupported = sync.OnceValue(func() bool {
 		return false
 	}
 
-	f.Close()
+	_ = f.Close()
 
 	return true
 })
@@ -160,7 +162,7 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	defer p.mu.Unlock()
 
 	if p.started && !p.isTerminated() {
-		return errors.New("Process is already running.")
+		return &RuntimeError{Message: "Process is already running."}
 	}
 
 	p.outMu.Lock()
@@ -190,7 +192,7 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	}
 
 	if p.cwd != "" && !isDir(p.cwd) {
-		return fmt.Errorf("The provided cwd %q does not exist.", p.cwd) //nolint:revive,staticcheck // Symfony's message.
+		return &RuntimeError{Message: `The provided cwd "` + p.cwd + `" does not exist.`}
 	}
 
 	cmd, err := shellCommand(commandline, &env)
@@ -206,14 +208,14 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	if p.tty {
 		in, err := os.Open("/dev/tty")
 		if err != nil {
-			return errors.New("Unable to launch a new process.")
+			return errLaunch
 		}
 
 		out, err := os.OpenFile("/dev/tty", os.O_WRONLY, 0)
 		if err != nil {
-			in.Close()
+			_ = in.Close()
 
-			return errors.New("Unable to launch a new process.")
+			return errLaunch
 		}
 
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = in, out, out
@@ -222,10 +224,10 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 		// Symfony hands the child a stdin pipe it closes at once.
 		r, w, err := os.Pipe()
 		if err != nil {
-			return errors.New("Unable to launch a new process.")
+			return errLaunch
 		}
 
-		w.Close()
+		_ = w.Close()
 
 		cmd.Stdin = r
 		cmd.Stdout = &processWriter{p: p, typ: ProcessOut, callback: callback}
@@ -237,11 +239,11 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	err = cmd.Start()
 
 	for _, f := range closers {
-		f.Close()
+		_ = f.Close()
 	}
 
 	if err != nil {
-		return errors.New("Unable to launch a new process.")
+		return errLaunch
 	}
 
 	p.cmd = cmd
@@ -314,7 +316,7 @@ func (p *Process) Wait() (int, error) {
 	if !p.started {
 		p.mu.Unlock()
 
-		return 0, errors.New(`Process must be started before calling "wait()".`)
+		return 0, &LogicError{Message: `Process must be started before calling "wait()".`}
 	}
 
 	done := p.done
@@ -390,11 +392,11 @@ func (p *Process) Signal(sig int) error {
 	p.mu.Unlock()
 
 	if !running {
-		return errors.New("Can not send signal on a non running process.")
+		return &LogicError{Message: "Cannot send signal on a non running process."}
 	}
 
 	if err := p.sendSignal(sig); err != nil {
-		return fmt.Errorf("Error while sending signal %q.", strconv.Itoa(sig)) //nolint:revive,staticcheck // Symfony's message.
+		return &RuntimeError{Message: `Error while sending signal "` + strconv.Itoa(sig) + `".`}
 	}
 
 	return nil
@@ -510,7 +512,7 @@ func replacePlaceholders(commandline string, env []string, windows bool) (string
 
 		idx := lookupEnv(env, name, false)
 		if idx < 0 {
-			return "", fmt.Errorf("Command line is missing a value for parameter %q: %s", name, commandline) //nolint:revive,staticcheck // Symfony's message.
+			return "", &InvalidArgumentError{Message: `Command line is missing a value for parameter "` + name + `": ` + commandline}
 		}
 
 		_, value, _ := strings.Cut(env[idx], "=")
@@ -557,7 +559,7 @@ func symfonyEscapeArgument(argument string, windows bool) string {
 	}
 
 	if !windows {
-		return "'" + strings.ReplaceAll(argument, "'", `'\''`) + "'"
+		return escapeShellArg(argument)
 	}
 
 	argument = strings.ReplaceAll(argument, "\x00", "?")

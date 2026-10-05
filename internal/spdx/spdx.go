@@ -1,25 +1,34 @@
 // Package spdx ports composer/spdx-licenses 1.6.0 (src/SpdxLicenses.php)
-// with its res/*.json data.
+// with its res/*.json data. SpdxLicensesUpdater (which regenerates res/
+// from spdx.org) is not ported: Composer never uses it.
 package spdx
 
 import (
-	"bytes"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
-// The SPDX license and exception lists, as shipped in res/.
+// The SPDX license and exception lists, byte-identical to res/ of
+// composer/spdx-licenses 1.6.0.
 var (
 	//go:embed res/spdx-licenses.json
-	licensesJSON []byte
+	licensesJSON string
 	//go:embed res/spdx-exceptions.json
-	exceptionsJSON []byte
+	exceptionsJSON string
 )
 
-// License is one entry of the license list.
+// Resource file names (SpdxLicenses::LICENSES_FILE, EXCEPTIONS_FILE).
+const (
+	LicensesFile   = "spdx-licenses.json"
+	ExceptionsFile = "spdx-exceptions.json"
+)
+
+// License is one entry of getLicenses():
+// [identifier, full name, osi certified, deprecated].
 type License struct {
 	Identifier  string
 	Name        string
@@ -27,7 +36,8 @@ type License struct {
 	Deprecated  bool
 }
 
-// LicenseInfo is what GetLicenseByIdentifier returns.
+// LicenseInfo is what getLicenseByIdentifier returns:
+// [full name, osi certified, link to license text, deprecated].
 type LicenseInfo struct {
 	Name        string
 	OSIApproved bool
@@ -35,167 +45,113 @@ type LicenseInfo struct {
 	Deprecated  bool
 }
 
-// Exception is one entry of the license exception list.
+// Exception is one entry of the exception list: [identifier, full name].
 type Exception struct {
 	Identifier string
 	Name       string
 }
 
-// ExceptionInfo is what GetExceptionByIdentifier returns.
+// ExceptionInfo is what getExceptionByIdentifier returns:
+// [full name, link to license exception text].
 type ExceptionInfo struct {
 	Name string
 	URL  string
 }
 
+// InvalidArgumentError is the \InvalidArgumentException validate throws for
+// an argument that is neither a string nor an array of strings.
+type InvalidArgumentError struct{ Message string }
+
+func (e *InvalidArgumentError) Error() string { return e.Message }
+
 // SpdxLicenses ports Composer\Spdx\SpdxLicenses. It is immutable and safe
 // for concurrent use.
-type SpdxLicenses struct { //nolint:revive // The PHP class name.
-	licenses     []License      // in file order
-	licenseKeys  map[string]int // lowercased identifier => index
-	exceptions   []Exception
-	exceptionIDs map[string]int
-	licenseTrie  *trie
-	exceptTrie   *trie
+type SpdxLicenses struct {
+	licenses    []License      // in file order, as PHP's array
+	licenseKeys map[string]int // lowercased identifier => index
+	exceptions  []Exception
+	exceptKeys  map[string]int
+	licenseIDs  trie // lowercased license identifiers
+	exceptIDs   trie // lowercased exception identifiers
 }
 
 var shared = sync.OnceValue(func() *SpdxLicenses {
-	s, err := load(licensesJSON, exceptionsJSON)
-	if err != nil {
-		panic("spdx: embedded data: " + err.Error())
+	s := &SpdxLicenses{}
+	s.licenses, s.licenseKeys = load(licensesJSON, LicensesFile, func(id string, v *php.Array) License {
+		name, _ := v.GetString(0)
+		osi, _ := v.Get(1)
+		dep, _ := v.Get(2)
+
+		return License{id, name, php.ToBool(osi), php.ToBool(dep)}
+	})
+	s.exceptions, s.exceptKeys = load(exceptionsJSON, ExceptionsFile, func(id string, v *php.Array) Exception {
+		name, _ := v.GetString(0)
+
+		return Exception{id, name}
+	})
+
+	for key := range s.licenseKeys {
+		s.licenseIDs.add(key)
+	}
+
+	for key := range s.exceptKeys {
+		s.exceptIDs.add(key)
 	}
 
 	return s
 })
 
-// New returns the license database; the embedded data is parsed once.
+// New returns the license database (new SpdxLicenses()); the embedded data
+// is parsed once per process.
 func New() *SpdxLicenses {
 	return shared()
 }
 
-func load(licensesData, exceptionsData []byte) (*SpdxLicenses, error) {
-	s := &SpdxLicenses{
-		licenseKeys:  map[string]int{},
-		exceptionIDs: map[string]int{},
-		licenseTrie:  &trie{},
-		exceptTrie:   &trie{},
+// load ports loadLicenses/loadExceptions: entries keyed by the lowercased
+// identifier, a later duplicate replacing the earlier one in place.
+func load[T any](data, file string, entry func(id string, v *php.Array) T) ([]T, map[string]int) {
+	decoded, err := php.JSONDecode(data, true)
+	root, ok := decoded.(*php.Array)
+
+	if err != nil || !ok {
+		panic("spdx: invalid embedded " + file)
 	}
 
-	err := decodeOrdered(licensesData, func(id string, raw json.RawMessage) error {
-		var fields struct {
-			Name       string
-			OSI        bool
-			Deprecated bool
+	list := make([]T, 0, root.Len())
+	keys := make(map[string]int, root.Len())
+
+	for k, v := range root.All() {
+		fields, _ := v.(*php.Array)
+		if fields == nil {
+			fields = php.NewArray()
 		}
 
-		var tuple []json.RawMessage
-		if err := json.Unmarshal(raw, &tuple); err != nil || len(tuple) != 3 {
-			return fmt.Errorf("license %s: want [name, osi, deprecated]", id)
+		id := k.String()
+		key := php.Strtolower(id)
+		e := entry(id, fields)
+
+		if i, dup := keys[key]; dup {
+			list[i] = e
+
+			continue
 		}
 
-		for i, dst := range []any{&fields.Name, &fields.OSI, &fields.Deprecated} {
-			if err := json.Unmarshal(tuple[i], dst); err != nil {
-				return fmt.Errorf("license %s: %w", id, err)
-			}
-		}
-
-		key := strtolower(id)
-		if i, ok := s.licenseKeys[key]; ok {
-			s.licenses[i] = License{id, fields.Name, fields.OSI, fields.Deprecated}
-
-			return nil
-		}
-
-		s.licenseKeys[key] = len(s.licenses)
-		s.licenses = append(s.licenses, License{id, fields.Name, fields.OSI, fields.Deprecated})
-		s.licenseTrie.add(key)
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		keys[key] = len(list)
+		list = append(list, e)
 	}
 
-	err = decodeOrdered(exceptionsData, func(id string, raw json.RawMessage) error {
-		var tuple []string
-		if err := json.Unmarshal(raw, &tuple); err != nil || len(tuple) != 1 {
-			return fmt.Errorf("exception %s: want [name]", id)
-		}
-
-		key := strtolower(id)
-		if i, ok := s.exceptionIDs[key]; ok {
-			s.exceptions[i] = Exception{id, tuple[0]}
-
-			return nil
-		}
-
-		s.exceptionIDs[key] = len(s.exceptions)
-		s.exceptions = append(s.exceptions, Exception{id, tuple[0]})
-		s.exceptTrie.add(key)
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return list, keys
 }
 
-// decodeOrdered calls f for each member of a JSON object, in order.
-func decodeOrdered(data []byte, f func(key string, value json.RawMessage) error) error {
-	dec := json.NewDecoder(bytes.NewReader(data))
-
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return fmt.Errorf("want a JSON object: %v", err)
-	}
-
-	for dec.More() {
-		tok, err := dec.Token()
-		if err != nil {
-			return err
-		}
-
-		key, _ := tok.(string)
-
-		var value json.RawMessage
-		if err := dec.Decode(&value); err != nil {
-			return err
-		}
-
-		if err := f(key, value); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// strtolower is PHP 8's strtolower: ASCII only.
-func strtolower(s string) string {
-	for i := range len(s) {
-		if c := s[i]; c >= 'A' && c <= 'Z' {
-			b := []byte(s)
-			for j := i; j < len(b); j++ {
-				if b[j] >= 'A' && b[j] <= 'Z' {
-					b[j] += 'a' - 'A'
-				}
-			}
-
-			return string(b)
-		}
-	}
-
-	return s
-}
-
-// GetLicenseByIdentifier ports SpdxLicenses::getLicenseByIdentifier.
-func (s *SpdxLicenses) GetLicenseByIdentifier(identifier string) (LicenseInfo, bool) {
-	i, ok := s.licenseKeys[strtolower(identifier)]
+// GetLicenseByIdentifier ports SpdxLicenses::getLicenseByIdentifier; ok is
+// false where PHP returns null.
+func (s *SpdxLicenses) GetLicenseByIdentifier(identifier string) (info LicenseInfo, ok bool) {
+	i, ok := s.licenseKeys[php.Strtolower(identifier)]
 	if !ok {
 		return LicenseInfo{}, false
 	}
 
-	l := s.licenses[i]
+	l := &s.licenses[i]
 
 	return LicenseInfo{
 		Name:        l.Name,
@@ -205,13 +161,14 @@ func (s *SpdxLicenses) GetLicenseByIdentifier(identifier string) (LicenseInfo, b
 	}, true
 }
 
-// GetLicenses ports SpdxLicenses::getLicenses: all licenses in file order
-// (PHP keys them by lowercased identifier). The slice must not be modified.
+// GetLicenses ports SpdxLicenses::getLicenses: every license in file order.
+// PHP keys them by lowercased identifier; GetLicense looks one up by that
+// key. The slice is shared and must not be modified.
 func (s *SpdxLicenses) GetLicenses() []License {
 	return s.licenses
 }
 
-// GetLicense returns the license of a (lowercased) key of GetLicenses.
+// GetLicense returns getLicenses()[key] for a lowercased identifier key.
 func (s *SpdxLicenses) GetLicense(key string) (License, bool) {
 	i, ok := s.licenseKeys[key]
 	if !ok {
@@ -221,14 +178,22 @@ func (s *SpdxLicenses) GetLicense(key string) (License, bool) {
 	return s.licenses[i], true
 }
 
-// GetExceptionByIdentifier ports SpdxLicenses::getExceptionByIdentifier.
-func (s *SpdxLicenses) GetExceptionByIdentifier(identifier string) (ExceptionInfo, bool) {
-	i, ok := s.exceptionIDs[strtolower(identifier)]
+// GetExceptions returns every license exception in file order (PHP keeps
+// them in a private array keyed by lowercased identifier). The slice is
+// shared and must not be modified.
+func (s *SpdxLicenses) GetExceptions() []Exception {
+	return s.exceptions
+}
+
+// GetExceptionByIdentifier ports SpdxLicenses::getExceptionByIdentifier;
+// ok is false where PHP returns null.
+func (s *SpdxLicenses) GetExceptionByIdentifier(identifier string) (info ExceptionInfo, ok bool) {
+	i, ok := s.exceptKeys[php.Strtolower(identifier)]
 	if !ok {
 		return ExceptionInfo{}, false
 	}
 
-	e := s.exceptions[i]
+	e := &s.exceptions[i]
 
 	return ExceptionInfo{
 		Name: e.Name,
@@ -237,58 +202,95 @@ func (s *SpdxLicenses) GetExceptionByIdentifier(identifier string) (ExceptionInf
 }
 
 // GetIdentifierByName ports SpdxLicenses::getIdentifierByName: the
-// identifier of the first license, then exception, with that full name.
-func (s *SpdxLicenses) GetIdentifierByName(name string) (string, bool) {
-	for _, l := range s.licenses {
-		if l.Name == name {
-			return l.Identifier, true
+// identifier of the first license, then exception, with exactly that full
+// name; ok is false where PHP returns null.
+func (s *SpdxLicenses) GetIdentifierByName(name string) (identifier string, ok bool) {
+	for i := range s.licenses {
+		if s.licenses[i].Name == name {
+			return s.licenses[i].Identifier, true
 		}
 	}
 
-	for _, e := range s.exceptions {
-		if e.Name == name {
-			return e.Identifier, true
+	for i := range s.exceptions {
+		if s.exceptions[i].Name == name {
+			return s.exceptions[i].Identifier, true
 		}
 	}
 
 	return "", false
 }
 
-// IsOsiApprovedByIdentifier ports SpdxLicenses::isOsiApprovedByIdentifier;
-// unknown identifiers are not approved.
+// IsOsiApprovedByIdentifier ports SpdxLicenses::isOsiApprovedByIdentifier.
+// PHP returns null (with a warning) for an unknown identifier; that is
+// false here.
 func (s *SpdxLicenses) IsOsiApprovedByIdentifier(identifier string) bool {
-	i, ok := s.licenseKeys[strtolower(identifier)]
+	i, ok := s.licenseKeys[php.Strtolower(identifier)]
 
 	return ok && s.licenses[i].OSIApproved
 }
 
-// IsDeprecatedByIdentifier ports SpdxLicenses::isDeprecatedByIdentifier;
-// unknown identifiers are not deprecated.
+// IsDeprecatedByIdentifier ports SpdxLicenses::isDeprecatedByIdentifier.
+// PHP returns null (with a warning) for an unknown identifier; that is
+// false here.
 func (s *SpdxLicenses) IsDeprecatedByIdentifier(identifier string) bool {
-	i, ok := s.licenseKeys[strtolower(identifier)]
+	i, ok := s.licenseKeys[php.Strtolower(identifier)]
 
 	return ok && s.licenses[i].Deprecated
 }
 
-// ValidateList ports SpdxLicenses::validate for an array: several licenses
-// are validated as a disjunction, none as the empty string.
+// Validate ports SpdxLicenses::validate for a string: whether license is a
+// known identifier, NONE, NOASSERTION or a valid SPDX license expression.
+func (s *SpdxLicenses) Validate(license string) bool {
+	return s.isValidLicenseString(license)
+}
+
+// ValidateList ports SpdxLicenses::validate for an array of strings:
+// several licenses are validated as "(a OR b ...)", one as itself and none
+// as the empty string.
 func (s *SpdxLicenses) ValidateList(licenses []string) bool {
 	switch len(licenses) {
 	case 0:
-		return s.Validate("")
+		return s.isValidLicenseString("")
 	case 1:
-		return s.Validate(licenses[0])
+		return s.isValidLicenseString(licenses[0])
 	default:
-		return s.Validate("(" + strings.Join(licenses, " OR ") + ")")
+		return s.isValidLicenseString("(" + strings.Join(licenses, " OR ") + ")")
 	}
 }
 
-// Validate ports SpdxLicenses::validate for a string: whether license is a
-// known identifier or a valid SPDX license expression.
-func (s *SpdxLicenses) Validate(license string) bool {
-	if _, ok := s.licenseKeys[strtolower(license)]; ok {
+// ValidateValue ports SpdxLicenses::validate for an arbitrary PHP value
+// (string, []string or *php.Array of strings), returning the
+// InvalidArgumentError PHP throws for anything else.
+func (s *SpdxLicenses) ValidateValue(license any) (bool, error) {
+	switch v := license.(type) {
+	case string:
+		return s.isValidLicenseString(v), nil
+	case []string:
+		return s.ValidateList(v), nil
+	case *php.Array:
+		list := make([]string, 0, v.Len())
+
+		for _, item := range v.All() {
+			str, ok := item.(string)
+			if !ok {
+				return false, &InvalidArgumentError{"Array of strings expected."}
+			}
+
+			list = append(list, str)
+		}
+
+		return s.ValidateList(list), nil
+	}
+
+	return false, &InvalidArgumentError{fmt.Sprintf("Array or String expected, %s given.", php.GetType(license))}
+}
+
+// isValidLicenseString ports SpdxLicenses::isValidLicenseString: a
+// known identifier, or a match of the SPDX expression regex (see grammar).
+func (s *SpdxLicenses) isValidLicenseString(license string) bool {
+	if _, ok := s.licenseKeys[php.Strtolower(license)]; ok {
 		return true
 	}
 
-	return s.isValidLicenseExpression(license)
+	return s.matchExpression(license)
 }

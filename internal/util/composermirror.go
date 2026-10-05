@@ -1,0 +1,89 @@
+// Ports src/Composer/Util/ComposerMirror.php.
+
+package util
+
+import (
+	"crypto/md5" //nolint:gosec // Composer names mirror paths by md5, not for security.
+	"encoding/hex"
+	"strings"
+)
+
+var (
+	mirrorReference = mustPCRE(`^([a-f0-9]*|%reference%)$`, false)
+	mirrorGitHub    = mustPCRE(`^(?:(?:https?|git)://github\.com/|git@github\.com:)([^/]+)/(.+?)(?:\.git)?$`, false)
+	mirrorBitbucket = mustPCRE(`^https://bitbucket\.org/([^/]+)/(.+?)(?:\.git)?/?$`, false)
+)
+
+// ComposerMirrorProcessURL ports ComposerMirror::processUrl. reference and
+// typ are nil for PHP's null; prettyVersion is nil when not given.
+func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference, typ, prettyVersion *string) string {
+	ref := ""
+	if reference != nil {
+		ref = *reference
+		// if ($reference): "0" is falsy too.
+		if phpTruthy(ref) && !mirrorReference.MatchString(ref) {
+			ref = md5Hex(ref)
+		}
+	}
+
+	if strings.IndexByte(version, '/') >= 0 {
+		version = md5Hex(version)
+	}
+
+	// str_replace with arrays replaces each pair in turn over the whole
+	// string.
+	url := strings.ReplaceAll(mirrorURL, "%package%", packageName)
+	url = strings.ReplaceAll(url, "%version%", version)
+	url = strings.ReplaceAll(url, "%reference%", ref)
+	url = strings.ReplaceAll(url, "%type%", deref(typ))
+
+	if prettyVersion != nil {
+		url = strings.ReplaceAll(url, "%prettyVersion%", *prettyVersion)
+	}
+
+	return url
+}
+
+// ComposerMirrorProcessGitURL ports ComposerMirror::processGitUrl. typ is
+// nil for PHP's null.
+func ComposerMirrorProcessGitURL(mirrorURL, packageName, url string, typ *string) string {
+	if m := mirrorGitHub.FindStringSubmatch(url); m != nil {
+		url = "gh-" + m[1] + "/" + m[2]
+	} else if m := mirrorBitbucket.FindStringSubmatch(url); m != nil {
+		url = "bb-" + m[1] + "/" + m[2]
+	} else {
+		// Preg::replace('{[^a-z0-9_.-]}i', '-', trim($url, '/')), byte-wise.
+		b := []byte(strings.Trim(url, "/"))
+		for i, c := range b {
+			if !isASCIIAlnum(c) && c != '_' && c != '.' && c != '-' {
+				b[i] = '-'
+			}
+		}
+
+		url = string(b)
+	}
+
+	result := strings.ReplaceAll(mirrorURL, "%package%", packageName)
+	result = strings.ReplaceAll(result, "%normalizedUrl%", url)
+
+	return strings.ReplaceAll(result, "%type%", deref(typ))
+}
+
+// ComposerMirrorProcessHgURL ports ComposerMirror::processHgUrl.
+func ComposerMirrorProcessHgURL(mirrorURL, packageName, url, typ string) string {
+	return ComposerMirrorProcessGitURL(mirrorURL, packageName, url, &typ)
+}
+
+func md5Hex(s string) string {
+	sum := md5.Sum([]byte(s)) //nolint:gosec // See the import.
+
+	return hex.EncodeToString(sum[:])
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+
+	return *s
+}

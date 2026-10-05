@@ -9,7 +9,8 @@ import "strings"
 type phpURL struct {
 	scheme, user, pass, host, path, query, fragment string
 	port                                            int
-	hasScheme, hasHost, hasPort                     bool
+
+	hasScheme, hasUser, hasPass, hasHost, hasPort, hasPath, hasQuery, hasFragment bool
 }
 
 // parseURL ports parse_url(); ok is false where PHP returns false.
@@ -35,9 +36,14 @@ func parseURL(str string) (phpURL, bool) {
 
 			valid = false
 
-			q := strings.IndexByte(str, '?')
+			// binary_strcspn(s, ue, "?#")
+			q := ue
+			if i := strings.IndexAny(str, "?#"); i >= 0 {
+				q = i
+			}
+
 			switch {
-			case e+1 < ue && q >= 0 && e < q:
+			case e+1 < ue && e < q:
 				return parseURLPort(str, s, e, ret)
 			case s+1 < ue && str[s] == '/' && str[s+1] == '/':
 				hostStart = s + 2
@@ -79,7 +85,7 @@ func parseURL(str string) (phpURL, bool) {
 			if e+2 < ue && str[e+2] == '/' {
 				hostStart = e + 3
 
-				if strings.EqualFold(ret.scheme, "file") && e+3 < ue && str[e+3] == '/' {
+				if equalFoldASCII(ret.scheme, "file") && e+3 < ue && str[e+3] == '/' {
 					// Support Windows drive letters as in
 					// file:///c:/somedir/file.txt
 					if e+5 < ue && str[e+5] == ':' {
@@ -153,10 +159,10 @@ func parseURLHost(str string, s int, ret phpURL) (phpURL, bool) {
 		p += s
 		if pp := strings.IndexByte(str[s:p], ':'); pp >= 0 {
 			pp += s
-			ret.user = replaceControlChars(str[s:pp])
-			ret.pass = replaceControlChars(str[pp+1 : p])
+			ret.user, ret.hasUser = replaceControlChars(str[s:pp]), true
+			ret.pass, ret.hasPass = replaceControlChars(str[pp+1:p]), true
 		} else {
-			ret.user = replaceControlChars(str[s:p])
+			ret.user, ret.hasUser = replaceControlChars(str[s:p]), true
 		}
 
 		s = p + 1
@@ -164,7 +170,7 @@ func parseURLHost(str string, s int, ret phpURL) (phpURL, bool) {
 
 	// Check for a port; an IPv6 address in brackets short-circuits it.
 	p := -1
-	if !(s < ue && str[s] == '[' && e > 0 && str[e-1] == ']') {
+	if s >= ue || str[s] != '[' || e == 0 || str[e-1] != ']' {
 		if i := strings.LastIndexByte(str[s:e], ':'); i >= 0 {
 			p = s + i
 		}
@@ -213,18 +219,18 @@ func parseURLPath(str string, s int, ret phpURL) (phpURL, bool) {
 
 	if i := strings.IndexByte(str[s:e], '#'); i >= 0 {
 		p := s + i + 1
-		ret.fragment = replaceControlChars(str[p:e])
+		ret.fragment, ret.hasFragment = replaceControlChars(str[p:e]), true
 		e = p - 1
 	}
 
 	if i := strings.IndexByte(str[s:e], '?'); i >= 0 {
 		p := s + i + 1
-		ret.query = replaceControlChars(str[p:e])
+		ret.query, ret.hasQuery = replaceControlChars(str[p:e]), true
 		e = p - 1
 	}
 
 	if s < e || s == ue {
-		ret.path = replaceControlChars(str[s:e])
+		ret.path, ret.hasPath = replaceControlChars(str[s:e]), true
 	}
 
 	return ret, true
@@ -234,7 +240,7 @@ func parseURLPath(str string, s int, ret phpURL) (phpURL, bool) {
 // something and land in 0..65535.
 func strtolPort(s string) (int, bool) {
 	i := 0
-	for i < len(s) && (isPCRESpace(s[i])) {
+	for i < len(s) && isPCRESpace(s[i]) {
 		i++
 	}
 

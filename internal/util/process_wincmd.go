@@ -6,8 +6,8 @@ package util
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -69,7 +69,7 @@ func prepareWindowsCommandLine(cmd, comSpec, uid string) (string, []string) {
 		}
 
 		varCount++
-		name := fmt.Sprintf("%s%d", uid, varCount)
+		name := uid + strconv.Itoa(varCount)
 		env = append(env, name+"="+`"`+escapeQuotesBackslashes(value)+`"`)
 		ref := "!" + name + "!"
 		varCache[whole] = ref
@@ -148,33 +148,32 @@ func matchWindowsToken(s string, i int) (int, bool) {
 // each double quote is backslash-escaped and the backslashes before it
 // doubled, per CommandLineToArgvW.
 func escapeQuotesBackslashes(s string) string {
-	if !strings.Contains(s, `"`) {
+	n := strings.Count(s, `"`)
+	if n == 0 {
 		return s
 	}
 
-	var b strings.Builder
-
-	b.Grow(len(s) + 8)
-
-	run := 0
+	b := make([]byte, 0, len(s)+2*n)
+	run := 0 // backslashes just before s[i]
 
 	for i := range len(s) {
-		switch c := s[i]; c {
-		case '\\':
+		c := s[i]
+		if c == '"' {
+			// The run is already written once; write it again, then \".
+			b = append(b, s[i-run:i]...)
+			b = append(b, '\\')
+		}
+
+		b = append(b, c)
+
+		if c == '\\' {
 			run++
-		case '"':
-			b.WriteString(strings.Repeat(`\`, run*2) + `\"`)
-			run = 0
-		default:
-			b.WriteString(strings.Repeat(`\`, run))
-			b.WriteByte(c)
+		} else {
 			run = 0
 		}
 	}
 
-	b.WriteString(strings.Repeat(`\`, run))
-
-	return b.String()
+	return string(b)
 }
 
 // quoteComSpec escapes the cmd.exe path according to CommandLineToArgvW.
@@ -186,14 +185,10 @@ func quoteComSpec(comSpec string, found bool) string {
 	return `"` + escapeQuotesBackslashes(comSpec) + `"`
 }
 
-// windowsComSpec finds cmd.exe once, as Symfony caches it statically.
-var windowsComSpec = sync.OnceValues(func() (string, bool) {
-	return NewExecutableFinder().Find("cmd.exe")
-})
-
-// newUniqid mimics uniqid('', true): the time in hex, a dot and digits.
+// newUniqid mimics uniqid(”, true): seconds and microseconds in hex, then
+// a pseudo-random float in [0, 10) with 8 decimals.
 func newUniqid() string {
 	now := time.Now()
 
-	return fmt.Sprintf("%08x%05x.%08d", now.Unix(), now.Nanosecond()/1000, now.UnixNano()%100000000)
+	return fmt.Sprintf("%08x%05x%d.%08d", now.Unix(), now.Nanosecond()/1000, now.UnixNano()%10, now.UnixNano()/10%100000000)
 }

@@ -33,9 +33,23 @@ type noProxyIPData struct {
 // NewNoProxyPattern parses a NO_PROXY value: host names, IP addresses and
 // CIDR ranges with optional ports, separated by whitespace or commas.
 func NewNoProxyPattern(pattern string) *NoProxyPattern {
-	hostNames := strings.FieldsFunc(pattern, func(r rune) bool {
-		return r == ',' || (r < 0x80 && isPCRESpace(byte(r)))
-	})
+	// Preg::split('{[\s,]+}', $pattern, -1, PREG_SPLIT_NO_EMPTY)
+	var hostNames []string
+
+	for i := 0; i < len(pattern); {
+		for i < len(pattern) && (pattern[i] == ',' || isPCRESpace(pattern[i])) {
+			i++
+		}
+
+		start := i
+		for i < len(pattern) && pattern[i] != ',' && !isPCRESpace(pattern[i]) {
+			i++
+		}
+
+		if i > start {
+			hostNames = append(hostNames, pattern[start:i])
+		}
+	}
 
 	return &NoProxyPattern{
 		hostNames: hostNames,

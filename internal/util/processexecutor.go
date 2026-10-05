@@ -4,6 +4,7 @@ package util
 
 import (
 	"errors"
+	"math"
 	"os"
 	"os/signal"
 	"regexp"
@@ -167,19 +168,10 @@ func (p *ProcessExecutor) runProcess(command Command, cwd string, env map[string
 	var process *Process
 
 	if command.shell {
-		line := command.line
-
-		// On Windows Composer resolves the executable itself rather than
-		// letting the OS look in the (untrusted) current directory. The
-		// possessive {^([^:/\\]++) } also consumes spaces, so it never
-		// matches and Composer never rewrites a command line.
-		if IsWindows() {
-			if run := strings.IndexAny(line, `:/\`); run > 0 && line[run] == ' ' {
-				line = Escape(getExecutable(line[:run])) + line[run:]
-			}
-		}
-
-		process = NewShellProcess(line, cwd, env, timeout)
+		// On Windows Composer means to resolve the executable of a command
+		// line itself, but its possessive {^([^:/\\]++) } also consumes the
+		// spaces, so it never matches and command lines run unchanged.
+		process = NewShellProcess(command.line, cwd, env, timeout)
 	} else {
 		args := command.args
 		if IsWindows() && len(args) > 0 && !strings.ContainsAny(args[0], `:/\`) {
@@ -205,8 +197,7 @@ func (p *ProcessExecutor) runProcess(command Command, cwd string, env map[string
 	triggered := stop()
 
 	if err != nil {
-		var signaled *ProcessSignaledError
-		if !errors.As(err, &signaled) {
+		if _, signaled := errors.AsType[*ProcessSignaledError](err); !signaled {
 			return code, err
 		}
 
@@ -278,7 +269,7 @@ func (p *ProcessExecutor) ExecuteAsync(command Command, cwd string) (*Promise[*P
 	defer p.mu.Unlock()
 
 	if !p.allowAsync {
-		return nil, errors.New(`You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`)
+		return nil, &LogicError{Message: `You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`}
 	}
 
 	job := &asyncJob{status: statusQueued, command: command, cwd: cwd, promise: newPromise[*Process]()}
@@ -293,7 +284,7 @@ func (p *ProcessExecutor) ExecuteAsync(command Command, cwd string) (*Promise[*P
 }
 
 // errAbortedProcess is the RuntimeException a cancelled job rejects with.
-var errAbortedProcess = errors.New("Aborted process")
+var errAbortedProcess = &RuntimeError{Message: "Aborted process"}
 
 // cancelJob ports the promise canceller of executeAsync. A queued job is
 // dropped; React would leave its promise pending, here it is rejected so
@@ -364,7 +355,14 @@ func (p *ProcessExecutor) startJob(job *asyncJob) {
 	}
 
 	go func() {
+		// Composer resolves with the process once it stopped running,
+		// whatever its exit; only a timeout (thrown by checkTimeout in PHP)
+		// is an error here.
 		_, err := process.Wait()
+
+		if _, signaled := errors.AsType[*ProcessSignaledError](err); signaled {
+			err = nil
+		}
 
 		p.mu.Lock()
 		if job.status != statusStarted {
@@ -421,7 +419,7 @@ func (p *ProcessExecutor) ResetMaxJobs() {
 	maxJobs := 10
 	if v, ok := GetEnv("COMPOSER_MAX_PARALLEL_PROCESSES"); ok {
 		if f, ok := phpNumeric(v); ok {
-			maxJobs = int(max(1, min(50, f)))
+			maxJobs = int(max(1, min(50, numericToInt(v, f))))
 		}
 	}
 
@@ -471,17 +469,21 @@ func (p *ProcessExecutor) countActiveJobs() int {
 	return active
 }
 
-// SplitLines ports ProcessExecutor::splitLines.
+// SplitLines ports ProcessExecutor::splitLines: the trimmed output split on
+// \r?\n.
 func (p *ProcessExecutor) SplitLines(output string) []string {
 	output = strings.Trim(output, phpTrimChars)
 	if output == "" {
 		return []string{}
 	}
 
-	return crlfSplit.Split(output, -1)
-}
+	lines := strings.Split(output, "\n")
+	for i := range len(lines) - 1 {
+		lines[i] = strings.TrimSuffix(lines[i], "\r")
+	}
 
-var crlfSplit = regexp.MustCompile(`\r?\n`)
+	return lines
+}
 
 // GetErrorOutput ports ProcessExecutor::getErrorOutput: the error output of
 // the last command.
@@ -541,18 +543,18 @@ func Escape(argument string) string {
 // parsing.
 var windowsLookalikes = strings.NewReplacer(
 	"\n", " ",
-	"＂", `"`,
-	"ʺ", `"`,
-	"〝", `"`,
-	"〞", `"`,
-	"̎", `"`,
-	"：", ":",
-	"։", ":",
-	"∶", ":",
-	"／", "/",
-	"⁄", "/",
-	"∕", "/",
-	"´", "/",
+	"\uff02", `"`,
+	"\u02ba", `"`,
+	"\u301d", `"`,
+	"\u301e", `"`,
+	"\u030e", `"`,
+	"\uff1a", ":",
+	"\u0589", ":",
+	"\u2236", ":",
+	"\uff0f", "/",
+	"\u2044", "/",
+	"\u2215", "/",
+	"\u00b4", "/",
 )
 
 // escapeArgument ports ProcessExecutor::escapeArgument, modified from
@@ -644,29 +646,52 @@ func (p *ProcessExecutor) RequiresGitDirEnv(command Command) bool {
 	}
 
 	for _, gitCmd := range gitCmdsNeedGitDir {
-		// array_intersect($cmd, $gitCmd) === $gitCmd: same keys, values and
-		// order.
-		matched := 0
-		equal := true
-
-		for i, part := range cmd {
-			if !slices.Contains(gitCmd, part) {
-				continue
-			}
-
-			if matched >= len(gitCmd) || i != matched || gitCmd[matched] != part {
-				equal = false
-			}
-
-			matched++
-		}
-
-		if equal && matched == len(gitCmd) {
+		if intersectIsList(cmd, gitCmd) {
 			return true
 		}
 	}
 
 	return false
+}
+
+// intersectIsList reports whether array_intersect($cmd, $gitCmd) ===
+// $gitCmd: array_intersect keeps $cmd's keys, so the elements of cmd found
+// in gitCmd must be exactly gitCmd, at indexes 0, 1, ...
+func intersectIsList(cmd, gitCmd []string) bool {
+	n := 0
+
+	for i, part := range cmd {
+		if !slices.Contains(gitCmd, part) {
+			continue
+		}
+
+		if i != n || n >= len(gitCmd) || gitCmd[n] != part {
+			return false
+		}
+
+		n++
+	}
+
+	return n == len(gitCmd)
+}
+
+// numericToInt ports PHP's (int) cast of the numeric string s, whose value
+// is f: truncation, with out-of-range integer strings saturating and
+// out-of-range floats becoming 0.
+func numericToInt(s string, f float64) float64 {
+	if f > -1<<63 && f < 1<<63 {
+		return math.Trunc(f)
+	}
+
+	if strings.ContainsAny(s, ".eE") {
+		return 0
+	}
+
+	if f < 0 {
+		return math.MinInt64
+	}
+
+	return math.MaxInt64
 }
 
 var (

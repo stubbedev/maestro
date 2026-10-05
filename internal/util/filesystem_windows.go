@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// dirSeparators are '/' and DIRECTORY_SEPARATOR.
+const dirSeparators = `/\`
+
 // unlinkPath is PHP's unlink() on Windows.
 func unlinkPath(path string) error {
 	p, err := syscall.UTF16PtrFromString(path)
@@ -45,7 +48,7 @@ func isExecutable(path string) bool {
 	return ext == "exe" || ext == "com"
 }
 
-func chownLike(string, os.FileInfo) {}
+func chownLike(string, os.FileInfo) error { return nil }
 
 func fileAtime(fi os.FileInfo) time.Time {
 	if d, ok := fi.Sys().(*syscall.Win32FileAttributeData); ok {
@@ -93,13 +96,13 @@ func IsJunction(junction string) bool {
 }
 
 // RemoveJunction ports Filesystem::removeJunction.
-func (fs *Filesystem) RemoveJunction(junction string) (bool, error) {
+func RemoveJunction(junction string) (bool, error) {
 	junction = strings.TrimRight(strings.ReplaceAll(junction, "/", `\`), `\`)
 	if !IsJunction(junction) {
 		return false, &IOError{Message: junction + " is not a junction and thus cannot be removed as one"}
 	}
 
-	if err := fs.Rmdir(junction); err != nil {
+	if err := Rmdir(junction); err != nil {
 		return false, err
 	}
 

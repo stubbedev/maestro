@@ -3,11 +3,11 @@
 package util
 
 import (
-	"errors"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +27,7 @@ func GetCwd(allowEmpty bool) (string, error) {
 		return "", nil
 	}
 
-	return "", errors.New("Could not determine the current working directory") //nolint:revive,staticcheck // Composer's message.
+	return "", &RuntimeError{Message: "Could not determine the current working directory"}
 }
 
 // Realpath ports Platform::realpath: realpath(3), falling back on path.
@@ -77,7 +77,7 @@ func GetBoolEnv(name string) (value, set bool, err error) {
 		return false, true, nil
 	}
 
-	return false, false, errors.New("Invalid value for " + name + ": " + v + ". Expected 0, 1, false, true, off, or on.")
+	return false, false, &RuntimeError{Message: "Invalid value for " + name + ": " + v + ". Expected 0, 1, false, true, off, or on."}
 }
 
 // PutEnv ports Platform::putEnv.
@@ -180,7 +180,7 @@ func GetUserDirectory() (string, error) {
 		return u.HomeDir, nil
 	}
 
-	return "", errors.New("Could not determine user directory") //nolint:revive,staticcheck // Composer's message.
+	return "", &RuntimeError{Message: "Could not determine user directory"}
 }
 
 var (
@@ -221,10 +221,8 @@ func IsDocker() bool {
 
 func detectDocker() bool {
 	// .dockerenv and .containerenv are present in some cases but not reliably.
-	for _, marker := range []string{"/.dockerenv", "/run/.containerenv", "/var/run/.containerenv"} {
-		if fileExists(marker) {
-			return true
-		}
+	if slices.ContainsFunc([]string{"/.dockerenv", "/run/.containerenv", "/var/run/.containerenv"}, fileExists) {
+		return true
 	}
 
 	// cgroup v2, then cgroup v1.
@@ -257,11 +255,11 @@ func IsTty(f *os.File) bool {
 
 	// Detect msysgit/mingw and assume this is a tty because detection does
 	// not work correctly, see https://github.com/composer/composer/issues/9690
-	if msystem, _ := GetEnv("MSYSTEM"); strings.EqualFold(msystem, "MINGW32") || strings.EqualFold(msystem, "MINGW64") {
+	if msystem, _ := GetEnv("MSYSTEM"); equalFoldASCII(msystem, "MINGW32") || equalFoldASCII(msystem, "MINGW64") {
 		return true
 	}
 
-	return term.IsTerminal(int(f.Fd())) //nolint:gosec // File descriptors fit an int.
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // IsInputCompletionProcess ports Platform::isInputCompletionProcess.
@@ -331,14 +329,14 @@ func fileExists(path string) bool {
 
 // isDir is PHP's is_dir, following symlinks.
 func isDir(path string) bool {
-	fi, err := os.Stat(path)
+	fi, err := os.Stat(path) //nolint:gosec // is_dir() takes any path; nothing is opened.
 
 	return err == nil && fi.IsDir()
 }
 
 // isFile is PHP's is_file, following symlinks.
 func isFile(path string) bool {
-	fi, err := os.Stat(path)
+	fi, err := os.Stat(path) //nolint:gosec // is_file() takes any path; nothing is opened.
 
 	return err == nil && fi.Mode().IsRegular()
 }

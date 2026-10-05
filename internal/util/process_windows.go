@@ -5,6 +5,7 @@ package util
 import (
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 )
 
@@ -13,6 +14,11 @@ const (
 	killSignal = 9
 	intSignal  = 2
 )
+
+// windowsComSpec finds cmd.exe once, as Symfony caches it statically.
+var windowsComSpec = sync.OnceValues(func() (string, bool) {
+	return NewExecutableFinder().Find("cmd.exe")
+})
 
 // shellCommand runs commandline through cmd.exe as Symfony does on
 // Windows, moving quoted arguments into environment variables.
@@ -26,7 +32,7 @@ func shellCommand(commandline string, env *[]string) (*exec.Cmd, error) {
 		path = "cmd"
 	}
 
-	cmd := exec.Command(path)
+	cmd := exec.Command(path) //nolint:gosec // cmd.exe from COMSPEC, as Symfony Process runs it.
 	cmd.SysProcAttr = &syscall.SysProcAttr{CmdLine: line}
 
 	return cmd, nil

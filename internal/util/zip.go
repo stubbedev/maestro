@@ -5,50 +5,47 @@ package util
 import (
 	"archive/zip"
 	"io"
+	"slices"
 	"strings"
 )
 
 // ZipGetComposerJSON ports Zip::getComposerJson: the root composer.json of
 // a zip archive, or the one in its single top level directory. ok is false
-// when the archive cannot be opened, is empty or the file cannot be read.
+// where PHP returns null: the archive cannot be opened or is empty.
 func ZipGetComposerJSON(pathToZip string) (content string, ok bool, err error) {
 	zr, err := zip.OpenReader(pathToZip)
 	if err != nil {
 		return "", false, nil
 	}
-	defer zr.Close()
+	defer func() { _ = zr.Close() }()
 
 	if len(zr.File) == 0 {
 		return "", false, nil
 	}
 
-	file, err := zipLocateFile(zr.File, "composer.json")
+	data, err := zipLocateFile(zr.File, "composer.json")
 	if err != nil {
 		return "", false, err
 	}
 
-	data, ok := zipRead(file)
-
-	return string(data), ok, nil
+	return string(data), true, nil
 }
 
-// zipLocateFile finds the root file name, or the one in the single top
-// level directory.
-func zipLocateFile(files []*zip.File, filename string) (*zip.File, error) {
+// zipLocateFile ports Zip::locateFile, returning the content of the root
+// file, or of the one in the single top level directory. ZipArchive's
+// locateName returns the first entry of a name, and getFromIndex fails for
+// an entry it cannot read.
+func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 	// Return the root file if it is there and is a file.
-	if f := zipLocateName(files, filename); f != nil {
-		if _, ok := zipRead(f); ok {
-			return f, nil
-		}
+	if data, ok := zipReadName(files, filename); ok {
+		return data, nil
 	}
 
 	var topLevelPaths []string
 
 	addTopLevel := func(path string) error {
-		for _, p := range topLevelPaths {
-			if p == path {
-				return nil
-			}
+		if slices.Contains(topLevelPaths, path) {
+			return nil
 		}
 
 		topLevelPaths = append(topLevelPaths, path)
@@ -59,14 +56,17 @@ func zipLocateFile(files []*zip.File, filename string) (*zip.File, error) {
 		return nil
 	}
 
+	windows := IsWindows()
+
 	for _, f := range files {
 		name := f.Name
-		dirname := phpDirname(name, IsWindows())
 
 		// Ignore the OSX specific resource fork folder.
 		if strings.Contains(name, "__MACOSX") {
 			continue
 		}
+
+		dirname := phpDirname(name, windows)
 
 		// Handle archives with a proper TOC.
 		if dirname == "." {
@@ -87,30 +87,23 @@ func zipLocateFile(files []*zip.File, filename string) (*zip.File, error) {
 	}
 
 	if len(topLevelPaths) > 0 {
-		if f := zipLocateName(files, topLevelPaths[0]+filename); f != nil {
-			if _, ok := zipRead(f); ok {
-				return f, nil
-			}
+		if data, ok := zipReadName(files, topLevelPaths[0]+filename); ok {
+			return data, nil
 		}
 	}
 
 	return nil, errNoComposerJSON
 }
 
-// zipLocateName is ZipArchive::locateName without flags: an exact name.
-func zipLocateName(files []*zip.File, name string) *zip.File {
-	for _, f := range files {
-		if f.Name == name {
-			return f
-		}
+// zipReadName is ZipArchive::locateName without flags (the first entry of
+// exactly that name), then getFromIndex.
+func zipReadName(files []*zip.File, name string) ([]byte, bool) {
+	i := slices.IndexFunc(files, func(f *zip.File) bool { return f.Name == name })
+	if i < 0 {
+		return nil, false
 	}
 
-	return nil
-}
-
-// zipRead is ZipArchive::getFromIndex.
-func zipRead(f *zip.File) ([]byte, bool) {
-	rc, err := f.Open()
+	rc, err := files[i].Open()
 	if err != nil {
 		return nil, false
 	}

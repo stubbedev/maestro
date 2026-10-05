@@ -18,7 +18,7 @@ const (
 // shellCommand runs commandline the way proc_open does: execl("/bin/sh",
 // "sh", "-c", commandline).
 func shellCommand(commandline string, _ *[]string) (*exec.Cmd, error) {
-	cmd := exec.Command("/bin/sh", "-c", commandline)
+	cmd := exec.Command("/bin/sh", "-c", commandline) //nolint:gosec // running command lines is the point.
 	cmd.Args[0] = "sh"
 
 	return cmd, nil

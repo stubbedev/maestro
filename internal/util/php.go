@@ -117,10 +117,33 @@ func isASCIIAlnum(c byte) bool {
 	return isASCIIDigit(c) || isASCIIAlpha(c)
 }
 
-// hasPrefixFold reports whether s starts with the lowercase ASCII prefix,
-// ignoring ASCII case.
+// hasPrefixFold reports whether s starts with prefix, ignoring ASCII case
+// only, as PHP 8's stripos and PCRE's caseless non-UTF matching do.
 func hasPrefixFold(s, prefix string) bool {
-	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
+	if len(s) < len(prefix) {
+		return false
+	}
+
+	for i := range len(prefix) {
+		if lowerASCII(s[i]) != lowerASCII(prefix[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// equalFoldASCII reports whether a and b are equal ignoring ASCII case only.
+func equalFoldASCII(a, b string) bool {
+	return len(a) == len(b) && hasPrefixFold(a, b)
+}
+
+func lowerASCII(c byte) byte {
+	if c >= 'A' && c <= 'Z' {
+		return c + 'a' - 'A'
+	}
+
+	return c
 }
 
 // isPCRESpace reports whether c matches PCRE2's \s without UCP: space, \t,
@@ -129,17 +152,10 @@ func isPCRESpace(c byte) bool {
 	return c == ' ' || (c >= '\t' && c <= '\r')
 }
 
-// pcreEndsAt reports whether a PCRE "$" (without the D modifier) matches at
-// position i of s: at the very end, or before a final newline.
-func pcreEndsAt(s string, i int) bool {
-	return i == len(s) || (i == len(s)-1 && s[i] == '\n')
-}
-
 // strerror renders an OS error the way PHP's warnings do, from the C
 // library's strerror: Go's errno texts are the glibc ones, lowercased.
 func strerror(err error) string {
-	var errno syscall.Errno
-	if errors.As(err, &errno) {
+	if errno, ok := errors.AsType[syscall.Errno](err); ok {
 		err = errno
 	}
 
@@ -153,6 +169,24 @@ func strerror(err error) string {
 // function failed: "func(arg): Message".
 func phpWarning(fn, arg string, err error) string {
 	return fn + "(" + arg + "): " + strerror(err)
+}
+
+// warning is the ErrorException Composer's error handler makes of the
+// warning a failed filesystem function emits.
+func warning(fn, arg string, err error) error {
+	return &ErrorException{Message: phpWarning(fn, arg, err)}
+}
+
+// streamWarning is the warning of a function that failed to open arg:
+// "func(arg): Failed to open stream: Message".
+func streamWarning(fn, arg string, err error) error {
+	return &ErrorException{Message: fn + "(" + arg + "): Failed to open stream: " + strerror(err)}
+}
+
+// dirIteratorError is the UnexpectedValueException
+// RecursiveDirectoryIterator throws for a directory it cannot open.
+func dirIteratorError(dir string, err error) error {
+	return &UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + strerror(err)}
 }
 
 // phpTrimChars are the characters PHP's trim() strips by default.

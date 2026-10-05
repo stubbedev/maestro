@@ -14,7 +14,7 @@ import (
 // that are safe to display.
 var NonSecretCredentials = []string{"private-token", "x-token-auth", "oauth2", "gitlab-ci-token", "x-oauth-basic"}
 
-// GitHubTokenRegex is GitHub::GITHUB_TOKEN_REGEX.
+// gitHubTokenRegex is GitHub::GITHUB_TOKEN_REGEX.
 var gitHubTokenRegex = mustPCRE(`^([a-f0-9]{12,}|gh[a-z]_[a-zA-Z0-9_.-]+|github_pat_[a-zA-Z0-9_]+)$`, false)
 
 var (
@@ -65,7 +65,9 @@ func UpdateDistReference(url, ref string, githubDomains, gitlabDomains []string)
 	return url
 }
 
-var hostPortPrefix = regexp.MustCompile(`^([^:/]+):[0-9]+`)
+// hostPortPrefix is {^([^/]+):\d+}; RE2 picks the same (backtracking
+// order) match.
+var hostPortPrefix = regexp.MustCompile(`^([^/]+):[0-9]+`)
 
 // GetOrigin ports Url::getOrigin: the host (and port) credentials are kept
 // under. gitlabDomains is the gitlab-domains config value.
@@ -115,7 +117,7 @@ func GetOrigin(url string, gitlabDomains []string) string {
 func IsAllowedRedirect(url string) bool {
 	u, ok := parseURL(url)
 
-	return ok && u.hasScheme && (strings.EqualFold(u.scheme, "http") || strings.EqualFold(u.scheme, "https"))
+	return ok && u.hasScheme && (equalFoldASCII(u.scheme, "http") || equalFoldASCII(u.scheme, "https"))
 }
 
 var (

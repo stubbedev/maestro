@@ -3,11 +3,15 @@
 package util
 
 import (
+	"errors"
 	"os"
 	"syscall"
 
 	"golang.org/x/sys/unix"
 )
+
+// dirSeparators are '/' and DIRECTORY_SEPARATOR.
+const dirSeparators = "/"
 
 // unlinkPath is unlink(2), which unlike os.Remove never removes a directory.
 func unlinkPath(path string) error {
@@ -28,11 +32,24 @@ func isExecutable(path string) bool {
 	return unix.Access(path, unix.X_OK) == nil
 }
 
-func chownLike(path string, fi os.FileInfo) {
-	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
-		_ = os.Lchown(path, int(st.Uid), int(st.Gid))
+// chownLike gives path the owner of fi, as PHP's cross-device rename()
+// does; only failures other than EPERM count.
+func chownLike(path string, fi os.FileInfo) error {
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil
 	}
+
+	if err := os.Chown(path, int(st.Uid), int(st.Gid)); err != nil && !errors.Is(err, syscall.EPERM) {
+		return err
+	}
+
+	return nil
 }
+
+// errJunctionUnsupported is the LogicException Filesystem::junction throws
+// off Windows.
+var errJunctionUnsupported = &LogicError{Message: `Function Composer\Util\Filesystem is not available on non-Windows platform`}
 
 // Junction ports Filesystem::junction, which only exists on Windows.
 func (fs *Filesystem) Junction(_, _ string) error {
@@ -45,6 +62,6 @@ func IsJunction(string) bool {
 }
 
 // RemoveJunction ports Filesystem::removeJunction: always false off Windows.
-func (fs *Filesystem) RemoveJunction(string) (bool, error) {
+func RemoveJunction(string) (bool, error) {
 	return false, nil
 }

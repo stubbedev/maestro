@@ -88,7 +88,8 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 				return file, true
 			}
 
-			if !isDir(dir) && phpBasename(dir, windows) == name+suffix && isExecutable(dir) {
+			// The cheap basename test goes first to spare a stat per dir.
+			if phpBasename(dir, windows) == name+suffix && !isDir(dir) && isExecutable(dir) {
 				return dir, true
 			}
 		}
@@ -98,22 +99,24 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 		return "", false
 	}
 
-	out, err := exec.Command("/bin/sh", "-c", "command -v -- "+escapeShellArg(name)).Output()
-	if err != nil && len(out) == 0 {
-		return "", false
-	}
+	out, _ := exec.Command("/bin/sh", "-c", "command -v -- "+escapeShellArg(name)).Output() //nolint:gosec // the name is escaped, as exec() is in Symfony.
 
-	// exec() returns the last line of output, without trailing whitespace.
-	result := strings.TrimRight(string(out), " \t\n\r\v\x00")
-	if i := strings.LastIndexByte(result, '\n'); i >= 0 {
-		result = result[i+1:]
-	}
-
-	if result != "" && isExecutable(result) {
+	if result := phpExecLastLine(string(out)); result != "" && isExecutable(result) {
 		return result, true
 	}
 
 	return "", false
+}
+
+// phpExecLastLine is what PHP's exec() returns for output: its last line
+// with trailing whitespace (isspace) stripped.
+func phpExecLastLine(out string) string {
+	out = strings.TrimSuffix(out, "\n")
+	if i := strings.LastIndexByte(out, '\n'); i >= 0 {
+		out = out[i+1:]
+	}
+
+	return strings.TrimRight(out, " \t\n\v\f\r")
 }
 
 // pathinfoExtension is pathinfo($path, PATHINFO_EXTENSION).
