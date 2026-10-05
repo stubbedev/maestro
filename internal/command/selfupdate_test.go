@@ -104,14 +104,14 @@ func selfUpdateTester(t *testing.T, rs *releaseServer, current string) (*command
 		t.Fatal(err)
 	}
 	// the local server speaks http
-	if err := os.WriteFile(home+"/config.json", []byte(`{"config": {"secure-http": false}}`), 0o666); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(home+"/config.json", []byte(`{"config": {"secure-http": false}}`), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	bin := filepath.Join(dir, "bin", "maestro")
 	if err := os.MkdirAll(filepath.Dir(bin), 0o777); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(bin, []byte("OLD"), 0o755); err != nil { //nolint:gosec // an executable
+	if err := os.WriteFile(bin, []byte("OLD"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,7 +130,7 @@ func selfUpdateTester(t *testing.T, rs *releaseServer, current string) (*command
 
 func readFile(t *testing.T, path string) string {
 	t.Helper()
-	data, err := os.ReadFile(path) //nolint:gosec // test file
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestSelfUpdateCommand_SuccessfulUpdateAndRollback(t *testing.T) {
 
 	// --rollback restores the backup
 	appTester, bin2, _ := selfUpdateTester(t, rs, "1.2.0")
-	if err := os.WriteFile(bin2, []byte("NEW"), 0o755); err != nil { //nolint:gosec // an executable
+	if err := os.WriteFile(bin2, []byte("NEW"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// the second temp project has its own COMPOSER_HOME: move the backup there

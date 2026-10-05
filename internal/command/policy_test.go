@@ -104,7 +104,7 @@ func TestPolicyCommand_AddSourceWithGlobalFlagWritesToHomeConfigJson(t *testing.
 
 func TestPolicyCommand_AddSourceWithFileFlagWritesToCustomFile(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
-	if err := os.WriteFile("alt.composer.json", []byte("{\n}\n"), 0o666); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile("alt.composer.json", []byte("{\n}\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
 	runOK(t, "command", "policy", "action", "add-source", "name", "my-list", "arg1", "url", "arg2", "https://example.org/list.json", "--file", "alt.composer.json")

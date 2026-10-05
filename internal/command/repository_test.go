@@ -15,7 +15,7 @@ import (
 // expected is JSON decoded the same way; both are compared re-encoded.
 func jsonFileEquals(t *testing.T, file, expected string) {
 	t.Helper()
-	data, err := os.ReadFile(file) //nolint:gosec // test file
+	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func canonicalJSON(t *testing.T, s string) string {
 
 func decodeJSONFile(t *testing.T, file string) *php.Array {
 	t.Helper()
-	data, err := os.ReadFile(file) //nolint:gosec // test file
+	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
