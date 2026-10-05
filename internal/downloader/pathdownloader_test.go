@@ -219,18 +219,3 @@ func TestPathDownloader_MirrorPathReposEnv(t *testing.T) {
 		t.Fatalf("got %d, %d", current, allowed)
 	}
 }
-
-func TestGlobToRegex(t *testing.T) {
-	for glob, want := range map[string]string{
-		"*.md":     `#^(?=[^\.])[^/]*\.md$#`,
-		"src/**/x": `#^(?=[^\.])src/(?:(?=[^\.])[^/]++/)*(?=[^\.])x$#`,
-		"{a,b}?":   `#^(?=[^\.])(a|b)[^/]$#`,
-		`\*`:       `#^(?=[^\.])\*$#`,
-		".hidden":  `#^\.hidden$#`,
-		"tests":    `#^(?=[^\.])tests$#`,
-	} {
-		if got := globToRegex(glob); got != want {
-			t.Errorf("globToRegex(%q) = %q, want %q", glob, got, want)
-		}
-	}
-}

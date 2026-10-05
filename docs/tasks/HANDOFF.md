@@ -132,9 +132,19 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 
 ## Cleanup (DRY), from internal/downloader
 - internal/downloader/operation.go repeats Install/Update/UninstallOperation::format; internal/resolver owns the operations (it is above the downloader, so the downloader keeps its copy unless format moves lower).
-- internal/downloader/archivablefiles.go ports ArchivableFilesFinder, Base/Git/ComposerExcludeFilter and Symfony's Glob::toRegex (oracle-checked) for PathDownloader's mirroring; the archiver port (internal/pkg/archiver) should own them and the downloader import it.
+- Done: PathDownloader mirrors with `archiver.NewArchivableFilesFinder` (internal/pkg/archiver owns the finder, the exclude filters and Glob::toRegex); internal/downloader/mirror.go keeps only Symfony's mirror/copy/symlink.
 - `isBinPathInsidePackage` (filedownloader.go) is BinaryInstaller::isBinPathInsidePackage; internal/installer may use or own it.
 - Added exports: `util.IsExecutable` (is_executable()), `store.Umask` (the process umask).
+
+## internal/composer, internal/command, internal/plugin (from internal/pkg/archiver)
+- Factory::createArchiveManager: `archiver.NewArchiveManager(dm.Sync(), loop)` (the manager takes the download manager as `archiver.DownloadManager`, which `DownloadManager.Sync()` satisfies, because internal/downloader imports archiver), then `AddArchiver(archiver.NewZipArchiver())` and `AddArchiver(archiver.NewPharArchiver())`, both unconditionally (ZipArchive and Phar are always "available"; tar.bz2 always compresses).
+- `Archive(p, format, targetDir, fileName pkg.NullString, ignoreFilters)`; `PackageFilenameParts` returns ordered `[]FilenamePart` (PHP's array<string,string>). ArchiveCommand's own output is the command's.
+- Errors keep PHP's classes: `*archiver.PharError` (PharException) and `*archiver.BadMethodCallError` pass through PharArchiver unwrapped, as in Composer; a pattern that does not compile is a `*util.ErrorException` (Composer's ErrorHandler turns preg_match's warning into one, also in PathDownloader's mirroring).
+- Plugin archivers (Archiver interface) take excludes as `[]string`; ArchiveManager's getSupportedFormats only knows the two built-in classes, as in PHP.
+
+## Cleanup (DRY), from internal/pkg/archiver
+- `sysGetTempDir` (archivemanager.go) duplicates console's private `sysTempDir` (sys_get_temp_dir()); `typeError` duplicates internal/pkg/loader's TypeError message builder. Move both into internal/php (or util) and share them.
+- go.mod lists github.com/dsnet/compress (bzip2 writer) as `// indirect` though archiver imports it directly; a `go mod tidy` when no port is running fixes the marker.
 
 ## Users of internal/repository and internal/locker (internal/composer, internal/resolver, internal/installer, internal/command, internal/plugin, composerrepo, vcs)
 - Every RepositoryInterface method returns an error where PHP can throw (remote repositories fail anywhere); `RepoName()` cannot and counts the packages loaded so far. String constraints are parsed by the caller (`repository.ParseConstraint`); a nil constraint is PHP's null (any version). `search()`'s `?string $type` is `""` for null; results are `SearchResult` (Abandoned nil = unset), providers `[]ProviderInfo` keyed by name. `Class()` gives the PHP class (plugin mirrors); writable repositories have `Rev()`.

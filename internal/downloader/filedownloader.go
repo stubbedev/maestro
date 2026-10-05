@@ -494,7 +494,7 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 	}
 
 	if len(st.urls) > 0 {
-		class, code := phpClassOf(e)
+		class, code := PHPClassOf(e)
 		name := st.p.Name()
 
 		if st.c.io.IsDebug() {
@@ -561,7 +561,7 @@ func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, 
 
 func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+formatInstall(p), true, mio.Normal)
+		c.io.WriteError("  - "+FormatInstall(p), true, mio.Normal)
 	}
 
 	// clean up the target directory, unless it contains the vendor dir, as
@@ -679,7 +679,7 @@ func (d *FileDownloader) removeCleanupPath(p pkg.PackageInterface, path string) 
 
 // Update is update($initial, $target, $path).
 func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path string) (*Promise, error) {
-	msg, err := formatUpdate(initial, target)
+	msg, err := FormatUpdate(initial, target)
 	if err != nil {
 		return nil, err
 	}
@@ -705,7 +705,7 @@ func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path strin
 
 func (d *FileDownloader) remove(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+formatUninstall(p), true, mio.Normal)
+		c.io.WriteError("  - "+FormatUninstall(p), true, mio.Normal)
 	}
 
 	promise, err := d.fs.RemoveDirectoryAsync(path)
@@ -798,7 +798,7 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 			return pkg.NullString{}, e
 		}
 
-		class, _ := phpClassOf(e)
+		class, _ := PHPClassOf(e)
 
 		return pkg.Str("Failed to detect changes: [" + class + "] " + e.Error()), nil
 	}

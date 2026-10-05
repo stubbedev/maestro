@@ -11,6 +11,7 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/util"
@@ -90,7 +91,7 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 				return nil, err
 			}
 
-			c.io.WriteError("  - "+formatInstall(p)+appendix, true, mio.Normal)
+			c.io.WriteError("  - "+FormatInstall(p)+appendix, true, mio.Normal)
 		}
 
 		return resolved(""), nil
@@ -109,7 +110,7 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 	}
 
 	if c.output {
-		c.io.WriteError("  - "+formatInstall(p)+": ", false, mio.Normal)
+		c.io.WriteError("  - "+FormatInstall(p)+": ", false, mio.Normal)
 	}
 
 	isFallback := false
@@ -148,12 +149,12 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 			c.io.WriteError(indent+"Mirroring from "+url.S, false, mio.Normal)
 		}
 
-		files, err := archivableFiles(realURL, nil)
+		finder, err := archiver.NewArchivableFilesFinder(realURL, nil, false)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := mirror(realURL, path, files); err != nil {
+		if err := mirror(realURL, path, finder.Files()); err != nil {
 			return nil, err
 		}
 	}
@@ -219,7 +220,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 	// real choice but to fail hard.
 	if util.IsWindows() && util.IsJunction(path) {
 		if c.output {
-			c.io.WriteError("  - "+formatUninstall(p)+", source is still present in "+path, true, mio.Normal)
+			c.io.WriteError("  - "+FormatUninstall(p)+", source is still present in "+path, true, mio.Normal)
 		}
 
 		if removed, err := util.RemoveJunction(path); err != nil || !removed {
@@ -253,7 +254,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 
 	if util.NormalizePath(absPath) == util.NormalizePath(absDistURL) {
 		if c.output {
-			c.io.WriteError("  - "+formatUninstall(p)+", source is still present in "+path, true, mio.Normal)
+			c.io.WriteError("  - "+FormatUninstall(p)+", source is still present in "+path, true, mio.Normal)
 		}
 
 		return resolved(""), nil

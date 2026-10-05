@@ -209,7 +209,7 @@ func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, pre
 	}
 
 	handleError := func(e error) (*Promise, error) {
-		if !isRuntimeException(e) || isIrrecoverable(e) {
+		if !util.IsRuntimeException(e) || isIrrecoverable(e) {
 			return nil, e
 		}
 
@@ -317,7 +317,7 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 			return promise, nil
 		}
 
-		if !isRuntimeException(err) || !m.io.IsInteractive() {
+		if !util.IsRuntimeException(err) || !m.io.IsInteractive() {
 			return nil, err
 		}
 
