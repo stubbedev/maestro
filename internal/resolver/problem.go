@@ -412,7 +412,16 @@ func (ctx *PrettyContext) MissingPackageReason(packageName string, constraint se
 
 	prefix := "- Root composer.json requires " + packageName + constraintToText(constraint) + ", "
 
-	if c, ok := constraint.(*semver.Constraint); ok && c.Op() == semver.OpEQ && strings.HasPrefix(c.PrettyString(), "dev-") && strings.Contains(c.PrettyString()[4:], "#") {
+	c, ok := constraint.(*semver.Constraint)
+	isDevRef := false
+	if ok && c.Op() == semver.OpEQ {
+		var err error
+		if isDevRef, err = devRefRegex.IsMatch(c.PrettyString()); err != nil {
+			return [2]string{}, err
+		}
+	}
+
+	if isDevRef {
 		newConstraint, _, err := branchAliasSuffixRegex.Replace(c.PrettyString(), "", -1)
 		if err != nil {
 			return [2]string{}, err
@@ -519,6 +528,7 @@ func (ctx *PrettyContext) MissingPackageReason(packageName string, constraint se
 
 var (
 	branchAliasSuffixRegex = php.MustCompile(`{ +as +([^,\s|]+)$}`)
+	devRefRegex            = php.MustCompile(`{^dev-.*#.*}`)
 	validPackageNameRegex  = php.MustCompile(`{^[A-Za-z0-9_./-]+$}`)
 	packageNameCharsRegex  = php.MustCompile(`{[A-Za-z0-9_./-]+}`)
 	exactVersionRegex      = php.MustCompile(`{^\d+(?:\.\d+)*$}`)
