@@ -455,7 +455,7 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 // output. Like Process::run(), a failing tail is not an error.
 func tailDebugLog(commandName string, out Output) {
 	debugFile := sysTempDir() + "/sf_" + commandName + ".log"
-	if _, err := os.Stat(debugFile); err != nil { //nolint:gosec // the log path is derived from the temp dir and argv[0], as in PHP.
+	if _, err := os.Stat(debugFile); err != nil {
 		if f, err := os.OpenFile(debugFile, os.O_CREATE|os.O_WRONLY, 0o666); err == nil { //nolint:gosec // touch() creates files with mode 0666 & ~umask.
 			_ = f.Close()
 		}

@@ -335,14 +335,14 @@ func fileExists(path string) bool {
 
 // isDir is PHP's is_dir, following symlinks.
 func isDir(path string) bool {
-	fi, err := os.Stat(path) //nolint:gosec // is_dir() takes any path; nothing is opened.
+	fi, err := os.Stat(path)
 
 	return err == nil && fi.IsDir()
 }
 
 // isFile is PHP's is_file, following symlinks.
 func isFile(path string) bool {
-	fi, err := os.Stat(path) //nolint:gosec // is_file() takes any path; nothing is opened.
+	fi, err := os.Stat(path)
 
 	return err == nil && fi.Mode().IsRegular()
 }

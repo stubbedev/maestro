@@ -63,7 +63,7 @@ func main() {
 	dir := flag.String("dir", def, "where to store the archives")
 	flag.Parse()
 
-	if err := os.MkdirAll(*dir, 0o755); err != nil { //nolint:gosec // the directory is the user's choice.
+	if err := os.MkdirAll(*dir, 0o755); err != nil {
 		fail(err)
 	}
 
@@ -158,7 +158,7 @@ func get(client *http.Client, url string) (io.ReadCloser, error) {
 
 // download saves url at path unless path exists, atomically.
 func download(client *http.Client, url, path string) error {
-	if _, err := os.Stat(path); err == nil { //nolint:gosec // the directory is the user's choice.
+	if _, err := os.Stat(path); err == nil {
 		return nil
 	}
 
@@ -171,14 +171,14 @@ func download(client *http.Client, url, path string) error {
 
 	tmp := path + ".part"
 
-	f, err := os.Create(tmp) //nolint:gosec // the directory is the user's choice.
+	f, err := os.Create(tmp)
 	if err != nil {
 		return err
 	}
 
 	if _, err := io.Copy(f, body); err != nil {
 		_ = f.Close()
-		_ = os.Remove(tmp) //nolint:gosec // the directory is the user's choice.
+		_ = os.Remove(tmp)
 
 		return err
 	}
@@ -189,5 +189,5 @@ func download(client *http.Client, url, path string) error {
 
 	fmt.Println(path)
 
-	return os.Rename(tmp, path) //nolint:gosec // the directory is the user's choice.
+	return os.Rename(tmp, path)
 }
