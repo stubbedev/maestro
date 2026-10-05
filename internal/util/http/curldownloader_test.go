@@ -17,6 +17,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -738,6 +740,67 @@ func TestLoop_WaitsForAsyncRequests(t *testing.T) {
 	}
 }
 
+// TestLoop_CallbacksRunInStartOrder: requests finishing in reverse order
+// have their callbacks (and Composer's per-response processing, here the
+// debug lines) run on the waiting goroutine in the order they started,
+// so the output is deterministic.
+func TestLoop_CallbacksRunInStartOrder(t *testing.T) {
+	const n = 5
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		i, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/"))
+		time.Sleep(time.Duration(n-i) * 5 * time.Millisecond)
+		_, _ = w.Write([]byte(r.URL.Path))
+	}))
+	defer srv.Close()
+
+	h, out := newTestDownloader(t, nil, "")
+	loop := NewLoop(h, nil)
+
+	var (
+		order    []string
+		promises []Waitable
+	)
+
+	for i := range n {
+		p, err := h.Add(fmt.Sprintf("%s/%d", srv.URL, i), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		promises = append(promises, util.Then(p, func(r *Response) (struct{}, error) {
+			order = append(order, r.Body())
+			out.WriteError("callback "+r.Body(), true, io.Normal)
+
+			return struct{}{}, nil
+		}))
+	}
+
+	if err := loop.Wait(promises, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if want := []string{"/0", "/1", "/2", "/3", "/4"}; !slices.Equal(order, want) {
+		t.Fatalf("order %q, want %q", order, want)
+	}
+
+	var lines []string
+	for line := range strings.SplitSeq(out.Output(), "\n") {
+		if strings.HasPrefix(line, "[200]") || strings.HasPrefix(line, "callback") {
+			lines = append(lines, strings.ReplaceAll(line, srv.URL, ""))
+		}
+	}
+
+	var want []string
+	for i := range n {
+		want = append(want, fmt.Sprintf("[200] /%d", i), fmt.Sprintf("callback /%d", i))
+	}
+
+	if !slices.Equal(lines, want) {
+		t.Fatalf("output %q, want %q", lines, want)
+	}
+}
+
 func TestLoop_ThenAddsMoreWork(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(r.URL.Path))
@@ -753,6 +816,12 @@ func TestLoop_ThenAddsMoreWork(t *testing.T) {
 	chained := util.Then(first, func(*Response) (struct{}, error) {
 		p, err := h.Add(srv.URL+"/two", nil)
 		if err != nil {
+			return struct{}{}, err
+		}
+
+		// callbacks run on the waiting goroutine: waiting for more work
+		// from one is a nested wait, as SyncHelper::await in PHP
+		if err := loop.Wait([]Waitable{p}, nil); err != nil {
 			return struct{}{}, err
 		}
 

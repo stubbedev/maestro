@@ -24,37 +24,24 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-// TestInstallationManager_IntegrationZip installs many zip dists through
-// the real download manager, archive downloader and package store: the
-// downloads run concurrently, the output lines come in operation order
-// and every package is placed with its bin proxy.
-func TestInstallationManager_IntegrationZip(t *testing.T) {
-	const n = 24
+// zipProject is a project installing zip dists served by a test server
+// through the real download manager, archive downloader and package store.
+type zipProject struct {
+	srv     *httptest.Server
+	vendor  string
+	out     interface{ Output() string }
+	manager *Manager
+}
 
-	var inFlight, maxInFlight atomic.Int64
-
-	block := make(chan struct{})
+// newZipProject serves v/<name>'s zip at /<name>.zip (with bin/<name>);
+// handle, when not nil, runs first for every request.
+func newZipProject(t *testing.T, handle func()) *zipProject {
+	t.Helper()
 
 	srv := httptest.NewServer(nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		cur := inFlight.Add(1)
-		for {
-			m := maxInFlight.Load()
-			if cur <= m || maxInFlight.CompareAndSwap(m, cur) {
-				break
-			}
+		if handle != nil {
+			handle()
 		}
-
-		if cur >= 4 {
-			// enough concurrency observed: release everyone
-			select {
-			case <-block:
-			default:
-				close(block)
-			}
-		}
-
-		<-block
-		inFlight.Add(-1)
 
 		name := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/"), ".zip")
 		_, _ = w.Write(archivetest.Zip("",
@@ -115,17 +102,61 @@ func TestInstallationManager_IntegrationZip(t *testing.T) {
 	manager.SetDownloadMetadata(metadata)
 	manager.AddInstaller(library)
 
+	return &zipProject{srv: srv, vendor: vendor, out: out, manager: manager}
+}
+
+// installOp is the install operation of v/<name> 1.0.0 from the project's
+// server, with the given binaries.
+func (z *zipProject) installOp(name string, bins ...any) operation.Operation {
+	p := pkg.NewPackage("v/"+name, "1.0.0.0", "1.0.0")
+	p.SetType("library")
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str(z.srv.URL + "/" + name + ".zip"))
+	p.SetDistReference(pkg.Str("ref" + name))
+	p.SetBinaries(php.ListOf(bins...))
+
+	return operation.NewInstallOperation(p)
+}
+
+// TestInstallationManager_IntegrationZip installs many zip dists through
+// the real download manager, archive downloader and package store: the
+// downloads run concurrently, the output lines come in operation order
+// and every package is placed with its bin proxy.
+func TestInstallationManager_IntegrationZip(t *testing.T) {
+	const n = 24
+
+	var inFlight, maxInFlight atomic.Int64
+
+	block := make(chan struct{})
+
+	z := newZipProject(t, func() {
+		cur := inFlight.Add(1)
+		for {
+			m := maxInFlight.Load()
+			if cur <= m || maxInFlight.CompareAndSwap(m, cur) {
+				break
+			}
+		}
+
+		if cur >= 4 {
+			// enough concurrency observed: release everyone
+			select {
+			case <-block:
+			default:
+				close(block)
+			}
+		}
+
+		<-block
+		inFlight.Add(-1)
+	})
+	vendor, out, manager := z.vendor, z.out, z.manager
+
 	var ops []operation.Operation
 
 	for i := range n {
 		name := "p" + string(rune('a'+i))
-		p := pkg.NewPackage("v/"+name, "1.0.0.0", "1.0.0")
-		p.SetType("library")
-		p.SetDistType(pkg.Str("zip"))
-		p.SetDistURL(pkg.Str(srv.URL + "/" + name + ".zip"))
-		p.SetDistReference(pkg.Str("ref" + name))
-		p.SetBinaries(php.ListOf("bin/" + name))
-		ops = append(ops, operation.NewInstallOperation(p))
+		ops = append(ops, z.installOp(name, "bin/"+name))
 	}
 
 	repo, err := repository.NewInstalledArrayRepository(nil)
@@ -183,6 +214,50 @@ func TestInstallationManager_IntegrationZip(t *testing.T) {
 
 	if entries, _ := os.ReadDir(vendor + "/composer"); len(entries) != 0 {
 		t.Errorf("leftovers in vendor/composer: %v", entries)
+	}
+}
+
+// TestInstallationManager_ArchiveInstallContinuations: an archive install
+// settles on a later loop tick (Composer extracts with an async unzip, then
+// removes the temporary directory asynchronously), so what runs after it
+// (here the bin warnings of LibraryInstaller) comes after every
+// "Installing" line of the batch, in operation order.
+func TestInstallationManager_ArchiveInstallContinuations(t *testing.T) {
+	z := newZipProject(t, nil)
+
+	ops := []operation.Operation{
+		z.installOp("pa", "bin/missing"),
+		z.installOp("pb", "bin/pb"),
+		z.installOp("pc", "bin/missing"),
+	}
+
+	repo, err := repository.NewInstalledArrayRepository(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := z.manager.Execute(repo, ops, true, true, false); err != nil {
+		t.Fatal(err)
+	}
+
+	var got []string
+
+	for line := range strings.SplitSeq(z.out.Output(), "\n") {
+		if strings.HasPrefix(line, "  - Installing ") || strings.HasPrefix(line, "    <warning>Skipped") {
+			got = append(got, line)
+		}
+	}
+
+	want := []string{
+		"  - Installing v/pa (1.0.0): Extracting archive",
+		"  - Installing v/pb (1.0.0): Extracting archive",
+		"  - Installing v/pc (1.0.0): Extracting archive",
+		"    <warning>Skipped installation of bin bin/missing for package v/pa: file not found in package</warning>",
+		"    <warning>Skipped installation of bin bin/missing for package v/pc: file not found in package</warning>",
+	}
+
+	if !slices.Equal(got, want) {
+		t.Errorf("output:\n%s\nwant\n%s\nfull output:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"), z.out.Output())
 	}
 }
 

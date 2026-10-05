@@ -91,12 +91,17 @@ type ProcessExecutor struct {
 	io IO
 
 	mu          sync.Mutex
-	idle        *sync.Cond
 	errorOutput string
 	allowAsync  bool
 	maxJobs     int
 	runningJobs int
 	jobs        []*asyncJob
+	// sched runs the completions of async jobs (a Loop shares its
+	// HttpDownloader's).
+	sched *Scheduler
+	// settles are the promise settlements decided with mu held, run once
+	// it is released: their callbacks may call the executor again.
+	settles []func()
 }
 
 type asyncJob struct {
@@ -110,8 +115,7 @@ type asyncJob struct {
 // NewProcessExecutor returns a ProcessExecutor writing to io, which may be
 // nil.
 func NewProcessExecutor(io IO) *ProcessExecutor {
-	p := &ProcessExecutor{io: io}
-	p.idle = sync.NewCond(&p.mu)
+	p := &ProcessExecutor{io: io, sched: NewScheduler()}
 	p.ResetMaxJobs()
 
 	return p
@@ -265,24 +269,52 @@ func (p *ProcessExecutor) watchSignals() func() os.Signal {
 
 // ExecuteAsync ports ProcessExecutor::executeAsync: the command runs once
 // fewer than the maximum number of jobs are running, and the promise
-// resolves with its finished Process.
+// resolves with its finished Process. The promise settles on the goroutine
+// driving the executor's Scheduler (Loop.Wait, Wait), in the order the
+// jobs started; see Scheduler.
 func (p *ProcessExecutor) ExecuteAsync(command Command, cwd string) (*Promise[*Process], error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	if !p.allowAsync {
+		p.mu.Unlock()
+
 		return nil, &LogicError{Message: `You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`}
 	}
 
 	job := &asyncJob{status: statusQueued, command: command, cwd: cwd, promise: newPromise[*Process]()}
-	job.promise.cancel = func() { p.cancelJob(job) }
+	job.promise.sched = p.sched
+	job.promise.canceller = func() { p.cancelJob(job) }
 	p.jobs = append(p.jobs, job)
 
 	if p.runningJobs < p.maxJobs {
 		p.startJob(job)
 	}
 
+	p.unlock()
+
 	return job.promise, nil
+}
+
+// unlock releases p.mu and runs the settlements decided meanwhile.
+func (p *ProcessExecutor) unlock() {
+	settles := p.settles
+	p.settles = nil
+	p.mu.Unlock()
+
+	for _, settle := range settles {
+		settle()
+	}
+}
+
+// settleJob settles a job's promise once p.mu is released; p.mu is held.
+func (p *ProcessExecutor) settleJob(job *asyncJob, err error) {
+	p.settles = append(p.settles, func() {
+		if err != nil {
+			job.promise.reject(err)
+		} else {
+			job.promise.resolve(job.process)
+		}
+	})
 }
 
 // errAbortedProcess is the RuntimeException a cancelled job rejects with.
@@ -297,9 +329,8 @@ func (p *ProcessExecutor) cancelJob(job *asyncJob) {
 	switch job.status {
 	case statusQueued:
 		job.status = statusAborted
-		p.idle.Broadcast()
-		p.mu.Unlock()
-		job.promise.reject(errAbortedProcess)
+		p.settleJob(job, errAbortedProcess)
+		p.unlock()
 
 		return
 	case statusStarted:
@@ -319,13 +350,15 @@ func (p *ProcessExecutor) cancelJob(job *asyncJob) {
 
 	p.mu.Lock()
 	job.status = statusFailed
-	p.markJobDone()
-	p.mu.Unlock()
+	p.runningJobs--
+	p.settleJob(job, errAbortedProcess)
+	p.unlock()
 
-	job.promise.reject(errAbortedProcess)
+	p.startQueued()
 }
 
-// startJob ports ProcessExecutor::startJob; p.mu is held.
+// startJob ports ProcessExecutor::startJob; p.mu is held. The process is
+// waited for on its own goroutine, which hands its end to the scheduler.
 func (p *ProcessExecutor) startJob(job *asyncJob) {
 	if job.status != statusQueued {
 		return
@@ -337,9 +370,8 @@ func (p *ProcessExecutor) startJob(job *asyncJob) {
 	if err := p.outputCommandRun(job.command, job.cwd, true); err != nil {
 		// PHP throws before starting the process; the job fails with it.
 		job.status = statusFailed
-		p.markJobDone()
-
-		job.promise.reject(err)
+		p.runningJobs--
+		p.settleJob(job, err)
 
 		return
 	}
@@ -357,12 +389,13 @@ func (p *ProcessExecutor) startJob(job *asyncJob) {
 
 	if err := process.Start(nil); err != nil {
 		job.status = statusFailed
-		p.markJobDone()
-
-		job.promise.reject(err)
+		p.runningJobs--
+		p.settleJob(job, err)
 
 		return
 	}
+
+	ticket := p.sched.Ticket()
 
 	go func() {
 		// Composer resolves with the process once it stopped running,
@@ -374,34 +407,39 @@ func (p *ProcessExecutor) startJob(job *asyncJob) {
 			err = nil
 		}
 
-		p.mu.Lock()
-		if job.status != statusStarted {
-			p.mu.Unlock()
-
-			return
-		}
-
-		if err == nil && process.IsSuccessful() {
-			job.status = statusCompleted
-		} else {
-			job.status = statusFailed
-		}
-
-		p.markJobDone()
-		p.mu.Unlock()
-
-		if err != nil {
-			job.promise.reject(err)
-		} else {
-			job.promise.resolve(process)
-		}
+		ticket.Complete(func() { p.finishJob(job, err) })
 	}()
 }
 
-// markJobDone frees a running slot and starts the next queued jobs; p.mu
-// is held.
-func (p *ProcessExecutor) markJobDone() {
+// finishJob is the countActiveJobs tick of a job whose process stopped:
+// the then() wrapper of executeAsync (status, markJobDone) and the
+// promise's callbacks, then the queued jobs that may start.
+func (p *ProcessExecutor) finishJob(job *asyncJob, err error) {
+	p.mu.Lock()
+
+	if job.status != statusStarted {
+		// cancelled meanwhile
+		p.mu.Unlock()
+
+		return
+	}
+
+	if err == nil && job.process.IsSuccessful() {
+		job.status = statusCompleted
+	} else {
+		job.status = statusFailed
+	}
+
 	p.runningJobs--
+	p.settleJob(job, err)
+	p.unlock()
+
+	p.startQueued()
+}
+
+// startQueued starts queued jobs while fewer than the maximum run.
+func (p *ProcessExecutor) startQueued() {
+	p.mu.Lock()
 
 	for _, job := range p.jobs {
 		if p.runningJobs >= p.maxJobs {
@@ -413,7 +451,26 @@ func (p *ProcessExecutor) markJobDone() {
 		}
 	}
 
-	p.idle.Broadcast()
+	p.unlock()
+}
+
+// Scheduler returns the scheduler running the completions of the async
+// jobs.
+func (p *ProcessExecutor) Scheduler() *Scheduler {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.sched
+}
+
+// SetScheduler makes the executor's async jobs complete through s; a Loop
+// gives it its HttpDownloader's so that one goroutine drives both. Call it
+// before starting async jobs.
+func (p *ProcessExecutor) SetScheduler(s *Scheduler) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.sched = s
 }
 
 // SetMaxJobs ports ProcessExecutor::setMaxJobs.
@@ -436,15 +493,10 @@ func (p *ProcessExecutor) ResetMaxJobs() {
 	p.SetMaxJobs(maxJobs)
 }
 
-// Wait ports ProcessExecutor::wait: blocks until no job is queued or
-// running.
+// Wait ports ProcessExecutor::wait: it drives the scheduler until no job
+// is queued or running. Only one goroutine may drive it at a time.
 func (p *ProcessExecutor) Wait() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for p.countActiveJobs() > 0 {
-		p.idle.Wait()
-	}
+	p.Scheduler().Run(func() bool { return p.CountActiveJobs() == 0 })
 }
 
 // EnableAsync ports ProcessExecutor::enableAsync.

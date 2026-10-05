@@ -4,6 +4,7 @@
 package http
 
 import (
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -19,14 +20,17 @@ import (
 
 // Waitable is a promise Loop.Wait can wait for; every *util.Promise is
 // one.
-type Waitable interface {
-	Done() <-chan struct{}
-	Err() error
-	Cancel()
-}
+type Waitable = util.Waitable
 
 // Loop ports Composer\Util\Loop: it drives the asynchronous HTTP requests
 // and processes until a set of promises settled.
+//
+// The HttpDownloader and the ProcessExecutor share one util.Scheduler (the
+// downloader's), which Wait drives on the calling goroutine: requests and
+// processes run in parallel, but every callback runs on that goroutine, in
+// the order the work started. Composer runs the callbacks in the order the
+// work finishes; that order, the only nondeterministic one in Composer's
+// loop, is replaced by the start order. See util.Scheduler.
 type Loop struct {
 	httpDownloader  *HttpDownloader
 	processExecutor *util.ProcessExecutor
@@ -37,11 +41,13 @@ type Loop struct {
 }
 
 // NewLoop is new Loop($httpDownloader, $processExecutor); processExecutor
-// may be nil.
+// may be nil. The executor's async jobs complete through the downloader's
+// scheduler from here on.
 func NewLoop(httpDownloader *HttpDownloader, processExecutor *util.ProcessExecutor) *Loop {
 	httpDownloader.EnableAsync()
 
 	if processExecutor != nil {
+		processExecutor.SetScheduler(httpDownloader.Scheduler())
 		processExecutor.EnableAsync()
 	}
 
@@ -55,45 +61,19 @@ func (l *Loop) HttpDownloader() *HttpDownloader { return l.httpDownloader }
 func (l *Loop) ProcessExecutor() *util.ProcessExecutor { return l.processExecutor }
 
 // Wait is wait($promises, $progress): it runs the queued requests and
-// processes until none is left and the promises settled, and returns the
-// first rejection. progress may be nil.
+// processes, and their callbacks, until no job is left, and returns the
+// first rejection of the promises (in the order they settled). progress
+// may be nil. Only one goroutine may wait at a time; a callback may wait
+// again (nested).
 //
-// Unlike PHP, then() callbacks run on their own goroutines, so Wait also
-// waits for the promises themselves: a callback may still be adding work
-// when the last job finished.
+// A nil Loop drives the schedulers the promises wait on until they
+// settled (tests building promises without a Loop).
 func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
-	var (
-		mu       sync.Mutex
-		uncaught error
-	)
-
-	allDone := make(chan struct{})
-	failed := make(chan struct{})
-	remaining := atomic.Int64{}
-	remaining.Store(int64(len(promises)))
-
-	if len(promises) == 0 {
-		close(allDone)
+	if l == nil {
+		return util.AwaitAll(promises)
 	}
 
-	for _, p := range promises {
-		go func() {
-			<-p.Done()
-
-			if err := p.Err(); err != nil {
-				mu.Lock()
-				if uncaught == nil {
-					uncaught = err
-					close(failed)
-				}
-				mu.Unlock()
-			}
-
-			if remaining.Add(-1) == 0 {
-				close(allDone)
-			}
-		}()
-	}
+	uncaught := util.FirstRejection(promises)
 
 	// keep track of every group of promises that is waited on, so
 	// AbortJobs can cancel them all, even if Wait is called within a Wait
@@ -103,64 +83,34 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	l.currentPromises[waitIndex] = promises
 	l.mu.Unlock()
 
-	if progress != nil {
-		totalJobs := l.httpDownloader.countActiveJobs(-1, 0, nil)
-		if l.processExecutor != nil {
-			totalJobs += l.processExecutor.CountActiveJobs()
-		}
+	sched := l.httpDownloader.Scheduler()
 
-		progress.StartMax(totalJobs)
+	if progress != nil {
+		progress.StartMax(sched.Pending())
 	}
 
 	var lastUpdate time.Time
 
 	for {
-		processes := 0
-		if l.processExecutor != nil {
-			processes = l.processExecutor.CountActiveJobs()
-		}
-
-		// Wait for transfers in short slices while processes run (they
-		// have no channel to wake us) or the progress bar needs updates.
-		wait := time.Second
-		if processes > 0 {
-			wait = time.Millisecond
-		} else if progress != nil {
-			wait = 100 * time.Millisecond
-		}
-
-		activeJobs := l.httpDownloader.countActiveJobs(-1, wait, allDone) + processes
+		activeJobs := sched.Pending()
 
 		if progress != nil && time.Since(lastUpdate) > 100*time.Millisecond {
 			lastUpdate = time.Now()
 			progress.SetProgress(progress.MaxSteps() - activeJobs)
 		}
 
-		if activeJobs > 0 {
-			if processes > 0 && l.httpDownloader.inFlight() == 0 {
-				time.Sleep(time.Millisecond)
-			}
-
-			continue
+		if activeJobs == 0 {
+			break
 		}
 
-		select {
-		case <-allDone:
-		case <-failed:
-		default:
-			// no work left, but then() callbacks are still running and may
-			// queue more
-			select {
-			case <-allDone:
-			case <-failed:
-			case <-l.httpDownloader.waitChange():
-			case <-time.After(10 * time.Millisecond):
+		if !sched.RunReady() {
+			wait := time.Duration(0)
+			if progress != nil {
+				wait = 100 * time.Millisecond
 			}
 
-			continue
+			sched.WaitReady(wait, nil)
 		}
-
-		break
 	}
 
 	// as we skip progress updates if they are too quick, make sure we do
@@ -173,10 +123,7 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	delete(l.currentPromises, waitIndex)
 	l.mu.Unlock()
 
-	mu.Lock()
-	defer mu.Unlock()
-
-	return uncaught
+	return uncaught()
 }
 
 // AbortJobs is abortJobs(): it cancels every promise being waited on.
@@ -184,8 +131,9 @@ func (l *Loop) AbortJobs() {
 	l.mu.Lock()
 	groups := make([][]Waitable, 0, len(l.currentPromises))
 
-	for _, group := range l.currentPromises {
-		groups = append(groups, group)
+	// in the order the waits started, as PHP iterates the array
+	for _, index := range slices.Sorted(maps.Keys(l.currentPromises)) {
+		groups = append(groups, l.currentPromises[index])
 	}
 	l.mu.Unlock()
 

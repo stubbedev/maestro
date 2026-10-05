@@ -757,9 +757,10 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 			return "", err
 		}
 
-		d.waitHTTP(promise)
+		d.http.Wait()
 
-		if _, err := promise.Wait(); err != nil {
+		// the download may still extract into the store after its request
+		if _, err := promise.Await(); err != nil {
 			return "", err
 		}
 
@@ -795,21 +796,6 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 	}
 
 	return pkg.NonEmpty(php.Trim(output)), nil
-}
-
-// waitHTTP is $this->httpDownloader->wait() for one download: requests only
-// progress while somebody waits, and a retry may queue its request after
-// a wait returned.
-func (d *FileDownloader) waitHTTP(promise *Promise) {
-	for {
-		d.http.Wait()
-
-		select {
-		case <-promise.Done():
-			return
-		case <-time.After(10 * time.Millisecond):
-		}
-	}
 }
 
 // vendorDir is $this->config->get('vendor-dir').

@@ -11,8 +11,9 @@
 // relies on is kept: its retries, redirect handling, authentication
 // prompts, error messages (curl's error numbers and texts included),
 // debug output and concurrency limit. Transfers run on goroutines; their
-// results are processed, and promises settled, on the goroutine waiting in
-// HttpDownloader or Loop, as PHP processes them inside wait().
+// results are processed, and promises settled (running their callbacks),
+// on the goroutine waiting in HttpDownloader or Loop, as PHP processes
+// them inside wait(), in the order the transfers started (util.Scheduler).
 //
 // Composer's free-form option arrays ('http' => [...], 'ssl' => [...],
 // 'retry-auth-failure', 'max_file_size', ...) are *php.Array values with

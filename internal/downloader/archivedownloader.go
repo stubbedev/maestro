@@ -90,7 +90,7 @@ func (a *ArchiveDownloader) download(c call, p pkg.PackageInterface, path string
 
 	return then(promise, func(file string) (*Promise, string, error) {
 		if !st.stagedFromStore {
-			a.stage(p, st.fileName)
+			return a.stageAsync(p, st.fileName), "", nil
 		}
 
 		return nil, file, nil
@@ -142,31 +142,64 @@ func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string)
 		a.addCleanupPath(p, path)
 	}
 
+	// Composer's ZipDownloader extracts with an asynchronous unzip, so what
+	// follows the extraction (the failure, or the move into place and the
+	// asynchronous removal of the temporary directory) settles the promise
+	// on a later loop tick; the tar, xz and gzip extractors run
+	// synchronously and throw. The tree is moved into place at once here;
+	// only the settlement follows Composer.
+	sched := a.process.Scheduler()
+	async := a.format == archive.Zip
+
 	if s.err != nil {
-		for _, w := range s.warnings {
-			c.io.WriteError(w, true, mio.Normal)
+		fail := func() (string, error) {
+			for _, w := range s.warnings {
+				c.io.WriteError(w, true, mio.Normal)
+			}
+
+			a.cleanupFailed(p, path, s.dir)
+
+			return "", s.err
 		}
 
-		a.cleanupFailed(p, path, s.dir)
-
-		return rejected(s.err), nil
-	}
-
-	if fileExists(fileName) {
-		if err := util.Unlink(fileName); err != nil {
-			return rejected(err), nil
+		if async {
+			return util.Later(sched, fail), nil
 		}
+
+		_, err := fail()
+
+		return nil, err
 	}
 
-	if err := a.moveIntoPlace(p, s.dir, path, false); err != nil {
+	if err := a.placeStaged(p, fileName, s.dir, path); err != nil {
+		if async {
+			return util.Later(sched, func() (string, error) { return "", err }), nil
+		}
+
 		return rejected(err), nil
 	}
 
+	// Composer: removeDirectoryAsync($temporaryDir)->then(...)
 	_, _ = util.RemoveDirectoryPhp(s.dir)
-	a.removeCleanupPath(p, s.dir)
-	a.removeCleanupPath(p, path)
 
-	return resolved(""), nil
+	return util.Later(sched, func() (string, error) {
+		a.removeCleanupPath(p, s.dir)
+		a.removeCleanupPath(p, path)
+
+		return "", nil
+	}), nil
+}
+
+// placeStaged is install()'s success callback for a staged tree: the
+// archive is deleted and the tree moved into place.
+func (a *ArchiveDownloader) placeStaged(p pkg.PackageInterface, fileName, dir, path string) error {
+	if fileExists(fileName) {
+		if err := util.Unlink(fileName); err != nil {
+			return err
+		}
+	}
+
+	return a.moveIntoPlace(p, dir, path, false)
 }
 
 // installExtracted is ArchiveDownloader::install's extraction into a
@@ -393,17 +426,9 @@ func (d *FileDownloader) fromStore(st *dlState, rel *store.Release, url dlURL, c
 	dir := d.randomDir()
 	d.addCleanupPath(p, dir)
 
-	materialized, resolve, reject := util.NewDeferred[string](nil)
-
-	go func() {
-		if err := d.store.Materialize(rel, dir); err != nil {
-			reject(err)
-
-			return
-		}
-
-		resolve("")
-	}()
+	materialized := util.Go(d.process.Scheduler(), func() (string, error) {
+		return "", d.store.Materialize(rel, dir)
+	})
 
 	return then(materialized, func(string) (*Promise, string, error) {
 		st.stagedFromStore = true
@@ -437,20 +462,52 @@ func (d *FileDownloader) setStaged(fileName string, s *staged) {
 	d.mu.Unlock()
 }
 
-// stage extracts the downloaded archive of p into the store and
-// materializes it into a staging directory, recording the outcome for
-// install().
+// stage extracts the archive of p into the store and materializes it into
+// a staging directory, recording the outcome for install().
 func (d *FileDownloader) stage(p pkg.PackageInterface, fileName string) *staged {
+	s := d.newStaged(p)
+	d.finishStage(p, fileName, s, d.extractToStore(p, fileName, s.dir))
+
+	return s
+}
+
+// stageAsync is stage for a download: the extraction runs on its own
+// goroutine while the other downloads go on, and the promise resolves to
+// fileName once its outcome is recorded.
+func (d *FileDownloader) stageAsync(p pkg.PackageInterface, fileName string) *Promise {
+	s := d.newStaged(p)
+
+	extracted := util.Go(d.process.Scheduler(), func() (string, error) {
+		return fileName, d.extractToStore(p, fileName, s.dir)
+	})
+
+	return then(extracted, func(string) (*Promise, string, error) {
+		d.finishStage(p, fileName, s, nil)
+
+		return nil, fileName, nil
+	}, func(err error) (*Promise, string, error) {
+		// reported by install()
+		d.finishStage(p, fileName, s, err)
+
+		return nil, fileName, nil
+	})
+}
+
+// newStaged picks the staging directory of a package.
+func (d *FileDownloader) newStaged(p pkg.PackageInterface) *staged {
 	s := &staged{dir: d.randomDir()}
 	d.addCleanupPath(p, s.dir)
 
-	if err := d.extractToStore(p, fileName, s.dir); err != nil {
+	return s
+}
+
+// finishStage records the outcome of an extraction for install().
+func (d *FileDownloader) finishStage(p pkg.PackageInterface, fileName string, s *staged, err error) {
+	if err != nil {
 		s.warnings, s.err = d.extractionError(p, fileName, s.dir, err)
 	}
 
 	d.setStaged(fileName, s)
-
-	return s
 }
 
 // extractToStore inserts the archive into the shared store, or into a

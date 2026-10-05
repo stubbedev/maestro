@@ -158,19 +158,15 @@ func (i *PluginInstaller) Uninstall(repo repository.InstalledRepositoryInterface
 }
 
 // rollbackInstall is rollbackInstall(): it uninstalls the plugin whose
-// initialization failed and returns the failure. Composer drops the
-// promise parent::uninstall() returns, and its callbacks run while the
-// loop finishes the removal; here the removal is waited for (it runs no
-// HTTP job) and its outcome dropped.
+// initialization failed and returns the failure. As in Composer, the
+// promise parent::uninstall() returns is dropped: its callbacks run while
+// the loop finishes the removal.
 func (i *PluginInstaller) rollbackInstall(e error, repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) error {
 	i.io.WriteError("Plugin initialization failed ("+e.Error()+"), uninstalling plugin", true, mio.Normal)
 
-	promise, err := i.LibraryInstaller.Uninstall(repo, p)
-	if err != nil {
+	if _, err := i.LibraryInstaller.Uninstall(repo, p); err != nil {
 		return err
 	}
-
-	_ = Await(nil, promise)
 
 	return e
 }

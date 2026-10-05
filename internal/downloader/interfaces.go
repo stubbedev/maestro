@@ -88,11 +88,10 @@ type Cache interface {
 // (eventdispatcher.PreFileDownloadEvent, PostFileDownloadEvent).
 //
 // FileDownloader dispatches on the calling goroutine for the first attempt
-// of a download (PRE_FILE_DOWNLOAD), and from the download's goroutine for
-// retries, mirror fallbacks and POST_FILE_DOWNLOAD, as Composer dispatches
-// from promise callbacks inside the loop's wait. A dispatcher running PHP
-// listeners must queue the calls made off the main flow and run them there
-// (docs/PLUGINS.md §5.14).
+// of a download (PRE_FILE_DOWNLOAD), and from promise callbacks for
+// retries, mirror fallbacks and POST_FILE_DOWNLOAD, as Composer does; those
+// run on the goroutine driving the loop (util.Scheduler), so every
+// dispatch happens on the main flow.
 type EventDispatcher interface {
 	Dispatch(eventName string, event eventdispatcher.Event) (int, error)
 }

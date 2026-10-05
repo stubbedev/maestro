@@ -1,8 +1,10 @@
 // Ports src/Composer/Util/Http/CurlDownloader.php on net/http: curl_multi's
 // parallel transfers are goroutines running transport.go's transfers; their
-// results are processed on the goroutine that ticks, as curl_multi_info_read
-// results are in PHP, so retries, redirects, authentication prompts and
-// promise resolution happen in the same order and on one goroutine.
+// results are processed on one goroutine, as curl_multi_info_read results
+// are in PHP, so retries, redirects, authentication prompts and promise
+// resolution happen there: the goroutine that ticks, or, for HttpDownloader's
+// asynchronous requests, the one driving its scheduler, in the order the
+// transfers started.
 
 package http
 
@@ -45,6 +47,16 @@ type curlJob struct {
 	resolve  func(*Response)
 	reject   func(error)
 	cancel   context.CancelFunc
+	// async, when set, routes the ends of the job's transfers through a
+	// scheduler instead of the tick queue.
+	async *asyncTransfers
+}
+
+// asyncTransfers routes the end of each transfer of a job to deliver, run
+// by sched in the order the transfers started (each takes a ticket).
+type asyncTransfers struct {
+	sched   *util.Scheduler
+	deliver func(curlEvent)
 }
 
 type curlEvent struct {
@@ -113,11 +125,12 @@ func (c *CurlDownloader) Download(resolve func(*Response), reject func(error), o
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return c.download(resolve, reject, origin, url, options, copyTo)
+	return c.download(resolve, reject, origin, url, options, copyTo, nil)
 }
 
-// download is Download with c.mu held.
-func (c *CurlDownloader) download(resolve func(*Response), reject func(error), origin, url string, options *php.Array, copyTo string) (int, error) {
+// download is Download with c.mu held; async (nil for the tick queue)
+// routes the ends of the transfers.
+func (c *CurlDownloader) download(resolve func(*Response), reject func(error), origin, url string, options *php.Array, copyTo string, async *asyncTransfers) (int, error) {
 	attributes := curlAttributes{retryAuthFailure: true}
 
 	if options == nil {
@@ -129,7 +142,7 @@ func (c *CurlDownloader) download(resolve func(*Response), reject func(error), o
 	}
 
 	c.nextID++
-	job := &curlJob{id: c.nextID, filename: copyTo, hasFile: copyTo != "", resolve: resolve, reject: reject}
+	job := &curlJob{id: c.nextID, filename: copyTo, hasFile: copyTo != "", resolve: resolve, reject: reject, async: async}
 
 	return job.id, c.initDownload(job, origin, url, options, attributes)
 }
@@ -229,9 +242,15 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 		c.io.WriteError("Downloading "+util.SanitizeURL(url)+usingProxy+ifModified, true, io.Debug)
 	}
 
+	post := c.post
+	if a := job.async; a != nil {
+		ticket := a.sched.Ticket()
+		post = func(ev curlEvent) { ticket.Complete(func() { a.deliver(ev) }) }
+	}
+
 	go func() {
 		result := c.pool.do(ctx, req)
-		c.post(curlEvent{id: job.id, job: job, result: result})
+		post(curlEvent{id: job.id, job: job, result: result})
 	}()
 
 	return nil
@@ -369,12 +388,12 @@ func (c *CurlDownloader) Tick() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.tick(c.selectTimeout, nil, nil)
+	c.tick(c.selectTimeout)
 }
 
-// tick runs with c.mu held; the lock is released while waiting, which
-// wake1 or wake2 (either may be nil) interrupt.
-func (c *CurlDownloader) tick(wait time.Duration, wake1, wake2 <-chan struct{}) {
+// tick runs with c.mu held; the lock is released while waiting up to wait
+// for a transfer of the tick queue to end.
+func (c *CurlDownloader) tick(wait time.Duration) {
 	if len(c.jobs) == 0 {
 		return
 	}
@@ -387,8 +406,6 @@ func (c *CurlDownloader) tick(wait time.Duration, wake1, wake2 <-chan struct{}) 
 		c.mu.Unlock()
 		select {
 		case <-c.ready:
-		case <-wake1:
-		case <-wake2:
 		case <-timer.C:
 		}
 		c.mu.Lock()
@@ -398,10 +415,16 @@ func (c *CurlDownloader) tick(wait time.Duration, wake1, wake2 <-chan struct{}) 
 	}
 
 	for _, ev := range events {
-		if job, ok := c.jobs[ev.id]; ok && job == ev.job {
-			delete(c.jobs, ev.id)
-			c.complete(job, ev.result)
-		}
+		c.process(ev)
+	}
+}
+
+// process handles the end of a transfer, unless the job was aborted or
+// restarted since; c.mu is held.
+func (c *CurlDownloader) process(ev curlEvent) {
+	if job, ok := c.jobs[ev.id]; ok && job == ev.job {
+		delete(c.jobs, ev.id)
+		c.complete(job, ev.result)
 	}
 }
 
@@ -783,6 +806,3 @@ func (c *CurlDownloader) rejectJob(job *curlJob, err error) {
 
 	job.reject(err)
 }
-
-// pendingJobs is the number of transfers in flight.
-func (c *CurlDownloader) pendingJobs() int { return len(c.jobs) }

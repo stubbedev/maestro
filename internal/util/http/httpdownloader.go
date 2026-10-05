@@ -42,14 +42,26 @@ type httpJob struct {
 	curlID    int
 	response  *Response
 	err       error
+	// counted: the job holds one of the maxJobs slots.
+	counted bool
 }
 
 // HttpDownloader ports Composer\Util\HttpDownloader: parallel HTTP requests
 // with Composer's concurrency limit, retries and authentication.
 //
-// It is safe for concurrent use. Asynchronous requests progress while some
-// goroutine waits (Wait, Get, Copy, Loop.Wait), and their promises settle
-// on that goroutine, as they settle inside wait() in PHP.
+// Asynchronous requests (Add, AddCopy) transfer on their own goroutines;
+// what Composer does when one finishes (retries, redirects, authentication
+// prompts, settling the promise and running its callbacks) runs on the
+// goroutine driving the downloader's Scheduler (Loop.Wait, Wait,
+// Promise.Await), in the order the transfers started, as it runs inside
+// wait() in PHP; queued requests start there too. See util.Scheduler.
+//
+// Synchronous requests (Get, Copy) are finished by the goroutine waiting
+// for them, which may be any; it does not run other requests' callbacks
+// (Composer's wait($id) ticks every job), and they do not count against
+// the maximum number of parallel requests, so that they never wait for a
+// slot only a driving goroutine would free. Apart from that the downloader
+// is safe for concurrent use.
 type HttpDownloader struct {
 	io     io.IO
 	config Config
@@ -66,9 +78,11 @@ type HttpDownloader struct {
 	idGen       int
 	disabled    bool
 	allowAsync  bool
-	// changed is closed (and replaced) whenever a job is added or settles,
-	// waking waiters.
-	changed chan struct{}
+	// sched runs the completions of asynchronous requests.
+	sched *util.Scheduler
+	// settles are the promise settlements decided with mu held, run once
+	// it is released: their callbacks may call the downloader again.
+	settles []func()
 }
 
 // NewHttpDownloader is new HttpDownloader($io, $config, $options,
@@ -84,7 +98,7 @@ func NewHttpDownloader(ioi io.IO, config Config, options *php.Array, disableTLS 
 		rt:      rt,
 		byID:    map[int]*httpJob{},
 		maxJobs: 12,
-		changed: make(chan struct{}),
+		sched:   util.NewScheduler(),
 	}
 
 	disabled, _ := util.GetEnv("COMPOSER_DISABLE_NETWORK")
@@ -155,7 +169,7 @@ func (h *HttpDownloader) syncRequest(url string, options *php.Array, copyTo stri
 
 	h.mu.Lock()
 	job, _, err := h.addJob(url, options, copyTo, true)
-	h.mu.Unlock()
+	h.unlock()
 
 	if err != nil {
 		return nil, err
@@ -172,12 +186,27 @@ func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo str
 	}
 
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	defer h.unlock()
 
 	_, promise, err := h.addJob(url, options, copyTo, false)
 
 	return promise, err
 }
+
+// unlock releases h.mu and runs the settlements decided meanwhile.
+func (h *HttpDownloader) unlock() {
+	settles := h.settles
+	h.settles = nil
+	h.mu.Unlock()
+
+	for _, settle := range settles {
+		settle()
+	}
+}
+
+// Scheduler returns the scheduler running the completions of
+// asynchronous requests (the Loop's).
+func (h *HttpDownloader) Scheduler() *util.Scheduler { return h.sched }
 
 // Options is getOptions().
 func (h *HttpDownloader) Options() *php.Array {
@@ -231,21 +260,23 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 		h.io.SetAuthentication(job.origin, php.Rawurldecode(m.Get(1)), &password)
 	}
 
-	promise, resolve, reject := util.NewDeferred[*Response](func() { h.cancelJob(job) })
+	promise, resolve, reject := util.NewDeferredOn[*Response](h.sched, func() { h.cancelJob(job) })
 
 	job.resolve = func(r *Response) {
 		job.status = statusCompleted
 		job.response = r
-		h.markJobDone()
-		resolve(r)
+		h.markJobDone(job)
+		h.settles = append(h.settles, func() { resolve(r) })
 	}
 	job.reject = func(err error) {
 		job.status = statusFailed
 		job.err = err
-		h.markJobDone()
-		reject(err)
+		h.markJobDone(job)
+		h.settles = append(h.settles, func() { reject(err) })
 	}
-	job.rejectRaw = reject
+	job.rejectRaw = func(err error) {
+		h.settles = append(h.settles, func() { reject(err) })
+	}
 
 	if !h.canUseCurl(job) {
 		// RemoteFilesystem requests run right away, as Composer runs them in
@@ -256,9 +287,8 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 
 	h.jobs = append(h.jobs, job)
 	h.byID[job.id] = job
-	h.notify()
 
-	if h.runningJobs < h.maxJobs {
+	if sync || h.runningJobs < h.maxJobs {
 		h.startJob(job)
 	}
 
@@ -297,7 +327,7 @@ func (h *HttpDownloader) runRemoteFilesystem(job *httpJob) {
 // leaves pending, is rejected so that waiters do not hang.
 func (h *HttpDownloader) cancelJob(job *httpJob) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	defer h.unlock()
 
 	err := &util.IrrecoverableDownloadError{Message: "Download of " + util.SanitizeURL(job.url) + " canceled"}
 
@@ -305,7 +335,6 @@ func (h *HttpDownloader) cancelJob(job *httpJob) {
 	case statusQueued:
 		job.status = statusAborted
 		job.err = err
-		h.notify()
 		job.rejectRaw(err)
 
 		return
@@ -319,14 +348,19 @@ func (h *HttpDownloader) cancelJob(job *httpJob) {
 	job.reject(err)
 }
 
-// startJob is startJob(); h.mu is held.
+// startJob is startJob(); h.mu is held. An asynchronous transfer's end
+// is handed to the scheduler (onTransfer).
 func (h *HttpDownloader) startJob(job *httpJob) {
 	if job.status != statusQueued {
 		return
 	}
 
 	job.status = statusStarted
-	h.runningJobs++
+
+	if !job.sync {
+		h.runningJobs++
+		job.counted = true
+	}
 
 	if h.disabled {
 		if _, ok := path(job.options, "http", "header"); ok && php.Stripos(strings.Join(headerList(job.options), ""), "if-modified-since") >= 0 {
@@ -340,7 +374,12 @@ func (h *HttpDownloader) startJob(job *httpJob) {
 		return
 	}
 
-	id, err := h.curl.download(job.resolve, job.reject, job.origin, job.url, job.options, job.copyTo)
+	var async *asyncTransfers
+	if !job.sync {
+		async = &asyncTransfers{sched: h.sched, deliver: h.onTransfer}
+	}
+
+	id, err := h.curl.download(job.resolve, job.reject, job.origin, job.url, job.options, job.copyTo, async)
 	if err != nil {
 		job.reject(err)
 
@@ -350,26 +389,66 @@ func (h *HttpDownloader) startJob(job *httpJob) {
 	job.curlID = id
 }
 
-// markJobDone is markJobDone(); h.mu is held.
-func (h *HttpDownloader) markJobDone() {
-	h.runningJobs--
-	h.notify()
+// onTransfer is the tick of an asynchronous transfer that ended, run by
+// the scheduler: CurlDownloader's processing of it (which settles the
+// job's promise, running its callbacks, or restarts it), then, as the next
+// countActiveJobs() does, the start of queued jobs.
+func (h *HttpDownloader) onTransfer(ev curlEvent) {
+	h.mu.Lock()
+	h.curl.process(ev)
+	h.unlock()
+
+	h.mu.Lock()
+	h.startQueued()
+	h.unlock()
 }
 
-// notify wakes the goroutines waiting for a change.
-func (h *HttpDownloader) notify() {
-	close(h.changed)
-	h.changed = make(chan struct{})
-}
+// startQueued starts queued jobs while slots are free; h.mu is held.
+func (h *HttpDownloader) startQueued() {
+	for _, job := range h.jobs {
+		if h.runningJobs >= h.maxJobs {
+			return
+		}
 
-// Wait is wait(): it blocks until every request finished.
-func (h *HttpDownloader) Wait() {
-	for h.countActiveJobs(-1, h.curl.selectTimeout, nil) > 0 {
+		if job.status == statusQueued {
+			h.startJob(job)
+		}
 	}
 }
 
+// markJobDone is markJobDone(): the job frees its slot; h.mu is held.
+func (h *HttpDownloader) markJobDone(job *httpJob) {
+	if job.counted {
+		job.counted = false
+		h.runningJobs--
+	}
+}
+
+// Wait is wait(): it drives the scheduler until no asynchronous request
+// is queued or running. Only one goroutine may drive it at a time.
+func (h *HttpDownloader) Wait() {
+	h.sched.Run(func() bool {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		return h.countActive(false) == 0
+	})
+}
+
+// waitJob finishes a synchronous request: it processes the ends of
+// synchronous transfers until the job completed.
 func (h *HttpDownloader) waitJob(id int) {
-	for h.countActiveJobs(id, h.curl.selectTimeout, nil) > 0 {
+	for {
+		h.mu.Lock()
+
+		if job, ok := h.byID[id]; !ok || job.status >= statusCompleted {
+			h.unlock()
+
+			return
+		}
+
+		h.curl.tick(h.curl.selectTimeout)
+		h.unlock()
 	}
 }
 
@@ -380,47 +459,24 @@ func (h *HttpDownloader) EnableAsync() {
 	h.mu.Unlock()
 }
 
-// CountActiveJobs is countActiveJobs(): it starts queued requests,
-// processes the finished ones (waiting up to five seconds for one) and
-// returns how many are still queued or running.
+// CountActiveJobs is countActiveJobs(): the number of queued or running
+// requests. It does not tick: the scheduler's driver does.
 func (h *HttpDownloader) CountActiveJobs() int {
-	return h.countActiveJobs(-1, h.curl.selectTimeout, nil)
-}
-
-// countActiveJobs is countActiveJobs($index) (index -1 for null), waiting
-// up to wait for a transfer to finish, a job to change or wake.
-func (h *HttpDownloader) countActiveJobs(index int, wait time.Duration, wake <-chan struct{}) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.runningJobs < h.maxJobs {
-		for _, job := range h.jobs {
-			if job.status == statusQueued && h.runningJobs < h.maxJobs {
-				h.startJob(job)
-			}
-		}
-	}
+	return h.countActive(true)
+}
 
-	if index >= 0 {
-		if job, ok := h.byID[index]; !ok || job.status >= statusCompleted {
-			return 0
-		}
-	}
-
-	h.curl.tick(wait, h.changed, wake)
-
-	if index >= 0 {
-		if job, ok := h.byID[index]; ok && job.status < statusCompleted {
-			return 1
-		}
-
-		return 0
-	}
-
+// countActive counts the queued or running jobs (synchronous ones too when
+// withSync) and forgets the finished asynchronous ones; h.mu is held.
+func (h *HttpDownloader) countActive(withSync bool) int {
 	active := 0
 	h.jobs = slices.DeleteFunc(h.jobs, func(job *httpJob) bool {
 		if job.status < statusCompleted {
-			active++
+			if withSync || !job.sync {
+				active++
+			}
 
 			return false
 		}
@@ -437,26 +493,10 @@ func (h *HttpDownloader) countActiveJobs(index int, wait time.Duration, wake <-c
 	return active
 }
 
-// inFlight is the number of transfers running.
-func (h *HttpDownloader) inFlight() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	return h.curl.pendingJobs()
-}
-
-// waitChange returns the channel closed at the next job change.
-func (h *HttpDownloader) waitChange() <-chan struct{} {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	return h.changed
-}
-
 // response is getResponse($index).
 func (h *HttpDownloader) response(id int) (*Response, error) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	defer h.unlock()
 
 	job, ok := h.byID[id]
 	if !ok {

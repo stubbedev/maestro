@@ -315,10 +315,10 @@ func TestInstallationManager_ExecuteOrder(t *testing.T) {
 	}
 }
 
-// TestInstallationManager_ExecuteAsync checks that operations whose
-// promises settle out of order still have their callbacks (here the
-// repository writes and the POST events) run in operation order, and that
-// the downloads ran in parallel.
+// TestInstallationManager_ExecuteAsync checks that operations whose work
+// finishes out of order (on other goroutines, through the scheduler) still
+// have their callbacks (here the repository writes and the POST events)
+// run in operation order, and that the downloads ran in parallel.
 func TestInstallationManager_ExecuteAsync(t *testing.T) {
 	rec := &recorder{}
 	installer := newMockInstaller(rec, func(string) bool { return true })
@@ -327,13 +327,14 @@ func TestInstallationManager_ExecuteAsync(t *testing.T) {
 
 	started := make(chan string, n)
 	release := map[string]func(string){}
+	sched := util.NewScheduler()
 
 	installer.result = func(method string, p pkg.PackageInterface) (*Promise, error) {
 		if method != "download" && method != "install" {
 			return Resolved(), nil
 		}
 
-		promise, resolve, _ := util.NewDeferred[string](nil)
+		promise, resolve, _ := util.NewAsync[string](sched, nil)
 		key := method + " " + p.Name()
 
 		rec.mu.Lock()

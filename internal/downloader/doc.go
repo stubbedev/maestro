@@ -34,8 +34,17 @@
 // # Promises and goroutines
 //
 // Operations return (*Promise, error): error is what PHP throws
-// synchronously, the promise what it returns. Promise callbacks run on
-// their own goroutines, so retries, mirror fallbacks and the
-// POST_FILE_DOWNLOAD dispatch happen off the calling goroutine; see
-// EventDispatcher.
+// synchronously, the promise what it returns. Promises are util.Promise,
+// whose then() callbacks run as React's do: at once for a settled promise,
+// else when the loop settles it, on the goroutine driving the loop
+// (util.Scheduler). Retries, mirror fallbacks, POST_FILE_DOWNLOAD and all
+// output therefore happen on that goroutine, in a deterministic order.
+// What runs in parallel is the work behind the promises: HTTP transfers,
+// processes, and the extraction of archives into the package store
+// (util.Go on the ProcessExecutor's scheduler, which a Loop shares).
+//
+// The zip downloader's Install settles on a later loop tick, as Composer's
+// (its unzip runs asynchronously), so what follows it in the installers
+// runs after the other operations of the batch started; tar, xz and gzip
+// failures are thrown synchronously, as Composer's extractors do.
 package downloader

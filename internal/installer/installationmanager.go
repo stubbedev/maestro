@@ -251,26 +251,47 @@ func (m *Manager) Execute(repo repository.InstalledRepositoryInterface, operatio
 
 // handleSignals is the SignalHandler execute() installs: on SIGINT,
 // SIGTERM or SIGHUP the cleanup steps run and the process exits with the
-// signal. It returns the unregister function.
+// signal. PHP runs the handler on its one thread between two statements;
+// here it interrupts the goroutine driving the loop (at its next wait, or
+// when Execute ends), so that the cleanup's callbacks run where all others
+// do. It returns the unregister function.
 func (m *Manager) handleSignals(cl *cleanups) func() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, util.HandledSignals()...)
 
+	handle := func(sig os.Signal) {
+		m.io.WriteError("Received "+util.SignalName(sig)+", aborting", true, mio.Debug)
+		_ = m.runCleanup(cl)
+		util.ExitWithSignal(sig)
+	}
+
 	done := make(chan struct{})
 
-	go func() {
+	var watching sync.WaitGroup
+
+	watching.Go(func() {
 		select {
 		case sig := <-ch:
-			m.io.WriteError("Received "+util.SignalName(sig)+", aborting", true, mio.Debug)
-			_ = m.runCleanup(cl)
-			util.ExitWithSignal(sig)
+			if m.loop == nil {
+				handle(sig)
+
+				return
+			}
+
+			m.loop.HttpDownloader().Scheduler().Interrupt(func() { handle(sig) })
 		case <-done:
 		}
-	}()
+	})
 
 	return func() {
 		signal.Stop(ch)
 		close(done)
+		watching.Wait()
+
+		// a signal received since the last wait
+		if m.loop != nil {
+			m.loop.HttpDownloader().Scheduler().RunInterrupts()
+		}
 	}
 }
 

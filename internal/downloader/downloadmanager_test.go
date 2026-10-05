@@ -4,6 +4,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
@@ -21,8 +22,13 @@ type fakeDownloader struct {
 	source   string
 	download func() (*Promise, error)
 	prepare  func() (*Promise, error)
+	remove   func(path string) *Promise
 	calls    []string
 	paths    []string
+	// log, when set, receives "name:call" for every call, shared between
+	// downloaders to check their interleaving.
+	log  *[]string
+	name string
 }
 
 func (f *fakeDownloader) InstallationSource() string { return f.source }
@@ -30,6 +36,10 @@ func (f *fakeDownloader) InstallationSource() string { return f.source }
 func (f *fakeDownloader) record(call, path string) {
 	f.calls = append(f.calls, call)
 	f.paths = append(f.paths, path)
+
+	if f.log != nil {
+		*f.log = append(*f.log, f.name+":"+call)
+	}
 }
 
 func (f *fakeDownloader) Download(_ pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
@@ -66,6 +76,10 @@ func (f *fakeDownloader) Update(_, _ pkg.PackageInterface, path string) (*Promis
 
 func (f *fakeDownloader) Remove(_ pkg.PackageInterface, path string) (*Promise, error) {
 	f.record("remove", path)
+
+	if f.remove != nil {
+		return f.remove(path), nil
+	}
 
 	return resolved(""), nil
 }
@@ -682,4 +696,93 @@ type updateFailing struct{ fakeDownloader }
 
 func (u *updateFailing) Update(pkg.PackageInterface, pkg.PackageInterface, string) (*Promise, error) {
 	return nil, &util.RuntimeError{Message: "boom"}
+}
+
+// TestDownloadManager_UpdateTypeChangeRunsInline: on a downloader type
+// change, prepare("uninstall"), remove and install are chained on settled
+// promises, so, as React runs then() callbacks of settled promises at once,
+// they all run before update() returns, in this order, and its promise is
+// settled.
+func TestDownloadManager_UpdateTypeChangeRunsInline(t *testing.T) {
+	var log []string
+
+	for i := range 50 {
+		log = log[:0]
+
+		initial := installed(dmPackage("a/b", false, "git", ""), "source")
+		target := installed(dmPackage("a/b", false, "", "zip"), "dist")
+
+		git := &fakeDownloader{source: "source", log: &log, name: "git"}
+		zip := &fakeDownloader{source: "dist", log: &log, name: "zip"}
+		m, _ := newManager(t)
+		m.SetDownloader("git", git)
+		m.SetDownloader("zip", zip)
+
+		promise, err := m.Update(initial, target, bundlePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		log = append(log, "returned")
+
+		if settled, err := promise.Result(); !settled || err != nil {
+			t.Fatalf("run %d: promise settled %v, %v", i, settled, err)
+		}
+
+		if want := []string{"git:prepare:uninstall", "git:remove", "zip:install", "returned"}; !slices.Equal(log, want) {
+			t.Fatalf("run %d: calls %q, want %q", i, log, want)
+		}
+	}
+}
+
+// TestDownloadManager_UpdateTypeChangeAfterAsyncRemoval: when the removal
+// is asynchronous (removeDirectoryAsync), the install runs when the loop
+// settles it; with two such updates the installs run in the order the
+// removals started, whatever order they finish in.
+func TestDownloadManager_UpdateTypeChangeAfterAsyncRemoval(t *testing.T) {
+	var log []string
+
+	sched := util.NewScheduler()
+	delays := map[string]time.Duration{"vendor/a": 20 * time.Millisecond, "vendor/b": 0}
+
+	git := &fakeDownloader{source: "source", log: &log, name: "git", remove: func(path string) *Promise {
+		return util.Go(sched, func() (string, error) {
+			time.Sleep(delays[path])
+
+			return "", nil
+		})
+	}}
+	zip := &fakeDownloader{source: "dist", log: &log, name: "zip"}
+	m, _ := newManager(t)
+	m.SetDownloader("git", git)
+	m.SetDownloader("zip", zip)
+
+	var promises []util.Waitable
+
+	for _, path := range []string{"vendor/a", "vendor/b"} {
+		initial := installed(dmPackage("a/"+path[len(path)-1:], false, "git", ""), "source")
+		target := installed(dmPackage("a/"+path[len(path)-1:], false, "", "zip"), "dist")
+
+		promise, err := m.Update(initial, target, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		promises = append(promises, promise)
+	}
+
+	log = append(log, "updated")
+
+	if err := util.AwaitAll(promises); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{"git:prepare:uninstall", "git:remove", "git:prepare:uninstall", "git:remove", "updated", "zip:install", "zip:install"}
+	if !slices.Equal(log, want) {
+		t.Fatalf("calls %q, want %q", log, want)
+	}
+
+	if !slices.Equal(zip.paths, []string{"vendor/a", "vendor/b"}) {
+		t.Fatalf("installed %q", zip.paths)
+	}
 }

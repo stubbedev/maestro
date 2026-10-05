@@ -120,7 +120,7 @@ func bufferIO(t *testing.T, verbosity int) *mio.BufferIO {
 }
 
 // run is the download/prepare/<op>/cleanup sequence of the PHP tests,
-// stopping at the first error.
+// stopping at the first error. Each promise is awaited (SyncHelper::await).
 func run(steps ...func() (*downloader.Promise, error)) error {
 	for _, step := range steps {
 		promise, err := step()
@@ -128,7 +128,7 @@ func run(steps ...func() (*downloader.Promise, error)) error {
 			return err
 		}
 
-		if err := promise.Err(); err != nil {
+		if _, err := promise.Await(); err != nil {
 			return err
 		}
 	}

@@ -8,19 +8,21 @@
 //
 // Composer runs on one thread: installer methods are called in operation
 // order, and the then() callbacks of promises run either at once (settled
-// promises) or while the loop waits. This package keeps that model (see
-// Promise): every installer call, event dispatch and promise callback runs
-// on the goroutine calling Manager.Execute, in Composer's order, so output
-// and repository changes are deterministic and installers backed by PHP
-// plugins (docs/PLUGINS.md §5.6, §5.14) are only ever called on the main
-// flow. What runs in parallel is the downloaders' work behind the leaf
-// promises: downloads and the extraction of dists into the package store
-// and the vendor/composer staging directories during the download phase
-// (which is where packages are placed), and removals during the execute
-// phase.
+// promises) or while the loop waits. This package keeps that model: its
+// promises are util.Promise (see Promise), settled by the loop's
+// util.Scheduler on the goroutine calling Manager.Execute, so every
+// installer call, event dispatch and promise callback runs there, in
+// Composer's order, output and repository changes are deterministic, and
+// installers backed by PHP plugins (docs/PLUGINS.md §5.6, §5.14) are only
+// ever called on the main flow. What runs in parallel is the downloaders'
+// work behind the promises: downloads and the extraction of dists into
+// the package store and the vendor/composer staging directories during
+// the download phase (which is where packages are placed), and removals
+// during the execute phase.
 //
 // Where Composer's callbacks run in completion order (several asynchronous
-// operations settling during one wait), they run here in operation order.
+// operations settling during one wait), they run here in the order the
+// work started, which is operation order (util.Scheduler).
 //
 // # Plugins
 //
