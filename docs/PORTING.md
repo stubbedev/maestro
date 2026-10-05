@@ -105,7 +105,8 @@ reference, break it with an interface in the lower package.
    running the real PHP implementation from `.ref/` with `php` (in the dev
    shell). Generator scripts live in `tools/oracle/<package>/` and write into
    the package's `testdata/`. Goldens are committed, so `go test` needs
-   neither php nor the network.
+   neither php nor the network. A golden over 1 MB is committed gzipped
+   (`*.json.gz`, written by the oracle script, read with compress/gzip).
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
    2.10.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare

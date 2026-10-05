@@ -52,6 +52,7 @@
     clone composer/class-map-generator 1.7.3 class-map-generator
     clone composer/spdx-licenses 1.6.0 spdx-licenses
     clone composer/metadata-minifier 1.0.1 metadata-minifier
+    clone Seldaek/jsonlint 1.12.1 jsonlint
     [ -d .ref/composer/vendor ] || (cd .ref/composer && composer install --no-dev --no-scripts -q)
   '';
 
