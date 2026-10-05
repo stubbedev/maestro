@@ -41,11 +41,7 @@ func (u utilIO) WriteErrorRaw(message string, newline bool, verbosity int) {
 
 // newProcess is new ProcessExecutor($io).
 func newProcess(ioi io.IO) Process {
-	if ioi == nil {
-		return util.NewProcessExecutor(nil)
-	}
-
-	return util.NewProcessExecutor(utilIO{ioi})
+	return NewProcessExecutor(ioi)
 }
 
 // gitConfig runs `git config <key>`: the trimmed value and whether git

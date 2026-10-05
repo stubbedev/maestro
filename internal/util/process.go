@@ -59,6 +59,7 @@ type Process struct {
 	env     []string // NAME=value overrides, ahead of the inherited environment
 	timeout time.Duration
 	tty     bool
+	input   *string // the standard input (Process::setInput); nil for none
 
 	mu           sync.Mutex // guards the state below
 	cmd          *exec.Cmd
@@ -127,6 +128,12 @@ var isTtySupported = sync.OnceValue(func() bool {
 
 	return true
 })
+
+// SetInput ports Process::setInput (and the $input argument of the
+// constructor) for a string: the child reads it as its standard input.
+func (p *Process) SetInput(input string) {
+	p.input = &input
+}
 
 // GetCommandLine ports Process::getCommandLine.
 func (p *Process) GetCommandLine() string {
@@ -221,19 +228,24 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = in, out, out
 		closers = append(closers, in, out)
 	} else {
-		// Symfony hands the child a stdin pipe it closes at once.
-		r, w, err := os.Pipe()
-		if err != nil {
-			return errLaunch
+		if p.input != nil {
+			cmd.Stdin = strings.NewReader(*p.input)
+		} else {
+			// Symfony hands the child a stdin pipe it closes at once.
+			r, w, err := os.Pipe()
+			if err != nil {
+				return errLaunch
+			}
+
+			_ = w.Close()
+
+			cmd.Stdin = r
+			closers = append(closers, r)
 		}
 
-		_ = w.Close()
-
-		cmd.Stdin = r
 		cmd.Stdout = &processWriter{p: p, typ: ProcessOut, callback: callback}
 		cmd.Stderr = &processWriter{p: p, typ: ProcessErr, callback: callback}
 		cmd.WaitDelay = pipeDrainTimeout
-		closers = append(closers, r)
 	}
 
 	err = cmd.Start()

@@ -59,3 +59,9 @@ func Strerror(err error) string { return strerror(err) }
 
 // FileAtime is a file's last access time (SplFileInfo::getATime()).
 func FileAtime(fi os.FileInfo) time.Time { return fileAtime(fi) }
+
+// Dirname is PHP's dirname($path) on this platform.
+func Dirname(path string) string { return phpDirname(path, IsWindows()) }
+
+// RealpathOK is PHP's realpath($path): ok is false where PHP returns false.
+func RealpathOK(path string) (string, bool) { return phpRealpath(path) }

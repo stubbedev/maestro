@@ -472,6 +472,12 @@ func (p *ProcessExecutor) countActiveJobs() int {
 // SplitLines ports ProcessExecutor::splitLines: the trimmed output split on
 // \r?\n.
 func (p *ProcessExecutor) SplitLines(output string) []string {
+	return SplitLines(output)
+}
+
+// SplitLines ports ProcessExecutor::splitLines, which does not depend on
+// the executor.
+func SplitLines(output string) []string {
 	output = strings.Trim(output, phpTrimChars)
 	if output == "" {
 		return []string{}

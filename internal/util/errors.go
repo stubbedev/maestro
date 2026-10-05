@@ -38,3 +38,8 @@ func (e *IOError) Error() string { return e.Message }
 type UnexpectedValueError struct{ Message string }
 
 func (e *UnexpectedValueError) Error() string { return e.Message }
+
+// SecurityError is Composer\Exception\SecurityException.
+type SecurityError struct{ Message string }
+
+func (e *SecurityError) Error() string { return e.Message }
