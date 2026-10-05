@@ -216,11 +216,11 @@ func versionCompare(a, b string, op Op, compareBranches bool) bool {
 	return versionCompareOp(a, b, op)
 }
 
-// noEqualOp is str_replace('=', '', $transOpInt[$op]), encoded so that
+// noEqualOp is str_replace('=', ”, $transOpInt[$op]), encoded so that
 // equal values mean equal strings.
 var noEqualOp = [...]byte{OpEQ: 0, OpLT: '<', OpLE: '<', OpGT: '>', OpGE: '>', OpNE: '!'}
 
-// hasNoEqualSign reports whether $transOpInt[$op] === str_replace('=', '', ...).
+// hasNoEqualSign reports whether $transOpInt[$op] === str_replace('=', ”, ...).
 func hasNoEqualSign(op Op) bool { return op == OpLT || op == OpGT }
 
 // MatchSpecific ports matchSpecific($provider, $compareBranches).
@@ -253,7 +253,7 @@ func (c *Constraint) matchSpecific(provider *Constraint, compareBranches bool) b
 	// an example for the condition is <= 2.0 & < 1.0
 	// these kinds of comparisons always have a solution
 	if c.operator != OpEQ && noEqualOp[c.operator] == noEqualOp[provider.operator] {
-		return !(isBranch(c.version) || isBranch(provider.version))
+		return !isBranch(c.version) && !isBranch(provider.version)
 	}
 
 	version1, version2, operator := provider.version, c.version, c.operator
@@ -263,9 +263,9 @@ func (c *Constraint) matchSpecific(provider *Constraint, compareBranches bool) b
 	if versionCompare(version1, version2, operator, compareBranches) {
 		// special case, e.g. require >= 1.0 and provide < 1.0
 		// 1.0 >= 1.0 but 1.0 is outside of the provided interval
-		return !(hasNoEqualSign(provider.operator) &&
-			!hasNoEqualSign(c.operator) &&
-			versionCompareOp(provider.version, c.version, OpEQ))
+		return !hasNoEqualSign(provider.operator) ||
+			hasNoEqualSign(c.operator) ||
+			!versionCompareOp(provider.version, c.version, OpEQ)
 	}
 
 	return false

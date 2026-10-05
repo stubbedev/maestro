@@ -24,16 +24,6 @@ func isAlnum(c byte) bool {
 // isSpace is PCRE2's \s without UTF/UCP: space, \t, \n, \v, \f and \r.
 func isSpace(c byte) bool { return c == ' ' || (c >= '\t' && c <= '\r') }
 
-func containsSpace(s string) bool {
-	for i := range len(s) {
-		if isSpace(s[i]) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // phpTrim is trim() with its default characters " \t\n\r\0\x0B".
 func phpTrim(s string) string {
 	return strings.Trim(s, " \t\n\r\x00\x0b")
@@ -215,7 +205,7 @@ func isNumericNoErrors(s string) (typ int, lval int64, dval float64, oflow int) 
 	if typ == numericLong {
 		if digits == maxLengthOfLong-1 {
 			cmp := cStrcmp(s[ptr-digits:], "9223372036854775808")
-			if !(cmp < 0 || (cmp == 0 && at(str) == '-')) {
+			if cmp > 0 || (cmp == 0 && at(str) != '-') {
 				dval, _ = zendStrtod(s, str)
 				if at(str) == '-' {
 					oflow = -1
@@ -226,7 +216,7 @@ func isNumericNoErrors(s string) (typ int, lval int64, dval float64, oflow int) 
 				return numericDouble, 0, dval, oflow
 			}
 		}
-		lval = int64(tmp) //nolint:gosec // two's complement wrap-around, as in C
+		lval = int64(tmp) // two's complement wrap-around, as in C
 		if neg {
 			lval = -lval
 		}
@@ -273,9 +263,7 @@ func zendStrtod(s string, from int) (float64, int) {
 		}
 	}
 	text := s[from:i]
-	if strings.HasSuffix(text, ".") {
-		text = strings.TrimSuffix(text, ".")
-	}
+	text, _ = strings.CutSuffix(text, ".")
 	f, _ := strconv.ParseFloat(text, 64) // out of range yields ±Inf like zend_strtod
 
 	return f, i
@@ -454,8 +442,8 @@ func zendSort2(a, b int, cmp sortCmp, swp sortSwap) {
 }
 
 func zendSort3(a, b, c int, cmp sortCmp, swp sortSwap) {
-	if !(cmp(a, b) > 0) {
-		if !(cmp(b, c) > 0) {
+	if cmp(a, b) <= 0 {
+		if cmp(b, c) <= 0 {
 			return
 		}
 		swp(b, c)
@@ -465,7 +453,7 @@ func zendSort3(a, b, c int, cmp sortCmp, swp sortSwap) {
 
 		return
 	}
-	if !(cmp(c, b) > 0) {
+	if cmp(c, b) <= 0 {
 		swp(a, c)
 
 		return
@@ -524,12 +512,12 @@ func zendInsertSort(start, nmemb int, cmp sortCmp, swp sortSwap) {
 		sentry := start + 6
 		for i := start + 1; i < sentry; i++ {
 			j := i - 1
-			if !(cmp(j, i) > 0) {
+			if cmp(j, i) <= 0 {
 				continue
 			}
 			for j != start {
 				j--
-				if !(cmp(j, i) > 0) {
+				if cmp(j, i) <= 0 {
 					j++
 
 					break
@@ -541,14 +529,14 @@ func zendInsertSort(start, nmemb int, cmp sortCmp, swp sortSwap) {
 		}
 		for i := sentry; i < end; i++ {
 			j := i - 1
-			if !(cmp(j, i) > 0) {
+			if cmp(j, i) <= 0 {
 				continue
 			}
 			for {
 				j -= 2
-				if !(cmp(j, i) > 0) {
+				if cmp(j, i) <= 0 {
 					j++
-					if !(cmp(j, i) > 0) {
+					if cmp(j, i) <= 0 {
 						j++
 					}
 

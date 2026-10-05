@@ -2,6 +2,8 @@
 
 package semver
 
+import "slices"
+
 // Interval ports Composer\Semver\Interval: a numeric range between two
 // constraints.
 type Interval struct {
@@ -81,15 +83,7 @@ func (d DevBranches) lookup(k int) (string, bool) {
 	return "", false
 }
 
-func (d DevBranches) contains(name string) bool {
-	for _, n := range d.Names {
-		if n == name {
-			return true
-		}
-	}
-
-	return false
-}
+func (d DevBranches) contains(name string) bool { return slices.Contains(d.Names, name) }
 
 // filterNames keeps the names of a for which keep returns true, with their
 // keys, as array_intersect() and array_diff() do.
@@ -122,12 +116,13 @@ func arrayDiff(a, b DevBranches) ([]string, []int) {
 	return filterNames(a, func(n string) bool { return !b.contains(n) })
 }
 
-// arrayMerge ports array_merge($a['names'], $b['names']), which renumbers.
-func arrayMerge(a, b DevBranches) ([]string, []int) {
+// arrayMerge ports array_merge($a['names'], $b['names']), which renumbers
+// the keys.
+func arrayMerge(a, b DevBranches) []string {
 	names := make([]string, 0, len(a.Names)+len(b.Names))
 	names = append(names, a.Names...)
 
-	return append(names, b.Names...), nil
+	return append(names, b.Names...)
 }
 
 // arrayUnique ports array_unique($names): the first occurrence of each name

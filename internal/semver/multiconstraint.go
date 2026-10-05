@@ -3,6 +3,7 @@
 package semver
 
 import (
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -101,13 +102,7 @@ func (c *MultiConstraint) compile(otherOperator Op) compiledMatcher {
 // Matches ports matches().
 func (c *MultiConstraint) Matches(provider ConstraintInterface) bool {
 	if !c.conjunctive {
-		for _, constraint := range c.constraints {
-			if provider.Matches(constraint) {
-				return true
-			}
-		}
-
-		return false
+		return slices.ContainsFunc(c.constraints, provider.Matches)
 	}
 
 	// when matching a conjunctive and a disjunctive multi constraint we have to iterate over the disjunctive one
