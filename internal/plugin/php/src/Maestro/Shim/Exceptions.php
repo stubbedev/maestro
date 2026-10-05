@@ -1,0 +1,120 @@
+<?php
+
+/*
+ * maestro's plugin shim (docs/PLUGINS.md §5.1). Not part of Composer.
+ * Written for PHP 7.2.5 to 8.5.
+ */
+
+namespace Maestro\Shim;
+
+/**
+ * Exceptions crossing the channel (docs/PLUGINS.md §5.10, D12). A PHP
+ * exception goes to maestro with its handle, so when maestro hands it back
+ * the very same object is rethrown; an error raised by maestro becomes an
+ * instance of the PHP class it names.
+ */
+final class Exceptions
+{
+    /**
+     * The "x" of an "err" message for a PHP throwable.
+     *
+     * @return array<string, mixed>
+     */
+    public static function toWire(\Throwable $e): array
+    {
+        $class = get_class($e);
+        $classes = array_values(array_unique(array_merge([$class], array_values(class_parents($e)), array_values(class_implements($e)))));
+
+        $trace = [];
+        foreach ($e->getTrace() as $frame) {
+            $trace[] = [
+                'file' => isset($frame['file']) ? $frame['file'] : '',
+                'line' => isset($frame['line']) ? $frame['line'] : 0,
+                'class' => isset($frame['class']) ? $frame['class'] : '',
+                'type' => isset($frame['type']) ? $frame['type'] : '',
+                'function' => isset($frame['function']) ? $frame['function'] : '',
+            ];
+        }
+
+        $previous = $e->getPrevious();
+
+        return [
+            'class' => $class,
+            'classes' => $classes,
+            'message' => $e->getMessage(),
+            'code' => $e->getCode(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $trace,
+            'previous' => $previous !== null ? self::toWire($previous) : null,
+            'h' => Handles::handleOf($e),
+            'extra' => new \stdClass(),
+        ];
+    }
+
+    /**
+     * The throwable to throw for the decoded "x" of an "err" message.
+     */
+    public static function fromWire(array $x): \Throwable
+    {
+        if (isset($x['h']) && Handles::has((int) $x['h'])) {
+            $original = Handles::get((int) $x['h']);
+            if ($original instanceof \Throwable) {
+                return $original;
+            }
+        }
+
+        $previous = isset($x['previous']) && is_array($x['previous']) ? self::fromWire($x['previous']) : null;
+        $class = isset($x['class']) ? (string) $x['class'] : 'RuntimeException';
+        $message = isset($x['message']) ? (string) $x['message'] : '';
+        $code = isset($x['code']) ? $x['code'] : 0;
+
+        return self::create($class, $message, $code, $previous);
+    }
+
+    /**
+     * An instance of $class with the given message, code and previous,
+     * without running its constructor (Composer's exception classes take
+     * other arguments, and stubs throw). An unknown or unusable class
+     * gives a \RuntimeException.
+     *
+     * @param mixed $code
+     */
+    public static function create(string $class, string $message, $code, ?\Throwable $previous): \Throwable
+    {
+        if (class_exists($class) && is_subclass_of($class, \Throwable::class)) {
+            $r = new \ReflectionClass($class);
+            if (!$r->isAbstract()) {
+                try {
+                    $e = $r->newInstanceWithoutConstructor();
+                    self::fill($e, $message, $code, $previous);
+
+                    return $e;
+                } catch (\Throwable $ignored) {
+                }
+            }
+        }
+
+        return new \RuntimeException($message, is_int($code) ? $code : 0, $previous);
+    }
+
+    /**
+     * Sets the message, code and previous of a throwable built without its
+     * constructor.
+     *
+     * @param mixed $code
+     */
+    private static function fill(\Throwable $e, string $message, $code, ?\Throwable $previous): void
+    {
+        // Closures cannot be bound to an internal class's scope; reflection
+        // can reach its protected and private properties.
+        $scope = $e instanceof \Exception ? \Exception::class : \Error::class;
+        foreach (['message' => $message, 'code' => $code, 'previous' => $previous] as $name => $value) {
+            $property = new \ReflectionProperty($scope, $name);
+            if (PHP_VERSION_ID < 80100) {
+                $property->setAccessible(true);
+            }
+            $property->setValue($e, $value);
+        }
+    }
+}

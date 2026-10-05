@@ -11,11 +11,19 @@ import (
 	"strings"
 )
 
+// Opaque is a value of another package that an Array or Object holds as
+// is: the plugin runtime's objects (docs/PLUGINS.md §6.4), which stand
+// for PHP objects other than stdClass. It is copied by reference, as PHP
+// copies objects; the functions here do not look into it.
+type Opaque interface {
+	PHPOpaque()
+}
+
 // normalize validates a value stored into an Array or Object, converting
 // a Go int to int64.
 func normalize(v any) any {
 	switch v := v.(type) {
-	case nil, bool, int64, float64, string, *Array, *Object:
+	case nil, bool, int64, float64, string, *Array, *Object, Opaque:
 		return v
 	case int:
 		return int64(v)

@@ -334,7 +334,12 @@ internal/plugin/                      Go (ports Composer\Plugin\*; hosts the bri
     src/Composer/…    shim classes, same relative paths as Composer's src/ (so file names in traces match)
     src/Composer/Autoload/ClassLoader.php, src/Composer/InstalledVersions.php   verbatim, from the same embed the vendor writer uses
     stubs/Composer/…  generated presence-parity stubs (tools/shimgen)
-    vendor/…          vendored third-party libraries (D6), with their LICENSE files
+    lib/…             vendored third-party libraries (D6), with their LICENSE files, plus
+                      vendor/composer's installed.json, installed.php, autoload_classmap.php
+                      and autoload_files.php. Not "vendor/": Go module zips drop every file
+                      below a nested vendor/ directory, which would empty a released embed.
+    autoload.php      the generated static class map and `files` list (the index)
+    MANIFEST          "<sha256> <path>" per file; the cache directory is named after its sha256
     bin/composer      the COMPOSER_BINARY launcher (D13)
 tools/shimgen/        generator: reflects .ref/composer/src (as plugins-survey/tools/apiindex.php does),
                       writes stubs for every class not hand-written, and a parity golden used by tests
@@ -350,8 +355,13 @@ marc-mabe/php-enum 4.7.2; psr/container 1.1.1; psr/log 1.1.4; react/promise
 symfony/console 5.4.47, deprecation-contracts 2.5.4, filesystem 5.4.45,
 finder 5.4.45, polyfill-ctype/-intl-grapheme/-intl-normalizer/-mbstring/-php73/-php80/-php81/-php84,
 process 5.4.51, service-contracts 2.5.4, string 5.4.47.
-`tools/shimvendor` copies them and records their versions. A test fails if
-they drift from `.ref/composer/composer.lock`.
+`tools/shimvendor` copies them (the files `Compiler.php` puts into the phar,
+verbatim) and records their versions in `lib/composer/installed.json`. A test
+fails if they drift from `.ref/composer/composer.lock` or from the files
+`.ref/composer/vendor` holds. Shared generator code is
+`internal/plugin/shimbuild`; `go generate ./internal/plugin` rebuilds the index
+and the manifest after a hand-written shim file changes, and a test fails when
+either is stale.
 
 **Shim autoloading.** `bootstrap.php` registers one prepended autoloader
 before anything else. It is a static classmap generated at build time,
@@ -373,9 +383,14 @@ static properties keep Composer's values, so code that only reads constants
 works.
 
 **Embedding and extraction.** At first use, `php/` is extracted to
-`<COMPOSER_CACHE_DIR>/maestro/shim/<sha256 of the embed>/`. The write is
-atomic: build into a temp dir, rename into place, then make it read-only.
-It is reused across runs and projects.
+`<COMPOSER_CACHE_DIR>/maestro/shim/<sha256 of MANIFEST>/`. The write is
+atomic: build into a temp dir (files read-only, the launcher `0555`,
+directories `0700`), write `MANIFEST` last, rename into place. A directory is
+valid when its `MANIFEST` equals the embedded one; a broken one is moved
+aside and extracted again. Directories stay writable for their owner so that
+clearing the cache can delete the shim. `ClassLoader.php` and
+`InstalledVersions.php` are written from `internal/autoload`'s embed (they are
+not in the source tree). The shim is reused across runs and projects.
 
 ### 5.2 Process model and lifecycle
 
@@ -424,6 +439,13 @@ user's ini, as Composer does.
   XdebugHandler sets on restart (`COMPOSER_ORIGINAL_INIS`, and
   `PHPRC`/`PHP_INI_SCAN_DIR` as its `getRestartSettings` does). Port the
   logic from `.ref/composer/vendor/composer/xdebug-handler/src/XdebugHandler.php`.
+  (`internal/plugin/xdebug.go`. `mergeLoadedConfig` compares the loaded
+  settings with `parse_ini_string()` of the files; maestro only claims a
+  file value equal when it needs no evaluation, so it may write a setting
+  again with the value php already loaded, which changes nothing. A test
+  checks that `php -n -c <tmp.ini>` has the same extensions and settings as
+  plain `php`. As in XdebugHandler, a restart that cannot be prepared leaves
+  xdebug on.)
 - **Env.** Go's current environment (see the env sync in §5.3), plus:
   - `COMPOSER_BINARY=<shimdir>/bin/composer`
   - `MAESTRO_IPC=fd:3,4` (Unix) or `MAESTRO_IPC=tcp:127.0.0.1:<port>` and
@@ -445,16 +467,22 @@ user's ini, as Composer does.
 5. Apply `memory_limit` as `bin/composer` does: `COMPOSER_MEMORY_LIMIT`, or
    raise the limit to 1536M if it is lower.
 6. Register the shim autoloader and require the polyfill `files`.
-7. Send `hello` (§6.5) and receive `boot`. `boot` carries:
+7. Send `hello` (§6.5) and receive `boot`: Go answers `hello` with `null`,
+   and PHP enters the serve loop, where Go's first call is `boot`. It
+   carries:
    - `$_SERVER['argv']` and `$argc` (maestro's `os.Args`; `argv[0]` is what
      the user typed);
    - `SCRIPT_NAME`, `SCRIPT_FILENAME` and `PHP_SELF` (set to `argv[0]`);
-   - `cwd` (`chdir`);
    - the IO handle and its state;
-   - the Composer statics.
+   - and, in its sync block, the cwd and the Composer statics.
 8. Call `ErrorHandler::register($io)`. The shim's ErrorHandler is a
-   reimplementation with identical messages, using the boot IO.
+   reimplementation with identical messages, using the boot IO. (As
+   `bin/composer` does, step 6 already registered it without an IO.)
 9. Enter the serve loop: wait for requests from Go.
+
+bin/composer's other checks (the non-CLI SAPI warning, the opcache preload
+shutdown function, HHVM 4, iconv or mbstring, the Windows `$_SERVER`
+workaround) run at their places in this sequence too.
 
 **Shutdown and exit.**
 
@@ -505,9 +533,18 @@ yields the same PHP object, so `===` and `spl_object_id` stay stable.
 - Go side: every mirrorable Go object exposes `Rev() uint64`, a counter that
   every setter increments (§7). For each handle sent to PHP, the bridge
   remembers the `Rev` it last sent.
-- PHP side: every mirror has `$__rev` and a dirty-field set. Shim setters
-  record the field name. Direct property writes are not tracked, because
-  mirrors keep their data in private fields, as Composer's do.
+- PHP side: a `Maestro\Shim\MirrorAdapter` per family (registered by shim
+  base class) builds, reads and writes mirrors from outside the class, and
+  `Maestro\Shim\Mirrors` keeps the revisions and dirty-field sets by object,
+  so mirror classes declare exactly Composer's members (D7). Shim setters
+  call `Mirrors::touch($this, 'field')`. Direct property writes are not
+  tracked, because mirrors keep their data in private fields, as Composer's
+  do.
+- Go side, `internal/plugin/rpc`: a mirror implements `rpc.Mirror`
+  (`PHPClass`, `MirrorBase`, `Rev`, `MirrorSnapshot`, `ApplyMirror`); Go
+  sends the full snapshot of a changed mirror unless it also implements
+  `rpc.DeltaMirror` (changed fields since a revision). PHP-born mirrors are
+  built by the `rpc.MirrorFactory` registered for their base.
 
 At **every message boundary**:
 
@@ -953,7 +990,14 @@ the Go error types the ports use (`errors.As` targets):
   object (D12);
 - otherwise PHP constructs the mapped class (from the error's
   `ThrowableClass()`, falling back to `\RuntimeException`) with the same
-  message, code and previous chain.
+  message, code and previous chain. It is built without its constructor
+  (`ReflectionClass::newInstanceWithoutConstructor`, then the properties set
+  by reflection), because Composer's exception classes take other
+  constructor arguments and stubs throw. internal/util's error types map to
+  their PHP classes (`RuntimeError` → `\RuntimeException`, `TransportError`
+  → `TransportException` with its code, ...). A Go error that wraps a PHP
+  exception becomes a `\RuntimeException` whose previous is that very
+  object.
 
 Go-raised exceptions show PHP's own file and line, from where the shim
 rethrows, not Composer's. That difference is visible only in `-v` renderings
@@ -1093,6 +1137,11 @@ orders them.
   point asserts that it is called on the baton-holding goroutine. The
   baton-holding goroutine is the main flow, plus goroutines spawned by
   handlers of PHP → Go calls, which inherit it explicitly.
+  Implementation (`rpc.Conn`): a top-level call takes the free baton for its
+  goroutine (by goroutine id); calls nest on that goroutine; a call from any
+  other goroutine meanwhile fails with `rpc.ErrBaton` instead of corrupting
+  the stack; `Runtime.Delegate(fn)` lends the baton to the goroutine running
+  `fn`.
 - Parallel Go work (HTTP downloads, store imports, classmap scans) must
   never call PHP. Every place where Composer would call plugin code during a
   "parallel" phase calls it synchronously in Composer's order on the main
@@ -1121,9 +1170,9 @@ orders them.
   plugin does that, and the risk is noted.
 - On Windows the loopback socket requires the 256-bit token as the first
   frame. The listener accepts exactly one connection and then closes.
-- The shim directory in the cache is created `0700` and made read-only after
-  extraction. Its content hash is verified on every start (a sha256 of the
-  manifest, compared against the embed).
+- The shim directory in the cache is created `0700` and its files are made
+  read-only at extraction (§5.1). Its manifest is compared with the embedded
+  one on every start.
 
 ### 5.16 Startup cost
 
@@ -1221,7 +1270,7 @@ key starts with U+0000.
 | `string` with invalid UTF-8 | `{"\u0000b":"<base64>"}` |
 | `array` that is a list | JSON array |
 | other `array` | JSON object in key order. Int keys become decimal strings; both decoders coerce numeric-string keys back to ints, which is PHP semantics and `php.Array` semantics. |
-| `array` whose first key starts with `"\0"` | `{"\u0000e":[[k,v],…]}` (explicit pairs) |
+| `array` whose first key starts with `"\0"`, or with any string key that is not UTF-8 | `{"\u0000e":[[k,v],…]}` (explicit pairs; a non-UTF-8 key is itself a `\u0000b` tag) |
 | `stdClass` | `{"\u0000s":{…props…}}` |
 | object, closure or callable array | `{"\u0000o":h, "c":"Class", "base":"Composer\\Package\\Package", "d":<snapshot>}` |
 
@@ -1230,7 +1279,11 @@ sees `h`. `d` is present only for mirrors. A callable array `[obj, 'm']` is
 an ordinary PHP array of a handle and a string.
 
 Go decodes into `internal/php` values (`nil`, `bool`, `int64`, `float64`,
-`string`, `*php.Array`, `*php.Object`), plus `plugin.Handle` for `\u0000o`.
+`string`, `*php.Array`, `*php.Object`). An `\u0000o` tag decodes to the Go
+object itself for a Go handle, and to an `*rpc.PHPObject` (same pointer per
+handle) for a PHP one; both implement `php.Opaque`, which lets a `*php.Array`
+hold them. The encoder also accepts a bare `rpc.Handle`. A stdClass without
+properties encodes as `{"\u0000s":[]}` (PHP's `json_encode([])`).
 
 The shim encodes with:
 
@@ -1297,7 +1350,7 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 
 | Method | Params | Returns |
 | --- | --- | --- |
-| `boot` | `argv`, `server` (`SCRIPT_NAME`, …), `cwd`, `io` (handle, kind, state), `statics`, `composerVersion` (pinned constants for a self-test), `ivPending` | `null` |
+| `boot` | `argv`, `server` (`SCRIPT_NAME`, …), `io` (handle, kind, state; `null` until phase 2), `composerVersion` (`"Class::CONST" => value`, a self-test), `ivPending` (phase 2), `require` (files to require last; tests). The cwd and statics come in the sync block: the child starts in maestro's cwd. | `null` |
 | `shutdown` | `code` | never returns (the child exits) |
 | `plugin.load` | `composer`, `package`, `classes[]`, `loader` (`{psr0, psr4, classmap, files, vendorDir}`), `isGlobal`, `legacyInstaller`, `failOnMissing`, `runningInGlobalDir`, `frames` | `{registered: [{h, class, kind: "plugin"\|"installer"}]}` |
 | `plugin.deactivate` / `plugin.uninstall` | `package`, `objects[]` (handles) | `null` |

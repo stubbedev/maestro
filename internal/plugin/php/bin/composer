@@ -1,0 +1,42 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * maestro's COMPOSER_BINARY (docs/PLUGINS.md D13): Composer's scripts and
+ * plugins run `PHP_BINARY $COMPOSER_BINARY ...`, which needs a PHP file.
+ * This one runs maestro (MAESTRO_BINARY, set by maestro at startup) with
+ * the same arguments, the same standard streams and environment, and exits
+ * with maestro's exit code.
+ *
+ * Plain syntax only: any PHP may run it.
+ */
+
+$maestro = getenv('MAESTRO_BINARY');
+if ($maestro === false || $maestro === '') {
+    fwrite(STDERR, 'maestro: MAESTRO_BINARY is not set; '.__FILE__.' only works below a running maestro'.PHP_EOL);
+    exit(1);
+}
+
+$args = array_slice($_SERVER['argv'], 1);
+if (PHP_VERSION_ID >= 70400) {
+    // No shell in between.
+    $command = array_merge(array($maestro), $args);
+} else {
+    $command = escapeshellarg($maestro);
+    foreach ($args as $arg) {
+        $command .= ' '.escapeshellarg($arg);
+    }
+    if (defined('PHP_WINDOWS_VERSION_BUILD')) {
+        // Outer quotes required on cmd string below PHP 8
+        $command = '"'.$command.'"';
+    }
+}
+
+$process = proc_open($command, array(0 => STDIN, 1 => STDOUT, 2 => STDERR), $pipes);
+if (!is_resource($process)) {
+    fwrite(STDERR, 'maestro: cannot run '.$maestro.PHP_EOL);
+    exit(1);
+}
+
+$code = proc_close($process);
+exit($code >= 0 && $code <= 255 ? $code : 1);
