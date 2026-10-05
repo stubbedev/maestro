@@ -1,0 +1,11 @@
+
+In InitCommand.php line 90:
+                                                                               
+  The package name Bad Name is invalid, it should be lowercase and have a ven  
+  dor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0  
+  -9_.-]+                                                                      
+                                                                               
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

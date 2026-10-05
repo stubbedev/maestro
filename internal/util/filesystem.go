@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Filesystem ports Composer\Util\Filesystem. Operations that never shell
@@ -50,6 +51,10 @@ func (fs *Filesystem) Remove(file string) (bool, error) {
 	return false, nil
 }
 
+// rdiSite is where Symfony Finder's RecursiveDirectoryIterator constructs
+// the \RecursiveDirectoryIterator that fails on an unreadable directory.
+var rdiSite = phperr.At("RecursiveDirectoryIterator.php", 48)
+
 // finderIn ports Finder::create()->in($dir) as Composer uses it (depth 0,
 // ignoreVCS(false), ignoreDotFiles(false)): it opens the directory, its
 // trailing slashes trimmed as Finder's normalizeDir does.
@@ -60,13 +65,13 @@ func finderIn(dir string) (string, *os.File, error) {
 
 	if !isDir(dir) {
 		// DirectoryNotFoundException.
-		return "", nil, &InvalidArgumentError{Message: `The "` + dir + `" directory does not exist.`}
+		return "", nil, &InvalidArgumentError{Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
 	}
 
 	f, err := os.Open(dir)
 	if err != nil {
 		// AccessDeniedException, wrapping RecursiveDirectoryIterator's.
-		return "", nil, dirIteratorError(dir, err)
+		return "", nil, dirIteratorError(rdiSite, dir, err)
 	}
 
 	return dir, f, nil
@@ -86,7 +91,7 @@ func IsDirEmpty(dir string) (bool, error) {
 			return true, nil
 		}
 
-		return false, dirIteratorError(dir, err)
+		return false, dirIteratorError(rdiSite, dir, err)
 	}
 
 	return false, nil
@@ -119,7 +124,7 @@ func (fs *Filesystem) EmptyDirectory(dir string, ensureDirectoryExists bool) err
 	_ = f.Close()
 
 	if err != nil {
-		return dirIteratorError(dir, err)
+		return dirIteratorError(rdiSite, dir, err)
 	}
 
 	for _, name := range names {
@@ -133,16 +138,16 @@ func (fs *Filesystem) EmptyDirectory(dir string, ensureDirectoryExists bool) err
 
 // readDir lists dir in directory order (os.ReadDir would sort), the way
 // RecursiveDirectoryIterator with SKIP_DOTS does.
-func readDir(dir string) ([]fs.DirEntry, error) {
+func readDir(site phperr.Site, dir string) ([]fs.DirEntry, error) {
 	f, err := os.Open(dir)
 	if err != nil {
-		return nil, dirIteratorError(dir, err)
+		return nil, dirIteratorError(site, dir, err)
 	}
 	defer f.Close()
 
 	entries, err := f.ReadDir(-1)
 	if err != nil {
-		return nil, dirIteratorError(dir, err)
+		return nil, dirIteratorError(site, dir, err)
 	}
 
 	return entries, nil
@@ -245,7 +250,7 @@ func removeEdgeCases(directory string) (result, done bool, err error) {
 
 	if link {
 		if err := unlinkPath(directory); err != nil {
-			return false, true, warning("unlink", directory, err)
+			return false, true, warning(phperr.At("Filesystem.php", 182), "unlink", directory, err)
 		}
 
 		return true, true, nil
@@ -256,7 +261,7 @@ func removeEdgeCases(directory string) (result, done bool, err error) {
 	}
 
 	if isRootPath(directory) {
-		return false, true, &RuntimeError{Message: "Aborting an attempted deletion of " + directory + ", this was probably not intended, if it is a real use case please report it."}
+		return false, true, &RuntimeError{Message: "Aborting an attempted deletion of " + directory + ", this was probably not intended, if it is a real use case please report it.", Site: phperr.At("Filesystem.php", 190)}
 	}
 
 	return false, false, nil
@@ -295,7 +300,7 @@ func RemoveDirectoryPhp(directory string) (bool, error) {
 		return result, err
 	}
 
-	entries, err := readDir(directory)
+	entries, err := readDir(phperr.At("Filesystem.php", 217), directory)
 	if err != nil {
 		// Retry once, it sometimes fails without apparent reason, see
 		// https://github.com/composer/composer/issues/4009
@@ -305,7 +310,7 @@ func RemoveDirectoryPhp(directory string) (bool, error) {
 			return true, nil
 		}
 
-		if entries, err = readDir(directory); err != nil {
+		if entries, err = readDir(phperr.At("Filesystem.php", 226), directory); err != nil {
 			return false, err
 		}
 	}
@@ -330,7 +335,7 @@ func removeChildren(dir string, entries []fs.DirEntry) error {
 
 		isDir, hasChildren := entryIsDir(path, entry)
 		if hasChildren {
-			children, err := readDir(path)
+			children, err := readDir(phperr.At("Filesystem.php", 230), path)
 			if err != nil {
 				return err
 			}
@@ -360,12 +365,12 @@ func EnsureDirectoryExists(directory string) error {
 			return nil
 		}
 
-		return &RuntimeError{Message: directory + " exists and is not a directory."}
+		return &RuntimeError{Message: directory + " exists and is not a directory.", Site: phperr.At("Filesystem.php", 251)}
 	}
 
 	if isLink(directory) {
 		if fn, err := unlinkImplementation(directory); err != nil {
-			return &RuntimeError{Message: "Could not delete symbolic link " + directory + ": " + phpWarning(fn, directory, err)}
+			return &RuntimeError{Message: "Could not delete symbolic link " + directory + ": " + phpWarning(fn, directory, err), Site: phperr.At("Filesystem.php", 257)}
 		}
 	}
 
@@ -379,7 +384,7 @@ func EnsureDirectoryExists(directory string) error {
 		return nil
 	}
 
-	failure := &RuntimeError{Message: directory + " does not exist and could not be created: mkdir(): " + strerror(err)}
+	failure := &RuntimeError{Message: directory + " does not exist and could not be created: mkdir(): " + strerror(err), Site: phperr.At("Filesystem.php", 267)}
 
 	// In pathological cases with paths like path/to/broken-symlink/../foo
 	// is_dir fails to detect path/to/foo, but normalizing the ../ away first
@@ -398,17 +403,17 @@ const windowsLockHint = "\nThis can be due to an antivirus or the Windows Search
 
 // Unlink ports Filesystem::unlink, retrying once after 350ms on Windows.
 func Unlink(path string) error {
-	return retryDelete(path, unlinkImplementation)
+	return retryDelete(phperr.At("Filesystem.php", 311), path, unlinkImplementation)
 }
 
 // Rmdir ports Filesystem::rmdir, retrying once after 350ms on Windows.
 func Rmdir(path string) error {
-	return retryDelete(path, func(path string) (string, error) { return "rmdir", rmdirPath(path) })
+	return retryDelete(phperr.At("Filesystem.php", 341), path, func(path string) (string, error) { return "rmdir", rmdirPath(path) })
 }
 
 // retryDelete runs remove, which returns the name of the PHP function it
 // called, again after 350ms on Windows if it failed.
-func retryDelete(path string, remove func(string) (string, error)) error {
+func retryDelete(site phperr.Site, path string, remove func(string) (string, error)) error {
 	fn, err := remove(path)
 	if err == nil {
 		return nil
@@ -429,7 +434,7 @@ func retryDelete(path string, remove func(string) (string, error)) error {
 		message += windowsLockHint
 	}
 
-	return &RuntimeError{Message: message}
+	return &RuntimeError{Message: message, Site: site}
 }
 
 // unlinkImplementation removes a symlink or file; directory symlinks on
@@ -466,10 +471,10 @@ func Copy(source, target string) (bool, error) {
 	target = NormalizePath(target)
 
 	if !isDir(source) {
-		return phpCopy(source, target)
+		return phpCopy(phperr.At("Filesystem.php", 380), source, target)
 	}
 
-	entries, err := readDir(source)
+	entries, err := readDir(phperr.At("Filesystem.php", 404), source)
 	if err != nil {
 		return false, err
 	}
@@ -496,7 +501,7 @@ func copyTree(dir, target string, entries []fs.DirEntry, result *bool) error {
 		isDir, hasChildren := entryIsDir(path, entry)
 		if !isDir {
 			if *result {
-				ok, err := phpCopy(path, targetPath)
+				ok, err := phpCopy(phperr.At("Filesystem.php", 414), path, targetPath)
 				if err != nil {
 					return err
 				}
@@ -512,7 +517,7 @@ func copyTree(dir, target string, entries []fs.DirEntry, result *bool) error {
 		}
 
 		if hasChildren {
-			children, err := readDir(path)
+			children, err := readDir(phperr.At("Filesystem.php", 409), path)
 			if err != nil {
 				return err
 			}
@@ -529,15 +534,15 @@ func copyTree(dir, target string, entries []fs.DirEntry, result *bool) error {
 // phpCopy ports PHP's copy() (php_copy_file_ctx) for local files: the
 // contents of source, following symlinks, into target, created with default
 // permissions or truncated.
-func phpCopy(source, target string) (bool, error) {
+func phpCopy(site phperr.Site, source, target string) (bool, error) {
 	if srcInfo, err := os.Stat(source); err == nil {
 		if srcInfo.IsDir() {
-			return false, &ErrorException{Message: "copy(): The first argument to copy() function cannot be a directory"}
+			return false, &ErrorException{Message: "copy(): The first argument to copy() function cannot be a directory", Site: site}
 		}
 
 		if dstInfo, err := os.Stat(target); err == nil {
 			if dstInfo.IsDir() {
-				return false, &ErrorException{Message: "copy(): The second argument to copy() function cannot be a directory"}
+				return false, &ErrorException{Message: "copy(): The second argument to copy() function cannot be a directory", Site: site}
 			}
 
 			if os.SameFile(srcInfo, dstInfo) {
@@ -548,23 +553,23 @@ func phpCopy(source, target string) (bool, error) {
 
 	src, err := os.Open(source)
 	if err != nil {
-		return false, streamWarning("copy", source, err)
+		return false, streamWarning(site, "copy", source, err)
 	}
 	defer src.Close()
 
 	dst, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // PHP's "wb" mode; the umask applies.
 	if err != nil {
-		return false, streamWarning("copy", target, err)
+		return false, streamWarning(site, "copy", target, err)
 	}
 
 	if _, err := io.Copy(dst, src); err != nil {
 		_ = dst.Close()
 
-		return false, warning("copy", source, err)
+		return false, warning(site, "copy", source, err)
 	}
 
 	if err := dst.Close(); err != nil {
-		return false, warning("copy", target, err)
+		return false, warning(site, "copy", target, err)
 	}
 
 	return true, nil
@@ -617,7 +622,7 @@ func phpRename(source, target string) bool {
 		return false
 	}
 
-	if ok, err := phpCopy(source, target); !ok || err != nil {
+	if ok, err := phpCopy(phperr.Site{}, source, target); !ok || err != nil {
 		return false
 	}
 
@@ -643,7 +648,7 @@ func FindShortestPath(from, to string, directories, preferRelative bool) (string
 
 func findShortestPath(from, to string, directories, preferRelative, windows bool) (string, error) {
 	if !IsAbsolutePath(from) || !IsAbsolutePath(to) {
-		return "", absolutePathsError(from, to)
+		return "", absolutePathsError(phperr.At("Filesystem.php", 475), from, to)
 	}
 
 	from = NormalizePath(from)
@@ -681,8 +686,8 @@ func findShortestPath(from, to string, directories, preferRelative, windows bool
 	return result, nil
 }
 
-func absolutePathsError(from, to string) error {
-	return &InvalidArgumentError{Message: "$from (" + from + ") and $to (" + to + ") must be absolute paths."}
+func absolutePathsError(site phperr.Site, from, to string) error {
+	return &InvalidArgumentError{Message: "$from (" + from + ") and $to (" + to + ") must be absolute paths.", Site: site}
 }
 
 // FindShortestPathCode ports Filesystem::findShortestPathCode: PHP code
@@ -693,7 +698,7 @@ func FindShortestPathCode(from, to string, directories, staticCode, preferRelati
 
 func findShortestPathCode(from, to string, directories, staticCode, preferRelative, windows bool) (string, error) {
 	if !IsAbsolutePath(from) || !IsAbsolutePath(to) {
-		return "", absolutePathsError(from, to)
+		return "", absolutePathsError(phperr.At("Filesystem.php", 527), from, to)
 	}
 
 	from = NormalizePath(from)
@@ -806,11 +811,11 @@ func IsAbsolutePath(path string) bool {
 func Size(path string) (int64, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
-		return 0, &RuntimeError{Message: path + " does not exist."}
+		return 0, &RuntimeError{Message: path + " does not exist.", Site: phperr.At("Filesystem.php", 589)}
 	}
 
 	if fi.IsDir() {
-		return directorySize(path)
+		return directorySize(phperr.At("Filesystem.php", 723), path)
 	}
 
 	return fi.Size(), nil
@@ -818,8 +823,8 @@ func Size(path string) (int64, error) {
 
 // directorySize sums the regular files (following symlinks) below dir,
 // descending into real directories only.
-func directorySize(dir string) (int64, error) {
-	entries, err := readDir(dir)
+func directorySize(site phperr.Site, dir string) (int64, error) {
+	entries, err := readDir(site, dir)
 	if err != nil {
 		return 0, err
 	}
@@ -829,7 +834,7 @@ func directorySize(dir string) (int64, error) {
 	for _, entry := range entries {
 		switch typ := entry.Type(); {
 		case typ.IsDir():
-			n, err := directorySize(dir + "/" + entry.Name())
+			n, err := directorySize(phperr.At("Filesystem.php", 727), dir+"/"+entry.Name())
 			if err != nil {
 				return 0, err
 			}
@@ -1078,7 +1083,7 @@ func RelativeSymlink(target, link string) (bool, error) {
 			errno, _ = errors.AsType[syscall.Errno](err)
 		}
 
-		return false, &ErrorException{Message: "chdir(): " + strerror(errno) + " (errno " + strconv.Itoa(int(errno)) + ")"}
+		return false, &ErrorException{Message: "chdir(): " + strerror(errno) + " (errno " + strconv.Itoa(int(errno)) + ")", Site: phperr.At("Filesystem.php", 778)}
 	}
 
 	return os.Symlink(relativePath, link) == nil, nil
@@ -1115,7 +1120,7 @@ func FilePutContentsIfModified(path string, content []byte) (int, error) {
 	}
 
 	if err := os.WriteFile(path, content, 0o666); err != nil {
-		return 0, streamWarning("file_put_contents", path, err)
+		return 0, streamWarning(phperr.At("Filesystem.php", 921), "file_put_contents", path, err)
 	}
 
 	return len(content), nil
@@ -1138,35 +1143,35 @@ func SafeCopy(source, target string) error {
 
 	src, err := os.Open(source)
 	if err != nil {
-		return streamWarning("fopen", source, err)
+		return streamWarning(phperr.At("Filesystem.php", 933), "fopen", source, err)
 	}
 	defer src.Close()
 
 	dst, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // PHP's "w+" mode; the umask applies.
 	if err != nil {
-		return streamWarning("fopen", target, err)
+		return streamWarning(phperr.At("Filesystem.php", 935), "fopen", target, err)
 	}
 
 	if _, err := io.Copy(dst, src); err != nil {
 		_ = dst.Close()
 
-		return warning("stream_copy_to_stream", source, err)
+		return warning(phperr.At("Filesystem.php", 938), "stream_copy_to_stream", source, err)
 	}
 
 	if err := dst.Close(); err != nil {
-		return warning("fclose", target, err)
+		return warning(phperr.At("Filesystem.php", 940), "fclose", target, err)
 	}
 
 	fi, err := src.Stat()
 	if err != nil {
-		return warning("filemtime", source, err)
+		return warning(phperr.At("Filesystem.php", 942), "filemtime", source, err)
 	}
 
 	mtime := time.Unix(fi.ModTime().Unix(), 0)
 	atime := time.Unix(fileAtime(fi).Unix(), 0)
 
 	if err := os.Chtimes(target, atime, mtime); err != nil {
-		return warning("touch", target, err)
+		return warning(phperr.At("Filesystem.php", 942), "touch", target, err)
 	}
 
 	return nil
@@ -1176,24 +1181,24 @@ func SafeCopy(source, target string) error {
 func filesAreEqual(a, b string) (bool, error) {
 	fa, err := os.Open(a)
 	if err != nil {
-		return false, streamWarning("fopen", a, err)
+		return false, streamWarning(phperr.At("Filesystem.php", 958), "fopen", a, err)
 	}
 	defer fa.Close()
 
 	fb, err := os.Open(b)
 	if err != nil {
-		return false, streamWarning("fopen", b, err)
+		return false, streamWarning(phperr.At("Filesystem.php", 960), "fopen", b, err)
 	}
 	defer fb.Close()
 
 	ia, err := fa.Stat()
 	if err != nil {
-		return false, warning("filesize", a, err)
+		return false, warning(phperr.At("Filesystem.php", 953), "filesize", a, err)
 	}
 
 	ib, err := fb.Stat()
 	if err != nil {
-		return false, warning("filesize", b, err)
+		return false, warning(phperr.At("Filesystem.php", 953), "filesize", b, err)
 	}
 
 	if ia.Size() != ib.Size() {

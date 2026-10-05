@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -26,19 +27,21 @@ type ProxyItem struct {
 // NewProxyItem is new ProxyItem($proxyUrl, $envName); errors are
 // RuntimeExceptions.
 func NewProxyItem(proxyURL, envName string) (*ProxyItem, error) {
-	syntaxError := &util.RuntimeError{Message: "unsupported `" + envName + "` syntax"}
+	syntaxError := func(line int) error {
+		return &util.RuntimeError{Message: "unsupported `" + envName + "` syntax", Site: phperr.At("ProxyItem.php", line)}
+	}
 
 	if strings.ContainsAny(proxyURL, "\r\n\t") {
-		return nil, syntaxError
+		return nil, syntaxError(42)
 	}
 
 	proxy, ok := util.ParseURL(proxyURL)
 	if !ok {
-		return nil, syntaxError
+		return nil, syntaxError(45)
 	}
 
 	if !proxy.HasHost {
-		return nil, &util.RuntimeError{Message: "unable to find proxy host in " + envName}
+		return nil, &util.RuntimeError{Message: "unable to find proxy host in " + envName, Site: phperr.At("ProxyItem.php", 48)}
 	}
 
 	scheme := "http://"
@@ -82,11 +85,11 @@ func NewProxyItem(proxyURL, envName string) (*ProxyItem, error) {
 	// A port is needed because curl uses 1080 for http. Port 0 is reserved,
 	// but is considered valid depending on the PHP or curl version.
 	if port < 0 {
-		return nil, &util.RuntimeError{Message: "unable to find proxy port in " + envName}
+		return nil, &util.RuntimeError{Message: "unable to find proxy port in " + envName, Site: phperr.At("ProxyItem.php", 87)}
 	}
 
 	if port == 0 {
-		return nil, &util.RuntimeError{Message: "port 0 is reserved in " + envName}
+		return nil, &util.RuntimeError{Message: "port 0 is reserved in " + envName, Site: phperr.At("ProxyItem.php", 90)}
 	}
 
 	hostPort := proxy.Host + ":" + strconv.Itoa(port)
@@ -189,7 +192,7 @@ func (p *RequestProxy) StatusFormat(format string) (string, error) {
 	}
 
 	if !strings.Contains(format, "%s") {
-		return "", &util.InvalidArgumentError{Message: "String format specifier is missing"}
+		return "", &util.InvalidArgumentError{Message: "String format specifier is missing", Site: phperr.At("RequestProxy.php", 128)}
 	}
 
 	return strings.Replace(format, "%s", p.status, 1), nil
@@ -251,7 +254,7 @@ func (m *ProxyManager) HasProxy() bool { return m.httpProxy != nil || m.httpsPro
 // ProxyForRequest is getProxyForRequest($requestUrl).
 func (m *ProxyManager) ProxyForRequest(requestURL string) (*RequestProxy, error) {
 	if m.err != "" {
-		return nil, util.NewTransportError("Unable to use a proxy: "+m.err, 400)
+		return nil, transportError(phperr.At("ProxyManager.php", 75), "Unable to use a proxy: "+m.err, 400)
 	}
 
 	scheme := util.URLScheme(requestURL)

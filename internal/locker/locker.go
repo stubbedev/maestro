@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -184,7 +185,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 	if withDevReqs {
 		dev, ok := lockData.GetArray("packages-dev")
 		if !ok {
-			return nil, &util.RuntimeError{Message: "The lock file does not contain require-dev information, run install with the --no-dev option or delete it and run composer update to generate a new lock file."}
+			return nil, &util.RuntimeError{Site: phperr.At("Locker.php", 172), Message: "The lock file does not contain require-dev information, run install with the --no-dev option or delete it and run composer update to generate a new lock file."}
 		}
 		if lockedPackages == nil {
 			lockedPackages = php.NewArray()
@@ -197,7 +198,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 	}
 
 	if first, ok := lockedPackages.GetArray(0); !ok || lockValue(first, "name") == nil {
-		return nil, &util.RuntimeError{Message: `Your composer.lock is invalid. Run "composer update" to generate a new one.`}
+		return nil, &util.RuntimeError{Site: phperr.At("Locker.php", 205), Message: `Your composer.lock is invalid. Run "composer update" to generate a new one.`}
 	}
 
 	packageByName := make(map[string]pkg.PackageInterface)
@@ -363,7 +364,7 @@ func (l *Locker) LockData() (*php.Array, error) {
 	}
 
 	if !l.lockFile.Exists() {
-		return nil, &util.LogicError{Message: "No lockfile found. Unable to read locked packages"}
+		return nil, &util.LogicError{Site: phperr.At("Locker.php", 338), Message: "No lockfile found. Unable to read locked packages"}
 	}
 
 	decoded, err := l.lockFile.Read()
@@ -510,7 +511,7 @@ func (l *Locker) SetLockData(in LockDataInput, write bool) (bool, error) {
 func (l *Locker) UpdateHash(composerJSONPath string, dataProcessor func(lockData *php.Array) *php.Array) error {
 	contents, err := os.ReadFile(composerJSONPath)
 	if err != nil {
-		return &util.RuntimeError{Message: "Unable to read " + composerJSONPath + " contents to update the lock file hash."}
+		return &util.RuntimeError{Site: phperr.At("Locker.php", 433), Message: "Unable to read " + composerJSONPath + " contents to update the lock file hash."}
 	}
 
 	var lockMtime time.Time
@@ -524,7 +525,7 @@ func (l *Locker) UpdateHash(composerJSONPath string, dataProcessor func(lockData
 	}
 	lockData, ok := decoded.(*php.Array)
 	if !ok {
-		return &util.ErrorException{Message: "Cannot use a scalar value as an array"}
+		return &util.ErrorException{Site: phperr.At("Locker.php", 438), Message: "Cannot use a scalar value as an array"}
 	}
 	contentHash, err := GetContentHash(string(contents))
 	if err != nil {
@@ -576,7 +577,7 @@ func (l *Locker) lockPackages(packages []pkg.PackageInterface) (*php.Array, erro
 		}
 
 		if p.PrettyName() == "" || p.PrettyName() == "0" || p.PrettyVersion() == "" || p.PrettyVersion() == "0" {
-			return nil, &util.LogicError{Message: `Package "` + p.String() + `" has no version or name and can not be locked`}
+			return nil, &util.LogicError{Site: phperr.At("Locker.php", 492), Message: `Package "` + p.String() + `" has no version or name and can not be locked`}
 		}
 
 		spec, err := arrayDumper.Dump(p)

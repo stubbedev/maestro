@@ -5,6 +5,7 @@ package installer
 import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -80,7 +81,7 @@ func (i *PluginInstaller) Prepare(typ string, p, prev pkg.PackageInterface) (*Pr
 func (i *PluginInstaller) Download(p, prev pkg.PackageInterface) (*Promise, error) {
 	class, _ := p.Extra().Get("class")
 	if !php.ToBool(class) {
-		return nil, &util.UnexpectedValueError{Message: "Error while installing " + p.PrettyName() + ", composer-plugin packages should have a class defined in their extra key to be usable."}
+		return nil, &util.UnexpectedValueError{Site: phperr.At("PluginInstaller.php", 71), Message: "Error while installing " + p.PrettyName() + ", composer-plugin packages should have a class defined in their extra key to be usable."}
 	}
 
 	return i.LibraryInstaller.Download(p, prev)
@@ -175,7 +176,7 @@ func (i *PluginInstaller) rollbackInstall(e error, repo repository.InstalledRepo
 func (i *PluginInstaller) PluginManager() (PluginManager, error) {
 	c, ok := i.composer.(PluginComposer)
 	if !ok {
-		return nil, &util.LogicError{Message: `Composer\Installer\PluginInstaller should be initialized with a fully loaded Composer instance.`}
+		return nil, &util.LogicError{Site: phperr.At("PluginInstaller.php", 134), Message: `Composer\Installer\PluginInstaller should be initialized with a fully loaded Composer instance.`}
 	}
 
 	return c.InstallerPluginManager(), nil

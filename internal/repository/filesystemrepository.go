@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -51,7 +52,7 @@ func (r *FilesystemRepository) init(file JSONFile, dumpVersions bool, rootPackag
 	r.dumpVersions = dumpVersions
 	r.rootPackage = rootPackage
 	if dumpVersions && rootPackage == nil {
-		return &util.InvalidArgumentError{Message: "Expected a root package instance if $dumpVersions is true"}
+		return &util.InvalidArgumentError{Site: phperr.At("FilesystemRepository.php", 60), Message: "Expected a root package instance if $dumpVersions is true"}
 	}
 
 	return nil
@@ -93,7 +94,7 @@ func (r *FilesystemRepository) initialize() error {
 			return err
 		}
 
-		return &InvalidRepositoryError{Message: "Invalid repository data in " + r.file.Path() + ", packages could not be loaded: [" + exceptionClass(err) + "] " + err.Error()}
+		return &InvalidRepositoryError{Site: phperr.At("FilesystemRepository.php", 102), Message: "Invalid repository data in " + r.file.Path() + ", packages could not be loaded: [" + exceptionClass(err) + "] " + err.Error()}
 	}
 
 	arrayLoader := loader.NewArrayLoader(nil, true)
@@ -138,7 +139,7 @@ func (r *FilesystemRepository) readPackageList() (*php.Array, error) {
 	}
 	list, ok := packages.(*php.Array)
 	if !ok {
-		return nil, &util.UnexpectedValueError{Message: "Could not parse package list from the repository"}
+		return nil, &util.UnexpectedValueError{Site: phperr.At("FilesystemRepository.php", 99), Message: "Could not parse package list from the repository"}
 	}
 
 	return list, nil
@@ -307,7 +308,7 @@ func appendPhpCode(b *strings.Builder, array *php.Array, level int) error {
 		case nil:
 			b.WriteString("null,\n")
 		default:
-			return &util.UnexpectedValueError{Message: "Unexpected type " + php.TypeName(value)}
+			return &util.UnexpectedValueError{Site: phperr.At("FilesystemRepository.php", 255), Message: "Unexpected type " + php.TypeName(value)}
 		}
 	}
 
@@ -332,7 +333,7 @@ func (r *FilesystemRepository) generateInstalledVersions(installPaths map[string
 		return nil, err
 	}
 	if r.rootPackage == nil {
-		return nil, &util.LogicError{Message: "It should not be possible to dump packages if no root package is given"}
+		return nil, &util.LogicError{Site: phperr.At("FilesystemRepository.php", 274), Message: "It should not be possible to dump packages if no root package is given"}
 	}
 	packages := append(slices.Clone(repoPackages), r.rootPackage)
 	var rootPackage pkg.PackageInterface = r.rootPackage

@@ -100,6 +100,14 @@ Cycle-breaking decisions already made:
 - Exceptions become Go errors carrying the same message text. Where Composer
   distinguishes exception classes (callers catch specific ones), use
   distinct error types and `errors.As`.
+- Every exception that can reach the console also carries its throw site,
+  which Symfony prints ("In Factory.php line 317:"): error types embed
+  `phperr.Site` (internal/phperr) and each construction sets
+  `Site: phperr.At("<PHP file basename>", <line of the new expression>)`;
+  a `$previous` exception goes in the type's previous field
+  (`phperr.Chained`, never Unwrap); a class `util.PHPClassOf` cannot know
+  is given by a `PHPClass()` method. tools/oracle/errors checks the
+  rendering against Composer.
 - Any user-visible string (messages, warnings, help text, JSON output)
   must be copied exactly, including punctuation, spacing and `<info>` tags.
 - Data that Composer keeps as free-form PHP arrays (extra, scripts,

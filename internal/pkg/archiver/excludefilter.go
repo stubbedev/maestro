@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -50,7 +51,7 @@ func (f *BaseExcludeFilter) Filter(relativePath string, exclude bool) (bool, err
 
 		ok, err := php.PregIsMatch(p.Pattern, path)
 		if pcreErr, isPcre := errors.AsType[*php.PcreError](err); isPcre && pcreErr.Warning != "" {
-			return exclude, &util.ErrorException{Message: pcreErr.Warning}
+			return exclude, &util.ErrorException{Message: pcreErr.Warning, Site: phperr.At("Preg.php", 430)}
 		}
 
 		if err == nil && ok {
@@ -171,16 +172,17 @@ func (f *GitExcludeFilter) ParseGitAttributesLine(line string) (ExcludePattern, 
 }
 
 // phpFile is file($path): the lines of a file, each with its "\n". Its
-// failures are the warnings PHP emits, as ErrorExceptions.
+// failures are the warnings PHP emits, as ErrorExceptions (only
+// GitExcludeFilter calls it).
 func phpFile(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 
 	switch {
 	case errors.Is(err, syscall.EISDIR):
 		// PHP opens directories, then fails to read them
-		return nil, &util.ErrorException{Message: "file(): Read of 8192 bytes failed with errno=21 Is a directory"}
+		return nil, &util.ErrorException{Message: "file(): Read of 8192 bytes failed with errno=21 Is a directory", Site: phperr.At("GitExcludeFilter.php", 37)}
 	case err != nil:
-		return nil, &util.ErrorException{Message: "file(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return nil, &util.ErrorException{Message: "file(" + path + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("GitExcludeFilter.php", 37)}
 	}
 
 	var lines []string

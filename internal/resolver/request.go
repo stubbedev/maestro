@@ -4,6 +4,7 @@ package resolver
 
 import (
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -107,7 +108,7 @@ func (r *Request) RequireName(packageName string, constraint semver.ConstraintIn
 		constraint = semver.NewMatchAllConstraint()
 	}
 	if existing, ok := r.requires.Get(packageName); ok {
-		return &util.LogicError{Message: "Overwriting requires seems like a bug (" + packageName + " " + existing.PrettyString() + " => " + constraint.PrettyString() + ", check why it is happening, might be a root alias"}
+		return &util.LogicError{Site: phperr.At("Request.php", 73), Message: "Overwriting requires seems like a bug (" + packageName + " " + existing.PrettyString() + " => " + constraint.PrettyString() + ", check why it is happening, might be a root alias"}
 	}
 	r.requires.Set(packageName, constraint)
 

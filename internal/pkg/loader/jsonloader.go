@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -40,7 +41,7 @@ func (l *JsonLoader) Load(source any) (pkg.PackageInterface, error) {
 			config, err = json.ParseJSON(s, "")
 		}
 	default:
-		return nil, &util.InvalidArgumentError{Message: "JsonLoader: Unknown $json parameter " + php.TypeName(source) +
+		return nil, &util.InvalidArgumentError{Site: phperr.At("JsonLoader.php", 48), Message: "JsonLoader: Unknown $json parameter " + php.TypeName(source) +
 			". Please report at https://github.com/composer/composer/issues/new."}
 	}
 

@@ -12,9 +12,11 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/spdx"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // ConfigValidatorCheckVersion is ConfigValidator::CHECK_VERSION.
@@ -207,7 +209,10 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 			}
 			links, ok := arrayValue(m, linkType)
 			if !ok {
-				return nil, nil, nil, &pkg.TypeError{Message: "foreach() argument must be of type array|object"}
+				// the warning Composer's ErrorHandler turns into an exception
+				v, _ := m.Get(linkType)
+
+				return nil, nil, nil, &util.ErrorException{Site: phperr.At("ConfigValidator.php", 164), Message: "foreach() argument must be of type array|object, " + zvalValueName(v) + " given"}
 			}
 			reqs, _ := arrayValue(m, requireType)
 			for provide := range links.All() {
@@ -222,7 +227,13 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	require, ok1 := arrayOrEmpty(m, "require")
 	requireDev, ok2 := arrayOrEmpty(m, "require-dev")
 	if !ok1 || !ok2 {
-		return nil, nil, nil, &pkg.TypeError{Message: "array_merge(): Argument must be of type array"}
+		n, key := 1, "require"
+		if ok1 {
+			n, key = 2, "require-dev"
+		}
+		v, _ := m.Get(key)
+
+		return nil, nil, nil, &pkg.TypeError{Site: phperr.At("ConfigValidator.php", 177), Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + zvalValueName(v) + " given"}
 	}
 	for name, version := range php.ArrayMerge(require, requireDev).All() {
 		s, ok := version.(string)
@@ -319,4 +330,15 @@ func arrayOrEmpty(a *php.Array, k any) (*php.Array, bool) {
 	arr, ok := v.(*php.Array)
 
 	return arr, ok
+}
+
+// zvalValueName ports zend_zval_value_name, the type name PHP's TypeErrors
+// and warnings use: get_debug_type, except that booleans are "true" or
+// "false".
+func zvalValueName(v any) string {
+	if b, ok := v.(bool); ok {
+		return strconv.FormatBool(b)
+	}
+
+	return php.TypeName(v)
 }

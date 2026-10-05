@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -48,13 +49,13 @@ func (i *ProjectInstaller) Download(p, prev pkg.PackageInterface) (*Promise, err
 		}
 
 		if !empty {
-			return nil, &util.InvalidArgumentError{Message: "Project directory " + installPath + " is not empty."}
+			return nil, &util.InvalidArgumentError{Site: phperr.At("ProjectInstaller.php", 66), Message: "Project directory " + installPath + " is not empty."}
 		}
 	}
 
 	if !isDir(installPath) {
 		if err := os.MkdirAll(installPath, 0o777); err != nil {
-			return nil, &util.ErrorException{Message: "mkdir(): " + util.Strerror(err)}
+			return nil, &util.ErrorException{Message: "mkdir(): " + util.Strerror(err), Site: phperr.At("ProjectInstaller.php", 69)}
 		}
 	}
 
@@ -78,12 +79,12 @@ func (i *ProjectInstaller) Install(_ repository.InstalledRepositoryInterface, p 
 
 // Update is update(): not supported.
 func (*ProjectInstaller) Update(repository.InstalledRepositoryInterface, pkg.PackageInterface, pkg.PackageInterface) (*Promise, error) {
-	return nil, &util.InvalidArgumentError{Message: "not supported"}
+	return nil, &util.InvalidArgumentError{Message: "not supported", Site: phperr.At("ProjectInstaller.php", 104)}
 }
 
 // Uninstall is uninstall(): not supported.
 func (*ProjectInstaller) Uninstall(repository.InstalledRepositoryInterface, pkg.PackageInterface) (*Promise, error) {
-	return nil, &util.InvalidArgumentError{Message: "not supported"}
+	return nil, &util.InvalidArgumentError{Message: "not supported", Site: phperr.At("ProjectInstaller.php", 112)}
 }
 
 // InstallPath is getInstallPath(): the configured install path.

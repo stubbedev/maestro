@@ -1,0 +1,12 @@
+{
+    "name": "x/foo",
+    "version": "1.0.0",
+    "bin": [
+        "bin/foo"
+    ],
+    "autoload": {
+        "psr-4": {
+            "X\\Foo\\": "src/"
+        }
+    }
+}

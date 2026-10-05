@@ -4,7 +4,11 @@
 
 package util
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/stubbedev/maestro/internal/phperr"
+)
 
 // Promise is React\Promise\PromiseInterface: a value or an error delivered
 // once, with optional cancellation.
@@ -91,11 +95,13 @@ func NewDeferredOn[T any](s *Scheduler, cancel func()) (p *Promise[T], resolve f
 // and the promise settles when s runs the completion, in the order the
 // asynchronous work started (it takes its Ticket now).
 func NewAsync[T any](s *Scheduler, cancel func()) (p *Promise[T], resolve func(T), reject func(error)) {
+	return newAsync[T](s, cancel, s.Ticket())
+}
+
+func newAsync[T any](s *Scheduler, cancel func(), t *Ticket) (p *Promise[T], resolve func(T), reject func(error)) {
 	p = newPromise[T]()
 	p.canceller = cancel
 	p.sched = s
-
-	t := s.Ticket()
 
 	return p, func(value T) {
 			t.Complete(func() { p.resolve(value) })
@@ -108,7 +114,17 @@ func NewAsync[T any](s *Scheduler, cancel func()) (p *Promise[T], resolve func(T
 // settled by s (see NewAsync): parallel work whose outcome callbacks see on
 // the driving goroutine.
 func Go[T any](s *Scheduler, fn func() (T, error)) *Promise[T] {
-	p, resolve, reject := NewAsync[T](s, nil)
+	return goOn(s, fn, s.Ticket())
+}
+
+// GoBackground is Go for work that is not one of Composer's jobs (it takes
+// a BackgroundTicket): Loop's progress bar does not count it.
+func GoBackground[T any](s *Scheduler, fn func() (T, error)) *Promise[T] {
+	return goOn(s, fn, s.BackgroundTicket())
+}
+
+func goOn[T any](s *Scheduler, fn func() (T, error), t *Ticket) *Promise[T] {
+	p, resolve, reject := newAsync[T](s, nil, t)
 
 	go func() {
 		value, err := fn()
@@ -192,7 +208,7 @@ func (p *Promise[T]) subscribe(h func()) {
 // follow settles p as next settles (a callback returned next).
 func (p *Promise[T]) follow(next *Promise[T]) {
 	if next == p {
-		p.reject(&LogicError{Message: "Cannot resolve a promise with itself."})
+		p.reject(&LogicError{Message: "Cannot resolve a promise with itself.", Site: phperr.At("Promise.php", 205)})
 
 		return
 	}

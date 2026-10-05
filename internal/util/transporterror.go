@@ -7,6 +7,8 @@
 
 package util
 
+import "github.com/stubbedev/maestro/internal/phperr"
+
 // TransportError is Composer\Downloader\TransportException, a
 // RuntimeException carrying what is known about the failed HTTP response.
 type TransportError struct {
@@ -24,6 +26,8 @@ type TransportError struct {
 	StatusCode int
 	// ResponseInfo describes the transfer (curl_getinfo); nil when unknown.
 	ResponseInfo *TransferInfo
+
+	phperr.Site
 }
 
 // NewTransportError is new TransportException($message, $code).
@@ -35,6 +39,9 @@ func (e *TransportError) Error() string { return e.Message }
 
 // Unwrap returns the previous exception.
 func (e *TransportError) Unwrap() error { return e.Previous }
+
+// PHPPrevious implements phperr.Chained.
+func (e *TransportError) PHPPrevious() error { return e.Previous }
 
 // SetResponse is setResponse(?string).
 func (e *TransportError) SetResponse(body string) { e.Response = &body }
@@ -74,6 +81,9 @@ func (e *MaxFileSizeExceededError) Unwrap() error { return e.TransportError }
 // IrrecoverableDownloadError is
 // Composer\Exception\IrrecoverableDownloadException, a RuntimeException
 // that stops the download manager from trying other sources.
-type IrrecoverableDownloadError struct{ Message string }
+type IrrecoverableDownloadError struct {
+	Message string
+	phperr.Site
+}
 
 func (e *IrrecoverableDownloadError) Error() string { return e.Message }

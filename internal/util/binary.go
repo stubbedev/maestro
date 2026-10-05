@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // DetermineBinaryCaller is BinaryInstaller::determineBinaryCaller: the
@@ -23,7 +24,7 @@ func DetermineBinaryCaller(bin string) (string, error) {
 
 	f, err := os.Open(bin)
 	if err != nil {
-		return "", &ErrorException{Message: "fopen(" + bin + "): Failed to open stream: " + Strerror(err)}
+		return "", &ErrorException{Message: "fopen(" + bin + "): Failed to open stream: " + Strerror(err), Site: phperr.At("BinaryInstaller.php", 144)}
 	}
 
 	defer func() { _ = f.Close() }()

@@ -13,6 +13,7 @@ import (
 	"fmt"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -149,7 +150,7 @@ func FromBoolOrList(boolOrList any) (PlatformRequirementFilter, error) {
 		return NewIgnoreList(list), nil
 	}
 
-	return nil, &util.InvalidArgumentError{Message: fmt.Sprintf("PlatformRequirementFilter: Unknown $boolOrList parameter %s. Please report at https://github.com/composer/composer/issues/new.", php.TypeName(boolOrList))}
+	return nil, &util.InvalidArgumentError{Message: fmt.Sprintf("PlatformRequirementFilter: Unknown $boolOrList parameter %s. Please report at https://github.com/composer/composer/issues/new.", php.TypeName(boolOrList)), Site: phperr.At("PlatformRequirementFilterFactory.php", 30)}
 }
 
 // FromIgnoreOptions is the value Composer's commands pass to fromBoolOrList:

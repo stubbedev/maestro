@@ -7,11 +7,9 @@ package command
 import (
 	"errors"
 	"strconv"
-	"strings"
 
 	"github.com/stubbedev/maestro/internal/console"
-	"github.com/stubbedev/maestro/internal/json"
-	"github.com/stubbedev/maestro/internal/json/jsonlint"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -77,7 +75,13 @@ func (e *Error) ThrowableLine() int { return e.Line }
 func (e *Error) ThrowableCode() int { return e.Code }
 
 // ThrowablePrevious implements console.Throwable.
-func (e *Error) ThrowablePrevious() error { return e.Prev }
+func (e *Error) ThrowablePrevious() error {
+	if e.Prev == nil {
+		return nil
+	}
+
+	return asThrowable(e.Prev, -1)
+}
 
 // ExitCoder is implemented by errors that stand for the end of the
 // process with a status rather than an exception: PHP's exit($code) in
@@ -98,23 +102,26 @@ func (e *ExitError) Error() string { return "exit " + strconv.Itoa(e.Code) }
 func (e *ExitError) ExitCode() int { return e.Code }
 
 // throwable is how the Application presents an error that is not a
-// console.Throwable to Symfony's rendering: its PHP class (util.PHPClassOf)
-// and code. The throw site is unknown ("In n/a line n/a:") unless the error
-// implements console.Throwable itself, which lower packages may do.
+// console.Throwable to Symfony's rendering: its PHP class (util.PHPClassOf),
+// code, throw site (phperr.SiteOf; "n/a" when the error has none) and
+// previous exception (phperr.PreviousOf).
 type throwable struct {
 	err   error
 	class string
 	code  int
+	file  string
+	line  int
+	prev  error
 }
 
-func (t *throwable) Error() string           { return t.err.Error() }
-func (t *throwable) Unwrap() error           { return t.err }
-func (t *throwable) ThrowableClass() string  { return t.class }
-func (*throwable) ThrowableFile() string     { return "" }
-func (*throwable) ThrowableLine() int        { return 0 }
-func (t *throwable) ThrowableCode() int      { return t.code }
-func (*throwable) ThrowablePrevious() error  { return nil }
-func (t *throwable) PHPClass() (string, int) { return t.class, t.code }
+func (t *throwable) Error() string            { return t.err.Error() }
+func (t *throwable) Unwrap() error            { return t.err }
+func (t *throwable) ThrowableClass() string   { return t.class }
+func (t *throwable) ThrowableFile() string    { return t.file }
+func (t *throwable) ThrowableLine() int       { return t.line }
+func (t *throwable) ThrowableCode() int       { return t.code }
+func (t *throwable) ThrowablePrevious() error { return t.prev }
+func (t *throwable) PHPClass() (string, int)  { return t.class, t.code }
 
 // asThrowable gives err the PHP exception details Symfony's renderer and
 // exit code use. code overrides the exception code when >= 0.
@@ -130,57 +137,15 @@ func asThrowable(err error, code int) error {
 	if code >= 0 {
 		c = code
 	}
-	if site, ok := knownThrowSite(err); ok {
-		site.code = c
-		site.err = err
-
-		return site
+	t := &throwable{err: err, class: class, code: c}
+	if site, ok := phperr.SiteOf(err); ok {
+		t.file, t.line = site.File, site.Line
+	}
+	if prev := phperr.PreviousOf(err); prev != nil {
+		t.prev = asThrowable(prev, -1)
 	}
 
-	return &throwable{err: err, class: class, code: c}
-}
-
-// sitedThrowable is a throwable whose PHP throw site is known.
-type sitedThrowable struct {
-	throwable
-	file string
-	line int
-}
-
-func newSited(class, file string, line int) *sitedThrowable {
-	s := &sitedThrowable{file: file, line: line}
-	s.class = class
-
-	return s
-}
-
-func (s *sitedThrowable) ThrowableFile() string { return s.file }
-func (s *sitedThrowable) ThrowableLine() int    { return s.line }
-
-// knownThrowSite gives the class and throw site of the errors of lower
-// packages that commonly reach the user, which carry no site themselves:
-// invalid and schema-violating JSON files.
-func knownThrowSite(err error) (*sitedThrowable, bool) {
-	if ve, ok := errors.AsType[*json.ValidationError](err); ok && ve == err { //nolint:errorlint // the object itself
-		if ve.Errors == nil {
-			// Factory::createComposer rethrows with the errors in the message
-			return newSited(`Composer\Json\JsonValidationException`, "Factory.php", 317), true
-		}
-
-		return newSited(`Composer\Json\JsonValidationException`, "JsonFile.php", 265), true
-	}
-	if pe, ok := err.(*jsonlint.ParsingError); ok { //nolint:errorlint // the object itself
-		switch {
-		case strings.HasPrefix(pe.Message, "The input does not contain valid JSON"):
-			return newSited(`Seld\JsonLint\ParsingException`, "JsonFile.php", 393), true
-		case strings.Contains(pe.Message, "\n"):
-			return newSited(`Seld\JsonLint\ParsingException`, "JsonFile.php", 398), true
-		default:
-			return newSited(`Seld\JsonLint\ParsingException`, "Response.php", 98), true
-		}
-	}
-
-	return nil, false
+	return t
 }
 
 // codeOverride is a Throwable whose code Application::doRun replaced (the
@@ -217,4 +182,16 @@ func isInvalidArgument(err error) bool {
 	class, _ := util.PHPClassOf(err)
 
 	return class == ClassInvalidArgument
+}
+
+// isPHPError is `$e instanceof \Error` for a class name: PHP's engine
+// errors, which are not Exceptions.
+func isPHPError(class string) bool {
+	switch class {
+	case "Error", "TypeError", "ValueError", "ArgumentCountError", "ArithmeticError", "DivisionByZeroError",
+		"CompileError", "ParseError", "UnhandledMatchError", "AssertionError", "FiberError":
+		return true
+	}
+
+	return false
 }

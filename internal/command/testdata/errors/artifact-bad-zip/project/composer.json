@@ -1,0 +1,15 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "artifact",
+            "url": "artifacts"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/y": "*"
+    }
+}

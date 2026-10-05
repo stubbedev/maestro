@@ -4,6 +4,7 @@ package repository
 
 import (
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -39,12 +40,12 @@ func NewFilterRepository(repo RepositoryInterface, options *php.Array) (*FilterR
 		return nil, err
 	}
 	if r.exclude != nil && r.only != nil {
-		return nil, &util.InvalidArgumentError{Message: `Only one of "only" and "exclude" can be specified for repository ` + repo.RepoName()}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("FilterRepository.php", 54), Message: `Only one of "only" and "exclude" can be specified for repository ` + repo.RepoName()}
 	}
 	if v, _ := options.Get("canonical"); v != nil {
 		canonical, ok := v.(bool)
 		if !ok {
-			return nil, &util.InvalidArgumentError{Message: `"canonical" key for repository ` + repo.RepoName() + " should be a boolean"}
+			return nil, &util.InvalidArgumentError{Site: phperr.At("FilterRepository.php", 58), Message: `"canonical" key for repository ` + repo.RepoName() + " should be a boolean"}
 		}
 		r.canonical = canonical
 	}
@@ -61,7 +62,12 @@ func filterOption(repo RepositoryInterface, options *php.Array, key string) (*ph
 	}
 	names, ok := v.(*php.Array)
 	if !ok {
-		return nil, &util.InvalidArgumentError{Message: `"` + key + `" key for repository ` + repo.RepoName() + " should be an array"}
+		line := 43 // "only"
+		if key == "exclude" {
+			line = 49
+		}
+
+		return nil, &util.InvalidArgumentError{Site: phperr.At("FilterRepository.php", line), Message: `"` + key + `" key for repository ` + repo.RepoName() + " should be an array"}
 	}
 
 	return php.Compile(pkg.PackageNamesToRegexp(stringValues(names), "{^(?:%s)$}iD"))

@@ -1,0 +1,19 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Executing command (CWD): 'git' 'config' '-l'
+
+In InitCommand.php line 90:
+                                                                               
+  [InvalidArgumentException]                                                   
+  The package name Bad Name is invalid, it should be lowercase and have a ven  
+  dor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0  
+  -9_.-]+                                                                      
+                                                                               
+
+Exception trace:
+  at InitCommand.php:90
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

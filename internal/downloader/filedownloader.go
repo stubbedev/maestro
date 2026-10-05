@@ -21,6 +21,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/comparer"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -240,7 +241,7 @@ func (d *FileDownloader) download(c call, p pkg.PackageInterface, path string, _
 // temporary file name and the directories.
 func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path string) (*dlState, error) {
 	if !p.DistURL().Valid {
-		return nil, &util.InvalidArgumentError{Message: "The given package is missing url information"}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("FileDownloader.php", 126), Message: "The given package is missing url information"}
 	}
 
 	distURLs := p.DistURLs()
@@ -347,7 +348,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 		}
 
 		if !fileExists(st.fileName) {
-			return nil, "", &util.UnexpectedValueError{Message: util.SanitizeURL(url.base) + " could not be saved to " + st.fileName + ", make sure the directory is writable and you have internet connectivity"}
+			return nil, "", &util.UnexpectedValueError{Site: phperr.At("FileDownloader.php", 209), Message: util.SanitizeURL(url.base) + " could not be saved to " + st.fileName + ", make sure the directory is writable and you have internet connectivity"}
 		}
 
 		if checksum.S != "" {
@@ -357,7 +358,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			}
 
 			if sum != checksum.S {
-				return nil, "", &util.UnexpectedValueError{Message: "The checksum verification of the file failed (downloaded from " + util.SanitizeURL(url.base) + ")"}
+				return nil, "", &util.UnexpectedValueError{Site: phperr.At("FileDownloader.php", 214), Message: "The checksum verification of the file failed (downloaded from " + util.SanitizeURL(url.base) + ")"}
 			}
 		}
 
@@ -706,7 +707,7 @@ func (d *FileDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 
 	return then(promise, func(result bool) (*Promise, string, error) {
 		if !result {
-			return nil, "", &util.RuntimeError{Message: "Could not completely delete " + path + ", aborting."}
+			return nil, "", &util.RuntimeError{Site: phperr.At("FileDownloader.php", 440), Message: "Could not completely delete " + path + ", aborting."}
 		}
 
 		return nil, "", nil

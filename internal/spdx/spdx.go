@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // The SPDX license and exception lists, byte-identical to res/ of
@@ -60,9 +61,15 @@ type ExceptionInfo struct {
 
 // InvalidArgumentError is the \InvalidArgumentException validate throws for
 // an argument that is neither a string nor an array of strings.
-type InvalidArgumentError struct{ Message string }
+type InvalidArgumentError struct {
+	Message string
+	phperr.Site
+}
 
 func (e *InvalidArgumentError) Error() string { return e.Message }
+
+// PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
+func (*InvalidArgumentError) PHPClass() (string, int) { return "InvalidArgumentException", 0 }
 
 // SpdxLicenses ports Composer\Spdx\SpdxLicenses. It is immutable and safe
 // for concurrent use.
@@ -273,7 +280,7 @@ func (s *SpdxLicenses) ValidateValue(license any) (bool, error) {
 		for _, item := range v.All() {
 			str, ok := item.(string)
 			if !ok {
-				return false, &InvalidArgumentError{"Array of strings expected."}
+				return false, &InvalidArgumentError{Message: "Array of strings expected.", Site: phperr.At("SpdxLicenses.php", 196)}
 			}
 
 			list = append(list, str)
@@ -282,7 +289,7 @@ func (s *SpdxLicenses) ValidateValue(license any) (bool, error) {
 		return s.ValidateList(list), nil
 	}
 
-	return false, &InvalidArgumentError{fmt.Sprintf("Array or String expected, %s given.", php.GetType(license))}
+	return false, &InvalidArgumentError{Message: fmt.Sprintf("Array or String expected, %s given.", php.GetType(license)), Site: phperr.At("SpdxLicenses.php", 202)}
 }
 
 // isValidLicenseString ports SpdxLicenses::isValidLicenseString: a

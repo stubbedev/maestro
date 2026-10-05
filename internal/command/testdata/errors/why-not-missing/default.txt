@@ -1,0 +1,10 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In BaseDependencyCommand.php line 102:
+                                                
+  Could not find package "x/y" in your project  
+                                                
+
+prohibits [-r|--recursive] [-t|--tree] [--locked] [--] <package> <version>
+
+exit 1

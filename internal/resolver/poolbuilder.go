@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -160,7 +161,7 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 		}
 
 		if request.LockedRepository() == nil {
-			return nil, &util.LogicError{Message: "No lock repo present and yet a partial update was requested."}
+			return nil, &util.LogicError{Site: phperr.At("PoolBuilder.php", 219), Message: "No lock repo present and yet a partial update was requested."}
 		}
 
 		lockedPackages, err := request.LockedRepository().Packages()
@@ -697,7 +698,7 @@ func (b *PoolBuilder) isUpdateAllowed(p pkg.PackageInterface) (bool, error) {
 
 func (b *PoolBuilder) warnAboutNonMatchingUpdateAllowList(request *Request) error {
 	if request.LockedRepository() == nil {
-		return &util.LogicError{Message: "No lock repo present and yet a partial update was requested."}
+		return &util.LogicError{Site: phperr.At("PoolBuilder.php", 649), Message: "No lock repo present and yet a partial update was requested."}
 	}
 	lockedPackages, err := request.LockedRepository().Packages()
 	if err != nil {

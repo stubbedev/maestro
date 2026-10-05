@@ -5,6 +5,7 @@ package util
 
 import (
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // ForgejoURLRegex is ForgejoUrl::URL_REGEX.
@@ -26,7 +27,7 @@ func CreateForgejoURL(repoURL string) (*ForgejoURL, error) {
 		return u, err
 	}
 
-	return nil, &InvalidArgumentError{Message: "This is not a valid Forgejo URL: " + repoURL}
+	return nil, &InvalidArgumentError{Message: "This is not a valid Forgejo URL: " + repoURL, Site: phperr.At("ForgejoUrl.php", 53)}
 }
 
 // TryForgejoURL is ForgejoUrl::tryFrom; nil when repoURL is not a Forgejo

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -92,14 +93,14 @@ func NewPlatformRepository(packages []pkg.PackageInterface, overrides *php.Array
 				o.version = v
 			case bool:
 				if v {
-					return nil, &util.UnexpectedValueError{Message: "config.platform." + name + " should be a string or false, but got bool true"}
+					return nil, &util.UnexpectedValueError{Site: phperr.At("PlatformRepository.php", 81), Message: "config.platform." + name + " should be a string or false, but got bool true"}
 				}
 				if name == "php" {
-					return nil, &util.UnexpectedValueError{Message: "config.platform." + name + " cannot be set to false as you cannot disable php entirely."}
+					return nil, &util.UnexpectedValueError{Site: phperr.At("PlatformRepository.php", 84), Message: "config.platform." + name + " cannot be set to false as you cannot disable php entirely."}
 				}
 				o.disabled = true
 			default:
-				return nil, &util.UnexpectedValueError{Message: "config.platform." + name + " should be a string or false, but got " + php.TypeName(version) + " " + php.VarExport(version)}
+				return nil, &util.UnexpectedValueError{Site: phperr.At("PlatformRepository.php", 81), Message: "config.platform." + name + " should be a string or false, but got " + php.TypeName(version) + " " + php.VarExport(version)}
 			}
 			r.overrides.Set(php.Strtolower(name), o)
 		}
@@ -163,7 +164,7 @@ func (r *PlatformRepository) initialize() error {
 	for _, override := range r.overrides.All() {
 		// Check that it's a platform package.
 		if !IsPlatformPackage(override.name) {
-			return &util.InvalidArgumentError{Message: "Invalid platform package name in config.platform: " + override.name}
+			return &util.InvalidArgumentError{Site: phperr.At("PlatformRepository.php", 122), Message: "Invalid platform package name in config.platform: " + override.name}
 		}
 
 		if !override.disabled {
@@ -1029,7 +1030,7 @@ func (r *PlatformRepository) addConstantLibrary(libraries platformLibraries, lib
 func (r *PlatformRepository) addPackage(p pkg.PackageInterface) error {
 	complete, ok := p.(pkg.CompletePackageInterface)
 	if _, isComplete := pkg.AsCompletePackage(p); !ok || !isComplete {
-		return &util.UnexpectedValueError{Message: "Expected CompletePackage but got " + p.Class()}
+		return &util.UnexpectedValueError{Site: phperr.At("PlatformRepository.php", 584), Message: "Expected CompletePackage but got " + p.Class()}
 	}
 
 	// Skip if overridden

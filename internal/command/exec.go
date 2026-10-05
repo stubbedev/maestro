@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -131,7 +132,7 @@ func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
 	if cwd, _ := util.GetCwd(false); cwd != initial && initial != "" {
 		if err := os.Chdir(initial); err != nil {
 			e := NewError(ClassRuntime, execCommandFile, 115, `Could not switch back to working directory "`+initial+`"`)
-			e.Prev = &util.ErrorException{Message: "chdir(): " + chdirWarning(err)}
+			e.Prev = &util.ErrorException{Site: phperr.At(execCommandFile, 113), Message: "chdir(): " + chdirWarning(err)}
 
 			return 0, e
 		}

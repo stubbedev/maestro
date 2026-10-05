@@ -1,0 +1,25 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "x/y",
+                "version": "1.0.0",
+                "dist": {
+                    "type": "zip",
+                    "url": "@SERVER@/status/404/x.zip"
+                }
+            }
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/y": "1.0.0"
+    },
+    "config": {
+        "secure-http": false
+    }
+}

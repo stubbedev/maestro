@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -91,7 +92,7 @@ func (d *GitDownloader) doDownload(p pkg.PackageInterface, _, url string, _ pkg.
 	}
 
 	if !found {
-		return &util.RuntimeError{Message: "git was not found in your PATH, skipping source download"}
+		return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 82), Message: "git was not found in your PATH, skipping source download"}
 	}
 
 	// --dissociate option is only available since git 2.3.0-rc0
@@ -162,7 +163,7 @@ func (d *GitDownloader) doInstall(p pkg.PackageInterface, path, url string) erro
 		}
 
 		if networkDisabled() {
-			return &util.RuntimeError{Message: "The required git reference for " + p.Name() + " is not in cache and network is disabled, aborting"}
+			return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 122), Message: "The required git reference for " + p.Name() + " is not in cache and network is disabled, aborting"}
 		}
 	}
 
@@ -198,7 +199,7 @@ func (d *GitDownloader) doUpdate(_, target pkg.PackageInterface, path, url strin
 
 	path = d.normalizePath(path)
 	if !d.hasMetadataRepository(path) {
-		return &util.RuntimeError{Message: "The .git directory is missing from " + path + ", see https://getcomposer.org/commit-deps for more information"}
+		return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 155), Message: "The .git directory is missing from " + path + ", see https://getcomposer.org/commit-deps for more information"}
 	}
 
 	cachePath, err := d.cachePath(url)
@@ -218,7 +219,7 @@ func (d *GitDownloader) doUpdate(_, target pkg.PackageInterface, path, url strin
 		remoteURL = "%url%"
 
 		if networkDisabled() {
-			return &util.RuntimeError{Message: "The required git reference for " + target.Name() + " is not in cache and network is disabled, aborting"}
+			return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 168), Message: "The required git reference for " + target.Name() + " is not in cache and network is disabled, aborting"}
 		}
 	}
 
@@ -299,7 +300,7 @@ func (d *GitDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.N
 	}
 
 	var output string
-	if err := d.mustExecute([]string{"git", "status", "--porcelain", "--untracked-files=no"}, &output, path); err != nil {
+	if err := d.mustExecute(phperr.At("GitDownloader.php", 223), []string{"git", "status", "--porcelain", "--untracked-files=no"}, &output, path); err != nil {
 		return pkg.NullString{}, err
 	}
 
@@ -307,9 +308,10 @@ func (d *GitDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.N
 }
 
 // showRefs runs `git show-ref --head -d` and returns its trimmed output.
-func (d *GitDownloader) showRefs(path string) (string, error) {
+// site is where the PHP throws on failure.
+func (d *GitDownloader) showRefs(site phperr.Site, path string) (string, error) {
 	var output string
-	if err := d.mustExecute([]string{"git", "show-ref", "--head", "-d"}, &output, path); err != nil {
+	if err := d.mustExecute(site, []string{"git", "show-ref", "--head", "-d"}, &output, path); err != nil {
 		return "", err
 	}
 
@@ -327,7 +329,7 @@ func (d *GitDownloader) UnpushedChanges(_ pkg.PackageInterface, path string) (pk
 		return pkg.NullString{}, nil
 	}
 
-	refs, err := d.showRefs(path)
+	refs, err := d.showRefs(phperr.At("GitDownloader.php", 241), path)
 	if err != nil {
 		return pkg.NullString{}, err
 	}
@@ -394,7 +396,7 @@ func (d *GitDownloader) UnpushedChanges(_ pkg.PackageInterface, path string) (pk
 
 			for _, remoteBranch := range remoteBranches {
 				var output string
-				if err := d.mustExecute([]string{"git", "diff", "--name-status", remoteBranch + "..." + branch, "--"}, &output, path); err != nil {
+				if err := d.mustExecute(phperr.At("GitDownloader.php", 292), []string{"git", "diff", "--name-status", remoteBranch + "..." + branch, "--"}, &output, path); err != nil {
 					return pkg.NullString{}, err
 				}
 
@@ -414,7 +416,7 @@ func (d *GitDownloader) UnpushedChanges(_ pkg.PackageInterface, path string) (pk
 			}
 
 			// update list of refs after fetching
-			if refs, err = d.showRefs(path); err != nil {
+			if refs, err = d.showRefs(phperr.At("GitDownloader.php", 311), path); err != nil {
 				return pkg.NullString{}, err
 			}
 		}
@@ -441,7 +443,7 @@ func (d *GitDownloader) cleanChanges(p pkg.PackageInterface, path string, update
 	}
 
 	if php.ToBool(unpushed.S) && (d.io.IsInteractive() || d.config.Get("discard-changes") != true) {
-		return &util.RuntimeError{Message: "Source directory " + path + " has unpushed changes on the current branch: \n" + unpushed.S}
+		return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 335), Message: "Source directory " + path + " has unpushed changes on the current branch: \n" + unpushed.S}
 	}
 
 	changes, err := d.LocalChanges(p, path)
@@ -497,7 +499,7 @@ func (d *GitDownloader) cleanChanges(p pkg.PackageInterface, path string, update
 
 			d.writeHelp(action, update)
 		case "n":
-			return &util.RuntimeError{Message: "Update aborted"}
+			return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 382), Message: "Update aborted"}
 		case "v":
 			d.io.WriteErrorMessages(lines, true, mio.Normal)
 		case "d":
@@ -543,7 +545,7 @@ func (d *GitDownloader) reapplyChanges(path string) error {
 		}
 
 		if code != 0 {
-			return &util.RuntimeError{Message: "Failed to apply stashed changes:\n\n" + d.process.GetErrorOutput()}
+			return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 422), Message: "Failed to apply stashed changes:\n\n" + d.process.GetErrorOutput()}
 		}
 	}
 
@@ -693,7 +695,7 @@ func (d *GitDownloader) updateToCommit(p pkg.PackageInterface, path, reference, 
 
 	command := strings.Join(command1, " ") + " && " + strings.Join(command2, " ")
 
-	return &util.RuntimeError{Message: util.SanitizeURL("Failed to execute " + command + "\n\n" + d.process.GetErrorOutput() + exceptionExtra)}
+	return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 509), Message: util.SanitizeURL("Failed to execute " + command + "\n\n" + d.process.GetErrorOutput() + exceptionExtra)}
 }
 
 func (d *GitDownloader) updateOriginURL(path, url string) error {
@@ -751,7 +753,7 @@ func (d *GitDownloader) commitLogs(fromReference, toReference, path string) (str
 	}
 
 	var output string
-	if err := d.mustExecute(command, &output, path); err != nil {
+	if err := d.mustExecute(phperr.At("GitDownloader.php", 541), command, &output, path); err != nil {
 		return "", err
 	}
 
@@ -761,7 +763,7 @@ func (d *GitDownloader) commitLogs(fromReference, toReference, path string) (str
 func (d *GitDownloader) discardChanges(path string) error {
 	path = d.normalizePath(path)
 
-	for _, command := range [][]string{{"git", "clean", "-df"}, {"git", "reset", "--hard"}} {
+	for i, command := range [][]string{{"git", "clean", "-df"}, {"git", "reset", "--hard"}} {
 		var output string
 
 		code, err := d.execute(command, &output, path)
@@ -770,7 +772,7 @@ func (d *GitDownloader) discardChanges(path string) error {
 		}
 
 		if code != 0 {
-			return &util.RuntimeError{Message: "Could not reset changes\n\n:" + output}
+			return &util.RuntimeError{Message: "Could not reset changes\n\n:" + output, Site: phperr.At("GitDownloader.php", 555+3*i)}
 		}
 	}
 
@@ -792,7 +794,7 @@ func (d *GitDownloader) stashChanges(path string) error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Message: "Could not stash changes\n\n:" + output}
+		return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 574), Message: "Could not stash changes\n\n:" + output}
 	}
 
 	d.mu.Lock()
@@ -813,7 +815,7 @@ func (d *GitDownloader) viewDiff(path string) error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Message: "Could not view diff\n\n:" + output}
+		return &util.RuntimeError{Site: phperr.At("GitDownloader.php", 589), Message: "Could not view diff\n\n:" + output}
 	}
 
 	d.io.WriteError(output, true, mio.Normal)

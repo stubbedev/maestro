@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -655,7 +656,7 @@ func (c *Config) cacheFilesMaxsize() (any, error) {
 		return nil, err
 	}
 	if m == nil {
-		return nil, &util.RuntimeError{Message: "Could not parse the value of 'cache-files-maxsize': " + raw}
+		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 434), Message: "Could not parse the value of 'cache-files-maxsize': " + raw}
 	}
 	size := php.ToFloat(m.Get(1))
 	if unit, ok := m.Group(2); ok {
@@ -694,7 +695,7 @@ func (c *Config) binCompat() (any, error) {
 			return nil, err
 		}
 
-		return nil, &util.RuntimeError{Message: "Invalid value for 'bin-compat': " + str + ". Expected auto, full or proxy"}
+		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 472), Message: "Invalid value for 'bin-compat': " + str + ". Expected auto, full or proxy"}
 	}
 
 	// PHP raises an E_USER_DEPRECATED notice for "symlink" here, which
@@ -713,7 +714,7 @@ func (c *Config) discardChanges() (any, error) {
 			return env != "false" && php.ToBool(env), nil
 		}
 
-		return nil, &util.RuntimeError{Message: "Invalid value for COMPOSER_DISCARD_CHANGES: " + env + ". Expected 1, 0, true, false or stash"}
+		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 487), Message: "Invalid value for COMPOSER_DISCARD_CHANGES: " + env + ". Expected 1, 0, true, false or stash"}
 	}
 
 	v := c.get("discard-changes")
@@ -723,7 +724,7 @@ func (c *Config) discardChanges() (any, error) {
 			return nil, err
 		}
 
-		return nil, &util.RuntimeError{Message: "Invalid value for 'discard-changes': " + str + ". Expected true, false or stash"}
+		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 500), Message: "Invalid value for 'discard-changes': " + str + ". Expected true, false or stash"}
 	}
 
 	return v, nil
@@ -742,7 +743,7 @@ func (c *Config) githubProtocols() (any, error) {
 		}
 	}
 	if _, first, ok := protos.First(); ok && first == "http" {
-		return nil, &util.RuntimeError{Message: `The http protocol for github is not available anymore, update your config's github-protocols to use "https", "git" or "ssh"`}
+		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 513), Message: `The http protocol for github is not available anymore, update your config's github-protocols to use "https", "git" or "ssh"`}
 	}
 
 	return protos, nil
@@ -754,7 +755,7 @@ func (c *Config) audit() (any, error) {
 	abandonedEnv, abandonedSet := c.getComposerEnv("COMPOSER_AUDIT_ABANDONED")
 	if abandonedSet {
 		if !contains(policy.Audits[:], abandonedEnv) {
-			return nil, &util.RuntimeError{Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + abandonedEnv + ". Expected one of " + strings.Join(policy.Audits[:], ", ") + "."}
+			return nil, &util.RuntimeError{Site: phperr.At("Config.php", 530), Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + abandonedEnv + ". Expected one of " + strings.Join(policy.Audits[:], ", ") + "."}
 		}
 	}
 	_, blockAbandonedSet := c.getComposerEnv("COMPOSER_SECURITY_BLOCKING_ABANDONED")
@@ -963,10 +964,16 @@ func (c *Config) ProhibitURLByConfig(url string, out io.IO, repoOptions *php.Arr
 					}
 				}
 
-				return util.NewTransportError("Your configuration does not allow connections to "+util.SanitizeURL(url)+". See https://getcomposer.org/doc/06-config.md#secure-svn-domains for details.", 400)
+				e := util.NewTransportError("Your configuration does not allow connections to "+util.SanitizeURL(url)+". See https://getcomposer.org/doc/06-config.md#secure-svn-domains for details.", 400)
+				e.Site = phperr.At("Config.php", 709)
+
+				return e
 			}
 
-			return util.NewTransportError("Your configuration does not allow connections to "+util.SanitizeURL(url)+". See https://getcomposer.org/doc/06-config.md#secure-http for details.", 400)
+			e := util.NewTransportError("Your configuration does not allow connections to "+util.SanitizeURL(url)+". See https://getcomposer.org/doc/06-config.md#secure-http for details.", 400)
+			e.Site = phperr.At("Config.php", 712)
+
+			return e
 		}
 		if out != nil && hasHostname {
 			c.mu.Lock()

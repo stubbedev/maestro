@@ -1,0 +1,13 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "scripts": {
+        "post-install-cmd": [
+            "@php -r \"exit(5);\""
+        ]
+    }
+}

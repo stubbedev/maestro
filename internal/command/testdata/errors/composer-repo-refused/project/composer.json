@@ -1,0 +1,18 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "http://127.0.0.1:1"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/y": "*"
+    },
+    "config": {
+        "secure-http": false
+    }
+}

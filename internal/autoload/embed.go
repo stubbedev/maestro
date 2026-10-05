@@ -19,8 +19,11 @@ var ClassLoaderPHP string
 //go:embed res/InstalledVersions.php
 var InstalledVersionsPHP string
 
-// License is Composer's LICENSE, which dump() copies to
-// vendor/composer/LICENSE.
-//
+// License is Composer's LICENSE as composer.phar holds it, which dump()
+// copies to vendor/composer/LICENSE: the phar Compiler adds LICENSE files
+// with a line feed before and after their content (Compiler::addFile), so
+// the copy differs from the source repository's file.
+var License = "\n" + licenseSource + "\n"
+
 //go:embed res/LICENSE
-var License string
+var licenseSource string

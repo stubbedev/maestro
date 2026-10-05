@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Runtime ports Composer\Platform\Runtime, the questions Composer asks the
@@ -77,9 +78,13 @@ type Imagick interface {
 // "ReflectionException", ...) and message.
 type PHPError struct {
 	Class, Message string
+	phperr.Site
 }
 
 func (e *PHPError) Error() string { return e.Message }
+
+// PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
+func (e *PHPError) PHPClass() (string, int) { return e.Class, 0 }
 
 var (
 	extensionInfoTitleRe = php.MustCompile(`~<h2>\s*<a[^>]*>([^<]+)</a>\s*</h2>~i`)

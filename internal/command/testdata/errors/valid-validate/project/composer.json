@@ -1,0 +1,10 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "description": "d",
+    "license": "MIT"
+}

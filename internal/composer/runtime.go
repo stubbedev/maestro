@@ -44,8 +44,9 @@ type Runtime struct {
 
 	// installedVersionsSink receives the installed.php data whenever
 	// FilesystemRepository::write reloads InstalledVersions (the plugin
-	// runtime's copy of the class); nil without a plugin runtime.
-	installedVersionsSink func(versions *php.Array)
+	// runtime's copy of the class), with the repository's directory (the
+	// class's selfDir); nil without a plugin runtime.
+	installedVersionsSink func(versions *php.Array, repoDir string)
 }
 
 // Frame is an entry of the frame stack: an object Composer would have on
@@ -267,8 +268,10 @@ func (r *Runtime) InstalledVersions() *php.Array {
 
 // SetInstalledVersionsSink sets the function the local repositories created
 // from now on hand their installed.php data to when they write it
-// (FilesystemRepository::write reloading InstalledVersions).
-func (r *Runtime) SetInstalledVersionsSink(sink func(versions *php.Array)) {
+// (FilesystemRepository::write reloading InstalledVersions), with the
+// directory of the repository's file (vendor/composer), which Composer
+// sets as InstalledVersions' selfDir.
+func (r *Runtime) SetInstalledVersionsSink(sink func(versions *php.Array, repoDir string)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.installedVersionsSink = sink

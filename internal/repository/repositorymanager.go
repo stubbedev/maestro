@@ -6,6 +6,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -95,7 +96,7 @@ func (m *RepositoryManager) PrependRepository(repository RepositoryInterface) {
 func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name string) (RepositoryInterface, error) {
 	constructor, ok := m.types.Get(typ)
 	if !ok {
-		return nil, &util.InvalidArgumentError{Message: "Repository type is not registered: " + typ}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("RepositoryManager.php", 127), Message: "Repository type is not registered: " + typ}
 	}
 
 	if v, ok := config.Get("packagist"); ok && v == false {

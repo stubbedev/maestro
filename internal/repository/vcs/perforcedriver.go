@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
@@ -91,7 +92,7 @@ func (d *PerforceDriver) initPerforce(repoConfig *php.Array) error {
 
 	vcsDir := php.ToString(d.config.Get("cache-vcs-dir"))
 	if !cache.IsUsable(vcsDir) {
-		return &util.RuntimeError{Message: "PerforceDriver requires a usable cache directory, and it looks like you set it to be disabled"}
+		return &util.RuntimeError{Site: phperr.At("PerforceDriver.php", 64), Message: "PerforceDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 	}
 
 	repoDir := vcsDir + "/" + d.depot
@@ -156,7 +157,7 @@ func (d *PerforceDriver) HasComposerFile(identifier string) (bool, error) {
 // GetContents ports PerforceDriver::getContents, which Perforce does not
 // support.
 func (d *PerforceDriver) GetContents(string) (*http.Response, error) {
-	return nil, &util.LogicError{Message: "Not implemented/used in PerforceDriver"}
+	return nil, &util.LogicError{Site: phperr.At("PerforceDriver.php", 155), Message: "Not implemented/used in PerforceDriver"}
 }
 
 var perforceURL = php.MustCompile(`#\b(perforce|p4)\b#i`)

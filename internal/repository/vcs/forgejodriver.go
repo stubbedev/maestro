@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -85,7 +86,7 @@ func (d *ForgejoDriver) FileContent(file, identifier string) (string, bool, erro
 		return content, true, nil
 	}
 
-	return "", false, &util.RuntimeError{Message: "Could not retrieve " + file + " for " + identifier}
+	return "", false, &util.RuntimeError{Site: phperr.At("ForgejoDriver.php", 72), Message: "Could not retrieve " + file + " for " + identifier}
 }
 
 // ChangeDate ports ForgejoDriver::getChangeDate.

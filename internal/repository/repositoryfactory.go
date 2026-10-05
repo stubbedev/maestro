@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -113,13 +114,13 @@ func ConfigFromString(repository string, allowFilesystem bool, httpDownloader *h
 			return php.ArrayOf("type", "filesystem", "json", repository), nil
 		}
 
-		return nil, &util.InvalidArgumentError{Message: "Invalid repository URL (" + repository + ") given. This file does not contain a valid composer repository."}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("RepositoryFactory.php", 45), Message: "Invalid repository URL (" + repository + ") given. This file does not contain a valid composer repository."}
 	case strings.HasPrefix(repository, "{"):
 		// assume it is a json object that makes a repo config
 		return json.ParseJSON(repository, "")
 	}
 
-	return nil, &util.InvalidArgumentError{Message: "Invalid repository url (" + util.SanitizeURL(repository) + ") given. Has to be a .json file, an http url or a JSON object."}
+	return nil, &util.InvalidArgumentError{Site: phperr.At("RepositoryFactory.php", 51), Message: "Invalid repository url (" + util.SanitizeURL(repository) + ") given. Has to be a .json file, an http url or a JSON object."}
 }
 
 // jsonDownloader adapts an HttpDownloader to json.HTTPDownloader.
@@ -182,19 +183,19 @@ func createRepos(rm *RepositoryManager, repoConfigs *php.Array) (*NameMap[Reposi
 
 	for index, repoValue := range repoConfigs.All() {
 		if _, ok := repoValue.(string); ok {
-			return nil, &util.UnexpectedValueError{Message: `"repositories" should be an array of repository definitions, only a single repository was given`}
+			return nil, &util.UnexpectedValueError{Site: phperr.At("RepositoryFactory.php", 155), Message: `"repositories" should be an array of repository definitions, only a single repository was given`}
 		}
 		repo, ok := repoValue.(*php.Array)
 		if !ok {
 			encoded, _ := php.JSONEncode(repoValue, 0)
 
-			return nil, &util.UnexpectedValueError{Message: `Repository "` + index.String() + `" (` + encoded + `) should be an array, ` + php.TypeName(repoValue) + " given"}
+			return nil, &util.UnexpectedValueError{Site: phperr.At("RepositoryFactory.php", 158), Message: `Repository "` + index.String() + `" (` + encoded + `) should be an array, ` + php.TypeName(repoValue) + " given"}
 		}
 		typeValue, _ := repo.Get("type")
 		if typeValue == nil {
 			encoded, _ := php.JSONEncode(repo, 0)
 
-			return nil, &util.UnexpectedValueError{Message: `Repository "` + index.String() + `" (` + encoded + `) must have a type defined`}
+			return nil, &util.UnexpectedValueError{Site: phperr.At("RepositoryFactory.php", 161), Message: `Repository "` + index.String() + `" (` + encoded + `) must have a type defined`}
 		}
 		typ, ok := typeValue.(string)
 		if !ok {

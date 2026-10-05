@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -53,7 +54,7 @@ type ArchivableFilesFinder struct {
 func NewArchivableFilesFinder(sources string, excludes []string, ignoreFilters bool) (*ArchivableFilesFinder, error) {
 	sourcesRealPath, ok := util.RealpathOK(sources)
 	if !ok {
-		return nil, &util.RuntimeError{Message: `Could not realpath() the source directory "` + sources + `"`}
+		return nil, &util.RuntimeError{Site: phperr.At("ArchivableFilesFinder.php", 52), Message: `Could not realpath() the source directory "` + sources + `"`}
 	}
 
 	sources = util.NormalizePath(sourcesRealPath)
@@ -98,7 +99,7 @@ func NewArchivableFilesFinder(sources string, excludes []string, ignoreFilters b
 		if f.IsDir {
 			empty, err := util.IsDirEmpty(f.Pathname)
 			if err != nil {
-				return nil, openDirError("FilesystemIterator", f.Pathname, err)
+				return nil, openDirError("FilesystemIterator", f.Pathname, err, phperr.At("ArchivableFilesFinder.php", 109))
 			}
 
 			if !empty {
@@ -120,7 +121,7 @@ func (f *ArchivableFilesFinder) Files() []File { return f.files }
 // sees files that have a real path.
 func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]File, error) {
 	if !isDir(dir) {
-		return nil, &util.InvalidArgumentError{Message: `The "` + dir + `" directory does not exist.`}
+		return nil, &util.InvalidArgumentError{Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
 	}
 
 	// Finder::normalizeDir and Symfony's RecursiveDirectoryIterator::current
@@ -136,7 +137,15 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 	walk = func(subPath string) error {
 		names, err := readDirNames(base + subPath)
 		if err != nil {
-			return openDirError("RecursiveDirectoryIterator", strings.TrimSuffix(base+subPath, "/"), err)
+			// the root's iterator is constructed in Finder; subdirectories'
+			// in getChildren() (which Symfony rethrows as an
+			// AccessDeniedException; maestro keeps the SPL exception)
+			site := phperr.At("RecursiveDirectoryIterator.php", 48)
+			if subPath != "" {
+				site = phperr.At("RecursiveDirectoryIterator.php", 115)
+			}
+
+			return openDirError("RecursiveDirectoryIterator", strings.TrimSuffix(base+subPath, "/"), err, site)
 		}
 
 		for _, name := range names {
@@ -192,9 +201,9 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 }
 
 // openDirError is the UnexpectedValueException a SPL directory iterator
-// throws for a directory it cannot open.
-func openDirError(class, dir string, err error) error {
-	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + util.Strerror(err)}
+// throws for a directory it cannot open, at site.
+func openDirError(class, dir string, err error, site phperr.Site) error {
+	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + util.Strerror(err), Site: site}
 }
 
 // readDirNames lists a directory's names in readdir() order.

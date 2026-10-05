@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -114,7 +115,7 @@ func (l *Link) isSelfVersion() bool { return l.hasPretty && l.prettyConstraint =
 // when the link was built without one.
 func (l *Link) PrettyConstraint() (string, error) {
 	if !l.hasPretty {
-		return "", &util.UnexpectedValueError{Message: "Link " + l.String() + " has been misconfigured and had no prettyConstraint given."}
+		return "", &util.UnexpectedValueError{Site: phperr.At("Link.php", 125), Message: "Link " + l.String() + " has been misconfigured and had no prettyConstraint given."}
 	}
 
 	return l.prettyConstraint, nil

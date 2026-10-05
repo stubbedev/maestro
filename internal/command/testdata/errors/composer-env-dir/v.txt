@@ -1,0 +1,12 @@
+
+In Factory.php line 231:
+                                                                               
+  [RuntimeException]                                                           
+  The COMPOSER environment variable is set to sub which is a directory, this   
+  variable should point to a composer.json or be left unset.                   
+                                                                               
+
+Exception trace:
+  at Factory.php:231
+
+exit 1

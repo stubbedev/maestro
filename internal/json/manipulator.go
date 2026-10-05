@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -127,7 +128,7 @@ func NewManipulator(contents string) (*Manipulator, error) {
 	if ok, err := manipulatorObject.IsMatch(contents); err != nil {
 		return nil, err
 	} else if !ok {
-		return nil, &util.InvalidArgumentError{Message: "The json file must be an object ({})"}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("JsonManipulator.php", 48), Message: "The json file must be an object ({})"}
 	}
 	m := &Manipulator{newline: "\n"}
 	if strings.Contains(contents, "\r\n") {
@@ -878,7 +879,7 @@ func (m *Manipulator) AddSubNode(mainNode, name string, value any, appendItem bo
 			children = "{" + m.newline + m.indent + m.indent + encodedName + ": " + formatted + whitespace + "}"
 		}
 	} else {
-		return false, &util.LogicError{Message: "Nothing matched above for: " + children}
+		return false, &util.LogicError{Site: phperr.At("JsonManipulator.php", 579), Message: "Nothing matched above for: " + children}
 	}
 
 	m.contents, err = m.replaceCallback(nodeRe, m.contents, func(match *php.Match) (string, error) {
@@ -978,7 +979,7 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 	}
 
 	if childrenClean == nil {
-		return false, &util.InvalidArgumentError{Message: "JsonManipulator: $childrenClean is not defined. Please report at https://github.com/composer/composer/issues/new."}
+		return false, &util.InvalidArgumentError{Site: phperr.At("JsonManipulator.php", 658), Message: "JsonManipulator: $childrenClean is not defined. Please report at https://github.com/composer/composer/issues/new."}
 	}
 
 	// no child data left, $name was the only key in
@@ -1113,7 +1114,7 @@ func (m *Manipulator) AddListItem(mainNode string, value any, appendItem bool) (
 		return false, err
 	}
 	if match == nil {
-		return false, &util.LogicError{Message: "Nothing matched above for: " + children}
+		return false, &util.LogicError{Site: phperr.At("JsonManipulator.php", 777), Message: "Nothing matched above for: " + children}
 	}
 
 	leadingWhitespace := namedStr(match, "leadingspace")
@@ -1184,7 +1185,7 @@ func (m *Manipulator) matchListNode(mainNode string) (*php.Regexp, *php.Match, e
 // InsertListItem ports JsonManipulator::insertListItem.
 func (m *Manipulator) InsertListItem(mainNode string, value any, idx int) (bool, error) {
 	if idx < 0 {
-		return false, &util.InvalidArgumentError{Message: "Index can only be positive integer"}
+		return false, &util.InvalidArgumentError{Site: phperr.At("JsonManipulator.php", 793), Message: "Index can only be positive integer"}
 	}
 
 	if idx == 0 {

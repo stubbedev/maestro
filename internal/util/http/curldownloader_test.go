@@ -439,7 +439,7 @@ func TestHttpDownloader_CurlErrors(t *testing.T) {
 	h, b := newTestDownloader(t, nil, "")
 
 	_, err = h.Get("http://"+addr+"/x", nil)
-	if err == nil || !strings.HasPrefix(err.Error(), "curl error 7 while downloading http://"+addr+"/x: Failed to connect to 127.0.0.1 port ") {
+	if err == nil || !strings.HasPrefix(err.Error(), "curl error 7 while downloading http://"+addr+"/x: Failed to connect to "+addr+" after ") {
 		t.Fatalf("got %v", err)
 	}
 
@@ -896,5 +896,45 @@ func TestHttpDownloader_GetUsesRemoteFilesystemForFiles(t *testing.T) {
 	_, err = h.Get("file://"+file+".missing", nil)
 	if err == nil || err.Error() != `The "file://`+file+`.missing" file could not be downloaded: Failed to open stream: No such file or directory` {
 		t.Fatalf("got %v", err)
+	}
+}
+
+// Loop::wait starts the progress bar at countActiveJobs(), which counts
+// the queued requests too: with 3 slots and 6 requests the bar goes to 6.
+func TestLoop_WaitProgressCountsQueuedJobs(t *testing.T) {
+	release := make(chan struct{})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+		_, _ = w.Write([]byte(r.URL.Path))
+	}))
+	defer srv.Close()
+
+	h, _ := newTestDownloader(t, nil, "")
+	h.maxJobs = 3
+	loop := NewLoop(h, nil)
+
+	var promises []Waitable
+
+	for i := range 6 {
+		p, err := h.Add(fmt.Sprintf("%s/%d", srv.URL, i), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		promises = append(promises, p)
+	}
+
+	close(release)
+
+	out := console.NewBufferedOutput(console.VerbosityNormal, false, nil)
+	progress := console.NewProgressBar(out, 0, console.DefaultMinSecondsBetweenRedraws)
+
+	if err := loop.Wait(promises, progress); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := progress.MaxSteps(); got != 6 {
+		t.Fatalf("progress max %d, want 6\n%s", got, out.Fetch())
 	}
 }

@@ -86,20 +86,18 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	sched := l.httpDownloader.Scheduler()
 
 	if progress != nil {
-		progress.StartMax(sched.Pending())
+		progress.StartMax(l.countedJobs(sched))
 	}
 
 	var lastUpdate time.Time
 
 	for {
-		activeJobs := sched.Pending()
-
 		if progress != nil && time.Since(lastUpdate) > 100*time.Millisecond {
 			lastUpdate = time.Now()
-			progress.SetProgress(progress.MaxSteps() - activeJobs)
+			progress.SetProgress(progress.MaxSteps() - l.countedJobs(sched))
 		}
 
-		if activeJobs == 0 {
+		if sched.Pending()+l.queuedJobs() == 0 {
 			break
 		}
 
@@ -124,6 +122,29 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	l.mu.Unlock()
 
 	return uncaught()
+}
+
+// countedJobs is Composer's $httpDownloader->countActiveJobs() +
+// $processExecutor->countActiveJobs(), which the progress bar shows: the
+// counted work holding a scheduler ticket (running transfers and
+// processes and the work standing for Composer's processes, completions
+// not yet delivered) plus the requests and processes still queued, which
+// take a ticket only when they start. Composer counts a job until its
+// completion is processed, so a progress bar starts at the number of
+// queued jobs. Background work (the package store) is waited for but not
+// counted, as Composer has no such job.
+func (l *Loop) countedJobs(sched *util.Scheduler) int {
+	return sched.Counted() + l.queuedJobs()
+}
+
+// queuedJobs is the number of requests and processes waiting for a slot.
+func (l *Loop) queuedJobs() int {
+	n := l.httpDownloader.countQueued()
+	if l.processExecutor != nil {
+		n += l.processExecutor.CountQueuedJobs()
+	}
+
+	return n
 }
 
 // AbortJobs is abortJobs(): it cancels every promise being waited on.

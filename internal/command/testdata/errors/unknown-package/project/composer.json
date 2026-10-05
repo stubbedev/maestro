@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "nope/nope": "1.0"
+    }
+}

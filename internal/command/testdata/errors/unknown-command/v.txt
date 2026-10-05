@@ -1,0 +1,12 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In Application.php line 720:
+                                                                  
+  [Symfony\Component\Console\Exception\CommandNotFoundException]  
+  Command "nope-command" is not defined.                          
+                                                                  
+
+Exception trace:
+  at Application.php:720
+
+exit 1

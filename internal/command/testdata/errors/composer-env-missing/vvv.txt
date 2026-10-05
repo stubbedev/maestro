@@ -1,0 +1,6 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Composer could not find the config file: other.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+exit 1

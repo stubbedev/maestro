@@ -9,6 +9,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
@@ -216,7 +217,7 @@ func (b *BinaryInstaller) installFullBinaries(binPath, link, bin string, p pkg.P
 			return err
 		}
 
-		if err := filePutContents(link, code); err != nil {
+		if err := filePutContents(phperr.At("BinaryInstaller.php", 193), link, code); err != nil {
 			return err
 		}
 
@@ -232,7 +233,7 @@ func (b *BinaryInstaller) installUnixyProxyBinaries(binPath, link string) error 
 		return err
 	}
 
-	if err := filePutContents(link, code); err != nil {
+	if err := filePutContents(phperr.At("BinaryInstaller.php", 200), link, code); err != nil {
 		return err
 	}
 
@@ -362,10 +363,11 @@ func silentChmod(path string) {
 	_ = store.Chmod(path, 0o777&^store.Umask())
 }
 
-// filePutContents is file_put_contents() under Composer's error handler.
-func filePutContents(path, data string) error {
+// filePutContents is file_put_contents() under Composer's error handler,
+// called at site.
+func filePutContents(site phperr.Site, path, data string) error {
 	if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
-		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err), Site: site}
 	}
 
 	return nil
@@ -376,7 +378,7 @@ func filePutContents(path, data string) error {
 func fileGetContents(path string, length int) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", &util.ErrorException{Message: "file_get_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return "", &util.ErrorException{Message: "file_get_contents(" + path + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("BinaryInstaller.php", 240)}
 	}
 
 	defer func() { _ = f.Close() }()

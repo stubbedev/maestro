@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // vcsPatterns are Finder::$vcsPatterns, excluded by default.
@@ -27,7 +29,7 @@ func finderIn(dir string) ([]string, error) {
 	}
 	dirs := phpGlobDirs(dir)
 	if len(dirs) == 0 {
-		return nil, newException(classDirectoryNotFound, `The "`+dir+`" directory does not exist.`)
+		return nil, newException(phperr.At("Finder.php", 592), classDirectoryNotFound, `The "`+dir+`" directory does not exist.`)
 	}
 	for i, d := range dirs {
 		dirs[i] = finderNormalizeDir(d)
@@ -118,7 +120,7 @@ func finderFiles(dirs, excludedDirs []string) ([]foundFile, error) {
 	w := finderWalk{excl: newFinderExclusions(excludedDirs)}
 	for _, dir := range dirs {
 		if dir == "" {
-			return w.files, newException("ValueError", "RecursiveDirectoryIterator::__construct(): Argument #1 ($directory) cannot be empty")
+			return w.files, newException(phperr.At("RecursiveDirectoryIterator.php", 48), "ValueError", "RecursiveDirectoryIterator::__construct(): Argument #1 ($directory) cannot be empty")
 		}
 		w.base = dir
 		if dir != "/" && !strings.HasSuffix(dir, "/") {
@@ -145,7 +147,17 @@ type finderWalk struct {
 func (w *finderWalk) walk(dir, prefix, errClass string) error {
 	f, err := os.Open(dir)
 	if err != nil {
-		return newException(errClass, "RecursiveDirectoryIterator::__construct("+dir+"): Failed to open directory: "+strerror(err))
+		// Symfony's iterator constructs the \RecursiveDirectoryIterator at
+		// line 48 and rethrows below the root as AccessDeniedException.
+		message := "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + strerror(err)
+		inner := newException(phperr.At("RecursiveDirectoryIterator.php", 48), classUnexpectedValue, message)
+		if errClass != classAccessDenied {
+			return inner
+		}
+		e := newException(phperr.At("RecursiveDirectoryIterator.php", 127), errClass, message)
+		e.Prev = inner
+
+		return e
 	}
 	// Directory order, as readdir() returns it. A read error ends the
 	// iteration like the end of the directory.

@@ -1,0 +1,17 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "pkg/foo"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Acme\\": "src/"
+        }
+    }
+}

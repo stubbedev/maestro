@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -38,7 +39,7 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 	// Phar would otherwise load the file which we don't want
 	if fileExists(target) {
 		if err := os.Remove(target); err != nil {
-			return "", &util.ErrorException{Message: "unlink(" + target + "): " + util.Strerror(err)}
+			return "", &util.ErrorException{Message: "unlink(" + target + "): " + util.Strerror(err), Site: phperr.At("PharArchiver.php", 47)}
 		}
 	}
 
@@ -57,12 +58,12 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 
 	isZip, known := pharFormats[format]
 	if !known {
-		return "", &util.ErrorException{Message: `Undefined array key "` + format + `"`}
+		return "", &util.ErrorException{Message: `Undefined array key "` + format + `"`, Site: phperr.At("PharArchiver.php", 63)}
 	}
 
 	wrap := func(err error) error {
 		if _, ok := err.(*util.UnexpectedValueError); ok { //nolint:errorlint // PHP catches this class, not subclasses of others
-			return &util.RuntimeError{Message: "Could not create archive '" + target + "' from '" + sources + "': " + err.Error()}
+			return &util.RuntimeError{Message: "Could not create archive '" + target + "' from '" + sources + "': " + err.Error(), Prev: err, Site: phperr.At("PharArchiver.php", 129)}
 		}
 
 		return err
@@ -70,13 +71,13 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 
 	phar, err := newPharData(target, isZip, a.now())
 	if err != nil {
-		return "", wrap(err)
+		return "", wrap(atSite(err, phperr.At("PharArchiver.php", 59)))
 	}
 
 	if !sourcesOK {
 		// realpath() returned false, which ArchivableFilesFinder's string
 		// parameter does not take
-		return "", &pkg.TypeError{Message: `Composer\Package\Archiver\ArchivableFilesFinder::__construct(): Argument #1 ($sources) must be of type string, bool given`}
+		return "", &pkg.TypeError{Message: `Composer\Package\Archiver\ArchivableFilesFinder::__construct(): Argument #1 ($sources) must be of type string, bool given`, Site: phperr.At("ArchivableFilesFinder.php", 46)}
 	}
 
 	files, err := NewArchivableFilesFinder(sources, excludes, ignoreFilters)
@@ -97,12 +98,12 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 	if pharCompressFormats[format] {
 		// Delete old tar
 		if err := os.Remove(target); err != nil {
-			return "", &util.ErrorException{Message: "unlink(" + target + "): " + util.Strerror(err)}
+			return "", &util.ErrorException{Message: "unlink(" + target + "): " + util.Strerror(err), Site: phperr.At("PharArchiver.php", 113)}
 		}
 
 		// Compress the new tar
 		if err := phar.compress(format); err != nil {
-			return "", err
+			return "", wrap(atSite(err, phperr.At("PharArchiver.php", 116)))
 		}
 
 		// Make the correct filename
@@ -117,7 +118,13 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 // then the (empty) directories the filter held back. PharData writes the
 // archive after the files and after each directory, so a directory that
 // fails leaves the archive written so far.
+//
+// The phar extension's exceptions are thrown at the PharArchiver line
+// calling buildFromIterator() or at ArchivableFilesFilter's addEmptyDir().
 func (a *PharArchiver) build(phar *pharData, files []File, sources string) error {
+	buildSite := phperr.At("PharArchiver.php", 67)
+	addEmptyDirSite := phperr.At("ArchivableFilesFilter.php", 47)
+
 	var dirs []string
 
 	for _, f := range files {
@@ -128,12 +135,12 @@ func (a *PharArchiver) build(phar *pharData, files []File, sources string) error
 		}
 
 		if err := phar.addFile(sources, f.Pathname); err != nil {
-			return err
+			return atSite(err, buildSite)
 		}
 	}
 
 	if err := phar.check(); err != nil {
-		return err
+		return atSite(err, buildSite)
 	}
 
 	written := len(phar.entries)
@@ -150,16 +157,20 @@ func (a *PharArchiver) build(phar *pharData, files []File, sources string) error
 			phar.entries = phar.entries[:written]
 
 			if ferr := phar.flush(); ferr != nil {
-				return ferr
+				return atSite(ferr, addEmptyDirSite)
 			}
 
-			return err
+			return atSite(err, addEmptyDirSite)
 		}
 
 		written = len(phar.entries)
 	}
 
-	return phar.flush()
+	if len(dirs) > 0 {
+		return atSite(phar.flush(), addEmptyDirSite)
+	}
+
+	return atSite(phar.flush(), buildSite)
 }
 
 // emptyZip is the minimal valid zip file Composer writes for an archive
@@ -170,9 +181,11 @@ var emptyZip = []byte{0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 // nothing: an empty tar (10240 zero bytes), compressed with
 // gzcompress()/bzcompress() for tar.gz/tar.bz2, or an empty zip.
 func writeEmptyArchive(target, format string) error {
+	// file_put_contents() is called at a line per format
+	line := map[string]int{"tar": 76, "zip": 91, "tar.gz": 97, "tar.bz2": 99}[format]
 	write := func(data []byte) error {
 		if err := os.WriteFile(target, data, 0o666); err != nil {
-			return &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + util.Strerror(err)}
+			return &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("PharArchiver.php", line)}
 		}
 
 		return nil

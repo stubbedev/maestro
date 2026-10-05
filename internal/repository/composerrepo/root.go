@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -278,7 +279,7 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 			r.securityAdvisoryConfig.apiURL = url
 		}
 		if r.securityAdvisoryConfig.apiURL == "" && !r.hasAvailablePackageList {
-			return &util.UnexpectedValueError{Message: "Invalid security advisory configuration on " + r.RepoName() + ": If the repository does not provide a security-advisories.api-url then available-packages or available-package-patterns are required to be provided for performance reason."}
+			return &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 1543), Message: "Invalid security advisory configuration on " + r.RepoName() + ": If the repository does not provide a security-advisories.api-url then available-packages or available-package-patterns are required to be provided for performance reason."}
 		}
 	}
 
@@ -329,7 +330,7 @@ var urlOriginRegex = php.MustCompile(`{^[^:]++://[^/]*+}`)
 // against the repository URL's scheme and host.
 func (r *ComposerRepository) canonicalizeURL(url string) (string, error) {
 	if url == "" {
-		return "", &util.InvalidArgumentError{Message: "Expected a string with a value and not an empty string"}
+		return "", &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 1583), Message: "Expected a string with a value and not an empty string"}
 	}
 
 	if strings.HasPrefix(url, "/") {
@@ -352,7 +353,7 @@ func (r *ComposerRepository) loadDataFromServer() ([]*php.Array, error) {
 		return nil, err
 	}
 	if consumed {
-		return nil, &util.LogicError{Message: "loadRootServerFile should not return true during initialization"}
+		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1604), Message: "loadRootServerFile should not return true during initialization"}
 	}
 
 	return r.loadIncludes(data)
@@ -550,7 +551,7 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 			from = " from " + source
 		}
 
-		return nil, newRuntimeError("Could not load packages in "+r.RepoName()+from+": ["+exceptionClass(err)+"] "+err.Error(), err)
+		return nil, newRuntimeError(phperr.At("ComposerRepository.php", 1726), "Could not load packages in "+r.RepoName()+from+": ["+exceptionClass(err)+"] "+err.Error(), err)
 	}
 
 	for _, p := range packageInstances {

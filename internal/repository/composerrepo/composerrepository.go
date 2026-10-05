@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -175,7 +176,7 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	repoConfig = repoConfig.Clone()
 	rawURL, ok := repoConfig.Get("url")
 	if !ok {
-		return nil, &util.ErrorException{Message: `Undefined array key "url"`}
+		return nil, &util.ErrorException{Site: phperr.At("ComposerRepository.php", 164), Message: `Undefined array key "url"`}
 	}
 	url, ok := rawURL.(string)
 	if !ok {
@@ -196,7 +197,7 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	}
 	url = php.RtrimSet(url, "/")
 	if url == "" {
-		return nil, &util.InvalidArgumentError{Message: "The repository url must not be an empty string"}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 175), Message: "The repository url must not be an empty string"}
 	}
 
 	if strings.HasPrefix(url, "https?") {
@@ -205,7 +206,7 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	repoConfig.Set("url", url)
 
 	if urlBits, ok := util.ParseURL(php.Strtr(url, `\`, "/")); !ok || urlBits.Scheme == "" {
-		return nil, &util.UnexpectedValueError{Message: "Invalid url given for Composer repository: " + util.SanitizeURL(url)}
+		return nil, &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 184), Message: "Invalid url given for Composer repository: " + util.SanitizeURL(url)}
 	}
 
 	if v, _ := repoConfig.Get("options"); v == nil {
@@ -289,19 +290,19 @@ func (r *ComposerRepository) parseUserFilterConfig(rawFilter any) error {
 
 	filter, ok := rawFilter.(*php.Array)
 	if !ok {
-		return &util.UnexpectedValueError{Message: `Repository "filter" must be a boolean or an object mapping advertised list names to false.`}
+		return &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 232), Message: `Repository "filter" must be a boolean or an object mapping advertised list names to false.`}
 	}
 
 	for k, value := range filter.All() {
 		if !k.IsString() || k.String() == "" {
-			return &util.UnexpectedValueError{Message: `Repository "filter" keys must be non-empty list-name strings.`}
+			return &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 238), Message: `Repository "filter" keys must be non-empty list-name strings.`}
 		}
 		if value == true {
 			continue
 		}
 
 		if value != false {
-			return &util.UnexpectedValueError{Message: `Repository "filter" entry for "` + k.String() + `" must be a boolean; got ` + php.VarExport(value) + "."}
+			return &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 245), Message: `Repository "filter" entry for "` + k.String() + `" must be a boolean; got ` + php.VarExport(value) + "."}
 		}
 
 		if r.userFilterSkipped == nil {
@@ -494,7 +495,7 @@ func (r *ComposerRepository) Packages() ([]pkg.PackageInterface, error) {
 		}
 		if hasPartial {
 			if r.partialPackagesByName == nil {
-				return nil, &util.LogicError{Message: "hasPartialPackages failed to initialize $this->partialPackagesByName"}
+				return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 402), Message: "hasPartialPackages failed to initialize $this->partialPackagesByName"}
 			}
 
 			// Composer passes the version lists keyed by name as if each
@@ -512,11 +513,11 @@ func (r *ComposerRepository) Packages() ([]pkg.PackageInterface, error) {
 			return r.createPackages(data, "packages.json inline packages")
 		}
 
-		return nil, &util.LogicError{Message: "Composer repositories that have lazy providers and no available-packages list can not load the complete list of packages, use getPackageNames instead."}
+		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 408), Message: "Composer repositories that have lazy providers and no available-packages list can not load the complete list of packages, use getPackageNames instead."}
 	}
 
 	if hasProviders {
-		return nil, &util.LogicError{Message: "Composer repositories that have providers can not load the complete list of packages, use getPackageNames instead."}
+		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 412), Message: "Composer repositories that have providers can not load the complete list of packages, use getPackageNames instead."}
 	}
 
 	return r.ArrayRepository.Packages()
@@ -664,7 +665,7 @@ func (r *ComposerRepository) freshCachedList(cacheKey string) ([]string, bool, e
 // loadPackageList ports loadPackageList; packageFilter "" is null.
 func (r *ComposerRepository) loadPackageList(packageFilter string) ([]string, error) {
 	if r.listURL == "" {
-		return nil, &util.LogicError{Message: "Make sure to call loadRootServerFile before loadPackageList"}
+		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 514), Message: "Make sure to call loadRootServerFile before loadPackageList"}
 	}
 
 	url := r.listURL
@@ -767,7 +768,7 @@ func (r *ComposerRepository) LoadPackages(packageNameMap *repository.ConstraintM
 			matches := newPackageSet()
 			for _, candidate := range nameMapValues(candidates) {
 				if candidate.Name() != name {
-					return repository.LoadResult{}, &util.LogicError{Message: "whatProvides should never return a package with a different name than the requested one"}
+					return repository.LoadResult{}, &util.LogicError{Site: phperr.At("ComposerRepository.php", 571), Message: "whatProvides should never return a package with a different name than the requested one"}
 				}
 				namesFound.Set(name, struct{}{})
 
@@ -1010,7 +1011,7 @@ func (r *ComposerRepository) Providers(packageName string) ([]repository.Provide
 	}
 	if hasPartial {
 		if r.partialPackagesByName == nil {
-			return nil, &util.LogicError{Message: "hasPartialPackages failed to initialize $this->partialPackagesByName"}
+			return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1033), Message: "hasPartialPackages failed to initialize $this->partialPackagesByName"}
 		}
 		for _, versions := range r.partialPackagesByName.All() {
 			for _, candidate := range versions {

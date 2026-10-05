@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/metadataminifier"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -252,7 +253,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 	}
 
 	if r.lazyProvidersURL == "" {
-		return repository.LoadResult{}, &util.LogicError{Message: "loadAsyncPackages only supports v2 protocol composer repos with a metadata-url"}
+		return repository.LoadResult{}, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1289), Message: "loadAsyncPackages only supports v2 protocol composer repos with a metadata-url"}
 	}
 
 	// load ~dev versions of the packages as well if needed

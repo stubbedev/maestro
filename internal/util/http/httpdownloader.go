@@ -14,6 +14,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -160,11 +161,19 @@ func (h *HttpDownloader) AddCopy(url, to string, options *php.Array) (*util.Prom
 	return h.asyncRequest(url, options, to)
 }
 
-var errEmptyURL = &util.InvalidArgumentError{Message: "$url must not be an empty string"}
+// emptyURLError is the InvalidArgumentException get/copy (line, else
+// copyLine when copying to a file) throw for an empty URL.
+func emptyURLError(copyTo string, line, copyLine int) error {
+	if copyTo != "" {
+		line = copyLine
+	}
+
+	return &util.InvalidArgumentError{Message: "$url must not be an empty string", Site: phperr.At("HttpDownloader.php", line)}
+}
 
 func (h *HttpDownloader) syncRequest(url string, options *php.Array, copyTo string) (*Response, error) {
 	if url == "" {
-		return nil, errEmptyURL
+		return nil, emptyURLError(copyTo, 108, 154)
 	}
 
 	h.mu.Lock()
@@ -182,7 +191,7 @@ func (h *HttpDownloader) syncRequest(url string, options *php.Array, copyTo stri
 
 func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo string) (*util.Promise[*Response], error) {
 	if url == "" {
-		return nil, errEmptyURL
+		return nil, emptyURLError(copyTo, 134, 179)
 	}
 
 	h.mu.Lock()
@@ -251,7 +260,7 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 	h.idGen++
 
 	if !sync && !h.allowAsync {
-		return nil, nil, &util.LogicError{Message: `You must use the HttpDownloader instance which is part of a Composer\Loop instance to be able to run async http requests`}
+		return nil, nil, &util.LogicError{Message: `You must use the HttpDownloader instance which is part of a Composer\Loop instance to be able to run async http requests`, Site: phperr.At("HttpDownloader.php", 226)}
 	}
 
 	// capture username/password from URL if there is one
@@ -329,7 +338,7 @@ func (h *HttpDownloader) cancelJob(job *httpJob) {
 	h.mu.Lock()
 	defer h.unlock()
 
-	err := &util.IrrecoverableDownloadError{Message: "Download of " + util.SanitizeURL(job.url) + " canceled"}
+	err := &util.IrrecoverableDownloadError{Message: "Download of " + util.SanitizeURL(job.url) + " canceled", Site: phperr.At("HttpDownloader.php", 280)}
 
 	switch job.status {
 	case statusQueued:
@@ -366,7 +375,7 @@ func (h *HttpDownloader) startJob(job *httpJob) {
 		if _, ok := path(job.options, "http", "header"); ok && php.Stripos(strings.Join(headerList(job.options), ""), "if-modified-since") >= 0 {
 			job.resolve(NewResponse(job.url, 304, []string{}, ""))
 		} else {
-			e := util.NewTransportError("Network disabled, request canceled: "+util.SanitizeURL(job.url), 499)
+			e := transportError(phperr.At("HttpDownloader.php", 332), "Network disabled, request canceled: "+util.SanitizeURL(job.url), 499)
 			e.StatusCode = 499
 			job.reject(e)
 		}
@@ -401,6 +410,21 @@ func (h *HttpDownloader) onTransfer(ev curlEvent) {
 	h.mu.Lock()
 	h.startQueued()
 	h.unlock()
+}
+
+// countQueued is the number of asynchronous jobs waiting for a slot.
+func (h *HttpDownloader) countQueued() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	n := 0
+	for _, job := range h.jobs {
+		if job.status == statusQueued && !job.sync {
+			n++
+		}
+	}
+
+	return n
 }
 
 // startQueued starts queued jobs while slots are free; h.mu is held.
@@ -500,7 +524,7 @@ func (h *HttpDownloader) response(id int) (*Response, error) {
 
 	job, ok := h.byID[id]
 	if !ok {
-		return nil, &util.LogicError{Message: "Invalid request id"}
+		return nil, &util.LogicError{Message: "Invalid request id", Site: phperr.At("HttpDownloader.php", 420)}
 	}
 
 	if job.status == statusFailed {
@@ -508,7 +532,7 @@ func (h *HttpDownloader) response(id int) (*Response, error) {
 	}
 
 	if job.response == nil {
-		return nil, &util.LogicError{Message: "Response not available yet, call wait() first"}
+		return nil, &util.LogicError{Message: "Response not available yet, call wait() first", Site: phperr.At("HttpDownloader.php", 429)}
 	}
 
 	delete(h.byID, id)

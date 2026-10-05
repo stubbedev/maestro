@@ -1,0 +1,14 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In JsonFile.php line 393:
+                                                                          
+  The input does not contain valid JSON                                   
+  Parse error on line 1:                                                  
+  n...                                                                    
+  ^                                                                       
+  Expected one of: 'STRING', 'NUMBER', 'NULL', 'TRUE', 'FALSE', '{', '['  
+                                                                          
+
+config [-g|--global] [-e|--editor] [-a|--auth] [--unset] [-l|--list] [-f|--file FILE] [--absolute] [-j|--json] [-m|--merge] [--append] [--source] [--] [<setting-key> [<setting-value>...]]
+
+exit 1

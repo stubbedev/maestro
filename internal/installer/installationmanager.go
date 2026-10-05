@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -133,7 +134,7 @@ func (m *Manager) Installer(typ string) (Installer, error) {
 		}
 	}
 
-	return nil, &util.InvalidArgumentError{Message: "Unknown installer type: " + typ}
+	return nil, &util.InvalidArgumentError{Site: phperr.At("InstallationManager.php", 133), Message: "Unknown installer type: " + typ}
 }
 
 // IsPackageInstalled is isPackageInstalled().

@@ -20,6 +20,7 @@ import (
 	"syscall"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // AutoloadType is the autoload standard whose mapping rules a scan applies.
@@ -114,7 +115,7 @@ func (g *Generator) ScanPaths(path string, excluded Matcher, autoloadType Autolo
 			return err
 		}
 	default:
-		return newException(classRuntime, `Could not scan for classes inside "`+path+`" which does not appear to be a file nor a folder`)
+		return newException(phperr.At("ClassMapGenerator.php", 136), classRuntime, `Could not scan for classes inside "`+path+`" which does not appear to be a file nor a folder`)
 	}
 
 	cwd, err := realCwd()
@@ -250,7 +251,7 @@ func (g *Generator) prepare(items []scanItem, excluded Matcher) {
 			it.realPath = real
 		} else {
 			// fallback just in case but this really should not happen
-			it.realErr = newException(classRuntime, "realpath of "+it.filePath+" failed to resolve, got false")
+			it.realErr = newException(phperr.At("ClassMapGenerator.php", 168), classRuntime, "realpath of "+it.filePath+" failed to resolve, got false")
 
 			return
 		}
@@ -563,7 +564,7 @@ func isASCIILetter(c byte) bool { return c|0x20 >= 'a' && c|0x20 <= 'z' }
 func getCwd() (string, error) {
 	cwd, err := syscall.Getwd()
 	if err != nil {
-		return "", newException(classRuntime, "Could not determine the current working directory")
+		return "", newException(phperr.At("ClassMapGenerator.php", 346), classRuntime, "Could not determine the current working directory")
 	}
 
 	return cwd, nil

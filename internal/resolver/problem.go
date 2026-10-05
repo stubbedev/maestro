@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -167,7 +168,7 @@ func sortableString(pool *Pool, rule *Rule) (string, error) {
 		return strings.Join(parts, "-"), nil
 	}
 
-	return "", &util.LogicError{Message: "Unknown rule type: " + strconv.Itoa(rule.Reason())}
+	return "", &util.LogicError{Site: phperr.At("Problem.php", 140), Message: "Unknown rule type: " + strconv.Itoa(rule.Reason())}
 }
 
 // rulePriority ports getRulePriority.
@@ -678,7 +679,7 @@ func MissingLockedPackageReason(pool *Pool, p pkg.PackageInterface) ([2]string, 
 		return [2]string{prefix, "was not loaded, because it was " + strings.Join(mapValues(filters), ", ") + ". To ignore filters for this package, add the package to the " + ignorePaths + " config. To turn the feature off entirely, you can set " + offPaths + " to false."}, nil
 	}
 
-	return [2]string{}, &util.LogicError{Message: "Filter list removed locked package must have version removed from pool."}
+	return [2]string{}, &util.LogicError{Site: phperr.At("Problem.php", 536), Message: "Filter list removed locked package must have version removed from pool."}
 }
 
 // packageList is Rule::formatPackagesUnique for packages.

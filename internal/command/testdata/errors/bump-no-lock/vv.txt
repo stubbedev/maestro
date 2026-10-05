@@ -1,0 +1,6 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Warning: Bumping dependency constraints is not recommended for libraries as it will narrow down your dependencies and may cause problems for your users.
+If your package is not a library, you can explicitly specify the "type" by using "composer config type project".
+Alternatively you can use --dev-only to only bump dependencies within "require-dev".
+No requirements to update in ./composer.json.
+exit 0

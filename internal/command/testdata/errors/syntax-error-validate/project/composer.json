@@ -1,0 +1,4 @@
+{
+    "name": "acme/app",
+    "require": {"x/y": "1.0",}
+}

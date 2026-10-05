@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -183,7 +184,7 @@ func (g *GitLab) AuthorizeOAuthInteractively(scheme, originURL, message string) 
 		return true, nil
 	}
 
-	return false, &util.RuntimeError{Message: "Invalid GitLab credentials 5 times in a row, aborting."}
+	return false, &util.RuntimeError{Message: "Invalid GitLab credentials 5 times in a row, aborting.", Site: phperr.At("GitLab.php", 195)}
 }
 
 // oauthSetting is the gitlab-oauth entry of a token response.
@@ -274,7 +275,7 @@ func (g *GitLab) refreshToken(scheme, originURL string) (*php.Array, error) {
 
 	refreshToken := arrayValue(entry, "refresh-token")
 	if refreshToken == nil {
-		return nil, &util.RuntimeError{Message: "No GitLab refresh token present for " + originURL + "."}
+		return nil, &util.RuntimeError{Message: "No GitLab refresh token present for " + originURL + ".", Site: phperr.At("GitLab.php", 294)}
 	}
 
 	data := php.HTTPBuildQuery(

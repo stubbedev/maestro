@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	"github.com/stubbedev/maestro/internal/util/processmock"
@@ -52,6 +53,10 @@ func TestGitDownloader_DownloadForPackageWithoutSourceReference(t *testing.T) {
 
 	err := run(installSteps(g.downloader(t), p, "/path")...)
 	wantError[*util.InvalidArgumentError](t, err, "Package dummy/pkg is missing reference information")
+
+	if !phperr.Is(err, "VcsDownloader.php", 66) {
+		t.Errorf("throw site = %v, want VcsDownloader.php:66", err)
+	}
 }
 
 func TestGitDownloader_Download(t *testing.T) {
@@ -185,6 +190,10 @@ func TestGitDownloader_UpdateforPackageWithoutSourceReference(t *testing.T) {
 
 	err := run(updateSteps(g.downloader(t), initial, target, "/path")...)
 	wantError[*util.InvalidArgumentError](t, err, "missing reference information")
+
+	if !phperr.Is(err, "VcsDownloader.php", 66) { // download() comes first
+		t.Errorf("throw site = %v, want VcsDownloader.php:66", err)
+	}
 }
 
 func TestGitDownloader_Update(t *testing.T) {

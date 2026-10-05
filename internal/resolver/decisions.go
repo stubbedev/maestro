@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -98,7 +99,7 @@ func (d *Decisions) DecisionRule(literalOrPackageID int32) (*Rule, error) {
 		}
 	}
 
-	return nil, &util.LogicError{Message: "Did not find a decision rule using " + strconv.Itoa(int(literalOrPackageID))}
+	return nil, &util.LogicError{Site: phperr.At("Decisions.php", 107), Message: "Did not find a decision rule using " + strconv.Itoa(int(literalOrPackageID))}
 }
 
 // AtOffset ports atOffset.
@@ -162,7 +163,7 @@ func (d *Decisions) addDecision(literal int32, level int) error {
 		literalString := d.pool.LiteralToPrettyString(literal, nil)
 		p := d.pool.LiteralToPackage(literal)
 
-		return newSolverBugError("Trying to decide " + literalString + " on level " + strconv.Itoa(level) + ", even though " + p.String() + " was previously decided as " + strconv.Itoa(int(previousDecision)) + ".")
+		return newSolverBugError(phperr.At("Decisions.php", 204), "Trying to decide "+literalString+" on level "+strconv.Itoa(level)+", even though "+p.String()+" was previously decided as "+strconv.Itoa(int(previousDecision))+".")
 	}
 
 	if literal > 0 {

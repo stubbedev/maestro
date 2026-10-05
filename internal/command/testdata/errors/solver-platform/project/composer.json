@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "php": "^99"
+    }
+}

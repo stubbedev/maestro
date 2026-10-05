@@ -1,0 +1,27 @@
+
+In Factory.php line 317:
+                                                                               
+  [Composer\Json\JsonValidationException]                                      
+  "./composer.json" does not match the expected JSON schema:                   
+   - repositories[0].url : The property url is required                        
+   - repositories[0].type : Does not have a value in the enumeration ["vcs","  
+  github","git","gitlab","bitbucket","git-bitbucket","hg","fossil","perforce"  
+  ,"svn","forgejo"]                                                            
+   - repositories[0].type : Does not have a value in the enumeration ["path"]  
+   - repositories[0].type : Does not have a value in the enumeration ["artifa  
+  ct"]                                                                         
+   - repositories[0].type : Does not have a value in the enumeration ["pear"]  
+   - repositories[0].package : The property package is required                
+   - repositories[0].type : Does not have a value in the enumeration ["packag  
+  e"]                                                                          
+   - repositories[0] : Failed to match at least one schema                     
+   - repositories[0].type : String value found, but a boolean is required      
+   - repositories[0].type : Does not have a value in the enumeration [false]   
+                                                                               
+
+Exception trace:
+  at Factory.php:317
+
+update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
+
+exit 1

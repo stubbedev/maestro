@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -55,9 +56,9 @@ func (d *FileDownloader) extractionError(p pkg.PackageInterface, file, path stri
 	case archive.Tar:
 		switch {
 		case strings.HasPrefix(ae.Reason, "is a corrupted tar file"):
-			return nil, &util.UnexpectedValueError{Message: `phar error: "` + file + `" ` + ae.Reason}
+			return nil, &util.UnexpectedValueError{Message: `phar error: "` + file + `" ` + ae.Reason, Site: phperr.At("TarDownloader.php", 37)}
 		case strings.HasPrefix(ae.Reason, "Cannot extract"):
-			return nil, &util.UnexpectedValueError{Message: `Extraction from phar "` + file + `" failed: ` + ae.Reason}
+			return nil, &util.UnexpectedValueError{Message: `Extraction from phar "` + file + `" failed: ` + ae.Reason, Site: phperr.At("TarDownloader.php", 38)}
 		}
 	case archive.Xz:
 		if errors.Is(ae, archive.ErrCorrupt) {
@@ -66,7 +67,7 @@ func (d *FileDownloader) extractionError(p pkg.PackageInterface, file, path stri
 				stderr = "xz: (stdin): File format not recognized\ntar: Child returned status 1\ntar: Error is not recoverable: exiting now\n"
 			}
 
-			return nil, &util.RuntimeError{Message: "Failed to execute tar -xJf " + file + " -C " + path + "\n\n" + stderr}
+			return nil, &util.RuntimeError{Message: "Failed to execute tar -xJf " + file + " -C " + path + "\n\n" + stderr, Site: phperr.At("XzDownloader.php", 36)}
 		}
 	case archive.Gzip:
 	}
@@ -84,7 +85,7 @@ func zipError(p pkg.PackageInterface, file, path string, ae *archive.Error, gene
 	processError := "Failed to extract " + p.Name() + ": (" + strconv.Itoa(ae.ExitCode) + ") " + unzipPath() + " -qq " + file + " -d " + path + "\n\n" + ae.Reason
 
 	if errors.Is(ae, archive.ErrBomb) {
-		return nil, &util.RuntimeError{Message: processError}
+		return nil, &util.RuntimeError{Message: processError, Site: phperr.At("ZipDownloader.php", 193)}
 	}
 
 	if errors.Is(ae, archive.ErrIrreproducible) {
@@ -99,15 +100,15 @@ func zipError(p pkg.PackageInterface, file, path string, ae *archive.Error, gene
 	}
 
 	if fi, err := os.Stat(file); err == nil && fi.Size() == 0 {
-		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is a corrupted zip archive (0 bytes), try again."}
+		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is a corrupted zip archive (0 bytes), try again.", Site: phperr.At("ZipDownloader.php", 255)}
 	}
 
 	if ae.ExitCode == 9 {
 		// unzip found no zip structure: ZipArchive::open fails with ER_NOZIP
-		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is not a zip archive."}
+		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is not a zip archive.", Site: phperr.At("ZipDownloader.php", 255)}
 	}
 
-	return warnings, &util.RuntimeError{Message: `There was an error extracting the ZIP file for "` + p.Name() + `", it is either corrupted or using an invalid format.`}
+	return warnings, &util.RuntimeError{Message: `There was an error extracting the ZIP file for "` + p.Name() + `", it is either corrupted or using an invalid format.`, Site: phperr.At("ZipDownloader.php", 253)}
 }
 
 // pharDataCheck reproduces how new \PharData($file) and extractTo() treat
@@ -123,12 +124,12 @@ func pharDataCheck(file string) error {
 
 	switch {
 	case ext == "" || ext == "phar":
-		return &util.UnexpectedValueError{Message: "Cannot create phar '" + file + "', file extension (or combination) not recognised or the directory does not exist"}
+		return &util.UnexpectedValueError{Message: "Cannot create phar '" + file + "', file extension (or combination) not recognised or the directory does not exist", Site: phperr.At("TarDownloader.php", 37)}
 	case strings.Contains(ext, "zip"):
-		return &util.UnexpectedValueError{Message: `phar zip error: phar "` + file + `" already exists as a regular phar and must be deleted from disk prior to creating as a zip-based phar`}
+		return &util.UnexpectedValueError{Message: `phar zip error: phar "` + file + `" already exists as a regular phar and must be deleted from disk prior to creating as a zip-based phar`, Site: phperr.At("TarDownloader.php", 37)}
 	case strings.Contains(file, ".phar"):
 		return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(phar://" + file + "/): Failed to open directory: '" + file +
-			"' is not a phar archive. Use PharData::__construct() for a standard zip or tar archive\nphar url \"phar://" + file + "/\" is unknown"}
+			"' is not a phar archive. Use PharData::__construct() for a standard zip or tar archive\nphar url \"phar://" + file + "/\" is unknown", Site: phperr.At("TarDownloader.php", 38)}
 	}
 
 	return nil
@@ -162,10 +163,10 @@ func (a *ArchiveDownloader) extractRar(_ pkg.PackageInterface, file, path string
 	iniMessage := util.IniGetMessage(a.iniFiles)
 
 	if !util.IsWindows() {
-		return &util.RuntimeError{Message: "Could not decompress the archive, enable the PHP rar extension.\n" + iniMessage}
+		return &util.RuntimeError{Message: "Could not decompress the archive, enable the PHP rar extension.\n" + iniMessage, Site: phperr.At("RarDownloader.php", 56)}
 	}
 
-	return &util.RuntimeError{Message: "Could not decompress the archive, enable the PHP rar extension or install unrar.\n" + iniMessage + "\n" + processError}
+	return &util.RuntimeError{Message: "Could not decompress the archive, enable the PHP rar extension or install unrar.\n" + iniMessage + "\n" + processError, Site: phperr.At("RarDownloader.php", 56)}
 }
 
 // pharExtractScript is PharDownloader::extract, run by the user's php.
@@ -188,7 +189,7 @@ func (a *ArchiveDownloader) extractPhar(_ pkg.PackageInterface, file, path strin
 
 	if code != 0 {
 		// Can throw an UnexpectedValueException
-		return &util.UnexpectedValueError{Message: a.process.GetErrorOutput()}
+		return &util.UnexpectedValueError{Message: a.process.GetErrorOutput(), Site: phperr.At("PharDownloader.php", 37)}
 	}
 
 	return nil

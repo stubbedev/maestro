@@ -2,15 +2,27 @@
 
 package classmap
 
+import "github.com/stubbedev/maestro/internal/phperr"
+
 // Exception is an exception thrown by the ported PHP code. Class is the
 // fully qualified name of the PHP exception class, which Composer prints
 // when it renders an uncaught exception; Message is its exact message.
 type Exception struct {
 	Class   string
 	Message string
+	// Prev is the $previous exception (not unwrapped, as PHP's catch
+	// does not look at it).
+	Prev error
+	phperr.Site
 }
 
 func (e *Exception) Error() string { return e.Message }
+
+// PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
+func (e *Exception) PHPClass() (string, int) { return e.Class, 0 }
+
+// PHPPrevious implements phperr.Chained.
+func (e *Exception) PHPPrevious() error { return e.Prev }
 
 // IsRuntimeException reports whether the PHP class extends
 // \RuntimeException, which is what AutoloadGenerator::createLoader()
@@ -34,6 +46,6 @@ const (
 	classOutOfBounds       = "OutOfBoundsException"
 )
 
-func newException(class, message string) *Exception {
-	return &Exception{Class: class, Message: message}
+func newException(site phperr.Site, class, message string) *Exception {
+	return &Exception{Class: class, Message: message, Site: site}
 }

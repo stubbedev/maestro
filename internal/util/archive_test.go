@@ -50,12 +50,12 @@ func TestTar_ReturnsNullIfTheTarIsEmpty(t *testing.T) {
 
 func TestTar_ThrowsExceptionIfTheTarHasNoComposerJson(t *testing.T) {
 	_, _, err := TarGetComposerJSON(tarFixtures + "nojson.tar.gz")
-	assertArchiveError(t, "nojson.tar.gz", err, errNoComposerJSON.Message)
+	assertArchiveError(t, "nojson.tar.gz", err, noComposerJSONMessage)
 }
 
 func TestTar_ThrowsExceptionIfTheComposerJsonIsInASubSubfolder(t *testing.T) {
 	_, _, err := TarGetComposerJSON(tarFixtures + "subfolders.tar.gz")
-	assertArchiveError(t, "subfolders.tar.gz", err, errNoComposerJSON.Message)
+	assertArchiveError(t, "subfolders.tar.gz", err, noComposerJSONMessage)
 }
 
 func TestTar_ReturnsComposerJsonInTarRoot(t *testing.T) {
@@ -70,7 +70,7 @@ func TestTar_ReturnsComposerJsonInFirstFolder(t *testing.T) {
 
 func TestTar_MultipleTopLevelDirsIsInvalid(t *testing.T) {
 	_, _, err := TarGetComposerJSON(tarFixtures + "multiple.tar.gz")
-	assertArchiveError(t, "multiple.tar.gz", err, errNoComposerJSON.Message)
+	assertArchiveError(t, "multiple.tar.gz", err, noComposerJSONMessage)
 }
 
 const zipFixtures = "testdata/Fixtures/Zip/"

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -124,7 +125,7 @@ func (s *JSONConfigSource) InsertRepository(name string, config any, referenceNa
 		}
 
 		if indexToInsert < 0 {
-			return &util.RuntimeError{Message: `The referenced repository "` + php.ToString(referenceName) + `" does not exist.`}
+			return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 172), Message: `The referenced repository "` + php.ToString(referenceName) + `" does not exist.`}
 		}
 
 		if rc, ok := repoConfig.(*php.Array); ok && name != "" && !isset(rc, "name") {
@@ -408,14 +409,14 @@ func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...an
 	switch {
 	case exists:
 		if !util.IsWritable(path) {
-			return &util.RuntimeError{Message: `The file "` + path + `" is not writable.`}
+			return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 391), Message: `The file "` + path + `" is not writable.`}
 		}
 		if !util.IsReadable(path) {
-			return &util.RuntimeError{Message: `The file "` + path + `" is not readable.`}
+			return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 395), Message: `The file "` + path + `" is not readable.`}
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return &util.RuntimeError{Message: `The file "` + path + `" is not readable.`}
+			return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 395), Message: `The file "` + path + `" is not readable.`}
 		}
 		contents = string(data)
 	case s.authConfig:
@@ -468,7 +469,7 @@ func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...an
 		// restore contents to the original state
 		_, _ = util.FilePutContentsIfModified(path, []byte(contents))
 
-		return &util.RuntimeError{Message: "Failed to update composer.json with a valid format, reverting to the original content. Please report an issue to us with details (command you run and a copy of your composer.json). \n" + strings.Join(ve.Errors, "\n")}
+		return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 466), Message: "Failed to update composer.json with a valid format, reverting to the original content. Please report an issue to us with details (command you run and a copy of your composer.json). \n" + strings.Join(ve.Errors, "\n"), Prev: ve}
 	}
 
 	if newFile {

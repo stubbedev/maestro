@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // isPathSep reports whether c separates path segments for PHP's dirname and
@@ -118,18 +120,18 @@ func phpWarning(fn, arg string, err error) string {
 
 // warning is the ErrorException Composer's error handler makes of the
 // warning a failed filesystem function emits.
-func warning(fn, arg string, err error) error {
-	return &ErrorException{Message: phpWarning(fn, arg, err)}
+func warning(site phperr.Site, fn, arg string, err error) error {
+	return &ErrorException{Message: phpWarning(fn, arg, err), Site: site}
 }
 
 // streamWarning is the warning of a function that failed to open arg:
 // "func(arg): Failed to open stream: Message".
-func streamWarning(fn, arg string, err error) error {
-	return &ErrorException{Message: fn + "(" + arg + "): Failed to open stream: " + strerror(err)}
+func streamWarning(site phperr.Site, fn, arg string, err error) error {
+	return &ErrorException{Message: fn + "(" + arg + "): Failed to open stream: " + strerror(err), Site: site}
 }
 
 // dirIteratorError is the UnexpectedValueException
 // RecursiveDirectoryIterator throws for a directory it cannot open.
-func dirIteratorError(dir string, err error) error {
-	return &UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + strerror(err)}
+func dirIteratorError(site phperr.Site, dir string, err error) error {
+	return &UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + strerror(err), Site: site}
 }

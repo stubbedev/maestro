@@ -6,6 +6,7 @@ package http
 import (
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -78,7 +79,7 @@ func (r *Response) Body() string { return r.body }
 func (r *Response) DecodeJSON() (any, error) {
 	v, err := php.JSONDecode(r.body, true)
 	if err != nil {
-		return nil, &jsonlint.ParsingError{Message: `"` + util.SanitizeURL(r.url) + `" does not contain valid JSON`}
+		return nil, &jsonlint.ParsingError{Message: `"` + util.SanitizeURL(r.url) + `" does not contain valid JSON`, Site: phperr.At("Response.php", 98)}
 	}
 
 	return v, nil

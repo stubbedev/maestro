@@ -8,6 +8,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -259,15 +260,15 @@ func addIfMissing(repo repository.InstalledRepositoryInterface, p pkg.PackageInt
 }
 
 // requireInstalled is the "Package is not installed" check of update and
-// uninstall.
-func requireInstalled(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) error {
+// uninstall, thrown at site.
+func requireInstalled(site phperr.Site, repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) error {
 	has, err := repo.HasPackage(p)
 	if err != nil {
 		return err
 	}
 
 	if !has {
-		return &util.InvalidArgumentError{Message: "Package is not installed: " + p.String()}
+		return &util.InvalidArgumentError{Message: "Package is not installed: " + p.String(), Site: site}
 	}
 
 	return nil
@@ -275,7 +276,7 @@ func requireInstalled(repo repository.InstalledRepositoryInterface, p pkg.Packag
 
 // Update is update().
 func (l *LibraryInstaller) Update(repo repository.InstalledRepositoryInterface, initial, target pkg.PackageInterface) (*Promise, error) {
-	if err := requireInstalled(repo, initial); err != nil {
+	if err := requireInstalled(phperr.At("LibraryInstaller.php", 171), repo, initial); err != nil {
 		return nil, err
 	}
 
@@ -314,7 +315,7 @@ func (l *LibraryInstaller) Update(repo repository.InstalledRepositoryInterface, 
 
 // Uninstall is uninstall().
 func (l *LibraryInstaller) Uninstall(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) (*Promise, error) {
-	if err := requireInstalled(repo, p); err != nil {
+	if err := requireInstalled(phperr.At("LibraryInstaller.php", 200), repo, p); err != nil {
 		return nil, err
 	}
 
@@ -495,7 +496,7 @@ func (l *LibraryInstaller) InitializeVendorDir() error {
 // PartialComposer.
 func (l *LibraryInstaller) DownloadManager() (DownloadManager, error) {
 	if l.downloadManager == nil {
-		return nil, &util.LogicError{Message: `Composer\Installer\LibraryInstaller should be initialized with a fully loaded Composer instance to be able to install/... packages`}
+		return nil, &util.LogicError{Site: phperr.At("LibraryInstaller.php", 338), Message: `Composer\Installer\LibraryInstaller should be initialized with a fully loaded Composer instance to be able to install/... packages`}
 	}
 
 	return l.downloadManager, nil

@@ -1,0 +1,14 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In Input.php line 76:
+                                                          
+  [Symfony\Component\Console\Exception\RuntimeException]  
+  Not enough arguments (missing: "package").              
+                                                          
+
+Exception trace:
+  at Input.php:76
+
+depends [-r|--recursive] [-t|--tree] [--locked] [--] <package>
+
+exit 1

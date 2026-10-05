@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -182,14 +183,14 @@ const packageClass = `Composer\Package\Package`
 
 func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.PackageInterface, error) {
 	if !isset(config, "name") {
-		return nil, &util.UnexpectedValueError{Message: "Unknown package has no name defined (" + jsonEncode(config) + ")."}
+		return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 112), Message: "Unknown package has no name defined (" + jsonEncode(config) + ")."}
 	}
 
 	nameValue := get(config, "name")
 
 	versionValue, _ := config.Get("version")
 	if versionValue == nil || !isScalar(versionValue) {
-		return nil, &util.UnexpectedValueError{Message: "Package " + php.ToString(nameValue) + " has no version defined."}
+		return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 115), Message: "Package " + php.ToString(nameValue) + " has no version defined."}
 	}
 
 	prettyVersion := php.ToString(versionValue)
@@ -213,7 +214,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 		v, err := l.versionParser.Normalize(prettyVersion)
 		if err != nil {
 			if uv := (*semver.UnexpectedValueError)(nil); errors.As(err, &uv) {
-				return nil, &util.UnexpectedValueError{Message: "Failed to normalize version for package \"" + php.ToString(nameValue) + "\": " + uv.Message}
+				return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 133), Message: "Failed to normalize version for package \"" + php.ToString(nameValue) + "\": " + uv.Message, Prev: err}
 			}
 
 			return nil, err
@@ -234,7 +235,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 		return pkg.NewRootPackage(name, version, prettyVersion), nil
 	}
 
-	return nil, &util.LogicError{Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
+	return nil, &util.LogicError{Site: phperr.At("ArrayLoader.php", 153), Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
 }
 
 var (
@@ -246,7 +247,7 @@ var (
 func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array) (pkg.PackageInterface, error) {
 	cp, ok := pkg.AsCompletePackage(p)
 	if !ok {
-		return nil, &util.LogicError{Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
+		return nil, &util.LogicError{Site: phperr.At("ArrayLoader.php", 153), Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
 	}
 
 	if err := configureFields(cp, config); err != nil {
@@ -481,7 +482,7 @@ func configureSource(p *pkg.CompletePackage, config *php.Array) error {
 
 	source := subArray(config, "source")
 	if source == nil || !isset(source, "type") || !isset(source, "url") || !isset(source, "reference") {
-		return &util.UnexpectedValueError{Message: "Package " + php.ToString(get(config, "name")) +
+		return &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 186), Message: "Package " + php.ToString(get(config, "name")) +
 			"'s source key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ...},\n" +
 			jsonEncode(get(config, "source")) + " given."}
 	}
@@ -519,7 +520,7 @@ func configureDist(p *pkg.CompletePackage, config *php.Array) error {
 
 	dist := subArray(config, "dist")
 	if dist == nil || !isset(dist, "type") || !isset(dist, "url") {
-		return &util.UnexpectedValueError{Message: "Package " + php.ToString(get(config, "name")) +
+		return &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 202), Message: "Package " + php.ToString(get(config, "name")) +
 			"'s dist key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ..., \"shasum\": ...},\n" +
 			jsonEncode(get(config, "dist")) + " given."}
 	}
@@ -861,8 +862,8 @@ func (l *ArrayLoader) createLink(source, sourceVersion, description, target, pre
 	parsed, err := l.versionParser.ParseConstraints(constraint)
 	if err != nil {
 		if uv := (*semver.UnexpectedValueError)(nil); errors.As(err, &uv) {
-			return nil, &util.UnexpectedValueError{Message: "Link constraint in " + source + " " + description + " > " + target +
-				" should be a valid version constraint, got \"" + constraint + "\""}
+			return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 412), Message: "Link constraint in " + source + " " + description + " > " + target +
+				" should be a valid version constraint, got \"" + constraint + "\"", Prev: err}
 		}
 
 		return nil, err
@@ -876,7 +877,7 @@ func (l *ArrayLoader) createLink(source, sourceVersion, description, target, pre
 func (l *ArrayLoader) GetBranchAlias(config *php.Array) (string, bool, error) {
 	versionValue, _ := config.Get("version")
 	if versionValue == nil || !isScalar(versionValue) {
-		return "", false, &util.UnexpectedValueError{Message: "no/invalid version defined"}
+		return "", false, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 432), Message: "no/invalid version defined"}
 	}
 
 	version := php.ToString(versionValue)

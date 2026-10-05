@@ -1,0 +1,2 @@
+Changed current directory to @DIR@/home
+exit 0

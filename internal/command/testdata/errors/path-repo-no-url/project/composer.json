@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "path"
+        },
+        {
+            "packagist.org": false
+        }
+    ]
+}

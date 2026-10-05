@@ -37,6 +37,9 @@ type Scheduler struct {
 	next, head int
 	// ready holds the completions that arrived, by ticket.
 	ready map[int]func()
+	// background holds the pending tickets of work that is not one of
+	// Composer's jobs (see BackgroundTicket).
+	background map[int]bool
 	// interrupts run before the next completion (signal handlers).
 	interrupts []func()
 	// wake is signalled whenever a completion arrives.
@@ -45,7 +48,7 @@ type Scheduler struct {
 
 // NewScheduler returns an idle scheduler.
 func NewScheduler() *Scheduler {
-	return &Scheduler{ready: map[int]func(){}, wake: make(chan struct{}, 1)}
+	return &Scheduler{ready: map[int]func(){}, background: map[int]bool{}, wake: make(chan struct{}, 1)}
 }
 
 // Ticket is a place in the order completions run in, taken by one piece of
@@ -66,6 +69,21 @@ func (s *Scheduler) Ticket() *Ticket {
 	s.next++
 
 	s.signal()
+
+	return t
+}
+
+// BackgroundTicket is Ticket for work that has no counterpart among
+// Composer's asynchronous jobs (extraction into the package store,
+// materialization from it): it is ordered and awaited like any other, but
+// Counted leaves it out, so progress bars count what Composer's
+// countActiveJobs() counts.
+func (s *Scheduler) BackgroundTicket() *Ticket {
+	t := s.Ticket()
+
+	s.mu.Lock()
+	s.background[t.id] = true
+	s.mu.Unlock()
 
 	return t
 }
@@ -101,6 +119,15 @@ func (s *Scheduler) Pending() int {
 	defer s.mu.Unlock()
 
 	return s.next - s.head
+}
+
+// Counted is Pending without the background tickets: the pending work
+// that stands for one of Composer's jobs (an HTTP transfer, a process).
+func (s *Scheduler) Counted() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.next - s.head - len(s.background)
 }
 
 // Interrupt makes the driving goroutine run fn before the next completion
@@ -155,6 +182,7 @@ func (s *Scheduler) RunReady() bool {
 	}
 
 	delete(s.ready, s.head)
+	delete(s.background, s.head)
 	// advance first: fn may drive the scheduler itself
 	s.head++
 	s.mu.Unlock()

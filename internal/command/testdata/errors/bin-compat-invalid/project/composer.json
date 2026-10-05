@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "config": {
+        "bin-compat": "nope"
+    }
+}

@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // dirSeparators are '/' and DIRECTORY_SEPARATOR.
@@ -49,7 +51,7 @@ func chownLike(path string, fi os.FileInfo) error {
 
 // errJunctionUnsupported is the LogicException Filesystem::junction throws
 // off Windows.
-var errJunctionUnsupported = &LogicError{Message: `Function Composer\Util\Filesystem is not available on non-Windows platform`}
+var errJunctionUnsupported = &LogicError{Message: `Function Composer\Util\Filesystem is not available on non-Windows platform`, Site: phperr.At("Filesystem.php", 839)}
 
 // Junction ports Filesystem::junction, which only exists on Windows.
 func (fs *Filesystem) Junction(_, _ string) error {

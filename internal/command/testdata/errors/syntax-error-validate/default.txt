@@ -1,0 +1,13 @@
+
+In JsonFile.php line 398:
+                                                                    
+  "./composer.json" does not contain valid JSON                     
+  Parse error on line 3:                                            
+  ...ire": {"x/y": "1.0",}}                                         
+  ----------------------^                                           
+  Expected: 'STRING' - It appears you have an extra trailing comma  
+                                                                    
+
+validate [--no-check-all] [--check-lock] [--no-check-lock] [--no-check-publish] [--no-check-version] [-A|--with-dependencies] [--strict] [--] [<file>]
+
+exit 1

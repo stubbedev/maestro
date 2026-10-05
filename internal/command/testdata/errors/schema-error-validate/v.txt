@@ -1,0 +1,13 @@
+
+In ConfigValidator.php line 177:
+                                                                  
+  [TypeError]                                                     
+  array_merge(): Argument #1 must be of type array, string given  
+                                                                  
+
+Exception trace:
+  at ConfigValidator.php:177
+
+validate [--no-check-all] [--check-lock] [--no-check-lock] [--no-check-publish] [--no-check-version] [-A|--with-dependencies] [--strict] [--] [<file>]
+
+exit 1

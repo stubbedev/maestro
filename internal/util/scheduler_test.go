@@ -196,3 +196,37 @@ func TestFirstRejection(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+// TestScheduler_BackgroundWorkIsNotCounted: background work is awaited and
+// ordered like any other, but Counted (what Loop's progress bar shows, as
+// Composer's countActiveJobs) leaves it out.
+func TestScheduler_BackgroundWorkIsNotCounted(t *testing.T) {
+	s := NewScheduler()
+	release := make(chan struct{})
+
+	var order []string
+
+	bg := GoBackground(s, func() (string, error) { <-release; return "background", nil })
+	job := Go(s, func() (string, error) { <-release; return "job", nil })
+
+	if s.Pending() != 2 || s.Counted() != 1 {
+		t.Fatalf("pending %d counted %d, want 2 and 1", s.Pending(), s.Counted())
+	}
+
+	record := func(v string) (struct{}, error) { order = append(order, v); return struct{}{}, nil }
+	promises := []Waitable{Then(bg, record), Then(job, record)}
+
+	close(release)
+
+	if err := AwaitAll(promises); err != nil {
+		t.Fatal(err)
+	}
+
+	if want := []string{"background", "job"}; !slices.Equal(order, want) {
+		t.Fatalf("order %v, want %v", order, want)
+	}
+
+	if s.Pending() != 0 || s.Counted() != 0 {
+		t.Fatalf("pending %d counted %d after the work", s.Pending(), s.Counted())
+	}
+}

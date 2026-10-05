@@ -4,7 +4,10 @@
 
 package jsonlint
 
-import "github.com/stubbedev/maestro/internal/php"
+import (
+	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
+)
 
 // DetailsKind tells which keys a Details carries.
 type DetailsKind uint8
@@ -104,9 +107,13 @@ func (l Location) Array() *php.Array {
 type ParsingError struct {
 	Message string
 	Details Details
+	phperr.Site
 }
 
 func (e *ParsingError) Error() string { return e.Message }
+
+// PHPClass implements util.PHPClasser.
+func (*ParsingError) PHPClass() (string, int) { return `Seld\JsonLint\ParsingException`, 0 }
 
 // DuplicateKeyError is Seld\JsonLint\DuplicateKeyException. It unwraps to
 // its *ParsingError, as the PHP class extends ParsingException.
@@ -117,6 +124,9 @@ func (e *DuplicateKeyError) Key() string { return e.Details.Key }
 
 func (e *DuplicateKeyError) Unwrap() error { return &e.ParsingError }
 
+// PHPClass implements util.PHPClasser.
+func (*DuplicateKeyError) PHPClass() (string, int) { return `Seld\JsonLint\DuplicateKeyException`, 0 }
+
 // InvalidEncodingError is Seld\JsonLint\InvalidEncodingException. It
 // unwraps to its *ParsingError, as the PHP class extends ParsingException.
 type InvalidEncodingError struct{ ParsingError }
@@ -126,9 +136,17 @@ func (e *InvalidEncodingError) Key() string { return e.Details.Key }
 
 func (e *InvalidEncodingError) Unwrap() error { return &e.ParsingError }
 
+// PHPClass implements util.PHPClasser.
+func (*InvalidEncodingError) PHPClass() (string, int) {
+	return `Seld\JsonLint\InvalidEncodingException`, 0
+}
+
 // PHPError is a PHP \Error the parser runs into (property names starting
 // with a NUL byte, [] on a non-array in ALLOW_DUPLICATE_KEYS_TO_ARRAY
 // mode). PHP's lint does not catch these either.
-type PHPError struct{ Message string }
+type PHPError struct {
+	Message string
+	phperr.Site
+}
 
 func (e *PHPError) Error() string { return e.Message }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/semver"
 )
@@ -309,7 +310,7 @@ func (s *Solver) setPropagateLearn(level int, literal int32, rule *Rule) (int, e
 		}
 
 		if newLevel <= 0 || newLevel >= level {
-			return 0, newSolverBugError("Trying to revert to invalid level " + strconv.Itoa(newLevel) + " from level " + strconv.Itoa(level) + ".")
+			return 0, newSolverBugError(phperr.At("Solver.php", 332), "Trying to revert to invalid level "+strconv.Itoa(newLevel)+" from level "+strconv.Itoa(level)+".")
 		}
 
 		level = newLevel
@@ -421,7 +422,7 @@ analysis:
 			var literal int32
 			for {
 				if decisionID <= 0 {
-					return 0, 0, nil, 0, newSolverBugError("Reached invalid decision id " + strconv.Itoa(decisionID) + " while looking through " + rule.String() + " for a literal present in the analyzed rule " + analyzedRule.String() + ".")
+					return 0, 0, nil, 0, newSolverBugError(phperr.At("Solver.php", 437), "Reached invalid decision id "+strconv.Itoa(decisionID)+" while looking through "+rule.String()+" for a literal present in the analyzed rule "+analyzedRule.String()+".")
 				}
 
 				decisionID--
@@ -482,7 +483,7 @@ analysis:
 	why = len(s.learnedPool) - 1
 
 	if !hasLearnedLiteral {
-		return 0, 0, nil, 0, newSolverBugError("Did not find a learnable literal in analyzed rule " + analyzedRule.String() + ".")
+		return 0, 0, nil, 0, newSolverBugError(phperr.At("Solver.php", 509), "Did not find a learnable literal in analyzed rule "+analyzedRule.String()+".")
 	}
 
 	literals := make([]int32, 0, len(otherLearnedLiterals)+1)

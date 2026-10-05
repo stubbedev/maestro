@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -89,7 +90,7 @@ var advisoryConstraintPrefix = php.MustCompile(`{(^[>=<^~]*[\d.]+).*}`)
 // parse is cut down to its leading version (<=3.20-test2 becoming <=3.20),
 // or matches nothing.
 func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser ConstraintParser) (Advisory, error) {
-	affectedVersions, err := arrayString(data, "affectedVersions", "PartialSecurityAdvisory::create")
+	affectedVersions, err := arrayString(phperr.At("PartialSecurityAdvisory.php", 48), data, "affectedVersions", "PartialSecurityAdvisory::create")
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +110,11 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 		return nil, err
 	}
 
-	advisoryID, err := arrayString(data, "advisoryId", "PartialSecurityAdvisory::__construct")
+	advisoryIDLine := 63 // new self(...); new SecurityAdvisory(...) when the data is complete
+	if issetAll(data, "title", "sources", "reportedAt") {
+		advisoryIDLine = 60
+	}
+	advisoryID, err := arrayString(phperr.At("PartialSecurityAdvisory.php", advisoryIDLine), data, "advisoryId", "PartialSecurityAdvisory::__construct")
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +175,7 @@ type FilterListEntry struct {
 
 // CreateFilterListEntry ports FilterListEntry::create.
 func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintParser) (*FilterListEntry, error) {
-	constraintStr, err := arrayString(data, "constraint", "Composer\\Semver\\VersionParser::parseConstraints")
+	constraintStr, err := arrayString(phperr.At("FilterListEntry.php", 82), data, "constraint", "Composer\\Semver\\VersionParser::parseConstraints")
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +183,7 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 	if err != nil {
 		return nil, err
 	}
-	packageName, err := arrayString(data, "package", "Composer\\FilterList\\FilterListEntry::__construct")
+	packageName, err := arrayString(phperr.At("FilterListEntry.php", 85), data, "package", "Composer\\FilterList\\FilterListEntry::__construct")
 	if err != nil {
 		return nil, err
 	}
@@ -201,13 +206,24 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 	return entry, nil
 }
 
+// issetAll is isset($data[k1], $data[k2], ...).
+func issetAll(data *php.Array, keys ...string) bool {
+	for _, k := range keys {
+		if v, _ := data.Get(k); v == nil {
+			return false
+		}
+	}
+
+	return true
+}
+
 // arrayString reads the string $data[$key] passed to fn: a missing key is
 // PHP's "Undefined array key" warning (an ErrorException under Composer's
 // error handler), another type a TypeError.
-func arrayString(data *php.Array, key, fn string) (string, error) {
+func arrayString(site phperr.Site, data *php.Array, key, fn string) (string, error) {
 	v, ok := data.Get(key)
 	if !ok {
-		return "", &util.ErrorException{Message: `Undefined array key "` + key + `"`}
+		return "", &util.ErrorException{Site: site, Message: `Undefined array key "` + key + `"`}
 	}
 	s, ok := v.(string)
 	if !ok {

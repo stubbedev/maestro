@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // The rule types, highest priority (lowest number) first: RuleSet::TYPE_*.
@@ -49,7 +51,7 @@ func NewRuleSet() *RuleSet { return &RuleSet{byHash: make(map[uint64]*Rule)} }
 func (s *RuleSet) Add(rule *Rule, typ int) error {
 	slot := typeSlot(typ)
 	if slot < 0 {
-		return &OutOfBoundsError{Message: "Unknown rule type: " + strconv.Itoa(typ)}
+		return &OutOfBoundsError{Site: phperr.At("RuleSet.php", 65), Message: "Unknown rule type: " + strconv.Itoa(typ)}
 	}
 
 	hash := rule.hash()

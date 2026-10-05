@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Command is what ProcessExecutor runs: a shell command line or an
@@ -278,7 +279,7 @@ func (p *ProcessExecutor) ExecuteAsync(command Command, cwd string) (*Promise[*P
 	if !p.allowAsync {
 		p.mu.Unlock()
 
-		return nil, &LogicError{Message: `You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`}
+		return nil, &LogicError{Message: `You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`, Site: phperr.At("ProcessExecutor.php", 226)}
 	}
 
 	job := &asyncJob{status: statusQueued, command: command, cwd: cwd, promise: newPromise[*Process]()}
@@ -318,7 +319,7 @@ func (p *ProcessExecutor) settleJob(job *asyncJob, err error) {
 }
 
 // errAbortedProcess is the RuntimeException a cancelled job rejects with.
-var errAbortedProcess = &RuntimeError{Message: "Aborted process"}
+var errAbortedProcess = &RuntimeError{Message: "Aborted process", Site: phperr.At("ProcessExecutor.php", 259)}
 
 // cancelJob ports the promise canceller of executeAsync. A queued job is
 // dropped; React would leave its promise pending, here it is rejected so
@@ -513,6 +514,22 @@ func (p *ProcessExecutor) CountActiveJobs() int {
 	defer p.mu.Unlock()
 
 	return p.countActiveJobs()
+}
+
+// CountQueuedJobs is the number of asynchronous jobs waiting for a slot
+// (they hold no scheduler ticket yet; Loop counts them as active).
+func (p *ProcessExecutor) CountQueuedJobs() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	n := 0
+	for _, job := range p.jobs {
+		if job.status == statusQueued {
+			n++
+		}
+	}
+
+	return n
 }
 
 func (p *ProcessExecutor) countActiveJobs() int {

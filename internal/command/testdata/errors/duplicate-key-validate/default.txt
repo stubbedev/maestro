@@ -1,0 +1,7 @@
+Composer could not detect the root package (acme/app2) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Composer could not detect the root package (acme/app2) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.json is valid, but with a few warnings
+See https://getcomposer.org/doc/04-schema.md for details on the schema
+# General warnings
+- Key name is a duplicate in ./composer.json at line 5
+exit 0

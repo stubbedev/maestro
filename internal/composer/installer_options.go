@@ -7,6 +7,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/installer"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -235,7 +236,7 @@ func (i *Installer) SetUpdateAllowTransitiveDependencies(updateAllowTransitiveDe
 	switch updateAllowTransitiveDependencies {
 	case resolver.UpdateOnlyListed, resolver.UpdateListedWithTransitiveDepsNoRootRequire, resolver.UpdateListedWithTransitiveDeps:
 	default:
-		return nil, &util.RuntimeError{Message: "Invalid value for updateAllowTransitiveDependencies supplied"}
+		return nil, &util.RuntimeError{Site: phperr.At("Installer.php", 1509), Message: "Invalid value for updateAllowTransitiveDependencies supplied"}
 	}
 
 	i.updateAllowTransitiveDependencies = updateAllowTransitiveDependencies

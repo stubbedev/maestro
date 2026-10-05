@@ -1,0 +1,15 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In ShowCommand.php line 321:
+                                                                               
+  [InvalidArgumentException]                                                   
+  Package "nope/nope" not found, try using --available (-a) to show all avail  
+  able packages.                                                               
+                                                                               
+
+Exception trace:
+  at ShowCommand.php:321
+
+show [--all] [--locked] [-i|--installed] [-p|--platform] [-a|--available] [-s|--self] [-N|--name-only] [-P|--path] [-t|--tree] [-l|--latest] [-o|--outdated] [--ignore IGNORE] [-M|--major-only] [-m|--minor-only] [--patch-only] [-A|--sort-by-age] [-D|--direct] [--strict] [-f|--format FORMAT] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<package> [<version>]]
+
+exit 1

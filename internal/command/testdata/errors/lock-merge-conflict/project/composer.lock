@@ -1,0 +1,9 @@
+{
+<<<<<<< HEAD
+    "content-hash": "aaaa",
+=======
+    "content-hash": "bbbb",
+>>>>>>> other
+    "packages": [],
+    "packages-dev": []
+}

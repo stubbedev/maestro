@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -64,7 +65,7 @@ func (d *GitHubDriver) Initialize() error {
 		return err
 	}
 	if m == nil {
-		return &util.InvalidArgumentError{Message: "The GitHub repository URL " + util.SanitizeURL(d.url) + " is invalid."}
+		return &util.InvalidArgumentError{Site: phperr.At("GitHubDriver.php", 66), Message: "The GitHub repository URL " + util.SanitizeURL(d.url) + " is invalid."}
 	}
 
 	d.owner = m.Get(3)
@@ -458,7 +459,7 @@ func (d *GitHubDriver) FileContent(file, identifier string) (string, bool, error
 		return content, true, nil
 	}
 
-	return "", false, &util.RuntimeError{Message: "Could not retrieve " + file + " for " + identifier}
+	return "", false, &util.RuntimeError{Site: phperr.At("GitHubDriver.php", 346), Message: "Could not retrieve " + file + " for " + identifier}
 }
 
 // base64Content is the decoded content of a contents API response: ok is
@@ -643,7 +644,7 @@ func (d *GitHubDriver) getContents(url string, fetchingRepoData bool) (*http.Res
 		}
 
 		if !d.io.IsInteractive() {
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(e); err != nil {
 				return nil, err
 			}
 
@@ -679,7 +680,7 @@ func (d *GitHubDriver) getContents(url string, fetchingRepoData bool) (*http.Res
 		}
 
 		if !d.io.IsInteractive() && fetchingRepoData {
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(e); err != nil {
 				return nil, err
 			}
 
@@ -721,11 +722,12 @@ func (d *GitHubDriver) fetchRootIdentifier() error {
 
 	repoData, err := d.getJSON(d.repoAPIURL(), true)
 	if err != nil {
-		if e, ok := asTransportError(err); !ok || e.Code != 499 {
+		e, ok := asTransportError(err)
+		if !ok || e.Code != 499 {
 			return err
 		}
 
-		if err := d.attemptCloneFallback(); err != nil {
+		if err := d.attemptCloneFallback(e); err != nil {
 			return err
 		}
 	} else {
@@ -758,9 +760,14 @@ func (d *GitHubDriver) fetchRootIdentifier() error {
 
 // attemptCloneFallback ports attemptCloneFallback: switch to a GitDriver
 // on the SSH url.
-func (d *GitHubDriver) attemptCloneFallback() error {
+func (d *GitHubDriver) attemptCloneFallback(previous *util.TransportError) error {
 	if !d.allowGitFallback {
-		return &util.RuntimeError{Message: "Fallback to git driver disabled"}
+		fallbackErr := &util.RuntimeError{Site: phperr.At("GitHubDriver.php", 611), Message: "Fallback to git driver disabled"}
+		if previous != nil {
+			fallbackErr.Prev = previous
+		}
+
+		return fallbackErr
 	}
 
 	d.isPrivate = true
@@ -782,7 +789,7 @@ func (d *GitHubDriver) attemptCloneFallback() error {
 // setupGitDriver ports setupGitDriver.
 func (d *GitHubDriver) setupGitDriver(url string) error {
 	if !d.allowGitFallback {
-		return &util.RuntimeError{Message: "Fallback to git driver disabled"}
+		return &util.RuntimeError{Site: phperr.At("GitHubDriver.php", 635), Message: "Fallback to git driver disabled"}
 	}
 
 	d.gitDriver = NewGitDriver(php.ArrayOf("url", url), d.deps)

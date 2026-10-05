@@ -20,6 +20,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -230,7 +231,7 @@ func (i *Installer) Run() (int, error) {
 	}
 
 	if i.updateAllowList != nil && i.updateMirrors {
-		return 0, &util.RuntimeError{Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
+		return 0, &util.RuntimeError{Site: phperr.At("Installer.php", 271), Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
 	}
 
 	isFreshInstall, err := i.repositoryManager.LocalRepository().IsFresh()

@@ -6,6 +6,7 @@ package installer
 import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -63,7 +64,7 @@ func (m *MetapackageInstaller) Install(repo repository.InstalledRepositoryInterf
 
 // Update is update().
 func (m *MetapackageInstaller) Update(repo repository.InstalledRepositoryInterface, initial, target pkg.PackageInterface) (*Promise, error) {
-	if err := requireInstalled(repo, initial); err != nil {
+	if err := requireInstalled(phperr.At("MetapackageInstaller.php", 98), repo, initial); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +88,7 @@ func (m *MetapackageInstaller) Update(repo repository.InstalledRepositoryInterfa
 
 // Uninstall is uninstall().
 func (m *MetapackageInstaller) Uninstall(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) (*Promise, error) {
-	if err := requireInstalled(repo, p); err != nil {
+	if err := requireInstalled(phperr.At("MetapackageInstaller.php", 115), repo, p); err != nil {
 		return nil, err
 	}
 
@@ -148,7 +149,7 @@ func (*NoopInstaller) Install(repo repository.InstalledRepositoryInterface, p pk
 
 // Update is update().
 func (*NoopInstaller) Update(repo repository.InstalledRepositoryInterface, initial, target pkg.PackageInterface) (*Promise, error) {
-	if err := requireInstalled(repo, initial); err != nil {
+	if err := requireInstalled(phperr.At("NoopInstaller.php", 85), repo, initial); err != nil {
 		return nil, err
 	}
 
@@ -165,7 +166,7 @@ func (*NoopInstaller) Update(repo repository.InstalledRepositoryInterface, initi
 
 // Uninstall is uninstall().
 func (*NoopInstaller) Uninstall(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) (*Promise, error) {
-	if err := requireInstalled(repo, p); err != nil {
+	if err := requireInstalled(phperr.At("NoopInstaller.php", 102), repo, p); err != nil {
 		return nil, err
 	}
 

@@ -20,6 +20,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -176,7 +177,7 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 
 	if v, ok := path(options, "prevent_url_access_callable"); ok {
 		if prevent, ok := callableOption(v); ok && prevent(url) {
-			return util.NewTransportError(`Access to "`+util.SanitizeURL(url)+`" is blocked.`, 400)
+			return transportError(phperr.At("CurlDownloader.php", 189), `Access to "`+util.SanitizeURL(url)+`" is blocked.`, 400)
 		}
 	}
 
@@ -185,7 +186,7 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	if job.hasFile {
 		f, err := os.OpenFile(job.filename+"~", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // fopen(w+b) mode, umask applies
 		if err != nil {
-			return util.NewTransportError(`The "`+util.SanitizeURL(url)+`" file could not be written to `+job.filename+": Failed to open stream: "+util.Strerror(err), 400)
+			return transportError(phperr.At("CurlDownloader.php", 216), `The "`+util.SanitizeURL(url)+`" file could not be written to `+job.filename+": Failed to open stream: "+util.Strerror(err), 400)
 		}
 
 		bodyFile = f
@@ -477,7 +478,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 				return c.restartJobWithDelay(job, job.url, attributes)
 			}
 
-			return util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(info.URL)+": "+result.errMsg, 400)
+			return transportError(phperr.At("CurlDownloader.php", 407), "curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(info.URL)+": "+result.errMsg, 400)
 		}
 
 		status = result.status
@@ -506,7 +507,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 				// be detected during the file download because the downloaded
 				// size counts the gzipped bytes, not the actual file size.
 				if int64(len(contents)) >= maxFileSize {
-					return util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Downloaded " + strconv.Itoa(len(contents)) + " of allowed " + strconv.FormatInt(maxFileSize, 10) + " bytes for " + util.SanitizeURL(job.url))
+					return maxFileSizeError(phperr.At("CurlDownloader.php", 435), "Maximum allowed download size reached. Downloaded "+strconv.Itoa(len(contents))+" of allowed "+strconv.FormatInt(maxFileSize, 10)+" bytes for "+util.SanitizeURL(job.url))
 				}
 			}
 
@@ -589,7 +590,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 		// resolve promise
 		if job.hasFile {
 			if err := os.Rename(job.filename+"~", job.filename); err != nil {
-				return &util.ErrorException{Message: "rename(" + job.filename + "~," + job.filename + "): " + util.Strerror(err)}
+				return &util.ErrorException{Message: "rename(" + job.filename + "~," + job.filename + "): " + util.Strerror(err), Site: phperr.At("CurlDownloader.php", 490)}
 			}
 		}
 
@@ -638,7 +639,7 @@ func (c *CurlDownloader) handleRedirect(job *curlJob, response *Response) (strin
 
 	if targetURL != "" && targetURL != "0" {
 		if !util.IsAllowedRedirect(targetURL) {
-			return "", util.NewTransportError(`Could not follow the redirect to "`+util.SanitizeURL(targetURL)+`" because only http and https redirects are supported.`, 400)
+			return "", transportError(phperr.At("CurlDownloader.php", 574), `Could not follow the redirect to "`+util.SanitizeURL(targetURL)+`" because only http and https redirects are supported.`, 400)
 		}
 
 		c.io.WriteError("Following redirect ("+strconv.Itoa(job.attributes.redirects+1)+") "+util.SanitizeURL(targetURL), true, io.Debug)
@@ -648,7 +649,7 @@ func (c *CurlDownloader) handleRedirect(job *curlJob, response *Response) (strin
 
 	statusMessage, _ := response.StatusMessage()
 
-	return "", util.NewTransportError(`The "`+util.SanitizeURL(job.url)+`" file could not be downloaded, got redirect without Location (`+statusMessage+`)`, 400)
+	return "", transportError(phperr.At("CurlDownloader.php", 582), `The "`+util.SanitizeURL(job.url)+`" file could not be downloaded, got redirect without Location (`+statusMessage+`)`, 400)
 }
 
 // redirectTarget resolves the Location header of response against url as
@@ -793,7 +794,7 @@ func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMes
 		}
 	}
 
-	return util.NewTransportError(`The "`+util.SanitizeURL(job.url)+`" file could not be downloaded (`+errorMessage+`)`+details, response.StatusCode())
+	return transportError(phperr.At("CurlDownloader.php", 686), `The "`+util.SanitizeURL(job.url)+`" file could not be downloaded (`+errorMessage+`)`+details, response.StatusCode())
 }
 
 // rejectJob is rejectJob().

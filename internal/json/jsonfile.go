@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json/jsonschema"
 	"github.com/stubbedev/maestro/internal/json/res"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -48,11 +49,15 @@ type ValidationError struct {
 	Message string
 	Errors  []string
 	Prev    error
+	phperr.Site
 }
 
 func (e *ValidationError) Error() string { return e.Message }
 
 func (e *ValidationError) Unwrap() error { return e.Prev }
+
+// PHPClass implements util.PHPClasser.
+func (*ValidationError) PHPClass() (string, int) { return `Composer\Json\JsonValidationException`, 0 }
 
 // File is Composer\Json\JsonFile.
 type File struct {
@@ -70,7 +75,7 @@ func NewFile(path string, httpDownloader HTTPDownloader, io io.IO) (*File, error
 		if ok, err := httpURL.IsMatch(path); err != nil {
 			return nil, err
 		} else if ok {
-			return nil, &util.InvalidArgumentError{Message: "http urls require a HttpDownloader instance to be passed"}
+			return nil, &util.InvalidArgumentError{Site: phperr.At("JsonFile.php", 70), Message: "http urls require a HttpDownloader instance to be passed"}
 		}
 	}
 
@@ -97,13 +102,17 @@ func (f *File) Read() (any, error) {
 	if f.httpDownloader != nil {
 		body, err := f.httpDownloader.Get(f.path)
 		if err != nil {
-			return nil, &util.RuntimeError{Message: err.Error()}
+			if _, ok := errors.AsType[*util.TransportError](err); ok {
+				return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 116), Message: err.Error(), Prev: err}
+			}
+
+			return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 118), Message: "Could not read " + f.path + "\n\n" + err.Error()}
 		}
 		json = body
 	} else {
 		// the exceptions thrown here are wrapped by read()'s catch
 		if !util.IsReadable(f.path) {
-			return nil, &util.RuntimeError{Message: "Could not read " + f.path + "\n\n" + `The file "` + f.path + `" is not readable.`}
+			return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 118), Message: "Could not read " + f.path + "\n\n" + `The file "` + f.path + `" is not readable.`}
 		}
 		if f.io != nil && f.io.IsDebug() {
 			realpathInfo := ""
@@ -114,7 +123,7 @@ func (f *File) Read() (any, error) {
 		}
 		data, err := os.ReadFile(f.path)
 		if err != nil {
-			return nil, &util.RuntimeError{Message: "Could not read " + f.path}
+			return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 122), Message: "Could not read " + f.path}
 		}
 		json = string(data)
 	}
@@ -138,10 +147,10 @@ func (f *File) Write(hash any, options php.JSONFlag) error {
 	dir := filepath.Dir(f.path)
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 		if err == nil {
-			return &util.UnexpectedValueError{Message: util.Realpath(dir) + " exists and is not a directory."}
+			return &util.UnexpectedValueError{Site: phperr.At("JsonFile.php", 149), Message: util.Realpath(dir) + " exists and is not a directory."}
 		}
 		if os.MkdirAll(dir, 0o777) != nil {
-			return &util.UnexpectedValueError{Message: dir + " does not exist and could not be created."}
+			return &util.UnexpectedValueError{Site: phperr.At("JsonFile.php", 154), Message: dir + " does not exist and could not be created."}
 		}
 	}
 
@@ -172,11 +181,11 @@ func (f *File) write(hash any, options php.JSONFlag) error {
 // *util.UnexpectedValueError or a *util.RuntimeError.
 func (f *File) ValidateSchema(schema int, schemaFile string) error {
 	if !util.IsReadable(f.path) {
-		return &util.RuntimeError{Message: `The file "` + f.path + `" is not readable.`}
+		return &util.RuntimeError{Site: phperr.At("JsonFile.php", 205), Message: `The file "` + f.path + `" is not readable.`}
 	}
 	content, err := os.ReadFile(f.path)
 	if err != nil {
-		return &util.RuntimeError{Message: `The file "` + f.path + `" is not readable.`}
+		return &util.RuntimeError{Site: phperr.At("JsonFile.php", 205), Message: `The file "` + f.path + `" is not readable.`}
 	}
 	data, decodeErr := php.JSONDecode(string(content), false)
 	if data == nil && string(content) != "null" {
@@ -251,7 +260,7 @@ func ValidateJSONSchema(source string, data any, schema int, schemaFile string) 
 		}
 	}
 
-	return &ValidationError{Message: `"` + source + `" does not match the expected JSON schema`, Errors: messages}
+	return &ValidationError{Site: phperr.At("JsonFile.php", 265), Message: `"` + source + `" does not match the expected JSON schema`, Errors: messages}
 }
 
 func refSchema(ref string) *php.Object {
@@ -327,7 +336,7 @@ func encodeError(code int) error {
 		msg = "Unknown error"
 	}
 
-	return &util.RuntimeError{Message: "JSON encoding failed: " + msg}
+	return &util.RuntimeError{Site: phperr.At("JsonFile.php", 327), Message: "JSON encoding failed: " + msg}
 }
 
 var lockMergeConflict = php.MustCompile(`{\r?\n<<<<<<< [^\r\n]+\r?\n\s+"content-hash": *"[0-9a-f]+", *\r?\n(?:\|{7} [^\r\n]+\r?\n\s+"content-hash": *"[0-9a-f]+", *\r?\n)?=======\r?\n\s+"content-hash": *"[0-9a-f]+", *\r?\n>>>>>>> [^\r\n]+(\r?\n)}`)
@@ -368,10 +377,10 @@ func validateSyntax(json, file string, decodeErr error) error {
 		var jsonErr *php.JSONError
 		if errors.As(decodeErr, &jsonErr) && jsonErr.Code == php.JSONErrorUTF8 {
 			if file == "" {
-				return &util.UnexpectedValueError{Message: "The input is not UTF-8, could not parse as JSON"}
+				return &util.UnexpectedValueError{Site: phperr.At("JsonFile.php", 383), Message: "The input is not UTF-8, could not parse as JSON"}
 			}
 
-			return &util.UnexpectedValueError{Message: `"` + file + `" is not UTF-8, could not parse as JSON`}
+			return &util.UnexpectedValueError{Site: phperr.At("JsonFile.php", 385), Message: `"` + file + `" is not UTF-8, could not parse as JSON`}
 		}
 
 		return nil
@@ -382,10 +391,10 @@ func validateSyntax(json, file string, decodeErr error) error {
 		return lintErr
 	}
 	if file == "" {
-		return &jsonlint.ParsingError{Message: "The input does not contain valid JSON\n" + result.Message, Details: result.Details}
+		return &jsonlint.ParsingError{Site: phperr.At("JsonFile.php", 393), Message: "The input does not contain valid JSON\n" + result.Message, Details: result.Details}
 	}
 
-	return &jsonlint.ParsingError{Message: `"` + file + `" does not contain valid JSON` + "\n" + result.Message, Details: result.Details}
+	return &jsonlint.ParsingError{Site: phperr.At("JsonFile.php", 398), Message: `"` + file + `" does not contain valid JSON` + "\n" + result.Message, Details: result.Details}
 }
 
 var indentPrefix = php.MustCompile(`#^([ \t]+)"#m`)

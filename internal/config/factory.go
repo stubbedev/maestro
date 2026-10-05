@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -41,7 +42,7 @@ func HomeDir() (string, error) {
 	if util.IsWindows() {
 		appData, ok := getEnvTruthy("APPDATA")
 		if !ok {
-			return "", &util.RuntimeError{Message: "The APPDATA or COMPOSER_HOME environment variable must be set for composer to run correctly"}
+			return "", &util.RuntimeError{Site: phperr.At("Factory.php", 67), Message: "The APPDATA or COMPOSER_HOME environment variable must be set for composer to run correctly"}
 		}
 
 		return strings.TrimRight(strings.ReplaceAll(appData, `\`, "/"), "/") + "/Composer", nil
@@ -286,7 +287,7 @@ func ComposerFile() (string, error) {
 		env = php.Trim(env)
 		if env != "" {
 			if isDir(env) {
-				return "", &util.RuntimeError{Message: "The COMPOSER environment variable is set to " + env + " which is a directory, this variable should point to a composer.json or be left unset."}
+				return "", &util.RuntimeError{Site: phperr.At("Factory.php", 231), Message: "The COMPOSER environment variable is set to " + env + " which is a directory, this variable should point to a composer.json or be left unset."}
 			}
 
 			return env, nil
@@ -326,7 +327,7 @@ func LoadComposerAuthEnv(config *Config, out io.IO) error {
 
 	authData, _ := php.JSONDecode(composerAuthEnv, false)
 	if authData == nil {
-		return &util.UnexpectedValueError{Message: "COMPOSER_AUTH environment variable is malformed, should be a valid JSON object"}
+		return &util.UnexpectedValueError{Site: phperr.At("Factory.php", 692), Message: "COMPOSER_AUTH environment variable is malformed, should be a valid JSON object"}
 	}
 
 	if out != nil {
@@ -359,7 +360,7 @@ func useXdg() bool {
 func userDir() (string, error) {
 	home, ok := getEnvTruthy("HOME")
 	if !ok {
-		return "", &util.RuntimeError{Message: "The HOME or COMPOSER_HOME environment variable must be set for composer to run correctly"}
+		return "", &util.RuntimeError{Site: phperr.At("Factory.php", 727), Message: "The HOME or COMPOSER_HOME environment variable must be set for composer to run correctly"}
 	}
 
 	return strings.TrimRight(strings.ReplaceAll(home, `\`, "/"), "/"), nil
@@ -378,7 +379,7 @@ func ValidateJSONSchema(out io.IO, fileOrData any, schema int, source string) er
 		err = file.ValidateSchema(schema, "")
 	} else {
 		if source == "" {
-			return &util.InvalidArgumentError{Message: "$source is required to be provided if $fileOrData is arbitrary data"}
+			return &util.InvalidArgumentError{Site: phperr.At("Factory.php", 748), Message: "$source is required to be provided if $fileOrData is arbitrary data"}
 		}
 		err = json.ValidateJSONSchema(source, fileOrData, schema, "")
 	}
@@ -394,5 +395,5 @@ func ValidateJSONSchema(out io.IO, fileOrData any, schema int, source string) er
 		return nil
 	}
 
-	return &util.UnexpectedValueError{Message: msg}
+	return &util.UnexpectedValueError{Site: phperr.At("Factory.php", 757), Message: msg}
 }

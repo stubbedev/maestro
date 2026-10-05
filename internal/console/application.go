@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Application overrides. A type embedding *Application implements any of
@@ -816,6 +817,9 @@ func (a *Application) RenderThrowable(err error, out Output) {
 func throwableInfo(err error) (class, file string, line, code int, prev error) {
 	if t, ok := err.(Throwable); ok { //nolint:errorlint // PHP inspects the exception object itself, not what it wraps.
 		return t.ThrowableClass(), t.ThrowableFile(), t.ThrowableLine(), t.ThrowableCode(), t.ThrowablePrevious()
+	}
+	if site, ok := phperr.SiteOf(err); ok {
+		return "Exception", site.File, site.Line, 0, phperr.PreviousOf(err)
 	}
 
 	return "Exception", "", 0, 0, nil

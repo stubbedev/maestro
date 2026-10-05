@@ -8,28 +8,59 @@ import (
 	"errors"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 )
 
 // RuntimeError is PHP's \RuntimeException.
-type RuntimeError struct{ Message string }
+type RuntimeError struct {
+	Message string
+	// Prev is the $previous exception, rendered after this one (it is
+	// not unwrapped: PHP's catch does not look at it).
+	Prev error
+	phperr.Site
+}
 
 func (e *RuntimeError) Error() string { return e.Message }
 
+// PHPPrevious implements phperr.Chained.
+func (e *RuntimeError) PHPPrevious() error { return e.Prev }
+
 // InvalidArgumentError is PHP's \InvalidArgumentException.
-type InvalidArgumentError struct{ Message string }
+type InvalidArgumentError struct {
+	Message string
+	// Prev is the $previous exception, rendered after this one (it is
+	// not unwrapped: PHP's catch does not look at it).
+	Prev error
+	phperr.Site
+}
 
 func (e *InvalidArgumentError) Error() string { return e.Message }
 
+// PHPPrevious implements phperr.Chained.
+func (e *InvalidArgumentError) PHPPrevious() error { return e.Prev }
+
 // LogicError is PHP's \LogicException.
-type LogicError struct{ Message string }
+type LogicError struct {
+	Message string
+	// Prev is the $previous exception, rendered after this one (it is
+	// not unwrapped: PHP's catch does not look at it).
+	Prev error
+	phperr.Site
+}
 
 func (e *LogicError) Error() string { return e.Message }
+
+// PHPPrevious implements phperr.Chained.
+func (e *LogicError) PHPPrevious() error { return e.Prev }
 
 // ErrorException is the \ErrorException Composer's ErrorHandler turns a PHP
 // warning into, e.g. "copy(a): Failed to open stream: No such file or
 // directory".
-type ErrorException struct{ Message string }
+type ErrorException struct {
+	Message string
+	phperr.Site
+}
 
 func (e *ErrorException) Error() string { return e.Message }
 
@@ -37,17 +68,30 @@ func (e *ErrorException) Error() string { return e.Message }
 type IOError struct {
 	Message string
 	Path    string
+	phperr.Site
 }
 
 func (e *IOError) Error() string { return e.Message }
 
 // UnexpectedValueError is PHP's \UnexpectedValueException.
-type UnexpectedValueError struct{ Message string }
+type UnexpectedValueError struct {
+	Message string
+	// Prev is the $previous exception, rendered after this one (it is
+	// not unwrapped: PHP's catch does not look at it).
+	Prev error
+	phperr.Site
+}
 
 func (e *UnexpectedValueError) Error() string { return e.Message }
 
+// PHPPrevious implements phperr.Chained.
+func (e *UnexpectedValueError) PHPPrevious() error { return e.Prev }
+
 // SecurityError is Composer\Exception\SecurityException.
-type SecurityError struct{ Message string }
+type SecurityError struct {
+	Message string
+	phperr.Site
+}
 
 func (e *SecurityError) Error() string { return e.Message }
 
@@ -98,6 +142,7 @@ func PHPClassOf(err error) (string, int) {
 		logic            *LogicError
 		classer          PHPClasser
 		errExc           *ErrorException
+		engine           *php.EngineError
 	)
 
 	switch {
@@ -117,6 +162,8 @@ func PHPClassOf(err error) (string, int) {
 		return classer.PHPClass()
 	case errors.As(err, &errExc):
 		return "ErrorException", 0
+	case errors.As(err, &engine):
+		return engine.Class, 0
 	}
 
 	return "RuntimeException", 0

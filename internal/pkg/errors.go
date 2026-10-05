@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -14,9 +15,15 @@ import (
 // code receives a value of the wrong type (a malformed package array).
 // PHP appends where the call came from; the message here stops before
 // that part.
-type TypeError struct{ Message string }
+type TypeError struct {
+	Message string
+	phperr.Site
+}
 
 func (e *TypeError) Error() string { return e.Message }
+
+// PHPClass implements util.PHPClasser.
+func (*TypeError) PHPClass() (string, int) { return "TypeError", 0 }
 
 // ArgumentTypeError is the TypeError PHP throws when argument n (named
 // param) of fn receives given where expected was declared:

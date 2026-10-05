@@ -1,0 +1,5 @@
+create-project
+x/foo
+out
+--repository={"type":"path","url":"pkg/foo"}
+--repository={"packagist.org":false}

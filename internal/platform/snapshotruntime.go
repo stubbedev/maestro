@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // SnapshotRuntime is the Runtime of a probed php: it answers every call
@@ -65,13 +66,13 @@ func (r *SnapshotRuntime) GetConstant(constant, class string) (any, error) {
 		return nil, nil
 	}
 
-	return nil, &PHPError{Class: "Error", Message: `Undefined constant "` + name + `"`}
+	return nil, &PHPError{Class: "Error", Message: `Undefined constant "` + name + `"`, Site: constantSite}
 }
 
 func (r *SnapshotRuntime) classConstant(class, constant string) (any, error) {
 	class = strings.TrimPrefix(class, `\`)
 	if !r.HasClass(class) {
-		return nil, &PHPError{Class: "Error", Message: `Class "` + class + `" not found`}
+		return nil, &PHPError{Class: "Error", Message: `Class "` + class + `" not found`, Site: constantSite}
 	}
 
 	for k, v := range r.s.classConstants.All() {
@@ -84,7 +85,7 @@ func (r *SnapshotRuntime) classConstant(class, constant string) (any, error) {
 			return unwrap(c), nil
 		}
 
-		return nil, &PHPError{Class: "Error", Message: "Undefined constant " + k.String() + "::" + constant}
+		return nil, &PHPError{Class: "Error", Message: "Undefined constant " + k.String() + "::" + constant, Site: constantSite}
 	}
 
 	return nil, &NotProbedError{Call: "constant(" + class + "::" + constant + ")"}
@@ -118,21 +119,34 @@ func (r *SnapshotRuntime) Invoke(callable Callable, arguments ...any) (any, erro
 
 	key := php.Strtolower(strings.TrimPrefix(callable.String(), `\`))
 
-	return findCall(r.s.calls, key, arguments, callable.String())
+	return findCall(r.s.calls, key, arguments, callable.String(), phperr.At("Runtime.php", 49))
 }
 
 // Construct implements Runtime.
 func (r *SnapshotRuntime) Construct(class string, arguments ...any) (any, error) {
 	class = strings.TrimPrefix(class, `\`)
+	// new $class (line 72) without arguments, else ReflectionClass (75)
+	// and newInstanceArgs (77).
+	site := phperr.At("Runtime.php", 72)
+	if len(arguments) > 0 {
+		site.Line = 75
+	}
 	if !r.HasClass(class) {
-		return nil, &PHPError{Class: "Error", Message: `Class "` + class + `" not found`}
+		return nil, &PHPError{Class: "Error", Message: `Class "` + class + `" not found`, Site: site}
+	}
+	if len(arguments) > 0 {
+		site.Line = 77
 	}
 
-	return findCall(r.s.calls, "new "+php.Strtolower(class), arguments, "new "+class)
+	return findCall(r.s.calls, "new "+php.Strtolower(class), arguments, "new "+class, site)
 }
 
+// constantSite is Runtime::getConstant's constant() call.
+var constantSite = phperr.At("Runtime.php", 34)
+
 // findCall returns the recorded outcome of the call key(arguments...).
-func findCall(calls []probeCall, key string, arguments []any, display string) (any, error) {
+// A recorded error gets site, where Runtime makes the call, when known.
+func findCall(calls []probeCall, key string, arguments []any, display string, site phperr.Site) (any, error) {
 	for i := range calls {
 		c := &calls[i]
 		if c.callable != key || !sameArguments(c.args, arguments) {
@@ -140,6 +154,13 @@ func findCall(calls []probeCall, key string, arguments []any, display string) (a
 		}
 
 		if c.err != nil {
+			if site.Known() {
+				e := *c.err
+				e.Site = site
+
+				return nil, &e
+			}
+
 			return nil, c.err
 		}
 
@@ -214,7 +235,7 @@ func (r *SnapshotRuntime) GetExtensionVersion(extension string) string {
 func (r *SnapshotRuntime) GetExtensionInfo(extension string) (string, error) {
 	ext, ok := r.extension(extension)
 	if !ok {
-		return "", &PHPError{Class: "ReflectionException", Message: `Extension "` + extension + `" does not exist`}
+		return "", &PHPError{Class: "ReflectionException", Message: `Extension "` + extension + `" does not exist`, Site: phperr.At("Runtime.php", 101)}
 	}
 
 	return ext.Info, nil
@@ -232,7 +253,7 @@ func (o *probedObject) Class() string { return o.class }
 
 // Call returns the recorded outcome of $object->method(...$arguments).
 func (o *probedObject) Call(method string, arguments ...any) (any, error) {
-	return findCall(o.methods, php.Strtolower(method), arguments, o.class+"::"+method)
+	return findCall(o.methods, php.Strtolower(method), arguments, o.class+"::"+method, phperr.Site{})
 }
 
 // Get implements ResourceBundle.
@@ -243,5 +264,5 @@ func (o *probedObject) GetVersion() (any, error) { return o.Call("getVersion") }
 
 // notCallable is the TypeError of Runtime::invoke's callable parameter.
 func notCallable(given string) *PHPError {
-	return &PHPError{Class: "TypeError", Message: `Composer\Platform\Runtime::invoke(): Argument #1 ($callable) must be of type callable, ` + given + " given"}
+	return &PHPError{Class: "TypeError", Message: `Composer\Platform\Runtime::invoke(): Argument #1 ($callable) must be of type callable, ` + given + " given", Site: phperr.At("Runtime.php", 47)}
 }

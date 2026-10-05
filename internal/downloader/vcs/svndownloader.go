@@ -8,6 +8,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -42,7 +43,7 @@ func (d *SvnDownloader) doDownload(_ pkg.PackageInterface, _, url string, _ pkg.
 	if _, found, err := vcsutil.NewSvn(url, d.io, d.config, d.process).BinaryVersion(); err != nil {
 		return err
 	} else if !found {
-		return &util.RuntimeError{Message: "svn was not found in your PATH, skipping source download"}
+		return &util.RuntimeError{Site: phperr.At("SvnDownloader.php", 38), Message: "svn was not found in your PATH, skipping source download"}
 	}
 
 	return nil
@@ -71,7 +72,7 @@ func (d *SvnDownloader) doUpdate(_, target pkg.PackageInterface, path, url strin
 	ref := target.SourceReference().S
 
 	if !d.hasMetadataRepository(path) {
-		return &util.RuntimeError{Message: "The .svn directory is missing from " + path + ", see https://getcomposer.org/commit-deps for more information"}
+		return &util.RuntimeError{Site: phperr.At("SvnDownloader.php", 75), Message: "The .svn directory is missing from " + path + ", see https://getcomposer.org/commit-deps for more information"}
 	}
 
 	binaryVersion, _, err := vcsutil.NewSvn(url, d.io, d.config, d.process).BinaryVersion()
@@ -122,7 +123,7 @@ func (d *SvnDownloader) newSvn(baseURL string) *vcsutil.Svn {
 func (d *SvnDownloader) svnExecute(p pkg.PackageInterface, baseURL string, command []string, url, cwd, path string) error {
 	_, err := d.newSvn(baseURL).Execute(command, url, cwd, path, d.io.IsVerbose())
 	if err != nil && util.IsRuntimeException(err) {
-		return &util.RuntimeError{Message: p.PrettyName() + " could not be downloaded, " + err.Error()}
+		return &util.RuntimeError{Message: p.PrettyName() + " could not be downloaded, " + err.Error(), Site: phperr.At("SvnDownloader.php", 122)}
 	}
 
 	return err
@@ -171,7 +172,7 @@ func (d *SvnDownloader) cleanChanges(p pkg.PackageInterface, path string, update
 		case "y":
 			return d.discardChanges(path)
 		case "n":
-			return &util.RuntimeError{Message: "Update aborted"}
+			return &util.RuntimeError{Site: phperr.At("SvnDownloader.php", 168), Message: "Update aborted"}
 		case "v":
 			d.io.WriteErrorMessages(lines, true, mio.Normal)
 		default:
@@ -211,7 +212,7 @@ func (d *SvnDownloader) commitLogs(fromReference, toReference, path string) (str
 
 	// retrieve the svn base url from the checkout folder
 	var output string
-	if err := d.mustExecute([]string{"svn", "info", "--non-interactive", "--xml", "--", path}, &output, path); err != nil {
+	if err := d.mustExecute(phperr.At("SvnDownloader.php", 198), []string{"svn", "info", "--non-interactive", "--xml", "--", path}, &output, path); err != nil {
 		return "", err
 	}
 
@@ -221,7 +222,7 @@ func (d *SvnDownloader) commitLogs(fromReference, toReference, path string) (str
 	}
 
 	if matches == nil {
-		return "", &util.RuntimeError{Message: "Unable to determine svn url for path " + path}
+		return "", &util.RuntimeError{Site: phperr.At("SvnDownloader.php", 207), Message: "Unable to determine svn url for path " + path}
 	}
 
 	baseURL := matches.Get(1)
@@ -241,7 +242,7 @@ func (d *SvnDownloader) commitLogs(fromReference, toReference, path string) (str
 
 	logs, err := d.newSvn(baseURL).ExecuteLocal(command, path, "", d.io.IsVerbose())
 	if err != nil && util.IsRuntimeException(err) {
-		return "", &util.RuntimeError{Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + err.Error()}
+		return "", &util.RuntimeError{Site: phperr.At("SvnDownloader.php", 223), Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + err.Error()}
 	}
 
 	return logs, err
@@ -254,7 +255,7 @@ func (d *SvnDownloader) discardChanges(path string) error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Message: "Could not reset changes\n\n:" + d.process.GetErrorOutput()}
+		return &util.RuntimeError{Site: phperr.At("SvnDownloader.php", 238), Message: "Could not reset changes\n\n:" + d.process.GetErrorOutput()}
 	}
 
 	return nil

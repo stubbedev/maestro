@@ -12,6 +12,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -146,7 +147,7 @@ func (m *ArchiveManager) PackageFilename(p pkg.CompletePackageInterface) string 
 // fails.
 func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetDir string, fileName pkg.NullString, ignoreFilters bool) (string, error) {
 	if !php.ToBool(format) {
-		return "", &util.InvalidArgumentError{Message: "Format must be specified"}
+		return "", &util.InvalidArgumentError{Site: phperr.At("ArchiveManager.php", 150), Message: "Format must be specified"}
 	}
 
 	// Search for the most appropriate archiver
@@ -163,7 +164,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 	// Checks the format/source type are supported before downloading the
 	// package
 	if usableArchiver == nil {
-		return "", &util.RuntimeError{Message: "No archiver found to support " + format + " format"}
+		return "", &util.RuntimeError{Site: phperr.At("ArchiveManager.php", 164), Message: "No archiver found to support " + format + " format"}
 	}
 
 	filesystem := util.NewFilesystem(nil)

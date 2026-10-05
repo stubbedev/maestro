@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -74,12 +75,12 @@ func FutureReservedListNameError(listName string) string {
 // PolicyConfig::assertCustomListNameAllowed.
 func assertCustomListNameAllowed(listName string) error {
 	if slices.Contains(ReservedNames[:], listName) {
-		return &util.UnexpectedValueError{Message: fmt.Sprintf(
+		return &util.UnexpectedValueError{Site: phperr.At("PolicyConfig.php", 139), Message: fmt.Sprintf(
 			`Invalid custom dependency policy name "%s": this name is reserved for a built-in dependency policy.`, listName)}
 	}
 
 	if msg := FutureReservedListNameError(listName); msg != "" {
-		return &util.UnexpectedValueError{Message: "Invalid custom dependency policy name: " + msg}
+		return &util.UnexpectedValueError{Site: phperr.At("PolicyConfig.php", 147), Message: "Invalid custom dependency policy name: " + msg}
 	}
 
 	return nil
@@ -183,7 +184,7 @@ func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 
 	if auditAbandonedEnv, ok := util.GetEnv("COMPOSER_AUDIT_ABANDONED"); ok {
 		if !slices.Contains(Audits[:], auditAbandonedEnv) {
-			return nil, &util.RuntimeError{Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + auditAbandonedEnv +
+			return nil, &util.RuntimeError{Site: phperr.At("PolicyConfig.php", 234), Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + auditAbandonedEnv +
 				". Expected one of " + strings.Join(Audits[:], ", ") + "."}
 		}
 		abandoned = NewAbandonedPolicyConfig(abandoned.Block, auditAbandonedEnv, abandoned.Ignore)

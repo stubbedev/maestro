@@ -1,0 +1,70 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
+Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
+Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading ./composer.json (@DIR@/p/composer.json)
+[process-timeout] 300
+[use-include-path] false
+[use-parent-dir] prompt
+[preferred-install] dist
+[audit.abandoned] fail
+[policy] true
+[notify-on-install] true
+[github-protocols] [https, ssh]
+[gitlab-protocol] 
+[vendor-dir] vendor (@DIR@/p/vendor)
+[bin-dir] {$vendor-dir}/bin (@DIR@/p/vendor/bin)
+[cache-dir] @DIR@/cache
+[data-dir] @DIR@/home
+[cache-files-dir] {$cache-dir}/files (@DIR@/cache/files)
+[cache-repo-dir] {$cache-dir}/repo (@DIR@/cache/repo)
+[cache-vcs-dir] {$cache-dir}/vcs (@DIR@/cache/vcs)
+[cache-ttl] 15552000
+[cache-files-ttl] 15552000
+[cache-files-maxsize] 300MiB (314572800)
+[cache-read-only] false
+[bin-compat] auto
+[discard-changes] false
+[autoloader-suffix] 
+[sort-packages] false
+[optimize-autoloader] false
+[classmap-authoritative] false
+[apcu-autoloader] false
+[prepend-autoloader] true
+[update-with-minimal-changes] false
+[github-domains] [github.com]
+[bitbucket-expose-hostname] true
+[disable-tls] false
+[secure-http] true
+[cafile] 
+[capath] 
+[github-expose-hostname] true
+[gitlab-domains] [gitlab.com]
+[store-auths] prompt
+[archive-format] tar
+[archive-dir] .
+[htaccess-protect] true
+[use-github-api] true
+[lock] true
+[platform-check] php-only
+[bump-after-update] false
+[allow-missing-requirements] false
+[forgejo-domains] [codeberg.org]
+[source-fallback] false
+[home] @DIR@/home
+exit 0

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -71,8 +72,8 @@ func buildExclusionRegex(dir string, excluded []string) classmap.Matcher {
 	if err != nil {
 		// preg_match() warns about a pattern that does not compile, which
 		// Composer's error handler turns into an exception at the first
-		// match.
-		return errMatcher{&util.ErrorException{Message: "preg_match(): " + err.Error()}}
+		// match (in composer/pcre's Preg::pregMatch).
+		return errMatcher{&util.ErrorException{Message: "preg_match(): " + err.Error(), Site: phperr.At("Preg.php", 430)}}
 	}
 
 	return re

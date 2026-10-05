@@ -1,0 +1,4 @@
+create-project
+nope/nope
+dir
+--repository={"packagist.org":false}

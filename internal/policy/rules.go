@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -34,7 +35,7 @@ func ParseIgnoreIDMap(config *php.Array) (*OrderedMap[*IgnoreIDRule], error) {
 		if k.IsInt() {
 			s, ok := value.(string)
 			if !ok {
-				return nil, &util.UnexpectedValueError{Message: fmt.Sprintf(
+				return nil, &util.UnexpectedValueError{Site: phperr.At("IgnoreIdRule.php", 62), Message: fmt.Sprintf(
 					"Invalid ignore-id entry at index %d: expected an advisory ID string, got %s.",
 					k.Int(), php.TypeName(value))}
 			}
@@ -52,7 +53,7 @@ func ParseIgnoreIDMap(config *php.Array) (*OrderedMap[*IgnoreIDRule], error) {
 		case *php.Array:
 			rules.Set(key, NewIgnoreIDRule(key, reasonOf(v), boolOr(v, "on-block", true), boolOr(v, "on-audit", true)))
 		default:
-			return nil, &util.UnexpectedValueError{Message: fmt.Sprintf(
+			return nil, &util.UnexpectedValueError{Site: phperr.At("IgnoreIdRule.php", 92), Message: fmt.Sprintf(
 				`Invalid ignore-id entry for "%s": value of type %s is not a supported shape.`+
 					" Expected null, a reason string, or a rule object.",
 				key, php.TypeName(value))}
@@ -83,7 +84,7 @@ func ParseIgnoreSeverityMap(config *php.Array) (*OrderedMap[*IgnoreSeverityRule]
 		if k.IsInt() {
 			s, ok := value.(string)
 			if !ok {
-				return nil, &util.UnexpectedValueError{Message: fmt.Sprintf(
+				return nil, &util.UnexpectedValueError{Site: phperr.At("IgnoreSeverityRule.php", 62), Message: fmt.Sprintf(
 					"Invalid ignore-severity entry at index %d: expected a severity string, got %s.",
 					k.Int(), php.TypeName(value))}
 			}
@@ -101,7 +102,7 @@ func ParseIgnoreSeverityMap(config *php.Array) (*OrderedMap[*IgnoreSeverityRule]
 		case *php.Array:
 			rules.Set(key, NewIgnoreSeverityRule(key, reasonOf(v), boolOr(v, "on-block", true), boolOr(v, "on-audit", true)))
 		default:
-			return nil, &util.UnexpectedValueError{Message: fmt.Sprintf(
+			return nil, &util.UnexpectedValueError{Site: phperr.At("IgnoreSeverityRule.php", 92), Message: fmt.Sprintf(
 				`Invalid ignore-severity entry for "%s": value of type %s is not a supported shape.`+
 					" Expected null, a reason string, or a rule object.",
 				key, php.TypeName(value))}
@@ -179,7 +180,7 @@ func ParseIgnoreMap(config *php.Array) (*IgnoreMap, error) {
 				for _, ruleConfig := range arr.All() {
 					ruleArr, ok := ruleConfig.(*php.Array)
 					if !ok {
-						return nil, &util.UnexpectedValueError{Message: fmt.Sprintf(
+						return nil, &util.UnexpectedValueError{Site: phperr.At("IgnorePackageRule.php", 110), Message: fmt.Sprintf(
 							`Invalid ignore rule for "%s": expected an object, got %s.`,
 							key, php.TypeName(ruleConfig))}
 					}
@@ -203,7 +204,7 @@ func ParseIgnoreMap(config *php.Array) (*IgnoreMap, error) {
 			continue
 		}
 
-		return nil, &util.UnexpectedValueError{Message: fmt.Sprintf(
+		return nil, &util.UnexpectedValueError{Site: phperr.At("IgnorePackageRule.php", 127), Message: fmt.Sprintf(
 			`Invalid ignore entry at key "%s": value of type %s is not a supported shape.`+
 				" Expected null, a reason string, a rule object, or a list of rule objects.",
 			key, php.TypeName(value))}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -123,12 +124,12 @@ func BundledCaBundlePath() (string, error) {
 
 	tmp, err := os.CreateTemp("", "openssl-ca-bundle-")
 	if err != nil {
-		return "", &util.RuntimeError{Message: "Could not create a temporary file to store the bundled CA file"}
+		return "", &util.RuntimeError{Message: "Could not create a temporary file to store the bundled CA file", Site: phperr.At("CaBundle.php", 132)}
 	}
 
 	_, werr := tmp.Write(bundledCaCert)
 	if cerr := tmp.Close(); werr != nil || cerr != nil {
-		return "", &util.RuntimeError{Message: "Could not create a temporary file to store the bundled CA file"}
+		return "", &util.RuntimeError{Message: "Could not create a temporary file to store the bundled CA file", Site: phperr.At("CaBundle.php", 132)}
 	}
 
 	return tmp.Name(), nil

@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -157,7 +158,7 @@ var (
 // and *PHPError for PHP's \Error.
 func Parse(input string, flags int) (any, error) {
 	if flags&AllowDuplicateKeysToArray != 0 && flags&AllowDuplicateKeys != 0 {
-		return nil, &util.InvalidArgumentError{Message: "Only one of ALLOW_DUPLICATE_KEYS and ALLOW_DUPLICATE_KEYS_TO_ARRAY can be used, you passed in both."}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("JsonParser.php", 208), Message: "Only one of ALLOW_DUPLICATE_KEYS and ALLOW_DUPLICATE_KEYS_TO_ARRAY can be used, you passed in both."}
 	}
 	if flags&ValidateUTF8Encoding != 0 {
 		if err := ValidateUTF8(input); err != nil {
@@ -166,7 +167,7 @@ func Parse(input string, flags int) (any, error) {
 	}
 
 	if strings.HasPrefix(input, "\xEF\xBB\xBF") {
-		return nil, &ParsingError{Message: "BOM detected, make sure your input does not include a Unicode Byte-Order-Mark"}
+		return nil, &ParsingError{Site: phperr.At("JsonParser.php", 417), Message: "BOM detected, make sure your input does not include a Unicode Byte-Order-Mark"}
 	}
 
 	p := parser{flags: flags, lexer: newLexer(input, flags)}
@@ -293,7 +294,7 @@ func (p *parser) syntaxError(state, symbol, yylineno int, yyloc Location) error 
 		token = name
 	}
 
-	return &ParsingError{Message: b.String(), Details: Details{
+	return &ParsingError{Site: phperr.At("JsonParser.php", 417), Message: b.String(), Details: Details{
 		Kind:     SyntaxDetails,
 		Text:     l.match,
 		Token:    token,
@@ -383,8 +384,9 @@ func isset(a *php.Array, key string) bool {
 	return ok && v != nil
 }
 
-func (p *parser) duplicateKeyError(key string, yylineno int) error {
+func (p *parser) duplicateKeyError(key string, yylineno int, site phperr.Site) error {
 	return &DuplicateKeyError{ParsingError{
+		Site:    site,
 		Message: "Parse error on line " + itoa(yylineno+1) + ":\n" + p.lexer.showPosition() + "\nDuplicate key: " + key,
 		Details: Details{Kind: DuplicateKeyDetails, Line: yylineno + 1, Key: key},
 	}}
@@ -397,7 +399,7 @@ func (p *parser) addArrayMember(a *php.Array, m member, yylineno int) error {
 	case !isset(a, key):
 		a.Set(key, m.value)
 	case p.flags&DetectKeyConflicts != 0:
-		return p.duplicateKeyError(key, yylineno)
+		return p.duplicateKeyError(key, yylineno, phperr.At("JsonParser.php", 496))
 	case p.flags&AllowDuplicateKeys != 0:
 		for n := 1; ; n++ {
 			if duplicateKey := key + "." + itoa(n); !isset(a, duplicateKey) {
@@ -451,7 +453,7 @@ func (p *parser) addObjectMember(o *php.Object, m member, yylineno int) error {
 	case !issetProperty(o, key):
 		return setProperty(o, key, m.value)
 	case p.flags&DetectKeyConflicts != 0:
-		return p.duplicateKeyError(key, yylineno)
+		return p.duplicateKeyError(key, yylineno, phperr.At("JsonParser.php", 524))
 	case p.flags&AllowDuplicateKeys != 0:
 		for n := 1; ; n++ {
 			if duplicateKey := key + "." + itoa(n); !issetProperty(o, duplicateKey) {

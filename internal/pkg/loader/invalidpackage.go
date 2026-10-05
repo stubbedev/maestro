@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // InvalidPackageError ports Composer\Package\Loader\InvalidPackageException.
@@ -13,6 +14,7 @@ type InvalidPackageError struct {
 	errors   []string
 	warnings []string
 	data     *php.Array
+	phperr.Site
 }
 
 // NewInvalidPackageError ports InvalidPackageException::__construct.
@@ -26,6 +28,11 @@ func (e *InvalidPackageError) Error() string {
 	all = append(all, e.warnings...)
 
 	return "Invalid package information: \n" + strings.Join(all, "\n")
+}
+
+// PHPClass implements util.PHPClasser.
+func (*InvalidPackageError) PHPClass() (string, int) {
+	return `Composer\Package\Loader\InvalidPackageException`, 0
 }
 
 // Data ports InvalidPackageException::getData.

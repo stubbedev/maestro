@@ -8,6 +8,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -68,7 +69,7 @@ func (d *GitBitbucketDriver) Initialize() error {
 		return err
 	}
 	if m == nil {
-		return &util.InvalidArgumentError{Message: "The Bitbucket repository URL " + util.SanitizeURL(d.url) + " is invalid. It must be the HTTPS URL of a Bitbucket repository."}
+		return &util.InvalidArgumentError{Site: phperr.At("GitBitbucketDriver.php", 68), Message: "The Bitbucket repository URL " + util.SanitizeURL(d.url) + " is invalid. It must be the HTTPS URL of a Bitbucket repository."}
 	}
 
 	d.owner = m.Get(1)
@@ -442,14 +443,14 @@ func (d *GitBitbucketDriver) RootIdentifier() (string, error) {
 
 	if !ok {
 		if d.fallbackDriver == nil {
-			return "", &util.LogicError{Message: "A fallback driver should be setup if getRepoData returns false"}
+			return "", &util.LogicError{Site: phperr.At("GitBitbucketDriver.php", 486), Message: "A fallback driver should be setup if getRepoData returns false"}
 		}
 
 		return d.fallbackDriver.RootIdentifier()
 	}
 
 	if d.vcsType != "git" {
-		return "", &util.RuntimeError{Message: util.SanitizeURL(d.url) + " does not appear to be a git repository, use " +
+		return "", &util.RuntimeError{Site: phperr.At("GitBitbucketDriver.php", 493), Message: util.SanitizeURL(d.url) + " does not appear to be a git repository, use " +
 			d.cloneHTTPSURL + " but remember that Bitbucket no longer supports the mercurial repositories. " +
 			"https://bitbucket.org/blog/sunsetting-mercurial-support-in-bitbucket"}
 	}

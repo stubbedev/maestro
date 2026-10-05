@@ -30,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -449,7 +450,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				primaryIP.Store(&ip)
 
 				if r.preventIP != nil && r.preventIP(ip) {
-					cancelTransfer(util.NewTransportError(`IP "`+ip+`" is blocked for "`+r.safeURL+`".`, 400))
+					cancelTransfer(transportError(phperr.At("CurlDownloader.php", 536), `IP "`+ip+`" is blocked for "`+r.safeURL+`".`, 400))
 				}
 			}
 		},
@@ -483,7 +484,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	res.headers = responseHeaderLines(resp, r.curlStatusLines)
 
 	if r.maxFileSize > 0 && resp.ContentLength > r.maxFileSize {
-		res.err = util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Content-length header indicates " + strconv.FormatInt(resp.ContentLength, 10) + " bytes. Allowed " + strconv.FormatInt(r.maxFileSize, 10) + " bytes for " + r.safeURL)
+		res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 521), "Maximum allowed download size reached. Content-length header indicates "+strconv.FormatInt(resp.ContentLength, 10)+" bytes. Allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
 
 		return finish()
 	}
@@ -526,7 +527,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 
 		switch {
 		case errors.Is(err, errMaxSize):
-			res.err = util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Downloaded " + strconv.FormatInt(counter.n, 10) + " of allowed " + strconv.FormatInt(r.maxFileSize, 10) + " bytes for " + r.safeURL)
+			res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 526), "Maximum allowed download size reached. Downloaded "+strconv.FormatInt(counter.n, 10)+" of allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
 		case errors.As(err, &wErr):
 			res.errno, res.errMsg = curleWriteError, "Failure writing output to destination"
 		default:
@@ -812,12 +813,11 @@ func curlError(ctx context.Context, err error, host, port string, connected bool
 
 	var opErr *net.OpError
 	if errors.As(err, &opErr) && opErr.Op == "dial" {
-		reason := "Couldn't connect to server"
 		if opErr.Timeout() {
-			return curleOperationTimedout, "Failed to connect to " + host + " port " + port + " after " + ms + " ms: Timeout was reached"
+			return curleOperationTimedout, "Failed to connect to " + hostPort(host, port) + " after " + ms + " ms: Timeout was reached"
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + host + " port " + port + " after " + ms + " ms: " + reason
+		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + " after " + ms + " ms: Could not connect to server"
 	}
 
 	if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
@@ -840,8 +840,19 @@ func curlError(ctx context.Context, err error, host, port string, connected bool
 			return curleGotNothing, "Empty reply from server"
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + host + " port " + port + " after " + ms + " ms: Couldn't connect to server"
+		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + " after " + ms + " ms: Could not connect to server"
 	}
 
 	return curleRecvError, "Failure when receiving data from the peer: " + msg
+}
+
+// hostPort is how libcurl 8.22 (the one PHP links in the reference
+// environment) names the peer in its connect errors: "host:port", an IPv6
+// address in brackets.
+func hostPort(host, port string) string {
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+
+	return host + ":" + port
 }

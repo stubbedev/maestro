@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // VersionParser ports Composer\Semver\VersionParser. It holds no state;
@@ -66,7 +67,7 @@ func NormalizeStability(stability string) (string, error) {
 		return StabilityRC, nil
 	}
 
-	return "", &InvalidArgumentError{Message: "Invalid stability string \"" + stability +
+	return "", &InvalidArgumentError{Site: phperr.At("VersionParser.php", 92), Message: "Invalid stability string \"" + stability +
 		"\", expected one of stable, RC, beta, alpha or dev"}
 }
 
@@ -164,7 +165,7 @@ func (p VersionParser) normalize(version, fullVersion string) (string, error) {
 		extraMessage = " in \"" + fullVersion + "\", the alias source must be an exact version, if it is a branch name you should prefix it with dev-"
 	}
 
-	return "", &UnexpectedValueError{Message: "Invalid version string \"" + origVersion + "\"" + extraMessage}
+	return "", &UnexpectedValueError{Site: phperr.At("VersionParser.php", 191), Message: "Invalid version string \"" + origVersion + "\"" + extraMessage}
 }
 
 // appendModifiers adds the version modifiers of a matched version to the
@@ -325,7 +326,7 @@ func (p VersionParser) parseConstraint(constraint string) ([2]ConstraintInterfac
 	var matches vrCaps
 	if matchTilde(constraint, &matches) {
 		if strings.HasPrefix(constraint, "~>") {
-			return none, 0, &UnexpectedValueError{Message: "Could not parse version constraint " + constraint + ": " +
+			return none, 0, &UnexpectedValueError{Site: phperr.At("VersionParser.php", 346), Message: "Could not parse version constraint " + constraint + ": " +
 				"Invalid operator \"~>\", you probably meant to use the \"~\" operator"}
 		}
 
@@ -472,7 +473,7 @@ func (p VersionParser) parseConstraint(constraint string) ([2]ConstraintInterfac
 		// recover from an invalid constraint like foobar-dev which should be dev-foobar
 		// except if the constraint uses a known operator, in which case it must be a parse error
 		if !strings.HasSuffix(versionString, "-dev") || !matchSimpleDevChars(versionString) {
-			return none, 0, &UnexpectedValueError{Message: "Could not parse version constraint " + constraint + ": " + err.Error()}
+			return none, 0, &UnexpectedValueError{Site: phperr.At("VersionParser.php", 526), Message: "Could not parse version constraint " + constraint + ": " + err.Error()}
 		}
 		version, _ = p.Normalize("dev-" + versionString[:len(versionString)-4])
 	}

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -86,11 +87,11 @@ func validatePackage(p pkg.PackageInterface) error {
 		return nil
 	}
 	if p.TargetDir().Valid {
-		return &util.InvalidArgumentError{Message: "PSR-4 autoloading is incompatible with the target-dir property, remove the target-dir in package '" + p.Name() + "'."}
+		return &util.InvalidArgumentError{Site: phperr.At("AutoloadGenerator.php", 559), Message: "PSR-4 autoloading is incompatible with the target-dir property, remove the target-dir in package '" + p.Name() + "'."}
 	}
 	rules, ok := psr4.(*php.Array)
 	if !ok {
-		return foreachError(psr4)
+		return foreachError(psr4, phperr.At("AutoloadGenerator.php", 562))
 	}
 	for k := range rules.All() {
 		if k.IsInt() {
@@ -98,7 +99,7 @@ func validatePackage(p pkg.PackageInterface) error {
 		}
 		namespace := k.String()
 		if namespace != "" && namespace[len(namespace)-1] != '\\' {
-			return &util.InvalidArgumentError{Message: "psr-4 namespaces must end with a namespace separator, '" + namespace + "' does not, use '" + namespace + "\\'."}
+			return &util.InvalidArgumentError{Site: phperr.At("AutoloadGenerator.php", 564), Message: "psr-4 namespaces must end with a namespace separator, '" + namespace + "' does not, use '" + namespace + "\\'."}
 		}
 	}
 
@@ -423,7 +424,7 @@ func typeError(fn, given string) error {
 }
 
 // foreachError is the warning (an ErrorException under Composer's error
-// handler) foreach emits for a value that is not iterable.
-func foreachError(v any) error {
-	return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.TypeName(v) + " given"}
+// handler) foreach emits for a value that is not iterable, at site.
+func foreachError(v any, site phperr.Site) error {
+	return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.TypeName(v) + " given", Site: site}
 }

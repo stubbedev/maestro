@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -74,7 +75,7 @@ func initOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php
 		if proxyOptions := proxy.ContextOptions(); proxyOptions != nil {
 			isHTTPSRequest := strings.HasPrefix(url, "https://")
 			if proxy.IsSecure() && isHTTPSRequest {
-				return nil, util.NewTransportError("You must enable the curl extension to make https requests through a secure proxy.", 400)
+				return nil, transportError(phperr.At("StreamContextFactory.php", 89), "You must enable the curl extension to make https requests through a secure proxy.", 400)
 			}
 
 			proxyOptions = proxyOptions.Clone()
@@ -222,14 +223,14 @@ func GetTLSDefaults(options *php.Array, logger Logger) (*php.Array, error) {
 	if hasCafile {
 		cafile, _ := optionString(ssl, "cafile")
 		if !util.IsReadable(cafile) || !ValidateCaFile(cafile, logger) {
-			return nil, util.NewTransportError("The configured cafile was not valid or could not be read.", 400)
+			return nil, transportError(phperr.At("StreamContextFactory.php", 229), "The configured cafile was not valid or could not be read.", 400)
 		}
 	}
 
 	if hasCapath {
 		capath, _ := optionString(ssl, "capath")
 		if !isDir(capath) || !util.IsReadable(capath) {
-			return nil, util.NewTransportError("The configured capath was not valid or could not be read.", 400)
+			return nil, transportError(phperr.At("StreamContextFactory.php", 233), "The configured capath was not valid or could not be read.", 400)
 		}
 	}
 

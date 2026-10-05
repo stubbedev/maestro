@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive"
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
@@ -324,7 +325,7 @@ func (a *ArchiveDownloader) renameRecursively(p pkg.PackageInterface, from, to s
 
 		if isDir(target) {
 			if !isDir(file) {
-				return &util.RuntimeError{Message: "Installing " + p.String() + " would lead to overwriting the " + target + " directory with a file from the package, invalid operation."}
+				return &util.RuntimeError{Site: phperr.At("ArchiveDownloader.php", 150), Message: "Installing " + p.String() + " would lead to overwriting the " + target + " directory with a file from the package, invalid operation."}
 			}
 
 			if err := a.renameRecursively(p, file, target); err != nil {
@@ -426,7 +427,7 @@ func (d *FileDownloader) fromStore(st *dlState, rel *store.Release, url dlURL, c
 	dir := d.randomDir()
 	d.addCleanupPath(p, dir)
 
-	materialized := util.Go(d.process.Scheduler(), func() (string, error) {
+	materialized := util.GoBackground(d.process.Scheduler(), func() (string, error) {
 		return "", d.store.Materialize(rel, dir)
 	})
 
@@ -477,7 +478,7 @@ func (d *FileDownloader) stage(p pkg.PackageInterface, fileName string) *staged 
 func (d *FileDownloader) stageAsync(p pkg.PackageInterface, fileName string) *Promise {
 	s := d.newStaged(p)
 
-	extracted := util.Go(d.process.Scheduler(), func() (string, error) {
+	extracted := util.GoBackground(d.process.Scheduler(), func() (string, error) {
 		return fileName, d.extractToStore(p, fileName, s.dir)
 	})
 

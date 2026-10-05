@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -132,7 +133,7 @@ func (b *basePackage) ID() int { return b.id }
 // most one repository.
 func (b *basePackage) SetRepository(repository Repository) error {
 	if b.repository != nil && repository != b.repository {
-		return &util.LogicError{Message: "Package \"" + b.prettyName + "\" cannot be added to repository \"" +
+		return &util.LogicError{Site: phperr.At("BasePackage.php", 144), Message: "Package \"" + b.prettyName + "\" cannot be added to repository \"" +
 			repository.RepoName() + "\" as it is already in repository \"" + b.repository.RepoName() + "\"."}
 	}
 
@@ -234,7 +235,7 @@ func fullPrettyVersion(p PackageInterface, truncate bool, displayMode DisplayMod
 	case DisplayDistRef:
 		reference = p.DistReference()
 	default:
-		panic(&util.UnexpectedValueError{Message: "Display mode " + php.ToString(int64(displayMode)) + " is not supported"})
+		panic(&util.UnexpectedValueError{Site: phperr.At("BasePackage.php", 233), Message: "Display mode " + php.ToString(int64(displayMode)) + " is not supported"})
 	}
 
 	if !reference.Valid {

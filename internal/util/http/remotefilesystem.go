@@ -30,6 +30,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -226,11 +227,11 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	origFileURL := fileURL
 
 	if _, ok := path(options, "prevent_ip_access_callable"); ok {
-		return "", false, &util.RuntimeError{Message: "RemoteFilesystem doesn't support the 'prevent_ip_access_callable' config."}
+		return "", false, &util.RuntimeError{Message: "RemoteFilesystem doesn't support the 'prevent_ip_access_callable' config.", Site: phperr.At("RemoteFilesystem.php", 250)}
 	}
 
 	if _, ok := path(options, "prevent_url_access_callable"); ok {
-		return "", false, &util.RuntimeError{Message: "RemoteFilesystem doesn't support the 'prevent_url_access_callable' config."}
+		return "", false, &util.RuntimeError{Message: "RemoteFilesystem doesn't support the 'prevent_url_access_callable' config.", Site: phperr.At("RemoteFilesystem.php", 254)}
 	}
 
 	if token, ok := optionString(options, "gitlab-token"); ok {
@@ -337,7 +338,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 			// alas, this is not possible via the stream callback because
 			// STREAM_NOTIFY_COMPLETED is documented, but not implemented
 			// anywhere in PHP
-			e := util.NewTransportError("Content-Length mismatch, received "+strconv.Itoa(len(result))+" bytes out of the expected "+contentLength+" for "+util.SanitizeURL(fileURL), 400)
+			e := transportError(phperr.At("RemoteFilesystem.php", 323), "Content-Length mismatch, received "+strconv.Itoa(len(result))+" bytes out of the expected "+contentLength+" for "+util.SanitizeURL(fileURL), 400)
 			e.Headers = headers
 			e.StatusCode, _ = FindStatusCode(headers)
 
@@ -448,7 +449,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 				r.io.OverwriteError("Downloading (<error>failed</error>)", false, -1, mio.Normal)
 			}
 
-			e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded (`+headers[0]+`)`, statusCode)
+			e := transportError(phperr.At("RemoteFilesystem.php", 412), `The "`+r.fileURL+`" file could not be downloaded (`+headers[0]+`)`, statusCode)
 			e.Headers = headers
 
 			decoded, decodedOK, derr := r.decodeResult(result, resultOK, headers)
@@ -501,11 +502,11 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	// handle copy command if download was successful
 	if resultOK && hasFileName && !isRedirect {
 		if result == "" {
-			return "", false, util.NewTransportError(`"`+r.fileURL+`" appears broken, and returned an empty 200 response`, 400)
+			return "", false, transportError(phperr.At("RemoteFilesystem.php", 448), `"`+r.fileURL+`" appears broken, and returned an empty 200 response`, 400)
 		}
 
 		if err := os.WriteFile(fileName, []byte(result), 0o666); err != nil {
-			return "", false, util.NewTransportError(`The "`+r.fileURL+`" file could not be written to `+fileName+": Failed to open stream: "+util.Strerror(err), 400)
+			return "", false, transportError(phperr.At("RemoteFilesystem.php", 463), `The "`+r.fileURL+`" file could not be written to `+fileName+": Failed to open stream: "+util.Strerror(err), 400)
 		}
 
 		result = "1"
@@ -531,7 +532,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	}
 
 	if !resultOK {
-		e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded: `+errorMessage, 0)
+		e := transportError(phperr.At("RemoteFilesystem.php", 481), `The "`+r.fileURL+`" file could not be downloaded: `+errorMessage, 0)
 		if len(headers) > 0 && headers[0] != "" {
 			e.Headers = headers
 		}
@@ -581,7 +582,7 @@ func (r *RemoteFilesystem) CallbackGet(notificationCode, _ int, message string, 
 			// This might happen if your host is secured by ssl client
 			// certificate authentication but you do not send an
 			// appropriate certificate
-			return util.NewTransportError("The '"+r.fileURL+"' URL could not be accessed: "+message, messageCode)
+			return transportError(phperr.At("RemoteFilesystem.php", 579), "The '"+r.fileURL+"' URL could not be accessed: "+message, messageCode)
 		}
 	case StreamNotifyFileSizeIs:
 		r.bytesMax = bytesMax
@@ -613,7 +614,7 @@ func (r *RemoteFilesystem) promptAuthAndRetry(httpStatus int, reason string, hea
 	r.retry = result.Retry
 
 	if r.retry {
-		return util.NewTransportError("RETRY", 400)
+		return transportError(phperr.At("RemoteFilesystem.php", 617), "RETRY", 400)
 	}
 
 	return nil
@@ -687,7 +688,7 @@ func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOp
 
 	if php.ToBool(targetURL) {
 		if !util.IsAllowedRedirect(targetURL) {
-			return "", false, util.NewTransportError(`Could not follow the redirect to "`+util.SanitizeURL(targetURL)+`" because only http and https redirects are supported.`, 400)
+			return "", false, transportError(phperr.At("RemoteFilesystem.php", 688), `Could not follow the redirect to "`+util.SanitizeURL(targetURL)+`" because only http and https redirects are supported.`, 400)
 		}
 
 		r.redirects++
@@ -701,7 +702,7 @@ func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOp
 	}
 
 	if !r.retry {
-		e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded, got redirect without Location (`+responseHeaders[0]+`)`, 400)
+		e := transportError(phperr.At("RemoteFilesystem.php", 702), `The "`+r.fileURL+`" file could not be downloaded, got redirect without Location (`+responseHeaders[0]+`)`, 400)
 		e.Headers = responseHeaders
 
 		decoded, decodedOK, err := r.decodeResult(result, resultOK, responseHeaders)
@@ -730,7 +731,7 @@ func (r *RemoteFilesystem) decodeResult(result string, ok bool, responseHeaders 
 		if found && php.ToBool(contentEncoding) && strings.ToLower(contentEncoding) == "gzip" {
 			decoded, err := zlibDecode([]byte(result))
 			if err != nil {
-				return "", false, util.NewTransportError("Failed to decode zlib stream", 400)
+				return "", false, transportError(phperr.At("RemoteFilesystem.php", 727), "Failed to decode zlib stream", 400)
 			}
 
 			return string(decoded), true, nil
@@ -792,7 +793,7 @@ func (r *RemoteFilesystem) remoteContents(_, fileURL string, ctx *php.Array, max
 	out.result, out.ok = string(data), true
 
 	if maxFileSize >= 0 && int64(len(data)) >= maxFileSize {
-		return out, util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Downloaded " + strconv.Itoa(len(data)) + " of allowed " + strconv.FormatInt(maxFileSize, 10) + " bytes for " + util.SanitizeURL(fileURL))
+		return out, maxFileSizeError(phperr.At("RemoteFilesystem.php", 540), "Maximum allowed download size reached. Downloaded "+strconv.Itoa(len(data))+" of allowed "+strconv.FormatInt(maxFileSize, 10)+" bytes for "+util.SanitizeURL(fileURL))
 	}
 
 	return out, nil
@@ -892,7 +893,7 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 	}
 
 	if maxFileSize >= 0 && int64(len(res.body)) >= maxFileSize {
-		return out, util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Downloaded " + strconv.Itoa(len(res.body)) + " of allowed " + strconv.FormatInt(maxFileSize, 10) + " bytes for " + util.SanitizeURL(fileURL))
+		return out, maxFileSizeError(phperr.At("RemoteFilesystem.php", 540), "Maximum allowed download size reached. Downloaded "+strconv.Itoa(len(res.body))+" of allowed "+strconv.FormatInt(maxFileSize, 10)+" bytes for "+util.SanitizeURL(fileURL))
 	}
 
 	return out, nil

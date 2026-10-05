@@ -19,11 +19,13 @@
 // code, unrendered.
 //
 // Divergences:
-//   - Exceptions are rendered as Symfony does from their PHP class and throw
-//     site. Errors raised here carry Composer's file and line (Error);
-//     JSON parse and schema errors get theirs from knownThrowSite; other
-//     errors of lower packages that do not implement console.Throwable
-//     render as "In n/a line n/a:" (the message box is identical).
+//   - Exceptions are rendered as Symfony does from their PHP class, throw
+//     site and previous exceptions. Errors raised here carry Composer's file
+//     and line (Error); those of lower packages carry theirs in an embedded
+//     phperr.Site (internal/phperr), their previous exception through
+//     phperr.Chained and their class through util.PHPClassOf. An error
+//     without a site renders "In n/a line n/a:". The -v "Exception trace:"
+//     lists only the throw site, not PHP's call stack.
 //   - --profile reports Go's memory statistics and timing.
 //   - The xdebug and PHP version warnings follow the PHP Composer would run
 //     on (internal/platform's ComposerView); there are no dev-build warnings.

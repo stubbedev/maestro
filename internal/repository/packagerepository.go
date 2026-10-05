@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
@@ -89,7 +90,7 @@ func (r *PackageRepository) initialize() error {
 		if err != nil {
 			encoded, _ := php.JSONEncode(definition, 0)
 
-			return &InvalidRepositoryError{Message: "A repository of type \"package\" contains an invalid package definition: " + err.Error() + "\n\nInvalid package definition:\n" + encoded}
+			return &InvalidRepositoryError{Site: phperr.At("PackageRepository.php", 70), Message: "A repository of type \"package\" contains an invalid package definition: " + err.Error() + "\n\nInvalid package definition:\n" + encoded}
 		}
 
 		if err := r.hooks.addPackage(p); err != nil {
@@ -132,7 +133,7 @@ func (r *PackageRepository) SecurityAdvisories(packageConstraintMap *ConstraintM
 				return AdvisoryResult{}, err
 			}
 			if _, full := advisory.(*SecurityAdvisory); !allowPartial && !full {
-				return AdvisoryResult{}, &util.RuntimeError{Message: "Advisory for " + packageName + " could not be loaded as a full advisory from " + r.RepoName() + "\n" + php.VarExport(advisoryData)}
+				return AdvisoryResult{}, &util.RuntimeError{Site: phperr.At("PackageRepository.php", 97), Message: "Advisory for " + packageName + " could not be loaded as a full advisory from " + r.RepoName() + "\n" + php.VarExport(advisoryData)}
 			}
 
 			if advisory.Partial().AffectedVersions.Matches(constraint) {
@@ -160,7 +161,7 @@ func (r *PackageRepository) Filter(packageConstraintMap *ConstraintMap, _ []stri
 		listName := key.String()
 		entries, ok := listEntries.(*php.Array)
 		if !ok {
-			return nil, &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.TypeName(listEntries) + " given"}
+			return nil, &util.ErrorException{Site: phperr.At("PackageRepository.php", 123), Message: "foreach() argument must be of type array|object, " + php.TypeName(listEntries) + " given"}
 		}
 		for _, data := range entries.All() {
 			entryData, ok := data.(*php.Array)

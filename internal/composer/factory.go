@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -216,7 +217,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 				instructions = "To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage"
 			}
 
-			return nil, nil, &util.InvalidArgumentError{Message: message + "\n" + instructions}
+			return nil, nil, &util.InvalidArgumentError{Site: phperr.At("Factory.php", 308), Message: message + "\n" + instructions}
 		}
 
 		if !util.IsInputCompletionProcess() {
@@ -228,7 +229,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 				errs := " - " + strings.Join(ve.Errors, "\n - ")
 
-				return nil, nil, &json.ValidationError{Message: ve.Message + ":\n" + errs}
+				return nil, nil, &json.ValidationError{Site: phperr.At("Factory.php", 317), Message: ve.Message + ":\n" + errs}
 			}
 		}
 
@@ -597,7 +598,8 @@ func (f *Factory) addLocalRepository(out io.IO, rm *repository.RepositoryManager
 	sink := rt.installedVersionsSink
 	rt.mu.Unlock()
 	if sink != nil {
-		repo.SetInstalledVersionsSink(sink)
+		repoDir := util.Dirname(file.Path())
+		repo.SetInstalledVersionsSink(func(versions *php.Array) { sink(versions, repoDir) })
 	}
 	rm.SetLocalRepository(repo)
 
@@ -724,11 +726,37 @@ func (f *Factory) CreateArchiveManager(_ *config.Config, dm *downloader.Download
 }
 
 func (f *Factory) createPluginManager(out io.IO, c *Composer, globalComposer *PartialComposer, disablePlugins DisablePlugins) (PluginManager, error) {
+	if err := readLockForAllowPlugins(c); err != nil {
+		return nil, err
+	}
 	if f.CreatePluginManagerFunc != nil {
 		return f.CreatePluginManagerFunc(out, c, globalComposer, disablePlugins)
 	}
 
 	return NewNoPluginManager(disablePlugins), nil
+}
+
+// readLockForAllowPlugins is the part of PluginManager::__construct every
+// plugin manager shares: parseAllowedPlugins(allow-plugins, $locker) reads
+// the lock file (Locker::isLocked, which prints "Reading ./composer.lock" at
+// -vvv and fails on a broken lock file) when allow-plugins is []. The
+// Locker caches what it read, so a plugin manager doing the same reads
+// nothing twice.
+func readLockForAllowPlugins(c *Composer) error {
+	allow, err := c.Config().Get("allow-plugins", 0)
+	if err != nil {
+		return err
+	}
+	if a, ok := allow.(*php.Array); !ok || a.Len() != 0 || c.Locker() == nil {
+		return nil
+	}
+	locked, err := c.Locker().IsLocked()
+	if err != nil || !locked {
+		return err
+	}
+	_, err = c.Locker().PluginAPI()
+
+	return err
 }
 
 func (f *Factory) createInstallationManager(loop *http.Loop, out io.IO, dispatcher *eventdispatcher.EventDispatcher) (InstallationManager, error) {

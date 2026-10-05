@@ -9,6 +9,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -110,7 +111,7 @@ func (m *DownloadManager) Downloader(typ string) (Downloader, error) {
 
 	d, ok := m.downloaders[typ]
 	if !ok {
-		return nil, &util.InvalidArgumentError{Message: fmt.Sprintf("Unknown downloader type: %s. Available types: %s.", typ, strings.Join(m.types, ", "))}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("DownloadManager.php", 136), Message: fmt.Sprintf("Unknown downloader type: %s. Available types: %s.", typ, strings.Join(m.types, ", "))}
 	}
 
 	return d, nil
@@ -136,7 +137,7 @@ func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Download
 	case installationSource.Valid && installationSource.S == "source":
 		d, err = m.Downloader(p.SourceType().S)
 	default:
-		return nil, &util.InvalidArgumentError{Message: "Package " + p.String() + " does not have an installation source set"}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("DownloadManager.php", 163), Message: "Package " + p.String() + " does not have an installation source set"}
 	}
 
 	if err != nil {
@@ -144,7 +145,7 @@ func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Download
 	}
 
 	if installationSource.S != d.InstallationSource() {
-		return nil, &util.LogicError{Message: fmt.Sprintf("Downloader \"%s\" is a %s type downloader and can not be used to download %s for package %s",
+		return nil, &util.LogicError{Site: phperr.At("DownloadManager.php", 169), Message: fmt.Sprintf("Downloader \"%s\" is a %s type downloader and can not be used to download %s for package %s",
 			className(d), d.InstallationSource(), installationSource.S, p.String())}
 	}
 
@@ -424,7 +425,7 @@ func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]stri
 	}
 
 	if len(sources) == 0 {
-		return nil, &util.InvalidArgumentError{Message: "Package " + p.String() + " must have a source or dist specified"}
+		return nil, &util.InvalidArgumentError{Site: phperr.At("DownloadManager.php", 452), Message: "Package " + p.String() + " must have a source or dist specified"}
 	}
 
 	if prev != nil {

@@ -7,6 +7,7 @@ package downloader
 import (
 	"errors"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -15,6 +16,7 @@ type FilesystemError struct {
 	Message  string
 	Code     int
 	Previous error
+	phperr.Site
 }
 
 // NewFilesystemError is new FilesystemException($message, $code,
@@ -32,6 +34,9 @@ func (e *FilesystemError) PHPClass() (string, int) {
 
 // Unwrap returns the previous exception.
 func (e *FilesystemError) Unwrap() error { return e.Previous }
+
+// PHPPrevious implements phperr.Chained.
+func (e *FilesystemError) PHPPrevious() error { return e.Previous }
 
 // isIrrecoverable is $e instanceof IrrecoverableDownloadException.
 func isIrrecoverable(err error) bool {

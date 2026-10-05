@@ -6,6 +6,8 @@ import (
 	"iter"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // ClassMap is the result of a scan: class names mapped to the file they
@@ -165,7 +167,7 @@ func (m *ClassMap) ClassPath(className string) (string, error) {
 		return m.paths[i], nil
 	}
 
-	return "", newException(classOutOfBounds, "Class "+className+" is not present in the map")
+	return "", newException(phperr.At("ClassMap.php", 134), classOutOfBounds, "Class "+className+" is not present in the map")
 }
 
 // HasClass reports whether className is mapped.

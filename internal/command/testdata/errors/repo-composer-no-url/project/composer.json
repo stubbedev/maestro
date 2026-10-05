@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "composer"
+        },
+        {
+            "packagist.org": false
+        }
+    ]
+}

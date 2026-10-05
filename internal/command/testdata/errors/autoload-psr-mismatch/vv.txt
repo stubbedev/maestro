@@ -1,0 +1,5 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Generating optimized autoload files
+Class Wrong\Foo located in ./src/Foo.php does not comply with psr-4 autoloading standard (rule: Acme\ => ./src). Skipping.
+Generated optimized autoload files containing 1 classes
+exit 0

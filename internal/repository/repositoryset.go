@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -66,7 +67,7 @@ type RepositorySet struct {
 func NewRepositorySet(minimumStability string, stabilityFlags *php.Array, rootAliases []RootAlias, rootReferences *php.Array, rootRequires, temporaryConstraints *ConstraintMap) (*RepositorySet, error) {
 	minimum, ok := pkg.StabilityValue(minimumStability)
 	if !ok {
-		return nil, &util.ErrorException{Message: `Undefined array key "` + minimumStability + `"`}
+		return nil, &util.ErrorException{Site: phperr.At("RepositorySet.php", 119), Message: `Undefined array key "` + minimumStability + `"`}
 	}
 	s := &RepositorySet{
 		rootAliases:           RootAliasesPerPackage(rootAliases),
@@ -156,7 +157,7 @@ func (s *RepositorySet) LockForPool() error {
 			installed = true
 		}
 		if installed && !s.allowInstalledRepositories {
-			return &util.LogicError{Message: "The pool can not accept packages from an installed repository"}
+			return &util.LogicError{Site: phperr.At("RepositorySet.php", 345), Message: "The pool can not accept packages from an installed repository"}
 		}
 	}
 
@@ -170,7 +171,7 @@ func (s *RepositorySet) LockForPool() error {
 // repositories.
 func (s *RepositorySet) AddRepository(repo RepositoryInterface) error {
 	if s.locked {
-		return &util.RuntimeError{Message: "Pool has already been created from this repository set, it cannot be modified anymore."}
+		return &util.RuntimeError{Site: phperr.At("RepositorySet.php", 167), Message: "Pool has already been created from this repository set, it cannot be modified anymore."}
 	}
 
 	if composite, ok := AsComposite(repo); ok {

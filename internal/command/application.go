@@ -746,7 +746,7 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) {
 	cio := a.io
 
 	class := phpClass(exception)
-	if class == ClassLogic && out.Verbosity() < console.VerbosityVerbose {
+	if (class == ClassLogic || isPHPError(class)) && out.Verbosity() < console.VerbosityVerbose {
 		out.SetVerbosity(console.VerbosityVerbose)
 	}
 
