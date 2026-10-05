@@ -1,14 +1,8 @@
 package loader
 
-import (
-	"time"
-
-	"github.com/stubbedev/maestro/internal/php"
-)
+import "github.com/stubbedev/maestro/internal/php"
 
 // Test hooks for the external tests.
-
-func ParseDateTime(s string) (time.Time, error) { return parseDateTime(s) }
 
 func FilterEmail(v any) bool { return filterEmail(v) }
 
