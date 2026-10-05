@@ -78,6 +78,10 @@ func NewApplication(name, version string) *Application {
 // SetImpl registers the type embedding a, whose overrides a calls.
 func (a *Application) SetImpl(impl any) { a.self = impl }
 
+// Impl returns the type registered with SetImpl (nil if none): what PHP's
+// $command->getApplication() returns when the application is a subclass.
+func (a *Application) Impl() any { return a.self }
+
 // Run runs the application. Errors are rendered and turned into an exit code
 // unless SetCatchExceptions(false) was called; with auto-exit enabled (the
 // default) the process exits with the code.

@@ -1,0 +1,49 @@
+Description:
+  Manages repositories
+
+Usage:
+  repository [options] [--] [<action> [<name> [<arg1> [<arg2>]]]]
+  repo
+
+Arguments:
+  action                         Action to perform: list, add, remove, set-url, get-url, enable, disable [default: "list"]
+  name                           Repository name (or special name packagist.org for enable/disable)
+  arg1                           Type for add, or new URL for set-url, or JSON config for add
+  arg2                           URL for add (if not using JSON)
+
+Options:
+  -g, --global                   Apply command to the global config file
+  -f, --file=FILE                If you want to choose a different composer.json or config.json
+      --append                   When adding a repository, append it (lower priority) instead of prepending it
+      --before=BEFORE            When adding a repository, insert it before the given repository name
+      --after=AFTER              When adding a repository, insert it after the given repository name
+  -h, --help                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                    Do not output any message
+  -V, --version                  Display this application version
+      --ansi|--no-ansi           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction           Do not ask any interactive question
+      --profile                  Display timing and memory usage information
+      --no-plugins               Whether to disable plugins.
+      --no-scripts               Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR  If specified, use the given directory as working directory.
+      --no-cache                 Prevent use of the cache
+  -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  This command lets you manage repositories in your composer.json.
+  
+  Examples:
+    composer repo list
+    composer repo add foo vcs https://github.com/acme/foo
+    composer repo add bar composer https://repo.packagist.com/bar
+    composer repo add zips '{"type":"artifact","url":"/path/to/dir/with/zips"}'
+    composer repo add baz vcs https://example.org --before foo
+    composer repo add qux vcs https://example.org --after bar
+    composer repo remove foo
+    composer repo set-url foo https://git.example.org/acme/foo
+    composer repo get-url foo
+    composer repo disable packagist.org
+    composer repo enable packagist.org
+  
+  Use --global/-g to alter the global config.json instead.
+  Use --file to alter a specific file.

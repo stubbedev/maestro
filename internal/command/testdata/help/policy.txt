@@ -1,0 +1,42 @@
+Description:
+  Manages custom dependency policies and their sources
+
+Usage:
+  policy [options] [--] <action> [<name> [<arg1> [<arg2>]]]
+
+Arguments:
+  action                         Action to perform: add-source
+  name                           Policy name
+  arg1                           Source type (e.g. "url") for add-source
+  arg2                           URL for add-source (if not using JSON)
+
+Options:
+  -g, --global                   Apply command to the global config file
+  -f, --file=FILE                If you want to choose a different composer.json or config.json
+  -h, --help                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                    Do not output any message
+  -V, --version                  Display this application version
+      --ansi|--no-ansi           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction           Do not ask any interactive question
+      --profile                  Display timing and memory usage information
+      --no-plugins               Whether to disable plugins.
+      --no-scripts               Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR  If specified, use the given directory as working directory.
+      --no-cache                 Prevent use of the cache
+  -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  This command lets you manage custom dependency policies and their sources in composer.json.
+  
+  Examples:
+    composer policy add-source my-policy url https://example.org/my-pkgs.json
+    composer policy add-source my-policy '{"type":"url","url":"https://example.org/my-pkgs.json"}'
+  
+  Adding a source for a dependency policy that does not exist will create the policy.
+  
+  Built-in dependency policies (advisories, malware, abandoned) do not accept sources and
+  are rejected by add-source. Use `composer config policy.<policy>.<field>`
+  to adjust their settings.
+  
+  Use --global/-g to alter the global config.json instead.
+  Use --file to alter a specific file.
