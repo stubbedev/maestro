@@ -18,8 +18,8 @@ import (
 // selector uses.
 type RepositorySet interface {
 	// FindPackages ports RepositorySet::findPackages; constraint may be
-	// nil.
-	FindPackages(name string, constraint semver.ConstraintInterface, flags int) []pkg.PackageInterface
+	// nil. *repository.RepositorySet implements it.
+	FindPackages(name string, constraint semver.ConstraintInterface, flags int) ([]pkg.PackageInterface, error)
 }
 
 // PlatformRequirementFilter is Composer's PlatformRequirementFilterInterface.
@@ -116,7 +116,11 @@ func (s *VersionSelector) FindBestCandidate(packageName string, opts FindBestCan
 		}
 	}
 
-	candidates := append([]pkg.PackageInterface(nil), s.repositorySet.FindPackages(php.Strtolower(packageName), constraint, opts.RepoSetFlags)...)
+	found, err := s.repositorySet.FindPackages(php.Strtolower(packageName), constraint, opts.RepoSetFlags)
+	if err != nil {
+		return nil, err
+	}
+	candidates := append([]pkg.PackageInterface(nil), found...)
 
 	php.SortSlice(candidates, func(a, b pkg.PackageInterface) int {
 		aPriority := a.StabilityPriority()

@@ -21,7 +21,7 @@ type repositorySetMock struct {
 	wantName string
 }
 
-func (m *repositorySetMock) FindPackages(name string, constraint semver.ConstraintInterface, _ int) []pkg.PackageInterface {
+func (m *repositorySetMock) FindPackages(name string, constraint semver.ConstraintInterface, _ int) ([]pkg.PackageInterface, error) {
 	if m.wantName != "" && name != m.wantName {
 		m.t.Errorf("findPackages(%q)", name)
 	}
@@ -33,7 +33,7 @@ func (m *repositorySetMock) FindPackages(name string, constraint semver.Constrai
 	result := m.results[min(m.calls, len(m.results)-1)]
 	m.calls++
 
-	return result
+	return result, nil
 }
 
 func testPackage(t *testing.T, name, prettyVersion string) *pkg.CompletePackage {
