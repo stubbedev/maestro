@@ -3,10 +3,13 @@
 package console
 
 import (
+	"errors"
 	"os"
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // ArgvInput parses command line tokens.
@@ -103,7 +106,8 @@ func (in *ArgvInput) parseToken(token string, parseOptions bool) (bool, error) {
 		err = in.parseArgument(token)
 	}
 	if err != nil && in.suppressErrors {
-		if e, ok := err.(*Error); ok && (e.Kind == KindRuntime || e.Kind == KindMissingInput) {
+		var e *Error
+		if errors.As(err, &e) && (e.Kind == KindRuntime || e.Kind == KindMissingInput) {
 			// suppress errors, completed input is almost never valid
 			return parseOptions, nil
 		}
@@ -168,13 +172,12 @@ func (in *ArgvInput) parseShortOptionSet(name string) error {
 func (in *ArgvInput) parseLongOption(token string) error {
 	name := token[2:]
 
-	if pos := strings.IndexByte(name, '='); pos >= 0 {
-		value := name[pos+1:]
+	if optName, value, ok := strings.Cut(name, "="); ok {
 		if value == "" {
 			in.unshift(value)
 		}
 
-		return in.addLongOption(name[:pos], value, true)
+		return in.addLongOption(optName, value, true)
 	}
 
 	return in.addLongOption(name, "", false)
@@ -207,9 +210,10 @@ func (in *ArgvInput) parseArgument(token string) error {
 
 	// unexpected argument
 	all := def.arguments
+	// $symfonyCommandName is only used when truthy ("0" is not).
 	symfonyCommandName := ""
 	if len(all) > 0 && all[0].Name() == "command" {
-		if v, ok := in.arguments["command"]; ok && v != nil {
+		if v := in.arguments["command"]; phpTruthy(v) {
 			symfonyCommandName = phpToString(v)
 		}
 		all = all[1:]
@@ -516,7 +520,7 @@ func tokenizeString(input string) ([]string, error) {
 			matched = len(m[0])
 		} else {
 			// should never happen
-			return nil, newError(KindInvalidArgument, "StringInput.php", 72, `Unable to parse input near "... %s ...".`, phpSubstr(input, cursor, 10))
+			return nil, newError(KindInvalidArgument, "StringInput.php", 72, `Unable to parse input near "... %s ...".`, php.SubstrLen(input, cursor, 10))
 		}
 
 		cursor += matched
@@ -527,73 +531,4 @@ func tokenizeString(input string) ([]string, error) {
 	}
 
 	return tokens, nil
-}
-
-// stripCSlashes ports PHP's stripcslashes().
-func stripCSlashes(s string) string {
-	if strings.IndexByte(s, '\\') < 0 {
-		return s
-	}
-	out := make([]byte, 0, len(s))
-	for i := 0; i < len(s); i++ {
-		if s[i] != '\\' || i+1 >= len(s) {
-			out = append(out, s[i])
-
-			continue
-		}
-		i++
-		switch c := s[i]; c {
-		case 'n':
-			out = append(out, '\n')
-		case 't':
-			out = append(out, '\t')
-		case 'r':
-			out = append(out, '\r')
-		case 'a':
-			out = append(out, '\a')
-		case 'v':
-			out = append(out, '\v')
-		case 'b':
-			out = append(out, '\b')
-		case 'f':
-			out = append(out, '\f')
-		case 'x':
-			if i+1 < len(s) && isHexDigit(s[i+1]) {
-				v := hexVal(s[i+1])
-				i++
-				if i+1 < len(s) && isHexDigit(s[i+1]) {
-					v = v*16 + hexVal(s[i+1])
-					i++
-				}
-				out = append(out, byte(v))
-			} else {
-				out = append(out, 'x')
-			}
-		default:
-			if c >= '0' && c <= '7' {
-				v := int(c - '0')
-				for k := 0; k < 2 && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '7'; k++ {
-					i++
-					v = v*8 + int(s[i]-'0')
-				}
-				out = append(out, byte(v))
-			} else {
-				out = append(out, c)
-			}
-		}
-	}
-
-	return string(out)
-}
-
-func isHexDigit(c byte) bool {
-	return (c >= '0' && c <= '9') || (c|0x20 >= 'a' && c|0x20 <= 'f')
-}
-
-func hexVal(c byte) int {
-	if c <= '9' {
-		return int(c - '0')
-	}
-
-	return int(c|0x20-'a') + 10
 }

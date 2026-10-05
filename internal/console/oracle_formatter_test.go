@@ -13,6 +13,7 @@ type formatterOracle struct {
 		Width     int     `json:"width"`
 		Output    *string `json:"output"`
 		Error     *string `json:"error"`
+		Class     string  `json:"class"`
 	} `json:"format"`
 	HTML []struct {
 		Message string  `json:"message"`
@@ -78,14 +79,15 @@ func TestOracle_Formatter(t *testing.T) {
 
 	for _, c := range o.Format {
 		f := NewOutputFormatter(c.Decorated, NamedStyle{"warning", MustStyle("black", "yellow")}, NamedStyle{"highlight", MustStyle("red", "")})
-		got, errMsg, failed := formatCatching(func() string { return f.FormatAndWrap(c.Message, c.Width) })
+		var got string
+		err := catchPanic(t, func() { got = f.FormatAndWrap(c.Message, c.Width) })
 		switch {
 		case c.Error != nil:
-			if !failed || errMsg != *c.Error {
-				t.Errorf("FormatAndWrap(%q, decorated=%v, width=%d): want error %q, got %q (err %q)", c.Message, c.Decorated, c.Width, *c.Error, got, errMsg)
+			if err == nil || err.Message != *c.Error || kindClass[err.Kind] != c.Class {
+				t.Errorf("FormatAndWrap(%q, decorated=%v, width=%d): want %s %q, got %q (err %v)", c.Message, c.Decorated, c.Width, c.Class, *c.Error, got, err)
 			}
-		case failed:
-			t.Errorf("FormatAndWrap(%q, decorated=%v, width=%d): unexpected error %q", c.Message, c.Decorated, c.Width, errMsg)
+		case err != nil:
+			t.Errorf("FormatAndWrap(%q, decorated=%v, width=%d): unexpected error %v", c.Message, c.Decorated, c.Width, err)
 		case got != *c.Output:
 			t.Errorf("FormatAndWrap(%q, decorated=%v, width=%d):\nwant %q\ngot  %q", c.Message, c.Decorated, c.Width, *c.Output, got)
 		}

@@ -1,73 +1,90 @@
-// PHP runtime functions the console port relies on (strip_tags, levenshtein,
-// escapeshellarg, json_encode of option defaults, float to string). They are
-// local because internal/php is ported separately.
+// PHP runtime functions the console port relies on that internal/php does
+// not provide (strip_tags, levenshtein, escapeshellarg, stripcslashes,
+// basename), and the bridge from the console's input value model (nil,
+// bool, string, int, float64, []string, []any) to internal/php.
 
 package console
 
 import (
-	"math"
-	"strconv"
+	"fmt"
+	"path/filepath"
 	"strings"
-	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
-// phpFloatString converts a float like PHP's (string) cast (precision -1).
-func phpFloatString(f float64) string {
-	switch {
-	case math.IsInf(f, 1):
-		return "INF"
-	case math.IsInf(f, -1):
-		return "-INF"
-	case math.IsNaN(f):
-		return "NAN"
-	}
-	if f == math.Trunc(f) && math.Abs(f) < 1e15 {
-		if f == 0 {
-			if math.Signbit(f) {
-				return "-0"
-			}
-
-			return "0"
+// phpValue converts an input value to the internal/php value model.
+func phpValue(v any) any {
+	switch x := v.(type) {
+	case []string:
+		return php.StringList(x)
+	case []any:
+		a := php.NewArrayCap(len(x))
+		for _, e := range x {
+			a.Append(phpValue(e))
 		}
 
-		return strconv.FormatFloat(f, 'f', -1, 64)
+		return a
 	}
 
-	return phpFloatRepr(f, false)
+	return v
 }
 
-// phpFloatRepr formats with the shortest round-trip digits in PHP's %.17G
-// style (precision -1): exponent form below 1e-4 or from 1e15 on. In
-// exponent form PHP writes "1.0E+25"; json_encode writes "1.0e+25".
-func phpFloatRepr(f float64, json bool) string {
-	s := strconv.FormatFloat(f, 'g', -1, 64)
-	mant, exp, hasExp := strings.Cut(s, "e")
-	if !hasExp {
-		// 'g' switches to exponent at exp < -4 || exp >= 21; PHP at >= 15.
-		e := 0
-		if a := math.Abs(f); a != 0 {
-			e = int(math.Floor(math.Log10(a)))
-		}
-		if e < 15 {
-			return s
-		}
-		s = strconv.FormatFloat(f, 'e', -1, 64)
-		mant, exp, _ = strings.Cut(s, "e")
-	}
-	if !strings.Contains(mant, ".") {
-		mant += ".0"
-	}
-	sign := exp[0]
-	digits := strings.TrimLeft(exp[1:], "0")
-	if digits == "" {
-		digits = "0"
-	}
-	e := "E"
-	if json {
-		e = "e"
+// phpTruthy is PHP's (bool) cast of an input value.
+func phpTruthy(v any) bool {
+	switch x := v.(type) {
+	case []string:
+		return len(x) > 0
+	case []any:
+		return len(x) > 0
 	}
 
-	return mant + e + string(sign) + digits
+	return php.ToBool(v)
+}
+
+// phpToString is PHP's (string) cast of an input value ("Array" for arrays,
+// with PHP's "Array to string conversion" warning left out).
+func phpToString(v any) string {
+	switch v.(type) {
+	case []string, []any:
+		return "Array"
+	}
+
+	return php.ToString(v)
+}
+
+// phpLooseEqualsString is PHP 8's $v == $s for a string $s. Arrays never
+// equal a string.
+func phpLooseEqualsString(v any, s string) bool {
+	switch v.(type) {
+	case []string, []any:
+		return false
+	}
+
+	return php.LooseEquals(v, s)
+}
+
+// phpIntval is PHP's (int) cast of a string.
+func phpIntval(s string) int { return int(php.ToInt(s)) }
+
+// strPadRight is str_pad($s, $length, ' '), which pads by bytes.
+func strPadRight(s string, length int) string {
+	if len(s) >= length {
+		return s
+	}
+
+	return s + strings.Repeat(" ", length-len(s))
+}
+
+// jsonEncodeValue is json_encode($v, JSON_UNESCAPED_SLASHES |
+// JSON_UNESCAPED_UNICODE) of an input value; "" where PHP returns false.
+func jsonEncodeValue(v any) string {
+	s, err := php.JSONEncode(phpValue(v), php.JSONUnescapedSlashes|php.JSONUnescapedUnicode)
+	if err != nil {
+		return ""
+	}
+
+	return s
 }
 
 // StripTags ports php_strip_tags_ex() with no allowed tags: it removes
@@ -305,265 +322,98 @@ func levenshtein(a, b string) int {
 	return p1[len(b)]
 }
 
-// escapeShellArg ports escapeshellarg() on Unix.
+// escapeShellArg ports escapeshellarg() on Unix. Like PHP it rejects NUL
+// bytes, by panicking with the ValueError.
 func escapeShellArg(s string) string {
+	if strings.IndexByte(s, 0) >= 0 {
+		panic(newError(KindValueError, "Input.php", 195, "escapeshellarg(): Argument #1 ($arg) must not contain any null bytes"))
+	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// phpTrim is trim() with the default character list.
-func phpTrim(s string) string {
-	return strings.Trim(s, " \t\n\r\x00\x0B")
-}
-
-// jsonEncodeValue ports json_encode($v, JSON_UNESCAPED_SLASHES |
-// JSON_UNESCAPED_UNICODE) for the value types inputs hold.
-func jsonEncodeValue(v any) string {
-	var b strings.Builder
-	writeJSONValue(&b, v)
-
-	return b.String()
-}
-
-func writeJSONValue(b *strings.Builder, v any) {
-	switch x := v.(type) {
-	case nil:
-		b.WriteString("null")
-	case bool:
-		if x {
-			b.WriteString("true")
-		} else {
-			b.WriteString("false")
-		}
-	case int:
-		b.WriteString(strconv.Itoa(x))
-	case float64:
-		if x == math.Trunc(x) && math.Abs(x) < 1e15 {
-			b.WriteString(strconv.FormatFloat(x, 'f', 1, 64))
-		} else {
-			b.WriteString(phpFloatRepr(x, true))
-		}
-	case string:
-		writeJSONString(b, x)
-	case []string:
-		b.WriteByte('[')
-		for i, s := range x {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			writeJSONString(b, s)
-		}
-		b.WriteByte(']')
-	case []any:
-		b.WriteByte('[')
-		for i, s := range x {
-			if i > 0 {
-				b.WriteByte(',')
-			}
-			writeJSONValue(b, s)
-		}
-		b.WriteByte(']')
-	default:
-		b.WriteString("null")
+// phpBasename ports basename() for "/"-separated paths.
+func phpBasename(path string) string {
+	path = strings.TrimRight(path, "/")
+	if path == "" {
+		return ""
 	}
+
+	return filepath.Base(path)
 }
 
-func writeJSONString(b *strings.Builder, s string) {
-	b.WriteByte('"')
-	for i := 0; i < len(s); {
-		c := s[i]
-		switch {
-		case c == '"':
-			b.WriteString(`\"`)
-		case c == '\\':
-			b.WriteString(`\\`)
-		case c == '\b':
-			b.WriteString(`\b`)
-		case c == '\f':
-			b.WriteString(`\f`)
-		case c == '\n':
-			b.WriteString(`\n`)
-		case c == '\r':
-			b.WriteString(`\r`)
-		case c == '\t':
-			b.WriteString(`\t`)
-		case c < 0x20:
-			b.WriteString(`\u00`)
-			b.WriteByte("0123456789abcdef"[c>>4])
-			b.WriteByte("0123456789abcdef"[c&0xF])
-		case c < utf8.RuneSelf:
-			b.WriteByte(c)
-		default:
-			r, size := utf8.DecodeRuneInString(s[i:])
-			if r == 0x2028 || r == 0x2029 {
-				// JSON_UNESCAPED_LINE_TERMINATORS is not set.
-				b.WriteString(`\u` + strconv.FormatInt(int64(r), 16))
-			} else {
-				b.WriteString(s[i : i+size])
-			}
-			i += size
+// stripCSlashes ports PHP's stripcslashes().
+func stripCSlashes(s string) string {
+	if strings.IndexByte(s, '\\') < 0 {
+		return s
+	}
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 >= len(s) {
+			out = append(out, s[i])
 
 			continue
 		}
 		i++
+		switch c := s[i]; c {
+		case 'n':
+			out = append(out, '\n')
+		case 't':
+			out = append(out, '\t')
+		case 'r':
+			out = append(out, '\r')
+		case 'a':
+			out = append(out, '\a')
+		case 'v':
+			out = append(out, '\v')
+		case 'b':
+			out = append(out, '\b')
+		case 'f':
+			out = append(out, '\f')
+		case 'x':
+			if i+1 < len(s) && isHexDigit(s[i+1]) {
+				v := hexVal(s[i+1])
+				i++
+				if i+1 < len(s) && isHexDigit(s[i+1]) {
+					v = v*16 + hexVal(s[i+1])
+					i++
+				}
+				out = append(out, byte(v)) //nolint:gosec // at most two hex digits
+			} else {
+				out = append(out, 'x')
+			}
+		default:
+			if c >= '0' && c <= '7' {
+				v := int(c - '0')
+				for k := 0; k < 2 && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '7'; k++ {
+					i++
+					v = v*8 + int(s[i]-'0')
+				}
+				out = append(out, byte(v)) // wraps like C's (char) cast
+			} else {
+				out = append(out, c)
+			}
+		}
 	}
-	b.WriteByte('"')
+
+	return string(out)
 }
 
-// strnatcasecmp ports strnatcmp_ex(..., is_case_insensitive=true).
-func strnatcasecmp(a, b string) int { return strnatcmpEx(a, b, true) }
+func isHexDigit(c byte) bool {
+	return (c >= '0' && c <= '9') || (c|0x20 >= 'a' && c|0x20 <= 'f')
+}
 
-func isDigit(c byte) bool { return c >= '0' && c <= '9' }
+func hexVal(c byte) int {
+	if c <= '9' {
+		return int(c - '0')
+	}
+
+	return int(c|0x20-'a') + 10
+}
 
 func isCSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r'
 }
 
-func strnatcmpEx(a, b string, caseInsensitive bool) int {
-	if a == "" || b == "" {
-		switch {
-		case len(a) == len(b):
-			return 0
-		case len(a) > len(b):
-			return 1
-		}
-
-		return -1
-	}
-
-	// at mimics reading the NUL terminator past the end.
-	at := func(s string, i int) byte {
-		if i < len(s) {
-			return s[i]
-		}
-
-		return 0
-	}
-
-	ap, bp := 0, 0
-	leading := true
-	for {
-		ca, cb := at(a, ap), at(b, bp)
-
-		// skip over leading zeros
-		for leading && ca == '0' && ap+1 < len(a) && isDigit(a[ap+1]) {
-			ap++
-			ca = a[ap]
-		}
-		for leading && cb == '0' && bp+1 < len(b) && isDigit(b[bp+1]) {
-			bp++
-			cb = b[bp]
-		}
-		leading = false
-
-		// Skip consecutive whitespace
-		for isCSpace(ca) {
-			ap++
-			ca = at(a, ap)
-		}
-		for isCSpace(cb) {
-			bp++
-			cb = at(b, bp)
-		}
-
-		// process run of digits
-		if isDigit(ca) && isDigit(cb) {
-			var result int
-			if ca == '0' || cb == '0' {
-				result, ap, bp = natCompareLeft(a, ap, b, bp)
-			} else {
-				result, ap, bp = natCompareRight(a, ap, b, bp)
-			}
-
-			switch {
-			case result != 0:
-				return result
-			case ap == len(a) && bp == len(b):
-				// End of the strings. Let caller sort them out.
-				return 0
-			case ap == len(a):
-				return -1
-			case bp == len(b):
-				return 1
-			}
-			// Keep on comparing from the current point.
-			ca, cb = a[ap], b[bp]
-		}
-
-		if caseInsensitive {
-			ca, cb = asciiUpper(ca), asciiUpper(cb)
-		}
-
-		if ca < cb {
-			return -1
-		} else if ca > cb {
-			return 1
-		}
-
-		ap++
-		bp++
-		switch {
-		case ap >= len(a) && bp >= len(b):
-			return 0
-		case ap >= len(a):
-			return -1
-		case bp >= len(b):
-			return 1
-		}
-	}
-}
-
-func asciiUpper(c byte) byte {
-	if c >= 'a' && c <= 'z' {
-		return c - 32
-	}
-
-	return c
-}
-
-func natCompareRight(a string, ai int, b string, bi int) (int, int, int) {
-	bias := 0
-	// The longest run of digits wins. That aside, the greatest value wins,
-	// but we can't know that it will until we've scanned both numbers to
-	// know that they have the same magnitude, so we remember it in BIAS.
-	for ; ; ai, bi = ai+1, bi+1 {
-		aEnd := ai >= len(a) || !isDigit(a[ai])
-		bEnd := bi >= len(b) || !isDigit(b[bi])
-		switch {
-		case aEnd && bEnd:
-			return bias, ai, bi
-		case aEnd:
-			return -1, ai, bi
-		case bEnd:
-			return 1, ai, bi
-		case a[ai] < b[bi]:
-			if bias == 0 {
-				bias = -1
-			}
-		case a[ai] > b[bi]:
-			if bias == 0 {
-				bias = 1
-			}
-		}
-	}
-}
-
-func natCompareLeft(a string, ai int, b string, bi int) (int, int, int) {
-	// Compare two left-aligned numbers: the first to have a different
-	// value wins.
-	for ; ; ai, bi = ai+1, bi+1 {
-		aEnd := ai >= len(a) || !isDigit(a[ai])
-		bEnd := bi >= len(b) || !isDigit(b[bi])
-		switch {
-		case aEnd && bEnd:
-			return 0, ai, bi
-		case aEnd:
-			return -1, ai, bi
-		case bEnd:
-			return 1, ai, bi
-		case a[ai] < b[bi]:
-			return -1, ai, bi
-		case a[ai] > b[bi]:
-			return 1, ai, bi
-		}
-	}
-}
+// typeString approximates get_debug_type() for a Go value: its type name
+// without the pointer star.
+func typeString(v any) string { return strings.TrimPrefix(fmt.Sprintf("%T", v), "*") }

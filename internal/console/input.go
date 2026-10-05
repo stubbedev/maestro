@@ -5,6 +5,9 @@ package console
 
 import (
 	"io"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -38,10 +41,14 @@ type Input interface {
 
 // BaseInput is the abstract Input class.
 type BaseInput struct {
-	definition  *InputDefinition
-	stream      io.Reader
-	options     map[string]any
-	arguments   map[string]any
+	definition *InputDefinition
+	stream     io.Reader
+	options    map[string]any
+	arguments  map[string]any
+	// extraArgs lists, in insertion order, the integer keys of arguments
+	// stored by an ArrayInput's positional parameters; array_merge() in
+	// getArguments() appends them after the named ones.
+	extraArgs   []string
 	interactive bool
 	parse       func() error
 }
@@ -65,14 +72,9 @@ func (in *BaseInput) init(definition *InputDefinition, parse func() error) error
 
 func (in *BaseInput) cloneBase() BaseInput {
 	c := *in
-	c.options = make(map[string]any, len(in.options))
-	for k, v := range in.options {
-		c.options[k] = v
-	}
-	c.arguments = make(map[string]any, len(in.arguments))
-	for k, v := range in.arguments {
-		c.arguments[k] = v
-	}
+	c.options = maps.Clone(in.options)
+	c.arguments = maps.Clone(in.arguments)
+	c.extraArgs = slices.Clone(in.extraArgs)
 
 	return c
 }
@@ -84,6 +86,7 @@ func (in *BaseInput) Definition() *InputDefinition { return in.definition }
 func (in *BaseInput) Bind(definition *InputDefinition) error {
 	in.arguments = map[string]any{}
 	in.options = map[string]any{}
+	in.extraArgs = nil
 	in.definition = definition
 
 	return in.parse()
@@ -118,6 +121,9 @@ func (in *BaseInput) Arguments() []NamedValue {
 		if v, ok := in.arguments[nv.Name]; ok {
 			out[i].Value = v
 		}
+	}
+	for i, k := range in.extraArgs {
+		out = append(out, NamedValue{strconv.Itoa(i), in.arguments[k]})
 	}
 
 	return out

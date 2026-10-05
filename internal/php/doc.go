@@ -3,7 +3,8 @@
 // the original. It ports parts of php-src (Zend/zend_hash.c,
 // Zend/zend_operators.c, Zend/zend_sort.c, ext/standard/array.c,
 // ext/standard/string.c, ext/standard/strnatcmp.c, ext/standard/var.c,
-// ext/json, ext/pcre) and composer/pcre.
+// ext/json, ext/pcre), the matching semantics of PCRE2 10.48 and
+// composer/pcre.
 //
 // # Values
 //
@@ -31,7 +32,35 @@
 // Iterating with All while modifying the array behaves like PHP's foreach
 // by value: the loop sees the elements as they were when it started. Values
 // that are themselves *Array are shared, so modifying a nested array
-// during the loop is visible.
+// during the loop is visible. Concurrent reads (All, Get) of an array that
+// nobody modifies are safe.
+//
+// # Regular expressions
+//
+// Compile accepts PHP pattern literals verbatim, delimiters and modifiers
+// included, and Regexp and the Preg* functions reproduce preg_* and
+// Composer\Pcre\Preg. Patterns run on a backtracking engine written for
+// this package rather than a translation to another regex library: PCRE2
+// semantics that matter to Composer (recursion and subroutine calls as in
+// its JSON and SPDX grammars, group numbering, captures set when a group
+// closes, empty-iteration loop termination, the retry after empty matches
+// in preg_match_all/preg_replace/preg_split) only come out exact that way.
+//
+// Without the u modifier a pattern works on bytes: . matches one byte,
+// \d \s \w \b, POSIX classes and caseless matching are ASCII-only (the C
+// locale tables PHP uses), and \p{...} looks at the byte value as a code
+// point. With u, the pattern and subject are UTF-8, offsets stay byte
+// offsets, and, as PHP sets PCRE2_UCP, the character types follow Unicode
+// properties (\w is \p{L}\p{N}\p{Mn}\p{Pc}, as in PCRE2 10.43+).
+//
+// Deliberately not reproduced: \X, \C, backtracking control verbs
+// ((*VERB)), callouts, (?C), \p{...} by script extension (scripts match
+// by their Script property only), and PCRE2's exact match-limit
+// accounting: the limit (pcre.backtrack_limit, 1000000) counts
+// resumptions after backtracking, and recursion that loops or nests past
+// 100000 calls fails like PHP's default JIT does, with
+// PREG_JIT_STACKLIMIT_ERROR. Compilation errors carry PCRE2's message
+// texts, but their offsets may differ.
 //
 // # Errors
 //

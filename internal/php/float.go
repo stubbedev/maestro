@@ -4,13 +4,15 @@
 package php
 
 import (
+	"bytes"
+	"errors"
 	"math"
 	"strconv"
 )
 
-// Precision is PHP's default `precision` ini setting, used when a float is
+// precision is PHP's default `precision` ini setting, used when a float is
 // converted to a string.
-const Precision = 14
+const precision = 14
 
 // appendGcvt ports zend_gcvt. ndigit < 0 means the shortest repr that
 // round-trips (serialize_precision = -1); otherwise ndigit significant
@@ -114,34 +116,17 @@ func appendGcvt(dst []byte, v float64, ndigit int, expChar byte) []byte {
 func appendDouble(dst []byte, v float64, precision int, zeroFrac bool) []byte {
 	start := len(dst)
 	dst = appendGcvt(dst, v, precision, 'E')
-	if zeroFrac && !math.IsInf(v, 0) && !math.IsNaN(v) && !hasByte(dst[start:], '.') {
+	if zeroFrac && !math.IsInf(v, 0) && !math.IsNaN(v) && bytes.IndexByte(dst[start:], '.') < 0 {
 		dst = append(dst, '.', '0')
 	}
 	return dst
-}
-
-func hasByte(b []byte, c byte) bool {
-	for _, x := range b {
-		if x == c {
-			return true
-		}
-	}
-	return false
 }
 
 // FloatToString converts a float to a string as PHP's (string) cast does
 // (precision 14, e.g. "0.1", "1.0E+25", "-0").
 func FloatToString(v float64) string {
 	var buf [32]byte
-	return string(appendGcvt(buf[:0], v, Precision, 'E'))
-}
-
-// FloatRepr returns the shortest round-tripping representation PHP uses
-// with serialize_precision = -1 in var_export and json_encode ("0.1",
-// "1.0E+25"), without var_export's ".0" suffix.
-func FloatRepr(v float64) string {
-	var buf [32]byte
-	return string(appendGcvt(buf[:0], v, -1, 'E'))
+	return string(appendGcvt(buf[:0], v, precision, 'E'))
 }
 
 // strtodPrefix returns the length of the longest prefix of s that
@@ -199,15 +184,10 @@ func strtod(s string) float64 {
 		t = t[1:]
 	}
 	f, err := strconv.ParseFloat(t, 64)
-	if err != nil && !isRangeErr(err) {
+	if err != nil && !errors.Is(err, strconv.ErrRange) {
 		return 0
 	}
 	return f
-}
-
-func isRangeErr(err error) bool {
-	ne, ok := err.(*strconv.NumError) //nolint:errorlint // ParseFloat returns *NumError directly
-	return ok && ne.Err == strconv.ErrRange
 }
 
 func isStrtodSpace(c byte) bool {

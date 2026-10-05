@@ -1,0 +1,4148 @@
+{
+    "patterns": [
+        {
+            "pattern": "/^/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/$/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/^$/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/\\Z/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/\\z/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/a$/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/a$/D",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/a$/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/^a/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/\\Aa/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/(?m)^b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/\\G\\w/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/\\Ga/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a\\Z/D",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/.$/s",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/^.*$/m",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/^.*$/s",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/.+/s",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/\\N+/s",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a",
+                "a\n",
+                "a\nb\n",
+                "\n",
+                "\n\n",
+                "ba\na",
+                "b\na\n",
+                "a\r\nb"
+            ]
+        },
+        {
+            "pattern": "/x*/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/x*?/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/(?:)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/a|/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/|a/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/\\b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/\\B/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/(?=a)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/x*|b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/(a|)+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/(a?)*?b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/(?=a)*/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/.?/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/\\b/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "axb",
+                "b",
+                "aab",
+                "xx",
+                "a b",
+                "ünï",
+                "a\nb"
+            ]
+        },
+        {
+            "pattern": "/a+?/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a*+a/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a++b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?>a+)b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a+)+b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{2,3}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{2,3}?/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{,2}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{ 2 }/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{2,}+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(ab){2}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(ab){0,2}?c/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/\\d{1,3}(?=(\\d{3})+$)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{0}b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?:ab)*+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?:a|ab)*c/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/[ab]*?b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{2}{3}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{x/",
+            "origin": "engine",
+            "subjects": [
+                "a{x",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a*?$/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)*/U",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a+?/U",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?U)a+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)|(b)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)?(b)?(c)?/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?:(a)|b)*/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a|b\\1)+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)(?<n>b)?(c)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?<y>\\d{2})(?<m>\\d)?/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?|(a)|(b)(c))/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?n)(a)(?<x>b)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/((a)|(b))+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a*)*/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a*)+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a|ab)(c|bcd)(d*)/",
+            "origin": "engine",
+            "subjects": [
+                "abcd",
+                "acd",
+                "abcdd"
+            ]
+        },
+        {
+            "pattern": "/(?<a>.)(?<a>.)/J",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?J)(?<a>x)|(?<a>a)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)/",
+            "origin": "engine",
+            "subjects": [
+                "abcdefghijk",
+                "abcdefghij"
+            ]
+        },
+        {
+            "pattern": "/(a)\\1/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)\\1/i",
+            "origin": "engine",
+            "subjects": [
+                "aA",
+                "Aa",
+                "aa"
+            ]
+        },
+        {
+            "pattern": "/(?<q>['\"]).*?\\k<q>/",
+            "origin": "engine",
+            "subjects": [
+                "\"a\"",
+                "'b'",
+                "\"c'",
+                "x\"y\"z",
+                "\"\"",
+                "'\"'"
+            ]
+        },
+        {
+            "pattern": "/(\\w)\\g{-1}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)\\g1/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?P<x>a)(?P=x)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)?\\1/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(ä)\\1/iu",
+            "origin": "engine",
+            "subjects": [
+                "äÄ",
+                "ää",
+                "Ää"
+            ]
+        },
+        {
+            "pattern": "/(a)|\\1b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(\\w+)\\s\\1/",
+            "origin": "engine",
+            "subjects": [
+                "the the",
+                "a ab",
+                "ab ab"
+            ]
+        },
+        {
+            "pattern": "/(a)\\k{1}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a)\\10/",
+            "origin": "engine",
+            "subjects": [
+                "a\b",
+                "aa"
+            ]
+        },
+        {
+            "pattern": "/(a)\\12/",
+            "origin": "engine",
+            "subjects": [
+                "a\n"
+            ]
+        },
+        {
+            "pattern": "/(k)\\1/iu",
+            "origin": "engine",
+            "subjects": [
+                "kK",
+                "kK"
+            ]
+        },
+        {
+            "pattern": "/(?<=a)b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?<!a)b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?<=a|bc)d/",
+            "origin": "engine",
+            "subjects": [
+                "ad",
+                "bcd",
+                "cd",
+                "d"
+            ]
+        },
+        {
+            "pattern": "/(?<=\\d{1,3})x/",
+            "origin": "engine",
+            "subjects": [
+                "1x",
+                "1234x",
+                "x",
+                "a12x"
+            ]
+        },
+        {
+            "pattern": "/(?<=^|,)\\w+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?=(\\w+))\\w/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?!a)\\w/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/\\w+(?=;)/",
+            "origin": "engine",
+            "subjects": [
+                "ab;",
+                "a;b;"
+            ]
+        },
+        {
+            "pattern": "/(?<=(a))b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?<![\\d.])\\d+/",
+            "origin": "engine",
+            "subjects": [
+                "1.5 22",
+                "v1.0"
+            ]
+        },
+        {
+            "pattern": "/(?<=\\R)x/",
+            "origin": "engine",
+            "subjects": [
+                "\r\nx",
+                "\nx",
+                "x"
+            ]
+        },
+        {
+            "pattern": "/(?<=ab|a)c/",
+            "origin": "engine",
+            "subjects": [
+                "abc",
+                "ac"
+            ]
+        },
+        {
+            "pattern": "/(?<=é)x/u",
+            "origin": "engine",
+            "subjects": [
+                "éx",
+                "ex"
+            ]
+        },
+        {
+            "pattern": "/(?<=é)x/",
+            "origin": "engine",
+            "subjects": [
+                "éx",
+                "ex"
+            ]
+        },
+        {
+            "pattern": "/(?<!^)x/",
+            "origin": "engine",
+            "subjects": [
+                "xx",
+                "x"
+            ]
+        },
+        {
+            "pattern": "/(?=(a))a(?!(b))/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?<=(?=a)a)b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/^(a)?(?(1)b|c)$/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "c",
+                "b",
+                "ac"
+            ]
+        },
+        {
+            "pattern": "/(?(?=a)ab|cd)/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "cd",
+                "ad"
+            ]
+        },
+        {
+            "pattern": "/(?(?!a)cd|ab)/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "cd",
+                "ad"
+            ]
+        },
+        {
+            "pattern": "/(?<n>x)?(?(<n>)y|z)/",
+            "origin": "engine",
+            "subjects": [
+                "xy",
+                "z",
+                "xz",
+                "y"
+            ]
+        },
+        {
+            "pattern": "/(?(DEFINE)(?<d>\\d+))(?&d)-(?&d)/",
+            "origin": "engine",
+            "subjects": [
+                "12-345",
+                "1-",
+                "a-b"
+            ]
+        },
+        {
+            "pattern": "/(?(?<=a)b|c)/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "c",
+                "b"
+            ]
+        },
+        {
+            "pattern": "/(a)?(?(1)b)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?(R)a|b(?R)?)/",
+            "origin": "engine",
+            "subjects": [
+                "ba",
+                "b",
+                "bba"
+            ]
+        },
+        {
+            "pattern": "/\\((?:[^()]|(?R))*\\)/",
+            "origin": "engine",
+            "subjects": [
+                "()",
+                "(a)",
+                "((a)(b))",
+                "(()",
+                "(a(b)c)d)",
+                "[[1],[2,[3]]]",
+                "[[]",
+                "aba",
+                "abba",
+                "abcba",
+                "abcd",
+                ""
+            ]
+        },
+        {
+            "pattern": "/(?<p>\\[(?:[^\\[\\]]|(?&p))*\\])/",
+            "origin": "engine",
+            "subjects": [
+                "()",
+                "(a)",
+                "((a)(b))",
+                "(()",
+                "(a(b)c)d)",
+                "[[1],[2,[3]]]",
+                "[[]",
+                "aba",
+                "abba",
+                "abcba",
+                "abcd",
+                ""
+            ]
+        },
+        {
+            "pattern": "/(a(?1)?b)/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "aabb",
+                "aab"
+            ]
+        },
+        {
+            "pattern": "/(?1)(a)/",
+            "origin": "engine",
+            "subjects": [
+                "aa",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?R)?a/",
+            "origin": "engine",
+            "subjects": [
+                "aa"
+            ]
+        },
+        {
+            "pattern": "/^((.)(?1)\\2|.?)$/",
+            "origin": "engine",
+            "subjects": [
+                "()",
+                "(a)",
+                "((a)(b))",
+                "(()",
+                "(a(b)c)d)",
+                "[[1],[2,[3]]]",
+                "[[]",
+                "aba",
+                "abba",
+                "abcba",
+                "abcd",
+                ""
+            ]
+        },
+        {
+            "pattern": "/((a)|b)(?1)/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "ba",
+                "bb"
+            ]
+        },
+        {
+            "pattern": "/(?<x>a)(?&x)/",
+            "origin": "engine",
+            "subjects": [
+                "aa"
+            ]
+        },
+        {
+            "pattern": "/(\\d)(?-1)/",
+            "origin": "engine",
+            "subjects": [
+                "12",
+                "1"
+            ]
+        },
+        {
+            "pattern": "/(?+1)(\\d)/",
+            "origin": "engine",
+            "subjects": [
+                "12"
+            ]
+        },
+        {
+            "pattern": "/(a|(?R)b)/",
+            "origin": "engine",
+            "subjects": [
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/^(?:\\((?:(?R)|[^()])*\\))+$/",
+            "origin": "engine",
+            "subjects": [
+                "(())()",
+                "(()",
+                ""
+            ]
+        },
+        {
+            "pattern": "/(?<q>(?<c>[a-z])(?&c))/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?<x>a+)(?&x)a/",
+            "origin": "engine",
+            "subjects": [
+                "aaaa",
+                "aa",
+                "aaa"
+            ]
+        },
+        {
+            "pattern": "/^(?:(a)|b)(?1)?$/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "aa",
+                "b",
+                "ba"
+            ]
+        },
+        {
+            "pattern": "/(?<x>a|b)(?&x)/",
+            "origin": "engine",
+            "subjects": [
+                "ab",
+                "ba"
+            ]
+        },
+        {
+            "pattern": "/(?(R1)x|(a)(?1))/",
+            "origin": "engine",
+            "subjects": [
+                "aa",
+                "ax"
+            ]
+        },
+        {
+            "pattern": "/((?(R)a|b))(?1)/",
+            "origin": "engine",
+            "subjects": [
+                "ba",
+                "bb"
+            ]
+        },
+        {
+            "pattern": "/(?<e>(?:[^()]++|\\((?&e)\\))*)/",
+            "origin": "engine",
+            "subjects": [
+                "()",
+                "(a)",
+                "((a)(b))",
+                "(()",
+                "(a(b)c)d)",
+                "[[1],[2,[3]]]",
+                "[[]",
+                "aba",
+                "abba",
+                "abcba",
+                "abcd",
+                ""
+            ]
+        },
+        {
+            "pattern": "/(a+?)(a*)/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/a{20}/",
+            "origin": "engine",
+            "subjects": [
+                "aaaaaaaaaaaaaaaaaaaaaaaaa"
+            ]
+        },
+        {
+            "pattern": "/.+?é/u",
+            "origin": "engine",
+            "subjects": [
+                "abéé",
+                "é"
+            ]
+        },
+        {
+            "pattern": "/(|a)+b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a*)*b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a*)+b/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(a|b*)*c/",
+            "origin": "engine",
+            "subjects": [
+                "abc",
+                "c",
+                "bbbc"
+            ]
+        },
+        {
+            "pattern": "/(?:(a)|(b))+\\1?/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/(?i)(É)\\1/u",
+            "origin": "engine",
+            "subjects": [
+                "Éé",
+                "éÉ",
+                "ÉE"
+            ]
+        },
+        {
+            "pattern": "/(?<!\\S)\\w+(?!\\S)/",
+            "origin": "engine",
+            "subjects": [
+                "a b",
+                "a-b c"
+            ]
+        },
+        {
+            "pattern": "/(?<=\\G..)./",
+            "origin": "engine",
+            "subjects": [
+                "abcdef"
+            ]
+        },
+        {
+            "pattern": "/\\Ga|b/",
+            "origin": "engine",
+            "subjects": [
+                "aab",
+                "ba"
+            ]
+        },
+        {
+            "pattern": "/(?=(a+))a*b\\1/",
+            "origin": "engine",
+            "subjects": [
+                "baaabac"
+            ]
+        },
+        {
+            "pattern": "/^(a\\1?){4}$/",
+            "origin": "engine",
+            "subjects": [
+                "aaaaaaaaaa",
+                "aaaa"
+            ]
+        },
+        {
+            "pattern": "/[a-z]+/i",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[^a-z]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\w.-]+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[]a]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[^]a]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[a\\]b]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\\\]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:alpha:]]+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:^digit:]]+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:punct:]]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\d-]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[-\\d]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[a-]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\x00-\\x1f]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\x{100}-\\x{200}]/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[^\\x00-\\x7F]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[^\\x00-\\x7F]/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\h+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\v/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\R/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\s+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\S+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\W+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\D+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:space:]]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:word:]]+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:xdigit:]]+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[[:upper:]]/i",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[a-c-e]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\Qa-c\\E]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[.-\\/]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\]-a]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[a-\\x{7a}]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[^\\s\\d]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\D]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/[\\W\\d]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "aZ09_-.",
+                "[]a]^\\",
+                "!@#$%^&*()",
+                " \t\n\r\u000b\f",
+                "\u0000\u001f",
+                "ÀÿĀ",
+                "abc-def"
+            ]
+        },
+        {
+            "pattern": "/\\p{L}+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\P{L}+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\pN/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[\\p{Lu}\\d]/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\p{Nd}/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\p{Zs}/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\p{L&}/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\p{Xwd}+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\p{^L}/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/straße/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/k/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[k]/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/s/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/ß/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/é/i",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/é/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/É/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[à-ÿ]/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\w+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\w+/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\bé/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\bé/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/./u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/./",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/.{2}/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\d+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\s/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\h/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\v/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\R/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[[:alpha:]]+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[[:punct:]]/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[[:graph:]]+/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[^a]/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[^a]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/ω/iu",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\x{e9}/u",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\xe9/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/[\\xc3]/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\p{Lu}/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\pL/i",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "ÄBC",
+                "äbc",
+                "straße",
+                "STRASSE",
+                "Kelvin K k",
+                "K",
+                "ſ s S",
+                "é É e",
+                "Ωω",
+                "١٢٣",
+                "x_y",
+                "́a",
+                "Ⅰ",
+                "a b",
+                "a\u2028b",
+                "😀x",
+                ""
+            ]
+        },
+        {
+            "pattern": "/a/u",
+            "origin": "engine",
+            "subjects": [
+                {
+                    "base64": "//4="
+                },
+                {
+                    "base64": "Yeli"
+                },
+                "é",
+                {
+                    "base64": "gA=="
+                },
+                {
+                    "base64": "YWJjww=="
+                },
+                "€"
+            ]
+        },
+        {
+            "pattern": "/./s",
+            "origin": "engine",
+            "subjects": [
+                {
+                    "base64": "//4="
+                },
+                {
+                    "base64": "Yeli"
+                },
+                "é",
+                {
+                    "base64": "gA=="
+                },
+                {
+                    "base64": "YWJjww=="
+                },
+                "€"
+            ]
+        },
+        {
+            "pattern": "/(?<=x)y/u",
+            "origin": "engine",
+            "subjects": [
+                {
+                    "base64": "//4="
+                },
+                {
+                    "base64": "Yeli"
+                },
+                "é",
+                {
+                    "base64": "gA=="
+                },
+                {
+                    "base64": "YWJjww=="
+                },
+                "€"
+            ]
+        },
+        {
+            "pattern": "/\\xff/",
+            "origin": "engine",
+            "subjects": [
+                {
+                    "base64": "//4="
+                },
+                {
+                    "base64": "Yeli"
+                },
+                "é",
+                {
+                    "base64": "gA=="
+                },
+                {
+                    "base64": "YWJjww=="
+                },
+                "€"
+            ]
+        },
+        {
+            "pattern": "/[^a]+/",
+            "origin": "engine",
+            "subjects": [
+                {
+                    "base64": "//4="
+                },
+                {
+                    "base64": "Yeli"
+                },
+                "é",
+                {
+                    "base64": "gA=="
+                },
+                {
+                    "base64": "YWJjww=="
+                },
+                "€"
+            ]
+        },
+        {
+            "pattern": "/a b # c\n d/x",
+            "origin": "engine",
+            "subjects": [
+                "abd",
+                "a b d",
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/[ ]/x",
+            "origin": "engine",
+            "subjects": [
+                " ",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a\\ b/x",
+            "origin": "engine",
+            "subjects": [
+                "a b",
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/(?x) a (?-x) b/",
+            "origin": "engine",
+            "subjects": [
+                "a b",
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/a b/xx",
+            "origin": "engine",
+            "subjects": [
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/[a b]/xx",
+            "origin": "engine",
+            "subjects": [
+                "a",
+                " ",
+                "b"
+            ]
+        },
+        {
+            "pattern": "/a#b/x",
+            "origin": "engine",
+            "subjects": [
+                "a",
+                "a#b"
+            ]
+        },
+        {
+            "pattern": "/a(?#c)b/",
+            "origin": "engine",
+            "subjects": [
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/a + b/x",
+            "origin": "engine",
+            "subjects": [
+                "aab"
+            ]
+        },
+        {
+            "pattern": "/a\\Kb/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "abc",
+                "aaa",
+                "abab",
+                "aaab",
+                "ab ab",
+                "abcabc",
+                "xabcx",
+                "a1b2c3",
+                "123,456,789",
+                "1234567"
+            ]
+        },
+        {
+            "pattern": "/foo\\K\\d+/",
+            "origin": "engine",
+            "subjects": [
+                "foo123",
+                "foo"
+            ]
+        },
+        {
+            "pattern": "/(?=ab\\K)/",
+            "origin": "engine",
+            "subjects": [
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/\\Q.*\\E+/",
+            "origin": "engine",
+            "subjects": [
+                ".*",
+                ".**",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/[\\Q]\\E]/",
+            "origin": "engine",
+            "subjects": [
+                "]",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\Qa\\E*/",
+            "origin": "engine",
+            "subjects": [
+                "aaa",
+                ""
+            ]
+        },
+        {
+            "pattern": "/\\Q/",
+            "origin": "engine",
+            "subjects": [
+                "",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a\\E/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x41\\x{42}\\101\\o{103}\\cD/",
+            "origin": "engine",
+            "subjects": [
+                "ABACD\u0004",
+                "ABAC"
+            ]
+        },
+        {
+            "pattern": "/\\e\\a\\f\\t/",
+            "origin": "engine",
+            "subjects": [
+                "\u001b\u0007\f\t"
+            ]
+        },
+        {
+            "pattern": "/\\0/",
+            "origin": "engine",
+            "subjects": [
+                "\u0000",
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\012/",
+            "origin": "engine",
+            "subjects": [
+                "\n"
+            ]
+        },
+        {
+            "pattern": "/\\_/",
+            "origin": "engine",
+            "subjects": [
+                "_"
+            ]
+        },
+        {
+            "pattern": "/\\N{U+41}/u",
+            "origin": "engine",
+            "subjects": [
+                "A"
+            ]
+        },
+        {
+            "pattern": "/\\$\\^\\./",
+            "origin": "engine",
+            "subjects": [
+                "$^."
+            ]
+        },
+        {
+            "pattern": "/\\//",
+            "origin": "engine",
+            "subjects": [
+                "/"
+            ]
+        },
+        {
+            "pattern": "#\\##",
+            "origin": "engine",
+            "subjects": [
+                "#"
+            ]
+        },
+        {
+            "pattern": "{a}",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "(a)",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "[a]",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "<a>",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "{a{1}}",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "#a#",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "~a~i",
+            "origin": "engine",
+            "subjects": [
+                "A"
+            ]
+        },
+        {
+            "pattern": " \n/a/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a/ S",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a/X",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a/A",
+            "origin": "engine",
+            "subjects": [
+                "ba",
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/b/A",
+            "origin": "engine",
+            "subjects": [
+                "ba",
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/a/n",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(a+)+$/",
+            "origin": "engine",
+            "subjects": [
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!",
+                "aaa"
+            ]
+        },
+        {
+            "pattern": "/(?:(?R)|a)/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(.*?)*x/",
+            "origin": "engine",
+            "subjects": [
+                "abababababababababababababababababababab"
+            ]
+        },
+        {
+            "pattern": "/(/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/)/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/[a/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a**/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/[z-a]/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a{3,2}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?<n>a)(?<n>b)/",
+            "origin": "engine",
+            "subjects": [
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/\\k<x>/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?<=a+)b/",
+            "origin": "engine",
+            "subjects": [
+                "ab"
+            ]
+        },
+        {
+            "pattern": "/\\y/",
+            "origin": "engine",
+            "subjects": [
+                "y"
+            ]
+        },
+        {
+            "pattern": "abc",
+            "origin": "engine",
+            "subjects": [
+                "abc"
+            ]
+        },
+        {
+            "pattern": "/abc",
+            "origin": "engine",
+            "subjects": [
+                "abc"
+            ]
+        },
+        {
+            "pattern": "/a/Q",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "{a}}",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a/e",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?P>x)/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\8/",
+            "origin": "engine",
+            "subjects": [
+                "8"
+            ]
+        },
+        {
+            "pattern": "/[\\d-z]/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?<=a\\d+)x/",
+            "origin": "engine",
+            "subjects": [
+                "a1x"
+            ]
+        },
+        {
+            "pattern": "/\\x{100}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a{65536}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/[[:foo:]]/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?z)/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\u0041/",
+            "origin": "engine",
+            "subjects": [
+                "A"
+            ]
+        },
+        {
+            "pattern": "/(*FOO)a/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?(1)a|b|c)/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?#a/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\c/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\g0/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": {
+                "base64": "L/8vdQ=="
+            },
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/(?<1a>x)/",
+            "origin": "engine",
+            "subjects": [
+                "x"
+            ]
+        },
+        {
+            "pattern": "/[[.a.]]/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\o{8}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\p{Foo}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/a\\",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        }
+    ]
+}

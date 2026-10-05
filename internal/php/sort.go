@@ -99,7 +99,7 @@ func cmpInt(a, b int) int {
 
 // sortArray ports zend_hash_sort_internal.
 func sortArray(a *Array, cmp func(x, y *entry) int, renumber bool) {
-	if a.live <= 1 && !(renumber && a.live > 0) {
+	if a.live == 0 || a.live == 1 && !renumber {
 		return
 	}
 	items := make([]sortItem[entry], 0, a.live)
@@ -115,7 +115,7 @@ func sortArray(a *Array, cmp func(x, y *entry) int, renumber bool) {
 		return cmpInt(x.ord, y.ord)
 	})
 
-	a.detach()
+	a.unpin()
 	es := make([]entry, len(items), len(items)+len(items)/4)
 	packed := true
 	for i := range items {
@@ -295,8 +295,8 @@ func sort2[T any](s []T, a, b int, cmp func(x, y *T) int) {
 }
 
 func sort3[T any](s []T, a, b, c int, cmp func(x, y *T) int) {
-	if !(cmp(&s[a], &s[b]) > 0) {
-		if !(cmp(&s[b], &s[c]) > 0) {
+	if cmp(&s[a], &s[b]) <= 0 {
+		if cmp(&s[b], &s[c]) <= 0 {
 			return
 		}
 		s[b], s[c] = s[c], s[b]
@@ -305,7 +305,7 @@ func sort3[T any](s []T, a, b, c int, cmp func(x, y *T) int) {
 		}
 		return
 	}
-	if !(cmp(&s[c], &s[b]) > 0) {
+	if cmp(&s[c], &s[b]) <= 0 {
 		s[a], s[c] = s[c], s[a]
 		return
 	}
@@ -370,12 +370,12 @@ func insertSort[T any](s []T, cmp func(x, y *T) int) {
 	}
 	for i := 1; i < 6; i++ {
 		j := i - 1
-		if !(cmp(&s[j], &s[i]) > 0) {
+		if cmp(&s[j], &s[i]) <= 0 {
 			continue
 		}
 		for j != 0 {
 			j--
-			if !(cmp(&s[j], &s[i]) > 0) {
+			if cmp(&s[j], &s[i]) <= 0 {
 				j++
 				break
 			}
@@ -384,14 +384,14 @@ func insertSort[T any](s []T, cmp func(x, y *T) int) {
 	}
 	for i := 6; i < n; i++ {
 		j := i - 1
-		if !(cmp(&s[j], &s[i]) > 0) {
+		if cmp(&s[j], &s[i]) <= 0 {
 			continue
 		}
 		for {
 			j -= 2
-			if !(cmp(&s[j], &s[i]) > 0) {
+			if cmp(&s[j], &s[i]) <= 0 {
 				j++
-				if !(cmp(&s[j], &s[i]) > 0) {
+				if cmp(&s[j], &s[i]) <= 0 {
 					j++
 				}
 				break

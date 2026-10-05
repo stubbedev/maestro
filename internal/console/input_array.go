@@ -3,12 +3,17 @@
 package console
 
 import (
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Param is one entry of an ArrayInput parameter array: a string key
-// ("command", "--opt", "-o") or, when Positional, an integer key.
+// ("command", "--opt", "-o") or, when Positional, an integer key. As in a
+// PHP array, a key that is a canonical decimal integer ("5") is an integer
+// key, and a repeated key keeps its first position with the last value.
 type Param struct {
 	Key        string
 	Index      int
@@ -32,12 +37,32 @@ type ArrayInput struct {
 
 // NewArrayInput mirrors new ArrayInput($parameters, $definition).
 func NewArrayInput(parameters []Param, definition *InputDefinition) (*ArrayInput, error) {
-	in := &ArrayInput{parameters: parameters}
+	in := &ArrayInput{parameters: normalizeParams(parameters)}
 	if err := in.init(definition, in.parseParams); err != nil {
 		return in, err
 	}
 
 	return in, nil
+}
+
+// normalizeParams applies PHP's array key semantics to parameters.
+func normalizeParams(parameters []Param) []Param {
+	out := make([]Param, 0, len(parameters))
+	for _, p := range parameters {
+		if !p.Positional {
+			if k := php.StrKey(p.Key); k.IsInt() {
+				p = PI(int(k.Int()), p.Value)
+			}
+		}
+		if j := slices.IndexFunc(out, func(q Param) bool { return q.Positional == p.Positional && q.Key == p.Key }); j >= 0 {
+			out[j].Value = p.Value
+
+			continue
+		}
+		out = append(out, p)
+	}
+
+	return out
 }
 
 // Clone implements Input.
@@ -98,7 +123,7 @@ func (in *ArrayInput) ParameterOption(values []string, def any, onlyParams bool)
 			}
 		} else {
 			for _, want := range values {
-				if p.Key == want {
+				if phpLooseEqualsString(p.Key, want) {
 					return p.Value
 				}
 			}
@@ -162,7 +187,7 @@ func arrayValues(v any) ([]any, bool) {
 
 func (in *ArrayInput) parseParams() error {
 	for _, p := range in.parameters {
-		if p.Positional {
+		if p.Positional && p.Index >= 0 {
 			if err := in.addPositionalArgument(p.Index, p.Value); err != nil {
 				return err
 			}
@@ -241,61 +266,11 @@ func (in *ArrayInput) addPositionalArgument(index int, value any) error {
 	if !in.definition.HasArgumentAt(index) {
 		return newError(KindInvalidArgument, "ArrayInput.php", 205, `The "%d" argument does not exist.`, index)
 	}
-	in.arguments[strconv.Itoa(index)] = value
+	key := strconv.Itoa(index)
+	if _, ok := in.arguments[key]; !ok && !in.definition.HasArgument(key) {
+		in.extraArgs = append(in.extraArgs, key)
+	}
+	in.arguments[key] = value
 
 	return nil
-}
-
-// phpLooseEqualsString is PHP 8's $v == $s for a string $s.
-func phpLooseEqualsString(v any, s string) bool {
-	switch x := v.(type) {
-	case nil:
-		return s == ""
-	case bool:
-		return x == (s != "" && s != "0")
-	case string:
-		if x == s {
-			return true
-		}
-		a, okA := phpNumeric(x)
-		b, okB := phpNumeric(s)
-
-		return okA && okB && a == b
-	case int:
-		if b, ok := phpNumeric(s); ok {
-			return float64(x) == b
-		}
-
-		return strconv.Itoa(x) == s
-	case float64:
-		if b, ok := phpNumeric(s); ok {
-			return x == b
-		}
-
-		return phpFloatString(x) == s
-	}
-
-	return false
-}
-
-// phpNumeric reports whether s is a PHP numeric string, with its value.
-func phpNumeric(s string) (float64, bool) {
-	t := strings.TrimLeft(s, " \t\n\r\v\f")
-	t = strings.TrimRight(t, " \t\n\r\v\f")
-	if t == "" {
-		return 0, false
-	}
-	// Reject forms ParseFloat accepts but PHP does not.
-	for i := range len(t) {
-		c := t[i]
-		if (c < '0' || c > '9') && c != '.' && c != 'e' && c != 'E' && c != '+' && c != '-' {
-			return 0, false
-		}
-	}
-	f, err := strconv.ParseFloat(t, 64)
-	if err != nil {
-		return 0, false
-	}
-
-	return f, true
 }

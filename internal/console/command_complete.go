@@ -6,13 +6,16 @@ package console
 
 import (
 	_ "embed"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 //go:embed resources/completion.bash
@@ -112,7 +115,7 @@ func (c *CompleteCommand) Initialize(Input, Output) error {
 
 // filterValidateBool is filter_var($v, FILTER_VALIDATE_BOOLEAN).
 func filterValidateBool(v string) bool {
-	switch strings.ToLower(phpTrim(v)) {
+	switch php.Strtolower(php.Trim(v)) {
 	case "1", "true", "on", "yes":
 		return true
 	}
@@ -185,7 +188,7 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 		c.Application().Complete(completionInput, suggestions)
 	case completionInput.MustSuggestArgumentValuesFor("command") &&
 		command.Base().Name() != completionInput.CompletionValue() &&
-		!containsString(command.Base().Aliases(), completionInput.CompletionValue()):
+		!slices.Contains(command.Base().Aliases(), completionInput.CompletionValue()):
 		c.log("  No command found, completing using the Application class.")
 
 		// expand shortcut names ("cache:cl<TAB>") into their full name ("cache:clear")
@@ -206,12 +209,12 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 		}
 
 		if completionInput.CompletionType() == CompletionTypeOptionName {
-			c.log("  Completing option names for the <comment>" + typeString(command) + "</> command.")
+			c.log("  Completing option names for the <comment>" + commandClass(command) + "</> command.")
 
 			suggestions.SuggestOptions(base.Definition().Options()...)
 		} else {
 			c.log(
-				"  Completing using the <comment>"+typeString(command)+"</> class.",
+				"  Completing using the <comment>"+commandClass(command)+"</> class.",
 				"  Completing <comment>"+completionInput.CompletionType()+"</> for <comment>"+completionInput.CompletionName()+"</>",
 			)
 			c.log("  Current value: <comment>" + completionInput.CompletionValue() + "</>")
@@ -240,18 +243,6 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 	completionOutput.Write(suggestions, out)
 
 	return 0, nil
-}
-
-func typeString(v any) string { return strings.TrimPrefix(fmt.Sprintf("%T", v), "*") }
-
-func containsString(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (c *CompleteCommand) createCompletionInput(in Input) (*CompletionInput, error) {
@@ -291,7 +282,7 @@ func (c *CompleteCommand) findCommand(completionInput *CompletionInput) (Command
 
 	cmd, err := c.Application().Find(inputName)
 	if err != nil {
-		if e, ok := err.(*Error); ok && (e.Kind == KindCommandNotFound || e.Kind == KindNamespaceNotFound) {
+		if errors.Is(err, ErrCommandNotFound) {
 			return nil, nil //nolint:nilnil // CommandNotFoundException is swallowed.
 		}
 
@@ -328,7 +319,7 @@ func (c *CompleteCommand) log(messages ...string) {
 		return
 	}
 
-	f, err := os.OpenFile(completionLogFile(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o666)
+	f, err := os.OpenFile(completionLogFile(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o666) //nolint:gosec // file_put_contents() creates files with mode 0666 & ~umask.
 	if err != nil {
 		return
 	}
@@ -361,7 +352,7 @@ to use shell autocompletion (currently only bash completion is supported).
 
 Dump the script to a global completion file and restart your shell:
 
-    <info>%command.full_name% bash | sudo tee /etc/bash_completion.d/` + commandName + `</>
+    <info>%command.full_name% bash | sudo tee /etc/bash_completion.d/`+commandName+`</>
 
 Or dump the script to a local file and source it:
 
@@ -378,7 +369,7 @@ Or dump the script to a local file and source it:
 
 Add this to the end of your shell configuration file (e.g. <info>"~/.bashrc"</>):
 
-    <info>eval "$(` + fullCommand + ` completion bash)"</>`).
+    <info>eval "$(`+fullCommand+` completion bash)"</>`).
 		AddArgument("shell", ArgumentOptional, `The shell type (e.g. "bash"), the value of the "$SHELL" env var will be used if this is not given`, nil).
 		AddOption("debug", "", OptionValueNone, "Tail the completion debug log", nil)
 
@@ -423,7 +414,9 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 	}
 
 	if BoolOption(in, "debug") {
-		return 0, tailDebugLog(commandName, out)
+		tailDebugLog(commandName, out)
+
+		return 0, nil
 	}
 
 	var shell string
@@ -459,20 +452,19 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 }
 
 // tailDebugLog runs `tail -f` on the completion debug log, forwarding its
-// output.
-func tailDebugLog(commandName string, out Output) error {
+// output. Like Process::run(), a failing tail is not an error.
+func tailDebugLog(commandName string, out Output) {
 	debugFile := sysTempDir() + "/sf_" + commandName + ".log"
-	if _, err := os.Stat(debugFile); err != nil {
-		if f, err := os.OpenFile(debugFile, os.O_CREATE|os.O_WRONLY, 0o666); err == nil {
-			f.Close()
+	if _, err := os.Stat(debugFile); err != nil { //nolint:gosec // the log path is derived from the temp dir and argv[0], as in PHP.
+		if f, err := os.OpenFile(debugFile, os.O_CREATE|os.O_WRONLY, 0o666); err == nil { //nolint:gosec // touch() creates files with mode 0666 & ~umask.
+			_ = f.Close()
 		}
 	}
 
-	cmd := exec.Command("tail", "-f", debugFile)
+	cmd := exec.Command("tail", "-f", debugFile) //nolint:gosec // the log path is derived from the temp dir and argv[0], as in PHP.
 	cmd.Stdout = outputWriter{out}
 	cmd.Stderr = outputWriter{out}
-
-	return cmd.Run()
+	_ = cmd.Run()
 }
 
 type outputWriter struct{ out Output }

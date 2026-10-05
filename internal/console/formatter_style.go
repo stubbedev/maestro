@@ -5,7 +5,7 @@ package console
 
 import (
 	"os"
-	"strconv"
+	"slices"
 )
 
 // Style is OutputFormatterStyleInterface.
@@ -115,9 +115,10 @@ func (s *OutputFormatterStyle) SetOptions(options []string) error {
 func (s *OutputFormatterStyle) Apply(text string) string {
 	if !s.hrefChecked {
 		s.hrefChecked = true
+		konsole := os.Getenv("KONSOLE_VERSION")
+		_, idea := os.LookupEnv("IDEA_INITIAL_DIRECTORY")
 		s.handlesHrefGracefully = os.Getenv("TERMINAL_EMULATOR") != "JetBrains-JediTerm" &&
-			(os.Getenv("KONSOLE_VERSION") == "" || phpIntval(os.Getenv("KONSOLE_VERSION")) > 201100) &&
-			os.Getenv("IDEA_INITIAL_DIRECTORY") == ""
+			(konsole == "" || konsole == "0" || phpIntval(konsole) > 201100) && !idea
 	}
 
 	if s.hasHref && s.handlesHrefGracefully {
@@ -133,6 +134,27 @@ func (s *OutputFormatterStyle) clone() *OutputFormatterStyle {
 
 	return &c
 }
+
+// NullOutputFormatterStyle is a style that changes nothing.
+type NullOutputFormatterStyle struct{}
+
+// SetForeground implements Style.
+func (*NullOutputFormatterStyle) SetForeground(string) error { return nil }
+
+// SetBackground implements Style.
+func (*NullOutputFormatterStyle) SetBackground(string) error { return nil }
+
+// SetOption implements Style.
+func (*NullOutputFormatterStyle) SetOption(string) error { return nil }
+
+// UnsetOption implements Style.
+func (*NullOutputFormatterStyle) UnsetOption(string) error { return nil }
+
+// SetOptions implements Style.
+func (*NullOutputFormatterStyle) SetOptions([]string) error { return nil }
+
+// Apply implements Style.
+func (*NullOutputFormatterStyle) Apply(text string) string { return text }
 
 // OutputFormatterStyleStack tracks the styles opened by nested tags.
 type OutputFormatterStyleStack struct {
@@ -171,9 +193,8 @@ func (s *OutputFormatterStyleStack) Pop(style Style) (Style, error) {
 	}
 
 	want := style.Apply("")
-	for i := len(s.styles) - 1; i >= 0; i-- {
-		if s.styles[i].Apply("") == want {
-			stacked := s.styles[i]
+	for i, stacked := range slices.Backward(s.styles) {
+		if stacked.Apply("") == want {
 			s.styles = s.styles[:i]
 
 			return stacked, nil
@@ -197,60 +218,3 @@ func (s *OutputFormatterStyleStack) SetEmptyStyle(style Style) { s.emptyStyle = 
 
 // EmptyStyle returns the style used when the stack is empty.
 func (s *OutputFormatterStyleStack) EmptyStyle() Style { return s.emptyStyle }
-
-// phpIntval converts a string like PHP's (int) cast: optional leading
-// whitespace, sign and digits; numeric strings in exponent form are
-// evaluated as floats first.
-func phpIntval(s string) int {
-	i := 0
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' || s[i] == '\v' || s[i] == '\f') {
-		i++
-	}
-	j := i
-	if j < len(s) && (s[j] == '+' || s[j] == '-') {
-		j++
-	}
-	k := j
-	for k < len(s) && s[k] >= '0' && s[k] <= '9' {
-		k++
-	}
-	// A float-looking prefix ("1.5", "1e3") is converted through float.
-	m := k
-	if m < len(s) && s[m] == '.' {
-		m++
-		for m < len(s) && s[m] >= '0' && s[m] <= '9' {
-			m++
-		}
-	}
-	if m < len(s) && (s[m] == 'e' || s[m] == 'E') && (m > j) {
-		e := m + 1
-		if e < len(s) && (s[e] == '+' || s[e] == '-') {
-			e++
-		}
-		if e < len(s) && s[e] >= '0' && s[e] <= '9' {
-			for e < len(s) && s[e] >= '0' && s[e] <= '9' {
-				e++
-			}
-			m = e
-		}
-	}
-	if m > k {
-		f, err := strconv.ParseFloat(s[i:m], 64)
-		if err == nil {
-			return int(f)
-		}
-	}
-	if k == j {
-		return 0
-	}
-	n, err := strconv.Atoi(s[i:k])
-	if err != nil {
-		if s[i] == '-' {
-			return -1 << 63
-		}
-
-		return 1<<63 - 1
-	}
-
-	return n
-}

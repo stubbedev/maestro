@@ -6,13 +6,12 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/fs"
 	"os"
 	"strings"
 	"syscall"
 )
 
-// Parser is PhpFileParser together with the PHP runtime settings its result
+// Parser is PhpFileParser together with the PHP runtime setting its result
 // depends on.
 type Parser struct {
 	// ShortOpenTag is PHP's short_open_tag ini setting, which decides
@@ -37,22 +36,13 @@ func (p Parser) FindClasses(path string) ([]string, error) {
 	return p.findClasses(&b, path)
 }
 
-// FindClassesInSource is FindClasses for a file whose contents are already
-// known.
-func (p Parser) FindClassesInSource(contents []byte) []string {
-	var b parseBuffers
-	b.src = append(b.src[:0], contents...)
-	b.src = append(b.src, make([]byte, stripPadding)...)
-
-	return p.classesIn(&b, len(contents))
-}
-
 // parseBuffers are the scratch buffers of one parsing goroutine, reused from
 // file to file.
 type parseBuffers struct {
 	src   []byte // file contents followed by stripPadding zero bytes
 	strip []byte
 	clean []byte
+	lex   lexer
 }
 
 func (p Parser) findClasses(b *parseBuffers, path string) ([]string, error) {
@@ -60,38 +50,32 @@ func (p Parser) findClasses(b *parseBuffers, path string) ([]string, error) {
 	if err != nil {
 		return nil, readError(path, err)
 	}
-	b.strip = stripWhitespace(b.strip[:0], b.src, n, p.ShortOpenTag)
+
+	return p.classesIn(b, n, path)
+}
+
+// classesIn is findClasses() for the contents in b.src[:n].
+func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error) {
+	b.strip = b.lex.strip(b.strip[:0], b.src, n, p.ShortOpenTag)
 	if len(b.strip) == 0 {
 		if len(bytes.Trim(b.src[:n], " \t\n\r\x00\x0B")) == 0 {
 			// The input file was really empty and thus contains no classes
 			return nil, nil
 		}
 
-		return nil, &Exception{Class: "RuntimeException", Message: fileError(
-			`File at "%s" could not be parsed as PHP, it may be binary or corrupted`, path, "")}
+		// PHP appends error_get_last() here, which holds whatever error
+		// happened last anywhere in the process; nothing is appended.
+		return nil, newException(classRuntime, `File at "`+path+`" could not be parsed as PHP, it may be binary or corrupted`)
 	}
 
-	return b.classesInStripped(), nil
-}
-
-// classesIn runs php_strip_whitespace() and findClasses() on b.src[:n].
-func (p Parser) classesIn(b *parseBuffers, n int) []string {
-	b.strip = stripWhitespace(b.strip[:0], b.src, n, p.ShortOpenTag)
-
-	return b.classesInStripped()
-}
-
-// classesInStripped is the part of findClasses() after
-// php_strip_whitespace(), working on b.strip.
-func (b *parseBuffers) classesInStripped() []string {
 	// return early if there is no chance of matching anything in this file
 	maxMatches := countTypeKeywords(b.strip)
 	if maxMatches == 0 {
-		return nil
+		return nil, nil
 	}
 	b.clean = cleanPhpFile(b.clean[:0], b.strip, maxMatches)
 
-	return extractClasses(b.clean)
+	return extractClasses(b.clean), nil
 }
 
 // readFile reads the file into b.src, followed by the zero padding the
@@ -123,7 +107,7 @@ func (b *parseBuffers) readFile(path string) (int, error) {
 		}
 		if err != nil {
 			if errors.Is(err, syscall.EISDIR) {
-				// file_get_contents() of a directory reads nothing.
+				// A directory opens but reads nothing.
 				return 0, nil
 			}
 
@@ -137,48 +121,43 @@ func (b *parseBuffers) readFile(path string) (int, error) {
 }
 
 // readError builds the exception findClasses() throws when
-// php_strip_whitespace() cannot open the file.
+// php_strip_whitespace() cannot open the file, with the message
+// error_get_last() returns at that point.
 func readError(path string, err error) error {
-	var message string
-	if _, statErr := os.Stat(path); statErr != nil {
-		message = `File at "%s" does not exist, check your classmap definitions`
-	} else {
-		message = `File at "%s" is not readable, check its permissions`
+	info, statErr := os.Stat(path)
+	if statErr != nil {
+		return newException(classRuntime, `File at "`+path+`" does not exist, check your classmap definitions`+
+			helpful("php_strip_whitespace", path, err))
 	}
-	helpful := "php_strip_whitespace(" + path + "): Failed to open stream: " + strerror(err)
-
-	return &Exception{Class: "RuntimeException", Message: fileError(message, path, helpful)}
-}
-
-// fileError formats findClasses()' error message, with error_get_last()'s
-// message appended when there is one.
-func fileError(message, path, helpful string) string {
-	message = strings.Replace(message, "%s", path, 1)
-	if helpful != "" {
-		message += "\nThe following message may be helpful:\n" + helpful
+	// isReadable() tries file_get_contents() on regular files, which
+	// replaces the error.
+	fn := "php_strip_whitespace"
+	if info.Mode().IsRegular() {
+		fn = "file_get_contents"
 	}
 
-	return message
+	return newException(classRuntime, `File at "`+path+`" is not readable, check its permissions`+helpful(fn, path, err))
 }
 
-// strerror returns the C library's message for the errno behind err.
+// helpful is the "may be helpful" suffix with PHP's warning for a failed
+// fopen() in fn.
+func helpful(fn, path string, err error) string {
+	return "\nThe following message may be helpful:\n" + fn + "(" + path + "): Failed to open stream: " + strerror(err)
+}
+
+// strerror returns the C library's message for the errno behind err: Go's
+// messages are glibc's with the first letter lowered.
 func strerror(err error) string {
-	var errno syscall.Errno
-	if !errors.As(err, &errno) {
-		return err.Error()
-	}
-	switch {
-	case errors.Is(errno, fs.ErrNotExist):
-		return "No such file or directory"
-	case errors.Is(errno, fs.ErrPermission):
-		return "Permission denied"
-	}
-	msg := errno.Error()
-	if msg == "" {
+	if errno, ok := errors.AsType[syscall.Errno](err); ok {
+		msg := errno.Error()
+		if msg != "" && msg[0] >= 'a' && msg[0] <= 'z' {
+			return string(msg[0]-'a'+'A') + msg[1:]
+		}
+
 		return msg
 	}
 
-	return strings.ToUpper(msg[:1]) + msg[1:]
+	return err.Error()
 }
 
 // Character classes of the PCRE patterns (non-UTF mode, C locale tables).
@@ -189,6 +168,7 @@ var (
 	isNameChar  [256]bool // [a-zA-Z0-9_\x7f-\xff:\-]
 	isNsStart   [256]bool // [a-zA-Z_\x7f-\xff]
 	isNsChar    [256]bool // [a-zA-Z0-9_\x7f-\xff]
+	typeStart   [256]bool // first letters of class|interface|trait|enum|namespace, any case
 )
 
 func init() {
@@ -203,6 +183,10 @@ func init() {
 	}
 	for _, c := range []byte(" \t\n\v\f\r") {
 		isPcreSpace[c] = true
+	}
+	for _, c := range []byte("citen") {
+		typeStart[c] = true
+		typeStart[c-'a'+'A'] = true
 	}
 }
 
@@ -236,7 +220,7 @@ func typeKeyword(c []byte, i int) string {
 func countTypeKeywords(c []byte) int {
 	n := 0
 	for i := 0; i < len(c); i++ {
-		if i > 0 && isWordChar[c[i-1]] {
+		if !typeStart[c[i]] || i > 0 && isWordChar[c[i-1]] {
 			continue
 		}
 		kw := typeKeyword(c, i)
@@ -267,6 +251,9 @@ func extractClasses(c []byte) []string {
 	var classes []string
 	namespace := ""
 	for i := 0; i < len(c); i++ {
+		if !typeStart[c[i]] {
+			continue
+		}
 		if i > 0 {
 			if prev := c[i-1]; isWordChar[prev] || prev == '\\' || prev == '$' || prev == ':' || prev == '>' {
 				continue
@@ -281,7 +268,7 @@ func extractClasses(c []byte) []string {
 			if !ok {
 				continue
 			}
-			namespace = removeNsWhitespace(nsname) + `\`
+			namespace = namespacePrefix(nsname)
 			i = end - 1
 
 			continue
@@ -301,25 +288,40 @@ func extractClasses(c []byte) []string {
 		for j++; j < len(c) && isNameChar[c[j]]; j++ {
 		}
 		i = j - 1
-		name := string(c[start:j])
+		name := c[start:j]
 		// skip anon classes extending/implementing
-		if name == "extends" || name == "implements" {
+		if string(name) == "extends" || string(name) == "implements" {
 			continue
 		}
 		if name[0] == ':' {
 			// This is an XHP class, https://github.com/facebook/xhp
-			name = "xhp" + xhpReplacer.Replace(name)[1:]
+			name = append([]byte("xhp"), xhpReplacer.Replace(string(name))[1:]...)
 		} else if kw == "enum" {
 			// enum Foo: int / enum Foo:int: the pattern captures the colon
 			// (and type), which isn't part of the class name.
-			if colon := strings.LastIndexByte(name, ':'); colon >= 0 {
+			if colon := bytes.LastIndexByte(name, ':'); colon >= 0 {
 				name = name[:colon]
 			}
 		}
-		classes = append(classes, strings.TrimLeft(namespace+name, `\`))
+		// ltrim($namespace.$name, '\\'): only the global namespace "\\"
+		// starts with a backslash, names never do.
+		if namespace == `\` {
+			namespace = ""
+		}
+		classes = append(classes, concat(namespace, name))
 	}
 
 	return classes
+}
+
+// concat returns a+b as a new string with a single allocation.
+func concat(a string, b []byte) string {
+	var sb strings.Builder
+	sb.Grow(len(a) + len(b))
+	sb.WriteString(a)
+	sb.Write(b)
+
+	return sb.String()
 }
 
 // xhpReplacer is str_replace(['-', ':'], ['_', '__'], ...); the
@@ -399,14 +401,16 @@ func skipPcreSpace(c []byte, i int) int {
 	return i
 }
 
-// removeNsWhitespace is str_replace([' ', "\t", "\r", "\n"], '', $nsname).
-func removeNsWhitespace(nsname []byte) string {
-	b := make([]byte, 0, len(nsname))
+// namespacePrefix is str_replace([' ', "\t", "\r", "\n"], ”, $nsname).'\\'.
+func namespacePrefix(nsname []byte) string {
+	var sb strings.Builder
+	sb.Grow(len(nsname) + 1)
 	for _, ch := range nsname {
 		if ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n' {
-			b = append(b, ch)
+			sb.WriteByte(ch)
 		}
 	}
+	sb.WriteByte('\\')
 
-	return string(b)
+	return sb.String()
 }

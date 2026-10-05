@@ -4,14 +4,13 @@ package console
 
 import (
 	"errors"
-	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Application overrides. A type embedding *Application implements any of
@@ -106,12 +105,11 @@ func (a *Application) Run(in Input, out Output) (exitCode int, err error) {
 
 		renderException(err)
 
+		// $e->getCode() of the exception itself, 1 unless positive.
 		exitCode = 1
-		var t Throwable
-		if errors.As(err, &t) && t.ThrowableCode() > 0 {
-			exitCode = t.ThrowableCode()
+		if _, _, _, code, _ := throwableInfo(err); code > 0 {
+			exitCode = code
 		}
-		err = nil
 	}
 
 	if a.autoExit {
@@ -161,7 +159,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 
 	name := a.commandName(in)
 	if in.HasParameterOption([]string{"--help", "-h"}, true) {
-		if name == "" {
+		if name == "" || name == "0" { // !$name
 			name = "help"
 			argIn, err := NewArrayInput([]Param{P("command_name", a.defaultCommand)}, nil)
 			if err != nil {
@@ -173,21 +171,19 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 		}
 	}
 
-	if name == "" {
+	if name == "" || name == "0" { // !$name
 		name = a.defaultCommand
 		definition := a.Definition()
 		args := slices.Clone(definition.Arguments())
-		cmdArg := definition.arg("command")
-		desc := ""
-		if cmdArg != nil {
-			desc = cmdArg.Description()
+		cmdArg, err := definition.Argument("command")
+		if err != nil {
+			return 0, err
 		}
-		replacement := MustArgument("command", ArgumentOptional, desc, name)
-		if i, ok := definition.argIndex["command"]; ok {
-			args[i] = replacement
-		} else {
-			args = append(args, replacement)
+		replacement, err := NewInputArgument("command", ArgumentOptional, cmdArg.Description(), name)
+		if err != nil {
+			return 0, err
 		}
+		args[definition.argIndex["command"]] = replacement
 		if err := definition.SetArguments(args...); err != nil {
 			return 0, err
 		}
@@ -224,9 +220,14 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 
 	a.runningCommand = command
 	exitCode, err := a.DoRunCommand(command, in, out)
+	if err != nil {
+		// PHP leaves runningCommand set when the command throws, so the
+		// rendered exception is followed by the command synopsis.
+		return exitCode, err
+	}
 	a.runningCommand = nil
 
-	return exitCode, err
+	return exitCode, nil
 }
 
 // Reset implements ResetInterface (a no-op).
@@ -272,6 +273,9 @@ func (a *Application) Definition() *InputDefinition {
 // global options).
 func (a *Application) Complete(in *CompletionInput, suggestions *CompletionSuggestions) {
 	if in.CompletionType() == CompletionTypeArgumentValue && in.CompletionName() == "command" {
+		if a.init() != nil {
+			return
+		}
 		var names []string
 		for _, name := range a.allNames() {
 			cmd := a.commands[name]
@@ -378,6 +382,11 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	}
 
 	base := command.Base()
+	if base == nil {
+		// A type embedding a nil *Command: the parent constructor was never
+		// called.
+		return nil, newError(KindLogic, "Command.php", 420, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
+	}
 	if base.self == nil {
 		base.self = command
 	}
@@ -406,8 +415,30 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	return command, nil
 }
 
+// ClassNamer is optionally implemented by commands (and other objects whose
+// class PHP reports with get_debug_type()) to name the PHP class they port,
+// e.g. `Composer\Command\InstallCommand`. Implement it on the concrete
+// type, never on a type meant to be embedded.
+type ClassNamer interface {
+	ClassName() string
+}
+
+// commandClass is get_debug_type($command): the ClassNamer name, the
+// Symfony class for a bare *Command, else the Go type name without its
+// package qualifier.
 func commandClass(c Commander) string {
-	return strings.TrimPrefix(fmt.Sprintf("%T", c), "*")
+	if n, ok := c.(ClassNamer); ok {
+		return n.ClassName()
+	}
+	if _, ok := c.(*Command); ok {
+		return `Symfony\Component\Console\Command\Command`
+	}
+	name := typeString(c)
+	if i := strings.LastIndexByte(name, '.'); i >= 0 {
+		name = name[i+1:]
+	}
+
+	return name
 }
 
 func (a *Application) setCommand(name string, c Commander) {
@@ -460,6 +491,9 @@ func (a *Application) Has(name string) bool {
 // Namespaces returns all unique namespaces of the visible commands, except
 // the global one.
 func (a *Application) Namespaces() []string {
+	if a.init() != nil {
+		return nil
+	}
 	var namespaces []string
 	seen := map[string]bool{}
 	add := func(list []string) {
@@ -487,28 +521,44 @@ func (a *Application) Namespaces() []string {
 	return namespaces
 }
 
-// abbreviationRegexp builds the expression find() and findNamespace() use:
-// implode('[^:]*:', array_map('preg_quote', explode(':', $name))).'[^:]*'.
-func abbreviationRegexp(name string, caseInsensitive, anchoredEnd bool) *regexp.Regexp {
-	parts := strings.Split(name, ":")
-	for i, p := range parts {
-		parts[i] = regexp.QuoteMeta(p)
-	}
-	expr := "^" + strings.Join(parts, "[^:]*:") + "[^:]*"
-	if anchoredEnd {
-		expr += `\n?\z`
-	}
-	if caseInsensitive {
-		expr = "(?i)" + expr
+// abbreviation is the expression find() and findNamespace() build from a
+// name: '{^'.implode('[^:]*:', array_map('preg_quote', explode(':', $name))).'[^:]*}'.
+// It is matched without regexps: the quoted parts contain no ":", so each
+// "[^:]*:" can only stop at the next colon. Like PCRE without /u, case
+// folding is ASCII only, and any bytes are accepted.
+type abbreviation []string
+
+func newAbbreviation(name string) abbreviation { return strings.Split(name, ":") }
+
+// match reports whether s matches; anchored adds the trailing "$" (which,
+// since "[^:]*" also consumes a final newline, means no further colon).
+func (a abbreviation) match(s string, caseInsensitive, anchored bool) bool {
+	pos := 0
+	for i, p := range a {
+		if i > 0 {
+			j := strings.IndexByte(s[pos:], ':')
+			if j < 0 {
+				return false
+			}
+			pos += j + 1
+		}
+		if len(s)-pos < len(p) {
+			return false
+		}
+		if seg := s[pos : pos+len(p)]; seg != p && (!caseInsensitive || !asciiEqualFold(seg, p)) {
+			return false
+		}
+		pos += len(p)
 	}
 
-	return regexp.MustCompile(expr)
+	return !anchored || strings.IndexByte(s[pos:], ':') < 0
 }
 
-func pregGrep(re *regexp.Regexp, list []string) []string {
+// grep is preg_grep() of the expression over list.
+func (a abbreviation) grep(list []string, caseInsensitive, anchored bool) []string {
 	var out []string
 	for _, s := range list {
-		if re.MatchString(s) {
+		if a.match(s, caseInsensitive, anchored) {
 			out = append(out, s)
 		}
 	}
@@ -516,10 +566,30 @@ func pregGrep(re *regexp.Regexp, list []string) []string {
 	return out
 }
 
+func asciiEqualFold(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range len(a) {
+		x, y := a[i], b[i]
+		if x >= 'A' && x <= 'Z' {
+			x += 'a' - 'A'
+		}
+		if y >= 'A' && y <= 'Z' {
+			y += 'a' - 'A'
+		}
+		if x != y {
+			return false
+		}
+	}
+
+	return true
+}
+
 // FindNamespace finds a registered namespace by name or abbreviation.
 func (a *Application) FindNamespace(namespace string) (string, error) {
 	allNamespaces := a.Namespaces()
-	namespaces := pregGrep(abbreviationRegexp(namespace, false, false), allNamespaces)
+	namespaces := newAbbreviation(namespace).grep(allNamespaces, false, false)
 
 	if len(namespaces) == 0 {
 		message := `There are no commands defined in the "` + namespace + `" namespace.`
@@ -576,14 +646,15 @@ func (a *Application) Find(name string) (Commander, error) {
 	}
 
 	allCommands := slices.Clone(a.allNames())
-	commands := pregGrep(abbreviationRegexp(name, false, false), allCommands)
+	abbrev := newAbbreviation(name)
+	commands := abbrev.grep(allCommands, false, false)
 
 	if len(commands) == 0 {
-		commands = pregGrep(abbreviationRegexp(name, true, false), allCommands)
+		commands = abbrev.grep(allCommands, true, false)
 	}
 
 	// if no commands matched or we just matched namespaces
-	if len(commands) == 0 || len(pregGrep(abbreviationRegexp(name, true, true), commands)) < 1 {
+	if len(commands) == 0 || len(abbrev.grep(commands, true, true)) < 1 {
 		if pos := strings.LastIndexByte(name, ':'); pos >= 0 {
 			// check if a namespace exists and contains commands
 			if _, err := a.FindNamespace(name[:pos]); err != nil {
@@ -683,15 +754,6 @@ func (a *Application) Find(name string) (Commander, error) {
 	return command, nil
 }
 
-// strPadRight is str_pad($s, $length, ' '), which pads by bytes.
-func strPadRight(s string, length int) string {
-	if len(s) >= length {
-		return s
-	}
-
-	return s + strings.Repeat(" ", length-len(s))
-}
-
 // All returns the commands (in the given namespace if not empty), keyed by
 // name or alias, in registration order.
 func (a *Application) All(namespace string) []NamedCommand {
@@ -739,48 +801,16 @@ func (a *Application) RenderThrowable(err error, out Output) {
 	}
 
 	if a.runningCommand != nil {
-		synopsis := phpSprintfS(a.runningCommand.Base().Synopsis(false), a.Name())
+		synopsis := phpSprintf(a.runningCommand.Base().Synopsis(false), a.Name())
 		out.Write("<info>"+Escape(synopsis)+"</info>", true, VerbosityQuiet)
 		out.Write("", true, VerbosityQuiet)
 	}
 }
 
-// phpSprintfS is sprintf($format, $s) for formats that, in practice, contain
-// no conversion other than %s and %%.
-func phpSprintfS(format, s string) string {
-	if !strings.Contains(format, "%") {
-		return format
-	}
-	var b strings.Builder
-	used := false
-	for i := 0; i < len(format); i++ {
-		if format[i] != '%' || i+1 >= len(format) {
-			b.WriteByte(format[i])
-
-			continue
-		}
-		i++
-		switch format[i] {
-		case '%':
-			b.WriteByte('%')
-		case 's':
-			if !used {
-				b.WriteString(s)
-				used = true
-			}
-		default:
-			b.WriteByte('%')
-			b.WriteByte(format[i])
-		}
-	}
-
-	return b.String()
-}
-
 // throwableInfo extracts the PHP exception details of err itself (not of
 // errors it wraps, as PHP only looks at the object it holds).
 func throwableInfo(err error) (class, file string, line, code int, prev error) {
-	if t, ok := err.(Throwable); ok {
+	if t, ok := err.(Throwable); ok { //nolint:errorlint // PHP inspects the exception object itself, not what it wraps.
 		return t.ThrowableClass(), t.ThrowableFile(), t.ThrowableLine(), t.ThrowableCode(), t.ThrowablePrevious()
 	}
 
@@ -789,16 +819,25 @@ func throwableInfo(err error) (class, file string, line, code int, prev error) {
 
 // isConsoleExceptionValue is "$e instanceof ExceptionInterface".
 func isConsoleExceptionValue(err error) bool {
-	e, ok := err.(*Error)
+	e, ok := err.(*Error) //nolint:errorlint // instanceof applies to the object itself.
 
 	return ok && e.Is(ErrConsole)
 }
 
 // DoRenderThrowable renders err and its previous errors.
+//
+// The PHP exception details come from the Throwable interface: class
+// (get_debug_type), code, file and line of the throw site, and the previous
+// exception. Errors that do not implement it render as a plain "Exception"
+// with code 0 and file/line "n/a"; their wrapped errors are not followed
+// (PHP only follows getPrevious()). In verbose mode the "Exception trace:"
+// block lists the throw site ("  at FILE:LINE") followed by the frames of an
+// optional Tracer; PHP lists its own call stack there, with absolute paths,
+// so those lines are the only part of the rendering that cannot match.
 func (a *Application) DoRenderThrowable(err error, out Output) {
 	for e := err; e != nil; {
 		class, file, line, code, prev := throwableInfo(e)
-		message := phpTrim(e.Error())
+		message := php.Trim(e.Error())
 		verbose := out.Verbosity() >= VerbosityVerbose
 
 		var title string
@@ -871,7 +910,9 @@ func (a *Application) DoRenderThrowable(err error, out Output) {
 			if line != 0 {
 				lineStr = strconv.Itoa(line)
 			}
-			out.Write(" at <info>"+fileStr+":"+lineStr+"</info>", true, VerbosityQuiet)
+			// The first frame is the throw site, with an empty class and
+			// function: sprintf(' %s%s at ...', '', '').
+			out.Write("  at <info>"+fileStr+":"+lineStr+"</info>", true, VerbosityQuiet)
 
 			if tr, ok := e.(Tracer); ok {
 				for _, f := range tr.ThrowableTrace() {
@@ -906,16 +947,6 @@ func splitCRLF(s string) []string {
 	}
 
 	return parts
-}
-
-// phpBasename ports basename() for "/"-separated paths.
-func phpBasename(path string) string {
-	path = strings.TrimRight(path, "/")
-	if path == "" {
-		return ""
-	}
-
-	return filepath.Base(path)
 }
 
 // ConfigureIO configures input and output from the global options.
@@ -1014,7 +1045,7 @@ func abbreviationSuggestions(abbrevs []string) string {
 }
 
 // ExtractNamespace returns the namespace part of a command name, limited to
-// limit parts when limit > 0.
+// limit parts when limit > 0 (PHP's null limit is 0 here).
 func ExtractNamespace(name string, limit int) string {
 	parts := strings.Split(name, ":")
 	parts = parts[:len(parts)-1]
@@ -1086,7 +1117,7 @@ func (*Application) findAlternatives(name string, collection []string) []string 
 	}
 	// ksort($alternatives, SORT_NATURAL | SORT_FLAG_CASE)
 	slices.SortStableFunc(keys, func(x, y string) int {
-		return strnatcasecmp(x, y)
+		return php.Strnatcasecmp(x, y)
 	})
 
 	return keys
@@ -1117,8 +1148,9 @@ func splitStringByWidth(s string, width int) []string {
 	// additionally, array_slice() is not enough as some character has doubled width.
 	// we need a function to split string not by character count but by string width
 	if !utf8.ValidString(s) {
+		// str_split($string, $width)
 		if width < 1 {
-			width = 1
+			panic(errors.New("str_split(): Argument #2 ($length) must be greater than 0"))
 		}
 		var out []string
 		for len(s) > width {
@@ -1132,20 +1164,43 @@ func splitStringByWidth(s string, width int) []string {
 	var lines []string
 	var line strings.Builder
 	lineWidth := 0
-	for _, r := range s {
-		w := mbCharWidth(r)
+	// add tests whether a character of width w fits on the current line,
+	// otherwise it starts a new one.
+	add := func(r rune, w int) {
 		// test if $char could be appended to current line
 		if lineWidth+w <= width {
-			line.WriteRune(r)
+			if r >= 0 {
+				line.WriteRune(r)
+			}
 			lineWidth += w
 
-			continue
+			return
 		}
 		// if not, push current line to array and make new line
 		lines = append(lines, strPadRight(line.String(), width))
 		line.Reset()
-		line.WriteRune(r)
+		if r >= 0 {
+			line.WriteRune(r)
+		}
 		lineWidth = w
+	}
+	// PHP walks chunks of up to 10000 characters (preg_match('/.{1,10000}/u'))
+	// and splits each with preg_split('//u'), which yields an empty string
+	// before and after the characters; those count as zero-width characters
+	// and matter when not even one character fits.
+	n := 0
+	for _, r := range s {
+		if n%10000 == 0 {
+			if n > 0 {
+				add(-1, 0)
+			}
+			add(-1, 0)
+		}
+		add(r, mbCharWidth(r))
+		n++
+	}
+	if n > 0 {
+		add(-1, 0)
 	}
 
 	if len(lines) > 0 {

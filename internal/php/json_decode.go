@@ -63,7 +63,6 @@ type jsonDecoder struct {
 	maxDepth int
 	err      int
 	val      any // the scanned scalar
-	keys     map[string]string
 }
 
 // parse ports the grammar's start rule: value EOI.
@@ -156,7 +155,7 @@ func (d *jsonDecoder) object() (any, bool) {
 			}
 			// With JSON_BIGINT_AS_STRING a big int is a string token too,
 			// and PHP's grammar accepts it as a key.
-			key := d.intern(d.val.(string)) //nolint:errcheck,forcetypeassert // tokString always carries a string
+			key := d.val.(string) //nolint:errcheck,forcetypeassert // tokString always carries a string
 			if d.scan() != tokColon {
 				return nil, false
 			}
@@ -186,17 +185,6 @@ func (d *jsonDecoder) object() (any, bool) {
 		return arr, true
 	}
 	return obj, true
-}
-
-func (d *jsonDecoder) intern(k string) string {
-	if d.keys == nil {
-		d.keys = make(map[string]string)
-	}
-	if s, ok := d.keys[k]; ok {
-		return s
-	}
-	d.keys[k] = k
-	return k
 }
 
 // scan ports php_json_scan in its JS state.
@@ -322,7 +310,7 @@ func (d *jsonDecoder) scanNumber() (jsonToken, bool) {
 				start = 1
 			}
 			cmp := strings.Compare(tok[start:], "9223372036854775808")
-			bigint = !(cmp < 0 || (cmp == 0 && neg))
+			bigint = cmp > 0 || cmp == 0 && !neg
 		} else {
 			bigint = true
 		}
@@ -427,36 +415,29 @@ func jsonUnescape(s string, i int) (string, int, int) {
 		}
 		if hi >= 0xD800 && hi <= 0xDBFF {
 			if lo, ok := hex4(s, i+8); ok && s[i+6] == '\\' && s[i+7] == 'u' && lo >= 0xDC00 && lo <= 0xDFFF {
-				r := rune((hi&0x3FF)<<10|(lo&0x3FF)) + 0x10000
-				return string(r), 12, JSONErrorNone
+				return string(((hi&0x3FF)<<10 | lo&0x3FF) + 0x10000), 12, JSONErrorNone
 			}
 			return "", 0, JSONErrorUTF16
 		}
 		if hi >= 0xDC00 && hi <= 0xDFFF {
 			return "", 0, JSONErrorUTF16
 		}
-		return string(rune(hi)), 6, JSONErrorNone
+		return string(hi), 6, JSONErrorNone
 	}
 	return "", 0, JSONErrorSyntax
 }
 
 // hex4 parses 4 hex digits at s[i:].
-func hex4(s string, i int) (int, bool) {
+func hex4(s string, i int) (rune, bool) {
 	if i+4 > len(s) {
 		return 0, false
 	}
-	v := 0
+	var v rune
 	for _, c := range []byte(s[i : i+4]) {
-		switch {
-		case isDigit(c):
-			v = v<<4 | int(c-'0')
-		case c >= 'a' && c <= 'f':
-			v = v<<4 | int(c-'a'+10)
-		case c >= 'A' && c <= 'F':
-			v = v<<4 | int(c-'A'+10)
-		default:
+		if !isHexDigit(c) {
 			return 0, false
 		}
+		v = v<<4 | rune(hexVal(c))
 	}
 	return v, true
 }

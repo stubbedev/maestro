@@ -5,7 +5,10 @@
 
 package php
 
-import "math"
+import (
+	"math"
+	"slices"
+)
 
 // ArrayMerge ports array_merge(...$arrays): string keys are overwritten by
 // later arrays (keeping their first position), int keys are renumbered.
@@ -279,7 +282,7 @@ func ArraySplice(array *Array, offset, length int, replacement ...any) *Array {
 			out.Append(rv)
 		}
 	}
-	array.detach()
+	array.unpin()
 	array.replaceWith(out)
 	return removed
 }
@@ -339,8 +342,7 @@ func valueMatches(v, needle any, strict bool) bool {
 // always kept.
 func ArrayReverse(array *Array, preserveKeys bool) *Array {
 	r := NewArrayCap(array.live)
-	for i := len(array.entries) - 1; i >= 0; i-- {
-		e := array.entries[i]
+	for _, e := range slices.Backward(array.entries) {
 		switch {
 		case e.k.kind == kindDead:
 		case e.k.kind == kindStr || preserveKeys:
@@ -419,6 +421,56 @@ outer:
 			}
 		}
 		r.insert(k, v)
+	}
+	return r
+}
+
+// ArrayDiffAssoc ports array_diff_assoc($array, ...$arrays): the entries
+// of array whose key is in none of the others with the same string value.
+func ArrayDiffAssoc(array *Array, others ...*Array) *Array {
+	r := NewArray()
+outer:
+	for k, v := range array.All() {
+		for _, o := range others {
+			if ov, ok := o.GetKey(k); ok && ToString(ov) == ToString(v) {
+				continue outer
+			}
+		}
+		r.insert(k, v)
+	}
+	return r
+}
+
+// ArrayPad ports array_pad($array, $length, $value): padded on the right
+// for a positive length, on the left for a negative one; int keys are
+// renumbered when padding happens.
+func ArrayPad(array *Array, length int, value any) *Array {
+	n := array.live
+	pad := length
+	if pad < 0 {
+		pad = -pad
+	}
+	if pad <= n {
+		return array.shallowCopy()
+	}
+	value = normalize(value)
+	r := NewArrayCap(pad)
+	if length < 0 {
+		for range pad - n {
+			r.Append(value)
+		}
+	}
+	for k, v := range array.All() {
+		if k.kind == kindStr {
+			r.SetKey(k, v)
+		} else {
+			r.Append(v)
+		}
+	}
+	if length > 0 {
+		for range pad - n {
+			r.Append(value)
+		}
 	}
 	return r
 }

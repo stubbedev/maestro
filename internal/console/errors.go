@@ -13,15 +13,17 @@ type Kind int
 // The Symfony console exception classes, plus the SPL classes the console
 // code throws directly.
 const (
-	KindInvalidArgument   Kind = iota // Symfony\Component\Console\Exception\InvalidArgumentException
-	KindInvalidOption                 // ...\InvalidOptionException (extends InvalidArgumentException)
-	KindCommandNotFound               // ...\CommandNotFoundException (extends \InvalidArgumentException)
-	KindNamespaceNotFound             // ...\NamespaceNotFoundException (extends CommandNotFoundException)
-	KindLogic                         // ...\LogicException
-	KindRuntime                       // ...\RuntimeException
-	KindMissingInput                  // ...\MissingInputException (extends RuntimeException)
-	KindSPLRuntime                    // \RuntimeException (thrown as-is by CompleteCommand)
-	KindSPLLogic                      // \LogicException (thrown as-is by CompletionInput)
+	KindInvalidArgument       Kind = iota // Symfony\Component\Console\Exception\InvalidArgumentException
+	KindInvalidOption                     // ...\InvalidOptionException (extends InvalidArgumentException)
+	KindCommandNotFound                   // ...\CommandNotFoundException (extends \InvalidArgumentException)
+	KindNamespaceNotFound                 // ...\NamespaceNotFoundException (extends CommandNotFoundException)
+	KindLogic                             // ...\LogicException
+	KindRuntime                           // ...\RuntimeException
+	KindMissingInput                      // ...\MissingInputException (extends RuntimeException)
+	KindSPLRuntime                        // \RuntimeException (thrown as-is by CompleteCommand)
+	KindSPLLogic                          // \LogicException (thrown as-is by CompletionInput)
+	KindValueError                        // \ValueError (PHP engine argument validation)
+	KindStringInvalidArgument             // Symfony\Component\String\Exception\InvalidArgumentException (symfony/string, via the wrapping formatter)
 )
 
 var kindClass = [...]string{
@@ -34,6 +36,9 @@ var kindClass = [...]string{
 	KindMissingInput:      `Symfony\Component\Console\Exception\MissingInputException`,
 	KindSPLRuntime:        `RuntimeException`,
 	KindSPLLogic:          `LogicException`,
+
+	KindValueError:            `ValueError`,
+	KindStringInvalidArgument: `Symfony\Component\String\Exception\InvalidArgumentException`,
 }
 
 // Sentinels for errors.Is, following the PHP class hierarchy: a
@@ -78,10 +83,10 @@ func (e *Error) Error() string { return e.Message }
 func (e *Error) Is(target error) bool {
 	switch target {
 	case ErrConsole:
-		return e.Kind != KindSPLRuntime && e.Kind != KindSPLLogic
+		return e.Kind != KindSPLRuntime && e.Kind != KindSPLLogic && e.Kind != KindStringInvalidArgument && e.Kind != KindValueError
 	case ErrInvalidArgument:
 		return e.Kind == KindInvalidArgument || e.Kind == KindInvalidOption ||
-			e.Kind == KindCommandNotFound || e.Kind == KindNamespaceNotFound
+			e.Kind == KindCommandNotFound || e.Kind == KindNamespaceNotFound || e.Kind == KindStringInvalidArgument
 	case ErrCommandNotFound:
 		return e.Kind == KindCommandNotFound || e.Kind == KindNamespaceNotFound
 	case ErrNamespaceMissing:
@@ -149,8 +154,7 @@ type Tracer interface {
 // error. Any other panic value is re-raised.
 func recoverThrowable(r any) error {
 	if err, ok := r.(error); ok {
-		var t Throwable
-		if errors.As(err, &t) {
+		if _, ok := errors.AsType[Throwable](err); ok {
 			return err
 		}
 	}

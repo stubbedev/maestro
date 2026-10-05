@@ -1,0 +1,1291 @@
+{
+    "fromString": [
+        {
+            "input": "",
+            "tokens": []
+        },
+        {
+            "input": "bin/console",
+            "tokens": [
+                "bin/console"
+            ]
+        },
+        {
+            "input": "bin/console ",
+            "tokens": [
+                "bin/console"
+            ]
+        },
+        {
+            "input": " bin/console",
+            "tokens": [
+                " bin/console"
+            ]
+        },
+        {
+            "input": "bin/console cache:clear",
+            "tokens": [
+                "bin/console",
+                "cache:clear"
+            ]
+        },
+        {
+            "input": "bin/console  --env  prod",
+            "tokens": [
+                "bin/console",
+                " --env",
+                " prod"
+            ]
+        },
+        {
+            "input": "bin/console --env=prod",
+            "tokens": [
+                "bin/console",
+                "--env=prod"
+            ]
+        },
+        {
+            "input": "bin/console -eprod",
+            "tokens": [
+                "bin/console",
+                "-eprod"
+            ]
+        },
+        {
+            "input": "bin/console cache:clear \"multi word string\"",
+            "tokens": [
+                "bin/console",
+                "cache:clear",
+                "\"multi word string\""
+            ]
+        },
+        {
+            "input": "bin/console cache:clear 'multi word string'",
+            "tokens": [
+                "bin/console",
+                "cache:clear",
+                "'multi word string'"
+            ]
+        },
+        {
+            "input": "a \"b c",
+            "tokens": [
+                "a",
+                "\"b",
+                "c"
+            ]
+        },
+        {
+            "input": "a \"b\\\" c\"",
+            "tokens": [
+                "a",
+                "\"b\\\" c\""
+            ]
+        },
+        {
+            "input": "a 'b\\' c'",
+            "tokens": [
+                "a",
+                "'b\\' c'"
+            ]
+        },
+        {
+            "input": "a \"\"",
+            "tokens": [
+                "a",
+                "\"\""
+            ]
+        },
+        {
+            "input": "a ''",
+            "tokens": [
+                "a",
+                "''"
+            ]
+        },
+        {
+            "input": "a \"x\"y",
+            "tokens": [
+                "a",
+                "\"x\"y"
+            ]
+        },
+        {
+            "input": "a\tb\nc",
+            "tokens": [
+                "a",
+                "b",
+                "c"
+            ]
+        },
+        {
+            "input": "a\nb\n",
+            "tokens": [
+                "a",
+                "b"
+            ]
+        },
+        {
+            "input": "a \\\"b",
+            "tokens": [
+                "a",
+                "\\\"b"
+            ]
+        },
+        {
+            "input": "\"a b\" c",
+            "tokens": [
+                "\"a b\"",
+                "c"
+            ]
+        },
+        {
+            "input": "x \"y\" \"z w\"",
+            "tokens": [
+                "x",
+                "\"y\"",
+                "\"z w\""
+            ]
+        },
+        {
+            "input": "a  'q' ",
+            "tokens": [
+                "a",
+                " 'q'"
+            ]
+        },
+        {
+            "input": "a \"'mixed'\"",
+            "tokens": [
+                "a",
+                "\"'mixed'\""
+            ]
+        },
+        {
+            "input": "é ü 日本",
+            "tokens": [
+                "é",
+                "ü",
+                "日本"
+            ]
+        }
+    ],
+    "bind": [
+        {
+            "tokens": [
+                "bin/console"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console|"
+        },
+        {
+            "tokens": [
+                "bin/console"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "-",
+            "string": "bin/console| -"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "-",
+            "string": "bin/console -|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console - |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "--",
+            "string": "bin/console --|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console -- |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --with"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "--with",
+            "string": "bin/console --with|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console --with |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -r"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console -r|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r"
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console -r |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-rsymf"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -rsymf"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-rsymf"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "symf",
+            "string": "bin/console -rsymf|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-rsymf"
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "symf",
+            "string": "bin/console -rsymf |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r",
+                "symf"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -r symf"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r",
+                "symf"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console -r| symf"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r",
+                "symf"
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "symf",
+            "string": "bin/console -r symf|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-r",
+                "symf"
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console -r symf |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value="
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --with-required-value="
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value="
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console --with-required-value=|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value="
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console --with-required-value= |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=0"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --with-required-value=0"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=0"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console --with-required-value=0|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=0"
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "",
+            "string": "bin/console --with-required-value=0 |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=x",
+                "y"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "y",
+            "string": "bin/console| --with-required-value=x y"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=x",
+                "y"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-required-value",
+            "value": "x",
+            "string": "bin/console --with-required-value=x| y"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=x",
+                "y"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "y",
+            "string": "bin/console --with-required-value=x y|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--with-required-value=x",
+                "y"
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console --with-required-value=x y |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-o"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -o"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-o"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "with-optional-value",
+            "value": "",
+            "string": "bin/console -o|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-o"
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "with-optional-value",
+            "value": "",
+            "string": "bin/console -o |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-n"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -n"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-n"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console -n|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-n"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console -n |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-nr"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -nr"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-nr"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console -nr|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-nr"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console -nr |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-nrfoo"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -nrfoo"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-nrfoo"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console -nrfoo|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-nrfoo"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console -nrfoo |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--neg"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --neg"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--neg"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console --neg|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--neg"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console --neg |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--no-neg"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --no-neg"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--no-neg"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "--no-neg",
+            "string": "bin/console --no-neg|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--no-neg"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console --no-neg |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--no-"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| --no-"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--no-"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "--no-",
+            "string": "bin/console --no-|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--no-"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console --no- |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-a",
+                "x",
+                "-a"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -a x -a"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-a",
+                "x",
+                "-a"
+            ],
+            "current": 1,
+            "type": "option_value",
+            "name": "array",
+            "value": "",
+            "string": "bin/console -a| x -a"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-a",
+                "x",
+                "-a"
+            ],
+            "current": 2,
+            "type": "option_value",
+            "name": "array",
+            "value": "x",
+            "string": "bin/console -a x| -a"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-a",
+                "x",
+                "-a"
+            ],
+            "current": 3,
+            "type": "option_value",
+            "name": "array",
+            "value": "",
+            "string": "bin/console -a x -a|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-a",
+                "x",
+                "-a"
+            ],
+            "current": 4,
+            "type": "option_value",
+            "name": "array",
+            "value": "",
+            "string": "bin/console -a x -a |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "b",
+            "string": "bin/console| a b"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "b",
+            "string": "bin/console a| b"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "b",
+            "string": "bin/console a b|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b"
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "list",
+            "value": "",
+            "string": "bin/console a b |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b",
+                "c",
+                "d"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "list",
+            "value": "d",
+            "string": "bin/console| a b c d"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b",
+                "c",
+                "d"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "list",
+            "value": "d",
+            "string": "bin/console a| b c d"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b",
+                "c",
+                "d"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "list",
+            "value": "d",
+            "string": "bin/console a b| c d"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b",
+                "c",
+                "d"
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "list",
+            "value": "d",
+            "string": "bin/console a b c| d"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b",
+                "c",
+                "d"
+            ],
+            "current": 4,
+            "type": "argument_value",
+            "name": "list",
+            "value": "d",
+            "string": "bin/console a b c d|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "b",
+                "c",
+                "d"
+            ],
+            "current": 5,
+            "type": "argument_value",
+            "name": "list",
+            "value": "",
+            "string": "bin/console a b c d |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "--",
+                "-x"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "-x",
+            "string": "bin/console| a -- -x"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "--",
+                "-x"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "-x",
+            "string": "bin/console a| -- -x"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "--",
+                "-x"
+            ],
+            "current": 2,
+            "type": "option_name",
+            "name": null,
+            "value": "--",
+            "string": "bin/console a --| -x"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "--",
+                "-x"
+            ],
+            "current": 3,
+            "type": "option_name",
+            "name": null,
+            "value": "-x",
+            "string": "bin/console a -- -x|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                "--",
+                "-x"
+            ],
+            "current": 4,
+            "type": "argument_value",
+            "name": "list",
+            "value": "",
+            "string": "bin/console a -- -x |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--unknown",
+                "a"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "a",
+            "string": "bin/console| --unknown a"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--unknown",
+                "a"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "--unknown",
+            "string": "bin/console --unknown| a"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--unknown",
+                "a"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "a",
+            "string": "bin/console --unknown a|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--unknown",
+                "a"
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console --unknown a |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-x"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| -x"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-x"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "-x",
+            "string": "bin/console -x|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "-x"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console -x |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                ""
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                ""
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                ""
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console  |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                ""
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console| a"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                ""
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console a|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                ""
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console a |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "a",
+                ""
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "list",
+            "value": "",
+            "string": "bin/console a  |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--without-value",
+                "-"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "-",
+            "string": "bin/console| --without-value -"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--without-value",
+                "-"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "-",
+            "string": "bin/console --without-value| -"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--without-value",
+                "-"
+            ],
+            "current": 2,
+            "type": "option_name",
+            "name": null,
+            "value": "-",
+            "string": "bin/console --without-value -|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "--without-value",
+                "-"
+            ],
+            "current": 3,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console --without-value - |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "---"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": null,
+            "value": "",
+            "string": "bin/console| ---"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "---"
+            ],
+            "current": 1,
+            "type": "option_name",
+            "name": null,
+            "value": "---",
+            "string": "bin/console ---|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "---"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "",
+            "string": "bin/console --- |"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "0"
+            ],
+            "current": 0,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "0",
+            "string": "bin/console| 0"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "0"
+            ],
+            "current": 1,
+            "type": "argument_value",
+            "name": "required-arg",
+            "value": "0",
+            "string": "bin/console 0|"
+        },
+        {
+            "tokens": [
+                "bin/console",
+                "0"
+            ],
+            "current": 2,
+            "type": "argument_value",
+            "name": "optional-arg",
+            "value": "",
+            "string": "bin/console 0 |"
+        }
+    ]
+}

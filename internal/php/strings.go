@@ -22,7 +22,7 @@ func Strtoupper(s string) string { return mapASCII(s, upperASCII, 'a', 'z') }
 // mapASCII applies f to every byte, allocating only when a byte in
 // [lo, hi] is present.
 func mapASCII(s string, f func(byte) byte, lo, hi byte) string {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if c := s[i]; c >= lo && c <= hi {
 			b := []byte(s)
 			for j := i; j < len(b); j++ {
@@ -50,19 +50,19 @@ func Lcfirst(s string) string {
 	return string(s[0]+('a'-'A')) + s[1:]
 }
 
-// Ucwords ports ucwords($s, $delimiters); pass "" for the default
-// delimiters " \t\r\n\f\v".
+// UcwordsDelimiters is the default $delimiters of ucwords().
+const UcwordsDelimiters = " \t\r\n\f\v"
+
+// Ucwords ports ucwords($s, $delimiters): the first character and every
+// character after one of delimiters is upper-cased (ASCII only).
 func Ucwords(s, delimiters string) string {
 	if s == "" {
 		return s
 	}
-	if delimiters == "" {
-		delimiters = " \t\r\n\f\v"
-	}
 	mask := charMask(delimiters)
 	b := []byte(s)
 	b[0] = upperASCII(b[0])
-	for i := 0; i < len(b)-1; i++ {
+	for i := range len(b) - 1 {
 		if mask[b[i]] {
 			b[i+1] = upperASCII(b[i+1])
 		}
@@ -184,7 +184,7 @@ func StrPad(s string, length int, pad string, typ int) string {
 		return s
 	}
 	if pad == "" {
-		panic("str_pad(): Argument #3 ($pad_string) must be a non-empty string")
+		panic("str_pad(): Argument #3 ($pad_string) must not be empty")
 	}
 	num := length - len(s)
 	left, right := 0, 0
@@ -229,7 +229,7 @@ func Strtr(s, from, to string) string {
 		set[from[i]] = true
 	}
 	var b []byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if set[s[i]] {
 			if b == nil {
 				b = []byte(s)
@@ -294,7 +294,7 @@ func Wordwrap(text string, width int, brk string, cut bool) string {
 		return ""
 	}
 	if brk == "" {
-		panic("wordwrap(): Argument #3 ($break) cannot be empty")
+		panic("wordwrap(): Argument #3 ($break) must not be empty")
 	}
 	if width == 0 && cut {
 		panic("wordwrap(): Argument #4 ($cut_long_words) cannot be true when argument #2 ($width) is 0")

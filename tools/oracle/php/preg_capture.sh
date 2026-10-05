@@ -3,7 +3,7 @@
 # code while running the PHPUnit suites of composer/composer and the
 # composer/* libraries from .ref/, for preg_collect.php.
 #
-# Usage (from the repo root, inside `nix develop`; needs network for the
+# Usage (from the repo root, inside the devenv shell; needs network for the
 # dev dependencies and phpunit):
 #   tools/oracle/php/preg_capture.sh WORKDIR
 #   php tools/oracle/php/preg_collect.php WORKDIR/plog.txt WORKDIR/plog2.txt

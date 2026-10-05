@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"golang.org/x/term"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Verbosity levels and output types (OutputInterface constants).
@@ -205,7 +207,7 @@ func HasColorSupport(stream io.Writer) bool {
 	// Detect msysgit/mingw and assume this is a tty because detection
 	// does not work correctly, see https://github.com/composer/composer/issues/9690
 	if !IsTTY(stream) {
-		msystem := strings.ToUpper(os.Getenv("MSYSTEM"))
+		msystem := php.Strtoupper(os.Getenv("MSYSTEM"))
 		if msystem != "MINGW32" && msystem != "MINGW64" {
 			return false
 		}
@@ -245,10 +247,11 @@ func termSupportsColor(t string) bool {
 			return true
 		}
 	}
-	// "$" also matches before a final newline.
+	// The second branch is unanchored at the start, and "$" also matches
+	// before a final newline.
 	t = strings.TrimSuffix(t, "\n")
 	for _, s := range []string{"-256", "-256color", "-256-bce", "-256color-bce"} {
-		if strings.HasSuffix(t, s) && !strings.Contains(t[:len(t)-len(s)], "\n") {
+		if strings.HasSuffix(t, s) {
 			return true
 		}
 	}

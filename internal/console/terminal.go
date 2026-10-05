@@ -5,10 +5,11 @@ package console
 import (
 	"os"
 	"os/exec"
-	"strconv"
 	"sync"
 
 	"golang.org/x/term"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Terminal reports the terminal dimensions.
@@ -26,7 +27,7 @@ var terminalDims struct {
 // the detected width, falling back to 80.
 func (Terminal) Width() int {
 	if w, ok := os.LookupEnv("COLUMNS"); ok {
-		return phpIntval(phpTrim(w))
+		return phpIntval(php.Trim(w))
 	}
 	terminalDims.once.Do(initDimensions)
 	if terminalDims.width == 0 {
@@ -40,7 +41,7 @@ func (Terminal) Width() int {
 // back to 50.
 func (Terminal) Height() int {
 	if h, ok := os.LookupEnv("LINES"); ok {
-		return phpIntval(phpTrim(h))
+		return phpIntval(php.Trim(h))
 	}
 	terminalDims.once.Do(initDimensions)
 	if terminalDims.height == 0 {
@@ -77,45 +78,4 @@ func initDimensions() {
 	if w, h, err := term.GetSize(int(stdDimensionsFd())); err == nil {
 		terminalDims.width, terminalDims.height = w, h
 	}
-}
-
-// parseANSICON parses "wxh (WxH)" or "wxh", returning [w, H] or [w, h].
-func parseANSICON(s string) (int, int, bool) {
-	s = phpTrim(s)
-	num := func(i int) (int, int) {
-		j := i
-		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
-			j++
-		}
-		if j == i {
-			return 0, -1
-		}
-		n, _ := strconv.Atoi(s[i:j])
-
-		return n, j
-	}
-	w, i := num(0)
-	if i < 0 || i >= len(s) || s[i] != 'x' {
-		return 0, 0, false
-	}
-	h, i := num(i + 1)
-	if i < 0 {
-		return 0, 0, false
-	}
-	if i == len(s) {
-		return w, h, true
-	}
-	if s[i] != ' ' || i+1 >= len(s) || s[i+1] != '(' {
-		return 0, 0, false
-	}
-	_, i = num(i + 2)
-	if i < 0 || i >= len(s) || s[i] != 'x' {
-		return 0, 0, false
-	}
-	hh, i := num(i + 1)
-	if i < 0 || i != len(s)-1 || s[i] != ')' {
-		return 0, 0, false
-	}
-
-	return w, hh, true
 }

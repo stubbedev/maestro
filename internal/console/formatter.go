@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Formatter is OutputFormatterInterface.
@@ -125,19 +127,19 @@ func (f *OutputFormatter) IsDecorated() bool { return f.decorated }
 
 // SetStyle implements Formatter.
 func (f *OutputFormatter) SetStyle(name string, style Style) {
-	f.styles[strings.ToLower(name)] = style
+	f.styles[php.Strtolower(name)] = style
 }
 
 // HasStyle implements Formatter.
 func (f *OutputFormatter) HasStyle(name string) bool {
-	_, ok := f.styles[strings.ToLower(name)]
+	_, ok := f.styles[php.Strtolower(name)]
 
 	return ok
 }
 
 // Style implements Formatter.
 func (f *OutputFormatter) Style(name string) (Style, error) {
-	s, ok := f.styles[strings.ToLower(name)]
+	s, ok := f.styles[php.Strtolower(name)]
 	if !ok {
 		return nil, newError(KindInvalidArgument, "OutputFormatter.php", 126, `Undefined style: "%s".`, name)
 	}
@@ -298,20 +300,20 @@ func (f *OutputFormatter) createStyleFromString(s string) Style {
 
 	style := MustStyle("", "")
 	for _, m := range matches {
-		key := strings.ToLower(m[1])
+		key := php.Strtolower(m[1])
 		switch key {
 		case "fg":
-			if err := style.SetForeground(strings.ToLower(m[2])); err != nil {
+			if err := style.SetForeground(php.Strtolower(m[2])); err != nil {
 				panic(err)
 			}
 		case "bg":
-			if err := style.SetBackground(strings.ToLower(m[2])); err != nil {
+			if err := style.SetBackground(php.Strtolower(m[2])); err != nil {
 				panic(err)
 			}
 		case "href":
 			style.SetHref(unescapeHref(m[2]))
 		case "options":
-			for opt := range strings.FieldsFuncSeq(strings.ToLower(m[2]), func(r rune) bool { return r == ',' || r == ';' }) {
+			for opt := range strings.FieldsFuncSeq(php.Strtolower(m[2]), func(r rune) bool { return r == ',' || r == ';' }) {
 				if err := style.SetOption(opt); err != nil {
 					panic(err)
 				}
@@ -362,8 +364,8 @@ func (f *OutputFormatter) applyCurrentStyle(out *strings.Builder, text string, w
 	prefix := ""
 	if *currentLineLength > 0 {
 		i := width - *currentLineLength
-		prefix = phpSubstr(text, 0, i) + "\n"
-		text = phpSubstrFrom(text, i)
+		prefix = php.SubstrLen(text, 0, i) + "\n"
+		text = php.Substr(text, i)
 	}
 
 	trailingNewline := strings.HasSuffix(text, "\n")
@@ -395,141 +397,72 @@ func (f *OutputFormatter) applyCurrentStyle(out *strings.Builder, text string, w
 	out.WriteString(strings.Join(lines, "\n"))
 }
 
-// phpSubstr is substr($s, 0, $length) for a non-negative start.
-func phpSubstr(s string, start, length int) string {
-	if start > len(s) {
-		return ""
-	}
-	s = s[start:]
-	if length < 0 {
-		if -length >= len(s) {
-			return ""
-		}
-
-		return s[:len(s)+length]
-	}
-	if length < len(s) {
-		return s[:length]
-	}
-
-	return s
-}
-
-// phpSubstrFrom is substr($s, $start) for a non-negative start.
-func phpSubstrFrom(s string, start int) string {
-	if start >= len(s) {
-		return ""
-	}
-
-	return s[start:]
-}
-
 // addLineBreaks ports the call to symfony/string's
 // AbstractString::wordwrap($width, "\n", true) on the code points of text.
+//
+// toCodePointString() throws on invalid UTF-8; so does this (as a panic,
+// like every exception escaping the formatter). A multibyte character split
+// by the byte-based substr() of applyCurrentStyle triggers it too.
 func addLineBreaks(text string, width int) string {
 	if text == "" {
 		return ""
 	}
-
-	// chars: one entry per code point (invalid bytes count as one each),
-	// with "\n" entries between the original lines; mask mirrors it.
-	chars := make([]string, 0, len(text))
-	mask := make([]byte, 0, len(text))
-	for i := 0; i < len(text); {
-		if text[i] == '\n' {
-			chars = append(chars, "\n")
-			mask = append(mask, '#')
-			i++
-
-			continue
-		}
-		_, size := utf8.DecodeRuneInString(text[i:])
-		ch := text[i : i+size]
-		chars = append(chars, ch)
-		if ch == " " {
-			mask = append(mask, ' ')
-		} else {
-			mask = append(mask, '?')
-		}
-		i += size
+	if !utf8.ValidString(text) {
+		panic(newError(KindStringInvalidArgument, "ByteString.php", 463, `Invalid "UTF-8" string.`))
 	}
 
-	wrapped := phpWordwrap(mask, width, '#')
+	// One mask byte per code point: '#' for the existing "\n" breaks, ' '
+	// for spaces, '?' otherwise; starts holds each code point's offset.
+	mask := make([]byte, 0, len(text))
+	starts := make([]int, 0, len(text)+1)
+	for i := 0; i < len(text); {
+		starts = append(starts, i)
+		switch text[i] {
+		case '\n':
+			mask = append(mask, '#')
+		case ' ':
+			mask = append(mask, ' ')
+		default:
+			mask = append(mask, '?')
+		}
+		_, size := utf8.DecodeRuneInString(text[i:])
+		i += size
+	}
+	n := len(starts)
+	starts = append(starts, len(text))
+
+	wrapped := php.Wordwrap(string(mask), width, "#", true)
 
 	var b strings.Builder
 	b.Grow(len(text) + len(wrapped) - len(mask))
-	j := 0
+	j := 0 // next code point to copy
 	i := -1
-	for bpos := 0; bpos < len(wrapped); bpos++ {
+	for bpos := range len(wrapped) {
 		if wrapped[bpos] != '#' {
 			continue
 		}
-		for i++; i < bpos; i++ {
-			if j < len(chars) {
-				b.WriteString(chars[j])
-			}
-			j++
+		// copy the code points up to this break
+		if k := min(j+bpos-i-1, n); k > j {
+			b.WriteString(text[starts[j]:starts[k]])
 		}
-		if j < len(chars) && (chars[j] == "\n" || chars[j] == " ") {
+		j += bpos - i - 1
+		i = bpos
+		// a break replaces the "\n" or space it was placed on
+		if j < n && (text[starts[j]] == '\n' || text[starts[j]] == ' ') {
 			j++
 		}
 		b.WriteByte('\n')
 	}
-	for ; j < len(chars); j++ {
-		b.WriteString(chars[j])
+	if j < n {
+		b.WriteString(text[starts[j]:])
 	}
 
 	return b.String()
 }
 
-// phpWordwrap ports php-src's wordwrap($text, $width, $brk, true) for a
-// single-byte break (the general "multiple character break or forced cut"
-// path).
-func phpWordwrap(text []byte, width int, brk byte) []byte {
-	n := len(text)
-	if n == 0 {
-		return text
-	}
-
-	out := make([]byte, 0, n+n/max(width, 1)+1)
-	laststart, lastspace := 0, 0
-	current := 0
-	for ; current < n; current++ {
-		c := text[current]
-		switch {
-		case c == brk && current+1 < n:
-			out = append(out, text[laststart:current+1]...)
-			laststart = current + 1
-			lastspace = current + 1
-		case c == ' ':
-			if current-laststart >= width {
-				out = append(out, text[laststart:current]...)
-				out = append(out, brk)
-				laststart = current + 1
-			}
-			lastspace = current
-		case current-laststart >= width && laststart >= lastspace:
-			out = append(out, text[laststart:current]...)
-			out = append(out, brk)
-			laststart = current
-			lastspace = current
-		case current-laststart >= width && laststart < lastspace:
-			out = append(out, text[laststart:lastspace]...)
-			out = append(out, brk)
-			lastspace++
-			laststart = lastspace
-		}
-	}
-	if laststart != current {
-		out = append(out, text[laststart:current]...)
-	}
-
-	return out
-}
-
 // NullOutputFormatter formats nothing.
 type NullOutputFormatter struct {
-	style *OutputFormatterStyle
+	style *NullOutputFormatterStyle
 }
 
 // SetDecorated implements Formatter.
@@ -544,11 +477,11 @@ func (*NullOutputFormatter) SetStyle(string, Style) {}
 // HasStyle implements Formatter.
 func (*NullOutputFormatter) HasStyle(string) bool { return false }
 
-// Style implements Formatter; it always returns a NullOutputFormatterStyle
-// stand-in (an empty style).
+// Style implements Formatter; it always returns the same
+// NullOutputFormatterStyle.
 func (f *NullOutputFormatter) Style(string) (Style, error) {
 	if f.style == nil {
-		f.style = MustStyle("", "")
+		f.style = &NullOutputFormatterStyle{}
 	}
 
 	return f.style, nil

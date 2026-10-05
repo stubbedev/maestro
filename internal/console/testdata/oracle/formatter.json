@@ -15,6 +15,18 @@
         {
             "message": "",
             "decorated": false,
+            "width": 2,
+            "output": ""
+        },
+        {
+            "message": "",
+            "decorated": false,
+            "width": 3,
+            "output": ""
+        },
+        {
+            "message": "",
+            "decorated": false,
             "width": 5,
             "output": ""
         },
@@ -40,6 +52,18 @@
             "message": "",
             "decorated": true,
             "width": 1,
+            "output": ""
+        },
+        {
+            "message": "",
+            "decorated": true,
+            "width": 2,
+            "output": ""
+        },
+        {
+            "message": "",
+            "decorated": true,
+            "width": 3,
             "output": ""
         },
         {
@@ -71,6 +95,18 @@
             "decorated": false,
             "width": 1,
             "output": "p\nl\na\ni\nn\nt\ne\nx\nt"
+        },
+        {
+            "message": "plain text",
+            "decorated": false,
+            "width": 2,
+            "output": "pl\nai\nn\nte\nxt"
+        },
+        {
+            "message": "plain text",
+            "decorated": false,
+            "width": 3,
+            "output": "pla\nin\ntex\nt"
         },
         {
             "message": "plain text",
@@ -101,6 +137,18 @@
             "decorated": true,
             "width": 1,
             "output": "p\nl\na\ni\nn\nt\ne\nx\nt"
+        },
+        {
+            "message": "plain text",
+            "decorated": true,
+            "width": 2,
+            "output": "pl\nai\nn\nte\nxt"
+        },
+        {
+            "message": "plain text",
+            "decorated": true,
+            "width": 3,
+            "output": "pla\nin\ntex\nt"
         },
         {
             "message": "plain text",
@@ -135,6 +183,18 @@
         {
             "message": "<info>info</info>",
             "decorated": false,
+            "width": 2,
+            "output": "in\nfo"
+        },
+        {
+            "message": "<info>info</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "inf\no"
+        },
+        {
+            "message": "<info>info</info>",
+            "decorated": false,
             "width": 5,
             "output": "info"
         },
@@ -161,6 +221,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32mi\u001b[39m\n\u001b[32mn\u001b[39m\n\u001b[32mf\u001b[39m\n\u001b[32mo\u001b[39m"
+        },
+        {
+            "message": "<info>info</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32min\u001b[39m\n\u001b[32mfo\u001b[39m"
+        },
+        {
+            "message": "<info>info</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32minf\u001b[39m\n\u001b[32mo\u001b[39m"
         },
         {
             "message": "<info>info</info>",
@@ -195,6 +267,18 @@
         {
             "message": "<comment>comment</comment>",
             "decorated": false,
+            "width": 2,
+            "output": "co\nmm\nen\nt"
+        },
+        {
+            "message": "<comment>comment</comment>",
+            "decorated": false,
+            "width": 3,
+            "output": "com\nmen\nt"
+        },
+        {
+            "message": "<comment>comment</comment>",
+            "decorated": false,
             "width": 5,
             "output": "comme\nnt"
         },
@@ -221,6 +305,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[33mc\u001b[39m\n\u001b[33mo\u001b[39m\n\u001b[33mm\u001b[39m\n\u001b[33mm\u001b[39m\n\u001b[33me\u001b[39m\n\u001b[33mn\u001b[39m\n\u001b[33mt\u001b[39m"
+        },
+        {
+            "message": "<comment>comment</comment>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[33mco\u001b[39m\n\u001b[33mmm\u001b[39m\n\u001b[33men\u001b[39m\n\u001b[33mt\u001b[39m"
+        },
+        {
+            "message": "<comment>comment</comment>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[33mcom\u001b[39m\n\u001b[33mmen\u001b[39m\n\u001b[33mt\u001b[39m"
         },
         {
             "message": "<comment>comment</comment>",
@@ -255,6 +351,18 @@
         {
             "message": "<error>error</error>",
             "decorated": false,
+            "width": 2,
+            "output": "er\nro\nr"
+        },
+        {
+            "message": "<error>error</error>",
+            "decorated": false,
+            "width": 3,
+            "output": "err\nor"
+        },
+        {
+            "message": "<error>error</error>",
+            "decorated": false,
             "width": 5,
             "output": "error"
         },
@@ -285,6 +393,18 @@
         {
             "message": "<error>error</error>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[37;41mer\u001b[39;49m\n\u001b[37;41mro\u001b[39;49m\n\u001b[37;41mr\u001b[39;49m"
+        },
+        {
+            "message": "<error>error</error>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[37;41merr\u001b[39;49m\n\u001b[37;41mor\u001b[39;49m"
+        },
+        {
+            "message": "<error>error</error>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[37;41merror\u001b[39;49m"
         },
@@ -310,6 +430,18 @@
             "message": "<question>q</question>",
             "decorated": false,
             "width": 1,
+            "output": "q"
+        },
+        {
+            "message": "<question>q</question>",
+            "decorated": false,
+            "width": 2,
+            "output": "q"
+        },
+        {
+            "message": "<question>q</question>",
+            "decorated": false,
+            "width": 3,
             "output": "q"
         },
         {
@@ -340,6 +472,18 @@
             "message": "<question>q</question>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[30;46mq\u001b[39;49m"
+        },
+        {
+            "message": "<question>q</question>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[30;46mq\u001b[39;49m"
+        },
+        {
+            "message": "<question>q</question>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[30;46mq\u001b[39;49m"
         },
         {
@@ -370,6 +514,18 @@
             "message": "<warning>w</warning>",
             "decorated": false,
             "width": 1,
+            "output": "w"
+        },
+        {
+            "message": "<warning>w</warning>",
+            "decorated": false,
+            "width": 2,
+            "output": "w"
+        },
+        {
+            "message": "<warning>w</warning>",
+            "decorated": false,
+            "width": 3,
             "output": "w"
         },
         {
@@ -400,6 +556,18 @@
             "message": "<warning>w</warning>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[30;43mw\u001b[39;49m"
+        },
+        {
+            "message": "<warning>w</warning>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[30;43mw\u001b[39;49m"
+        },
+        {
+            "message": "<warning>w</warning>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[30;43mw\u001b[39;49m"
         },
         {
@@ -430,6 +598,18 @@
             "message": "<highlight>h</highlight>",
             "decorated": false,
             "width": 1,
+            "output": "h"
+        },
+        {
+            "message": "<highlight>h</highlight>",
+            "decorated": false,
+            "width": 2,
+            "output": "h"
+        },
+        {
+            "message": "<highlight>h</highlight>",
+            "decorated": false,
+            "width": 3,
             "output": "h"
         },
         {
@@ -460,6 +640,18 @@
             "message": "<highlight>h</highlight>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[31mh\u001b[39m"
+        },
+        {
+            "message": "<highlight>h</highlight>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mh\u001b[39m"
+        },
+        {
+            "message": "<highlight>h</highlight>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[31mh\u001b[39m"
         },
         {
@@ -495,6 +687,18 @@
         {
             "message": "<info>a<comment>b</comment>c</info>",
             "decorated": false,
+            "width": 2,
+            "output": "ab\nc"
+        },
+        {
+            "message": "<info>a<comment>b</comment>c</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "abc"
+        },
+        {
+            "message": "<info>a<comment>b</comment>c</info>",
+            "decorated": false,
             "width": 5,
             "output": "abc"
         },
@@ -521,6 +725,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32ma\u001b[39m\u001b[33m\u001b[39m\n\u001b[33mb\u001b[39m\u001b[32m\u001b[39m\n\u001b[32mc\u001b[39m"
+        },
+        {
+            "message": "<info>a<comment>b</comment>c</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32ma\u001b[39m\u001b[33mb\u001b[39m\u001b[32m\u001b[39m\n\u001b[32mc\u001b[39m"
+        },
+        {
+            "message": "<info>a<comment>b</comment>c</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32ma\u001b[39m\u001b[33mb\u001b[39m\u001b[32mc\u001b[39m"
         },
         {
             "message": "<info>a<comment>b</comment>c</info>",
@@ -555,6 +771,18 @@
         {
             "message": "<info>a</>b",
             "decorated": false,
+            "width": 2,
+            "output": "ab"
+        },
+        {
+            "message": "<info>a</>b",
+            "decorated": false,
+            "width": 3,
+            "output": "ab"
+        },
+        {
+            "message": "<info>a</>b",
+            "decorated": false,
             "width": 5,
             "output": "ab"
         },
@@ -585,6 +813,18 @@
         {
             "message": "<info>a</>b",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[32ma\u001b[39mb"
+        },
+        {
+            "message": "<info>a</>b",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32ma\u001b[39mb"
+        },
+        {
+            "message": "<info>a</>b",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[32ma\u001b[39mb"
         },
@@ -615,6 +855,18 @@
         {
             "message": "</>",
             "decorated": false,
+            "width": 2,
+            "output": ""
+        },
+        {
+            "message": "</>",
+            "decorated": false,
+            "width": 3,
+            "output": ""
+        },
+        {
+            "message": "</>",
+            "decorated": false,
             "width": 5,
             "output": ""
         },
@@ -645,6 +897,18 @@
         {
             "message": "</>",
             "decorated": true,
+            "width": 2,
+            "output": ""
+        },
+        {
+            "message": "</>",
+            "decorated": true,
+            "width": 3,
+            "output": ""
+        },
+        {
+            "message": "</>",
+            "decorated": true,
             "width": 5,
             "output": ""
         },
@@ -675,6 +939,18 @@
         {
             "message": "</info>",
             "decorated": false,
+            "width": 2,
+            "output": ""
+        },
+        {
+            "message": "</info>",
+            "decorated": false,
+            "width": 3,
+            "output": ""
+        },
+        {
+            "message": "</info>",
+            "decorated": false,
             "width": 5,
             "output": ""
         },
@@ -700,6 +976,18 @@
             "message": "</info>",
             "decorated": true,
             "width": 1,
+            "output": ""
+        },
+        {
+            "message": "</info>",
+            "decorated": true,
+            "width": 2,
+            "output": ""
+        },
+        {
+            "message": "</info>",
+            "decorated": true,
+            "width": 3,
             "output": ""
         },
         {
@@ -735,6 +1023,18 @@
         {
             "message": "<info>unclosed",
             "decorated": false,
+            "width": 2,
+            "output": "un\ncl\nos\ned"
+        },
+        {
+            "message": "<info>unclosed",
+            "decorated": false,
+            "width": 3,
+            "output": "unc\nlos\ned"
+        },
+        {
+            "message": "<info>unclosed",
+            "decorated": false,
             "width": 5,
             "output": "unclo\nsed"
         },
@@ -761,6 +1061,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32mu\u001b[39m\n\u001b[32mn\u001b[39m\n\u001b[32mc\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32ms\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32md\u001b[39m"
+        },
+        {
+            "message": "<info>unclosed",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mun\u001b[39m\n\u001b[32mcl\u001b[39m\n\u001b[32mos\u001b[39m\n\u001b[32med\u001b[39m"
+        },
+        {
+            "message": "<info>unclosed",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32munc\u001b[39m\n\u001b[32mlos\u001b[39m\n\u001b[32med\u001b[39m"
         },
         {
             "message": "<info>unclosed",
@@ -795,6 +1107,18 @@
         {
             "message": "<INFO>upper</INFO>",
             "decorated": false,
+            "width": 2,
+            "output": "<I\nNF\nO>\nup\npe\nr<\n/I\nNF\nO>"
+        },
+        {
+            "message": "<INFO>upper</INFO>",
+            "decorated": false,
+            "width": 3,
+            "output": "<IN\nFO>\nupp\ner<\n/IN\nFO>"
+        },
+        {
+            "message": "<INFO>upper</INFO>",
+            "decorated": false,
             "width": 5,
             "output": "<INFO\n>uppe\nr</IN\nFO>"
         },
@@ -825,6 +1149,18 @@
         {
             "message": "<INFO>upper</INFO>",
             "decorated": true,
+            "width": 2,
+            "output": "<I\nNF\nO>\nup\npe\nr<\n/I\nNF\nO>"
+        },
+        {
+            "message": "<INFO>upper</INFO>",
+            "decorated": true,
+            "width": 3,
+            "output": "<IN\nFO>\nupp\ner<\n/IN\nFO>"
+        },
+        {
+            "message": "<INFO>upper</INFO>",
+            "decorated": true,
             "width": 5,
             "output": "<INFO\n>uppe\nr</IN\nFO>"
         },
@@ -855,6 +1191,18 @@
         {
             "message": "<Info>mixed</info>",
             "decorated": false,
+            "width": 2,
+            "output": "<I\nnf\no>\nmi\nxe\nd"
+        },
+        {
+            "message": "<Info>mixed</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "<In\nfo>\nmix\ned"
+        },
+        {
+            "message": "<Info>mixed</info>",
+            "decorated": false,
             "width": 5,
             "output": "<Info\n>mixe\nd"
         },
@@ -885,6 +1233,18 @@
         {
             "message": "<Info>mixed</info>",
             "decorated": true,
+            "width": 2,
+            "output": "<I\nnf\no>\nmi\nxe\nd"
+        },
+        {
+            "message": "<Info>mixed</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "<In\nfo>\nmix\ned"
+        },
+        {
+            "message": "<Info>mixed</info>",
+            "decorated": true,
             "width": 5,
             "output": "<Info\n>mixe\nd"
         },
@@ -915,6 +1275,18 @@
         {
             "message": "<fg=red>r</fg=red>",
             "decorated": false,
+            "width": 2,
+            "output": "r"
+        },
+        {
+            "message": "<fg=red>r</fg=red>",
+            "decorated": false,
+            "width": 3,
+            "output": "r"
+        },
+        {
+            "message": "<fg=red>r</fg=red>",
+            "decorated": false,
             "width": 5,
             "output": "r"
         },
@@ -945,6 +1317,18 @@
         {
             "message": "<fg=red>r</fg=red>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mr\u001b[39m"
+        },
+        {
+            "message": "<fg=red>r</fg=red>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31mr\u001b[39m"
+        },
+        {
+            "message": "<fg=red>r</fg=red>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[31mr\u001b[39m"
         },
@@ -975,6 +1359,18 @@
         {
             "message": "<fg=red>r</>",
             "decorated": false,
+            "width": 2,
+            "output": "r"
+        },
+        {
+            "message": "<fg=red>r</>",
+            "decorated": false,
+            "width": 3,
+            "output": "r"
+        },
+        {
+            "message": "<fg=red>r</>",
+            "decorated": false,
             "width": 5,
             "output": "r"
         },
@@ -1000,6 +1396,18 @@
             "message": "<fg=red>r</>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[31mr\u001b[39m"
+        },
+        {
+            "message": "<fg=red>r</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mr\u001b[39m"
+        },
+        {
+            "message": "<fg=red>r</>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[31mr\u001b[39m"
         },
         {
@@ -1035,6 +1443,18 @@
         {
             "message": "<fg=red;bg=blue>rb</>",
             "decorated": false,
+            "width": 2,
+            "output": "rb"
+        },
+        {
+            "message": "<fg=red;bg=blue>rb</>",
+            "decorated": false,
+            "width": 3,
+            "output": "rb"
+        },
+        {
+            "message": "<fg=red;bg=blue>rb</>",
+            "decorated": false,
             "width": 5,
             "output": "rb"
         },
@@ -1061,6 +1481,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[31;44mr\u001b[39;49m\n\u001b[31;44mb\u001b[39;49m"
+        },
+        {
+            "message": "<fg=red;bg=blue>rb</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31;44mrb\u001b[39;49m"
+        },
+        {
+            "message": "<fg=red;bg=blue>rb</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31;44mrb\u001b[39;49m"
         },
         {
             "message": "<fg=red;bg=blue>rb</>",
@@ -1095,6 +1527,18 @@
         {
             "message": "<bg=yellow;options=bold>yb</>",
             "decorated": false,
+            "width": 2,
+            "output": "yb"
+        },
+        {
+            "message": "<bg=yellow;options=bold>yb</>",
+            "decorated": false,
+            "width": 3,
+            "output": "yb"
+        },
+        {
+            "message": "<bg=yellow;options=bold>yb</>",
+            "decorated": false,
             "width": 5,
             "output": "yb"
         },
@@ -1121,6 +1565,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[43;1my\u001b[49;22m\n\u001b[43;1mb\u001b[49;22m"
+        },
+        {
+            "message": "<bg=yellow;options=bold>yb</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[43;1myb\u001b[49;22m"
+        },
+        {
+            "message": "<bg=yellow;options=bold>yb</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[43;1myb\u001b[49;22m"
         },
         {
             "message": "<bg=yellow;options=bold>yb</>",
@@ -1155,6 +1611,18 @@
         {
             "message": "<options=bold,underscore>bu</>",
             "decorated": false,
+            "width": 2,
+            "output": "bu"
+        },
+        {
+            "message": "<options=bold,underscore>bu</>",
+            "decorated": false,
+            "width": 3,
+            "output": "bu"
+        },
+        {
+            "message": "<options=bold,underscore>bu</>",
+            "decorated": false,
             "width": 5,
             "output": "bu"
         },
@@ -1185,6 +1653,18 @@
         {
             "message": "<options=bold,underscore>bu</>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[1;4mbu\u001b[22;24m"
+        },
+        {
+            "message": "<options=bold,underscore>bu</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[1;4mbu\u001b[22;24m"
+        },
+        {
+            "message": "<options=bold,underscore>bu</>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[1;4mbu\u001b[22;24m"
         },
@@ -1210,6 +1690,18 @@
             "message": "<fg=green;options=bold;bg=white>x</>",
             "decorated": false,
             "width": 1,
+            "output": "x"
+        },
+        {
+            "message": "<fg=green;options=bold;bg=white>x</>",
+            "decorated": false,
+            "width": 2,
+            "output": "x"
+        },
+        {
+            "message": "<fg=green;options=bold;bg=white>x</>",
+            "decorated": false,
+            "width": 3,
             "output": "x"
         },
         {
@@ -1240,6 +1732,18 @@
             "message": "<fg=green;options=bold;bg=white>x</>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[32;47;1mx\u001b[39;49;22m"
+        },
+        {
+            "message": "<fg=green;options=bold;bg=white>x</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32;47;1mx\u001b[39;49;22m"
+        },
+        {
+            "message": "<fg=green;options=bold;bg=white>x</>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[32;47;1mx\u001b[39;49;22m"
         },
         {
@@ -1275,6 +1779,18 @@
         {
             "message": "<fg=#ff0000>hex</>",
             "decorated": false,
+            "width": 2,
+            "output": "he\nx"
+        },
+        {
+            "message": "<fg=#ff0000>hex</>",
+            "decorated": false,
+            "width": 3,
+            "output": "hex"
+        },
+        {
+            "message": "<fg=#ff0000>hex</>",
+            "decorated": false,
             "width": 5,
             "output": "hex"
         },
@@ -1301,6 +1817,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[31mh\u001b[39m\n\u001b[31me\u001b[39m\n\u001b[31mx\u001b[39m"
+        },
+        {
+            "message": "<fg=#ff0000>hex</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mhe\u001b[39m\n\u001b[31mx\u001b[39m"
+        },
+        {
+            "message": "<fg=#ff0000>hex</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31mhex\u001b[39m"
         },
         {
             "message": "<fg=#ff0000>hex</>",
@@ -1335,6 +1863,18 @@
         {
             "message": "<fg=#f00>short hex</>",
             "decorated": false,
+            "width": 2,
+            "output": "sh\nor\nt\nhe\nx"
+        },
+        {
+            "message": "<fg=#f00>short hex</>",
+            "decorated": false,
+            "width": 3,
+            "output": "sho\nrt\nhex"
+        },
+        {
+            "message": "<fg=#f00>short hex</>",
+            "decorated": false,
             "width": 5,
             "output": "short\nhex"
         },
@@ -1361,6 +1901,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[31ms\u001b[39m\n\u001b[31mh\u001b[39m\n\u001b[31mo\u001b[39m\n\u001b[31mr\u001b[39m\n\u001b[31mt\u001b[39m\n\u001b[31mh\u001b[39m\n\u001b[31me\u001b[39m\n\u001b[31mx\u001b[39m"
+        },
+        {
+            "message": "<fg=#f00>short hex</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31msh\u001b[39m\n\u001b[31mor\u001b[39m\n\u001b[31mt\u001b[39m\n\u001b[31mhe\u001b[39m\n\u001b[31mx\u001b[39m"
+        },
+        {
+            "message": "<fg=#f00>short hex</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31msho\u001b[39m\n\u001b[31mrt\u001b[39m\n\u001b[31mhex\u001b[39m"
         },
         {
             "message": "<fg=#f00>short hex</>",
@@ -1395,6 +1947,18 @@
         {
             "message": "<fg=#123456;bg=#abcdef>hex2</>",
             "decorated": false,
+            "width": 2,
+            "output": "he\nx2"
+        },
+        {
+            "message": "<fg=#123456;bg=#abcdef>hex2</>",
+            "decorated": false,
+            "width": 3,
+            "output": "hex\n2"
+        },
+        {
+            "message": "<fg=#123456;bg=#abcdef>hex2</>",
+            "decorated": false,
             "width": 5,
             "output": "hex2"
         },
@@ -1421,6 +1985,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[30;47mh\u001b[39;49m\n\u001b[30;47me\u001b[39;49m\n\u001b[30;47mx\u001b[39;49m\n\u001b[30;47m2\u001b[39;49m"
+        },
+        {
+            "message": "<fg=#123456;bg=#abcdef>hex2</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[30;47mhe\u001b[39;49m\n\u001b[30;47mx2\u001b[39;49m"
+        },
+        {
+            "message": "<fg=#123456;bg=#abcdef>hex2</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[30;47mhex\u001b[39;49m\n\u001b[30;47m2\u001b[39;49m"
         },
         {
             "message": "<fg=#123456;bg=#abcdef>hex2</>",
@@ -1455,6 +2031,18 @@
         {
             "message": "<fg=bright-red>br</>",
             "decorated": false,
+            "width": 2,
+            "output": "br"
+        },
+        {
+            "message": "<fg=bright-red>br</>",
+            "decorated": false,
+            "width": 3,
+            "output": "br"
+        },
+        {
+            "message": "<fg=bright-red>br</>",
+            "decorated": false,
             "width": 5,
             "output": "br"
         },
@@ -1485,6 +2073,18 @@
         {
             "message": "<fg=bright-red>br</>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[91mbr\u001b[39m"
+        },
+        {
+            "message": "<fg=bright-red>br</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[91mbr\u001b[39m"
+        },
+        {
+            "message": "<fg=bright-red>br</>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[91mbr\u001b[39m"
         },
@@ -1510,6 +2110,18 @@
             "message": "<fg=gray>g</>",
             "decorated": false,
             "width": 1,
+            "output": "g"
+        },
+        {
+            "message": "<fg=gray>g</>",
+            "decorated": false,
+            "width": 2,
+            "output": "g"
+        },
+        {
+            "message": "<fg=gray>g</>",
+            "decorated": false,
+            "width": 3,
             "output": "g"
         },
         {
@@ -1540,6 +2152,18 @@
             "message": "<fg=gray>g</>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[90mg\u001b[39m"
+        },
+        {
+            "message": "<fg=gray>g</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[90mg\u001b[39m"
+        },
+        {
+            "message": "<fg=gray>g</>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[90mg\u001b[39m"
         },
         {
@@ -1570,6 +2194,18 @@
             "message": "<fg=default>d</>",
             "decorated": false,
             "width": 1,
+            "output": "d"
+        },
+        {
+            "message": "<fg=default>d</>",
+            "decorated": false,
+            "width": 2,
+            "output": "d"
+        },
+        {
+            "message": "<fg=default>d</>",
+            "decorated": false,
+            "width": 3,
             "output": "d"
         },
         {
@@ -1600,6 +2236,18 @@
             "message": "<fg=default>d</>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[39md\u001b[39m"
+        },
+        {
+            "message": "<fg=default>d</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[39md\u001b[39m"
+        },
+        {
+            "message": "<fg=default>d</>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[39md\u001b[39m"
         },
         {
@@ -1635,6 +2283,18 @@
         {
             "message": "<fg=RED>case</>",
             "decorated": false,
+            "width": 2,
+            "output": "ca\nse"
+        },
+        {
+            "message": "<fg=RED>case</>",
+            "decorated": false,
+            "width": 3,
+            "output": "cas\ne"
+        },
+        {
+            "message": "<fg=RED>case</>",
+            "decorated": false,
             "width": 5,
             "output": "case"
         },
@@ -1661,6 +2321,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[31mc\u001b[39m\n\u001b[31ma\u001b[39m\n\u001b[31ms\u001b[39m\n\u001b[31me\u001b[39m"
+        },
+        {
+            "message": "<fg=RED>case</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mca\u001b[39m\n\u001b[31mse\u001b[39m"
+        },
+        {
+            "message": "<fg=RED>case</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31mcas\u001b[39m\n\u001b[31me\u001b[39m"
         },
         {
             "message": "<fg=RED>case</>",
@@ -1695,6 +2367,18 @@
         {
             "message": "<FG=red>keycase</>",
             "decorated": false,
+            "width": 2,
+            "output": "ke\nyc\nas\ne"
+        },
+        {
+            "message": "<FG=red>keycase</>",
+            "decorated": false,
+            "width": 3,
+            "output": "key\ncas\ne"
+        },
+        {
+            "message": "<FG=red>keycase</>",
+            "decorated": false,
             "width": 5,
             "output": "keyca\nse"
         },
@@ -1721,6 +2405,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[31mk\u001b[39m\n\u001b[31me\u001b[39m\n\u001b[31my\u001b[39m\n\u001b[31mc\u001b[39m\n\u001b[31ma\u001b[39m\n\u001b[31ms\u001b[39m\n\u001b[31me\u001b[39m"
+        },
+        {
+            "message": "<FG=red>keycase</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mke\u001b[39m\n\u001b[31myc\u001b[39m\n\u001b[31mas\u001b[39m\n\u001b[31me\u001b[39m"
+        },
+        {
+            "message": "<FG=red>keycase</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31mkey\u001b[39m\n\u001b[31mcas\u001b[39m\n\u001b[31me\u001b[39m"
         },
         {
             "message": "<FG=red>keycase</>",
@@ -1755,6 +2451,18 @@
         {
             "message": "<href=https://example.com>link</>",
             "decorated": false,
+            "width": 2,
+            "output": "li\nnk"
+        },
+        {
+            "message": "<href=https://example.com>link</>",
+            "decorated": false,
+            "width": 3,
+            "output": "lin\nk"
+        },
+        {
+            "message": "<href=https://example.com>link</>",
+            "decorated": false,
             "width": 5,
             "output": "link"
         },
@@ -1781,6 +2489,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b]8;;https://example.com\u001b\\l\u001b]8;;\u001b\\\n\u001b]8;;https://example.com\u001b\\i\u001b]8;;\u001b\\\n\u001b]8;;https://example.com\u001b\\n\u001b]8;;\u001b\\\n\u001b]8;;https://example.com\u001b\\k\u001b]8;;\u001b\\"
+        },
+        {
+            "message": "<href=https://example.com>link</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b]8;;https://example.com\u001b\\li\u001b]8;;\u001b\\\n\u001b]8;;https://example.com\u001b\\nk\u001b]8;;\u001b\\"
+        },
+        {
+            "message": "<href=https://example.com>link</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b]8;;https://example.com\u001b\\lin\u001b]8;;\u001b\\\n\u001b]8;;https://example.com\u001b\\k\u001b]8;;\u001b\\"
         },
         {
             "message": "<href=https://example.com>link</>",
@@ -1815,6 +2535,18 @@
         {
             "message": "<href=https://example.com/?a=1&b=2;fg=red>link2</>",
             "decorated": false,
+            "width": 2,
+            "output": "li\nnk\n2"
+        },
+        {
+            "message": "<href=https://example.com/?a=1&b=2;fg=red>link2</>",
+            "decorated": false,
+            "width": 3,
+            "output": "lin\nk2"
+        },
+        {
+            "message": "<href=https://example.com/?a=1&b=2;fg=red>link2</>",
+            "decorated": false,
             "width": 5,
             "output": "link2"
         },
@@ -1841,6 +2573,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\l\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\i\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\n\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\k\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\2\u001b]8;;\u001b\\\u001b[39m"
+        },
+        {
+            "message": "<href=https://example.com/?a=1&b=2;fg=red>link2</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\li\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\nk\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\2\u001b]8;;\u001b\\\u001b[39m"
+        },
+        {
+            "message": "<href=https://example.com/?a=1&b=2;fg=red>link2</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\lin\u001b]8;;\u001b\\\u001b[39m\n\u001b[31m\u001b]8;;https://example.com/?a=1&b=2\u001b\\k2\u001b]8;;\u001b\\\u001b[39m"
         },
         {
             "message": "<href=https://example.com/?a=1&b=2;fg=red>link2</>",
@@ -1875,6 +2619,18 @@
         {
             "message": "<href=http://x/\\<y\\>>esc</>",
             "decorated": false,
+            "width": 2,
+            "output": "es\nc"
+        },
+        {
+            "message": "<href=http://x/\\<y\\>>esc</>",
+            "decorated": false,
+            "width": 3,
+            "output": "esc"
+        },
+        {
+            "message": "<href=http://x/\\<y\\>>esc</>",
+            "decorated": false,
             "width": 5,
             "output": "esc"
         },
@@ -1905,6 +2661,18 @@
         {
             "message": "<href=http://x/\\<y\\>>esc</>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b]8;;http://x/<y>\u001b\\es\u001b]8;;\u001b\\\n\u001b]8;;http://x/<y>\u001b\\c\u001b]8;;\u001b\\"
+        },
+        {
+            "message": "<href=http://x/\\<y\\>>esc</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b]8;;http://x/<y>\u001b\\esc\u001b]8;;\u001b\\"
+        },
+        {
+            "message": "<href=http://x/\\<y\\>>esc</>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b]8;;http://x/<y>\u001b\\esc\u001b]8;;\u001b\\"
         },
@@ -1931,6 +2699,18 @@
             "decorated": false,
             "width": 1,
             "output": "a\n\\\n<\ni\nn\nf\no\n>\ne\ns\nc\na\np\ne\nd\n\\\n<\n/\ni\nn\nf\no\n>\nb"
+        },
+        {
+            "message": "a \\<info>escaped\\</info> b",
+            "decorated": false,
+            "width": 2,
+            "output": "a\n<\nin\nfo\n>e\nsc\nap\ned\n<\n/i\nnf\no>\nb"
+        },
+        {
+            "message": "a \\<info>escaped\\</info> b",
+            "decorated": false,
+            "width": 3,
+            "output": "a\n<i\nnfo\n>es\ncap\ned\\\n</i\nnfo\n> b"
         },
         {
             "message": "a \\<info>escaped\\</info> b",
@@ -1965,6 +2745,18 @@
         {
             "message": "a \\<info>escaped\\</info> b",
             "decorated": true,
+            "width": 2,
+            "output": "a\n<\nin\nfo\n>e\nsc\nap\ned\n<\n/i\nnf\no>\nb"
+        },
+        {
+            "message": "a \\<info>escaped\\</info> b",
+            "decorated": true,
+            "width": 3,
+            "output": "a\n<i\nnfo\n>es\ncap\ned\\\n</i\nnfo\n> b"
+        },
+        {
+            "message": "a \\<info>escaped\\</info> b",
+            "decorated": true,
             "width": 5,
             "output": "a\n<inf\no>esc\naped\\\n</inf\no> b"
         },
@@ -1995,6 +2787,18 @@
         {
             "message": "\\<info>x</info>",
             "decorated": false,
+            "width": 2,
+            "output": "<\nin\nfo\n>x"
+        },
+        {
+            "message": "\\<info>x</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "<i\nnfo\n>x"
+        },
+        {
+            "message": "\\<info>x</info>",
+            "decorated": false,
             "width": 5,
             "output": "<inf\no>x"
         },
@@ -2025,6 +2829,18 @@
         {
             "message": "\\<info>x</info>",
             "decorated": true,
+            "width": 2,
+            "output": "<\nin\nfo\n>x"
+        },
+        {
+            "message": "\\<info>x</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "<i\nnfo\n>x"
+        },
+        {
+            "message": "\\<info>x</info>",
+            "decorated": true,
             "width": 5,
             "output": "<inf\no>x"
         },
@@ -2055,6 +2871,18 @@
         {
             "message": "x \\",
             "decorated": false,
+            "width": 2,
+            "output": "x\n\\"
+        },
+        {
+            "message": "x \\",
+            "decorated": false,
+            "width": 3,
+            "output": "x \\"
+        },
+        {
+            "message": "x \\",
+            "decorated": false,
             "width": 5,
             "output": "x \\"
         },
@@ -2081,6 +2909,18 @@
             "decorated": true,
             "width": 1,
             "output": "x\n\\"
+        },
+        {
+            "message": "x \\",
+            "decorated": true,
+            "width": 2,
+            "output": "x\n\\"
+        },
+        {
+            "message": "x \\",
+            "decorated": true,
+            "width": 3,
+            "output": "x \\"
         },
         {
             "message": "x \\",
@@ -2111,6 +2951,18 @@
             "decorated": false,
             "width": 1,
             "output": "t\nr\na\ni\nl\ni\nn\ng\n\\\n\\"
+        },
+        {
+            "message": "trailing \\\\",
+            "decorated": false,
+            "width": 2,
+            "output": "tr\nai\nli\nng\n\\\\"
+        },
+        {
+            "message": "trailing \\\\",
+            "decorated": false,
+            "width": 3,
+            "output": "tra\nili\nng\n\\\\"
         },
         {
             "message": "trailing \\\\",
@@ -2141,6 +2993,18 @@
             "decorated": true,
             "width": 1,
             "output": "t\nr\na\ni\nl\ni\nn\ng\n\\\n\\"
+        },
+        {
+            "message": "trailing \\\\",
+            "decorated": true,
+            "width": 2,
+            "output": "tr\nai\nli\nng\n\\\\"
+        },
+        {
+            "message": "trailing \\\\",
+            "decorated": true,
+            "width": 3,
+            "output": "tra\nili\nng\n\\\\"
         },
         {
             "message": "trailing \\\\",
@@ -2175,6 +3039,18 @@
         {
             "message": "<info>foo\\</info>",
             "decorated": false,
+            "width": 2,
+            "output": "fo\no\\\n</\nin\nfo\n>"
+        },
+        {
+            "message": "<info>foo\\</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "foo\n</\ninf\no>"
+        },
+        {
+            "message": "<info>foo\\</info>",
+            "decorated": false,
             "width": 5,
             "output": "foo<\n/info\n>"
         },
@@ -2201,6 +3077,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32mf\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32m\\\u001b[39m\n\u001b[32m<\u001b[39m\n\u001b[32m/\u001b[39m\n\u001b[32mi\u001b[39m\n\u001b[32mn\u001b[39m\n\u001b[32mf\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32m>\u001b[39m"
+        },
+        {
+            "message": "<info>foo\\</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mfo\u001b[39m\n\u001b[32mo\\\u001b[39m\n\u001b[32m</\u001b[39m\n\u001b[32min\u001b[39m\n\u001b[32mfo\u001b[39m\n\u001b[32m>\u001b[39m"
+        },
+        {
+            "message": "<info>foo\\</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32mfoo\u001b[39m\n\u001b[32m</\u001b[39m\n\u001b[32minf\u001b[39m\n\u001b[32mo>\u001b[39m"
         },
         {
             "message": "<info>foo\\</info>",
@@ -2235,6 +3123,18 @@
         {
             "message": "<>",
             "decorated": false,
+            "width": 2,
+            "output": "<>"
+        },
+        {
+            "message": "<>",
+            "decorated": false,
+            "width": 3,
+            "output": "<>"
+        },
+        {
+            "message": "<>",
+            "decorated": false,
             "width": 5,
             "output": "<>"
         },
@@ -2265,6 +3165,18 @@
         {
             "message": "<>",
             "decorated": true,
+            "width": 2,
+            "output": "<>"
+        },
+        {
+            "message": "<>",
+            "decorated": true,
+            "width": 3,
+            "output": "<>"
+        },
+        {
+            "message": "<>",
+            "decorated": true,
             "width": 5,
             "output": "<>"
         },
@@ -2291,6 +3203,18 @@
             "decorated": false,
             "width": 1,
             "output": "<\ni\nn\nf\no\n>"
+        },
+        {
+            "message": "< info>",
+            "decorated": false,
+            "width": 2,
+            "output": "<\nin\nfo\n>"
+        },
+        {
+            "message": "< info>",
+            "decorated": false,
+            "width": 3,
+            "output": "<\ninf\no>"
         },
         {
             "message": "< info>",
@@ -2325,6 +3249,18 @@
         {
             "message": "< info>",
             "decorated": true,
+            "width": 2,
+            "output": "<\nin\nfo\n>"
+        },
+        {
+            "message": "< info>",
+            "decorated": true,
+            "width": 3,
+            "output": "<\ninf\no>"
+        },
+        {
+            "message": "< info>",
+            "decorated": true,
             "width": 5,
             "output": "<\ninfo>"
         },
@@ -2355,6 +3291,18 @@
         {
             "message": "<info >sp</info >",
             "decorated": false,
+            "width": 2,
+            "output": "<i\nnf\no\n>\nsp\n</\nin\nfo\n>"
+        },
+        {
+            "message": "<info >sp</info >",
+            "decorated": false,
+            "width": 3,
+            "output": "<in\nfo\n>\nsp<\n/in\nfo\n>"
+        },
+        {
+            "message": "<info >sp</info >",
+            "decorated": false,
             "width": 5,
             "output": "<info\n>sp</\ninfo\n>"
         },
@@ -2385,6 +3333,18 @@
         {
             "message": "<info >sp</info >",
             "decorated": true,
+            "width": 2,
+            "output": "<i\nnf\no\n>\nsp\n</\nin\nfo\n>"
+        },
+        {
+            "message": "<info >sp</info >",
+            "decorated": true,
+            "width": 3,
+            "output": "<in\nfo\n>\nsp<\n/in\nfo\n>"
+        },
+        {
+            "message": "<info >sp</info >",
+            "decorated": true,
             "width": 5,
             "output": "<info\n>sp</\ninfo\n>"
         },
@@ -2415,6 +3375,18 @@
         {
             "message": "<1abc>",
             "decorated": false,
+            "width": 2,
+            "output": "<1\nab\nc>"
+        },
+        {
+            "message": "<1abc>",
+            "decorated": false,
+            "width": 3,
+            "output": "<1a\nbc>"
+        },
+        {
+            "message": "<1abc>",
+            "decorated": false,
             "width": 5,
             "output": "<1abc\n>"
         },
@@ -2445,6 +3417,18 @@
         {
             "message": "<1abc>",
             "decorated": true,
+            "width": 2,
+            "output": "<1\nab\nc>"
+        },
+        {
+            "message": "<1abc>",
+            "decorated": true,
+            "width": 3,
+            "output": "<1a\nbc>"
+        },
+        {
+            "message": "<1abc>",
+            "decorated": true,
             "width": 5,
             "output": "<1abc\n>"
         },
@@ -2475,6 +3459,18 @@
         {
             "message": "<a\\b>",
             "decorated": false,
+            "width": 2,
+            "output": "<a\n\\b\n>"
+        },
+        {
+            "message": "<a\\b>",
+            "decorated": false,
+            "width": 3,
+            "output": "<a\\\nb>"
+        },
+        {
+            "message": "<a\\b>",
+            "decorated": false,
             "width": 5,
             "output": "<a\\b>"
         },
@@ -2505,6 +3501,18 @@
         {
             "message": "<a\\b>",
             "decorated": true,
+            "width": 2,
+            "output": "<a\n\\b\n>"
+        },
+        {
+            "message": "<a\\b>",
+            "decorated": true,
+            "width": 3,
+            "output": "<a\\\nb>"
+        },
+        {
+            "message": "<a\\b>",
+            "decorated": true,
             "width": 5,
             "output": "<a\\b>"
         },
@@ -2535,6 +3543,18 @@
         {
             "message": "<a\\\nb>x",
             "decorated": false,
+            "width": 2,
+            "output": "<a\n\\\nb>\nx"
+        },
+        {
+            "message": "<a\\\nb>x",
+            "decorated": false,
+            "width": 3,
+            "output": "<a\\\nb>x"
+        },
+        {
+            "message": "<a\\\nb>x",
+            "decorated": false,
             "width": 5,
             "output": "<a\\\nb>x"
         },
@@ -2561,6 +3581,18 @@
             "decorated": true,
             "width": 1,
             "output": "<\na\n\\\nb\n>\nx"
+        },
+        {
+            "message": "<a\\\nb>x",
+            "decorated": true,
+            "width": 2,
+            "output": "<a\n\\\nb>\nx"
+        },
+        {
+            "message": "<a\\\nb>x",
+            "decorated": true,
+            "width": 3,
+            "output": "<a\\\nb>x"
         },
         {
             "message": "<a\\\nb>x",
@@ -2595,6 +3627,18 @@
         {
             "message": "<a b c>x</a b c>",
             "decorated": false,
+            "width": 2,
+            "output": "<a\nb\nc>\nx<\n/a\nb\nc>"
+        },
+        {
+            "message": "<a b c>x</a b c>",
+            "decorated": false,
+            "width": 3,
+            "output": "<a\nb\nc>x\n</a\nb\nc>"
+        },
+        {
+            "message": "<a b c>x</a b c>",
+            "decorated": false,
             "width": 5,
             "output": "<a b\nc>\nx</a \nb c>"
         },
@@ -2625,6 +3669,18 @@
         {
             "message": "<a b c>x</a b c>",
             "decorated": true,
+            "width": 2,
+            "output": "<a\nb\nc>\nx<\n/a\nb\nc>"
+        },
+        {
+            "message": "<a b c>x</a b c>",
+            "decorated": true,
+            "width": 3,
+            "output": "<a\nb\nc>x\n</a\nb\nc>"
+        },
+        {
+            "message": "<a b c>x</a b c>",
+            "decorated": true,
             "width": 5,
             "output": "<a b\nc>\nx</a \nb c>"
         },
@@ -2655,6 +3711,18 @@
         {
             "message": "<unknown>x</unknown>",
             "decorated": false,
+            "width": 2,
+            "output": "<u\nnk\nno\nwn\n>x\n</\nun\nkn\now\nn>"
+        },
+        {
+            "message": "<unknown>x</unknown>",
+            "decorated": false,
+            "width": 3,
+            "output": "<un\nkno\nwn>\nx</\nunk\nnow\nn>"
+        },
+        {
+            "message": "<unknown>x</unknown>",
+            "decorated": false,
             "width": 5,
             "output": "<unkn\nown>x\n</unk\nnown>"
         },
@@ -2685,6 +3753,18 @@
         {
             "message": "<unknown>x</unknown>",
             "decorated": true,
+            "width": 2,
+            "output": "<u\nnk\nno\nwn\n>x\n</\nun\nkn\now\nn>"
+        },
+        {
+            "message": "<unknown>x</unknown>",
+            "decorated": true,
+            "width": 3,
+            "output": "<un\nkno\nwn>\nx</\nunk\nnow\nn>"
+        },
+        {
+            "message": "<unknown>x</unknown>",
+            "decorated": true,
             "width": 5,
             "output": "<unkn\nown>x\n</unk\nnown>"
         },
@@ -2715,6 +3795,18 @@
         {
             "message": "<fg=red;foo=bar>x</>",
             "decorated": false,
+            "width": 2,
+            "output": "<f\ng=\nre\nd;\nfo\no=\nba\nr>\nx"
+        },
+        {
+            "message": "<fg=red;foo=bar>x</>",
+            "decorated": false,
+            "width": 3,
+            "output": "<fg\n=re\nd;f\noo=\nbar\n>x"
+        },
+        {
+            "message": "<fg=red;foo=bar>x</>",
+            "decorated": false,
             "width": 5,
             "output": "<fg=r\ned;fo\no=bar\n>x"
         },
@@ -2745,6 +3837,18 @@
         {
             "message": "<fg=red;foo=bar>x</>",
             "decorated": true,
+            "width": 2,
+            "output": "<f\ng=\nre\nd;\nfo\no=\nba\nr>\nx"
+        },
+        {
+            "message": "<fg=red;foo=bar>x</>",
+            "decorated": true,
+            "width": 3,
+            "output": "<fg\n=re\nd;f\noo=\nbar\n>x"
+        },
+        {
+            "message": "<fg=red;foo=bar>x</>",
+            "decorated": true,
             "width": 5,
             "output": "<fg=r\ned;fo\no=bar\n>x"
         },
@@ -2775,6 +3879,18 @@
         {
             "message": "<=x>y</>",
             "decorated": false,
+            "width": 2,
+            "output": "<=\nx>\ny"
+        },
+        {
+            "message": "<=x>y</>",
+            "decorated": false,
+            "width": 3,
+            "output": "<=x\n>y"
+        },
+        {
+            "message": "<=x>y</>",
+            "decorated": false,
             "width": 5,
             "output": "<=x>y"
         },
@@ -2801,6 +3917,18 @@
             "decorated": true,
             "width": 1,
             "output": "<\n=\nx\n>\ny"
+        },
+        {
+            "message": "<=x>y</>",
+            "decorated": true,
+            "width": 2,
+            "output": "<=\nx>\ny"
+        },
+        {
+            "message": "<=x>y</>",
+            "decorated": true,
+            "width": 3,
+            "output": "<=x\n>y"
         },
         {
             "message": "<=x>y</>",
@@ -2830,6 +3958,18 @@
             "message": "<fg=red;>x</>",
             "decorated": false,
             "width": 1,
+            "output": "x"
+        },
+        {
+            "message": "<fg=red;>x</>",
+            "decorated": false,
+            "width": 2,
+            "output": "x"
+        },
+        {
+            "message": "<fg=red;>x</>",
+            "decorated": false,
+            "width": 3,
             "output": "x"
         },
         {
@@ -2860,6 +4000,18 @@
             "message": "<fg=red;>x</>",
             "decorated": true,
             "width": 1,
+            "output": "\u001b[31mx\u001b[39m"
+        },
+        {
+            "message": "<fg=red;>x</>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[31mx\u001b[39m"
+        },
+        {
+            "message": "<fg=red;>x</>",
+            "decorated": true,
+            "width": 3,
             "output": "\u001b[31mx\u001b[39m"
         },
         {
@@ -2891,6 +4043,18 @@
             "decorated": false,
             "width": 1,
             "output": "<\nf\ng\n=\nr\ne\nd\n;\n;\nb\ng\n=\nb\nl\nu\ne\n>\nx"
+        },
+        {
+            "message": "<fg=red;;bg=blue>x</>",
+            "decorated": false,
+            "width": 2,
+            "output": "<f\ng=\nre\nd;\n;b\ng=\nbl\nue\n>x"
+        },
+        {
+            "message": "<fg=red;;bg=blue>x</>",
+            "decorated": false,
+            "width": 3,
+            "output": "<fg\n=re\nd;;\nbg=\nblu\ne>x"
         },
         {
             "message": "<fg=red;;bg=blue>x</>",
@@ -2921,6 +4085,18 @@
             "decorated": true,
             "width": 1,
             "output": "<\nf\ng\n=\nr\ne\nd\n;\n;\nb\ng\n=\nb\nl\nu\ne\n>\nx"
+        },
+        {
+            "message": "<fg=red;;bg=blue>x</>",
+            "decorated": true,
+            "width": 2,
+            "output": "<f\ng=\nre\nd;\n;b\ng=\nbl\nue\n>x"
+        },
+        {
+            "message": "<fg=red;;bg=blue>x</>",
+            "decorated": true,
+            "width": 3,
+            "output": "<fg\n=re\nd;;\nbg=\nblu\ne>x"
         },
         {
             "message": "<fg=red;;bg=blue>x</>",
@@ -2955,6 +4131,18 @@
         {
             "message": "multi\nline <info>info\nmore</info> end",
             "decorated": false,
+            "width": 2,
+            "output": "mu\nlt\ni\nli\nne\nin\nfo\nmo\nre\nen\nd"
+        },
+        {
+            "message": "multi\nline <info>info\nmore</info> end",
+            "decorated": false,
+            "width": 3,
+            "output": "mul\nti\nlin\ne i\nnfo\nmor\ne e\nnd"
+        },
+        {
+            "message": "multi\nline <info>info\nmore</info> end",
+            "decorated": false,
             "width": 5,
             "output": "multi\nline \ninfo\nmore\nend"
         },
@@ -2981,6 +4169,18 @@
             "decorated": true,
             "width": 1,
             "output": "m\nu\nl\nt\ni\nl\ni\nn\ne\u001b[32m\u001b[39m\n\u001b[32mi\u001b[39m\n\u001b[32mn\u001b[39m\n\u001b[32mf\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mm\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32me\u001b[39m\ne\nn\nd"
+        },
+        {
+            "message": "multi\nline <info>info\nmore</info> end",
+            "decorated": true,
+            "width": 2,
+            "output": "mu\nlt\ni\nli\nne\u001b[32m\u001b[39m\n\u001b[32min\u001b[39m\n\u001b[32mfo\u001b[39m\n\u001b[32mmo\u001b[39m\n\u001b[32mre\u001b[39m\nen\nd"
+        },
+        {
+            "message": "multi\nline <info>info\nmore</info> end",
+            "decorated": true,
+            "width": 3,
+            "output": "mul\nti\nlin\ne \u001b[32mi\u001b[39m\n\u001b[32mnfo\u001b[39m\n\u001b[32mmor\u001b[39m\n\u001b[32me\u001b[39m e\nnd"
         },
         {
             "message": "multi\nline <info>info\nmore</info> end",
@@ -3015,6 +4215,18 @@
         {
             "message": "<info>tab\tchar</info>",
             "decorated": false,
+            "width": 2,
+            "output": "ta\nb\t\nch\nar"
+        },
+        {
+            "message": "<info>tab\tchar</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "tab\n\tch\nar"
+        },
+        {
+            "message": "<info>tab\tchar</info>",
+            "decorated": false,
             "width": 5,
             "output": "tab\tc\nhar"
         },
@@ -3041,6 +4253,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32mt\u001b[39m\n\u001b[32ma\u001b[39m\n\u001b[32mb\u001b[39m\n\u001b[32m\t\u001b[39m\n\u001b[32mc\u001b[39m\n\u001b[32mh\u001b[39m\n\u001b[32ma\u001b[39m\n\u001b[32mr\u001b[39m"
+        },
+        {
+            "message": "<info>tab\tchar</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mta\u001b[39m\n\u001b[32mb\t\u001b[39m\n\u001b[32mch\u001b[39m\n\u001b[32mar\u001b[39m"
+        },
+        {
+            "message": "<info>tab\tchar</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32mtab\u001b[39m\n\u001b[32m\tch\u001b[39m\n\u001b[32mar\u001b[39m"
         },
         {
             "message": "<info>tab\tchar</info>",
@@ -3075,6 +4299,18 @@
         {
             "message": "\u001b[31malready\u001b[0m",
             "decorated": false,
+            "width": 2,
+            "output": "\u001b[\n31\nma\nlr\nea\ndy\n\u001b[\n0m"
+        },
+        {
+            "message": "\u001b[31malready\u001b[0m",
+            "decorated": false,
+            "width": 3,
+            "output": "\u001b[3\n1ma\nlre\nady\n\u001b[0\nm"
+        },
+        {
+            "message": "\u001b[31malready\u001b[0m",
+            "decorated": false,
             "width": 5,
             "output": "\u001b[31m\nalrea\ndy\u001b[0\nm"
         },
@@ -3101,6 +4337,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b\n[\n3\n1\nm\na\nl\nr\ne\na\nd\ny\n\u001b\n[\n0\nm"
+        },
+        {
+            "message": "\u001b[31malready\u001b[0m",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[\n31\nma\nlr\nea\ndy\n\u001b[\n0m"
+        },
+        {
+            "message": "\u001b[31malready\u001b[0m",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[3\n1ma\nlre\nady\n\u001b[0\nm"
         },
         {
             "message": "\u001b[31malready\u001b[0m",
@@ -3135,6 +4383,18 @@
         {
             "message": "<info>h\u00e9llo w\u00f6rld</info>",
             "decorated": false,
+            "width": 2,
+            "output": "h\u00e9\nll\no\nw\u00f6\nrl\nd"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "h\u00e9l\nlo\nw\u00f6r\nld"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld</info>",
+            "decorated": false,
             "width": 5,
             "output": "h\u00e9llo\nw\u00f6rld"
         },
@@ -3161,6 +4421,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32mh\u001b[39m\n\u001b[32m\u00e9\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mw\u001b[39m\n\u001b[32m\u00f6\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32md\u001b[39m"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mh\u00e9\u001b[39m\n\u001b[32mll\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mw\u00f6\u001b[39m\n\u001b[32mrl\u001b[39m\n\u001b[32md\u001b[39m"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32mh\u00e9l\u001b[39m\n\u001b[32mlo\u001b[39m\n\u001b[32mw\u00f6r\u001b[39m\n\u001b[32mld\u001b[39m"
         },
         {
             "message": "<info>h\u00e9llo w\u00f6rld</info>",
@@ -3195,6 +4467,18 @@
         {
             "message": "<comment>\u65e5\u672c\u8a9e\u30c6\u30ad\u30b9\u30c8</comment>",
             "decorated": false,
+            "width": 2,
+            "output": "\u65e5\u672c\n\u8a9e\u30c6\n\u30ad\u30b9\n\u30c8"
+        },
+        {
+            "message": "<comment>\u65e5\u672c\u8a9e\u30c6\u30ad\u30b9\u30c8</comment>",
+            "decorated": false,
+            "width": 3,
+            "output": "\u65e5\u672c\u8a9e\n\u30c6\u30ad\u30b9\n\u30c8"
+        },
+        {
+            "message": "<comment>\u65e5\u672c\u8a9e\u30c6\u30ad\u30b9\u30c8</comment>",
+            "decorated": false,
             "width": 5,
             "output": "\u65e5\u672c\u8a9e\u30c6\u30ad\n\u30b9\u30c8"
         },
@@ -3221,6 +4505,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[33m\u65e5\u001b[39m\n\u001b[33m\u672c\u001b[39m\n\u001b[33m\u8a9e\u001b[39m\n\u001b[33m\u30c6\u001b[39m\n\u001b[33m\u30ad\u001b[39m\n\u001b[33m\u30b9\u001b[39m\n\u001b[33m\u30c8\u001b[39m"
+        },
+        {
+            "message": "<comment>\u65e5\u672c\u8a9e\u30c6\u30ad\u30b9\u30c8</comment>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[33m\u65e5\u672c\u001b[39m\n\u001b[33m\u8a9e\u30c6\u001b[39m\n\u001b[33m\u30ad\u30b9\u001b[39m\n\u001b[33m\u30c8\u001b[39m"
+        },
+        {
+            "message": "<comment>\u65e5\u672c\u8a9e\u30c6\u30ad\u30b9\u30c8</comment>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[33m\u65e5\u672c\u8a9e\u001b[39m\n\u001b[33m\u30c6\u30ad\u30b9\u001b[39m\n\u001b[33m\u30c8\u001b[39m"
         },
         {
             "message": "<comment>\u65e5\u672c\u8a9e\u30c6\u30ad\u30b9\u30c8</comment>",
@@ -3255,6 +4551,18 @@
         {
             "message": "<info>\u0000nul</info>",
             "decorated": false,
+            "width": 2,
+            "output": "\\n\nul"
+        },
+        {
+            "message": "<info>\u0000nul</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "\\nu\nl"
+        },
+        {
+            "message": "<info>\u0000nul</info>",
+            "decorated": false,
             "width": 5,
             "output": "\\nul"
         },
@@ -3285,6 +4593,18 @@
         {
             "message": "<info>\u0000nul</info>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[32m\\n\u001b[39m\n\u001b[32mul\u001b[39m"
+        },
+        {
+            "message": "<info>\u0000nul</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32m\\nu\u001b[39m\n\u001b[32ml\u001b[39m"
+        },
+        {
+            "message": "<info>\u0000nul</info>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[32m\\nul\u001b[39m"
         },
@@ -3311,6 +4631,18 @@
             "decorated": false,
             "width": 1,
             "output": "a\nb\nc"
+        },
+        {
+            "message": "<info>a</info><comment>b</comment><error>c</error>",
+            "decorated": false,
+            "width": 2,
+            "output": "ab\nc"
+        },
+        {
+            "message": "<info>a</info><comment>b</comment><error>c</error>",
+            "decorated": false,
+            "width": 3,
+            "output": "abc"
         },
         {
             "message": "<info>a</info><comment>b</comment><error>c</error>",
@@ -3345,6 +4677,18 @@
         {
             "message": "<info>a</info><comment>b</comment><error>c</error>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[32ma\u001b[39m\u001b[33mb\u001b[39m\u001b[37;41m\u001b[39;49m\n\u001b[37;41mc\u001b[39;49m"
+        },
+        {
+            "message": "<info>a</info><comment>b</comment><error>c</error>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32ma\u001b[39m\u001b[33mb\u001b[39m\u001b[37;41mc\u001b[39;49m"
+        },
+        {
+            "message": "<info>a</info><comment>b</comment><error>c</error>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[32ma\u001b[39m\u001b[33mb\u001b[39m\u001b[37;41mc\u001b[39;49m"
         },
@@ -3371,6 +4715,18 @@
             "decorated": false,
             "width": 1,
             "output": "n\ne\ns\nt\ne\nd"
+        },
+        {
+            "message": "<info><info>nested</info></info>",
+            "decorated": false,
+            "width": 2,
+            "output": "ne\nst\ned"
+        },
+        {
+            "message": "<info><info>nested</info></info>",
+            "decorated": false,
+            "width": 3,
+            "output": "nes\nted"
         },
         {
             "message": "<info><info>nested</info></info>",
@@ -3405,6 +4761,18 @@
         {
             "message": "<info><info>nested</info></info>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mne\u001b[39m\n\u001b[32mst\u001b[39m\n\u001b[32med\u001b[39m"
+        },
+        {
+            "message": "<info><info>nested</info></info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32mnes\u001b[39m\n\u001b[32mted\u001b[39m"
+        },
+        {
+            "message": "<info><info>nested</info></info>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[32mneste\u001b[39m\n\u001b[32md\u001b[39m"
         },
@@ -3424,61 +4792,99 @@
             "message": "<info>x</comment>",
             "decorated": false,
             "width": 0,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": false,
             "width": 1,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
+        },
+        {
+            "message": "<info>x</comment>",
+            "decorated": false,
+            "width": 2,
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
+        },
+        {
+            "message": "<info>x</comment>",
+            "decorated": false,
+            "width": 3,
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": false,
             "width": 5,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": false,
             "width": 10,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": false,
             "width": 20,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": true,
             "width": 0,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": true,
             "width": 1,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
+        },
+        {
+            "message": "<info>x</comment>",
+            "decorated": true,
+            "width": 2,
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
+        },
+        {
+            "message": "<info>x</comment>",
+            "decorated": true,
+            "width": 3,
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": true,
             "width": 5,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": true,
             "width": 10,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<info>x</comment>",
             "decorated": true,
             "width": 20,
-            "error": "Incorrectly nested style tag found."
+            "error": "Incorrectly nested style tag found.",
+            "class": "Symfony\\Component\\Console\\Exception\\InvalidArgumentException"
         },
         {
             "message": "<fg=red>a<fg=blue>b</>c</>",
@@ -3491,6 +4897,18 @@
             "decorated": false,
             "width": 1,
             "output": "a\nb\nc"
+        },
+        {
+            "message": "<fg=red>a<fg=blue>b</>c</>",
+            "decorated": false,
+            "width": 2,
+            "output": "ab\nc"
+        },
+        {
+            "message": "<fg=red>a<fg=blue>b</>c</>",
+            "decorated": false,
+            "width": 3,
+            "output": "abc"
         },
         {
             "message": "<fg=red>a<fg=blue>b</>c</>",
@@ -3525,6 +4943,18 @@
         {
             "message": "<fg=red>a<fg=blue>b</>c</>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[31ma\u001b[39m\u001b[34mb\u001b[39m\u001b[31m\u001b[39m\n\u001b[31mc\u001b[39m"
+        },
+        {
+            "message": "<fg=red>a<fg=blue>b</>c</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[31ma\u001b[39m\u001b[34mb\u001b[39m\u001b[31mc\u001b[39m"
+        },
+        {
+            "message": "<fg=red>a<fg=blue>b</>c</>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[31ma\u001b[39m\u001b[34mb\u001b[39m\u001b[31mc\u001b[39m"
         },
@@ -3551,6 +4981,18 @@
             "decorated": false,
             "width": 1,
             "output": "r\ne\nv"
+        },
+        {
+            "message": "<options=reverse;fg=cyan>rev</>",
+            "decorated": false,
+            "width": 2,
+            "output": "re\nv"
+        },
+        {
+            "message": "<options=reverse;fg=cyan>rev</>",
+            "decorated": false,
+            "width": 3,
+            "output": "rev"
         },
         {
             "message": "<options=reverse;fg=cyan>rev</>",
@@ -3585,6 +5027,18 @@
         {
             "message": "<options=reverse;fg=cyan>rev</>",
             "decorated": true,
+            "width": 2,
+            "output": "\u001b[36;7mre\u001b[39;27m\n\u001b[36;7mv\u001b[39;27m"
+        },
+        {
+            "message": "<options=reverse;fg=cyan>rev</>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[36;7mrev\u001b[39;27m"
+        },
+        {
+            "message": "<options=reverse;fg=cyan>rev</>",
+            "decorated": true,
             "width": 5,
             "output": "\u001b[36;7mrev\u001b[39;27m"
         },
@@ -3611,6 +5065,18 @@
             "decorated": false,
             "width": 1,
             "output": "S\no\nm\ne\nt\ne\nx\nt\nw\ni\nt\nh\ns\ne\nv\ne\nr\na\nl\ns\nt\ny\nl\ne\ns\na\nn\nd\na\nl\no\nn\ng\nt\na\ni\nl\nt\nh\na\nt\nw\ni\nl\nl\nn\ne\ne\nd\nw\nr\na\np\np\ni\nn\ng\ns\no\nm\ne\nw\nh\ne\nr\ne"
+        },
+        {
+            "message": "Some <info>text</info> with <comment>several</comment> <error>styles</error> and a long tail that will need wrapping somewhere",
+            "decorated": false,
+            "width": 2,
+            "output": "So\nme\nte\nxt\nwi\nth\nse\nve\nra\nl \nst\nyl\nes\nan\nd\na\nlo\nng\nta\nil\nth\nat\nwi\nll\nne\ned\nwr\nap\npi\nng\nso\nme\nwh\ner\ne"
+        },
+        {
+            "message": "Some <info>text</info> with <comment>several</comment> <error>styles</error> and a long tail that will need wrapping somewhere",
+            "decorated": false,
+            "width": 3,
+            "output": "Som\ne t\next\nwit\nh s\neve\nral\nsty\nles\nand\na\nlon\ng\ntai\nl\ntha\nt\nwil\nl\nnee\nd\nwra\nppi\nng\nsom\newh\nere"
         },
         {
             "message": "Some <info>text</info> with <comment>several</comment> <error>styles</error> and a long tail that will need wrapping somewhere",
@@ -3645,6 +5111,18 @@
         {
             "message": "Some <info>text</info> with <comment>several</comment> <error>styles</error> and a long tail that will need wrapping somewhere",
             "decorated": true,
+            "width": 2,
+            "output": "So\nme\u001b[32m\u001b[39m\n\u001b[32mte\u001b[39m\n\u001b[32mxt\u001b[39m\nwi\nth\u001b[33m\u001b[39m\n\u001b[33mse\u001b[39m\n\u001b[33mve\u001b[39m\n\u001b[33mra\u001b[39m\n\u001b[33ml\u001b[39m \u001b[37;41m\u001b[39;49m\n\u001b[37;41mst\u001b[39;49m\n\u001b[37;41myl\u001b[39;49m\n\u001b[37;41mes\u001b[39;49m\nan\nd\na\nlo\nng\nta\nil\nth\nat\nwi\nll\nne\ned\nwr\nap\npi\nng\nso\nme\nwh\ner\ne"
+        },
+        {
+            "message": "Some <info>text</info> with <comment>several</comment> <error>styles</error> and a long tail that will need wrapping somewhere",
+            "decorated": true,
+            "width": 3,
+            "output": "Som\ne \u001b[32mt\u001b[39m\n\u001b[32mext\u001b[39m\nwit\nh \u001b[33ms\u001b[39m\n\u001b[33meve\u001b[39m\n\u001b[33mral\u001b[39m\n\u001b[37;41msty\u001b[39;49m\n\u001b[37;41mles\u001b[39;49m\nand\na\nlon\ng\ntai\nl\ntha\nt\nwil\nl\nnee\nd\nwra\nppi\nng\nsom\newh\nere"
+        },
+        {
+            "message": "Some <info>text</info> with <comment>several</comment> <error>styles</error> and a long tail that will need wrapping somewhere",
+            "decorated": true,
             "width": 5,
             "output": "Some \u001b[32m\u001b[39m\n\u001b[32mtext\u001b[39m \nwith \u001b[33m\u001b[39m\n\u001b[33msever\u001b[39m\n\u001b[33mal\u001b[39m \u001b[37;41mst\u001b[39;49m\n\u001b[37;41myles\u001b[39;49m \nand a\nlong\ntail\nthat\nwill\nneed\nwrapp\ning\nsomew\nhere"
         },
@@ -3675,6 +5153,18 @@
         {
             "message": "Pretty long text that will be wrapped at word boundaries hopefully nicely enough",
             "decorated": false,
+            "width": 2,
+            "output": "Pr\net\nty\nlo\nng\nte\nxt\nth\nat\nwi\nll\nbe\nwr\nap\npe\nd\nat\nwo\nrd\nbo\nun\nda\nri\nes\nho\npe\nfu\nll\ny\nni\nce\nly\nen\nou\ngh"
+        },
+        {
+            "message": "Pretty long text that will be wrapped at word boundaries hopefully nicely enough",
+            "decorated": false,
+            "width": 3,
+            "output": "Pre\ntty\nlon\ng\ntex\nt\ntha\nt\nwil\nl\nbe\nwra\nppe\nd\nat\nwor\nd\nbou\nnda\nrie\ns\nhop\nefu\nlly\nnic\nely\neno\nugh"
+        },
+        {
+            "message": "Pretty long text that will be wrapped at word boundaries hopefully nicely enough",
+            "decorated": false,
             "width": 5,
             "output": "Prett\ny\nlong\ntext\nthat\nwill\nbe\nwrapp\ned at\nword\nbound\naries\nhopef\nully\nnicel\ny\nenoug\nh"
         },
@@ -3705,6 +5195,18 @@
         {
             "message": "Pretty long text that will be wrapped at word boundaries hopefully nicely enough",
             "decorated": true,
+            "width": 2,
+            "output": "Pr\net\nty\nlo\nng\nte\nxt\nth\nat\nwi\nll\nbe\nwr\nap\npe\nd\nat\nwo\nrd\nbo\nun\nda\nri\nes\nho\npe\nfu\nll\ny\nni\nce\nly\nen\nou\ngh"
+        },
+        {
+            "message": "Pretty long text that will be wrapped at word boundaries hopefully nicely enough",
+            "decorated": true,
+            "width": 3,
+            "output": "Pre\ntty\nlon\ng\ntex\nt\ntha\nt\nwil\nl\nbe\nwra\nppe\nd\nat\nwor\nd\nbou\nnda\nrie\ns\nhop\nefu\nlly\nnic\nely\neno\nugh"
+        },
+        {
+            "message": "Pretty long text that will be wrapped at word boundaries hopefully nicely enough",
+            "decorated": true,
             "width": 5,
             "output": "Prett\ny\nlong\ntext\nthat\nwill\nbe\nwrapp\ned at\nword\nbound\naries\nhopef\nully\nnicel\ny\nenoug\nh"
         },
@@ -3735,6 +5237,18 @@
         {
             "message": "averyveryveryverylongwordwithoutanyspacesatallthatmustbecut ok",
             "decorated": false,
+            "width": 2,
+            "output": "av\ner\nyv\ner\nyv\ner\nyv\ner\nyl\non\ngw\nor\ndw\nit\nho\nut\nan\nys\npa\nce\nsa\nta\nll\nth\nat\nmu\nst\nbe\ncu\nt\nok"
+        },
+        {
+            "message": "averyveryveryverylongwordwithoutanyspacesatallthatmustbecut ok",
+            "decorated": false,
+            "width": 3,
+            "output": "ave\nryv\nery\nver\nyve\nryl\nong\nwor\ndwi\ntho\nuta\nnys\npac\nesa\ntal\nlth\natm\nust\nbec\nut\nok"
+        },
+        {
+            "message": "averyveryveryverylongwordwithoutanyspacesatallthatmustbecut ok",
+            "decorated": false,
             "width": 5,
             "output": "avery\nveryv\neryve\nrylon\ngword\nwitho\nutany\nspace\nsatal\nlthat\nmustb\necut\nok"
         },
@@ -3761,6 +5275,18 @@
             "decorated": true,
             "width": 1,
             "output": "a\nv\ne\nr\ny\nv\ne\nr\ny\nv\ne\nr\ny\nv\ne\nr\ny\nl\no\nn\ng\nw\no\nr\nd\nw\ni\nt\nh\no\nu\nt\na\nn\ny\ns\np\na\nc\ne\ns\na\nt\na\nl\nl\nt\nh\na\nt\nm\nu\ns\nt\nb\ne\nc\nu\nt\no\nk"
+        },
+        {
+            "message": "averyveryveryverylongwordwithoutanyspacesatallthatmustbecut ok",
+            "decorated": true,
+            "width": 2,
+            "output": "av\ner\nyv\ner\nyv\ner\nyv\ner\nyl\non\ngw\nor\ndw\nit\nho\nut\nan\nys\npa\nce\nsa\nta\nll\nth\nat\nmu\nst\nbe\ncu\nt\nok"
+        },
+        {
+            "message": "averyveryveryverylongwordwithoutanyspacesatallthatmustbecut ok",
+            "decorated": true,
+            "width": 3,
+            "output": "ave\nryv\nery\nver\nyve\nryl\nong\nwor\ndwi\ntho\nuta\nnys\npac\nesa\ntal\nlth\natm\nust\nbec\nut\nok"
         },
         {
             "message": "averyveryveryverylongwordwithoutanyspacesatallthatmustbecut ok",
@@ -3795,6 +5321,18 @@
         {
             "message": "  leading spaces and <info>styled   text</info>   trailing  ",
             "decorated": false,
+            "width": 2,
+            "output": " \nle\nad\nin\ng\nsp\nac\nes\nan\nd \nst\nyl\ned\n \nte\nxt\ntr\nai\nli\nng\n "
+        },
+        {
+            "message": "  leading spaces and <info>styled   text</info>   trailing  ",
+            "decorated": false,
+            "width": 3,
+            "output": " \nlea\ndin\ng\nspa\nces\nand\nsty\nled\n \ntex\nt  \n tr\nail\ning\n "
+        },
+        {
+            "message": "  leading spaces and <info>styled   text</info>   trailing  ",
+            "decorated": false,
             "width": 5,
             "output": " \nleadi\nng\nspace\ns and\nstyle\nd  \ntext\ntrail\ning  "
         },
@@ -3821,6 +5359,18 @@
             "decorated": true,
             "width": 1,
             "output": " \nl\ne\na\nd\ni\nn\ng\ns\np\na\nc\ne\ns\na\nn\nd\u001b[32m\u001b[39m\n\u001b[32ms\u001b[39m\n\u001b[32mt\u001b[39m\n\u001b[32my\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32md\u001b[39m\n\u001b[32m \u001b[39m\n\u001b[32mt\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32mx\u001b[39m\n\u001b[32mt\u001b[39m\nt\nr\na\ni\nl\ni\nn\ng\n "
+        },
+        {
+            "message": "  leading spaces and <info>styled   text</info>   trailing  ",
+            "decorated": true,
+            "width": 2,
+            "output": " \nle\nad\nin\ng\nsp\nac\nes\nan\nd \u001b[32m\u001b[39m\n\u001b[32mst\u001b[39m\n\u001b[32myl\u001b[39m\n\u001b[32med\u001b[39m\n\u001b[32m \u001b[39m\n\u001b[32mte\u001b[39m\n\u001b[32mxt\u001b[39m\ntr\nai\nli\nng\n "
+        },
+        {
+            "message": "  leading spaces and <info>styled   text</info>   trailing  ",
+            "decorated": true,
+            "width": 3,
+            "output": " \nlea\ndin\ng\nspa\nces\nand\u001b[32m\u001b[39m\n\u001b[32msty\u001b[39m\n\u001b[32mled\u001b[39m\n\u001b[32m \u001b[39m\n\u001b[32mtex\u001b[39m\n\u001b[32mt\u001b[39m  \n tr\nail\ning\n "
         },
         {
             "message": "  leading spaces and <info>styled   text</info>   trailing  ",
@@ -3855,6 +5405,18 @@
         {
             "message": "line1\nline2 that is longer than the width\n\nline4\n",
             "decorated": false,
+            "width": 2,
+            "output": "li\nne\n1\nli\nne\n2\nth\nat\nis\nlo\nng\ner\nth\nan\nth\ne\nwi\ndt\nh\n\nli\nne\n4\n"
+        },
+        {
+            "message": "line1\nline2 that is longer than the width\n\nline4\n",
+            "decorated": false,
+            "width": 3,
+            "output": "lin\ne1\nlin\ne2\ntha\nt\nis\nlon\nger\ntha\nn\nthe\nwid\nth\n\nlin\ne4\n"
+        },
+        {
+            "message": "line1\nline2 that is longer than the width\n\nline4\n",
+            "decorated": false,
             "width": 5,
             "output": "line1\nline2\nthat\nis\nlonge\nr\nthan\nthe\nwidth\n\nline4\n"
         },
@@ -3881,6 +5443,18 @@
             "decorated": true,
             "width": 1,
             "output": "l\ni\nn\ne\n1\nl\ni\nn\ne\n2\nt\nh\na\nt\ni\ns\nl\no\nn\ng\ne\nr\nt\nh\na\nn\nt\nh\ne\nw\ni\nd\nt\nh\n\nl\ni\nn\ne\n4\n"
+        },
+        {
+            "message": "line1\nline2 that is longer than the width\n\nline4\n",
+            "decorated": true,
+            "width": 2,
+            "output": "li\nne\n1\nli\nne\n2\nth\nat\nis\nlo\nng\ner\nth\nan\nth\ne\nwi\ndt\nh\n\nli\nne\n4\n"
+        },
+        {
+            "message": "line1\nline2 that is longer than the width\n\nline4\n",
+            "decorated": true,
+            "width": 3,
+            "output": "lin\ne1\nlin\ne2\ntha\nt\nis\nlon\nger\ntha\nn\nthe\nwid\nth\n\nlin\ne4\n"
         },
         {
             "message": "line1\nline2 that is longer than the width\n\nline4\n",
@@ -3915,6 +5489,18 @@
         {
             "message": "<info>h\u00e9llo w\u00f6rld \u00fcn\u00efc\u00f6d\u00e9 \u00e7haracters everywhere</info> and more",
             "decorated": false,
+            "width": 2,
+            "output": "h\u00e9\nll\no\nw\u00f6\nrl\nd\n\u00fcn\n\u00efc\n\u00f6d\n\u00e9\n\u00e7h\nar\nac\nte\nrs\nev\ner\nyw\nhe\nre\nan\nd\nmo\nre"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld \u00fcn\u00efc\u00f6d\u00e9 \u00e7haracters everywhere</info> and more",
+            "decorated": false,
+            "width": 3,
+            "output": "h\u00e9l\nlo\nw\u00f6r\nld\n\u00fcn\u00ef\nc\u00f6d\n\u00e9\n\u00e7ha\nrac\nter\ns\neve\nryw\nher\ne a\nnd\nmor\ne"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld \u00fcn\u00efc\u00f6d\u00e9 \u00e7haracters everywhere</info> and more",
+            "decorated": false,
             "width": 5,
             "output": "h\u00e9llo\nw\u00f6rld\n\u00fcn\u00efc\u00f6\nd\u00e9\n\u00e7hara\ncters\nevery\nwhere\nand\nmore"
         },
@@ -3941,6 +5527,18 @@
             "decorated": true,
             "width": 1,
             "output": "\u001b[32mh\u001b[39m\n\u001b[32m\u00e9\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mw\u001b[39m\n\u001b[32m\u00f6\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32ml\u001b[39m\n\u001b[32md\u001b[39m\n\u001b[32m\u00fc\u001b[39m\n\u001b[32mn\u001b[39m\n\u001b[32m\u00ef\u001b[39m\n\u001b[32mc\u001b[39m\n\u001b[32m\u00f6\u001b[39m\n\u001b[32md\u001b[39m\n\u001b[32m\u00e9\u001b[39m\n\u001b[32m\u00e7\u001b[39m\n\u001b[32mh\u001b[39m\n\u001b[32ma\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32ma\u001b[39m\n\u001b[32mc\u001b[39m\n\u001b[32mt\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32ms\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32mv\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32my\u001b[39m\n\u001b[32mw\u001b[39m\n\u001b[32mh\u001b[39m\n\u001b[32me\u001b[39m\n\u001b[32mr\u001b[39m\n\u001b[32me\u001b[39m\na\nn\nd\nm\no\nr\ne"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld \u00fcn\u00efc\u00f6d\u00e9 \u00e7haracters everywhere</info> and more",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mh\u00e9\u001b[39m\n\u001b[32mll\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32mw\u00f6\u001b[39m\n\u001b[32mrl\u001b[39m\n\u001b[32md\u001b[39m\n\u001b[32m\u00fcn\u001b[39m\n\u001b[32m\u00efc\u001b[39m\n\u001b[32m\u00f6d\u001b[39m\n\u001b[32m\u00e9\u001b[39m\n\u001b[32m\u00e7h\u001b[39m\n\u001b[32mar\u001b[39m\n\u001b[32mac\u001b[39m\n\u001b[32mte\u001b[39m\n\u001b[32mrs\u001b[39m\n\u001b[32mev\u001b[39m\n\u001b[32mer\u001b[39m\n\u001b[32myw\u001b[39m\n\u001b[32mhe\u001b[39m\n\u001b[32mre\u001b[39m\nan\nd\nmo\nre"
+        },
+        {
+            "message": "<info>h\u00e9llo w\u00f6rld \u00fcn\u00efc\u00f6d\u00e9 \u00e7haracters everywhere</info> and more",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32mh\u00e9l\u001b[39m\n\u001b[32mlo\u001b[39m\n\u001b[32mw\u00f6r\u001b[39m\n\u001b[32mld\u001b[39m\n\u001b[32m\u00fcn\u00ef\u001b[39m\n\u001b[32mc\u00f6d\u001b[39m\n\u001b[32m\u00e9\u001b[39m\n\u001b[32m\u00e7ha\u001b[39m\n\u001b[32mrac\u001b[39m\n\u001b[32mter\u001b[39m\n\u001b[32ms\u001b[39m\n\u001b[32meve\u001b[39m\n\u001b[32mryw\u001b[39m\n\u001b[32mher\u001b[39m\n\u001b[32me\u001b[39m a\nnd\nmor\ne"
         },
         {
             "message": "<info>h\u00e9llo w\u00f6rld \u00fcn\u00efc\u00f6d\u00e9 \u00e7haracters everywhere</info> and more",
@@ -3975,6 +5573,18 @@
         {
             "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
             "decorated": false,
+            "width": 2,
+            "output": "ab\ncd\nef\ng"
+        },
+        {
+            "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
+            "decorated": false,
+            "width": 3,
+            "output": "abc\ndef\ng"
+        },
+        {
+            "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
+            "decorated": false,
             "width": 5,
             "output": "abcde\nfg"
         },
@@ -4005,6 +5615,18 @@
         {
             "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
             "decorated": true,
+            "width": 2,
+            "output": "a\u001b[32mb\u001b[39m\nc\u001b[32md\u001b[39m\ne\u001b[32mf\u001b[39m\ng"
+        },
+        {
+            "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
+            "decorated": true,
+            "width": 3,
+            "output": "a\u001b[32mb\u001b[39mc\u001b[32m\u001b[39m\n\u001b[32md\u001b[39me\u001b[32mf\u001b[39m\ng"
+        },
+        {
+            "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
+            "decorated": true,
             "width": 5,
             "output": "a\u001b[32mb\u001b[39mc\u001b[32md\u001b[39me\u001b[32m\u001b[39m\n\u001b[32mf\u001b[39mg"
         },
@@ -4019,6 +5641,848 @@
             "decorated": true,
             "width": 20,
             "output": "a\u001b[32mb\u001b[39mc\u001b[32md\u001b[39me\u001b[32mf\u001b[39mg"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 0,
+            "output": "xx\u00e9"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 1,
+            "output": "x\nx\n\u00e9"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 2,
+            "output": "xx\n\u00e9"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 3,
+            "error": "Invalid \"UTF-8\" string.",
+            "class": "Symfony\\Component\\String\\Exception\\InvalidArgumentException"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 5,
+            "output": "xx\u00e9"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 10,
+            "output": "xx\u00e9"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": false,
+            "width": 20,
+            "output": "xx\u00e9"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 0,
+            "output": "xx\u001b[32m\u00e9\u001b[39m"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 1,
+            "output": "x\nx\u001b[32m\u001b[39m\n\u001b[32m\u00e9\u001b[39m"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "xx\u001b[32m\u001b[39m\n\u001b[32m\u00e9\u001b[39m"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 3,
+            "error": "Invalid \"UTF-8\" string.",
+            "class": "Symfony\\Component\\String\\Exception\\InvalidArgumentException"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 5,
+            "output": "xx\u001b[32m\u00e9\u001b[39m"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 10,
+            "output": "xx\u001b[32m\u00e9\u001b[39m"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "decorated": true,
+            "width": 20,
+            "output": "xx\u001b[32m\u00e9\u001b[39m"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 0,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 1,
+            "output": "a\n\u00e9\nb"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 2,
+            "output": "a\u00e9\nb"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 3,
+            "output": "a\u00e9\nb"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 5,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 10,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": false,
+            "width": 20,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 0,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 1,
+            "output": "a\n\u00e9\nb"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 2,
+            "output": "a\u00e9\nb"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 3,
+            "output": "a\u00e9\nb"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 5,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 10,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "a\u00e9 b",
+            "decorated": true,
+            "width": 20,
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 0,
+            "output": "\u00e9\u00e9 \u00e9\u00e9 \u00e9\u00e9\u00e9 \u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 1,
+            "output": "\u00e9\n\u00e9\n\u00e9\n\u00e9\n\u00e9\n\u00e9\n\u00e9\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 2,
+            "output": "\u00e9\u00e9\n\u00e9\u00e9\n\u00e9\u00e9\n\u00e9\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 3,
+            "output": "\u00e9\u00e9\n\u00e9\u00e9 \n\u00e9\u00e9\u00e9\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 5,
+            "output": "\u00e9\u00e9 \u00e9\u00e9\n\u00e9\u00e9\u00e9\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 10,
+            "output": "\u00e9\u00e9 \u00e9\u00e9 \n\u00e9\u00e9\u00e9 \u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": false,
+            "width": 20,
+            "output": "\u00e9\u00e9 \u00e9\u00e9 \u00e9\u00e9\u00e9 \u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 0,
+            "output": "\u00e9\u00e9 \u00e9\u00e9 \u001b[33m\u00e9\u00e9\u00e9\u001b[39m \u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 1,
+            "output": "\u00e9\n\u00e9\n\u00e9\n\u00e9\u001b[33m\u001b[39m\n\u001b[33m\u00e9\u001b[39m\n\u001b[33m\u00e9\u001b[39m\n\u001b[33m\u00e9\u001b[39m\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 2,
+            "output": "\u00e9\u00e9\n\u00e9\u00e9\u001b[33m\u001b[39m\n\u001b[33m\u00e9\u00e9\u001b[39m\n\u001b[33m\u00e9\u001b[39m\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 3,
+            "output": "\u00e9\u00e9\n\u00e9\u00e9 \u001b[33m\u001b[39m\n\u001b[33m\u00e9\u00e9\u00e9\u001b[39m\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 5,
+            "output": "\u00e9\u00e9 \u00e9\u00e9\u001b[33m\u001b[39m\n\u001b[33m\u00e9\u00e9\u00e9\u001b[39m\n\u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 10,
+            "output": "\u00e9\u00e9 \u00e9\u00e9 \u001b[33m\u001b[39m\n\u001b[33m\u00e9\u00e9\u00e9\u001b[39m \u00e9"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "decorated": true,
+            "width": 20,
+            "output": "\u00e9\u00e9 \u00e9\u00e9 \u001b[33m\u00e9\u00e9\u00e9\u001b[39m \u00e9"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 0,
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 \u6298\u308a\u8fd4\u3057 \u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 1,
+            "output": "\u65e5\n\u672c\n\u8a9e\n\u30c6\n\u30ad\n\u30b9\n\u30c8\n\u6298\n\u308a\n\u8fd4\n\u3057\n\u3067\n\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 2,
+            "output": "\u65e5\u672c\n\u8a9e\n\u30c6\u30ad\n\u30b9\u30c8\n\u6298\u308a\n\u8fd4\u3057\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 3,
+            "output": "\u65e5\u672c\u8a9e\n\u30c6\u30ad\u30b9\n\u30c8 \n\u6298\u308a\u8fd4\n\u3057\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 5,
+            "output": "\u65e5\u672c\u8a9e\n\u30c6\u30ad\u30b9\u30c8 \n\u6298\u308a\u8fd4\u3057\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 10,
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 \n\u6298\u308a\u8fd4\u3057\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": false,
+            "width": 20,
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 \n\u6298\u308a\u8fd4\u3057 \u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 0,
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 \u001b[32m\u6298\u308a\u8fd4\u3057\u001b[39m \u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 1,
+            "output": "\u65e5\n\u672c\n\u8a9e\n\u30c6\n\u30ad\n\u30b9\n\u30c8\u001b[32m\u001b[39m\n\u001b[32m\u6298\u001b[39m\n\u001b[32m\u308a\u001b[39m\n\u001b[32m\u8fd4\u001b[39m\n\u001b[32m\u3057\u001b[39m\n\u3067\n\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 2,
+            "output": "\u65e5\u672c\n\u8a9e\n\u30c6\u30ad\n\u30b9\u30c8\u001b[32m\u001b[39m\n\u001b[32m\u6298\u308a\u001b[39m\n\u001b[32m\u8fd4\u3057\u001b[39m\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 3,
+            "output": "\u65e5\u672c\u8a9e\n\u30c6\u30ad\u30b9\n\u30c8 \u001b[32m\u001b[39m\n\u001b[32m\u6298\u308a\u8fd4\u001b[39m\n\u001b[32m\u3057\u001b[39m\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 5,
+            "output": "\u65e5\u672c\u8a9e\n\u30c6\u30ad\u30b9\u30c8 \u001b[32m\u001b[39m\n\u001b[32m\u6298\u308a\u8fd4\u3057\u001b[39m\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 10,
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 \u001b[32m\u001b[39m\n\u001b[32m\u6298\u308a\u8fd4\u3057\u001b[39m\n\u3067\u3059"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "decorated": true,
+            "width": 20,
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 \u001b[32m\u001b[39m\n\u001b[32m\u6298\u308a\u8fd4\u3057\u001b[39m \u3067\u3059"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 0,
+            "output": "  padded  "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 1,
+            "output": " \np\na\nd\nd\ne\nd\n "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 2,
+            "output": " \npa\ndd\ned\n "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 3,
+            "output": " \npad\nded\n "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 5,
+            "output": " \npadde\nd  "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 10,
+            "output": "  padded  "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": false,
+            "width": 20,
+            "output": "  padded  "
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 0,
+            "output": "\u001b[37;41m  padded  \u001b[39;49m"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 1,
+            "output": "\u001b[37;41m \u001b[39;49m\n\u001b[37;41mp\u001b[39;49m\n\u001b[37;41ma\u001b[39;49m\n\u001b[37;41md\u001b[39;49m\n\u001b[37;41md\u001b[39;49m\n\u001b[37;41me\u001b[39;49m\n\u001b[37;41md\u001b[39;49m\n\u001b[37;41m \u001b[39;49m"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[37;41m \u001b[39;49m\n\u001b[37;41mpa\u001b[39;49m\n\u001b[37;41mdd\u001b[39;49m\n\u001b[37;41med\u001b[39;49m\n\u001b[37;41m \u001b[39;49m"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[37;41m \u001b[39;49m\n\u001b[37;41mpad\u001b[39;49m\n\u001b[37;41mded\u001b[39;49m\n\u001b[37;41m \u001b[39;49m"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 5,
+            "output": "\u001b[37;41m \u001b[39;49m\n\u001b[37;41mpadde\u001b[39;49m\n\u001b[37;41md  \u001b[39;49m"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 10,
+            "output": "\u001b[37;41m  padded  \u001b[39;49m"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "decorated": true,
+            "width": 20,
+            "output": "\u001b[37;41m  padded  \u001b[39;49m"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 0,
+            "output": "a\n\nb\n"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 1,
+            "output": "a\n\nb\n"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 2,
+            "output": "a\n\nb\n"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 3,
+            "output": "a\n\nb"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 5,
+            "output": "a\n\nb"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 10,
+            "output": "a\n\nb"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": false,
+            "width": 20,
+            "output": "a\n\nb"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 0,
+            "output": "\u001b[32ma\n\nb\u001b[39m\n"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 1,
+            "output": "\u001b[32ma\u001b[39m\n\u001b[32m\u001b[39m\n\u001b[32mb\u001b[39m\n"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32ma\u001b[39m\n\u001b[32m\u001b[39m\n\u001b[32mb\u001b[39m\n"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32ma\u001b[39m\n\u001b[32m\u001b[39m\n\u001b[32mb\u001b[39m"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 5,
+            "output": "\u001b[32ma\u001b[39m\n\u001b[32m\u001b[39m\n\u001b[32mb\u001b[39m"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 10,
+            "output": "\u001b[32ma\u001b[39m\n\u001b[32m\u001b[39m\n\u001b[32mb\u001b[39m"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "decorated": true,
+            "width": 20,
+            "output": "\u001b[32ma\u001b[39m\n\u001b[32m\u001b[39m\n\u001b[32mb\u001b[39m"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 0,
+            "output": "bold blue text that wraps around tail"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 1,
+            "output": "b\no\nl\nd\nb\nl\nu\ne\nt\ne\nx\nt\nt\nh\na\nt\nw\nr\na\np\ns\na\nr\no\nu\nn\nd\nt\na\ni\nl"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 2,
+            "output": "bo\nld\nbl\nue\nte\nxt\nth\nat\nwr\nap\ns\nar\nou\nnd\nta\nil"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 3,
+            "output": "bol\nd\nblu\ne\ntex\nt\ntha\nt\nwra\nps\naro\nund\ntai\nl"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 5,
+            "output": "bold\nblue\ntext\nthat\nwraps\naroun\nd tai\nl"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 10,
+            "output": "bold blue\ntext that\nwraps\naround\ntail"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": false,
+            "width": 20,
+            "output": "bold blue text that\nwraps around\ntail"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 0,
+            "output": "\u001b[34;1mbold blue text that wraps around\u001b[39;22m tail"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 1,
+            "output": "\u001b[34;1mb\u001b[39;22m\n\u001b[34;1mo\u001b[39;22m\n\u001b[34;1ml\u001b[39;22m\n\u001b[34;1md\u001b[39;22m\n\u001b[34;1mb\u001b[39;22m\n\u001b[34;1ml\u001b[39;22m\n\u001b[34;1mu\u001b[39;22m\n\u001b[34;1me\u001b[39;22m\n\u001b[34;1mt\u001b[39;22m\n\u001b[34;1me\u001b[39;22m\n\u001b[34;1mx\u001b[39;22m\n\u001b[34;1mt\u001b[39;22m\n\u001b[34;1mt\u001b[39;22m\n\u001b[34;1mh\u001b[39;22m\n\u001b[34;1ma\u001b[39;22m\n\u001b[34;1mt\u001b[39;22m\n\u001b[34;1mw\u001b[39;22m\n\u001b[34;1mr\u001b[39;22m\n\u001b[34;1ma\u001b[39;22m\n\u001b[34;1mp\u001b[39;22m\n\u001b[34;1ms\u001b[39;22m\n\u001b[34;1ma\u001b[39;22m\n\u001b[34;1mr\u001b[39;22m\n\u001b[34;1mo\u001b[39;22m\n\u001b[34;1mu\u001b[39;22m\n\u001b[34;1mn\u001b[39;22m\n\u001b[34;1md\u001b[39;22m\nt\na\ni\nl"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[34;1mbo\u001b[39;22m\n\u001b[34;1mld\u001b[39;22m\n\u001b[34;1mbl\u001b[39;22m\n\u001b[34;1mue\u001b[39;22m\n\u001b[34;1mte\u001b[39;22m\n\u001b[34;1mxt\u001b[39;22m\n\u001b[34;1mth\u001b[39;22m\n\u001b[34;1mat\u001b[39;22m\n\u001b[34;1mwr\u001b[39;22m\n\u001b[34;1map\u001b[39;22m\n\u001b[34;1ms\u001b[39;22m\n\u001b[34;1mar\u001b[39;22m\n\u001b[34;1mou\u001b[39;22m\n\u001b[34;1mnd\u001b[39;22m\nta\nil"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[34;1mbol\u001b[39;22m\n\u001b[34;1md\u001b[39;22m\n\u001b[34;1mblu\u001b[39;22m\n\u001b[34;1me\u001b[39;22m\n\u001b[34;1mtex\u001b[39;22m\n\u001b[34;1mt\u001b[39;22m\n\u001b[34;1mtha\u001b[39;22m\n\u001b[34;1mt\u001b[39;22m\n\u001b[34;1mwra\u001b[39;22m\n\u001b[34;1mps\u001b[39;22m\n\u001b[34;1maro\u001b[39;22m\n\u001b[34;1mund\u001b[39;22m\ntai\nl"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 5,
+            "output": "\u001b[34;1mbold\u001b[39;22m\n\u001b[34;1mblue\u001b[39;22m\n\u001b[34;1mtext\u001b[39;22m\n\u001b[34;1mthat\u001b[39;22m\n\u001b[34;1mwraps\u001b[39;22m\n\u001b[34;1maroun\u001b[39;22m\n\u001b[34;1md\u001b[39;22m tai\nl"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 10,
+            "output": "\u001b[34;1mbold blue\u001b[39;22m\n\u001b[34;1mtext that\u001b[39;22m\n\u001b[34;1mwraps\u001b[39;22m\n\u001b[34;1maround\u001b[39;22m\ntail"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "decorated": true,
+            "width": 20,
+            "output": "\u001b[34;1mbold blue text that\u001b[39;22m\n\u001b[34;1mwraps around\u001b[39;22m\ntail"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 0,
+            "output": "x    y"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 1,
+            "output": "x\ny"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 2,
+            "output": "x \ny"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 3,
+            "output": "x  \n  y"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 5,
+            "output": "x    \ny"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 10,
+            "output": "x    y"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": false,
+            "width": 20,
+            "output": "x    y"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 0,
+            "output": "\u001b[32mx\u001b[39m \u001b[41m  \u001b[49m \u001b[33my\u001b[39m"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 1,
+            "output": "\u001b[32mx\u001b[39m\n\u001b[41m\u001b[49m\n\u001b[33my\u001b[39m"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32mx\u001b[39m \u001b[41m\u001b[49m\n\u001b[41m\u001b[49m\n\u001b[33my\u001b[39m"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32mx\u001b[39m \u001b[41m \u001b[49m\n\u001b[41m \u001b[49m \u001b[33my\u001b[39m"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 5,
+            "output": "\u001b[32mx\u001b[39m \u001b[41m  \u001b[49m \u001b[33m\u001b[39m\n\u001b[33my\u001b[39m"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 10,
+            "output": "\u001b[32mx\u001b[39m \u001b[41m  \u001b[49m \u001b[33my\u001b[39m"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "decorated": true,
+            "width": 20,
+            "output": "\u001b[32mx\u001b[39m \u001b[41m  \u001b[49m \u001b[33my\u001b[39m"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 0,
+            "output": "<info>not a tag</info>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 1,
+            "output": "\\\n<\ni\nn\nf\no\n>\nn\no\nt\na\nt\na\ng\n\\\n<\n/\ni\nn\nf\no\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 2,
+            "output": "<\nin\nfo\n>n\not\na\nta\ng\\\n</\nin\nfo\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "<i\nnfo\n>no\nt a\ntag\n</\ninf\no>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 5,
+            "output": "<inf\no>not\na\ntag<\n/info\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 10,
+            "output": "<info>not\na\ntag</info\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": false,
+            "width": 20,
+            "output": "<info>not a\ntag</info>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 0,
+            "output": "<info>not a tag</info>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 1,
+            "output": "\\\n<\ni\nn\nf\no\n>\nn\no\nt\na\nt\na\ng\n\\\n<\n/\ni\nn\nf\no\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "<\nin\nfo\n>n\not\na\nta\ng\\\n</\nin\nfo\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "<i\nnfo\n>no\nt a\ntag\n</\ninf\no>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 5,
+            "output": "<inf\no>not\na\ntag<\n/info\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 10,
+            "output": "<info>not\na\ntag</info\n>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "decorated": true,
+            "width": 20,
+            "output": "<info>not a\ntag</info>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 0,
+            "output": "</info>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 1,
+            "output": "\\\n<\n/\ni\nn\nf\no\n>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 2,
+            "output": "<\n/i\nnf\no>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 3,
+            "output": "</\ninf\no>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 5,
+            "output": "</in\nfo>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 10,
+            "output": "</info>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": false,
+            "width": 20,
+            "output": "</info>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 0,
+            "output": "\u001b[32m</info>\u001b[39m"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 1,
+            "output": "\u001b[32m\\\u001b[39m\n\u001b[32m<\u001b[39m\n\u001b[32m/\u001b[39m\n\u001b[32mi\u001b[39m\n\u001b[32mn\u001b[39m\n\u001b[32mf\u001b[39m\n\u001b[32mo\u001b[39m\n\u001b[32m>\u001b[39m"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 2,
+            "output": "\u001b[32m<\u001b[39m\n\u001b[32m/i\u001b[39m\n\u001b[32mnf\u001b[39m\n\u001b[32mo>\u001b[39m"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 3,
+            "output": "\u001b[32m</\u001b[39m\n\u001b[32minf\u001b[39m\n\u001b[32mo>\u001b[39m"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 5,
+            "output": "\u001b[32m</in\u001b[39m\n\u001b[32mfo>\u001b[39m"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 10,
+            "output": "\u001b[32m</info>\u001b[39m"
+        },
+        {
+            "message": "<info>\\</info>",
+            "decorated": true,
+            "width": 20,
+            "output": "\u001b[32m</info>\u001b[39m"
         }
     ],
     "escape": [
@@ -4601,6 +7065,46 @@
         {
             "message": "a<info>b</info>c<info>d</info>e<info>f</info>g",
             "output": "a<span style=\"color:green;\">b</span>c<span style=\"color:green;\">d</span>e<span style=\"color:green;\">f</span>g"
+        },
+        {
+            "message": "xx<info>\u00e9</info>",
+            "output": "xx<span style=\"color:green;\">\u00e9</span>"
+        },
+        {
+            "message": "a\u00e9 b",
+            "output": "a\u00e9 b"
+        },
+        {
+            "message": "\u00e9\u00e9 \u00e9\u00e9 <comment>\u00e9\u00e9\u00e9</comment> \u00e9",
+            "output": "\u00e9\u00e9 \u00e9\u00e9 <span style=\"color:yellow;\">\u00e9\u00e9\u00e9</span> \u00e9"
+        },
+        {
+            "message": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <info>\u6298\u308a\u8fd4\u3057</info> \u3067\u3059",
+            "output": "\u65e5\u672c\u8a9e \u30c6\u30ad\u30b9\u30c8 <span style=\"color:green;\">\u6298\u308a\u8fd4\u3057</span> \u3067\u3059"
+        },
+        {
+            "message": "<error>  padded  </error>",
+            "output": "<span style=\"color:white;background-color:red;\">  padded  </span>"
+        },
+        {
+            "message": "<info>a\n\nb</info>\n",
+            "output": "<span style=\"color:green;\">a\n\nb</span>\n"
+        },
+        {
+            "message": "<fg=blue;options=bold>bold blue text that wraps around</> tail",
+            "output": "<span style=\"color:blue;font-weight:bold;\">bold blue text that wraps around</span> tail"
+        },
+        {
+            "message": "<info>x</info> <bg=red>  </> <comment>y</comment>",
+            "output": "<span style=\"color:green;\">x</span> <span style=\"background-color:red;\">  </span> <span style=\"color:yellow;\">y</span>"
+        },
+        {
+            "message": "\\<info>not a tag\\</info>",
+            "output": "<info>not a tag</info>"
+        },
+        {
+            "message": "<info>\\</info>",
+            "output": "<span style=\"color:green;\"></info></span>"
         }
     ]
 }

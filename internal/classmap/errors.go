@@ -1,9 +1,10 @@
+// Exceptions thrown by src/*.php and the Symfony Finder code they rely on.
+
 package classmap
 
 // Exception is an exception thrown by the ported PHP code. Class is the
-// fully qualified name of the PHP exception class (e.g. "RuntimeException",
-// "Symfony\Component\Finder\Exception\DirectoryNotFoundException"), which
-// Composer prints when it renders an uncaught exception.
+// fully qualified name of the PHP exception class, which Composer prints
+// when it renders an uncaught exception; Message is its exact message.
 type Exception struct {
 	Class   string
 	Message string
@@ -11,10 +12,28 @@ type Exception struct {
 
 func (e *Exception) Error() string { return e.Message }
 
-func runtimeException(message string) error {
-	return &Exception{Class: "RuntimeException", Message: message}
+// IsRuntimeException reports whether the PHP class extends
+// \RuntimeException, which is what AutoloadGenerator::createLoader()
+// catches.
+func (e *Exception) IsRuntimeException() bool {
+	switch e.Class {
+	case classRuntime, classUnexpectedValue, classAccessDenied:
+		return true
+	}
+
+	return false
 }
 
-func invalidArgumentException(message string) error {
-	return &Exception{Class: "InvalidArgumentException", Message: message}
+// The exception classes this package throws.
+const (
+	classRuntime           = "RuntimeException"
+	classUnexpectedValue   = "UnexpectedValueException"
+	classAccessDenied      = `Symfony\Component\Finder\Exception\AccessDeniedException`
+	classDirectoryNotFound = `Symfony\Component\Finder\Exception\DirectoryNotFoundException`
+	classLogic             = "LogicException"
+	classOutOfBounds       = "OutOfBoundsException"
+)
+
+func newException(class, message string) *Exception {
+	return &Exception{Class: class, Message: message}
 }

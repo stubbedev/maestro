@@ -5,8 +5,9 @@
 package console
 
 import (
-	"strconv"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // InputArgument modes.
@@ -41,7 +42,8 @@ type InputArgument struct {
 }
 
 // NewInputArgument mirrors new InputArgument($name, $mode, $description,
-// $default); a zero mode means OPTIONAL.
+// $default). Mode 0 stands for PHP's null mode (OPTIONAL); an explicit 0,
+// which PHP rejects, cannot be expressed.
 func NewInputArgument(name string, mode int, description string, def any) (*InputArgument, error) {
 	if mode == 0 {
 		mode = ArgumentOptional
@@ -153,7 +155,8 @@ type InputOption struct {
 
 // NewInputOption mirrors new InputOption($name, $shortcut, $mode,
 // $description, $default). An empty shortcut means none; several shortcuts
-// are separated by "|". A zero mode means VALUE_NONE.
+// are separated by "|". Mode 0 stands for PHP's null mode (VALUE_NONE); an
+// explicit 0, which PHP rejects, cannot be expressed.
 func NewInputOption(name, shortcut string, mode int, description string, def any) (*InputOption, error) {
 	name = strings.TrimPrefix(name, "--")
 
@@ -162,7 +165,8 @@ func NewInputOption(name, shortcut string, mode int, description string, def any
 	}
 
 	if shortcut != "" {
-		// preg_split('{(\|)-?}', ltrim($shortcut, '-')) without empty parts.
+		// array_filter(preg_split('{(\|)-?}', ltrim($shortcut, '-')), 'strlen'):
+		// only empty parts are dropped ("0" is a valid shortcut).
 		parts := strings.Split(strings.TrimLeft(shortcut, "-"), "|")
 		kept := parts[:0]
 		for i, p := range parts {
@@ -214,6 +218,10 @@ func MustOption(name, shortcut string, mode int, description string, def any) *I
 
 // Shortcut returns the shortcuts ("" when none).
 func (o *InputOption) Shortcut() string { return o.shortcut }
+
+// shortcutIsTruthy is PHP's `if ($option->getShortcut())`: the shortcut "0"
+// is falsy, so such an option gets no usable shortcut.
+func (o *InputOption) shortcutIsTruthy() bool { return o.shortcut != "" && o.shortcut != "0" }
 
 // Name returns the option name.
 func (o *InputOption) Name() string { return o.name }
@@ -510,7 +518,7 @@ func (d *InputDefinition) AddOption(option *InputOption) error {
 		return newError(KindLogic, "InputDefinition.php", 235, `An option named "%s" already exists.`, option.Name())
 	}
 
-	if option.Shortcut() != "" {
+	if option.shortcutIsTruthy() {
 		for s := range strings.SplitSeq(option.Shortcut(), "|") {
 			if n, ok := d.shortcuts[s]; ok && !option.Equals(d.options[d.optIndex[n]]) {
 				return newError(KindLogic, "InputDefinition.php", 241, `An option with shortcut "%s" already exists.`, s)
@@ -525,7 +533,7 @@ func (d *InputDefinition) AddOption(option *InputOption) error {
 		d.options = append(d.options, option)
 	}
 
-	if option.Shortcut() != "" {
+	if option.shortcutIsTruthy() {
 		for s := range strings.SplitSeq(option.Shortcut(), "|") {
 			d.shortcuts[s] = option.Name()
 		}
@@ -634,14 +642,14 @@ func (d *InputDefinition) Synopsis(short bool) string {
 			value := ""
 			if o.AcceptValue() {
 				if o.IsValueOptional() {
-					value = " [" + strings.ToUpper(o.Name()) + "]"
+					value = " [" + php.Strtoupper(o.Name()) + "]"
 				} else {
-					value = " " + strings.ToUpper(o.Name())
+					value = " " + php.Strtoupper(o.Name())
 				}
 			}
 
 			shortcut := ""
-			if o.Shortcut() != "" {
+			if o.shortcutIsTruthy() {
 				shortcut = "-" + o.Shortcut() + "|"
 			}
 			negation := ""
@@ -657,7 +665,7 @@ func (d *InputDefinition) Synopsis(short bool) string {
 		elements = append(elements, "[--]")
 	}
 
-	tail := ""
+	optional := 0
 	for _, a := range d.arguments {
 		element := "<" + a.Name() + ">"
 		if a.IsArray() {
@@ -666,13 +674,13 @@ func (d *InputDefinition) Synopsis(short bool) string {
 
 		if !a.IsRequired() {
 			element = "[" + element
-			tail += "]"
+			optional++
 		}
 
 		elements = append(elements, element)
 	}
 
-	return strings.Join(elements, " ") + tail
+	return strings.Join(elements, " ") + strings.Repeat("]", optional)
 }
 
 // NamedValue is one entry of an ordered name => value list.
@@ -759,48 +767,4 @@ func phpIdentical(a, b any) bool {
 	}
 
 	return false
-}
-
-// phpTruthy is PHP's boolean conversion.
-func phpTruthy(v any) bool {
-	switch x := v.(type) {
-	case nil:
-		return false
-	case bool:
-		return x
-	case string:
-		return x != "" && x != "0"
-	case int:
-		return x != 0
-	case float64:
-		return x != 0
-	case []string:
-		return len(x) > 0
-	case []any:
-		return len(x) > 0
-	}
-
-	return true
-}
-
-// phpToString is PHP's string conversion of a scalar input value.
-func phpToString(v any) string {
-	switch x := v.(type) {
-	case nil:
-		return ""
-	case bool:
-		if x {
-			return "1"
-		}
-
-		return ""
-	case string:
-		return x
-	case int:
-		return strconv.Itoa(x)
-	case float64:
-		return phpFloatString(x)
-	}
-
-	return "Array"
 }

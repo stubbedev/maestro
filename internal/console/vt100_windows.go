@@ -7,8 +7,11 @@ package console
 
 import (
 	"os"
+	"strconv"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // windowsVT100Support reports whether the stream is a console with virtual
@@ -36,3 +39,44 @@ func ansiconDimensions() (int, int, bool) {
 
 // stdDimensionsFd is the console handle `mode CON` describes.
 func stdDimensionsFd() uintptr { return os.Stdout.Fd() }
+
+// parseANSICON parses "wxh (WxH)" or "wxh", returning [w, H] or [w, h].
+func parseANSICON(s string) (int, int, bool) {
+	s = php.Trim(s)
+	num := func(i int) (int, int) {
+		j := i
+		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+			j++
+		}
+		if j == i {
+			return 0, -1
+		}
+		n, _ := strconv.Atoi(s[i:j])
+
+		return n, j
+	}
+	w, i := num(0)
+	if i < 0 || i >= len(s) || s[i] != 'x' {
+		return 0, 0, false
+	}
+	h, i := num(i + 1)
+	if i < 0 {
+		return 0, 0, false
+	}
+	if i == len(s) {
+		return w, h, true
+	}
+	if s[i] != ' ' || i+1 >= len(s) || s[i+1] != '(' {
+		return 0, 0, false
+	}
+	_, i = num(i + 2)
+	if i < 0 || i >= len(s) || s[i] != 'x' {
+		return 0, 0, false
+	}
+	hh, i := num(i + 1)
+	if i < 0 || i != len(s)-1 || s[i] != ')' {
+		return 0, 0, false
+	}
+
+	return w, hh, true
+}

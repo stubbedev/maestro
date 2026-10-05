@@ -1,0 +1,1 @@
+<?phpnamespace Cr;// class NotCrclass CrClass {}$x = <<<EOTclass NotCrHeredocEOT;class CrAfter {}

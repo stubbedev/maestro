@@ -34,6 +34,9 @@ To display the list of available commands, please use the <info>list</info> comm
 	return c
 }
 
+// ClassName implements ClassNamer.
+func (*HelpCommand) ClassName() string { return `Symfony\Component\Console\Command\HelpCommand` }
+
 // SetCommand implements HelpSetter.
 func (c *HelpCommand) SetCommand(cmd Commander) { c.command = cmd }
 
@@ -48,15 +51,14 @@ func (c *HelpCommand) Execute(in Input, out Output) (int, error) {
 	}
 
 	helper := NewDescriptorHelper()
-	err := helper.Describe(out, c.command, DescriptorOptions{
+	if err := helper.describe(out, c.command, DescriptorOptions{
 		Format:  StringOption(in, "format"),
 		RawText: BoolOption(in, "raw"),
-	})
-
-	c.command = nil
-	if err != nil {
+	}); err != nil {
 		return 0, err
 	}
+
+	c.command = nil
 
 	return 0, nil
 }
@@ -114,10 +116,13 @@ It's also possible to get raw list of commands (useful for embedding command run
 	return c
 }
 
+// ClassName implements ClassNamer.
+func (*ListCommand) ClassName() string { return `Symfony\Component\Console\Command\ListCommand` }
+
 // Execute implements Executor.
 func (c *ListCommand) Execute(in Input, out Output) (int, error) {
 	helper := NewDescriptorHelper()
-	err := helper.Describe(out, c.Application(), DescriptorOptions{
+	err := helper.describe(out, c.Application(), DescriptorOptions{
 		Format:    StringOption(in, "format"),
 		RawText:   BoolOption(in, "raw"),
 		Namespace: StringArgument(in, "namespace"),

@@ -96,10 +96,10 @@ func Compare(a, b any) int {
 		if b == nil {
 			return 1
 		}
-		return compareObjectTo(a, b, true)
+		return compareObjectTo(b, true)
 	}
-	if bo, ok := b.(*Object); ok {
-		return compareObjectTo(bo, a, false)
+	if _, ok := b.(*Object); ok {
+		return compareObjectTo(a, false)
 	}
 	return compareFallback(a, b)
 }
@@ -115,8 +115,8 @@ func compareInt(a int64, b any) int {
 	case string:
 		return compareLongToString(a, b)
 	}
-	if bo, ok := b.(*Object); ok {
-		return compareObjectTo(bo, a, false)
+	if _, ok := b.(*Object); ok {
+		return compareObjectTo(a, false)
 	}
 	return compareFallback(a, b)
 }
@@ -182,7 +182,7 @@ func toNumber(v any) any {
 // non-object: the object is cast to the other operand's type; stdClass
 // casts only to bool (true); int and float casts fail with a notice and
 // use 1; other casts fail and the object is greater.
-func compareObjectTo(o *Object, v any, objectLHS bool) int {
+func compareObjectTo(v any, objectLHS bool) int {
 	var casted any
 	switch v.(type) {
 	case bool:

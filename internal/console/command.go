@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Exit codes (Command constants).
@@ -149,11 +151,8 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 		}
 	}
 
-	if c.processTitle != "" {
-		// cli_set_process_title has no portable Go equivalent; PHP prints
-		// nothing either when it succeeds.
-		_ = c.processTitle
-	}
+	// A process title (cli_set_process_title) is not applied: Go cannot
+	// rename its process portably, and PHP prints nothing when it succeeds.
 
 	if in.IsInteractive() {
 		if h, ok := impl.(Interactor); ok {
@@ -417,13 +416,13 @@ func (c *Command) Aliases() []string { return c.aliases }
 func (c *Command) Synopsis(short bool) string {
 	if short {
 		if c.synopsisShort == "" {
-			c.synopsisShort = phpTrim(c.name + " " + c.definition.Synopsis(true))
+			c.synopsisShort = php.Trim(c.name + " " + c.definition.Synopsis(true))
 		}
 
 		return c.synopsisShort
 	}
 	if c.synopsisLong == "" {
-		c.synopsisLong = phpTrim(c.name + " " + c.definition.Synopsis(false))
+		c.synopsisLong = php.Trim(c.name + " " + c.definition.Synopsis(false))
 	}
 
 	return c.synopsisLong

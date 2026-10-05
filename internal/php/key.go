@@ -4,7 +4,6 @@
 package php
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 )
@@ -65,7 +64,7 @@ func ToKey(v any) Key {
 	case float64:
 		return Key{i: dvalToLval(v)}
 	default:
-		panic(fmt.Sprintf("php: illegal offset type %s", TypeName(v)))
+		panic("php: illegal offset type " + TypeName(v))
 	}
 }
 

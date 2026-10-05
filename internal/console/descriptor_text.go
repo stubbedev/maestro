@@ -3,8 +3,11 @@
 package console
 
 import (
+	"maps"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // TextDescriptor renders the txt format.
@@ -45,7 +48,7 @@ func (d *TextDescriptor) describeInputOption(option *InputOption, options Descri
 
 	value := ""
 	if option.AcceptValue() {
-		value = "=" + strings.ToUpper(option.Name())
+		value = "=" + php.Strtoupper(option.Name())
 
 		if option.IsValueOptional() {
 			value = "[" + value + "]"
@@ -57,7 +60,7 @@ func (d *TextDescriptor) describeInputOption(option *InputOption, options Descri
 		totalWidth = calculateTotalWidthForOptions([]*InputOption{option})
 	}
 	synopsis := "    "
-	if option.Shortcut() != "" {
+	if option.shortcutIsTruthy() {
 		synopsis = "-" + option.Shortcut() + ", "
 	}
 	if option.IsNegatable() {
@@ -166,12 +169,11 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 	describedNamespace := options.Namespace
 	description := NewApplicationDescription(app, describedNamespace, false)
 
-	names, commands, err := description.Commands()
-	if err != nil {
-		return err
-	}
-
 	if options.RawText {
+		names, commands, err := description.Commands()
+		if err != nil {
+			return err
+		}
 		cmds := make([]Commander, len(names))
 		for i, n := range names {
 			cmds[i] = commands[n]
@@ -200,6 +202,10 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 	d.writeText("\n", DescriptorOptions{})
 	d.writeText("\n", DescriptorOptions{})
 
+	_, commands, err := description.Commands()
+	if err != nil {
+		return err
+	}
 	namespaces, err := description.Namespaces()
 	if err != nil {
 		return err
@@ -207,10 +213,7 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 	listed := commands
 	if describedNamespace != "" && describedNamespace != "0" && len(namespaces) > 0 {
 		// make sure all alias commands are included when describing a specific namespace
-		listed = make(map[string]Commander, len(commands))
-		for k, v := range commands {
-			listed[k] = v
-		}
+		listed = maps.Clone(commands)
 		for _, name := range namespaces[0].Commands {
 			c, err := description.Command(name)
 			if err != nil {
@@ -258,7 +261,7 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 			spacingWidth := width - Width(name)
 			command := listed[name]
 			commandAliases := ""
-			if name == command.Base().Name() {
+			if isCommandKey(command.Base().Name(), name) {
 				commandAliases = commandAliasesText(command)
 			}
 			d.writeText("  <info>"+name+"</info>"+strings.Repeat(" ", max(0, spacingWidth))+commandAliases+command.Base().Description(), options)

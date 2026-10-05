@@ -5,6 +5,7 @@
 package php
 
 import (
+	"bytes"
 	"math"
 	"strconv"
 )
@@ -83,7 +84,7 @@ func (e *jsonEncoder) encode(v any) bool {
 func (e *jsonEncoder) encodeDouble(d float64) {
 	start := len(e.buf)
 	e.buf = appendGcvt(e.buf, d, -1, 'e')
-	if e.flags&JSONPreserveZeroFraction != 0 && !hasByte(e.buf[start:], '.') {
+	if e.flags&JSONPreserveZeroFraction != 0 && bytes.IndexByte(e.buf[start:], '.') < 0 {
 		e.buf = append(e.buf, '.', '0')
 	}
 }
@@ -165,7 +166,7 @@ func (e *jsonEncoder) appendU(u rune) {
 }
 
 // jsonNeedsEscape is php_json_escape_string's charmap: control characters,
-// '"', '&', '\'', '/', '<', '>', '\\' and every byte >= 0x80.
+// '"', '&', '\”, '/', '<', '>', '\\' and every byte >= 0x80.
 var jsonNeedsEscape = func() (t [256]bool) {
 	for c := range 0x20 {
 		t[c] = true
@@ -217,7 +218,7 @@ func (e *jsonEncoder) escapeString(s string, flags JSONFlag) bool {
 					if flags&JSONUnescapedUnicode != 0 {
 						e.buf = append(e.buf, "\xef\xbf\xbd"...)
 					} else {
-						e.buf = append(e.buf, `�`...)
+						e.buf = append(e.buf, `\ufffd`...)
 					}
 				default:
 					e.buf = e.buf[:checkpoint]
@@ -245,7 +246,7 @@ func (e *jsonEncoder) escapeString(s string, flags JSONFlag) bool {
 		switch c {
 		case '"':
 			if flags&JSONHexQuot != 0 {
-				e.buf = append(e.buf, `"`...)
+				e.buf = append(e.buf, `\u0022`...)
 			} else {
 				e.buf = append(e.buf, `\"`...)
 			}
@@ -268,13 +269,13 @@ func (e *jsonEncoder) escapeString(s string, flags JSONFlag) bool {
 		case '\t':
 			e.buf = append(e.buf, `\t`...)
 		case '<':
-			e.appendHexOr(flags&JSONHexTag != 0, `<`, c)
+			e.appendHexOr(flags&JSONHexTag != 0, `\u003C`, c)
 		case '>':
-			e.appendHexOr(flags&JSONHexTag != 0, `>`, c)
+			e.appendHexOr(flags&JSONHexTag != 0, `\u003E`, c)
 		case '&':
-			e.appendHexOr(flags&JSONHexAmp != 0, `&`, c)
+			e.appendHexOr(flags&JSONHexAmp != 0, `\u0026`, c)
 		case '\'':
-			e.appendHexOr(flags&JSONHexApos != 0, `'`, c)
+			e.appendHexOr(flags&JSONHexApos != 0, `\u0027`, c)
 		default:
 			e.appendU(rune(c))
 		}

@@ -15,7 +15,7 @@
  *   3. manual: preg_manual.php, for patterns built at runtime and for
  *      hand-written tricky subjects.
  *
- * Usage (from the repo root, inside `nix develop`):
+ * Usage (from the repo root, inside the devenv shell):
  *   php tools/oracle/php/preg_collect.php [capture-log ...]
  *
  * Without capture logs the dynamic subjects already present in the committed

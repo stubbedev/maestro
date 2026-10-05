@@ -40,10 +40,13 @@ $messages = [
     "line1\nline2 that is longer than the width\n\nline4\n",
     '<info>héllo wörld ünïcödé çharacters everywhere</info> and more',
     "a<info>b</info>c<info>d</info>e<info>f</info>g",
+    'xx<info>é</info>', 'aé b', 'éé éé <comment>ééé</comment> é', '日本語 テキスト <info>折り返し</info> です',
+    '<error>  padded  </error>', "<info>a\n\nb</info>\n", '<fg=blue;options=bold>bold blue text that wraps around</> tail',
+    '<info>x</info> <bg=red>  </> <comment>y</comment>', "\\<info>not a tag\\</info>", '<info>\\</info>',
 ];
 
 $decorations = [false, true];
-$widths = [0, 1, 5, 10, 20];
+$widths = [0, 1, 2, 3, 5, 10, 20];
 
 $out = ['format' => [], 'escape' => [], 'width' => [], 'striptags' => [], 'html' => []];
 foreach ($messages as $m) {
@@ -55,6 +58,7 @@ foreach ($messages as $m) {
                 $case['output'] = $f->formatAndWrap($m, $w);
             } catch (\Throwable $e) {
                 $case['error'] = $e->getMessage();
+                $case['class'] = get_class($e);
             }
             $out['format'][] = $case;
         }

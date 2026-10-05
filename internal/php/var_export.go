@@ -63,7 +63,7 @@ func appendVarExport(buf []byte, v any, level int) []byte {
 		buf = append(buf, "(object) array(\n"...)
 		for name, val := range v.All() {
 			buf = appendSpaces(buf, level+2)
-			buf = appendExportString(buf, name)
+			buf = appendExportQuoted(buf, name, false)
 			buf = append(buf, " => "...)
 			buf = appendVarExport(buf, val, level+2)
 			buf = append(buf, ",\n"...)
@@ -85,14 +85,18 @@ func appendExportInt(buf []byte, i int64) []byte {
 	return strconv.AppendInt(buf, i, 10)
 }
 
-// appendExportString quotes s like var_export: ' and \ are backslashed and
-// NUL bytes become ' . "\0" . '.
-func appendExportString(buf []byte, s string) []byte {
+// appendExportString quotes a string value or array key like var_export:
+// ' and \ are backslashed and NUL bytes become ' . "\0" . '.
+func appendExportString(buf []byte, s string) []byte { return appendExportQuoted(buf, s, true) }
+
+// appendExportQuoted quotes s, replacing NUL bytes only when nul is set:
+// php_object_element_export only backslashes ' and \ in property names.
+func appendExportQuoted(buf []byte, s string, nul bool) []byte {
 	buf = append(buf, '\'')
 	start := 0
-	for i := 0; i < len(s); i++ {
-		switch c := s[i]; c {
-		case '\'', '\\', 0:
+	for i := range len(s) {
+		switch c := s[i]; {
+		case c == '\'' || c == '\\' || c == 0 && nul:
 			buf = append(buf, s[start:i]...)
 			if c == 0 {
 				buf = append(buf, `' . "\0" . '`...)

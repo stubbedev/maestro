@@ -12,6 +12,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/rivo/uniseg"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Width returns the terminal column width of s (Helper::width).
@@ -173,7 +175,7 @@ func FormatTime(secs float64) string {
 					return f.text
 				}
 
-				return phpFloatString(math.Floor(secs/f.div)) + " " + f.text
+				return php.FloatToString(math.Floor(secs/f.div)) + " " + f.text
 			}
 		}
 	}
@@ -208,7 +210,7 @@ func RemoveDecoration(formatter Formatter, s string) string {
 	return s
 }
 
-// removeANSIColors is preg_replace("/\033\[[^m]*m/", '', $s).
+// removeANSIColors is preg_replace("/\033\[[^m]*m/", ”, $s).
 func removeANSIColors(s string) string {
 	if !strings.Contains(s, "\033[") {
 		return s
@@ -230,7 +232,7 @@ func removeANSIColors(s string) string {
 	return b.String()
 }
 
-// removeHyperlinks is preg_replace('/\\033]8;[^;]*;[^\\033]*\\033\\\\/', '', $s).
+// removeHyperlinks is preg_replace('/\\033]8;[^;]*;[^\\033]*\\033\\\\/', ”, $s).
 func removeHyperlinks(s string) string {
 	if !strings.Contains(s, "\033]8;") {
 		return s

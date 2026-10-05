@@ -125,17 +125,43 @@ func init() {
 func StripWhitespace(contents []byte, shortOpenTag bool) []byte {
 	buf := make([]byte, len(contents)+stripPadding)
 	copy(buf, contents)
+	var l lexer
 
-	return stripWhitespace(nil, buf, len(contents), shortOpenTag)
+	return l.strip(nil, buf, len(contents), shortOpenTag)
 }
 
-// stripWhitespace is zend_strip(). src must be followed by stripPadding zero
-// bytes (len(src) >= lim+stripPadding). The output is appended to dst.
-func stripWhitespace(dst, src []byte, lim int, shortTags bool) []byte {
-	l := lexer{src: src, lim: lim, shortTags: shortTags, state: stShebang}
+// strip is zend_strip() over src[:lim], which must be followed by
+// stripPadding zero bytes (len(src) >= lim+stripPadding). The output is
+// appended to dst. The lexer is reset first; its stacks are reused.
+//
+// Tokens copied verbatim are contiguous in src, so runs of them are copied
+// at once.
+func (l *lexer) strip(dst, src []byte, lim int, shortTags bool) []byte {
+	*l = lexer{
+		src: src, lim: lim, shortTags: shortTags, state: stShebang,
+		stack: l.stack[:0], nest: l.nest[:0], labels: l.labels[:0],
+	}
 	prevSpace := false
+	run, runEnd := -1, -1 // pending run of verbatim tokens
 	for {
-		switch l.lex() {
+		t := l.lex()
+		if t == tOther || t == tStartHeredoc {
+			if run < 0 || l.text != runEnd {
+				if run >= 0 {
+					dst = append(dst, src[run:runEnd]...)
+				}
+				run = l.text
+			}
+			runEnd = l.cur
+			prevSpace = false
+
+			continue
+		}
+		if run >= 0 {
+			dst = append(dst, src[run:runEnd]...)
+			run = -1
+		}
+		switch t {
 		case tEnd:
 			return dst
 		case tWhitespace:
@@ -143,21 +169,15 @@ func stripWhitespace(dst, src []byte, lim int, shortTags bool) []byte {
 				dst = append(dst, ' ')
 				prevSpace = true
 			}
-			continue
-		case tComment:
-			continue
 		case tEndHeredoc:
-			dst = append(dst, l.src[l.text:l.cur]...)
+			dst = append(dst, src[l.text:l.cur]...)
 			// read the following character, either newline or ;
 			if l.lex() != tWhitespace {
-				dst = append(dst, l.src[l.text:l.cur]...)
+				dst = append(dst, src[l.text:l.cur]...)
 			}
 			dst = append(dst, '\n')
 			prevSpace = true
-			continue
 		}
-		dst = append(dst, l.src[l.text:l.cur]...)
-		prevSpace = false
 	}
 }
 
@@ -209,7 +229,10 @@ func (l *lexer) lex() token {
 		var again bool
 		switch l.state {
 		case stShebang:
-			t, again = l.lexShebang()
+			if l.lexShebang() {
+				return tEnd
+			}
+			again = true
 		case stInitial:
 			t = l.lexInitial()
 		case stInScripting:
@@ -233,20 +256,21 @@ func (l *lexer) lex() token {
 	}
 }
 
-// lexShebang handles <SHEBANG>"#!" .* {NEWLINE} and <SHEBANG>{ANY_CHAR}.
-func (l *lexer) lexShebang() (token, bool) {
+// lexShebang handles <SHEBANG>"#!" .* {NEWLINE} and <SHEBANG>{ANY_CHAR},
+// which produce no token; it reports whether the scanner ends instead.
+func (l *lexer) lexShebang() (end bool) {
 	l.state = stInitial
 	if l.src[l.cur] == '#' && l.src[l.cur+1] == '!' {
 		// ".*" also runs over the zero padding, so without a "\n" the
 		// scanner hits YYFILL and lex_scan() returns 0.
 		i := bytes.IndexByte(l.src[l.cur+2:l.lim], '\n')
 		if i < 0 {
-			return tEnd, false
+			return true
 		}
 		l.cur += 2 + i + 1
 	}
 
-	return 0, true
+	return false
 }
 
 func (l *lexer) lexInitial() token {
@@ -480,10 +504,10 @@ func (l *lexer) lexScripting() token {
 			l.cur++
 		}
 	case '.':
-		if s[l.cur+1] >= '0' && s[l.cur+1] <= '9' {
+		if isDec(s[l.cur+1]) {
 			l.scanNumber()
 		} else {
-			l.cur++
+			l.cur += operatorLen(s, l.cur)
 		}
 	case '\'':
 		l.scanSingleQuoted()
@@ -493,16 +517,69 @@ func (l *lexer) lexScripting() token {
 		l.cur++
 		l.state = stBackquote
 	default:
-		// The remaining operators are copied verbatim and none of them can
-		// end in a character that starts a significant token, so they need
-		// not be told apart. Anything else is {ANY_CHAR}.
-		l.cur++
+		// The remaining operators, {TOKENS} and {ANY_CHAR}. Their exact
+		// extent matters after a heredoc's closing marker, where
+		// zend_strip() copies exactly one token.
+		l.cur += operatorLen(s, l.cur)
 		if l.cur > l.lim {
 			return tEnd
 		}
 	}
 
 	return tOther
+}
+
+// operatorLen returns the length of the ST_IN_SCRIPTING token starting at
+// i, for a first character not handled by its own rules: the longest
+// operator, else 1 ({TOKENS} or {ANY_CHAR}). "&" followed by a variable or
+// "..." is also 1 (yyless(1)).
+func operatorLen(s []byte, i int) int {
+	c, n1, n2 := s[i], s[i+1], s[i+2]
+	switch c {
+	case ':':
+		if n1 == ':' {
+			return 2
+		}
+	case '.':
+		if n1 == '.' && n2 == '.' {
+			return 3
+		}
+		if n1 == '=' {
+			return 2
+		}
+	case '=', '!':
+		if n1 == '=' {
+			if n2 == '=' {
+				return 3
+			}
+
+			return 2
+		}
+		if c == '=' && n1 == '>' {
+			return 2
+		}
+	case '>', '*':
+		if n1 == c {
+			if n2 == '=' {
+				return 3
+			}
+
+			return 2
+		}
+		if n1 == '=' {
+			return 2
+		}
+	case '+', '&', '|':
+		if n1 == c || n1 == '=' {
+			return 2
+		}
+	case '%', '^':
+		if n1 == '=' {
+			return 2
+		}
+	}
+
+	return 1
 }
 
 // scanLabelToken scans a token starting with a label character in
@@ -618,6 +695,11 @@ func (l *lexer) castEnd(i int) int {
 	j := i + 1
 	for s[j] == ' ' || s[j] == '\t' {
 		j++
+	}
+	switch s[j] | 0x20 {
+	case 'i', 'd', 'f', 'r', 's', 'b', 'a', 'o', 'u':
+	default:
+		return 0
 	}
 	best := 0
 	for _, typ := range castTypes {
@@ -1310,8 +1392,9 @@ func hexVal(c byte) int {
 }
 
 // equalFold reports whether b equals the lower-case ASCII word w, ignoring
-// ASCII case (re2c's --case-inverted keyword matching).
-func equalFold(b []byte, w string) bool {
+// ASCII case only (re2c's case-insensitive keywords, PCRE's i flag without
+// u).
+func equalFold[T string | []byte](b T, w string) bool {
 	if len(b) != len(w) {
 		return false
 	}

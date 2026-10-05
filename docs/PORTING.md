@@ -116,6 +116,20 @@ the repo root; it has Go, golangci-lint, php, unzip, gh, just). A port
 is done when `go vet`, `golangci-lint run` and `go test -race` pass for its
 packages (`CGO_ENABLED=1` for `-race`).
 
+## Tooling hazard: `\u` escapes
+
+Writing files through the editor tools can turn `\uXXXX` escape sequences
+into the literal characters they name. In Go source, write such strings
+with explicit byte escapes or build them in code, and check any file that
+must contain a literal `\u` with `grep -n '\\u'` after writing it.
+
+## Regular expressions
+
+Use `internal/php`'s `Compile`/`MustCompile` and the `Preg*` functions with
+Composer's patterns pasted verbatim. It is a PCRE2-compatible engine
+(recursion, subroutines and all); don't use `regexp` or regexp2 for ported
+patterns.
+
 ## Working alongside other ports
 
 Several packages are ported at once in this tree. Build and test only your

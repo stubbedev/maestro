@@ -9,11 +9,13 @@ import (
 	"math"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // DescriptorOptions are the describe() options.
 type DescriptorOptions struct {
-	Format    string // defaults to "txt"
+	Format    string // "" means "txt" (an unset option)
 	RawText   bool
 	Namespace string
 	Short     bool
@@ -21,8 +23,9 @@ type DescriptorOptions struct {
 	RawOutput *bool
 	// TotalWidth is the internal 'total_width' option; 0 means unset.
 	TotalWidth int
-	// JSONEncoding holds extra json_encode flags for the json format.
-	JSONEncoding int
+	// JSONEncoding is the 'json_encoding' option: the json_encode flags of
+	// the json format.
+	JSONEncoding php.JSONFlag
 }
 
 // Descriptor is DescriptorInterface. object is an *InputArgument,
@@ -98,6 +101,13 @@ func (h *DescriptorHelper) Describe(out Output, object any, options DescriptorOp
 		options.Format = "txt"
 	}
 
+	return h.describe(out, object, options)
+}
+
+// describe is Describe with the format taken as given: the help and list
+// commands always pass their --format option, so "--format=" is an
+// unsupported format as in PHP.
+func (h *DescriptorHelper) describe(out Output, object any, options DescriptorOptions) error {
 	d, ok := h.descriptors[options.Format]
 	if !ok {
 		return newError(KindInvalidArgument, "DescriptorHelper.php", 66, `Unsupported format "%s".`, options.Format)
@@ -205,7 +215,7 @@ func (d *ApplicationDescription) inspect() error {
 				continue
 			}
 
-			if base.Name() == nc.Name {
+			if isCommandKey(base.Name(), nc.Name) {
 				d.commands[nc.Name] = nc.Command
 				d.commandNames = append(d.commandNames, nc.Name)
 			} else {
@@ -246,7 +256,11 @@ func (d *ApplicationDescription) sortCommands(commands []NamedCommand) []command
 		}
 	}
 
-	byName := func(a, b NamedCommand) int { return strings.Compare(a.Name, b.Name) }
+	// ksort($commands) with SORT_REGULAR: names are array keys, so
+	// canonical integer names compare as ints (PHP 8 rules).
+	byName := func(a, b NamedCommand) int {
+		return php.Compare(php.StrKey(a.Name).Value(), php.StrKey(b.Name).Value())
+	}
 
 	var sorted []commandGroup
 	if len(global) > 0 {
@@ -255,6 +269,7 @@ func (d *ApplicationDescription) sortCommands(commands []NamedCommand) []command
 	}
 
 	if len(namespaced) > 0 {
+		// ksort($namespacedCommands, SORT_STRING)
 		slices.SortStableFunc(namespaced, func(a, b commandGroup) int { return strings.Compare(a.id, b.id) })
 		for _, g := range namespaced {
 			slices.SortStableFunc(g.commands, byName)
@@ -293,4 +308,11 @@ func formatDefaultValueJSON(def any) string {
 	}
 
 	return strings.ReplaceAll(jsonEncodeValue(def), `\\`, `\`)
+}
+
+// isCommandKey is "$command->getName() === $name" for a name taken from an
+// array key: a canonical integer name is an int key and never identical to
+// the command's (string) name.
+func isCommandKey(commandName, key string) bool {
+	return commandName == key && php.StrKey(key).IsString()
 }

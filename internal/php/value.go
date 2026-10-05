@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 )
 
 // normalize validates a value stored into an Array or Object, converting
@@ -199,14 +200,15 @@ func IsNumeric(v any) bool {
 	return false
 }
 
+// dvalToLvalCap ports zend_dval_to_lval_cap, used for numeric strings:
+// infinities and NaN are 0, other out of range values saturate.
 func dvalToLvalCap(d float64) int64 {
-	if math.IsNaN(d) || math.IsInf(d, 0) {
+	switch {
+	case math.IsNaN(d) || math.IsInf(d, 0):
 		return 0
-	}
-	if d >= -9223372036854775808.0 && d < 9223372036854775808.0 {
+	case d >= -9223372036854775808.0 && d < 9223372036854775808.0:
 		return int64(d)
-	}
-	if d > 0 {
+	case d > 0:
 		return math.MaxInt64
 	}
 	return math.MinInt64
@@ -231,15 +233,16 @@ func isNumericStringEx(s string, allowErrors bool) (typ int, l int64, d float64,
 	if s == "" || s[0] > '9' {
 		return 0, 0, 0, 0
 	}
-	str := 0
-	for str < len(s) && isStrtodSpace(s[str]) {
-		str++
-	}
+	// at mimics reading the C string, NUL terminated.
 	at := func(i int) byte {
 		if i < len(s) {
 			return s[i]
 		}
 		return 0
+	}
+	str := 0
+	for isStrtodSpace(at(str)) {
+		str++
 	}
 	ptr := str
 	neg := false
@@ -252,45 +255,45 @@ func isNumericStringEx(s string, allowErrors bool) (typ int, l int64, d float64,
 
 	const maxLengthOfLong = 20
 	digits := 0
-	dpOrE := 0
 	var tmp uint64
 	isDouble := false
-	if isDigit(at(ptr)) {
+	switch {
+	case isDigit(at(ptr)):
 		for at(ptr) == '0' {
 			ptr++
 		}
-		for typ = numLong; ; digits, ptr = digits+1, ptr+1 {
-			if digits >= maxLengthOfLong {
-				// Too many digits for an int: re-parse as a double.
-				oflow = 1
-				if at(str) == '-' {
-					oflow = -1
-				}
-				isDouble = true
-				break
-			}
+		typ = numLong
+		for ; digits < maxLengthOfLong; digits, ptr = digits+1, ptr+1 {
 			c := at(ptr)
 			if isDigit(c) {
 				tmp = tmp*10 + uint64(c-'0')
 				continue
-			} else if c == '.' && dpOrE < 1 {
+			}
+			switch c {
+			case '.':
 				isDouble = true
-				break
-			} else if (c == 'e' || c == 'E') && dpOrE < 2 {
+			case 'e', 'E':
 				e := ptr + 1
 				if at(e) == '-' || at(e) == '+' {
+					// PHP leaves ptr on the sign (ptr = e++), which shifts
+					// the overflow check below.
+					ptr = e
 					e++
 				}
-				if isDigit(at(e)) {
-					isDouble = true
-					break
-				}
+				isDouble = isDigit(at(e))
 			}
 			break
 		}
-	} else if at(ptr) == '.' && isDigit(at(ptr+1)) {
+		if digits >= maxLengthOfLong {
+			oflow = 1
+			if at(str) == '-' {
+				oflow = -1
+			}
+			isDouble = true
+		}
+	case at(ptr) == '.' && isDigit(at(ptr+1)):
 		isDouble = true
-	} else {
+	default:
 		return 0, 0, 0, 0
 	}
 
@@ -303,7 +306,7 @@ func isNumericStringEx(s string, allowErrors bool) (typ int, l int64, d float64,
 
 	if ptr != len(s) {
 		end := ptr
-		for end < len(s) && isStrtodSpace(s[end]) {
+		for isStrtodSpace(at(end)) {
 			end++
 		}
 		if end != len(s) && !allowErrors {
@@ -313,8 +316,10 @@ func isNumericStringEx(s string, allowErrors bool) (typ int, l int64, d float64,
 
 	if typ == numLong {
 		if digits == maxLengthOfLong-1 {
-			cmp := compareDigits(s[ptr-digits:], "9223372036854775808")
-			if !(cmp < 0 || (cmp == 0 && at(str) == '-')) {
+			// strcmp against the rest of the C string, trailing bytes
+			// included.
+			cmp := strings.Compare(s[ptr-digits:], "9223372036854775808")
+			if cmp > 0 || cmp == 0 && at(str) != '-' {
 				oflow = 1
 				if at(str) == '-' {
 					oflow = -1
@@ -325,17 +330,7 @@ func isNumericStringEx(s string, allowErrors bool) (typ int, l int64, d float64,
 		if neg {
 			tmp = -tmp
 		}
-		return numLong, int64(tmp), 0, 0 //nolint:gosec // wraps like the C cast
+		return numLong, int64(tmp), 0, 0
 	}
 	return numDouble, 0, d, oflow
-}
-
-func compareDigits(a, b string) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	}
-	return 0
 }

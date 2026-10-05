@@ -5,6 +5,8 @@ package console
 
 import (
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Completion types.
@@ -174,7 +176,7 @@ func (in *CompletionInput) Bind(definition *InputDefinition) error {
 			case optionValue != "" && optionValue != "0":
 				in.completionValue = optionValue
 			case !strings.HasPrefix(optionToken, "--"):
-				in.completionValue = phpSubstrFrom(optionToken, 2)
+				in.completionValue = php.Substr(optionToken, 2)
 			default:
 				in.completionValue = ""
 			}
@@ -202,6 +204,8 @@ func (in *CompletionInput) Bind(definition *InputDefinition) error {
 	// complete argument value
 	in.completionType = CompletionTypeArgumentValue
 
+	// argumentName keeps the last argument looked at (PHP's foreach
+	// variable); lastArg is nil when the definition has no arguments.
 	argumentName := ""
 	var lastArg *InputArgument
 	for _, argument := range in.definition.Arguments() {
@@ -226,8 +230,9 @@ func (in *CompletionInput) Bind(definition *InputDefinition) error {
 
 	if in.currentIndex >= len(in.tokens) {
 		v, ok := in.arguments[argumentName]
-		if !ok || v == nil || (lastArg != nil && lastArg.IsArray()) {
-			in.completionName, in.hasName = argumentName, true
+		if lastArg == nil || !ok || v == nil || lastArg.IsArray() {
+			// $argumentName is undefined (null) without arguments.
+			in.completionName, in.hasName = argumentName, lastArg != nil
 			in.completionValue = ""
 		} else {
 			// we've reached the end
@@ -315,7 +320,9 @@ func (in *CompletionInput) String() string {
 		b.WriteByte(' ')
 		last = i
 	}
-	if in.currentIndex > last {
+	// Without tokens $i is undefined: "$currentIndex > null" holds for any
+	// non-zero index.
+	if (last >= 0 && in.currentIndex > last) || (last < 0 && in.currentIndex != 0) {
 		b.WriteByte('|')
 	}
 

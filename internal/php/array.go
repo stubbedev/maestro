@@ -7,7 +7,6 @@ import (
 	"iter"
 	"math"
 	"sync/atomic"
-	"unsafe"
 )
 
 // linearMax is the size up to which lookups scan the entries instead of
@@ -29,8 +28,11 @@ type Array struct {
 	packed  bool  // entries[i] has the int key i for every i, no holes
 	indexed bool
 	// pins counts running All loops that still read entries in place;
-	// a write detaches entries first so those loops keep a snapshot.
+	// a write detaches entries first so those loops keep a snapshot. gen
+	// counts detaches, so a loop knows whether its pin is still counted.
+	// pins is atomic because concurrent read-only loops are allowed.
 	pins atomic.Int32
+	gen  uint32
 }
 
 type entry struct {
@@ -64,7 +66,7 @@ func ArrayOf(kv ...any) *Array {
 		panic("php: ArrayOf needs key/value pairs")
 	}
 	a := NewArrayCap(len(kv) / 2)
-	for i := 0; i < len(kv); i += 2 {
+	for i := 0; i+1 < len(kv); i += 2 {
 		a.Set(kv[i], kv[i+1])
 	}
 	return a
@@ -282,7 +284,16 @@ func (a *Array) detach() {
 	es := make([]entry, len(a.entries), cap(a.entries)+1)
 	copy(es, a.entries)
 	a.entries = es
-	a.pins.Store(0)
+	a.unpin()
+}
+
+// unpin is detach for writers that are about to replace a.entries with a
+// new slice anyway: running iterators keep the old one.
+func (a *Array) unpin() {
+	if a.pins.Load() != 0 {
+		a.pins.Store(0)
+		a.gen++
+	}
 }
 
 // All iterates over the keys and values in order, like foreach. The loop
@@ -295,8 +306,9 @@ func (a *Array) All() iter.Seq2[Key, any] {
 			return
 		}
 		a.pins.Add(1)
+		gen := a.gen
 		defer func() {
-			if unsafe.SliceData(a.entries) == unsafe.SliceData(es) {
+			if a.gen == gen {
 				a.pins.Add(-1)
 			}
 		}()
@@ -456,7 +468,7 @@ func (a *Array) Unshift(values ...any) {
 // renumbered from 0, which is what array_shift and array_unshift do.
 func (a *Array) renumber(prefix []any) {
 	old := a.entries
-	a.detach()
+	a.unpin()
 	n := NewArrayCap(len(prefix) + a.live)
 	for _, v := range prefix {
 		n.insert(Key{i: int64(len(n.entries))}, v)
@@ -489,5 +501,4 @@ func (a *Array) replaceWith(n *Array) {
 	a.next = n.next
 	a.packed = n.packed
 	a.indexed = n.indexed
-	a.pins.Store(0)
 }
