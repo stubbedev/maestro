@@ -37,6 +37,7 @@ linters:
         # archives are validated where they are read (internal/store).
         - G301 # directory permissions above 0750
         - G304 # file path from a variable
+        - G703 # path traversal via taint analysis: same reason as G304
         - G306 # WriteFile permissions above 0600
     perfsprint:
       strconcat: true
