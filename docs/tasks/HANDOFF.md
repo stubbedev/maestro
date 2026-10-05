@@ -121,3 +121,17 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 ## internal/util (from internal/autoload)
 - Added exports `util.Dirname` (PHP dirname) and `util.RealpathOK` (realpath() with its false result).
 - Fixed `phpRealpath` (behind `util.Realpath`/`RealpathOK`): it cleaned the path lexically (filepath.Abs) before resolving symlinks, so `realpath('/missing/..')` succeeded where PHP returns false.
+
+## internal/composer, internal/installer, internal/eventdispatcher, internal/plugin (from internal/downloader)
+- Factory::createDownloadManager: build `downloader.Deps{IO, Config, HTTPDownloader, EventDispatcher, Cache, Filesystem, Process, Store, Metadata, IniFiles}` once and pass it to `NewZipDownloader`, `NewTarDownloader`, `NewXzDownloader`, `NewGzipDownloader`, `NewRarDownloader`, `NewPharDownloader`, `NewFileDownloader`, `NewPathDownloader` (each returns an error where Cache::gc fails), registered with `DownloadManager.SetDownloader`. `Cache` is the files cache (`cache.New(io, cache-files-dir, "a-z0-9_./", fs, cache-read-only)`) and must be nil when cache-files-ttl <= 0, as in Composer: the archive downloaders read the shared store only with a usable files cache and write it only when that cache is not read-only (else they extract through a temporary store). `Store` is `store.Open(cache.Store(), &store.Options{Method: store.ParseMethod(os.Getenv(store.MethodEnv))})`. `SetPreferences` takes the preferred-install `*php.Array`.
+- Zip/tar/xz/gzip downloads materialize the package into a staging directory under vendor/composer/ during the download phase (parallel); Install renames it into place and reports extraction errors after its "Extracting archive" line. InstallationManager must call Cleanup after every operation, as Composer does, to drop staging directories of aborted installs.
+- `FileDownloader::$downloadMetadata` is `downloader.Metadata` (`Deps.Metadata`); InstallationManager resets and reads it for install notifications.
+- PRE_FILE_DOWNLOAD/POST_FILE_DOWNLOAD use eventdispatcher's events through `downloader.EventDispatcher` (`Dispatch(name, event) (int, error)`, which `*eventdispatcher.EventDispatcher` implements). The first attempt's PRE is dispatched on the calling goroutine; retries, mirror fallbacks and POST come from download goroutines (Composer: promise callbacks inside the loop's wait), so the dispatcher, once it runs PHP listeners, must queue those and run them on the main flow (PLUGINS.md §5.14). For a dist taken from the store, POST_FILE_DOWNLOAD names the temporary file, which does not exist.
+- `DownloadManager.Sync()` is the manager as `http.DownloadAndInstallPackageSync` takes it.
+- Operations return `(*downloader.Promise, error)`: the error is a synchronous throw. Downloaders implement `downloader.Classer` for get_class().
+
+## Cleanup (DRY), from internal/downloader
+- internal/downloader/operation.go repeats Install/Update/UninstallOperation::format; internal/resolver owns the operations (it is above the downloader, so the downloader keeps its copy unless format moves lower).
+- internal/downloader/archivablefiles.go ports ArchivableFilesFinder, Base/Git/ComposerExcludeFilter and Symfony's Glob::toRegex (oracle-checked) for PathDownloader's mirroring; the archiver port (internal/pkg/archiver) should own them and the downloader import it.
+- `isBinPathInsidePackage` (filedownloader.go) is BinaryInstaller::isBinPathInsidePackage; internal/installer may use or own it.
+- Added exports: `util.IsExecutable` (is_executable()), `store.Umask` (the process umask).
