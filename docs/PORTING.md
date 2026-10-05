@@ -75,6 +75,22 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 Lower packages never import higher ones. Where PHP has a circular
 reference, break it with an interface in the lower package.
 
+Cycle-breaking decisions already made:
+
+- Repository and downloader types are registered by name, as Composer's
+  Factory does with `setRepositoryClass` / `setDownloader`:
+  `internal/repository` defines the interfaces, the generic repositories and
+  RepositoryManager with a type registry; `internal/repository/composerrepo`
+  (ComposerRepository) and `internal/repository/vcs` (VcsRepository and its
+  drivers) import it; `internal/composer`'s Factory wires them together. The
+  same for `internal/downloader` (DownloadManager, file/archive/path
+  downloaders) and `internal/downloader/vcs` (Git/Hg/Svn/Fossil/Perforce
+  downloaders).
+- `RepositorySet` lives in `internal/repository` without its createPool*
+  methods; those are functions in `internal/resolver` taking the set.
+- `Composer\Package\Locker` is `internal/locker` (it needs repositories).
+- Composer\Util\{Git,Hg,Svn,Perforce} are `internal/util/vcs`.
+
 ## Rules for every port
 
 - Each Go file starts its doc/comment with the PHP file(s) it ports, e.g.
