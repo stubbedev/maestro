@@ -28,6 +28,10 @@ type SearchResult struct {
 	Abandoned any
 	// URL is null when the key is unset.
 	URL pkg.NullString
+	// Raw is the result array as a search API returned it
+	// (ComposerRepository), with every key it has (downloads, favers,
+	// repository, ...); nil for results the repository built itself.
+	Raw *php.Array
 }
 
 // ProviderInfo is a value of RepositoryInterface::getProviders' result:

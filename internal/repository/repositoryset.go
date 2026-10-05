@@ -46,6 +46,7 @@ type AliasTarget struct {
 // stability settings, aliases and references.
 type RepositorySet struct {
 	rootAliases                map[string]map[string]AliasTarget
+	rootAliasList              []RootAlias
 	rootReferences             *php.Array
 	repositories               []RepositoryInterface
 	acceptableStabilities      *php.Array
@@ -68,7 +69,8 @@ func NewRepositorySet(minimumStability string, stabilityFlags *php.Array, rootAl
 		return nil, &util.ErrorException{Message: `Undefined array key "` + minimumStability + `"`}
 	}
 	s := &RepositorySet{
-		rootAliases:           rootAliasesPerPackage(rootAliases),
+		rootAliases:           RootAliasesPerPackage(rootAliases),
+		rootAliasList:         rootAliases,
 		rootReferences:        rootReferences,
 		acceptableStabilities: php.NewArray(),
 		stabilityFlags:        stabilityFlags,
@@ -98,8 +100,9 @@ func NewRepositorySet(minimumStability string, stabilityFlags *php.Array, rootAl
 	return s, nil
 }
 
-// rootAliasesPerPackage ports RepositorySet::getRootAliasesPerPackage.
-func rootAliasesPerPackage(aliases []RootAlias) map[string]map[string]AliasTarget {
+// RootAliasesPerPackage ports RepositorySet::getRootAliasesPerPackage:
+// package name => version => alias.
+func RootAliasesPerPackage(aliases []RootAlias) map[string]map[string]AliasTarget {
 	normalized := make(map[string]map[string]AliasTarget)
 	for _, alias := range aliases {
 		if normalized[alias.Package] == nil {
@@ -123,6 +126,11 @@ func (s *RepositorySet) TemporaryConstraints() *ConstraintMap { return s.tempora
 
 // RootAliases returns the root aliases: package name => version => alias.
 func (s *RepositorySet) RootAliases() map[string]map[string]AliasTarget { return s.rootAliases }
+
+// RootAliasList returns the root aliases as the set was given them; in
+// that order, they give the PHP array of RootAliases (package name =>
+// version => alias, in insertion order).
+func (s *RepositorySet) RootAliasList() []RootAlias { return s.rootAliasList }
 
 // RootReferences returns the root references: package name => source
 // reference.
@@ -248,6 +256,14 @@ func (s *RepositorySet) GetSecurityAdvisories(packageNames []string, allowPartia
 // RepositorySet::getMatchingSecurityAdvisories: the advisories affecting
 // the versions of the packages (root aliases left out).
 func (s *RepositorySet) GetMatchingSecurityAdvisories(packages []pkg.PackageInterface, allowPartial, ignoreUnreachable bool) (SecurityAdvisoriesResult, error) {
+	return s.securityAdvisoriesForConstraints(PackageVersionsConstraintMap(packages), allowPartial, ignoreUnreachable)
+}
+
+// PackageVersionsConstraintMap is the package constraint map
+// RepositorySet::getMatchingSecurityAdvisories and
+// FilterListProviderSet::getMatchingFilterLists build: each package name
+// mapped to an OR of "== version" for its versions, root aliases left out.
+func PackageVersionsConstraintMap(packages []pkg.PackageInterface) *ConstraintMap {
 	type versions struct {
 		order []string
 		seen  map[string]struct{}
@@ -280,7 +296,7 @@ func (s *RepositorySet) GetMatchingSecurityAdvisories(packages []pkg.PackageInte
 		constraints.Set(name, semver.CreateMultiConstraint(list, false))
 	}
 
-	return s.securityAdvisoriesForConstraints(constraints, allowPartial, ignoreUnreachable)
+	return constraints
 }
 
 // securityAdvisoriesForConstraints ports
