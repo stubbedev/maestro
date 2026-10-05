@@ -1,0 +1,24 @@
+{
+    "name": "maestro-test/api-project",
+    "description": "A project whose plugin and scripts use the Composer API maestro's shim provides.",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"type": "path", "url": "toollib", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/api-plugin": "*",
+        "maestro-test/tool-lib": "*"
+    },
+    "autoload": {
+        "psr-4": {"Project\\": "src/"}
+    },
+    "config": {
+        "allow-plugins": {"maestro-test/api-plugin": true}
+    },
+    "scripts": {
+        "post-install-cmd": ["Project\\Scripts::postInstall", "@php -r \"echo getenv('MAESTRO_TEST_PUTENV'), '|', getenv('MAESTRO_TEST_PLAIN'), PHP_EOL;\""],
+        "post-autoload-dump": "Project\\Scripts::postAutoloadDump",
+        "custom": "Project\\Scripts::custom"
+    }
+}

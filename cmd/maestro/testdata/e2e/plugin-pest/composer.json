@@ -1,0 +1,17 @@
+{
+    "name": "maestro-test/pest",
+    "description": "pestphp/pest-plugin: vendor/pest-plugins.json, written on POST_AUTOLOAD_DUMP.",
+    "require": {
+        "pestphp/pest-plugin": "4.0.0"
+    },
+    "extra": {
+        "pest": {
+            "plugins": ["Project\\PestPlugin"]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}

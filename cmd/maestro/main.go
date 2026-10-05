@@ -49,14 +49,16 @@ func run() int {
 
 	factory := &composer.Factory{Runtime: rt}
 
-	// Platform::putEnv('COMPOSER_BINARY', realpath($_SERVER['argv'][0])):
-	// the launcher that runs this maestro (docs/PLUGINS.md D13).
+	// The plugin runtime (docs/PLUGINS.md): plugins, PHP scripts, and
+	// Platform::putEnv('COMPOSER_BINARY', realpath($_SERVER['argv'][0])),
+	// the launcher that runs this maestro (D13). PHP starts only when a
+	// plugin or script needs it.
+	var plugins *plugin.Runtime
 	if cfg, err := config.CreateConfig(io.NewNullIO(), ""); err == nil {
 		if cacheDir, err := cfg.Get("cache-dir", 0); err == nil {
 			if dir, ok := cacheDir.(string); ok && dir != "" {
-				if plugin.SetProcessEnv(dir) == nil {
-					pr := plugin.New(plugin.Options{CacheDir: dir})
-					factory.EnsureComposerBinary = pr.EnsureComposerBinary
+				if pr, err := plugin.Setup(factory, plugin.Options{CacheDir: dir}); err == nil {
+					plugins = pr
 				}
 			}
 		}
@@ -70,10 +72,20 @@ func run() int {
 		// SetCatchExceptions(false) is never called, so run() rendered
 		// every exception itself; nothing reaches here but a failure to
 		// render.
+		if plugins != nil {
+			plugins.Close()
+		}
+
 		return 1
 	}
 	if code > 255 {
 		code = 255
+	}
+
+	// PHP exits with the code (its shutdown functions run), and its final
+	// status is maestro's.
+	if plugins != nil {
+		code = plugins.Finish(code)
 	}
 
 	return code

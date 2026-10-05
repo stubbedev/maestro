@@ -61,7 +61,10 @@ final class Mirrors
 
     /**
      * Builds the mirror of a Go-owned object maestro sent for the first
-     * time; null when no adapter knows the class (not a mirror).
+     * time. An object that is not a mirror (a service maestro owns: the
+     * Config, a manager, a repository) becomes an instance of its class
+     * built without its constructor, whose methods call maestro; null when
+     * the class cannot be instantiated.
      *
      * @param mixed $snapshot
      * @return object|null
@@ -71,19 +74,36 @@ final class Mirrors
         $adapter = null;
         if ($base !== null && isset(self::$adapters[$base])) {
             $adapter = self::$adapters[$base];
-        } elseif (isset(self::$adapters[$class])) {
+        } elseif ($base !== null && isset(self::$adapters[$class])) {
             $adapter = self::$adapters[$class];
-        } elseif (class_exists($class)) {
-            $adapter = self::adapterOf($class);
         }
         if ($adapter === null) {
-            return null;
+            return self::service($class);
         }
 
         $object = $adapter->create($handle, $class, is_array($snapshot) ? $snapshot : []);
         self::$revs[$handle] = 0;
 
         return $object;
+    }
+
+    /**
+     * An instance of a service class, without its constructor; null when
+     * there is no such concrete class.
+     *
+     * @return object|null
+     */
+    private static function service(string $class)
+    {
+        if (!class_exists($class)) {
+            return null;
+        }
+        $r = new \ReflectionClass($class);
+        if ($r->isAbstract() || $r->isInterface()) {
+            return null;
+        }
+
+        return $r->newInstanceWithoutConstructor();
     }
 
     /**

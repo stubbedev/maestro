@@ -2,12 +2,12 @@
 // Composer plugins and PHP-callable scripts run through (deviation 5 in
 // docs/PORTING.md; docs/PLUGINS.md is the specification).
 //
-// Phase 1 (this package today) is the runtime and its protocol, with no
-// Composer API yet:
+// The runtime and its protocol (phase 1):
 //
 //   - shim.go embeds the PHP shim (php/: bootstrap.php, the Maestro\Shim
-//     runtime, the presence-parity stubs of tools/shimgen and the
-//     libraries tools/shimvendor vendors) and extracts it into
+//     runtime, the hand-written Composer classes of php/src, the
+//     presence-parity stubs of tools/shimgen and the libraries
+//     tools/shimvendor vendors) and extracts it into
 //     <cache-dir>/maestro/shim/<sha256 of its manifest>/, atomically.
 //   - runtime.go is plugin.Runtime: one long-lived php child per maestro
 //     process (D1), started on first need with bin/composer's prologue
@@ -18,12 +18,21 @@
 //   - rpc/ is the channel itself: framing, the value codec, handles, the
 //     re-entrant call stack, the sync engine and exceptions both ways.
 //
-// Later phases plug in through Runtime.Handle (PHP → Go services, one
-// handler per `<area>.<method>`, docs/PLUGINS.md §6.6),
-// Runtime.RegisterMirrorFactory and rpc.Mirror (data mirrors),
-// Runtime.RegisterTag and rpc.ValueEncoder (constraint and link values),
-// Runtime.Call (Go → PHP methods, §6.5), and Options.Statics (Composer's
-// statics, owned by internal/composer).
+// The core Composer API (phase 2):
+//
+//   - manager.go ports PluginManager's policy (load order, allow-plugins
+//     with its prompt, the plugin API check, global plugins, the autoload
+//     plan); php/src/Maestro/Shim/Plugins.php is its mechanism.
+//   - scriptruntime.go makes the Runtime internal/eventdispatcher's
+//     ScriptRuntime: PHP callables, Class::method and command-class
+//     scripts, makeAutoloader's loader and the dispatch bracket.
+//   - setup.go wires it all into a composer.Factory (cmd/maestro).
+//   - bridge.go, objects.go, values.go and the mirror_*.go/svc_*.go files
+//     are the Go side of the API in PHP: what maestro's objects cross as
+//     (service proxies, package/event/operation/IO mirrors, link and
+//     constraint values) and the `<area>.<method>` handlers the shim's
+//     classes call (api.go registers them; coverage_test.go checks the
+//     set against the shim's source).
 //
 // # Differences from Composer that are not observable
 //

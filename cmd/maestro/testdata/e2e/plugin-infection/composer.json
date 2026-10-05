@@ -1,0 +1,14 @@
+{
+    "name": "maestro-test/infection",
+    "description": "infection/extension-installer with two extensions: its GeneratedConfig.php.",
+    "require": {
+        "infection/extension-installer": "0.1.2",
+        "infection/phpspec-adapter": "0.3.2",
+        "testo/bridge-infection": "0.1.9"
+    },
+    "config": {
+        "allow-plugins": {
+            "infection/extension-installer": true
+        }
+    }
+}

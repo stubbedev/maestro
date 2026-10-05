@@ -10,8 +10,9 @@ namespace Maestro\Shim;
 /**
  * The sync engine's PHP half (docs/PLUGINS.md §5.3, §6.3): every message
  * carries what changed on its sender's side since the last message, so
- * the receiver sees it before it runs again. That is the environment, the
- * working directory, Composer's statics and the dirty fields of mirrors.
+ * the receiver sees it before it runs again. That is the environment (as
+ * Composer's child processes would get it, see environ()), the working
+ * directory, Composer's statics and the dirty fields of mirrors.
  */
 final class Sync
 {
@@ -190,12 +191,32 @@ final class Sync
     }
 
     /**
+     * The environment as the processes Composer starts get it: Symfony
+     * Process's default environment (Process::getDefaultEnv()), the
+     * variables getenv() and $_SERVER both have, with $_ENV's on top. So a
+     * plain putenv() of a new variable, which only getenv() sees, does not
+     * reach maestro (as it reaches no process Composer starts), while
+     * Platform::putEnv(), which sets $_SERVER and $_ENV too, does.
+     *
      * @return array<string, string>
      */
     private static function environ(): array
     {
         $env = getenv();
+        if (!is_array($env)) {
+            $env = [];
+        }
+        $windows = '\\' === \DIRECTORY_SEPARATOR;
+        $env = ($windows ? array_intersect_ukey($env, $_SERVER, 'strcasecmp') : array_intersect_key($env, $_SERVER)) ?: $env;
+        $env = $_ENV + ($windows ? array_diff_ukey($env, $_ENV, 'strcasecmp') : $env);
 
-        return is_array($env) ? $env : [];
+        $out = [];
+        foreach ($env as $name => $value) {
+            if (is_string($value) || is_int($value) || is_float($value)) {
+                $out[(string) $name] = (string) $value;
+            }
+        }
+
+        return $out;
     }
 }

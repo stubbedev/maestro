@@ -124,7 +124,7 @@ func TestRuntime_BootState(t *testing.T) {
 	// A stub says which member is missing.
 	_, err = rt.Call("test.unsupported", nil)
 	var pe *PHPException
-	if !errors.As(err, &pe) || pe.Class != `Maestro\Shim\UnsupportedApiException` || pe.Message != `maestro does not support Composer\Util\Filesystem::__construct() in plugins yet` {
+	if !errors.As(err, &pe) || pe.Class != `Maestro\Shim\UnsupportedApiException` || pe.Message != `maestro does not support Composer\Util\Url::sanitize() in plugins yet` {
 		t.Errorf("stub call = %v", err)
 	}
 }
@@ -418,9 +418,15 @@ func TestRuntime_EnvSync(t *testing.T) {
 		os.Unsetenv("MAESTRO_T_GO")
 	})
 
-	// putenv() in PHP code is visible to Go and to a script Go runs next.
-	if _, err := rt.Call("test.putenv", php.ArrayOf("set", php.ArrayOf("MAESTRO_T_PHP", "from php"), "unset", php.ListOf("MAESTRO_T_GONE"))); err != nil {
+	// Platform::putEnv() in PHP code is visible to Go and to a script Go
+	// runs next; a plain putenv() of a new variable is not, as it is not
+	// for the processes Composer starts (Symfony Process passes the
+	// variables getenv() and $_SERVER both have).
+	if _, err := rt.Call("test.putenv", php.ArrayOf("set", php.ArrayOf("MAESTRO_T_PHP", "from php"), "unset", php.ListOf("MAESTRO_T_GONE"), "plain", php.ArrayOf("MAESTRO_T_PLAIN", "x"))); err != nil {
 		t.Fatal(err)
+	}
+	if _, ok := os.LookupEnv("MAESTRO_T_PLAIN"); ok {
+		t.Error("Go sees a variable a plain putenv() set")
 	}
 	if v := os.Getenv("MAESTRO_T_PHP"); v != "from php" {
 		t.Errorf("Go sees MAESTRO_T_PHP = %q", v)

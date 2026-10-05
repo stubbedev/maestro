@@ -1,0 +1,13 @@
+{
+    "name": "maestro-test/captainhook",
+    "description": "captainhook/hook-installer: installs the git hooks by running captainhook.",
+    "require-dev": {
+        "captainhook/captainhook": "5.29.2",
+        "captainhook/hook-installer": "1.0.5"
+    },
+    "config": {
+        "allow-plugins": {
+            "captainhook/hook-installer": true
+        }
+    }
+}

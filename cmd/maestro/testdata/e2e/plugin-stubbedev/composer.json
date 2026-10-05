@@ -1,0 +1,16 @@
+{
+    "name": "maestro-test/stubbedev",
+    "description": "The kontainer project's stubbedev/*-mcp plugins.",
+    "require": {
+        "stubbedev/atlassian-mcp": "0.5.24",
+        "stubbedev/ds-mcp": "0.3.15",
+        "stubbedev/jenkins-mcp": "0.2.7",
+        "stubbedev/laravel-dev-mcp": "0.0.15",
+        "stubbedev/sentry-mcp": "0.2.9"
+    },
+    "config": {
+        "allow-plugins": {
+            "stubbedev/*": true
+        }
+    }
+}

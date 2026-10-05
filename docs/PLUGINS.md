@@ -218,7 +218,7 @@ them, and refusing them is acceptable elsewhere.
 | --- | --- | --- | --- |
 | `PackageInterface` getters: `getName` 24, `getExtra` 35, `getType` 13, `getVersion` 10, `getPrettyName` 9, `getPrettyVersion` 7, `getRequires` 7, `getAutoload` 11, `getTargetDir`, `getDevRequires`, `getFullPrettyVersion`, `getSourceReference`, `getSourceUrl`, `getDistUrl`, `getBinaries`, `getReplaces`, `getStability`, `getInstallationSource`, `getUniqueName`, `getPrettyString`, `__toString`, `getRepository`, `getReleaseDate`, … (all of them) | 23 | Mirror | 2 |
 | `RootPackageInterface`: `getMinimumStability`, `getStabilityFlags`, `getReferences`, `getAliases`, `getScripts`, `getDevAutoload`, `getSuggests`, `getConfig`, `getRepositories`, `getPreferStable` | 10 | Mirror | 2 |
-| Setters, in place: `setAutoload` 7, `setDevAutoload`, `setExtra` 3, `setBinaries`, `setRequires`, `setDevRequires`, `setConflicts`, `setReplaces`, `setProvides`, `setSuggests`, `setStabilityFlags`, `setScripts`, `setReferences`, `setAliases` 5, `setRepositories`, `setDistUrl`, `setDistType`, `setDistSha1Checksum`, `setTargetDir`, `setInstallationSource`, `setSourceReference`, … | 10 | Mirror. Dirty fields go up in the next sync. | 2 (root, autoload, extra, binaries), 5 (the rest) |
+| Setters, in place: `setAutoload` 7, `setDevAutoload`, `setExtra` 3, `setBinaries`, `setRequires`, `setDevRequires`, `setConflicts`, `setReplaces`, `setProvides`, `setSuggests`, `setStabilityFlags`, `setScripts`, `setReferences`, `setAliases` 5, `setRepositories`, `setDistUrl`, `setDistType`, `setDistSha1Checksum`, `setTargetDir`, `setInstallationSource`, `setSourceReference`, … | 10 | Mirror. On a Go-owned package each setter is an RPC (`pkg.<setter>`) that runs maestro's setter, whose new state comes back with the reply (§5.3); on a PHP-born package it sets the field. | 2 (all of them) |
 | `AliasPackage`, `CompleteAliasPackage`, `RootAliasPackage` (`getAliasOf` 4, `instanceof`) | 5 | Mirror (the alias holds a handle to its target) | 2 |
 | `Package`, `CompletePackage`, `RootPackage` (`new`, `extends Package` by civicrm, public `$id`) | 5 | Mirror; PHP-born objects register lazily (§5.3) | 2 (read), 5 (new or extend) |
 | `BasePackage` constants (`STABILITY_*`, `$stabilities`, `SUPPORTED_LINK_TYPES`), `packageNameToRegexp`, `packageNamesToRegexp` | 3 | PHP | 2 |
@@ -234,7 +234,7 @@ them, and refusing them is acceptable elsewhere.
 | Symbol | Used by | Backing | Ph |
 | --- | --- | --- | --- |
 | `RepositoryManager`: `getLocalRepository` 23, `getRepositories` 3, `findPackage` 8, `findPackages`, `createRepository`, `addRepository` 2, `prependRepository`, `setRepositoryClass`, `setLocalRepository` | 24 | Proxy | 2 (local), 5 (the rest) |
-| Local repository (`InstalledFilesystemRepository`): `getPackages` 15, `getCanonicalPackages` 7, `findPackage`, `findPackages`, `hasPackage`, `count`, `search`, `getDevPackageNames`, `setDevPackageNames`, `getDevMode`, `isFresh`, `addPackage` 3, `removePackage` 2, `write` | 23 | `ArrayRepository`-shaped PHP class holding the **package mirror list** (queries run in PHP with vendored semver, exactly as Composer's ArrayRepository does). Mutators are RPC; Go then re-syncs the list. | 2 (read), 5 (write) |
+| Local repository (`InstalledFilesystemRepository`): `getPackages` 15, `getCanonicalPackages` 7, `findPackage`, `findPackages`, `hasPackage`, `count`, `search`, `getDevPackageNames`, `setDevPackageNames`, `getDevMode`, `isFresh`, `addPackage` 3, `removePackage` 2, `write` | 23 | Service proxy: every method of a Go-owned repository is an RPC (`repo.*`) to maestro's repository, so queries are Go's port (string constraints parsed by Go), and the packages come back as the same mirrors each time. A repository created in PHP (`new ArrayRepository`) keeps Composer's behaviour locally. | 2 (read and write) |
 | `ArrayRepository`, `InstalledArrayRepository`, `InstalledRepository` (`findPackagesWithReplacersAndProviders`, `getDependents`), `CompositeRepository`, `RootPackageRepository`, `PlatformRepository` (`new`, `PLATFORM_PACKAGE_REGEX`) | 1–3 each | PHP reimplementations over mirrors. `PlatformRepository` construction is an RPC (Go detects the platform). | 5 |
 | Remote repositories (`ComposerRepository`, VCS, …): `loadPackages`, `findPackage(s)`, `getPackages`, `search`, `getRepoName`, `getProviders` | 2 | RPC proxy. **Subclassing `ComposerRepository` is a Stub** (zaporylie's subclass is dead code on API 2). | 5 |
 | `RepositoryFactory::defaultRepos`, `defaultReposWithDefaultManager`, `manager` | 2 / 1 / 1 | RPC | 5 |
@@ -546,6 +546,23 @@ yields the same PHP object, so `===` and `spl_object_id` stay stable.
   `rpc.DeltaMirror` (changed fields since a revision). PHP-born mirrors are
   built by the `rpc.MirrorFactory` registered for their base.
 
+**How phase 2 uses it.** The package, event, operation, IO and
+PluginManager mirrors never send dirty fields: their setters are RPCs
+(`pkg.setExtra`, `event.stopPropagation`, `pm.disablePlugins`, ...) that
+run maestro's own setter, so Composer's setter semantics (an alias
+forwarding to its package, `setSourceDistReferences` touching three
+fields, `setRepository` refusing a second repository) are maestro's
+code; the changed `Rev` sends the new snapshot with the reply, before the
+setter returns in PHP. Dirty-field sync remains for mirrors whose setters
+are plain fields (tests use it). Snapshots are always full: the lazy tiers
+below are not implemented, as no phase-2 path sends large package lists
+(PRE_POOL_CREATE is phase 5). Service objects (Composer, Config, the
+managers, repositories, the Locker, the AutoloadGenerator) are not mirrors:
+PHP holds an instance of their Composer class built without its
+constructor, whose methods are RPCs; a stub class's methods throw
+UnsupportedApiException. Go objects that are not maestro's own types are
+wrapped once per object (`bridge.go`), so identity holds.
+
 At **every message boundary**:
 
 - **Go → PHP** (a request or a response): for each handle PHP knows whose
@@ -558,10 +575,16 @@ At **every message boundary**:
 
 The same blocks carry other process state:
 
-- **env**: PHP's `getenv()` diffed against the last state sent, and Go's
-  `os.Environ()` diffed likewise. The receiver applies changes with
-  `putenv`. The PHP side also updates `$_SERVER` and `$_ENV`, as
-  `Platform::putEnv` does.
+- **env**: Go's `os.Environ()`, and on the PHP side the environment the
+  processes Composer starts get: Symfony Process's default environment,
+  the variables `getenv()` and `$_SERVER` both have, with `$_ENV`'s on
+  top. Each is diffed against the last state sent. So
+  `Platform::putEnv()` (which sets `$_SERVER` and `$_ENV` too) in PHP code
+  reaches maestro and every process it starts, while a plain `putenv()` of
+  a new variable does not, exactly as it reaches no process Composer
+  starts (the e2e suite checks this against Composer). The receiver
+  applies changes with `putenv`; the PHP side also updates `$_SERVER` and
+  `$_ENV`, as `Platform::putEnv` does.
 - **cwd**: `getcwd()` and `os.Getwd()`. The receiver calls `chdir`.
 - **statics**: `Composer::$runningCommand`, `$runningOperation`,
   `ProcessExecutor` timeout, `Platform` static caches that Composer exposes.
@@ -569,8 +592,8 @@ The same blocks carry other process state:
 Scanning is O(known handles) per transfer. That is a few hundred integer
 compares in normal runs and about 10k during PRE_POOL_CREATE, which is cheap.
 
-**Lazy snapshot tiers (packages).** A package mirror arrives in one of two
-tiers:
+**Lazy snapshot tiers (packages, not implemented yet).** A package mirror
+would arrive in one of two tiers:
 
 - **core**: id, class, name, prettyName, version, prettyVersion, type,
   stability, isDev, alias target handle, repository handle.
@@ -582,7 +605,13 @@ the root package, and the operation packages of package events. Go sends
 core snapshots for PRE_POOL_CREATE package lists, which can hold more than
 10k packages.
 
-**PHP-born data objects.** `new Package('dummy/pkg', '1.0.0.0', '1.0.0')`
+**PHP-born data objects.** Phase 2 adopts PHP-born events this way (a
+plugin's Event subclass passed to `dispatch()`: Go builds an
+`eventdispatcher.PHPEvent` from its snapshot, and listeners get the very
+same object back); packages and operations created in PHP stay PHP's
+until phase 5.
+
+`new Package('dummy/pkg', '1.0.0.0', '1.0.0')`
 stays purely local. composer/installers creates one on every `supports()`
 call and never sends it. When such an object first crosses to Go (in a
 param, a return value or a setter argument), the codec sends its class and
@@ -662,7 +691,17 @@ PHP-side steps.
 2. On every `FilesystemRepository.Write` with `dumpVersions`, Go sends
    `iv.reload {data, selfDir}`. The shim calls `InstalledVersions::reload`
    and sets the private `selfDir` and `installedIsLocalDir`, as Composer
-   does. If PHP is not running, Go records only the latest data.
+   does. If PHP is not running, Go records only the latest data (which
+   then wins over the first point's at boot: `boot`'s `ivPending`).
+   `composer.Runtime.SetInstalledVersionsSink` receives the data with the
+   repository's directory, the selfDir.
+
+**The PHP side** (`Maestro\Shim\Plugins`): `plugin.load` gets the
+manager (the PHP PluginManager mirror, whose composer, io, globalComposer,
+disablePlugins and runningInGlobalDir properties Go fills), the package,
+the classes, the loader (`{vendorDir, psr0, psr4, classmap}`: the
+autoloads Go parsed and the class map Go scanned with createLoader's
+warnings) and the `files` to require; it returns the registered objects.
 
 ### 5.5 Event dispatch
 
@@ -693,10 +732,26 @@ From PHP:
 
 | Listener | Go action |
 | --- | --- |
-| PHP callable | `makeAutoloader` step (below), then `listener.call {listener, event, frames}`. PHP checks `is_callable`. If it is not callable, Go throws `RuntimeException("Subscriber X::m for event E is not callable, make sure the function is defined and public")`. Before the call, Go writes the VERBOSE line `> event: Class->method`. The return value `false` maps to 1, anything else to 0. |
+| PHP callable | `makeAutoloader` step (below), then `listener.call {h, event}`. PHP checks `is_callable`. If it is not callable, Go throws `RuntimeException("Subscriber X::m for event E is not callable, make sure the function is defined and public")`. Before the call, Go writes the VERBOSE line `> event: Class->method`. The return value `false` maps to 1, anything else to 0. |
 | `@script` / `@composer …` / `@php …` / `@putenv …` / shell | Pure Go, as ported. `@composer` runs `<php> <COMPOSER_BINARY> …`, which is the launcher stub (D13). |
 | PHP-callable script `Class::method` | If `class` is in the **native table**, run it in Go and start no PHP. The table holds exactly the static methods of Composer's own classes that only change Composer state; today that is `Composer\Config::disableProcessTimeout`. Otherwise, `makeAutoloader` then `script.php {class, method, event}`. PHP returns `notAutoloadable`, `notCallable` or `ok + returnFalse`. Go prints the matching `Class … is not autoloadable` or `Method … is not callable` warning at QUIET. The `> Class::method` echo (`executeEventPhpScript`) is written by Go before the call. An exception becomes "Script %s handling the %s event terminated with an exception" and is rethrown. |
 | Command-class script | `makeAutoloader`, then `script.commandClass {class, eventName, input, output}`. PHP checks `class_exists` and `is_a(Command)`, Go checks the reserved name (with Go's warnings), then PHP builds the vendored Symfony `Application` exactly as `EventDispatcher.php` lines 345–374 do and runs it. The output is the ConsoleIO's `$output` mirror. |
+
+**The `before` hook.** Composer writes the "> ..." line after its PHP
+checks (`class_exists`, `is_callable`) and right before the PHP code
+runs, and checks the reserved event names of command classes there too.
+So each of `listener.call`, `script.php` and `script.commandClass` calls
+maestro back with `dispatch.before` once its checks passed; Go writes the
+line (or vetoes the command class) there. An exception after that hook
+was thrown by the PHP code ("Script %s handling the %s event terminated
+with an exception"); PHP ending (exit(), a fatal error) is not reported,
+as Composer's process ends right there.
+
+**PHP callables** are registered by handle: a closure or invokable object
+as itself, an array callable `[$objOrClass, 'm']` as a holder object per
+distinct value (equal arrays share it, so `removeListener($callable)`
+matches as `===` does), with the object's handle for
+`removeListener($object)`.
 
 **`makeAutoloader`.** This is a Go port: the callable key, the
 `previousListeners` set, the hash over `name/version` of the canonical
@@ -1352,18 +1407,19 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 | --- | --- | --- |
 | `boot` | `argv`, `server` (`SCRIPT_NAME`, …), `io` (handle, kind, state; `null` until phase 2), `composerVersion` (`"Class::CONST" => value`, a self-test), `ivPending` (phase 2), `require` (files to require last; tests). The cwd and statics come in the sync block: the child starts in maestro's cwd. | `null` |
 | `shutdown` | `code` | never returns (the child exits) |
-| `plugin.load` | `composer`, `package`, `classes[]`, `loader` (`{psr0, psr4, classmap, files, vendorDir}`), `isGlobal`, `legacyInstaller`, `failOnMissing`, `runningInGlobalDir`, `frames` | `{registered: [{h, class, kind: "plugin"\|"installer"}]}` |
-| `plugin.deactivate` / `plugin.uninstall` | `package`, `objects[]` (handles) | `null` |
+| `plugin.load` | `pm`, `package`, `classes[]`, `loader` (`{vendorDir, psr0, psr4, classmap}`), `files` (identifier => path), `isGlobal`, `legacyInstaller`, `failOnMissing`, `runningInGlobalDir` | `{registered: [object, …]}` |
+| `plugin.deactivate` / `plugin.uninstall` | `pm`, `objects[]` | `null` |
 | `capability.commands` | `composer`, `io` | `[descriptor…]` (§5.7) |
-| `listener.call` | `listener`, `event`, `frames` | `{callable: bool, ret: <value>}` |
-| `script.php` | `class`, `method`, `event`, `frames` | `{status: "ok"\|"notAutoloadable"\|"notCallable", returnedFalse: bool}` |
-| `script.commandClass` | `class`, `event`, `input` (string), `output` | `{status: "ok"\|"notAutoloadable"\|"notCommand", code: int}` |
+| `listener.call` | `h` (the callable or its holder), `event` | `{status: "ok"\|"notCallable", returnedFalse: bool}` |
+| `script.php` | `class`, `method`, `event` | `{status: "ok"\|"notAutoloadable"\|"notCallable", returnedFalse: bool}` |
+| `script.commandClass` | `class`, `event`, `input` (string), `verbosity`, `decorated` | `{status: "ok"\|"notAutoloadable"\|"notCommand"\|"skipped", code: int}` |
+| `callable.invoke` | `callable`, `args[]` | value (a validator of `askAndValidate`) |
 | `installer.call` | `h`, `method`, `args[]`, `frames` | value (`null`, string, bool, or promise handle) |
 | `promise.wait` | `h` | `{resolved: <value>}` or err |
 | `command.describe` | `h` | descriptor |
 | `command.run` | `h`, `tokens[]`, `interactive`, `frames` | `int`, or a `ret` with `exit` |
 | `object.call` | `h`, `method`, `args[]` | value. A generic call on a PHP-owned object, used by Go proxies of PHP IO/output objects, validators, closures and user repositories. Only methods of the interface the proxy implements may be called. |
-| `autoload.install` | `loader` | `null` |
+| `autoload.install` | `vendorDir`, `psr0`, `psr4`, `classmap` | `null` |
 | `dispatch.begin` / `dispatch.end` | `depth` | `null` |
 | `iv.reload` | `data`, `selfDir?` | `null` |
 | `ping` | none | `null` (handshake and health check in tests) |
@@ -1378,13 +1434,15 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | Namespace | Methods |
 | --- | --- |
 | `hello` | First frame from PHP: `{proto: 1, token?, phpVersion, phpBinary, sapi, pid}` |
+| `dispatch.before` | The `before` hook of `listener.call`, `script.php` and `script.commandClass` (§5.5); returns whether to go on |
 | `composer.*` | `get` (`what`: package\|config\|rm\|im\|dm\|ed\|pm\|locker\|ag\|loop\|archive), `set*`, `isGlobal` |
 | `config.*` | `get` (key, flags), `all`, `raw`, `has`, `merge`, `getRepositories`, `getConfigSource`, `getAuthConfigSource`, `setConfigSource`, `prohibitUrlByConfig`, `disableProcessTimeout`, `getBaseDir` |
 | `cfgsrc.*` | `JsonConfigSource` methods |
 | `io.*` | every `IOInterface` method, plus `state` |
 | `ed.*` | `addListener`, `removeListener`, `dispatch`, `dispatchScript`, `dispatchPackageEvent`, `dispatchInstallerEvent`, `hasEventListeners`, `setRunScripts`, `new` |
 | `pm.*` | `registerPackage`, `deactivatePackage`, `uninstallPackage`, `isPluginAllowed`, `arePluginsDisabled`, `disablePlugins`, `getRegisteredPlugins`, `getGlobalComposer`, `setRunningInGlobalDir` |
-| `pkg.*` | `load` (full tier for a handle list), `register` (PHP-born → Go) |
+| `pkg.*` | every setter of the package classes (`setExtra`, `setAutoload`, `replaceVersion`, …), `getRepository`, `getSourceUrls`, `getDistUrls`, `urls` (ComposerMirror URLs of a PHP-born package); `load` and `register` with the lazy tiers and PHP-born packages |
+| `event.*` | `stopPropagation`, `setOriginatingEvent` |
 | `repo.*` | `packages` (handles plus snapshots), `findPackage`, `findPackages`, `search`, `loadPackages`, `getProviders`, `addPackage`, `removePackage`, `write`, `reload`, `setDevPackageNames`, `getDevPackageNames`, `getDevMode`, `isFresh`, `getRepoName`, `count`, `new` (array/installed/composite/platform/root) |
 | `rm.*` | `getLocalRepository`, `getRepositories`, `findPackage`, `findPackages`, `createRepository`, `addRepository`, `prependRepository`, `setRepositoryClass`, `setLocalRepository` |
 | `im.*` | `getInstallPath`, `addInstaller`, `removeInstaller`, `getInstaller`, `isPackageInstalled`, `install`, `update`, `uninstall`, `execute`, `ensureBinariesPresence`, `disablePlugins`, `setOutputProgress`, `notifyInstalls` |
@@ -1392,9 +1450,9 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `dm.*`, `downloader.*` | DownloadManager and downloader methods (promises are returned as handles) |
 | `http.*` | HttpDownloader `get`, `add`, `copy`, `addCopy`, `wait`, `getOptions`, `setOptions`, `new`; RemoteFilesystem |
 | `loop.*` | `wait` (promise handles), `getHttpDownloader`, `getProcessExecutor`, `new` |
-| `proc.*` | `execute` (cmd string\|array, cwd, capture), `executeTty`, `executeAsync`, `getErrorOutput`, `setTimeout`, `getTimeout` |
-| `fs.*` | every `Util\Filesystem` method |
-| `json.*` | `read`, `write`, `exists`, `validateSchema`, `encode`, `parseJson`, `manipulate` (method, contents, args) |
+| `proc.*` | `execute` (cmd string\|array, cwd, io, capture, tty: the PHP ProcessExecutor keeps its error output), `splitLines`, `escape`, `requiresGitDirEnv`; `executeAsync` (phase 5); the timeout is a synced static |
+| `fs.*` | every `Util\Filesystem` method (no receiver: maestro's Filesystem works on the shared working directory) |
+| `json.*` | `new` (the maestro peer of a PHP JsonFile, which keeps read()'s indentation), `read`, `write`, `validateSchema`, `validateJsonSchema`, `validateSyntax`, `encode`, `parseJson`, `detectIndenting`, `manipulate` (method, contents, args; phase 5) |
 | `locker.*` | `isLocked`, `isFresh`, `getLockData`, `getLockedRepository`, `getContentHash`, `getPlatformRequirements`, `setLockData`, `new`, … |
 | `ag.*` | `buildPackageMap`, `parseAutoloads`, `createLoader` (returns loader contents), `dump`, setters, `new` |
 | `vp.*` | `parseNameVersionPairs`, `isUpgrade`, `normalizeStability` (the Composer-specific VersionParser methods) |
@@ -1584,6 +1642,19 @@ stubbedev and Laravel scripts.
   package-versions-deprecated, tbachert/spi, drupal events, plus the
   scenario fixtures (§9.2).
 
+Status: done. Beyond the list, the phase also has `BaseCommand` for
+commands run in PHP (pest's post-autoload-dump runs its command with
+`setComposer()`), `CommandEvent`/`PreCommandRunEvent` without their
+input and output (drupal's COMMAND listener reads the command name),
+command-class scripts (`script.commandClass`), the PHP-born events of
+`dispatch()`, and the repository proxies' write methods. PluginInstaller
+needs no PHP peer yet: the Go PluginInstaller calls the Go manager.
+The e2e fixtures are `cmd/maestro/testdata/e2e/plugin-*`, run by
+`TestE2EPlugins` (cmd/maestro/e2e_plugins_test.go, MAESTRO_E2E=1, on
+TestE2E's runner); plugin-api, plugin-runtime and plugin-global are
+local, the others come from Packagist at the versions their committed
+composer.lock pins.
+
 **Phase 3: custom installers.**
 - `InstallerInterface`, the base classes and the Go peers (vtable, override
   sets).
@@ -1685,7 +1756,9 @@ name the exact method, so these reports are actionable.
   - `exit(3)` mid-listener gives maestro exit 3;
   - a fatal error gives 255 and the PHP message;
   - a shutdown function runs after Go's last output;
-  - `putenv` in a listener is visible to a following shell script;
+  - `Platform::putEnv` in a listener is visible to a following shell
+    script, a plain `putenv` of a new variable is not (as in Composer,
+    whose child processes get Symfony Process's default environment);
   - `chdir` in a listener affects `Filesystem::isAbsolutePath` resolution.
 - **PHP version matrix.** CI runs the shim tests on PHP 7.2, 7.4, 8.1, 8.4
   and 8.5 (nix provides them).

@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
@@ -63,6 +65,13 @@ type Options struct {
 	// Require are PHP files the shim requires at the end of `boot`
 	// (tests register PHP handlers this way).
 	Require []string
+	// InstalledVersions returns the installed.php data
+	// Factory::createComposer loaded into Composer\InstalledVersions before
+	// PHP started (composer.Runtime.InstalledVersions); nil for none.
+	InstalledVersions func() *php.Array
+	// PlatformPHPVersion is PlatformRepository::getPlatformPhpVersion()
+	// ("" for null): composer.Runtime.PlatformPHPVersion.
+	PlatformPHPVersion func() string
 }
 
 // Info is what the child reported in its handshake.
@@ -86,6 +95,8 @@ type Runtime struct {
 	startErr error
 	info     Info
 	restart  *xdebugRestart
+	// planned is set once the xdebug restart was planned (planRestart).
+	planned bool
 
 	handlers  map[string]rpc.Handler
 	factories map[string]rpc.MirrorFactory
@@ -93,6 +104,20 @@ type Runtime struct {
 
 	shimMu  sync.Mutex
 	shimDir string
+
+	// bridge holds the Go objects of the Composer API crossing to PHP.
+	bridge *bridge
+	// bootIO is the IO PHP's ErrorHandler reports through (the IO of
+	// whatever started PHP).
+	bootIO io.IO
+	// befores are the dispatch.before hooks of the calls into PHP code
+	// in progress, innermost last.
+	befores []*beforeFrame
+	// What waits for PHP to start: dispatch brackets opened, the class
+	// loader of makeAutoloader and InstalledVersions' latest reload.
+	pendingBegins []int
+	pendingLoader *eventdispatcher.LoaderContents
+	pendingIV     *php.Array
 }
 
 // New returns a Runtime; it starts nothing.
@@ -113,12 +138,16 @@ func New(opts Options) *Runtime {
 	opts.Stdout = cmp.Or(opts.Stdout, os.Stdout)
 	opts.Stderr = cmp.Or(opts.Stderr, os.Stderr)
 
-	return &Runtime{
+	r := &Runtime{
 		opts:      opts,
 		handlers:  map[string]rpc.Handler{},
 		factories: map[string]rpc.MirrorFactory{},
 		tags:      map[string]rpc.TagDecoder{},
+		bridge:    newBridge(),
 	}
+	r.registerAPI()
+
+	return r
 }
 
 // DefaultStatics are Composer's statics as this process holds them:
@@ -243,12 +272,8 @@ func (r *Runtime) start(purpose string) (*rpc.Conn, error) {
 		return nil, err
 	}
 
-	if r.opts.Snapshot != nil {
-		raw, err := r.opts.Snapshot()
-		if err != nil {
-			return nil, err
-		}
-		r.restart = planXdebugRestart(raw, r.opts.Getenv)
+	if err := r.planRestart(); err != nil {
+		return nil, err
 	}
 
 	var args []string
@@ -380,6 +405,23 @@ func (r *Runtime) bootArgs() *php.Array {
 		),
 		"io", nil,
 	)
+
+	r.mu.Lock()
+	bootIO, iv := r.bootIO, r.pendingIV
+	r.pendingIV = nil
+	r.mu.Unlock()
+
+	if bootIO != nil {
+		a.Set("io", r.ioObject(bootIO))
+	}
+	if iv == nil && r.opts.InstalledVersions != nil {
+		if data := r.opts.InstalledVersions(); data != nil {
+			iv = php.ArrayOf("data", data)
+		}
+	}
+	if iv != nil {
+		a.Set("ivPending", iv)
+	}
 	if len(r.opts.Require) > 0 {
 		a.Set("require", php.StringList(r.opts.Require))
 	}
@@ -465,6 +507,21 @@ func (r *Runtime) Close() {
 		c.Wait()
 	}
 	r.removeTmpIni()
+}
+
+// planRestart plans bin/composer's xdebug restart for the child, once.
+func (r *Runtime) planRestart() error {
+	if r.planned || r.opts.Snapshot == nil {
+		return nil
+	}
+	raw, err := r.opts.Snapshot()
+	if err != nil {
+		return err
+	}
+	r.restart = planXdebugRestart(raw, r.opts.Getenv)
+	r.planned = true
+
+	return nil
 }
 
 func (r *Runtime) removeTmpIni() {

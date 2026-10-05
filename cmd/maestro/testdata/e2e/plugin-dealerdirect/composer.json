@@ -1,0 +1,14 @@
+{
+    "name": "maestro-test/dealerdirect",
+    "description": "dealerdirect/phpcodesniffer-composer-installer: phpcs's installed_paths, set by running phpcs.",
+    "require": {
+        "dealerdirect/phpcodesniffer-composer-installer": "1.2.1",
+        "squizlabs/php_codesniffer": "4.0.4",
+        "slevomat/coding-standard": "8.31.1"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}

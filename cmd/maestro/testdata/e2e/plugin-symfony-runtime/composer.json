@@ -1,0 +1,17 @@
+{
+    "name": "maestro-test/symfony-runtime",
+    "description": "symfony/runtime: vendor/autoload_runtime.php, written on POST_AUTOLOAD_DUMP.",
+    "require": {
+        "symfony/runtime": "8.1.0"
+    },
+    "extra": {
+        "runtime": {
+            "dotenv_path": "config/.env"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "symfony/runtime": true
+        }
+    }
+}

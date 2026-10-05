@@ -122,6 +122,10 @@ require __DIR__.'/src/Maestro/Shim/Autoloader.php';
 // bin/composer registers the error handler without an IO first.
 \Composer\Util\ErrorHandler::register();
 
+// The Composer API's mirror families, value tags and methods, before the
+// first message (boot's IO is a mirror).
+\Maestro\Shim\Api::register();
+
 // 7. to 9.: handshake, `boot` (which registers the error handler with the
 // IO), then maestro's calls.
 \Maestro\Shim\Rpc::connect($maestroIpc);

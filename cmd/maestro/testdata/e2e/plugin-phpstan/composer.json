@@ -1,0 +1,15 @@
+{
+    "name": "maestro-test/phpstan",
+    "description": "phpstan/extension-installer with two extensions: its GeneratedConfig.php.",
+    "require": {
+        "phpstan/extension-installer": "1.4.3",
+        "phpstan/phpstan": "2.2.17",
+        "phpstan/phpstan-strict-rules": "2.0.12",
+        "phpstan/phpstan-deprecation-rules": "2.0.5"
+    },
+    "config": {
+        "allow-plugins": {
+            "phpstan/extension-installer": true
+        }
+    }
+}

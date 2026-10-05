@@ -1,0 +1,281 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "9c358c78699389b61026a9864ff0d8cc",
+    "packages": [
+        {
+            "name": "stubbedev/atlassian-mcp",
+            "version": "v0.5.24",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stubbedev/atlassian-mcp.git",
+                "reference": "263d559475d892f3f5682517eb6b807677b5b2c9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stubbedev/atlassian-mcp/zipball/263d559475d892f3f5682517eb6b807677b5b2c9",
+                "reference": "263d559475d892f3f5682517eb6b807677b5b2c9",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": ">=8.1"
+            },
+            "suggest": {
+                "ext-curl": "Downloads the binary; without it allow_url_fopen + openssl are used",
+                "ext-pcntl": "Lets bin/atlassian-mcp exec the binary in place instead of running it as a child"
+            },
+            "bin": [
+                "bin/atlassian-mcp"
+            ],
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Stubbedev\\AtlassianMcp\\ComposerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Stubbedev\\AtlassianMcp\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "MCP server for self-hosted Jira and Bitbucket (Go, distributed as a prebuilt binary)",
+            "homepage": "https://github.com/stubbedev/atlassian-mcp#readme",
+            "keywords": [
+                "atlassian",
+                "bitbucket",
+                "jira",
+                "mcp",
+                "model-context-protocol"
+            ],
+            "support": {
+                "issues": "https://github.com/stubbedev/atlassian-mcp/issues",
+                "source": "https://github.com/stubbedev/atlassian-mcp"
+            },
+            "time": "2026-10-05T06:20:35+00:00"
+        },
+        {
+            "name": "stubbedev/ds-mcp",
+            "version": "v0.3.15",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stubbedev/ds-mcp.git",
+                "reference": "03081b1a98437de3473e70ab5f2eab0ef3383756"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stubbedev/ds-mcp/zipball/03081b1a98437de3473e70ab5f2eab0ef3383756",
+                "reference": "03081b1a98437de3473e70ab5f2eab0ef3383756",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": ">=8.1"
+            },
+            "suggest": {
+                "ext-curl": "Downloads the binary; without it allow_url_fopen + openssl are used",
+                "ext-pcntl": "Lets vendor/bin/ds-mcp exec the binary in place instead of running it as a child",
+                "ext-zip": "Needed on Windows to unpack the release archive"
+            },
+            "bin": [
+                "packaging/composer/ds-mcp"
+            ],
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Stubbedev\\DsMcp\\ComposerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Stubbedev\\DsMcp\\": "packaging/composer/src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "DataStore MCP — one MCP server for MySQL/MariaDB, PostgreSQL, SQLite, DuckDB, SQL Server, ClickHouse, MongoDB, Redis/Valkey, Elasticsearch/OpenSearch and Qdrant (Rust, distributed as a prebuilt binary)",
+            "homepage": "https://github.com/stubbedev/ds-mcp#readme",
+            "keywords": [
+                "database",
+                "mcp",
+                "model-context-protocol",
+                "mongodb",
+                "mysql",
+                "postgres",
+                "redis",
+                "sqlite"
+            ],
+            "support": {
+                "issues": "https://github.com/stubbedev/ds-mcp/issues",
+                "source": "https://github.com/stubbedev/ds-mcp"
+            },
+            "time": "2026-10-05T07:00:51+00:00"
+        },
+        {
+            "name": "stubbedev/jenkins-mcp",
+            "version": "v0.2.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stubbedev/jenkins-mcp.git",
+                "reference": "4e3958f45452d47cdf318167d7cbbb3028a1f638"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stubbedev/jenkins-mcp/zipball/4e3958f45452d47cdf318167d7cbbb3028a1f638",
+                "reference": "4e3958f45452d47cdf318167d7cbbb3028a1f638",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": ">=8.1"
+            },
+            "suggest": {
+                "ext-curl": "Downloads the binary on first run; without it allow_url_fopen + openssl are used",
+                "ext-pcntl": "Lets bin/jenkins-mcp exec the binary in place instead of running it as a child"
+            },
+            "bin": [
+                "bin/jenkins-mcp"
+            ],
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Stubbedev\\JenkinsMcp\\ComposerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Stubbedev\\JenkinsMcp\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "MCP server for Jenkins build status and logs (Go, distributed as a prebuilt binary)",
+            "homepage": "https://github.com/stubbedev/jenkins-mcp#readme",
+            "keywords": [
+                "ci",
+                "jenkins",
+                "mcp",
+                "model-context-protocol"
+            ],
+            "support": {
+                "issues": "https://github.com/stubbedev/jenkins-mcp/issues",
+                "source": "https://github.com/stubbedev/jenkins-mcp"
+            },
+            "time": "2026-10-05T06:57:49+00:00"
+        },
+        {
+            "name": "stubbedev/laravel-dev-mcp",
+            "version": "v0.0.15",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stubbedev/laravel-dev-mcp.git",
+                "reference": "ddfdb14d023c2bc48c735464c4a6207c64f360ee"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stubbedev/laravel-dev-mcp/zipball/ddfdb14d023c2bc48c735464c4a6207c64f360ee",
+                "reference": "ddfdb14d023c2bc48c735464c4a6207c64f360ee",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": ">=8.1"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Stubbedev\\LaravelDevMcp\\ComposerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Stubbedev\\LaravelDevMcp\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "MCP server for local Laravel development (Go, distributed as a prebuilt binary)",
+            "homepage": "https://github.com/stubbedev/laravel-dev-mcp",
+            "keywords": [
+                "debugging",
+                "developer-tools",
+                "laravel",
+                "mcp",
+                "telescope"
+            ],
+            "support": {
+                "issues": "https://github.com/stubbedev/laravel-dev-mcp/issues",
+                "source": "https://github.com/stubbedev/laravel-dev-mcp"
+            },
+            "time": "2026-10-02T06:51:31+00:00"
+        },
+        {
+            "name": "stubbedev/sentry-mcp",
+            "version": "v0.2.9",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stubbedev/sentry-mcp.git",
+                "reference": "131df4a213988ee273018f7311e3209ab85ee340"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stubbedev/sentry-mcp/zipball/131df4a213988ee273018f7311e3209ab85ee340",
+                "reference": "131df4a213988ee273018f7311e3209ab85ee340",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "ext-openssl": "*",
+                "php": ">=8.1"
+            },
+            "suggest": {
+                "ext-curl": "Downloads the binary; without it allow_url_fopen + openssl are used",
+                "ext-pcntl": "Lets bin/sentry-mcp replace itself with the native binary (execve) instead of keeping an idle PHP process for the session"
+            },
+            "bin": [
+                "bin/sentry-mcp"
+            ],
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Stubbedev\\SentryMcp\\ComposerPlugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Stubbedev\\SentryMcp\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "MCP server for self-hosted Sentry (Go, distributed as a prebuilt binary)",
+            "homepage": "https://github.com/stubbedev/sentry-mcp",
+            "keywords": [
+                "ai",
+                "llm",
+                "mcp",
+                "model-context-protocol",
+                "sentry"
+            ],
+            "support": {
+                "issues": "https://github.com/stubbedev/sentry-mcp/issues",
+                "source": "https://github.com/stubbedev/sentry-mcp"
+            },
+            "time": "2026-10-05T06:58:02+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

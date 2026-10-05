@@ -1,0 +1,5 @@
+{
+    "name": "maestro-test/tool-lib",
+    "version": "0.1.0",
+    "bin": ["bin/tool"]
+}

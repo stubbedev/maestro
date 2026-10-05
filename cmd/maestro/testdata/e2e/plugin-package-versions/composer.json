@@ -1,0 +1,13 @@
+{
+    "name": "maestro-test/package-versions",
+    "description": "composer/package-versions-deprecated: Versions.php, written by its POST_AUTOLOAD_DUMP listener.",
+    "require": {
+        "composer/package-versions-deprecated": "1.11.99.5",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true
+        }
+    }
+}

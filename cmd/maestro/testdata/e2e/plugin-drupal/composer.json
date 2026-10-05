@@ -1,0 +1,30 @@
+{
+    "name": "maestro-test/drupal",
+    "description": "drupal/core-composer-scaffold: scaffolding on POST_*_CMD, its pre/post-drupal-scaffold-cmd scripts and command events.",
+    "require": {
+        "drupal/core-composer-scaffold": "11.4.8"
+    },
+    "extra": {
+        "drupal-scaffold": {
+            "locations": {
+                "web-root": "web/"
+            },
+            "file-mapping": {
+                "[web-root]/robots.txt": "assets/robots.txt",
+                "[project-root]/.editorconfig": {
+                    "mode": "append",
+                    "path": "assets/editorconfig.append"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "pre-drupal-scaffold-cmd": "echo 'about to scaffold'",
+        "post-drupal-scaffold-cmd": "echo 'scaffolded'"
+    },
+    "config": {
+        "allow-plugins": {
+            "drupal/core-composer-scaffold": true
+        }
+    }
+}

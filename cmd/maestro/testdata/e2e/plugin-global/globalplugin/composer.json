@@ -1,0 +1,14 @@
+{
+    "name": "maestro-test/global-plugin",
+    "version": "2.0.0",
+    "type": "composer-plugin",
+    "require": {
+        "composer-plugin-api": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"MaestroTest\\GlobalPlugin\\": "src/"}
+    },
+    "extra": {
+        "class": "MaestroTest\\GlobalPlugin\\Plugin"
+    }
+}

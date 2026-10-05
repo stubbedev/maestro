@@ -1,0 +1,8 @@
+{
+    "name": "maestro-test/global-project",
+    "description": "A project run with a plugin installed globally (in COMPOSER_HOME).",
+    "repositories": [
+        {"packagist.org": false}
+    ],
+    "require": {}
+}

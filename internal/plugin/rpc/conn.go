@@ -15,6 +15,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Handler serves a call PHP makes: it gets the decoded params and returns
@@ -524,6 +525,8 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 		previous = pe
 	} else if t, ok := errors.AsType[console.Throwable](err); ok {
 		class, code, previous = t.ThrowableClass(), t.ThrowableCode(), t.ThrowablePrevious()
+	} else if pc, ok := err.(util.PHPClasser); ok { //nolint:errorlint // the error itself names its class, as goErrorClass's.
+		class, code = pc.PHPClass()
 	} else if cl, cd, ok := goErrorClass(err); ok {
 		class, code = cl, cd
 	}

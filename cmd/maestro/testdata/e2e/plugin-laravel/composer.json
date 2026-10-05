@@ -1,0 +1,18 @@
+{
+    "name": "maestro-test/laravel-scripts",
+    "description": "Laravel's Illuminate\\Foundation\\ComposerScripts and Composer\\Config::disableProcessTimeout as PHP-callable scripts.",
+    "require": {
+        "laravel/framework": "13.34.0",
+        "league/csv": "9.28.0"
+    },
+    "autoload": {
+        "psr-4": {"App\\": "app/"}
+    },
+    "scripts": {
+        "post-autoload-dump": ["Illuminate\\Foundation\\ComposerScripts::postAutoloadDump"],
+        "post-update-cmd": ["Illuminate\\Foundation\\ComposerScripts::postUpdate"],
+        "post-install-cmd": ["Illuminate\\Foundation\\ComposerScripts::postInstall"],
+        "pre-package-uninstall": ["Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"],
+        "slow": ["Composer\\Config::disableProcessTimeout", "@php -r \"echo 'no timeout', PHP_EOL;\""]
+    }
+}

@@ -56,7 +56,7 @@ func TestShim_IndexIsCurrent(t *testing.T) {
 func TestShim_PinnedVersions(t *testing.T) {
 	for file, want := range map[string]string{
 		"stubs/Composer/Plugin/PluginInterface.php": "public const PLUGIN_API_VERSION = '" + repository.PluginAPIVersion + "';",
-		"stubs/Composer/Composer.php":               "public const VERSION = '" + repository.ComposerVersion + "';",
+		"src/Composer/Composer.php":                 "public const VERSION = '" + repository.ComposerVersion + "';",
 	} {
 		data, err := fs.ReadFile(shimFS(), file)
 		if err != nil {
@@ -66,7 +66,7 @@ func TestShim_PinnedVersions(t *testing.T) {
 			t.Errorf("%s does not contain %s", file, want)
 		}
 	}
-	data, _ := fs.ReadFile(shimFS(), "stubs/Composer/Composer.php")
+	data, _ := fs.ReadFile(shimFS(), "src/Composer/Composer.php")
 	if !strings.Contains(string(data), "public const RUNTIME_API_VERSION = '"+repository.RuntimeAPIVersion+"';") {
 		t.Error("Composer::RUNTIME_API_VERSION differs")
 	}

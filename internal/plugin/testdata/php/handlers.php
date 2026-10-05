@@ -207,12 +207,19 @@ Server::register('test.registerShutdown', function ($a) {
     });
 });
 
+// Platform::putEnv()/clearEnv() (getenv() and $_SERVER/$_ENV), and plain
+// putenv() calls (getenv() only).
 Server::register('test.putenv', function ($a) {
     foreach ($a['set'] as $name => $value) {
         putenv($name.'='.$value);
+        $_SERVER[$name] = $_ENV[$name] = $value;
     }
     foreach (isset($a['unset']) ? $a['unset'] : [] as $name) {
         putenv($name);
+        unset($_SERVER[$name], $_ENV[$name]);
+    }
+    foreach (isset($a['plain']) ? $a['plain'] : [] as $name => $value) {
+        putenv($name.'='.$value);
     }
 });
 
@@ -303,7 +310,7 @@ Server::register('test.closure', function ($a) {
 });
 
 Server::register('test.unsupported', function () {
-    return (new \Composer\Util\Filesystem())->normalizePath('/a');
+    return \Composer\Util\Url::sanitize('/a');
 });
 
 Server::register('test.classes', function ($a) {
@@ -355,6 +362,7 @@ Server::register('test.exitLeavingGrandchild', function ($a) {
 // the call fails in PHP, and the state still reaches maestro later.
 Server::register('test.unsendable', function ($a) {
     putenv($a['name'].'=pending');
+    $_SERVER[$a['name']] = 'pending';
     try {
         Rpc::call('test.never', fopen('php://memory', 'r'));
     } catch (\InvalidArgumentException $e) {
@@ -362,4 +370,99 @@ Server::register('test.unsendable', function ($a) {
     }
 
     return null;
+});
+
+// The plugin instances of a plugin manager: class and public properties.
+Server::register('test.plugins', function ($a) {
+    $out = [];
+    foreach ($a['pm']->getPlugins() as $key => $plugin) {
+        $out[] = ['key' => $key, 'class' => get_class($plugin), 'props' => get_object_vars($plugin)];
+    }
+
+    return $out;
+});
+
+// PluginInstallerTest's capability cases: a capable plugin whose
+// getCapabilities() returns $a['capabilities'] (or the CommandProvider
+// query of testCommandProviderCapability when $a['commands'] is set).
+Server::register('test.capability', function ($a) {
+    require_once __DIR__.'/../Plugin/Mock/Capability.php';
+    require_once __DIR__.'/../Plugin/Mock/CapablePluginInterface.php';
+    $pm = $a['pm'];
+
+    if (!empty($a['commands'])) {
+        $caps = $pm->getPluginCapabilities('Composer\Plugin\Capability\CommandProvider', ['composer' => $a['composer'], 'io' => $a['io']]);
+        $out = [];
+        foreach ($caps as $cap) {
+            $commands = $cap->getCommands();
+            $out[] = [
+                'provider' => $cap instanceof \Composer\Plugin\Capability\CommandProvider,
+                'commands' => count($commands),
+                'baseCommand' => $commands[0] instanceof \Composer\Command\BaseCommand,
+            ];
+        }
+
+        return $out;
+    }
+
+    $capabilities = $a['capabilities'];
+    $plugin = new class($capabilities) implements \Composer\Test\Plugin\Mock\CapablePluginInterface {
+        private $capabilities;
+
+        public function __construct($capabilities)
+        {
+            $this->capabilities = $capabilities;
+        }
+
+        public function getCapabilities()
+        {
+            return $this->capabilities;
+        }
+
+        public function activate(\Composer\Composer $composer, \Composer\IO\IOInterface $io): void
+        {
+        }
+
+        public function deactivate(\Composer\Composer $composer, \Composer\IO\IOInterface $io): void
+        {
+        }
+
+        public function uninstall(\Composer\Composer $composer, \Composer\IO\IOInterface $io): void
+        {
+        }
+    };
+    if (!empty($a['incapable'])) {
+        $plugin = new class() implements \Composer\Plugin\PluginInterface {
+            public function activate(\Composer\Composer $composer, \Composer\IO\IOInterface $io): void
+            {
+            }
+
+            public function deactivate(\Composer\Composer $composer, \Composer\IO\IOInterface $io): void
+            {
+            }
+
+            public function uninstall(\Composer\Composer $composer, \Composer\IO\IOInterface $io): void
+            {
+            }
+        };
+    }
+
+    $capability = $pm->getPluginCapability($plugin, $a['api'], isset($a['args']) ? $a['args'] : []);
+    if ($capability === null) {
+        return null;
+    }
+
+    return [
+        'class' => get_class($capability),
+        'api' => $capability instanceof \Composer\Plugin\Capability\Capability,
+        'argsOk' => $capability->args === ($a['args'] + ['plugin' => $plugin]),
+    ];
+});
+
+// Runs PHP test code: $a['code'] is a function body that gets $vars and
+// returns the result.
+Server::register('test.eval', function ($a) {
+    $f = eval('return function (array $vars) {'.$a['code'].'};');
+
+    return $f(isset($a['vars']) ? $a['vars'] : []);
 });

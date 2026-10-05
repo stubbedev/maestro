@@ -74,6 +74,12 @@ final class Server
         // Step 8.
         \Composer\Util\ErrorHandler::register(isset($a['io']) ? $a['io'] : null);
 
+        // InstalledVersions as Factory::createComposer() or the last
+        // FilesystemRepository::write() loaded it before PHP started.
+        if (isset($a['ivPending'])) {
+            Api::reloadInstalledVersions($a['ivPending']);
+        }
+
         // Files maestro has the shim load at boot (its tests' handlers).
         foreach (isset($a['require']) ? $a['require'] : [] as $file) {
             self::requireFile($file);

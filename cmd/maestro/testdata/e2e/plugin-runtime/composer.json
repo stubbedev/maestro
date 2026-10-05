@@ -1,0 +1,26 @@
+{
+    "name": "maestro-test/runtime-project",
+    "description": "PHP scripts exercising the plugin runtime: exit(), fatal errors, shutdown functions, putenv() and chdir().",
+    "repositories": [
+        {"packagist.org": false}
+    ],
+    "autoload": {
+        "psr-4": {"Project\\": "src/"}
+    },
+    "scripts": {
+        "env-and-cwd": ["Project\\Scripts::envAndCwd", "echo \"shell sees $MAESTRO_E2E_VAR in $(basename $(pwd))\"", "Project\\Scripts::afterChdir"],
+        "shutdown": "Project\\Scripts::shutdown",
+        "exit3": "Project\\Scripts::exit3",
+        "fatal": "Project\\Scripts::fatal",
+        "throws": "Project\\Scripts::throws",
+        "returns-false": "Project\\Scripts::returnsFalse",
+        "missing-class": "Missing\\Klass::run",
+        "missing-method": "Project\\Scripts::nope",
+        "process-timeout": ["Composer\\Config::disableProcessTimeout", "Project\\Scripts::timeout"],
+        "deprecation": "Project\\Scripts::deprecation",
+        "hello-command": "Project\\HelloCommand",
+        "pre-autoload-dump": "Project\\HelloCommand",
+        "missing-command": "Project\\MissingCommand",
+        "plain-command": "Project\\PlainCommand"
+    }
+}

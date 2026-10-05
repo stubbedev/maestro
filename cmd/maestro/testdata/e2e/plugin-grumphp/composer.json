@@ -1,0 +1,12 @@
+{
+    "name": "maestro-test/grumphp",
+    "description": "phpro/grumphp: its package events (git:init on install, git:deinit before its removal).",
+    "require-dev": {
+        "phpro/grumphp": "2.25.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "phpro/grumphp": true
+        }
+    }
+}

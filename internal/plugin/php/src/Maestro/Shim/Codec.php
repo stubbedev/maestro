@@ -36,11 +36,30 @@ final class Codec
     private static $tags = [];
 
     /**
+     * Encoders of objects that cross as values (links, constraints), by
+     * the class or interface they apply to, tried in registration order.
+     *
+     * @var array<string, callable(object): array>
+     */
+    private static $encoders = [];
+
+    /**
      * Registers the decoder of a value tag ("\0c" for instance).
      */
     public static function registerTag(string $key, callable $decoder): void
     {
         self::$tags[$key] = $decoder;
+    }
+
+    /**
+     * Registers the encoder of objects of $class (and its subclasses) that
+     * cross as a value tag instead of by handle.
+     *
+     * @param callable(object): array $encoder
+     */
+    public static function registerEncoder(string $class, callable $encoder): void
+    {
+        self::$encoders[$class] = $encoder;
     }
 
     /**
@@ -95,6 +114,11 @@ final class Codec
         if (is_object($value)) {
             if (get_class($value) === 'stdClass') {
                 return ["\0s" => self::encodeArray((array) $value)];
+            }
+            foreach (self::$encoders as $class => $encoder) {
+                if ($value instanceof $class) {
+                    return $encoder($value);
+                }
             }
 
             return Handles::encodeObject($value);

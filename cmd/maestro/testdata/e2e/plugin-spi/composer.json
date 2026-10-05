@@ -1,0 +1,20 @@
+{
+    "name": "maestro-test/spi",
+    "description": "tbachert/spi: the root package's autoload changed in place on PRE_AUTOLOAD_DUMP, and the generated service provider data.",
+    "require": {
+        "tbachert/spi": "1.0.5"
+    },
+    "autoload": {
+        "psr-4": {"Project\\": "src/"}
+    },
+    "extra": {
+        "spi": {
+            "Project\\Contract": ["Project\\Provider", "Project\\Missing"]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "tbachert/spi": true
+        }
+    }
+}

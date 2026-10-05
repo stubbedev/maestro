@@ -1,0 +1,589 @@
+// The Composer object graph's service methods (docs/PLUGINS.md §4.2, §4.5,
+// §4.7, §4.9, §6.6): `composer.*`, `config.*`, `factory.*`, `locker.*`,
+// `im.*` and `ag.*`.
+
+package plugin
+
+import (
+	"github.com/stubbedev/maestro/internal/autoload"
+	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/downloader"
+	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/locker"
+	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/archiver"
+	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/util/http"
+)
+
+// partialComposer returns the PartialComposer part of a Composer object
+// (receiver of the PartialComposer methods).
+func partialComposer(a args) (*composer.PartialComposer, error) {
+	switch v := serviceValue(a.at(0)).(type) {
+	case *composer.Composer:
+		return v.Partial(), nil
+	case *composer.PartialComposer:
+		return v, nil
+	}
+
+	return nil, a.errorf("param 0 is not a Composer instance maestro knows")
+}
+
+// serviceValue returns the Go object of a service param.
+func serviceValue(v any) any {
+	if s, ok := v.(*service); ok {
+		return s.v
+	}
+
+	return v
+}
+
+func (r *Runtime) registerComposer() {
+	partial := func(method string, fn func(c *composer.PartialComposer, a args) (any, error)) {
+		r.Handle("composer."+method, func(v any) (any, error) {
+			a := argsOf("composer."+method, v)
+			c, err := partialComposer(a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(c, a)
+		})
+	}
+	full := func(method string, fn func(c *composer.Composer, a args) (any, error)) {
+		r.Handle("composer."+method, func(v any) (any, error) {
+			a := argsOf("composer."+method, v)
+			c, err := receiver[*composer.Composer](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(c, a)
+		})
+	}
+
+	partial("getPackage", func(c *composer.PartialComposer, _ args) (any, error) { return r.value(c.Package()), nil })
+	partial("getConfig", func(c *composer.PartialComposer, _ args) (any, error) { return r.value(c.Config()), nil })
+	partial("getLoop", func(c *composer.PartialComposer, _ args) (any, error) { return r.value(c.Loop()), nil })
+	partial("getRepositoryManager", func(c *composer.PartialComposer, _ args) (any, error) {
+		return r.value(c.RepositoryManager()), nil
+	})
+	partial("getInstallationManager", func(c *composer.PartialComposer, _ args) (any, error) {
+		return r.value(c.InstallationManager()), nil
+	})
+	partial("getEventDispatcher", func(c *composer.PartialComposer, _ args) (any, error) {
+		return r.value(c.EventDispatcher()), nil
+	})
+	partial("setLoop", func(c *composer.PartialComposer, a args) (any, error) {
+		loop, err := param[*http.Loop](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetLoop(loop)
+
+		return nil, nil
+	})
+	partial("isGlobal", func(c *composer.PartialComposer, _ args) (any, error) { return c.IsGlobal(), nil })
+	partial("setGlobal", func(c *composer.PartialComposer, _ args) (any, error) { c.SetGlobal(); return nil, nil })
+	partial("setPackage", func(c *composer.PartialComposer, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		root, ok := p.(pkg.RootPackageInterface)
+		if !ok {
+			return nil, a.errorf("param 1 is not a root package")
+		}
+		c.SetPackage(root)
+
+		return nil, nil
+	})
+	partial("setConfig", func(c *composer.PartialComposer, a args) (any, error) {
+		cfg, err := param[*config.Config](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetConfig(cfg)
+
+		return nil, nil
+	})
+	partial("setRepositoryManager", func(c *composer.PartialComposer, a args) (any, error) {
+		rm, err := param[*repository.RepositoryManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetRepositoryManager(rm)
+
+		return nil, nil
+	})
+	partial("setInstallationManager", func(c *composer.PartialComposer, a args) (any, error) {
+		im, err := param[composer.InstallationManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetInstallationManager(im)
+
+		return nil, nil
+	})
+	partial("setEventDispatcher", func(c *composer.PartialComposer, a args) (any, error) {
+		ed, err := param[*eventdispatcher.EventDispatcher](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetEventDispatcher(ed)
+
+		return nil, nil
+	})
+	full("getLocker", func(c *composer.Composer, _ args) (any, error) { return r.value(c.Locker()), nil })
+	full("getDownloadManager", func(c *composer.Composer, _ args) (any, error) { return r.value(c.DownloadManager()), nil })
+	full("getPluginManager", func(c *composer.Composer, _ args) (any, error) {
+		pm := c.PluginManager()
+		if pm == nil {
+			return nil, nil
+		}
+		if m, ok := pm.(*Manager); ok {
+			return m, nil
+		}
+
+		return r.serviceObject(pm, `Composer\Plugin\PluginManager`), nil
+	})
+	full("getAutoloadGenerator", func(c *composer.Composer, _ args) (any, error) {
+		return r.value(c.AutoloadGenerator()), nil
+	})
+	full("getArchiveManager", func(c *composer.Composer, _ args) (any, error) { return r.value(c.ArchiveManager()), nil })
+	full("setLocker", func(c *composer.Composer, a args) (any, error) {
+		l, err := param[*locker.Locker](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetLocker(l)
+
+		return nil, nil
+	})
+	full("setDownloadManager", func(c *composer.Composer, a args) (any, error) {
+		dm, err := param[*downloader.DownloadManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetDownloadManager(dm)
+
+		return nil, nil
+	})
+	full("setArchiveManager", func(c *composer.Composer, a args) (any, error) {
+		am, err := param[*archiver.ArchiveManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetArchiveManager(am)
+
+		return nil, nil
+	})
+	full("setAutoloadGenerator", func(c *composer.Composer, a args) (any, error) {
+		g, err := param[*autoload.Generator](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetAutoloadGenerator(g)
+
+		return nil, nil
+	})
+	full("setPluginManager", func(c *composer.Composer, a args) (any, error) {
+		m, ok := a.at(1).(*Manager)
+		if !ok {
+			return nil, a.errorf("param 1 is not a plugin manager maestro knows")
+		}
+		c.SetPluginManager(m)
+
+		return nil, nil
+	})
+
+	r.registerConfig()
+	r.registerLocker()
+	r.registerInstallationManager()
+	r.registerAutoloadGenerator()
+
+	r.Handle("factory.getComposerFile", func(any) (any, error) { return composer.GetComposerFile() })
+	r.Handle("factory.getLockFile", func(v any) (any, error) {
+		a := argsOf("factory.getLockFile", v)
+
+		return composer.GetLockFile(a.str(0)), nil
+	})
+}
+
+func (r *Runtime) registerConfig() {
+	method := func(name string, fn func(c *config.Config, a args) (any, error)) {
+		r.Handle("config."+name, func(v any) (any, error) {
+			a := argsOf("config."+name, v)
+			c, err := receiver[*config.Config](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(c, a)
+		})
+	}
+
+	method("get", func(c *config.Config, a args) (any, error) { return c.Get(a.str(1), a.integer(2)) })
+	method("all", func(c *config.Config, a args) (any, error) { return c.All(a.integer(1)) })
+	method("raw", func(c *config.Config, _ args) (any, error) { return c.Raw(), nil })
+	method("has", func(c *config.Config, a args) (any, error) { return c.Has(a.str(1)), nil })
+	method("merge", func(c *config.Config, a args) (any, error) {
+		source := "unknown"
+		if a.has(2) {
+			source = a.str(2)
+		}
+
+		return nil, c.Merge(a.arrayOrEmpty(1), source)
+	})
+	method("getRepositories", func(c *config.Config, _ args) (any, error) { return c.Repositories(), nil })
+	method("getSourceOfValue", func(c *config.Config, a args) (any, error) { return c.SourceOfValue(a.str(1)) })
+	method("getConfigSource", func(c *config.Config, _ args) (any, error) {
+		return r.configSourceObject(c.ConfigSource()), nil
+	})
+	method("getAuthConfigSource", func(c *config.Config, _ args) (any, error) {
+		return r.configSourceObject(c.AuthConfigSource()), nil
+	})
+	method("getLocalAuthConfigSource", func(c *config.Config, _ args) (any, error) {
+		return r.configSourceObject(c.LocalAuthConfigSource()), nil
+	})
+	method("setConfigSource", func(c *config.Config, a args) (any, error) {
+		s, err := param[config.ConfigSource](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetConfigSource(s)
+
+		return nil, nil
+	})
+	method("setAuthConfigSource", func(c *config.Config, a args) (any, error) {
+		s, err := param[config.ConfigSource](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetAuthConfigSource(s)
+
+		return nil, nil
+	})
+	method("setLocalAuthConfigSource", func(c *config.Config, a args) (any, error) {
+		s, err := param[config.ConfigSource](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		c.SetLocalAuthConfigSource(s)
+
+		return nil, nil
+	})
+	method("setBaseDir", func(c *config.Config, a args) (any, error) { c.SetBaseDir(a.str(1)); return nil, nil })
+	method("prohibitUrlByConfig", func(c *config.Config, a args) (any, error) {
+		out, _, err := ioParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, c.ProhibitURLByConfig(a.str(1), out, a.arrayOrEmpty(3))
+	})
+}
+
+// configSourceObject returns a config source as PHP holds it: a
+// JsonConfigSource proxy (its methods come with the write APIs).
+func (r *Runtime) configSourceObject(s config.ConfigSource) any {
+	if s == nil || !hashable(s) {
+		return nil
+	}
+
+	return r.serviceObject(s, `Composer\Config\JsonConfigSource`)
+}
+
+func (r *Runtime) registerLocker() {
+	method := func(name string, fn func(l *locker.Locker, a args) (any, error)) {
+		r.Handle("locker."+name, func(v any) (any, error) {
+			a := argsOf("locker."+name, v)
+			l, err := receiver[*locker.Locker](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(l, a)
+		})
+	}
+
+	method("isLocked", func(l *locker.Locker, _ args) (any, error) { return l.IsLocked() })
+	method("isFresh", func(l *locker.Locker, _ args) (any, error) { return l.IsFresh() })
+	method("getLockData", func(l *locker.Locker, _ args) (any, error) { return l.LockData() })
+	method("getLockedRepository", func(l *locker.Locker, a args) (any, error) {
+		repo, err := l.LockedRepository(a.boolean(1))
+		if err != nil {
+			return nil, err
+		}
+
+		return r.repositoryObject(repo), nil
+	})
+	method("getDevPackageNames", func(l *locker.Locker, _ args) (any, error) {
+		names, err := l.DevPackageNames()
+
+		return php.StringList(names), err
+	})
+	method("getPlatformRequirements", func(l *locker.Locker, a args) (any, error) {
+		links, err := l.PlatformRequirements(a.boolean(1))
+		if err != nil {
+			return nil, err
+		}
+
+		return linksValue(links), nil
+	})
+	method("getMinimumStability", func(l *locker.Locker, _ args) (any, error) { return l.MinimumStability() })
+	method("getStabilityFlags", func(l *locker.Locker, _ args) (any, error) { return l.StabilityFlags() })
+	method("getPreferStable", func(l *locker.Locker, _ args) (any, error) {
+		v, ok, err := l.PreferStable()
+		if err != nil || !ok {
+			return nil, err
+		}
+
+		return v, nil
+	})
+	method("getPreferLowest", func(l *locker.Locker, _ args) (any, error) {
+		v, ok, err := l.PreferLowest()
+		if err != nil || !ok {
+			return nil, err
+		}
+
+		return v, nil
+	})
+	method("getPlatformOverrides", func(l *locker.Locker, _ args) (any, error) { return l.PlatformOverrides() })
+	method("getAliases", func(l *locker.Locker, _ args) (any, error) { return l.Aliases() })
+	method("getPluginApi", func(l *locker.Locker, _ args) (any, error) { return l.PluginAPI() })
+	method("getMissingRequirementInfo", func(l *locker.Locker, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		root, ok := p.(pkg.RootPackageInterface)
+		if !ok {
+			return nil, a.errorf("param 1 is not a root package")
+		}
+		lines, err := l.MissingRequirementInfo(root, a.boolean(2))
+
+		return php.StringList(lines), err
+	})
+	r.Handle("locker.getContentHash", func(v any) (any, error) {
+		a := argsOf("locker.getContentHash", v)
+
+		return locker.GetContentHash(a.str(0))
+	})
+}
+
+func (r *Runtime) registerInstallationManager() {
+	method := func(name string, fn func(im composer.InstallationManager, a args) (any, error)) {
+		r.Handle("im."+name, func(v any) (any, error) {
+			a := argsOf("im."+name, v)
+			im, err := receiver[composer.InstallationManager](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(im, a)
+		})
+	}
+
+	method("getInstallPath", func(im composer.InstallationManager, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		path, ok, err := im.InstallPath(p)
+		if err != nil || !ok {
+			return nil, err
+		}
+
+		return path, nil
+	})
+	method("isPackageInstalled", func(im composer.InstallationManager, a args) (any, error) {
+		repo, err := param[repository.InstalledRepositoryInterface](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		p, err := packageParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+
+		return im.IsPackageInstalled(repo, p)
+	})
+	method("ensureBinariesPresence", func(im composer.InstallationManager, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, im.EnsureBinariesPresence(p)
+	})
+	method("setOutputProgress", func(im composer.InstallationManager, a args) (any, error) {
+		if s, ok := im.(interface{ SetOutputProgress(bool) }); ok {
+			s.SetOutputProgress(a.boolean(1))
+		}
+
+		return nil, nil
+	})
+	method("notifyInstalls", func(im composer.InstallationManager, a args) (any, error) {
+		out, _, err := ioParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		im.NotifyInstalls(out)
+
+		return nil, nil
+	})
+	method("disablePlugins", func(im composer.InstallationManager, _ args) (any, error) {
+		return nil, im.DisablePlugins()
+	})
+}
+
+func (r *Runtime) registerAutoloadGenerator() {
+	method := func(name string, fn func(g *autoload.Generator, a args) (any, error)) {
+		r.Handle("ag."+name, func(v any) (any, error) {
+			a := argsOf("ag."+name, v)
+			g, err := receiver[*autoload.Generator](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(g, a)
+		})
+	}
+
+	method("setDevMode", func(g *autoload.Generator, a args) (any, error) { g.SetDevMode(a.boolean(1)); return nil, nil })
+	method("setClassMapAuthoritative", func(g *autoload.Generator, a args) (any, error) {
+		g.SetClassMapAuthoritative(a.boolean(1))
+		return nil, nil
+	})
+	method("setApcu", func(g *autoload.Generator, a args) (any, error) {
+		var prefix *string
+		if s, ok := a.nullableString(2); ok {
+			prefix = &s
+		}
+		g.SetApcu(a.boolean(1), prefix)
+
+		return nil, nil
+	})
+	method("setRunScripts", func(g *autoload.Generator, a args) (any, error) { g.SetRunScripts(a.boolean(1)); return nil, nil })
+	method("setDryRun", func(g *autoload.Generator, a args) (any, error) { g.SetDryRun(a.boolean(1)); return nil, nil })
+	method("buildPackageMap", func(g *autoload.Generator, a args) (any, error) {
+		im, err := param[composer.InstallationManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		root, err := packageParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		packages, err := packagesParam(a, 3)
+		if err != nil {
+			return nil, err
+		}
+		entries, err := g.BuildPackageMap(im, root, packages)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.packageMapValue(entries), nil
+	})
+	method("parseAutoloads", func(g *autoload.Generator, a args) (any, error) {
+		entries, err := packageMapParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		root, err := packageParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		filter := autoload.NoDevFilter
+		switch v := a.at(3).(type) {
+		case bool:
+			if v {
+				filter = autoload.LegacyDevFilter
+			}
+		case *php.Array:
+			var names []string
+			for _, n := range v.Values() {
+				names = append(names, php.ToString(n))
+			}
+			filter = autoload.DevPackageNames(names)
+		}
+		autoloads, err := g.ParseAutoloads(entries, root, filter)
+		if err != nil {
+			return nil, err
+		}
+
+		return autoloadsValue(autoloads), nil
+	})
+	method("classMap", func(g *autoload.Generator, a args) (any, error) {
+		var dirs, excluded []string
+		for _, v := range a.arrayOrEmpty(1).Values() {
+			dirs = append(dirs, php.ToString(v))
+		}
+		for _, v := range a.arrayOrEmpty(2).Values() {
+			excluded = append(excluded, php.ToString(v))
+		}
+		loader, err := g.CreateLoader(&autoload.Autoloads{
+			PSR0:                php.NewArray(),
+			PSR4:                php.NewArray(),
+			Classmap:            dirs,
+			Files:               php.NewArray(),
+			ExcludeFromClassmap: excluded,
+		}, "")
+		if err != nil {
+			return nil, err
+		}
+
+		return loader.ClassMap, nil
+	})
+}
+
+// packageMapValue is a package map as PHP holds it: [[package, path], ...]
+// with null for a package that is not installed.
+func (r *Runtime) packageMapValue(entries []autoload.PackageMapEntry) *php.Array {
+	list := php.NewArrayCap(len(entries))
+	for _, e := range entries {
+		var path any
+		if e.Installed {
+			path = e.InstallPath
+		}
+		list.Append(php.ListOf(r.packageObject(e.Package), path))
+	}
+
+	return list
+}
+
+// packageMapParam returns param i, a package map.
+func packageMapParam(a args, i int) ([]autoload.PackageMapEntry, error) {
+	list := a.arrayOrEmpty(i)
+	entries := make([]autoload.PackageMapEntry, 0, list.Len())
+	for _, item := range list.Values() {
+		pair, ok := item.(*php.Array)
+		if !ok || pair.Len() < 2 {
+			return nil, a.errorf("param %d is not a package map", i)
+		}
+		pv, _ := pair.Get(0)
+		m, ok := pv.(*packageMirror)
+		if !ok {
+			return nil, a.errorf("param %d holds a %T, not a package maestro knows", i, pv)
+		}
+		path, _ := pair.Get(1)
+		entries = append(entries, autoload.PackageMapEntry{Package: m.p, InstallPath: php.ToString(path), Installed: path != nil})
+	}
+
+	return entries, nil
+}
+
+// autoloadsValue is parseAutoloads' result as PHP holds it.
+func autoloadsValue(a *autoload.Autoloads) *php.Array {
+	return php.ArrayOf(
+		"psr-0", orEmptyArray(a.PSR0),
+		"psr-4", orEmptyArray(a.PSR4),
+		"classmap", php.StringList(a.Classmap),
+		"files", orEmptyArray(a.Files),
+		"exclude-from-classmap", php.StringList(a.ExcludeFromClassmap),
+	)
+}
