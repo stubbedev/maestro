@@ -16,6 +16,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/dlclark/regexp2"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 const (
@@ -375,7 +377,7 @@ func oracleInputs(t testing.TB) []string {
 	for _, c := range constraints {
 		inputs = append(inputs, c.C)
 		// What parseConstraint() sees.
-		for _, or := range splitOr(phpTrim(c.C)) {
+		for _, or := range splitOr(php.Trim(c.C)) {
 			inputs = append(inputs, splitAnd(or)...)
 		}
 	}

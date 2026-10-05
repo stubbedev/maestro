@@ -308,7 +308,7 @@ func sysTempDir() string {
 func completionLogFile() string {
 	name := ""
 	if len(os.Args) > 0 {
-		name = phpBasename(os.Args[0])
+		name = php.Basename(os.Args[0], "")
 	}
 
 	return sysTempDir() + "/sf_" + name + ".log"
@@ -339,7 +339,7 @@ func NewDumpCompletionCommand() *DumpCompletionCommand {
 	c.SetDescription("Dump the shell completion script")
 
 	fullCommand := phpSelf()
-	commandName := phpBasename(fullCommand)
+	commandName := php.Basename(fullCommand, "")
 	if real := phpRealpath(fullCommand); real != "" {
 		fullCommand = real
 	}
@@ -410,7 +410,7 @@ func supportedShells() []string {
 func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 	commandName := ""
 	if len(os.Args) > 0 {
-		commandName = phpBasename(os.Args[0])
+		commandName = php.Basename(os.Args[0], "")
 	}
 
 	if BoolOption(in, "debug") {
@@ -424,7 +424,7 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 		shell = phpToString(v)
 	} else {
 		// guessShell(): basename($_SERVER['SHELL'] ?? '')
-		shell = phpBasename(os.Getenv("SHELL"))
+		shell = php.Basename(os.Getenv("SHELL"), "")
 	}
 
 	script := ""

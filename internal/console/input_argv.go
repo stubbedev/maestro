@@ -507,11 +507,11 @@ func tokenizeString(input string) ([]string, error) {
 			for _, q := range quoteJoins {
 				inner = strings.ReplaceAll(inner, q, "")
 			}
-			token.WriteString(m[1] + m[2] + stripCSlashes(inner))
+			token.WriteString(m[1] + m[2] + php.Stripcslashes(inner))
 			hasToken = true
 			matched = len(m[0])
 		} else if m := stringInputQuoted.FindString(rest); m != "" {
-			token.WriteString(stripCSlashes(m[1 : len(m)-1]))
+			token.WriteString(php.Stripcslashes(m[1 : len(m)-1]))
 			hasToken = true
 			matched = len(m)
 		} else if m := stringInputUnquoted.FindStringSubmatch(rest); m != nil {

@@ -2,7 +2,11 @@
 
 package semver
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // IntervalSet is what Intervals::get() returns: array{'numeric':
 // Interval[], 'branches': array{'names': string[], 'exclude': bool}}.
@@ -343,7 +347,7 @@ func generateMultiConstraintIntervals(constraint *MultiConstraint, stopOnFirstVa
 		}
 	}
 
-	phpUsort(borders, func(a, b border) int {
+	php.SortSlice(borders, func(a, b border) int {
 		if order := VersionCompare(a.version, b.version); order != 0 {
 			return order
 		}

@@ -2,7 +2,11 @@
 
 package semver
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // positiveInfinityVersion is PHP_INT_MAX.'.0.0.0'.
 var positiveInfinityVersion = strconv.FormatInt(1<<63-1, 10) + ".0.0.0"
@@ -54,7 +58,7 @@ func (b Bound) CompareTo(other Bound, operator string) (bool, error) {
 func (b Bound) compareTo(other Bound, greater bool) bool {
 	// If they are the same it doesn't matter. PHP compares the objects
 	// with ==, so numeric version strings compare as numbers.
-	if b.isInclusive == other.isInclusive && phpLooseEquals(b.version, other.version) {
+	if b.isInclusive == other.isInclusive && php.StringsLooseEqual(b.version, other.version) {
 		return false
 	}
 

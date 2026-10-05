@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // MultiConstraint ports Composer\Semver\Constraint\MultiConstraint: a
@@ -270,7 +272,7 @@ func contiguousRanges(left, right ConstraintInterface) (l, r *MultiConstraint, o
 	if !phpTruthy(right1) || right1[0] != '<' {
 		return nil, nil, false
 	}
-	if phpSubstr(left1, 2) != phpSubstr(right0, 3) {
+	if php.Substr(left1, 2) != php.Substr(right0, 3) {
 		return nil, nil, false
 	}
 

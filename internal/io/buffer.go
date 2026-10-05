@@ -72,7 +72,7 @@ func normalizeBackspaces(s string) string {
 				for k < len(s) && s[k] == '\x08' {
 					k++
 				}
-				pre := console.StripTags(s[p:j])
+				pre := php.StripTags(s[p:j])
 				if len(pre) != k-j {
 					b.WriteString(php.Rtrim(s[p:j]))
 					b.WriteByte('\n')

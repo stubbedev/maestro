@@ -57,18 +57,39 @@ func Uksort(a *Array, cmp func(x, y Key) int) {
 // exactly as usort would order the same values; for porting usort calls
 // on lists that are kept as Go slices.
 func SortSlice[T any](s []T, cmp func(x, y T) int) {
-	items := make([]sortItem[T], len(s))
-	for i, v := range s {
-		items[i] = sortItem[T]{v, i}
+	if len(s) < 2 {
+		return
 	}
-	zendSort(items, func(x, y *sortItem[T]) int {
-		if r := sign(cmp(x.v, y.v)); r != 0 {
+	// Sort the positions rather than the elements: an index is also the
+	// element's original order for the stable fallback, and moving ints is
+	// cheaper than moving T.
+	idx := make([]int, len(s))
+	for i := range idx {
+		idx[i] = i
+	}
+	zendSort(idx, func(x, y *int) int {
+		if r := sign(cmp(s[*x], s[*y])); r != 0 {
 			return r
 		}
-		return cmpInt(x.ord, y.ord)
+		return cmpInt(*x, *y)
 	})
-	for i := range items {
-		s[i] = items[i].v
+	// Apply the permutation in place, cycle by cycle: s[i] = old s[idx[i]].
+	for i := range idx {
+		if idx[i] < 0 {
+			continue
+		}
+		v := s[i]
+		j := i
+		for {
+			k := idx[j]
+			idx[j] = -1
+			if k == i {
+				s[j] = v
+				break
+			}
+			s[j] = s[k]
+			j = k
+		}
 	}
 }
 

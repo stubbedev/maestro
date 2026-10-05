@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // phpException is an {"e": [class, message]} golden.
@@ -330,7 +332,7 @@ func TestOracle_LooseEquals(t *testing.T) {
 		var a, b string
 		var equal bool
 		tuple(t, raw, &a, &b, &equal)
-		if got := phpLooseEquals(a, b); got != equal {
+		if got := php.StringsLooseEqual(a, b); got != equal {
 			t.Errorf("%q == %q: got %v, want %v", a, b, got, equal)
 		}
 	}

@@ -208,9 +208,9 @@ func normalizeDescription(s string) string {
 	full := phpRealpath(self)
 	shell := ""
 	if v, ok := os.LookupEnv("SHELL"); ok {
-		shell = phpBasename(v)
+		shell = php.Basename(v, "")
 	}
-	s = strings.NewReplacer("%%PHP_SELF%%", self, "%%PHP_SELF_FULL%%", full, "%%COMMAND_NAME%%", phpBasename(self), "%%SHELL%%", shell).Replace(s)
+	s = strings.NewReplacer("%%PHP_SELF%%", self, "%%PHP_SELF_FULL%%", full, "%%COMMAND_NAME%%", php.Basename(self, ""), "%%SHELL%%", shell).Replace(s)
 
 	return php.Trim(s)
 }

@@ -219,7 +219,7 @@ func (c *ConsoleIO) doOverwrite(messages string, newline bool, size int, stderr 
 		if stderr {
 			last = c.lastMessageErr
 		}
-		size = len(console.StripTags(last))
+		size = len(php.StripTags(last))
 	}
 	// ...let's fill its length with backspaces
 	c.doWrite([]string{strings.Repeat("\x08", size)}, false, stderr, verbosity, false)
@@ -230,7 +230,7 @@ func (c *ConsoleIO) doOverwrite(messages string, newline bool, size int, stderr 
 	// In cmd.exe on Win8.1 (possibly 10?), the line can not be cleared, so we need to
 	// track the length of previous output and fill it with spaces to make sure the line is cleared.
 	// See https://github.com/composer/composer/pull/5836 for more details
-	if fill := size - len(console.StripTags(messages)); fill > 0 {
+	if fill := size - len(php.StripTags(messages)); fill > 0 {
 		// whitespace whatever has left
 		c.doWrite([]string{strings.Repeat(" ", fill)}, false, stderr, verbosity, false)
 		// move the cursor back

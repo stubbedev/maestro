@@ -3,10 +3,11 @@
 package util
 
 import (
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // NonSecretCredentials is Url::NON_SECRET_CREDENTIALS: well-known markers
@@ -15,16 +16,18 @@ import (
 var NonSecretCredentials = []string{"private-token", "x-token-auth", "oauth2", "gitlab-ci-token", "x-oauth-basic"}
 
 // gitHubTokenRegex is GitHub::GITHUB_TOKEN_REGEX.
-var gitHubTokenRegex = mustPCRE(`^([a-f0-9]{12,}|gh[a-z]_[a-zA-Z0-9_.-]+|github_pat_[a-zA-Z0-9_]+)$`, false)
+var gitHubTokenRegex = php.MustCompile(`{^([a-f0-9]{12,}|gh[a-z]_[a-zA-Z0-9_.-]+|github_pat_[a-zA-Z0-9_]+)$}`)
 
+// The patterns of this file cannot fail to match (no /u, no runaway
+// backtracking), so their errors (PHP's PcreException) are not checked.
 var (
-	githubLegacyArchive = mustPCRE(`^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/(zip|tar)ball/(.+)$`, true)
-	githubWebArchive    = mustPCRE(`^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/archive/.+\.(zip|tar)(?:\.gz)?$`, true)
-	githubAPIArchive    = mustPCRE(`^https?://api\.github\.com/repos/([^/]+)/([^/]+)/(zip|tar)ball(?:/.+)?$`, true)
-	bitbucketArchive    = mustPCRE(`^https?://(?:www\.)?bitbucket\.org/([^/]+)/([^/]+)/get/(.+)\.(zip|tar\.gz|tar\.bz2)$`, true)
-	gitlabArchive       = mustPCRE(`^https?://(?:www\.)?gitlab\.com/api/v[34]/projects/([^/]+)/repository/archive\.(zip|tar\.gz|tar\.bz2|tar)\?sha=.+$`, true)
-	githubDomainArchive = mustPCRE(`(/repos/[^/]+/[^/]+/(zip|tar)ball)(?:/.+)?$`, true)
-	gitlabDomainArchive = mustPCRE(`(/api/v[34]/projects/[^/]+/repository/archive\.(?:zip|tar\.gz|tar\.bz2|tar)\?sha=).+$`, true)
+	githubLegacyArchive = php.MustCompile(`{^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/(zip|tar)ball/(.+)$}i`)
+	githubWebArchive    = php.MustCompile(`{^https?://(?:www\.)?github\.com/([^/]+)/([^/]+)/archive/.+\.(zip|tar)(?:\.gz)?$}i`)
+	githubAPIArchive    = php.MustCompile(`{^https?://api\.github\.com/repos/([^/]+)/([^/]+)/(zip|tar)ball(?:/.+)?$}i`)
+	bitbucketArchive    = php.MustCompile(`{^https?://(?:www\.)?bitbucket\.org/([^/]+)/([^/]+)/get/(.+)\.(zip|tar\.gz|tar\.bz2)$}i`)
+	gitlabArchive       = php.MustCompile(`{^https?://(?:www\.)?gitlab\.com/api/v[34]/projects/([^/]+)/repository/archive\.(zip|tar\.gz|tar\.bz2|tar)\?sha=.+$}i`)
+	githubDomainArchive = php.MustCompile(`{(/repos/[^/]+/[^/]+/(zip|tar)ball)(?:/.+)?$}i`)
+	gitlabDomainArchive = php.MustCompile(`{(/api/v[34]/projects/[^/]+/repository/archive\.(?:zip|tar\.gz|tar\.bz2|tar)\?sha=).+$}i`)
 )
 
 // UpdateDistReference ports Url::updateDistReference: points a GitHub,
@@ -36,38 +39,36 @@ func UpdateDistReference(url, ref string, githubDomains, gitlabDomains []string)
 
 	switch {
 	case u.hasHost && (host == "api.github.com" || host == "github.com" || host == "www.github.com"):
-		if m := githubLegacyArchive.FindStringSubmatch(url); m != nil {
+		if m, _ := githubLegacyArchive.Match(url); m != nil {
 			// Update legacy GitHub archives to API calls with the proper
 			// reference.
-			url = "https://api.github.com/repos/" + m[1] + "/" + m[2] + "/" + m[3] + "ball/" + ref
-		} else if m := githubWebArchive.FindStringSubmatch(url); m != nil {
+			url = "https://api.github.com/repos/" + m.Get(1) + "/" + m.Get(2) + "/" + m.Get(3) + "ball/" + ref
+		} else if m, _ := githubWebArchive.Match(url); m != nil {
 			// Update current GitHub web archives to API calls with the
 			// proper reference.
-			url = "https://api.github.com/repos/" + m[1] + "/" + m[2] + "/" + m[3] + "ball/" + ref
-		} else if m := githubAPIArchive.FindStringSubmatch(url); m != nil {
+			url = "https://api.github.com/repos/" + m.Get(1) + "/" + m.Get(2) + "/" + m.Get(3) + "ball/" + ref
+		} else if m, _ := githubAPIArchive.Match(url); m != nil {
 			// Update API archives to the proper reference.
-			url = "https://api.github.com/repos/" + m[1] + "/" + m[2] + "/" + m[3] + "ball/" + ref
+			url = "https://api.github.com/repos/" + m.Get(1) + "/" + m.Get(2) + "/" + m.Get(3) + "ball/" + ref
 		}
 	case u.hasHost && (host == "bitbucket.org" || host == "www.bitbucket.org"):
-		if m := bitbucketArchive.FindStringSubmatch(url); m != nil {
-			url = "https://bitbucket.org/" + m[1] + "/" + m[2] + "/get/" + ref + "." + m[4]
+		if m, _ := bitbucketArchive.Match(url); m != nil {
+			url = "https://bitbucket.org/" + m.Get(1) + "/" + m.Get(2) + "/get/" + ref + "." + m.Get(4)
 		}
 	case u.hasHost && (host == "gitlab.com" || host == "www.gitlab.com"):
-		if m := gitlabArchive.FindStringSubmatch(url); m != nil {
-			url = "https://gitlab.com/api/v4/projects/" + m[1] + "/repository/archive." + m[2] + "?sha=" + ref
+		if m, _ := gitlabArchive.Match(url); m != nil {
+			url = "https://gitlab.com/api/v4/projects/" + m.Get(1) + "/repository/archive." + m.Get(2) + "?sha=" + ref
 		}
 	case u.hasHost && slices.Contains(githubDomains, host):
-		url = githubDomainArchive.Replace(url, "$1/"+ref)
+		url, _, _ = githubDomainArchive.Replace(url, "$1/"+ref, -1)
 	case u.hasHost && slices.Contains(gitlabDomains, host):
-		url = gitlabDomainArchive.Replace(url, "${1}"+ref)
+		url, _, _ = gitlabDomainArchive.Replace(url, "${1}"+ref, -1)
 	}
 
 	return url
 }
 
-// hostPortPrefix is {^([^/]+):\d+}; RE2 picks the same (backtracking
-// order) match.
-var hostPortPrefix = regexp.MustCompile(`^([^/]+):[0-9]+`)
+var hostPortPrefix = php.MustCompile(`{^([^/]+):\d+}`)
 
 // GetOrigin ports Url::getOrigin: the host (and port) credentials are kept
 // under. gitlabDomains is the gitlab-domains config value.
@@ -102,7 +103,7 @@ func GetOrigin(url string, gitlabDomains []string) string {
 		for _, gitlabDomain := range gitlabDomains {
 			// Configured domains may spell out a port the URL omits, see
 			// GitLab::authorizeOAuth.
-			bcDomain := hostPortPrefix.ReplaceAllString(gitlabDomain, "$1")
+			bcDomain, _, _ := hostPortPrefix.Replace(gitlabDomain, "$1", -1)
 			if gitlabDomain != "" && (bcDomain == origin || strings.HasPrefix(bcDomain, origin+"/")) {
 				return gitlabDomain
 			}
@@ -121,10 +122,8 @@ func IsAllowedRedirect(url string) bool {
 }
 
 var (
-	accessTokenParam = regexp.MustCompile(`([&?]access_token=)[^&]+`)
-	// {(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\A)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]+))?@}i
-	// with PCRE's \s (which includes \v) and ASCII-only case folding.
-	urlCredentials = regexp.MustCompile(`(?:([a-zA-Z0-9][a-zA-Z0-9+.\-]*://)|\A)([^:/\t\n\v\f\r ?#]*)(?::([^\t\n\v\f\r /?#]+))?@`)
+	accessTokenParam = php.MustCompile(`{([&?]access_token=)[^&]+}`)
+	urlCredentials   = php.MustCompile(`{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\A)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]+))?@}i`)
 )
 
 // SanitizeURL ports Url::sanitize: masks access tokens and the credentials
@@ -132,55 +131,30 @@ var (
 func SanitizeURL(s string) string {
 	// GitHub repository renames redirect to locations holding the
 	// access_token as GET parameter.
-	s = accessTokenParam.ReplaceAllString(s, "${1}***")
+	s, _, _ = accessTokenParam.Replace(s, "$1***", -1)
 
-	return replaceAllSubmatchFunc(urlCredentials, s, func(m []string) string {
-		user := SanitizeUsername(m[2])
-		if m[3] != "" {
-			return m[1] + user + ":***@"
+	s, _, _ = urlCredentials.ReplaceCallback(s, func(m *php.Match) string {
+		prefix, _ := m.Named("prefix")
+		user, _ := m.Named("user")
+		user = SanitizeUsername(user)
+		if password, _ := m.Named("password"); password != "" {
+			return prefix + user + ":***@"
 		}
 
-		return m[1] + user + "@"
-	})
+		return prefix + user + "@"
+	}, -1)
+
+	return s
 }
 
-// replaceAllSubmatchFunc is preg_replace_callback for a pattern that never
-// matches empty.
-func replaceAllSubmatchFunc(re *regexp.Regexp, s string, f func(m []string) string) string {
-	locs := re.FindAllStringSubmatchIndex(s, -1)
-	if locs == nil {
-		return s
-	}
-
-	var b strings.Builder
-
-	last := 0
-	m := make([]string, re.NumSubexp()+1)
-
-	for _, loc := range locs {
-		for i := range m {
-			m[i] = ""
-			if loc[2*i] >= 0 {
-				m[i] = s[loc[2*i]:loc[2*i+1]]
-			}
-		}
-
-		b.WriteString(s[last:loc[0]])
-		b.WriteString(f(m))
-		last = loc[1]
-	}
-
-	b.WriteString(s[last:])
-
-	return b.String()
-}
-
-var urlUserinfo = regexp.MustCompile(`://[^/\t\n\v\f\r ?#]+@`)
+var urlUserinfo = php.MustCompile(`{://[^/\s?#]+@}`)
 
 // StripCredentials ports Url::stripCredentials: removes the whole userinfo
 // from URLs that get persisted (e.g. as a git remote).
 func StripCredentials(url string) string {
-	return urlUserinfo.ReplaceAllLiteralString(url, "://")
+	url, _, _ = urlUserinfo.Replace(url, "://", -1)
+
+	return url
 }
 
 // SanitizeUsername ports Url::sanitizeUsername: tokens and other long
@@ -191,7 +165,7 @@ func SanitizeUsername(user string) string {
 		return user
 	}
 
-	if gitHubTokenRegex.MatchString(user) || len(user) >= 12 {
+	if isToken, _ := gitHubTokenRegex.IsMatch(user); isToken || len(user) >= 12 {
 		return user[:min(3, len(user))] + "***"
 	}
 

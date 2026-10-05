@@ -877,7 +877,7 @@ func (a *Application) DoRenderThrowable(err error, out Output) {
 		messages := make([]string, 0, len(lines)+5)
 		if !isConsoleExceptionValue(e) || verbose {
 			fileName := "n/a"
-			if b := phpBasename(file); b != "" && b != "0" {
+			if b := php.Basename(file, ""); b != "" && b != "0" {
 				fileName = b
 			}
 			lineStr := "n/a"
@@ -1085,7 +1085,7 @@ func (*Application) findAlternatives(name string, collection []string) []string 
 				continue
 			}
 
-			lev := levenshtein(subname, parts[i])
+			lev := php.Levenshtein(subname, parts[i])
 			if float64(lev) <= float64(len(subname))/3 || (subname != "" && strings.Contains(parts[i], subname)) {
 				if exists {
 					set(collectionName, cur+lev)
@@ -1099,7 +1099,7 @@ func (*Application) findAlternatives(name string, collection []string) []string 
 	}
 
 	for _, item := range collection {
-		lev := levenshtein(name, item)
+		lev := php.Levenshtein(name, item)
 		if float64(lev) <= float64(len(name))/3 || strings.Contains(item, name) {
 			if cur, ok := alternatives[item]; ok {
 				set(item, cur-lev)

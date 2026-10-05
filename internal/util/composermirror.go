@@ -6,12 +6,14 @@ import (
 	"crypto/md5" //nolint:gosec // Composer names mirror paths by md5, not for security.
 	"encoding/hex"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 var (
-	mirrorReference = mustPCRE(`^([a-f0-9]*|%reference%)$`, false)
-	mirrorGitHub    = mustPCRE(`^(?:(?:https?|git)://github\.com/|git@github\.com:)([^/]+)/(.+?)(?:\.git)?$`, false)
-	mirrorBitbucket = mustPCRE(`^https://bitbucket\.org/([^/]+)/(.+?)(?:\.git)?/?$`, false)
+	mirrorReference = php.MustCompile(`{^([a-f0-9]*|%reference%)$}`)
+	mirrorGitHub    = php.MustCompile(`#^(?:(?:https?|git)://github\.com/|git@github\.com:)([^/]+)/(.+?)(?:\.git)?$#`)
+	mirrorBitbucket = php.MustCompile(`#^https://bitbucket\.org/([^/]+)/(.+?)(?:\.git)?/?$#`)
 )
 
 // ComposerMirrorProcessURL ports ComposerMirror::processUrl. reference and
@@ -21,8 +23,10 @@ func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference,
 	if reference != nil {
 		ref = *reference
 		// if ($reference): "0" is falsy too.
-		if phpTruthy(ref) && !mirrorReference.MatchString(ref) {
-			ref = md5Hex(ref)
+		if phpTruthy(ref) {
+			if isRef, _ := mirrorReference.IsMatch(ref); !isRef {
+				ref = md5Hex(ref)
+			}
 		}
 	}
 
@@ -47,10 +51,12 @@ func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference,
 // ComposerMirrorProcessGitURL ports ComposerMirror::processGitUrl. typ is
 // nil for PHP's null.
 func ComposerMirrorProcessGitURL(mirrorURL, packageName, url string, typ *string) string {
-	if m := mirrorGitHub.FindStringSubmatch(url); m != nil {
-		url = "gh-" + m[1] + "/" + m[2]
-	} else if m := mirrorBitbucket.FindStringSubmatch(url); m != nil {
-		url = "bb-" + m[1] + "/" + m[2]
+	// These patterns cannot fail (PHP's PcreException), so errors are not
+	// checked.
+	if m, _ := mirrorGitHub.Match(url); m != nil {
+		url = "gh-" + m.Get(1) + "/" + m.Get(2)
+	} else if m, _ := mirrorBitbucket.Match(url); m != nil {
+		url = "bb-" + m.Get(1) + "/" + m.Get(2)
 	} else {
 		// Preg::replace('{[^a-z0-9_.-]}i', '-', trim($url, '/')), byte-wise.
 		b := []byte(strings.Trim(url, "/"))

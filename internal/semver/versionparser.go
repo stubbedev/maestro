@@ -2,7 +2,11 @@
 
 package semver
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // VersionParser ports Composer\Semver\VersionParser. It holds no state;
 // Composer's own VersionParser embeds it.
@@ -53,7 +57,7 @@ func ParseStability(version string) string {
 
 // NormalizeStability ports VersionParser::normalizeStability().
 func NormalizeStability(stability string) (string, error) {
-	stability = asciiLower(stability)
+	stability = php.Strtolower(stability)
 
 	switch stability {
 	case "stable", "beta", "alpha", "dev":
@@ -69,7 +73,7 @@ func NormalizeStability(stability string) (string, error) {
 // Normalize ports normalize($version): it normalizes a version string to be
 // able to perform comparisons on it. Errors are *UnexpectedValueError.
 func (p VersionParser) Normalize(version string) (string, error) {
-	version = phpTrim(version)
+	version = php.Trim(version)
 
 	return p.normalize(version, version)
 }
@@ -78,7 +82,7 @@ func (p VersionParser) Normalize(version string) (string, error) {
 // fullVersion is the complete version string, used to give more context
 // in the error.
 func (p VersionParser) NormalizeWithFullVersion(version, fullVersion string) (string, error) {
-	return p.normalize(phpTrim(version), fullVersion)
+	return p.normalize(php.Trim(version), fullVersion)
 }
 
 func (p VersionParser) normalize(version, fullVersion string) (string, error) {
@@ -198,7 +202,7 @@ func (VersionParser) ParseNumericAliasPrefix(branch string) (prefix string, ok b
 // NormalizeBranch ports normalizeBranch(): it normalizes a branch name to
 // be able to perform comparisons on it.
 func (VersionParser) NormalizeBranch(name string) string {
-	name = phpTrim(name)
+	name = php.Trim(name)
 
 	var groups branchCaps
 	if !matchBranch(name, &groups) {
@@ -251,7 +255,7 @@ func (VersionParser) NormalizeDefaultBranch(name string) string {
 func (p VersionParser) ParseConstraints(constraints string) (ConstraintInterface, error) {
 	prettyConstraint := constraints
 
-	orConstraints := splitOr(phpTrim(constraints))
+	orConstraints := splitOr(php.Trim(constraints))
 	orGroups := make([]ConstraintInterface, 0, len(orConstraints))
 
 	for _, orConstraint := range orConstraints {
@@ -481,7 +485,7 @@ func (p VersionParser) parseConstraint(constraint string) ([2]ConstraintInterfac
 	if op != StrOpEQ && op != StrOpEQAlt && stabilityModifier != "" && ParseStability(version) == StabilityStable {
 		version += "-" + stabilityModifier
 	} else if op == StrOpLT || op == StrOpGE {
-		if !matchDashModifier(asciiLower(versionString)) && !strings.HasPrefix(versionString, "dev-") {
+		if !matchDashModifier(php.Strtolower(versionString)) && !strings.HasPrefix(versionString, "dev-") {
 			version += "-dev"
 		}
 	}
@@ -538,7 +542,7 @@ func manipulateVersionString(matches [5]string, position, increment int) (string
 // expandStability ports expandStability(): it expands a shorthand
 // stability string to the long version.
 func expandStability(stability string) string {
-	stability = asciiLower(stability)
+	stability = php.Strtolower(stability)
 
 	switch stability {
 	case "a":

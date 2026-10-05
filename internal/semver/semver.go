@@ -2,6 +2,8 @@
 
 package semver
 
+import "github.com/stubbedev/maestro/internal/php"
+
 // Semver::SORT_ASC and Semver::SORT_DESC.
 const (
 	SortAsc  = 1
@@ -92,7 +94,7 @@ func semverUsort(versions []string, direction int) ([]string, error) {
 		normalized[key] = item{versionParser.NormalizeDefaultBranch(normalizedVersion), key}
 	}
 
-	phpUsort(normalized, func(left, right item) int {
+	php.SortSlice(normalized, func(left, right item) int {
 		if left.normalized == right.normalized {
 			return 0
 		}

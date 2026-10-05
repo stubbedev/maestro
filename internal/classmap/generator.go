@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // AutoloadType is the autoload standard whose mapping rules a scan applies.
@@ -322,21 +324,11 @@ func getBuffers() *parseBuffers {
 // '/\.(?:ext|...)$/', which every file with a listed extension passes.
 func (g *Generator) hasExtension(path string) bool {
 	ext := ""
-	base := basename(path)
+	base := php.Basename(path, "")
 	if dot := strings.LastIndexByte(base, '.'); dot >= 0 {
 		ext = base[dot+1:]
 	}
 	return slices.Contains(g.extensions, ext)
-}
-
-// basename is PHP's basename() on Unix.
-func basename(path string) string {
-	path = strings.TrimRight(path, "/")
-	if i := strings.LastIndexByte(path, '/'); i >= 0 {
-		return path[i+1:]
-	}
-
-	return path
 }
 
 // filterByNamespace removes the classes which could not have been loaded by
@@ -345,7 +337,7 @@ func basename(path string) string {
 func (g *Generator) filterByNamespace(classes []string, filePath, baseNamespace string, typ AutoloadType, basePath string) ([]string, error) {
 	var validClasses, rejectedClasses []string
 
-	realSubPath := substrFrom(filePath, len(basePath)+1)
+	realSubPath := php.Substr(filePath, len(basePath)+1)
 	if dot := strings.LastIndexByte(realSubPath, '.'); dot >= 0 {
 		realSubPath = realSubPath[:dot]
 	}
@@ -367,7 +359,7 @@ func (g *Generator) filterByNamespace(classes []string, filePath, baseNamespace 
 		} else {
 			subNamespace := class
 			if baseNamespace != "" {
-				subNamespace = substrFrom(class, len(baseNamespace))
+				subNamespace = php.Substr(class, len(baseNamespace))
 			}
 			subPath = strings.ReplaceAll(subNamespace, `\`, "/")
 		}
@@ -407,15 +399,6 @@ func replaceCwd(path, cwd string) string {
 	}
 
 	return path
-}
-
-// substrFrom is substr($s, $start) for 0 <= start.
-func substrFrom(s string, start int) string {
-	if start >= len(s) {
-		return ""
-	}
-
-	return s[start:]
 }
 
 // isAbsolutePath checks if the given path is absolute (see

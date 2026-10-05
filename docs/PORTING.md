@@ -48,7 +48,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 
 | Go package | Ports |
 | --- | --- |
-| `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, string helpers, PCRE via regexp2 |
+| `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, `basename`, ...), PCRE |
 | `internal/semver` | composer/semver |
 | `internal/classmap` | composer/class-map-generator |
 | `internal/spdx` | composer/spdx-licenses (+ its JSON data) |
