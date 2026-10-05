@@ -1,0 +1,2122 @@
+{
+    "proxies": [
+        {
+            "in": "http://proxy.com:8888",
+            "status": "http://proxy.com:8888",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:8888",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:8888"
+                }
+            },
+            "url": "http://proxy.com:8888",
+            "auth": null
+        },
+        {
+            "in": "HTTP://proxy.com:8888",
+            "status": "http://proxy.com:8888",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:8888",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:8888"
+                }
+            },
+            "url": "http://proxy.com:8888",
+            "auth": null
+        },
+        {
+            "in": "proxy.com:80",
+            "status": "http://proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80"
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": null
+        },
+        {
+            "in": "http://proxy.com",
+            "status": "http://proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80"
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": null
+        },
+        {
+            "in": "https://proxy.com",
+            "status": "https://proxy.com:443",
+            "httpContext": {
+                "http": {
+                    "proxy": "ssl://proxy.com:443",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "ssl://proxy.com:443"
+                }
+            },
+            "url": "https://proxy.com:443",
+            "auth": null
+        },
+        {
+            "in": "http://user@proxy.com:6180",
+            "status": "http://***@proxy.com:6180",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:6180",
+                    "header": "Proxy-Authorization: Basic dXNlcg==",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:6180",
+                    "header": "Proxy-Authorization: Basic dXNlcg=="
+                }
+            },
+            "url": "http://proxy.com:6180",
+            "auth": "user"
+        },
+        {
+            "in": "http://user:p%40ss@proxy.com:6180",
+            "status": "http://***:***@proxy.com:6180",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:6180",
+                    "header": "Proxy-Authorization: Basic dXNlcjpwQHNz",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:6180",
+                    "header": "Proxy-Authorization: Basic dXNlcjpwQHNz"
+                }
+            },
+            "url": "http://proxy.com:6180",
+            "auth": "user:p%40ss"
+        },
+        {
+            "in": "http://:pass@proxy.com",
+            "status": "http://***:***@proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic OnBhc3M=",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic OnBhc3M="
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": ":pass"
+        },
+        {
+            "in": "http://user:@proxy.com",
+            "status": "http://***:***@proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic dXNlcjo=",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic dXNlcjo="
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": "user:"
+        },
+        {
+            "in": "http://@proxy.com",
+            "status": "http://***@proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80"
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": null
+        },
+        {
+            "in": "https://u%3Ax:p%2Fy@proxy.com:8443/path?q",
+            "status": "https://***:***@proxy.com:8443",
+            "httpContext": {
+                "http": {
+                    "proxy": "ssl://proxy.com:8443",
+                    "header": "Proxy-Authorization: Basic dTp4OnAveQ==",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "ssl://proxy.com:8443",
+                    "header": "Proxy-Authorization: Basic dTp4OnAveQ=="
+                }
+            },
+            "url": "https://proxy.com:8443",
+            "auth": "u%3Ax:p%2Fy"
+        },
+        {
+            "in": "socks5://proxy.com:1080",
+            "status": "socks5://proxy.com:1080",
+            "httpContext": {
+                "http": {
+                    "proxy": "socks5://proxy.com:1080",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "socks5://proxy.com:1080"
+                }
+            },
+            "url": "socks5://proxy.com:1080",
+            "auth": null
+        },
+        {
+            "in": "socks5://proxy.com",
+            "error": "unable to find proxy port in https_proxy"
+        },
+        {
+            "in": "localhost",
+            "error": "unable to find proxy host in https_proxy"
+        },
+        {
+            "in": "scheme://localhost",
+            "error": "unable to find proxy port in https_proxy"
+        },
+        {
+            "in": "http://localhost:0",
+            "error": "port 0 is reserved in https_proxy"
+        },
+        {
+            "in": "http://localhost:65536",
+            "error": "unsupported `https_proxy` syntax"
+        },
+        {
+            "in": "http://user\rname@localhost:80",
+            "error": "unsupported `https_proxy` syntax"
+        },
+        {
+            "in": "http://a\tb",
+            "error": "unsupported `https_proxy` syntax"
+        },
+        {
+            "in": "",
+            "error": "unable to find proxy host in https_proxy"
+        },
+        {
+            "in": "http://",
+            "error": "unsupported `https_proxy` syntax"
+        },
+        {
+            "in": "http://[::1]:3128",
+            "status": "http://[::1]:3128",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://[::1]:3128",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://[::1]:3128"
+                }
+            },
+            "url": "http://[::1]:3128",
+            "auth": null
+        },
+        {
+            "in": "http://[::1]",
+            "status": "http://[::1]:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://[::1]:80",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://[::1]:80"
+                }
+            },
+            "url": "http://[::1]:80",
+            "auth": null
+        },
+        {
+            "in": "HTTPS://Proxy.Example.ORG",
+            "status": "https://Proxy.Example.ORG:443",
+            "httpContext": {
+                "http": {
+                    "proxy": "ssl://Proxy.Example.ORG:443",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "ssl://Proxy.Example.ORG:443"
+                }
+            },
+            "url": "https://Proxy.Example.ORG:443",
+            "auth": null
+        },
+        {
+            "in": "proxy.com",
+            "error": "unable to find proxy host in https_proxy"
+        },
+        {
+            "in": "//proxy.com:3128",
+            "status": "http://proxy.com:3128",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:3128",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:3128"
+                }
+            },
+            "url": "http://proxy.com:3128",
+            "auth": null
+        },
+        {
+            "in": "http://proxy.com:abc",
+            "error": "unsupported `https_proxy` syntax"
+        },
+        {
+            "in": "http://user:pa:ss@proxy.com",
+            "status": "http://***:***@proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic dXNlcjpwYTpzcw==",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic dXNlcjpwYTpzcw=="
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": "user:pa:ss"
+        },
+        {
+            "in": "http://us%zzer:p@proxy.com",
+            "status": "http://***:***@proxy.com:80",
+            "httpContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic dXMlenplcjpw",
+                    "request_fulluri": true
+                }
+            },
+            "httpsContext": {
+                "http": {
+                    "proxy": "tcp://proxy.com:80",
+                    "header": "Proxy-Authorization: Basic dXMlenplcjpw"
+                }
+            },
+            "url": "http://proxy.com:80",
+            "auth": "us%zzer:p"
+        }
+    ],
+    "redirects": [
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "/x/y",
+            "target": "https://example.org/x/y"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "/x?q=1",
+            "target": "https://example.org/x?q=1"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "/",
+            "target": "https://example.org/"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "x",
+            "target": "https://example.org/a/x"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "x/y?z",
+            "target": "https://example.org/a/x/y?z"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "../up",
+            "target": "https://example.org/a/../up"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "?q=1",
+            "target": "https://example.org/a/?q=1"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "0",
+            "error": "The \"https://example.org/a/b?c=1\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "",
+            "error": "The \"https://example.org/a/b?c=1\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": " /spaced",
+            "target": "https://example.org/spaced"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "/$1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "/\\1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/a/b?c=1",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "/x/y",
+            "target": "https://example.org:8443/x/y"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "/x?q=1",
+            "target": "https://example.org:8443/x?q=1"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "/",
+            "target": "https://example.org:8443/"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "x",
+            "target": "https://example.org:8443/a/x"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "x/y?z",
+            "target": "https://example.org:8443/a/x/y?z"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "../up",
+            "target": "https://example.org:8443/a/../up"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "?q=1",
+            "target": "https://example.org:8443/a/?q=1"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "0",
+            "error": "The \"https://example.org:8443/a/b\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "",
+            "error": "The \"https://example.org:8443/a/b\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": " /spaced",
+            "target": "https://example.org:8443/spaced"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "/$1",
+            "target": "https://example.org:8443/https://example.org:8443"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "/\\1",
+            "target": "https://example.org:8443/https://example.org:8443"
+        },
+        {
+            "url": "https://example.org:8443/a/b",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "/x/y",
+            "target": "https://user:pass@example.org/x/y"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "/x?q=1",
+            "target": "https://user:pass@example.org/x?q=1"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "/",
+            "target": "https://user:pass@example.org/"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "x",
+            "target": "https://user:pass@example.org/a/x"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "x/y?z",
+            "target": "https://user:pass@example.org/a/x/y?z"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "../up",
+            "target": "https://user:pass@example.org/a/../up"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "?q=1",
+            "target": "https://user:pass@example.org/a/?q=1"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "0",
+            "error": "The \"https://user:***@example.org/a/\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "",
+            "error": "The \"https://user:***@example.org/a/\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": " /spaced",
+            "target": "https://user:pass@example.org/spaced"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "/$1",
+            "target": "https://user:pass@example.org/https://user:pass@example.org"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "/\\1",
+            "target": "https://user:pass@example.org/https://user:pass@example.org"
+        },
+        {
+            "url": "https://user:pass@example.org/a/",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://example.org",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "http://example.org",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "http://example.org",
+            "location": "//other.org/x",
+            "target": "http://other.org/x"
+        },
+        {
+            "url": "http://example.org",
+            "location": "//other.org",
+            "target": "http://other.org"
+        },
+        {
+            "url": "http://example.org",
+            "location": "/x/y",
+            "target": "http://example.org/x/y"
+        },
+        {
+            "url": "http://example.org",
+            "location": "/x?q=1",
+            "target": "http://example.org/x?q=1"
+        },
+        {
+            "url": "http://example.org",
+            "location": "/",
+            "target": "http://example.org/"
+        },
+        {
+            "url": "http://example.org",
+            "location": "x",
+            "target": "http://x"
+        },
+        {
+            "url": "http://example.org",
+            "location": "x/y?z",
+            "target": "http://x/y?z"
+        },
+        {
+            "url": "http://example.org",
+            "location": "../up",
+            "target": "http://../up"
+        },
+        {
+            "url": "http://example.org",
+            "location": "?q=1",
+            "error": "Could not follow the redirect to \"http://?q=1\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://example.org",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://example.org",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://example.org",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://example.org",
+            "location": "0",
+            "error": "The \"http://example.org\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "http://example.org",
+            "location": "",
+            "error": "The \"http://example.org\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "http://example.org",
+            "location": " /spaced",
+            "target": "http://example.org/spaced"
+        },
+        {
+            "url": "http://example.org",
+            "location": "/$1",
+            "target": "http://example.org/http://example.org"
+        },
+        {
+            "url": "http://example.org",
+            "location": "/\\1",
+            "target": "http://example.org/http://example.org"
+        },
+        {
+            "url": "http://example.org",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "/x/y",
+            "target": "https://example.org/x/y"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "/x?q=1",
+            "target": "https://example.org/x?q=1"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "/",
+            "target": "https://example.org/"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "x",
+            "target": "https://example.org/x"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "x/y?z",
+            "target": "https://example.org/x/y?z"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "../up",
+            "target": "https://example.org/../up"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "?q=1",
+            "target": "https://example.org/?q=1"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/",
+            "location": "0",
+            "error": "The \"https://example.org/\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "",
+            "error": "The \"https://example.org/\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/",
+            "location": " /spaced",
+            "target": "https://example.org/spaced"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "/$1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "/\\1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "/x/y",
+            "target": "https://example.org/x/y"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "/x?q=1",
+            "target": "https://example.org/x?q=1"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "/",
+            "target": "https://example.org/"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "x",
+            "target": "https://example.org/dir/file.json?x=/x"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "x/y?z",
+            "target": "https://example.org/dir/file.json?x=/x/y?z"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "../up",
+            "target": "https://example.org/dir/file.json?x=/../up"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "?q=1",
+            "target": "https://example.org/dir/file.json?x=/?q=1"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "0",
+            "error": "The \"https://example.org/dir/file.json?x=/y\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "",
+            "error": "The \"https://example.org/dir/file.json?x=/y\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": " /spaced",
+            "target": "https://example.org/spaced"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "/$1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "/\\1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/dir/file.json?x=/y",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "/x/y",
+            "target": "https://repo.example.org/x/y"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "/x?q=1",
+            "target": "https://repo.example.org/x?q=1"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "/",
+            "target": "https://repo.example.org/"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "x",
+            "target": "https://repo.example.org/p2/vendor/x"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "x/y?z",
+            "target": "https://repo.example.org/p2/vendor/x/y?z"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "../up",
+            "target": "https://repo.example.org/p2/vendor/../up"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "?q=1",
+            "target": "https://repo.example.org/p2/vendor/?q=1"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "0",
+            "error": "The \"https://repo.example.org/p2/vendor/pkg.json\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "",
+            "error": "The \"https://repo.example.org/p2/vendor/pkg.json\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": " /spaced",
+            "target": "https://repo.example.org/spaced"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "/$1",
+            "target": "https://repo.example.org/https://repo.example.org"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "/\\1",
+            "target": "https://repo.example.org/https://repo.example.org"
+        },
+        {
+            "url": "https://repo.example.org/p2/vendor/pkg.json",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "//other.org/x",
+            "target": "http://other.org/x"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "//other.org",
+            "target": "http://other.org"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "/x/y",
+            "target": "http://[::1]:8080/x/y"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "/x?q=1",
+            "target": "http://[::1]:8080/x?q=1"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "/",
+            "target": "http://[::1]:8080/"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "x",
+            "target": "http://[::1]:8080/a/x"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "x/y?z",
+            "target": "http://[::1]:8080/a/x/y?z"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "../up",
+            "target": "http://[::1]:8080/a/../up"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "?q=1",
+            "target": "http://[::1]:8080/a/?q=1"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "0",
+            "error": "The \"http://[::1]:8080/a/b\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "",
+            "error": "The \"http://[::1]:8080/a/b\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": " /spaced",
+            "target": "http://[::1]:8080/spaced"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "/$1",
+            "target": "http://[::1]:8080/http://[::1]:8080"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "/\\1",
+            "target": "http://[::1]:8080/http://[::1]:8080"
+        },
+        {
+            "url": "http://[::1]:8080/a/b",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "https://other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "HTTP://other.org/x",
+            "target": "HTTP://other.org/x"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "//other.org/x",
+            "target": "https://other.org/x"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "//other.org",
+            "target": "https://other.org"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "/x/y",
+            "target": "https://example.org/x/y"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "/x?q=1",
+            "target": "https://example.org/x?q=1"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "/",
+            "target": "https://example.org/"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "x",
+            "target": "https://example.org/x"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "x/y?z",
+            "target": "https://example.org/x/y?z"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "../up",
+            "target": "https://example.org/../up"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "?q=1",
+            "target": "https://example.org/?q=1"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "file:///etc/passwd",
+            "error": "Could not follow the redirect to \"file:///etc/passwd\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "ftp://example.org/x",
+            "error": "Could not follow the redirect to \"ftp://example.org/x\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "data:text/plain,foo",
+            "error": "Could not follow the redirect to \"data:text/plain,foo\" because only http and https redirects are supported."
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "0",
+            "error": "The \"https://example.org/a#frag\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "",
+            "error": "The \"https://example.org/a#frag\" file could not be downloaded, got redirect without Location (HTTP/1.1 302 Found)"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": " /spaced",
+            "target": "https://example.org/spaced"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "/$1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "/\\1",
+            "target": "https://example.org/https://example.org"
+        },
+        {
+            "url": "https://example.org/a#frag",
+            "location": "mailto:x@y",
+            "error": "Could not follow the redirect to \"mailto:***@y\" because only http and https redirects are supported."
+        }
+    ],
+    "headers": [
+        {
+            "headers": [
+                "HTTP/1.1 200 OK",
+                "Content-Type: application/json",
+                "content-length: 12"
+            ],
+            "values": {
+                "content-type": "application/json",
+                "Content-Type": "application/json",
+                "location": null,
+                "set-cookie": null,
+                "etag": null,
+                "x-ratelimit-limit": null,
+                "missing": null,
+                "content.type": null,
+                "Location ": null
+            },
+            "statusMessage": "HTTP/1.1 200 OK",
+            "statusCode": 200
+        },
+        {
+            "headers": [
+                "HTTP/1.1 302 Found",
+                "Location: /a",
+                "HTTP/2 200 ",
+                "content-type:   text/html; charset=utf-8  ",
+                "Content-Type: text/plain"
+            ],
+            "values": {
+                "content-type": "text/plain",
+                "Content-Type": "text/plain",
+                "location": "/a",
+                "set-cookie": null,
+                "etag": null,
+                "x-ratelimit-limit": null,
+                "missing": null,
+                "content.type": null,
+                "Location ": null
+            },
+            "statusMessage": "HTTP/2 200 ",
+            "statusCode": 200
+        },
+        {
+            "headers": [
+                "HTTP/2 404 ",
+                "x-ratelimit-remaining: 0",
+                "X-RateLimit-Limit:60",
+                "Location:",
+                "Location: ",
+                "Etag: \"abc\""
+            ],
+            "values": {
+                "content-type": null,
+                "Content-Type": null,
+                "location": " ",
+                "set-cookie": null,
+                "etag": "\"abc\"",
+                "x-ratelimit-limit": "60",
+                "missing": null,
+                "content.type": null,
+                "Location ": null
+            },
+            "statusMessage": "HTTP/2 404 ",
+            "statusCode": 404
+        },
+        {
+            "headers": [
+                "http/1.0 500 Internal",
+                "Content-Type:x",
+                "Set-Cookie: a=1",
+                "Set-Cookie: b=2"
+            ],
+            "values": {
+                "content-type": "x",
+                "Content-Type": "x",
+                "location": null,
+                "set-cookie": "b=2",
+                "etag": null,
+                "x-ratelimit-limit": null,
+                "missing": null,
+                "content.type": null,
+                "Location ": null
+            },
+            "statusMessage": "http/1.0 500 Internal",
+            "statusCode": 500
+        },
+        {
+            "headers": [
+                "",
+                "HTTP/ 200",
+                "HTTP/1.1 abc",
+                "Location:  two  words  "
+            ],
+            "values": {
+                "content-type": null,
+                "Content-Type": null,
+                "location": "two  words",
+                "set-cookie": null,
+                "etag": null,
+                "x-ratelimit-limit": null,
+                "missing": null,
+                "content.type": null,
+                "Location ": null
+            },
+            "statusMessage": null,
+            "statusCode": null
+        },
+        {
+            "headers": [],
+            "values": {
+                "content-type": null,
+                "Content-Type": null,
+                "location": null,
+                "set-cookie": null,
+                "etag": null,
+                "x-ratelimit-limit": null,
+                "missing": null,
+                "content.type": null,
+                "Location ": null
+            },
+            "statusMessage": null,
+            "statusCode": null
+        }
+    ],
+    "auth": [
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "user",
+            "password": "pass",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Basic dXNlcjpwYXNz"
+                    ]
+                }
+            },
+            "output": "Using HTTP basic authentication with username \"user\"\n"
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "tok",
+            "password": "bearer",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Bearer tok"
+                    ]
+                }
+            },
+            "output": ""
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "[\"A: 1\",\"B: 2\"]",
+            "password": "custom-headers",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "A: 1",
+                        "B: 2"
+                    ]
+                }
+            },
+            "output": "Using custom HTTP headers for authentication\n"
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "{\"a\":\"A: 1\"}",
+            "password": "custom-headers",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "A: 1"
+                    ]
+                }
+            },
+            "output": "Using custom HTTP headers for authentication\n"
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "not json",
+            "password": "custom-headers",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x"
+                    ]
+                }
+            },
+            "output": ""
+        },
+        {
+            "origin": "github.com",
+            "url": "https://api.github.com/repos/a/b",
+            "authOrigin": "github.com",
+            "username": "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+            "password": "x-oauth-basic",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: token ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+                    ]
+                }
+            },
+            "output": "Using GitHub token authentication\n"
+        },
+        {
+            "origin": "github.com",
+            "url": "https://codeload.github.com/a/b/zip/c",
+            "authOrigin": "github.com",
+            "username": "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+            "password": "x-oauth-basic",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x"
+                    ]
+                }
+            },
+            "output": ""
+        },
+        {
+            "origin": "api.github.com",
+            "url": "https://api.github.com/repos/a/b",
+            "authOrigin": "github.com",
+            "username": "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+            "password": "x-oauth-basic",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: token ghp_abcdefghijklmnopqrstuvwxyz0123456789"
+                    ]
+                }
+            },
+            "output": "Using GitHub token authentication\n"
+        },
+        {
+            "origin": "gitlab.com",
+            "url": "https://gitlab.com/api/v4/x",
+            "authOrigin": "gitlab.com",
+            "username": "glpat-xyz",
+            "password": "oauth2",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Bearer glpat-xyz"
+                    ]
+                }
+            },
+            "output": "Using GitLab OAuth token authentication\n"
+        },
+        {
+            "origin": "gitlab.com",
+            "url": "https://gitlab.com/api/v4/x",
+            "authOrigin": "gitlab.com",
+            "username": "glpat-xyz",
+            "password": "private-token",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "PRIVATE-TOKEN: glpat-xyz"
+                    ]
+                }
+            },
+            "output": "Using GitLab private token authentication\n"
+        },
+        {
+            "origin": "gitlab.com",
+            "url": "https://gitlab.com/api/v4/x",
+            "authOrigin": "gitlab.com",
+            "username": "glpat-xyz",
+            "password": "gitlab-ci-token",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "PRIVATE-TOKEN: glpat-xyz"
+                    ]
+                }
+            },
+            "output": "Using GitLab private token authentication\n"
+        },
+        {
+            "origin": "gitlab.example.org",
+            "url": "https://gitlab.example.org/x",
+            "authOrigin": "gitlab.example.org",
+            "username": "glpat-xyz",
+            "password": "private-token",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "PRIVATE-TOKEN: glpat-xyz"
+                    ]
+                }
+            },
+            "output": "Using GitLab private token authentication\n"
+        },
+        {
+            "origin": "bitbucket.org",
+            "url": "https://bitbucket.org/a/b/get/c.zip",
+            "authOrigin": "bitbucket.org",
+            "username": "x-token-auth",
+            "password": "access",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Bearer access"
+                    ]
+                }
+            },
+            "output": "Using Bitbucket OAuth token authentication\n"
+        },
+        {
+            "origin": "bitbucket.org",
+            "url": "https://bitbucket.org/a/b/downloads/c.zip",
+            "authOrigin": "bitbucket.org",
+            "username": "x-token-auth",
+            "password": "access",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x"
+                    ]
+                }
+            },
+            "output": ""
+        },
+        {
+            "origin": "bitbucket.org",
+            "url": "https://bitbucket.org/site/oauth2/access_token",
+            "authOrigin": "bitbucket.org",
+            "username": "x-token-auth",
+            "password": "access",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Basic eC10b2tlbi1hdXRoOmFjY2Vzcw=="
+                    ]
+                }
+            },
+            "output": "Using HTTP basic authentication with username \"x-token-auth\"\n"
+        },
+        {
+            "origin": "api.bitbucket.org",
+            "url": "https://api.bitbucket.org/2.0/x",
+            "authOrigin": "bitbucket.org",
+            "username": "x-token-auth",
+            "password": "access",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Bearer access"
+                    ]
+                }
+            },
+            "output": "Using Bitbucket OAuth token authentication\n"
+        },
+        {
+            "origin": "bitbucket.org",
+            "url": "https://bitbucket.org/a/b",
+            "authOrigin": "bitbucket.org",
+            "username": "consumer",
+            "password": "secret",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Basic Y29uc3VtZXI6c2VjcmV0"
+                    ]
+                }
+            },
+            "output": "Using HTTP basic authentication with username \"consumer\"\n"
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "client-certificate",
+            "password": "{\"local_cert\":\"/c.pem\",\"local_pk\":\"/k.pem\"}",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x"
+                    ]
+                },
+                "ssl": {
+                    "local_cert": "/c.pem",
+                    "local_pk": "/k.pem"
+                }
+            },
+            "output": "Using SSL client certificate\n"
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "averyveryverylongusername",
+            "password": "p",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Basic YXZlcnl2ZXJ5dmVyeWxvbmd1c2VybmFtZTpw"
+                    ]
+                }
+            },
+            "output": "Using HTTP basic authentication with username \"ave***\"\n"
+        },
+        {
+            "origin": "example.org",
+            "url": "https://example.org/p.json",
+            "authOrigin": "example.org",
+            "username": "x-token-auth",
+            "password": "",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "Authorization: Basic eC10b2tlbi1hdXRoOg=="
+                    ]
+                }
+            },
+            "output": "Using HTTP basic authentication with username \"x-token-auth\"\n"
+        },
+        {
+            "origin": "other.org",
+            "url": "https://other.org/p.json",
+            "authOrigin": "none",
+            "username": null,
+            "password": null,
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x"
+                    ]
+                }
+            },
+            "output": ""
+        }
+    ],
+    "github": [
+        {
+            "headers": [
+                "X-RateLimit-Limit: 5000",
+                "X-RateLimit-Remaining: 0",
+                "X-RateLimit-Reset: 1700000000"
+            ],
+            "rateLimit": {
+                "limit": 5000,
+                "reset": "2023-11-14 22:13:20"
+            },
+            "sso": null,
+            "rateLimited": true,
+            "requiresSso": false
+        },
+        {
+            "headers": [
+                "x-ratelimit-limit: abc",
+                "x-ratelimit-reset: -5",
+                "x-ratelimit-remaining:  0"
+            ],
+            "rateLimit": {
+                "limit": 0,
+                "reset": "1969-12-31 23:59:55"
+            },
+            "sso": null,
+            "rateLimited": true,
+            "requiresSso": false
+        },
+        {
+            "headers": [
+                "x-ratelimit-remaining: 01",
+                "X-GitHub-SSO: required; url=https://github.com/orgs/a/sso?x=1"
+            ],
+            "rateLimit": {
+                "limit": "?",
+                "reset": "?"
+            },
+            "sso": "https://github.com/orgs/a/sso?x=1",
+            "rateLimited": false,
+            "requiresSso": true
+        },
+        {
+            "headers": [
+                "  X-GitHub-SSO: required; url=https://a/b; other",
+                "x-github-sso: partial-results; organizations=1"
+            ],
+            "rateLimit": {
+                "limit": "?",
+                "reset": "?"
+            },
+            "sso": "https://a/b",
+            "rateLimited": false,
+            "requiresSso": true
+        },
+        {
+            "headers": [
+                "X-GitHub-SSO: required",
+                "X-RateLimit-Limit: 60"
+            ],
+            "rateLimit": {
+                "limit": 60,
+                "reset": "?"
+            },
+            "sso": null,
+            "rateLimited": false,
+            "requiresSso": true
+        },
+        {
+            "headers": [],
+            "rateLimit": {
+                "limit": "?",
+                "reset": "?"
+            },
+            "sso": null,
+            "rateLimited": false,
+            "requiresSso": false
+        }
+    ],
+    "forgejo": [
+        {
+            "url": "git@codeberg.org:acme/repo.git",
+            "parsed": {
+                "owner": "acme",
+                "repository": "repo",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/acme/repo",
+                "ssh": "git@codeberg.org:acme/repo.git"
+            }
+        },
+        {
+            "url": "https://codeberg.org/acme/repo",
+            "parsed": {
+                "owner": "acme",
+                "repository": "repo",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/acme/repo",
+                "ssh": "git@codeberg.org:acme/repo.git"
+            }
+        },
+        {
+            "url": "https://codeberg.org/acme/repo.git",
+            "parsed": {
+                "owner": "acme",
+                "repository": "repo",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/acme/repo",
+                "ssh": "git@codeberg.org:acme/repo.git"
+            }
+        },
+        {
+            "url": "https://codeberg.org/acme/repo/",
+            "parsed": {
+                "owner": "acme",
+                "repository": "repo",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/acme/repo",
+                "ssh": "git@codeberg.org:acme/repo.git"
+            }
+        },
+        {
+            "url": "git://CodeBerg.org/Acme/Repo.git",
+            "parsed": {
+                "owner": "Acme",
+                "repository": "Repo",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/Acme/Repo",
+                "ssh": "git@codeberg.org:Acme/Repo.git"
+            }
+        },
+        {
+            "url": "git@codeberg.org:/acme/repo",
+            "parsed": {
+                "owner": "acme",
+                "repository": "repo",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/acme/repo",
+                "ssh": "git@codeberg.org:acme/repo.git"
+            }
+        },
+        {
+            "url": "https://codeberg.org/acme",
+            "parsed": null
+        },
+        {
+            "url": "https://example.org",
+            "parsed": null
+        },
+        {
+            "url": "ssh://git@codeberg.org/acme/repo.git",
+            "parsed": null
+        },
+        {
+            "url": "https://codeberg.org:3000/acme/repo.git.git",
+            "parsed": {
+                "owner": "acme",
+                "repository": "repo.git",
+                "originUrl": "codeberg.org:3000",
+                "apiUrl": "https://codeberg.org:3000/api/v1/repos/acme/repo.git",
+                "ssh": "git@codeberg.org:3000:acme/repo.git.git"
+            }
+        },
+        {
+            "url": "https://codeberg.org/acme/re.po",
+            "parsed": {
+                "owner": "acme",
+                "repository": "re.po",
+                "originUrl": "codeberg.org",
+                "apiUrl": "https://codeberg.org/api/v1/repos/acme/re.po",
+                "ssh": "git@codeberg.org:acme/re.po.git"
+            }
+        }
+    ],
+    "bitbucket": [
+        {
+            "url": "https://bitbucket.org/user/repo/downloads/whatever",
+            "public": true
+        },
+        {
+            "url": "https://bitbucket.org/user/repo/get/x.zip",
+            "public": false
+        },
+        {
+            "url": "https://bbuseruploads.s3.amazonaws.com/x/downloads/y",
+            "public": true
+        },
+        {
+            "url": "https://bitbucket.org/user",
+            "public": false
+        },
+        {
+            "url": "https://api.bitbucket.org/2.0/repositories/a/b",
+            "public": false
+        },
+        {
+            "url": "https://notbitbucket.org.evil.com/a/b/downloads/c",
+            "public": true
+        },
+        {
+            "url": "https://bitbucket.org//repo/downloads",
+            "public": true
+        },
+        {
+            "url": "https://bitbucket.org/a/b/Downloads/c",
+            "public": false
+        }
+    ],
+    "warnings": [
+        {
+            "data": [],
+            "decorated": false,
+            "wrote": false,
+            "output": ""
+        },
+        {
+            "data": [],
+            "decorated": true,
+            "wrote": false,
+            "output": ""
+        },
+        {
+            "data": {
+                "warning": "plain"
+            },
+            "decorated": false,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: plain</warning>\n"
+        },
+        {
+            "data": {
+                "warning": "plain"
+            },
+            "decorated": true,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: plain</warning>\n"
+        },
+        {
+            "data": {
+                "warning": "colored \u001b[31mred\u001b[0m",
+                "info": "info msg",
+                "info-versions": "^2.5"
+            },
+            "decorated": false,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: colored red</warning>\nInfo from https://user:***@repo.example.org: info msg\n"
+        },
+        {
+            "data": {
+                "warning": "colored \u001b[31mred\u001b[0m",
+                "info": "info msg",
+                "info-versions": "^2.5"
+            },
+            "decorated": true,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: colored red</warning>\n\u001b[32mInfo from https://user:***@repo.example.org: info msg\u001b[39m\n"
+        },
+        {
+            "data": {
+                "warning": "old",
+                "warning-versions": "<1.0 || >=2.10"
+            },
+            "decorated": false,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: old</warning>\n"
+        },
+        {
+            "data": {
+                "warning": "old",
+                "warning-versions": "<1.0 || >=2.10"
+            },
+            "decorated": true,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: old</warning>\n"
+        },
+        {
+            "data": {
+                "warnings": [
+                    {
+                        "message": "a",
+                        "versions": "*"
+                    },
+                    {
+                        "message": "b",
+                        "versions": "2.10.3"
+                    },
+                    {
+                        "message": "c",
+                        "versions": ">2.10.3"
+                    }
+                ]
+            },
+            "decorated": false,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: a</warning>\n<warning>Warning from https://user:***@repo.example.org: b</warning>\n"
+        },
+        {
+            "data": {
+                "warnings": [
+                    {
+                        "message": "a",
+                        "versions": "*"
+                    },
+                    {
+                        "message": "b",
+                        "versions": "2.10.3"
+                    },
+                    {
+                        "message": "c",
+                        "versions": ">2.10.3"
+                    }
+                ]
+            },
+            "decorated": true,
+            "wrote": true,
+            "output": "<warning>Warning from https://user:***@repo.example.org: a</warning>\n<warning>Warning from https://user:***@repo.example.org: b</warning>\n"
+        },
+        {
+            "data": {
+                "infos": [
+                    {
+                        "message": "<comment>x</comment>",
+                        "versions": ">=2.0"
+                    }
+                ],
+                "info": ""
+            },
+            "decorated": false,
+            "wrote": true,
+            "output": "Info from https://user:***@repo.example.org: x\n"
+        },
+        {
+            "data": {
+                "infos": [
+                    {
+                        "message": "<comment>x</comment>",
+                        "versions": ">=2.0"
+                    }
+                ],
+                "info": ""
+            },
+            "decorated": true,
+            "wrote": true,
+            "output": "\u001b[32mInfo from https://user:***@repo.example.org: \u001b[39m\u001b[33mx\u001b[39m\n"
+        }
+    ],
+    "prompts": [
+        {
+            "url": "https://example.org/p.json",
+            "origin": "example.org",
+            "status": 401,
+            "reason": "HTTP/1.1 401 Unauthorized",
+            "error": "The 'https://example.org/p.json' URL required authentication (HTTP 401).\nYou must be using the interactive console to authenticate",
+            "code": 401
+        },
+        {
+            "url": "https://u:p@example.org/p.json",
+            "origin": "example.org",
+            "status": 403,
+            "reason": "HTTP/2 403 ",
+            "error": "The 'https://u:***@example.org/p.json' URL could not be accessed (HTTP 403): HTTP/2 403 ",
+            "code": 403
+        },
+        {
+            "url": "https://example.org/p.json",
+            "origin": "example.org",
+            "status": 404,
+            "reason": "HTTP/1.1 404 Not Found",
+            "result": {
+                "retry": false,
+                "storeAuth": false
+            }
+        },
+        {
+            "url": "https://example.org/p.json",
+            "origin": "example.org",
+            "status": 500,
+            "reason": null,
+            "error": "Unknown error code '500', reason: ",
+            "code": 500
+        },
+        {
+            "url": "https://example.org/p.json?access_token=abc",
+            "origin": "example.org",
+            "status": 407,
+            "reason": "HTTP/1.1 407 Proxy",
+            "error": "Unknown error code '407', reason: HTTP/1.1 407 Proxy",
+            "code": 407
+        }
+    ]
+}

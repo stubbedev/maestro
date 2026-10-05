@@ -39,3 +39,23 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 
 ## Repo hygiene (when no agent is editing the packages involved)
 - Gzip every existing golden over 1 MB (internal/{classmap,util,json,json/jsonlint,json/jsonschema,semver,php,config,...}/testdata), updating oracle scripts to write .json.gz and tests to read it.
+
+## internal/config (from internal/util/http)
+- `*config.Config` must satisfy `http.Config`: `Get(key string) any` (same as `io.Config`), `ProhibitURLByConfig(url string, io io.IO, repoOptions *php.Array) error` (returns `*util.TransportError`), `ConfigSource()`, `AuthConfigSource()`, `LocalAuthConfigSource()` (nil for null), each returning a value with `Name() string`, `AddConfigSetting(name string, value any) error`, `RemoveConfigSetting(name string) error`.
+- Lists (`github-domains`, `gitlab-domains`, ...) come back as `*php.Array`; `store-auths` as `true`/`false`/`"prompt"`.
+
+## internal/composer, internal/command, internal/platform (from internal/util/http)
+- Build downloaders with `http.CreateHttpDownloader(io, config, options, rt)` (Factory::createHttpDownloader); `rt` is an `http.Runtime` giving the php version, platform php version (PlatformRepository::getPlatformPhpVersion), Composer's running command/operation statics and maestro's version for the User-Agent. `http.StaticRuntime` is a ready implementation.
+- `Application::doRun` hints: `http.GetExceptionHints(err)`; exit code from `*util.TransportError`'s `Code`.
+- Loop: `http.NewLoop(downloader, processExecutor)`; `Loop.Wait` takes any `*util.Promise` (as `http.Waitable`); `SyncHelper` is `http.DownloadAndInstallPackageSync` (generic over the package type) and `Loop.Await`.
+
+## internal/repository, internal/downloader (from internal/util/http)
+- Composer\Cache is `cache.New(io, dir, allowlist, fs, readOnly)`; `Cache::$cacheCollected` is process-wide like PHP's static.
+- `prevent_url_access_callable`/`prevent_ip_access_callable` options hold `http.RegisterCallable(fn)` handles (a `*php.Array` cannot hold funcs).
+- Tests mock HttpDownloader with `internal/util/http/httpmock` (HttpDownloaderMock); code taking a downloader for GET only should accept `http.Getter`.
+- `HttpDownloader::outputWarnings` is `http.OutputWarnings(io, url, data) (bool, error)`.
+- Response::decodeJson errors are `*jsonlint.ParsingError` naming only the URL.
+
+## Cleanup (DRY) once internal/php is final (from internal/util/http)
+- internal/util/http/phpfuncs.go holds rawurlencode, rawurldecode, urlencode, http_build_query and a date() subset; move them into internal/php.
+- `util.IO` (int verbosities) and `io.IO` (io.Verbosity) differ; internal/util/http adapts with `utilIO` (deps.go) to build a ProcessExecutor. Unify them.

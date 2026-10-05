@@ -84,3 +84,30 @@ func Then[T, U any](p *Promise[T], f func(T) (U, error)) *Promise[U] {
 
 	return next
 }
+
+// Rejected returns a promise already rejected with err.
+func Rejected[T any](err error) *Promise[T] {
+	p := newPromise[T]()
+	p.reject(err)
+
+	return p
+}
+
+// NewDeferred is React\Promise\Deferred (or new Promise($resolver,
+// $canceller)): a pending promise and the functions settling it. Only the
+// first settlement counts. cancel, when not nil, is the canceller Cancel
+// runs.
+func NewDeferred[T any](cancel func()) (p *Promise[T], resolve func(T), reject func(error)) {
+	p = newPromise[T]()
+	p.cancel = cancel
+
+	return p, p.resolve, p.reject
+}
+
+// Err blocks until the promise settled and returns its rejection reason,
+// nil when it was fulfilled.
+func (p *Promise[T]) Err() error {
+	<-p.done
+
+	return p.err
+}

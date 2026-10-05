@@ -1,4 +1,6 @@
-// Package cache knows where maestro keeps its own files.
+// Package cache knows where maestro keeps its own files, and ports
+// Composer\Cache (composer.go), which keeps repository metadata and VCS
+// mirrors in Composer's cache directories.
 package cache
 
 import (

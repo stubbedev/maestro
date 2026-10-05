@@ -1,0 +1,139 @@
+{
+    "cachekeys": [
+        {
+            "allowlist": "a-z0-9._",
+            "file": "provider-vendor/package.json",
+            "key": "provider-vendor-package.json"
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "packages.json",
+            "key": "packages.json"
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "p2/Vendor/Pkg~dev.json",
+            "key": "p2-Vendor-Pkg-dev.json"
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "https---repo.packagist.org/x",
+            "key": "https---repo.packagist.org-x"
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "ünïcödé.zip",
+            "key": "--n--c--d--.zip"
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "tab\there",
+            "key": "tab-here"
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "..",
+            "key": ".."
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "",
+            "key": ""
+        },
+        {
+            "allowlist": "a-z0-9._",
+            "file": "A-Z_a.z",
+            "key": "A-Z_a.z"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "provider-vendor/package.json",
+            "key": "provider-vendor-package.json"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "packages.json",
+            "key": "packages.json"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "p2/Vendor/Pkg~dev.json",
+            "key": "p2-Vendor-Pkg-dev.json"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "https---repo.packagist.org/x",
+            "key": "https---repo.packagist.org-x"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "ünïcödé.zip",
+            "key": "--n--c--d--.zip"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "tab\there",
+            "key": "tab-here"
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "..",
+            "key": ".."
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "",
+            "key": ""
+        },
+        {
+            "allowlist": "a-z0-9.",
+            "file": "A-Z_a.z",
+            "key": "A-Z-a.z"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "provider-vendor/package.json",
+            "key": "provider-vendor-package.json"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "packages.json",
+            "key": "packages.json"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "p2/Vendor/Pkg~dev.json",
+            "key": "p2-Vendor-Pkg-dev.json"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "https---repo.packagist.org/x",
+            "key": "https---repo.packagist.org-x"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "ünïcödé.zip",
+            "key": "--n--c--d--.zip"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "tab\there",
+            "key": "tab-here"
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "..",
+            "key": ".."
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "",
+            "key": ""
+        },
+        {
+            "allowlist": "a-z0-9_.-",
+            "file": "A-Z_a.z",
+            "key": "A-Z_a.z"
+        }
+    ]
+}
