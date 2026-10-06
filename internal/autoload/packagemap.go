@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -93,19 +92,19 @@ func validatePackage(p pkg.PackageInterface) error {
 		return nil
 	}
 	if p.TargetDir().Valid {
-		return &util.InvalidArgumentError{Site: phperr.At("AutoloadGenerator.php", 559), Message: "PSR-4 autoloading is incompatible with the target-dir property, remove the target-dir in package '" + p.Name() + "'."}
+		return &util.InvalidArgumentError{Message: "PSR-4 autoloading is incompatible with the target-dir property, remove the target-dir in package '" + p.Name() + "'."}
 	}
 	rules, ok := psr4.(*php.Array)
 	if !ok {
-		return foreachError(psr4, phperr.At("AutoloadGenerator.php", 562))
+		return foreachError(psr4)
 	}
 	for k := range rules.All() {
 		if k.IsInt() {
-			return typeError("substr", "int", 563)
+			return typeError("substr", "int")
 		}
 		namespace := k.String()
 		if namespace != "" && namespace[len(namespace)-1] != '\\' {
-			return &util.InvalidArgumentError{Site: phperr.At("AutoloadGenerator.php", 564), Message: "psr-4 namespaces must end with a namespace separator, '" + namespace + "' does not, use '" + namespace + "\\'."}
+			return &util.InvalidArgumentError{Message: "psr-4 namespaces must end with a namespace separator, '" + namespace + "' does not, use '" + namespace + "\\'."}
 		}
 	}
 
@@ -145,23 +144,23 @@ func (g *Generator) ParseAutoloads(packageMap []PackageMapEntry, rootPackage pkg
 	// classmap or psr-0/4 entries with higher precedence rules
 	a := &Autoloads{PSR0: php.NewArray(), PSR4: php.NewArray(), Files: php.NewArray()}
 	if err := g.parseAutoloadsType(reverseSortedMap, typePSR0, rootPackage, a); err != nil {
-		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 607)
+		return nil, err
 	}
 	if err := g.parseAutoloadsType(reverseSortedMap, typePSR4, rootPackage, a); err != nil {
-		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 608)
+		return nil, err
 	}
 	if err := g.parseAutoloadsType(reverseSortedMap, typeClassmap, rootPackage, a); err != nil {
-		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 609)
+		return nil, err
 	}
 	// sorted (i.e. dependents first) for files to ensure that dependencies
 	// are loaded/available once a file is included
 	if err := g.parseAutoloadsType(sortedPackageMap, typeFiles, rootPackage, a); err != nil {
-		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 612)
+		return nil, err
 	}
 	// using sorted here but it does not really matter as all are excluded
 	// equally
 	if err := g.parseAutoloadsType(sortedPackageMap, typeExclude, rootPackage, a); err != nil {
-		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 614)
+		return nil, err
 	}
 
 	php.Krsort(a.PSR0, 0)
@@ -218,7 +217,7 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 			var namespace php.Key
 			if typ == typePSR4 || typ == typePSR0 {
 				if k.IsInt() {
-					return typeError("ltrim", "int", 1279)
+					return typeError("ltrim", "int")
 				}
 				// normalize namespaces to ensure "\" becomes "" and others
 				// do not have leading separators as they are not needed
@@ -235,12 +234,12 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 				}
 				if (typ == typeFiles || typ == typeClassmap || typ == typeExclude) && php.ToBool(targetDir.Value()) {
 					if isArray {
-						return &util.ErrorException{Message: "Array to string conversion", Site: phperr.At("AutoloadGenerator.php", 1282)}
+						return &util.ErrorException{Message: "Array to string conversion"}
 					}
 					if !util.IsReadable(installPath + "/" + path) {
 						if p == rootPackage {
 							if !isString {
-								return typeError("ltrim", php.ZvalValueName(pv), 1286)
+								return typeError("ltrim", php.ZvalValueName(pv))
 							}
 							// remove target-dir from file paths of the root package
 							var err error
@@ -256,7 +255,7 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 				}
 
 				if typ == typeExclude && !isString {
-					return typeError("strtr", php.ZvalValueName(pv), 1295)
+					return typeError("strtr", php.ZvalValueName(pv))
 				}
 
 				if typ == typeExclude {
@@ -282,14 +281,13 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 						relativePath, rawRelative = ".", nil
 					}
 				} else if isArray {
-					return &util.ErrorException{Message: "Array to string conversion", Site: phperr.At("AutoloadGenerator.php", 1324)}
+					return &util.ErrorException{Message: "Array to string conversion"}
 				}
 
 				switch typ {
 				case typeFiles:
 					if !isString {
-						return pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::getFileIdentifier`, 2, "path", "string", pv).
-							Called(`Composer\Autoload\AutoloadGenerator->getFileIdentifier`, phperr.At("AutoloadGenerator.php", 1346), "AutoloadGenerator.php", 1327)
+						return pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::getFileIdentifier`, 2, "path", "string", pv)
 					}
 					a.Files.Set(fileIdentifier(p, path), relativePath)
 				case typeClassmap:
@@ -456,16 +454,15 @@ func castArray(v any) []any {
 // empty is PHP's empty() on a string.
 func empty(s string) bool { return s == "" || s == "0" }
 
-// typeError is the TypeError a strict_types call of fn at line of
+// typeError is the TypeError a strict_types call of fn in
 // AutoloadGenerator.php throws for an argument #1 ($string) of the given
 // type.
-func typeError(fn, given string, line int) error {
-	return (&php.EngineError{Class: "TypeError", Message: fn + "(): Argument #1 ($string) must be of type string, " + given + " given"}).
-		Raised(fn, "AutoloadGenerator.php", line)
+func typeError(fn, given string) error {
+	return &php.EngineError{Class: "TypeError", Message: fn + "(): Argument #1 ($string) must be of type string, " + given + " given"}
 }
 
 // foreachError is the warning (an ErrorException under Composer's error
 // handler) foreach emits for a value that is not iterable, at site.
-func foreachError(v any, site phperr.Site) error {
-	return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.TypeName(v) + " given", Site: site}
+func foreachError(v any) error {
+	return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.TypeName(v) + " given"}
 }
