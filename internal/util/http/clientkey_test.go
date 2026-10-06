@@ -33,6 +33,8 @@ func TestLoadClientCertificate(t *testing.T) {
 		{f("cli.pem"), f("cli-pkcs8-3des.key"), "secret", 0, ""},
 		{f("cli.pem"), f("cli-pkcs8-sha1.key"), "secret", 0, ""},
 		{f("cli.pem"), f("cli-pkcs8-v1.key"), "secret", 0, ""},
+		{f("cli.pem"), f("cli-pkcs8-scrypt.key"), "secret", 0, ""},
+		{f("cli.pem"), f("cli-pkcs8-scrypt.key"), "wrong", 43, "unable to set private key file: '" + f("cli-pkcs8-scrypt.key") + "' type PEM"},
 		{f("comb.pem"), "", "", 0, ""},
 		{f("cli.pem"), f("cli-pkcs8-aes.key"), "wrong", 43, "unable to set private key file: '" + f("cli-pkcs8-aes.key") + "' type PEM"},
 		{f("cli.pem"), f("cli-legacy.key"), "wrong", 43, "unable to set private key file: '" + f("cli-legacy.key") + "' type PEM"},
@@ -51,10 +53,27 @@ func TestLoadClientCertificate(t *testing.T) {
 			t.Errorf("%s %s: got %+v, want %d %q", tc.cert, tc.key, failure, tc.errno, tc.msg)
 		}
 	}
+}
 
-	// scrypt (openssl pkcs8 -scrypt) needs golang.org/x/crypto: unsupported
-	if _, failure := loadClientCertificate(f("cli.pem"), f("cli-pkcs8-scrypt.key"), "secret"); failure == nil || failure.errno != 43 {
-		t.Errorf("scrypt: %+v", failure)
+// TestScryptParamsOK checks OpenSSL's limits on scrypt parameters: openssl
+// pkcs8 -scrypt refuses -scrypt_N 65536 -scrypt_r 8 ("memory limit
+// exceeded", 64 MiB above SCRYPT_MAX_MEM) and takes its defaults.
+func TestScryptParamsOK(t *testing.T) {
+	for _, tc := range []struct {
+		n, r, p int
+		ok      bool
+	}{
+		{16384, 8, 1, true},
+		{16384, 8, 16, true},
+		{65536, 8, 1, false},
+		{32768, 8, 1, false},
+		{16384, 8, 0, false},
+		{1000, 8, 1, false},
+		{1 << 16, 1, 1, false},
+	} {
+		if got := scryptParamsOK(tc.n, tc.r, tc.p); got != tc.ok {
+			t.Errorf("N=%d r=%d p=%d: got %v", tc.n, tc.r, tc.p, got)
+		}
 	}
 }
 

@@ -23,6 +23,8 @@ import (
 	"os"
 	"strings"
 	"unicode/utf16"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // curleBadFunctionArgument is CURLE_BAD_FUNCTION_ARGUMENT, which libcurl
@@ -37,10 +39,10 @@ type clientCertError struct {
 
 // loadClientCertificate reads local_cert (which may hold the key too) and
 // local_pk, decrypting the key with passphrase: legacy encrypted PEM
-// (Proc-Type: 4,ENCRYPTED) and encrypted PKCS#8 (PBES2 with PBKDF2 and
-// AES or 3DES/DES, or PKCS#12's pbeWithSHA1And3-KeyTripleDES-CBC); scrypt
-// and other PBES1 schemes are not supported. Failures read as curl's
-// (lib/vtls/openssl.c, cert_stuff).
+// (Proc-Type: 4,ENCRYPTED) and encrypted PKCS#8 (PBES2 with PBKDF2 or
+// scrypt and AES or 3DES/DES, or PKCS#12's
+// pbeWithSHA1And3-KeyTripleDES-CBC); other PBES1 schemes are not
+// supported. Failures read as curl's (lib/vtls/openssl.c, cert_stuff).
 func loadClientCertificate(certFile, keyFile, passphrase string) (tls.Certificate, *clientCertError) {
 	certPEM, err := os.ReadFile(certFile)
 	if err != nil {
@@ -155,6 +157,7 @@ func decryptPrivateKey(data []byte, passphrase string) (*pem.Block, bool) {
 var (
 	oidPBES2            = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 5, 13}
 	oidPBKDF2           = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 5, 12}
+	oidScrypt           = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11591, 4, 11}
 	oidPBEWithSHA13DES  = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 12, 1, 3}
 	oidHMACWithSHA1     = asn1.ObjectIdentifier{1, 2, 840, 113549, 2, 7}
 	oidHMACWithSHA224   = asn1.ObjectIdentifier{1, 2, 840, 113549, 2, 8}
@@ -187,6 +190,15 @@ type pbkdf2Params struct {
 	PRF            pkix.AlgorithmIdentifier `asn1:"optional"`
 }
 
+// scryptParams is RFC 7914's scrypt-params.
+type scryptParams struct {
+	Salt      []byte
+	N         int
+	R         int
+	P         int
+	KeyLength int `asn1:"optional"`
+}
+
 type pbeParams struct {
 	Salt           []byte
 	IterationCount int
@@ -209,31 +221,6 @@ func decryptPKCS8(der, password []byte) ([]byte, error) {
 		var params pbes2Params
 		if _, err := asn1.Unmarshal(info.Algorithm.Parameters.FullBytes, &params); err != nil {
 			return nil, err
-		}
-
-		if !params.KeyDerivationFunc.Algorithm.Equal(oidPBKDF2) {
-			return nil, errUnsupportedPKCS8
-		}
-
-		var kdf pbkdf2Params
-		if _, err := asn1.Unmarshal(params.KeyDerivationFunc.Parameters.FullBytes, &kdf); err != nil {
-			return nil, err
-		}
-
-		prf := sha1.New
-
-		switch alg := kdf.PRF.Algorithm; {
-		case len(alg) == 0, alg.Equal(oidHMACWithSHA1):
-		case alg.Equal(oidHMACWithSHA224):
-			prf = sha256.New224
-		case alg.Equal(oidHMACWithSHA256):
-			prf = sha256.New
-		case alg.Equal(oidHMACWithSHA384):
-			prf = sha512.New384
-		case alg.Equal(oidHMACWithSHA512):
-			prf = sha512.New
-		default:
-			return nil, errUnsupportedPKCS8
 		}
 
 		var (
@@ -260,7 +247,7 @@ func decryptPKCS8(der, password []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		key, err := pbkdf2.Key(prf, string(password), kdf.Salt, kdf.IterationCount, keyLen)
+		key, err := pbes2Key(params.KeyDerivationFunc, password, keyLen)
 		if err != nil {
 			return nil, err
 		}
@@ -308,6 +295,82 @@ func decryptPKCS8(der, password []byte) ([]byte, error) {
 	}
 
 	return out[:len(out)-pad], nil
+}
+
+// pbes2Key derives a PBES2 key: PBKDF2 (PKCS5_v2_PBKDF2_keyivgen) or
+// scrypt (PKCS5_v2_scrypt_keyivgen).
+func pbes2Key(kdfAlg pkix.AlgorithmIdentifier, password []byte, keyLen int) ([]byte, error) {
+	switch {
+	case kdfAlg.Algorithm.Equal(oidPBKDF2):
+		var kdf pbkdf2Params
+		if _, err := asn1.Unmarshal(kdfAlg.Parameters.FullBytes, &kdf); err != nil {
+			return nil, err
+		}
+
+		prf := sha1.New
+
+		switch alg := kdf.PRF.Algorithm; {
+		case len(alg) == 0, alg.Equal(oidHMACWithSHA1):
+		case alg.Equal(oidHMACWithSHA224):
+			prf = sha256.New224
+		case alg.Equal(oidHMACWithSHA256):
+			prf = sha256.New
+		case alg.Equal(oidHMACWithSHA384):
+			prf = sha512.New384
+		case alg.Equal(oidHMACWithSHA512):
+			prf = sha512.New
+		default:
+			return nil, errUnsupportedPKCS8
+		}
+
+		return pbkdf2.Key(prf, string(password), kdf.Salt, kdf.IterationCount, keyLen)
+	case kdfAlg.Algorithm.Equal(oidScrypt):
+		var kdf scryptParams
+		if _, err := asn1.Unmarshal(kdfAlg.Parameters.FullBytes, &kdf); err != nil {
+			return nil, err
+		}
+
+		// a keyLength must be the cipher's (PKCS5_v2_scrypt_keyivgen)
+		if kdf.KeyLength != 0 && kdf.KeyLength != keyLen {
+			return nil, errUnsupportedPKCS8
+		}
+
+		if !scryptParamsOK(kdf.N, kdf.R, kdf.P) {
+			return nil, errUnsupportedPKCS8
+		}
+
+		return scrypt.Key(password, kdf.Salt, kdf.N, kdf.R, kdf.P, keyLen)
+	}
+
+	return nil, errUnsupportedPKCS8
+}
+
+// scryptMaxMem is the memory OpenSSL lets scrypt use when decrypting a
+// key: EVP_PBE_scrypt_ex's default, SCRYPT_MAX_MEM (32 MiB).
+const scryptMaxMem = 32 << 20
+
+// scryptParamsOK is OpenSSL's check of scrypt parameters (providers/
+// implementations/kdfs/scrypt.c, scrypt_alg): N a power of two from 2, r
+// and p positive, p*r below 2^30, N below 2^(16r), and the buffers
+// (128*r*p bytes for B, 128*r*(N+2) for V) within scryptMaxMem; keys
+// beyond it fail to load ("memory limit exceeded").
+func scryptParamsOK(n, r, p int) bool {
+	if r <= 0 || p <= 0 || n < 2 || n&(n-1) != 0 {
+		return false
+	}
+
+	if p > (1<<30-1)/r {
+		return false
+	}
+
+	if 16*r <= 63 && uint64(n) >= uint64(1)<<(16*r) {
+		return false
+	}
+
+	blen := uint64(p) * 128 * uint64(r)
+	vlen := 128 * uint64(r) * (uint64(n) + 2)
+
+	return blen+vlen <= scryptMaxMem
 }
 
 // bmpString is a password as PKCS#12 feeds it to its KDF: UTF-16BE with a
