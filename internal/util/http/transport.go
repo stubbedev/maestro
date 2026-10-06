@@ -66,6 +66,9 @@ type tlsSettings struct {
 	hasCiphers     bool
 	verifyDepth    int64
 	hasVerifyDepth bool
+	// stream checks the peer name as PHP's stream wrapper does, not as
+	// curl does (checkPeerName).
+	stream bool
 }
 
 // transportKey identifies a pooled transport: requests sharing one share
@@ -298,23 +301,24 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 		maxDepth = s.verifyDepth
 	}
 
-	switch {
-	case !s.verifyPeer:
+	if !s.verifyPeer {
 		cfg.InsecureSkipVerify = true // verify_peer false asks for exactly this
-	case !s.verifyPeerName || s.allowSelfSigned:
-		// Verify the chain ourselves: without the host name, or accepting a
-		// self-signed leaf (allow_self_signed).
-		cfg.InsecureSkipVerify = true // verification is done in VerifyConnection
-		roots := cfg.RootCAs
-		checkName := s.verifyPeerName
-		selfSigned := s.allowSelfSigned
-		cfg.VerifyConnection = func(cs tls.ConnectionState) error {
-			return verifyChain(cs, roots, checkName, selfSigned, maxDepth)
-		}
-	case maxDepth >= 0:
-		cfg.VerifyConnection = func(cs tls.ConnectionState) error {
-			return checkChainDepth(cs.VerifiedChains, maxDepth)
-		}
+
+		return cfg, nil
+	}
+
+	// The peer is verified in VerifyConnection: the chain as OpenSSL
+	// does, accepting a self-signed leaf for allow_self_signed, then the
+	// peer name as curl or PHP's stream wrapper check it (both fall back
+	// on the common name, crypto/tls does not), unless verify_peer_name
+	// is off.
+	cfg.InsecureSkipVerify = true // verification is done in VerifyConnection
+	roots := cfg.RootCAs
+	checkName := s.verifyPeerName
+	selfSigned := s.allowSelfSigned
+	stream := s.stream
+	cfg.VerifyConnection = func(cs tls.ConnectionState) error {
+		return verifyPeer(cs, roots, checkName, selfSigned, maxDepth, stream)
 	}
 
 	return cfg, nil
@@ -353,9 +357,9 @@ func orNone(s string) string {
 	return s
 }
 
-// verifyChain is the peer verification of a connection whose standard
-// verification was replaced.
-func verifyChain(cs tls.ConnectionState, roots *x509.CertPool, checkName, allowSelfSigned bool, maxDepth int64) error {
+// verifyPeer is the peer verification of a connection (VerifyConnection):
+// the chain, then the peer name when checkName is set.
+func verifyPeer(cs tls.ConnectionState, roots *x509.CertPool, checkName, allowSelfSigned bool, maxDepth int64, stream bool) error {
 	if len(cs.PeerCertificates) == 0 {
 		return errors.New("tls: no peer certificates")
 	}
@@ -363,28 +367,27 @@ func verifyChain(cs tls.ConnectionState, roots *x509.CertPool, checkName, allowS
 	leaf := cs.PeerCertificates[0]
 	opts := x509.VerifyOptions{Roots: roots, Intermediates: x509.NewCertPool()}
 
-	if checkName {
-		opts.DNSName = cs.ServerName
-	}
-
 	for _, c := range cs.PeerCertificates[1:] {
 		opts.Intermediates.AddCert(c)
 	}
 
 	chains, err := leaf.Verify(opts)
-	if err == nil {
-		return checkChainDepth(chains, maxDepth)
+
+	switch {
+	case err == nil:
+		err = checkChainDepth(chains, maxDepth)
+	case allowSelfSigned && leaf.CheckSignatureFrom(leaf) == nil:
+		err = nil
+	default:
+		// as crypto/tls reports it
+		err = &tls.CertificateVerificationError{UnverifiedCertificates: cs.PeerCertificates, Err: err}
 	}
 
-	if allowSelfSigned && leaf.CheckSignatureFrom(leaf) == nil {
-		if checkName {
-			return leaf.VerifyHostname(cs.ServerName)
-		}
-
-		return nil
+	if err != nil || !checkName {
+		return err
 	}
 
-	return err
+	return checkPeerName(leaf, cs.ServerName, stream)
 }
 
 // certPools caches parsed CA files and directories per process.
@@ -920,7 +923,7 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 		return curleCouldntResolveHost, "Could not resolve host: " + host
 	}
 
-	if errno, msg, ok := certificateError(err, host); ok {
+	if errno, msg, ok := certificateError(err); ok {
 		return errno, msg
 	}
 
@@ -999,10 +1002,9 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 // certificateError is curl's report of a peer certificate OpenSSL (or
 // curl's host name check) rejects: "SSL certificate OpenSSL verify
 // result: <X509_verify_cert_error_string> (<code>)".
-func certificateError(err error, host string) (int, string, bool) {
+func certificateError(err error) (int, string, bool) {
 	var (
 		unknownAuthority x509.UnknownAuthorityError
-		hostnameErr      x509.HostnameError
 		invalidCert      x509.CertificateInvalidError
 		verifyErr        *tls.CertificateVerificationError
 	)
@@ -1014,17 +1016,11 @@ func certificateError(err error, host string) (int, string, bool) {
 	switch {
 	case errors.Is(err, errChainTooLong):
 		return result("certificate chain too long", 22)
-	case errors.As(err, &hostnameErr):
-		// lib/vtls/openssl.c, ossl_verifyhost
-		target := "host name"
-		if ip := net.ParseIP(host); ip != nil {
-			target = "IPv6 address"
-			if ip.To4() != nil {
-				target = "IPv4 address"
-			}
-		}
+	case errors.As(err, new(*peerNameError)):
+		// lib/vtls/openssl.c, ossl_verifyhost (curlCheckPeerName)
+		pe, _ := errors.AsType[*peerNameError](err)
 
-		return curlePeerFailedVerify, "SSL: no alternative certificate subject name matches target " + target + " '" + host + "'", true
+		return curlePeerFailedVerify, pe.Error(), true
 	case errors.As(err, &unknownAuthority):
 		var chain []*x509.Certificate
 		if errors.As(err, &verifyErr) {
@@ -1138,19 +1134,15 @@ func streamWarnings(err error, host string) []string {
 	)
 
 	var (
-		hostnameErr      x509.HostnameError
 		unknownAuthority x509.UnknownAuthorityError
 		invalidCert      x509.CertificateInvalidError
+		nameErr          *peerNameError
 	)
 
 	switch {
-	case errors.As(err, &hostnameErr):
-		cn := ""
-		if hostnameErr.Certificate != nil {
-			cn = hostnameErr.Certificate.Subject.CommonName
-		}
-
-		return []string{"Peer certificate CN=`" + cn + "' did not match expected CN=`" + host + "'", cryptoFailed, openFailed}
+	case errors.As(err, &nameErr) && nameErr.warning != "":
+		// phpCheckPeerName
+		return []string{nameErr.warning, cryptoFailed, openFailed}
 	case errors.Is(err, errChainTooLong), errors.As(err, &unknownAuthority), errors.As(err, &invalidCert):
 		return []string{"SSL operation failed with code 1. OpenSSL Error messages:\nerror:0A000086:SSL routines::certificate verify failed", cryptoFailed, openFailed}
 	case errors.Is(err, syscall.ECONNREFUSED):

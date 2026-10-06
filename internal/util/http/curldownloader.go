@@ -307,7 +307,7 @@ func (c *CurlDownloader) buildRequest(url string, options, ssl *php.Array, proxy
 // local_cert, local_pk, passphrase), and for PHP's stream wrapper (stream)
 // also ciphers and verify_depth, which CurlDownloader does not pass on.
 func tlsFromOptions(ssl *php.Array, stream bool) tlsSettings {
-	s := tlsSettings{verifyPeer: true, verifyPeerName: true}
+	s := tlsSettings{verifyPeer: true, verifyPeerName: true, stream: stream}
 
 	if ssl == nil {
 		return s

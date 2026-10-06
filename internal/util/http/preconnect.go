@@ -257,6 +257,17 @@ func tlsHandshake(ctx context.Context, plain net.Conn, addr string, base *tls.Co
 		cfg.ServerName = name
 	}
 
+	if verify := cfg.VerifyConnection; verify != nil {
+		// the peer name to check (verifyPeer): ConnectionState's
+		// ServerName is the SNI sent, none for an IP address
+		name := cfg.ServerName
+		cfg.VerifyConnection = func(cs tls.ConnectionState) error {
+			cs.ServerName = name
+
+			return verify(cs)
+		}
+	}
+
 	tlsConn := tls.Client(plain, cfg)
 	errc := make(chan error, 2)
 

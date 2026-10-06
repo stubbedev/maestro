@@ -164,7 +164,7 @@ func TestStreamSSL_PeerName(t *testing.T) {
 	var pool transportPool
 
 	res := pool.do(context.Background(), &transferRequest{url: strings.Replace(url, "localhost", "127.0.0.1", 1), key: transportKey{http1: true, tls: tlsSettings{
-		cafile: root, verifyPeer: true, verifyPeerName: true,
+		cafile: root, verifyPeer: true, verifyPeerName: true, stream: true,
 	}}})
 
 	want := []string{"Peer certificate CN=`localhost' did not match expected CN=`127.0.0.1'", "Failed to enable crypto", "Failed to open stream: operation failed"}
