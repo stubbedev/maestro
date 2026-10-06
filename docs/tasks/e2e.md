@@ -1,6 +1,6 @@
 # Task: end-to-end comparison suite against real Composer 2.10.3
 
-The final gate for the drop-in promise (PORTING.md, Tests §3). Rebuild cmd/maestro's e2e test (the prototype's is in git history: `git show 064b0d0:cmd/maestro/e2e_test.go` and its testdata — reuse its tree snapshot/compare ideas) into a proper suite gated by MAESTRO_E2E=1:
+The final gate for the drop-in promise (PORTING.md, Tests §3). Rebuild cmd/maestro's e2e test into a proper suite gated by MAESTRO_E2E=1:
 
 - Real Composer: download the official composer.phar 2.10.3 into the test cache (checksum-pinned against getcomposer.org's published sha256), never shipped. Both tools run with the devenv php, separate COMPOSER_HOME/COMPOSER_CACHE_DIR per run, same env, COMPOSER_NO_INTERACTION=1 unless a scenario tests prompts.
 - Compare per step: exit code, stdout and stderr (normalise only what is inherently variable: timings, absolute temp paths, and "Downloading"/"Loading from cache" wording only where the two tools' cache states legitimately differ — document every normalisation), composer.lock byte-for-byte, the whole vendor/ tree (paths, types, modes, symlink targets, file contents; mtimes excluded per deviation 1), and any files scripts/plugins write.
