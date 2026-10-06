@@ -69,10 +69,13 @@ Composer exactly; how errors and diagnostics are presented is maestro's own
   Composer's text unless there is a reason to change it, but it is not
   frozen.
 
-Until maestro's own error and diagnostic format exists (#13 step 4), free
-output keeps Composer's text; what changes is that it no longer has to
-match exactly, and nothing new is built only to reproduce PHP's
-presentation.
+maestro's own format for errors, warnings, deprecation notices and hints
+is `internal/ui`'s (#13 step 4): a labelled headline with the message,
+then its causes (previous errors), hints, the usage of a command given
+wrong input and, at `-v`, debugging details (Go error types, a plugin
+exception's PHP trace, the exit code). Other free output keeps Composer's
+text; it no longer has to match exactly, and nothing new is built only to
+reproduce PHP's presentation.
 
 ### Presentation of free output
 
@@ -178,12 +181,13 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | Go package | Ports |
 | --- | --- |
 | `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, `basename`, ...), and its own PCRE2 10.48-compatible regex engine (internal/php/doc.go says why) |
-| `internal/phperr` | throw sites and PHP call stacks of errors, for rendering them as Symfony does and for the stacks plugin code asks for (see "Errors") |
+| `internal/phperr` | throw sites and PHP call stacks of errors, for the stacks plugin code asks for (see "Errors") |
 | `internal/semver` | composer/semver |
 | `internal/classmap` | composer/class-map-generator |
 | `internal/spdx` | composer/spdx-licenses (+ its JSON data) |
 | `internal/metadataminifier` | composer/metadata-minifier |
 | `internal/console` | the Symfony Console subset Composer uses: input parsing, output formatting/styles/verbosity, tables, progress bar, questions, application help/list |
+| `internal/ui` | maestro's own presentation of errors and diagnostics (lipgloss; "Presentation of free output") |
 | `internal/io` | Composer\IO |
 | `internal/util` | Composer\Util (filesystem, ProcessExecutor, Platform, Url, Zip/Tar, Loop, ...) |
 | `internal/util/http` | Composer\Util\{HttpDownloader, RemoteFilesystem, AuthHelper, GitHub, GitLab, Bitbucket, Forgejo, StreamContextFactory, ProxyManager, Http\*}, composer/ca-bundle |
@@ -277,8 +281,8 @@ Cycle-breaking decisions already made:
   `PHPClass()` method; a `$previous` exception goes in the type's previous
   field (`phperr.Chained`, never Unwrap).
 - Throw sites and PHP call stacks (`phperr.Site`, `phperr.At(...)`, frame
-  recording) only serve rendering errors as PHP does, which is now free
-  (#13). New code does not need to add them. Existing ones stay until the
+  recording) served rendering errors as PHP does, which is now free (#13)
+  and no longer uses them. New code does not need to add them. Existing ones stay until the
   errors oracle is re-scoped and the error path simplified (#13 steps 2
   and 3); the plugin runtime keeps what it needs for the stacks PHP code
   asks for (`internal/plugin/frames.go`).
