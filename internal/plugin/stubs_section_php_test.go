@@ -30,8 +30,9 @@ func TestShimStubs_OutputSection(t *testing.T) {
 		t.Errorf("classes = %v", got)
 	}
 	// Symfony's: the line, then the cursor moved up and the line erased
-	// before the new content.
-	if want := "one\n\x1b[1A\x1b[0Jtwo\n"; stdout.String() != want {
+	// before the new content; the section ends its lines with PHP's
+	// PHP_EOL.
+	if want := "one" + php.EOL + "\x1b[1A\x1b[0Jtwo" + php.EOL; stdout.String() != want {
 		t.Errorf("stdout = %q, want %q", stdout.String(), want)
 	}
 }

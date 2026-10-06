@@ -23,12 +23,14 @@ func TestShimStubs_AutoloadGeneratorInternals(t *testing.T) {
 		$ag->setRunScripts(false);
 		$ag->dump($composer->getConfig(), $composer->getRepositoryManager()->getLocalRepository(), $composer->getPackage(), $composer->getInstallationManager(), 'composer');
 
-		$base = getcwd();
+		$fs = new \Composer\Util\Filesystem();
+		// AutoloadGenerator::dump() works on normalized paths (forward
+		// slashes on Windows too).
+		$base = $fs->normalizePath(getcwd());
 		$vendor = $base.'/vendor';
 		$target = $vendor.'/composer';
 		preg_match('{ComposerAutoloaderInit([0-9a-f]+)}', file_get_contents($target.'/autoload_real.php'), $m);
 		$suffix = $m[1];
-		$fs = new \Composer\Util\Filesystem();
 		$out = [];
 		$out[] = 'static '.var_export($ag->call('getStaticFile', $suffix, $target, $vendor, $base) === file_get_contents($target.'/autoload_static.php'), true);
 		$out[] = 'autoload '.var_export($ag->call('getAutoloadFile', "__DIR__ . '/composer'", $suffix) === file_get_contents($vendor.'/autoload.php'), true);

@@ -185,7 +185,8 @@ func TestShimStubs_PHPCreatedIO(t *testing.T) {
 	if code := get(t, got, "code"); code != int64(0) {
 		t.Errorf("code = %v", code)
 	}
-	out := php.ToString(get(t, got, "output"))
+	// The BufferIO's StreamOutput ends lines with PHP's PHP_EOL.
+	out := php.NormalizeEOL(php.ToString(get(t, got, "output")))
 	for _, want := range []string{
 		"Loading composer repositories with package information\n",
 		"Updating dependencies\n",
