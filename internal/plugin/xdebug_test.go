@@ -163,7 +163,13 @@ func TestTmpIniContent_Equivalent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const dump = `$ini = ini_get_all(null, false); unset($ini['opcache.enable_cli']); echo json_encode([get_loaded_extensions(), get_loaded_extensions(true), $ini]);`
+	// The restart exists to drop xdebug: the dump leaves out xdebug and its
+	// settings, and the restarted php must not have it.
+	const dump = `$noXdebug = function (array $l) { return array_values(array_filter($l, function ($e) { return strcasecmp($e, 'xdebug') !== 0; })); };
+$ini = ini_get_all(null, false);
+unset($ini['opcache.enable_cli']);
+foreach (array_keys($ini) as $k) { if (strncmp($k, 'xdebug.', 7) === 0) { unset($ini[$k]); } }
+echo json_encode([$noXdebug(get_loaded_extensions()), $noXdebug(get_loaded_extensions(true)), $ini]);`
 	plain, err := exec.Command(phpBinary, "-r", dump).Output()
 	if err != nil {
 		t.Fatal(err)
@@ -174,6 +180,13 @@ func TestTmpIniContent_Equivalent(t *testing.T) {
 	}
 	if string(plain) != string(restarted) {
 		t.Errorf("the restarted php differs:\n%s", phpDumpDiff(plain, restarted))
+	}
+	loaded, err := exec.Command(phpBinary, "-n", "-c", tmp, "-r", `echo extension_loaded('xdebug') ? 'yes' : 'no';`).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(loaded) != "no" {
+		t.Error("the restarted php loads xdebug")
 	}
 }
 
