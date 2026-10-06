@@ -217,14 +217,6 @@ func TestBinaryInstaller_Oracle(t *testing.T) {
 	}
 }
 
-func mustMkdir(t *testing.T, dir string) {
-	t.Helper()
-
-	if err := os.MkdirAll(dir, 0o777); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func deref(s *string) string {
 	if s == nil {
 		return "<nil>"

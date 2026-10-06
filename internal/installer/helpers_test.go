@@ -2,6 +2,7 @@ package installer
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -313,5 +314,13 @@ func equalCalls(t *testing.T, got, want []string) {
 
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func mustMkdir(t *testing.T, dir string) {
+	t.Helper()
+
+	if err := os.MkdirAll(dir, 0o777); err != nil {
+		t.Fatal(err)
 	}
 }
