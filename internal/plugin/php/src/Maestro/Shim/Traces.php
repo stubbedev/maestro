@@ -247,11 +247,10 @@ final class Traces
 
             return [$evalFile.'('.$evalLine.") : eval()'d code", $line];
         }
-        $shim = self::shim();
-        if (self::$root === '' || strpos($file, $shim) !== 0) {
+        $rel = self::relative($file);
+        if (self::$root === '' || $rel === null) {
             return [$file, $line];
         }
-        $rel = substr($file, strlen($shim));
         if (strpos($rel, 'lib/') === 0) {
             return [self::$root.'/vendor/'.substr($rel, 4), $line];
         }
@@ -272,11 +271,10 @@ final class Traces
      */
     public static function composerFile(string $file): string
     {
-        $shim = self::shim();
-        if (self::$root === '' || strpos($file, $shim) !== 0) {
+        $rel = self::relative($file);
+        if (self::$root === '' || $rel === null) {
             return $file;
         }
-        $rel = substr($file, strlen($shim));
         if (strpos($rel, 'src/Composer/') === 0 || strpos($rel, 'stubs/Composer/') === 0) {
             return self::$root.'/src/'.substr($rel, strpos($rel, 'Composer/'));
         }
@@ -343,11 +341,10 @@ final class Traces
      */
     private static function internal(string $file): bool
     {
-        $shim = self::shim();
-        if (strpos($file, $shim) !== 0 || substr($file, -strlen("eval()'d code")) === "eval()'d code") {
+        $rel = self::relative($file);
+        if ($rel === null || substr($file, -strlen("eval()'d code")) === "eval()'d code") {
             return false;
         }
-        $rel = substr($file, strlen($shim));
 
         return strpos($rel, 'src/Maestro/') === 0 || strpos($rel, '/') === false || strpos($rel, 'bin/') === 0;
     }
@@ -373,11 +370,30 @@ final class Traces
         return [null, null];
     }
 
-    /** The shim's root directory, with a trailing slash. */
+    /**
+     * The path of a file of the shim relative to its root, with forward
+     * slashes (PHP names files with backslashes on Windows), or null for
+     * a file elsewhere.
+     */
+    private static function relative(string $file): ?string
+    {
+        $shim = self::shim();
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $file = strtr($file, '\\', '/');
+        }
+        if (strpos($file, $shim) !== 0) {
+            return null;
+        }
+
+        return substr($file, strlen($shim));
+    }
+
+    /** The shim's root directory, with forward slashes and a trailing one. */
     private static function shim(): string
     {
         if (self::$shim === null) {
-            self::$shim = dirname(__DIR__, 3).'/';
+            $shim = dirname(__DIR__, 3);
+            self::$shim = (DIRECTORY_SEPARATOR === '\\' ? strtr($shim, '\\', '/') : $shim).'/';
         }
 
         return self::$shim;

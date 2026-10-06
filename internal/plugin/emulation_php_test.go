@@ -281,7 +281,8 @@ func TestInternals_AsyncProcessesOnMaestrosLoop(t *testing.T) {
 		$loop = \Composer\Factory::create($vars['io'], null, true)->getLoop();
 		$GLOBALS['maestroAsync'] = [];
 		foreach (['one', 'two'] as $word) {
-			$loop->getProcessExecutor()->executeAsync('sleep 0.2; echo '.$word)->then(function ($process) {
+			// php rather than sh's sleep and echo: cmd.exe runs it on Windows
+			$loop->getProcessExecutor()->executeAsync(escapeshellarg(PHP_BINARY).' -r '.escapeshellarg("usleep(200000); echo '$word';"))->then(function ($process) {
 				$GLOBALS['maestroAsync'][] = trim($process->getOutput());
 			});
 		}
