@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/store"
@@ -44,8 +45,14 @@ func (r *Runtime) newDownloader(a args) (any, error) {
 		return nil, a.errorf("param 0 is not an object being constructed in PHP (a %T)", a.at(0))
 	}
 	ctor, ok := downloaderConstructors[o.Class]
+	var overrides []string
 	if !ok {
-		return nil, unsupportedf("maestro does not support creating a %s in plugins yet", o.Class)
+		// A subclass written in PHP: maestro's downloader of the
+		// Composer class it extends, with its overrides.
+		var err error
+		if ctor, overrides, err = r.subclassDownloaderBase(o); err != nil {
+			return nil, err
+		}
 	}
 	out, _, err := r.ioParam(a, 1)
 	if err != nil {
@@ -99,8 +106,37 @@ func (r *Runtime) newDownloader(a args) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := r.adopt(a, d); err != nil {
+		return nil, err
+	}
+	r.adoptSubclassDownloader(o, d, overrides)
 
-	return nil, r.adopt(a, d)
+	return nil, nil
+}
+
+// subclassDownloaderBase asks PHP for the classes a downloader written in
+// PHP extends and the methods it overrides (`downloader.describe`): the
+// constructor of the nearest Composer class maestro has, and the
+// overrides.
+func (r *Runtime) subclassDownloaderBase(o *rpc.PHPObject) (func(downloader.Deps) (downloader.Downloader, error), []string, error) {
+	v, err := r.Call("downloader.describe", php.ArrayOf("object", o))
+	if err != nil {
+		return nil, nil, err
+	}
+	d, _ := v.(*php.Array)
+	if d == nil {
+		return nil, nil, &rpc.ProtocolError{Message: "no description of " + o.Class}
+	}
+	parents, _ := d.Get("parents")
+	for _, class := range stringList(parents) {
+		if ctor, ok := downloaderConstructors[class]; ok {
+			overrides, _ := d.Get("overrides")
+
+			return ctor, stringList(overrides), nil
+		}
+	}
+
+	return nil, nil, unsupportedf("maestro does not support creating a %s in plugins yet", o.Class)
 }
 
 func (r *Runtime) registerDownloaders() {
@@ -143,7 +179,7 @@ func (r *Runtime) registerDownloaders() {
 		if err != nil {
 			return nil, err
 		}
-		promise, err := d.Download(p, a.str(2), prev)
+		promise, err := ownDownload(d, p, a.str(2), prev, !a.has(4) || a.boolean(4))
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +207,7 @@ func (r *Runtime) registerDownloaders() {
 		if err != nil {
 			return nil, err
 		}
-		promise, err := d.Install(p, a.str(2))
+		promise, err := ownInstall(d, p, a.str(2), !a.has(3) || a.boolean(3))
 		if err != nil {
 			return nil, err
 		}
@@ -199,7 +235,7 @@ func (r *Runtime) registerDownloaders() {
 		if err != nil {
 			return nil, err
 		}
-		promise, err := d.Remove(p, a.str(2))
+		promise, err := ownRemove(d, p, a.str(2), !a.has(3) || a.boolean(3))
 		if err != nil {
 			return nil, err
 		}

@@ -228,6 +228,11 @@ var transactionMethods = []string{"getOperations"}
 // downloaders (downloader.*, internal/plugin/svc_downloader.go).
 var downloaderMethods = []string{"getInstallationSource", "download", "prepare", "install", "update", "remove", "cleanup", "getLocalChanges", "getUnpushedChanges", "getVcsReference"}
 
+// downloaderHelpers are FileDownloader's protected methods maestro serves
+// for its downloaders: what a subclass written in PHP calls on itself
+// (parent::getFileName(), $this->addCleanupPath(), ...).
+var downloaderHelpers = []string{"getFileName", "processUrl", "getDistPath", "getInstallOperationAppendix", "clearLastCacheWrite", "addCleanupPath", "removeCleanupPath"}
+
 // builtinHooks are the methods of Composer's command classes that maestro
 // serves for its own commands (builtin.*, internal/plugin/svc_builtin.go):
 // the hooks Symfony's Command::run() calls when PHP code runs one of the
@@ -264,6 +269,11 @@ func remoteMethods(class string, c *shimbuild.Class) map[string]string {
 	if slices.Contains(c.Interfaces, `Composer\Downloader\DownloaderInterface`) {
 		for _, name := range downloaderMethods {
 			if m, ok := c.Methods.Values[name]; ok && !m.Static && !m.Abstract && m.Visibility == "public" {
+				out[name] = "downloader." + name
+			}
+		}
+		for _, name := range downloaderHelpers {
+			if m, ok := c.Methods.Values[name]; ok && !m.Static && !m.Abstract {
 				out[name] = "downloader." + name
 			}
 		}
@@ -368,6 +378,10 @@ func renderMethod(class, name string, m *shimbuild.Method, inInterface bool, rem
 				params = append(params, "$"+p.Name)
 			}
 			call = "\\Maestro\\Shim\\Rpc::call(" + php.VarExport(remote) + ", [" + strings.Join(params, ", ") + "])"
+			if m.ReturnType != nil && *m.ReturnType == `\React\Promise\PromiseInterface` {
+				// maestro's promise ({id, s}) as a React promise.
+				call = "\\Maestro\\Shim\\Promises::fromMaestro(" + call + ")"
+			}
 		}
 		b.WriteString("        if (\\Maestro\\Shim\\Remote::owned($this)) {\n")
 		if m.ReturnType != nil && *m.ReturnType == "void" {

@@ -94,7 +94,9 @@ type FileDownloader struct {
 	// extensionLoaded is Deps.ExtensionLoaded (never nil).
 	extensionLoaded func(name string) bool
 	self            hooks
-	class           string
+	// hooks are the overrides of a subclass written in PHP (SetHooks).
+	hooks *Hooks
+	class string
 	// format is the archive format store-backed downloaders extract (0
 	// for none).
 	format archive.Format
@@ -272,7 +274,11 @@ func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path stri
 		st.urls = append(st.urls, dlURL{base: url, processed: processed, cacheKey: cacheKey(p, processed)})
 	}
 
-	st.fileName = d.fileName(p)
+	fileName, err := d.fileName(p, path)
+	if err != nil {
+		return nil, err
+	}
+	st.fileName = fileName
 
 	if err := util.EnsureDirectoryExists(path); err != nil {
 		return nil, err
@@ -553,7 +559,10 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 
 // Cleanup is cleanup($type, $package, $path, $prevPackage).
 func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
-	fileName := d.fileName(p)
+	fileName, err := d.fileName(p, path)
+	if err != nil {
+		return nil, err
+	}
 	if fileExists(fileName) {
 		if err := util.Unlink(fileName); err != nil {
 			return nil, err
@@ -615,7 +624,11 @@ func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*
 		return nil, err
 	}
 
-	if err := d.fs.Rename(d.fileName(p), path+"/"+d.distPath(p, false)); err != nil {
+	fileName, err := d.fileName(p, path)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.fs.Rename(fileName, path+"/"+d.distPath(p, false)); err != nil {
 		return nil, err
 	}
 
@@ -747,10 +760,10 @@ func (d *FileDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 	}, nil), nil
 }
 
-// fileName is getFileName($package, $path): the temporary file the dist
+// ownFileName is getFileName($package, $path): the temporary file the dist
 // is downloaded to. Composer hashes spl_object_id($package) in, so every
 // package object gets its own; the object's address serves here.
-func (d *FileDownloader) fileName(p pkg.PackageInterface) string {
+func (d *FileDownloader) ownFileName(p pkg.PackageInterface) string {
 	extension := d.distPath(p, true)
 	if extension == "" {
 		extension = p.DistType().S
@@ -765,8 +778,8 @@ func (d *FileDownloader) installOperationAppendix(pkg.PackageInterface, string) 
 	return "", nil
 }
 
-// processURL is processUrl($package, $url).
-func (d *FileDownloader) processURL(p pkg.PackageInterface, url string) (string, error) {
+// ownProcessURL is processUrl($package, $url).
+func (d *FileDownloader) ownProcessURL(p pkg.PackageInterface, url string) (string, error) {
 	if ref := p.DistReference(); ref.Valid {
 		return util.UpdateDistReference(url, ref.S, configList(d.config, "github-domains"), configList(d.config, "gitlab-domains"))
 	}

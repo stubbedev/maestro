@@ -98,7 +98,7 @@ func TestFileDownloader_InstallDoesNotChmodBinOutsideOfPackage(t *testing.T) {
 	d := newTestFileDownloader(t, nil, getConfig(t, "vendor-dir", vendorDir), nil, nil, nil)
 
 	// seed the downloaded file where install() expects to find it
-	tmpFile := d.fileName(p)
+	tmpFile := d.ownFileName(p)
 	if err := os.MkdirAll(filepath.Dir(tmpFile), 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestFileDownloader_InstallChmodsBinaries(t *testing.T) {
 
 	d := newTestFileDownloader(t, nil, getConfig(t, "vendor-dir", vendorDir), nil, nil, nil)
 
-	tmpFile := d.fileName(p)
+	tmpFile := d.ownFileName(p)
 	if err := os.MkdirAll(filepath.Dir(tmpFile), 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestFileDownloader_GetFileName(t *testing.T) {
 
 	d := newTestFileDownloader(t, nil, getConfig(t, "vendor-dir", "/vendor"), nil, nil, nil)
 
-	if got := d.fileName(p); !regexp.MustCompile(`/vendor/composer/tmp-[a-z0-9]+\.js`).MatchString(got) {
+	if got := d.ownFileName(p); !regexp.MustCompile(`/vendor/composer/tmp-[a-z0-9]+\.js`).MatchString(got) {
 		t.Fatalf("unexpected file name %q", got)
 	}
 }
@@ -317,7 +317,7 @@ func TestFileDownloader_DownloadFileWithInvalidChecksum(t *testing.T) {
 	d := newTestFileDownloader(t, nil, getConfig(t, "vendor-dir", path+"/vendor"), nil, nil, nil)
 
 	// make sure the file expected to be downloaded is on disk already
-	dlFile := d.fileName(p)
+	dlFile := d.ownFileName(p)
 	if err := os.MkdirAll(filepath.Dir(dlFile), 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestFileDownloader_DowngradeShowsAppropriateMessage(t *testing.T) {
 	d := newTestFileDownloader(t, out, getConfig(t, "vendor-dir", root+"/vendor"), nil, nil, nil)
 
 	// make sure the file expected to be downloaded is on disk already
-	dlFile := d.fileName(newPackage)
+	dlFile := d.ownFileName(newPackage)
 	if err := os.MkdirAll(filepath.Dir(dlFile), 0o777); err != nil {
 		t.Fatal(err)
 	}

@@ -50,6 +50,11 @@ func (r *Runtime) downloaderObject(d downloader.Downloader) any {
 	if p, ok := d.(*proxyDownloader); ok {
 		return p.obj
 	}
+	if s, ok := d.(*subclassDownloader); ok {
+		// A subclass written in PHP: its object (adopted for the
+		// downloader it extends).
+		d = s.Downloader
+	}
 	class := `Composer\Downloader\DownloaderInterface`
 	if c, ok := d.(downloader.Classer); ok {
 		class = c.Class()
@@ -335,6 +340,8 @@ func (r *Runtime) registerDownloadManager() {
 			if d, err = param[downloader.Downloader](a, 2); err != nil {
 				return nil, err
 			}
+			// A FileDownloader subclass written in PHP: its overrides.
+			d = r.managedDownloader(d)
 		}
 		dm.SetDownloader(a.str(1), d)
 
@@ -365,7 +372,7 @@ func (r *Runtime) registerDownloadManager() {
 		if err != nil {
 			return nil, err
 		}
-		typ, ok := dm.DownloaderType(d)
+		typ, ok := dm.DownloaderType(r.managedDownloader(d))
 		if !ok {
 			return nil, &util.InvalidArgumentError{Message: "Unknown downloader"}
 		}

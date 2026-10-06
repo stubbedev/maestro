@@ -119,7 +119,10 @@ func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string)
 		return a.installExtracted(p, path)
 	}
 
-	fileName := a.fileName(p)
+	fileName, err := a.fileName(p, path)
+	if err != nil {
+		return nil, err
+	}
 
 	a.mu.Lock()
 	s := a.staged[fileName]
@@ -218,7 +221,10 @@ func (a *ArchiveDownloader) installExtracted(p pkg.PackageInterface, path string
 		return nil, err
 	}
 
-	fileName := a.fileName(p)
+	fileName, err := a.fileName(p, path)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := a.extract(p, fileName, temporaryDir); err != nil {
 		a.cleanupFailed(p, path, temporaryDir)

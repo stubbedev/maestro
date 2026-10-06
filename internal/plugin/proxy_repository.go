@@ -26,6 +26,9 @@ type phpObjects struct {
 	repos       map[*rpc.PHPObject]*proxyRepository
 	downloaders map[*rpc.PHPObject]*proxyDownloader
 	ios         map[*rpc.PHPObject]*phpIO
+	// subclassDownloaders are the downloaders of FileDownloader
+	// subclasses written in PHP, by maestro's downloader they extend.
+	subclassDownloaders map[downloader.Downloader]*subclassDownloader
 }
 
 // callObject calls a method of a PHP object maestro uses (`object.call`).

@@ -27,7 +27,7 @@ abstract class VcsDownloader implements \Composer\Downloader\ChangeReportInterfa
     public function cleanup(string $type, \Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.cleanup', [$this, $type, $package, $path, $prevPackage]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.cleanup', [$this, $type, $package, $path, $prevPackage]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\VcsDownloader::cleanup() in plugins yet');
@@ -42,7 +42,7 @@ abstract class VcsDownloader implements \Composer\Downloader\ChangeReportInterfa
     public function download(\Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.download', [$this, $package, $path, $prevPackage]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.download', [$this, $package, $path, $prevPackage]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\VcsDownloader::download() in plugins yet');
@@ -73,7 +73,7 @@ abstract class VcsDownloader implements \Composer\Downloader\ChangeReportInterfa
     public function install(\Composer\Package\PackageInterface $package, string $path): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.install', [$this, $package, $path]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.install', [$this, $package, $path]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\VcsDownloader::install() in plugins yet');
@@ -82,7 +82,7 @@ abstract class VcsDownloader implements \Composer\Downloader\ChangeReportInterfa
     public function prepare(string $type, \Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.prepare', [$this, $type, $package, $path, $prevPackage]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.prepare', [$this, $type, $package, $path, $prevPackage]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\VcsDownloader::prepare() in plugins yet');
@@ -96,7 +96,7 @@ abstract class VcsDownloader implements \Composer\Downloader\ChangeReportInterfa
     public function remove(\Composer\Package\PackageInterface $package, string $path): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.remove', [$this, $package, $path]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.remove', [$this, $package, $path]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\VcsDownloader::remove() in plugins yet');
@@ -105,7 +105,7 @@ abstract class VcsDownloader implements \Composer\Downloader\ChangeReportInterfa
     public function update(\Composer\Package\PackageInterface $initial, \Composer\Package\PackageInterface $target, string $path): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.update', [$this, $initial, $target, $path]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.update', [$this, $initial, $target, $path]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\VcsDownloader::update() in plugins yet');

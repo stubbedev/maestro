@@ -88,7 +88,8 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 
 	if realPath, ok := util.RealpathOK(path); ok && realPath == realURL {
 		if c.output {
-			appendix, err := d.installOperationAppendix(p, path)
+			// $this->getInstallOperationAppendix(): a subclass's, if any.
+			appendix, err := d.self.installOperationAppendix(p, path)
 			if err != nil {
 				return nil, err
 			}

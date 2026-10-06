@@ -40,16 +40,16 @@ func TestArchiveDownloader_GetFileName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	first := d.fileName(p)
+	first := d.ownFileName(p)
 	if !regexp.MustCompile(`/vendor/composer/tmp-[a-z0-9]+\.js`).MatchString(first) {
 		t.Fatalf("unexpected file name %q", first)
 	}
 
-	if second := d.fileName(p); second != first {
+	if second := d.ownFileName(p); second != first {
 		t.Fatalf("file name changed: %q, %q", first, second)
 	}
 
-	if other := d.fileName(dummyPackage()); other == first {
+	if other := d.ownFileName(dummyPackage()); other == first {
 		t.Fatal("another package object got the same file name")
 	}
 }
@@ -521,7 +521,7 @@ func TestArchiveDownloader_FilesCacheDebugLines(t *testing.T) {
 		}
 
 		p := distPackage(srv.URL+"/a.zip", "zip")
-		tmp := d.fileName(p)
+		tmp := d.ownFileName(p)
 
 		if _, err := pr.install(d, p); err != nil {
 			t.Fatal(err)
@@ -752,7 +752,7 @@ func TestZipDownloader_ErrorMessages(t *testing.T) {
 	}
 
 	p := distPackage(srv.URL+"/a.zip", "zip")
-	tmpFile := d.fileName(p)
+	tmpFile := d.ownFileName(p)
 
 	path, err := pr.install(d, p)
 	mustContain(t, err, "is not a zip archive")
@@ -951,7 +951,7 @@ func TestArchiveDownloader_InstallWithoutDownload(t *testing.T) {
 
 	p := distPackage("http://example.invalid/a.zip", "zip")
 
-	file := d.fileName(p)
+	file := d.ownFileName(p)
 	if err := os.MkdirAll(filepath.Dir(file), 0o777); err != nil {
 		t.Fatal(err)
 	}

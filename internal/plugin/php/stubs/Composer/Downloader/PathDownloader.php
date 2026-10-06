@@ -11,7 +11,7 @@ class PathDownloader extends \Composer\Downloader\FileDownloader implements \Com
     public function download(\Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null, bool $output = true): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.download', [$this, $package, $path, $prevPackage, $output]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.download', [$this, $package, $path, $prevPackage, $output]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\PathDownloader::download() in plugins yet');
@@ -19,6 +19,10 @@ class PathDownloader extends \Composer\Downloader\FileDownloader implements \Com
 
     protected function getInstallOperationAppendix(\Composer\Package\PackageInterface $package, string $path): string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.getInstallOperationAppendix', [$this, $package, $path]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\PathDownloader::getInstallOperationAppendix() in plugins yet');
     }
 
@@ -34,7 +38,7 @@ class PathDownloader extends \Composer\Downloader\FileDownloader implements \Com
     public function install(\Composer\Package\PackageInterface $package, string $path, bool $output = true): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.install', [$this, $package, $path, $output]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.install', [$this, $package, $path, $output]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\PathDownloader::install() in plugins yet');
@@ -43,7 +47,7 @@ class PathDownloader extends \Composer\Downloader\FileDownloader implements \Com
     public function remove(\Composer\Package\PackageInterface $package, string $path, bool $output = true): \React\Promise\PromiseInterface
     {
         if (\Maestro\Shim\Remote::owned($this)) {
-            return \Maestro\Shim\Rpc::call('downloader.remove', [$this, $package, $path, $output]);
+            return \Maestro\Shim\Promises::fromMaestro(\Maestro\Shim\Rpc::call('downloader.remove', [$this, $package, $path, $output]));
         }
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\PathDownloader::remove() in plugins yet');

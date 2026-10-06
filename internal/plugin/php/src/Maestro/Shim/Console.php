@@ -54,6 +54,7 @@ final class Console
         Server::register('object.call', [self::class, 'call']);
         Server::register('object.promise', [self::class, 'callPromise']);
         Server::register('object.new', [self::class, 'create']);
+        Server::register('downloader.describe', [self::class, 'describeDownloader']);
         self::$inputAdapter = new Adapter\InputAdapter();
         Mirrors::register(self::$inputAdapter);
         Mirrors::register(new Adapter\OutputAdapter());
@@ -278,9 +279,49 @@ final class Console
         if (!self::callable($object, $method)) {
             throw new ProtocolException('maestro shim: maestro cannot call '.get_class($object).'::'.$method.'()');
         }
+        $args = array_values($a['args']);
+        if (!(new \ReflectionMethod($object, $method))->isPublic()) {
+            // The protected hooks of a FileDownloader subclass written in
+            // PHP, which Composer's code calls through $this.
+            $call = function (array $args) use ($method) {
+                return $this->$method(...$args);
+            };
 
-        return $object->$method(...array_values($a['args']));
+            return \Closure::bind($call, $object, get_class($object))($args);
+        }
+
+        return $object->$method(...$args);
     }
+
+    /**
+     * `downloader.describe`: the classes a downloader written in PHP extends
+     * (nearest first) and the methods of FileDownloader it overrides,
+     * which maestro calls (docs/PLUGINS.md §4.8).
+     *
+     * @param array<string, mixed> $a
+     * @return array{parents: list<string>, overrides: list<string>}
+     */
+    public static function describeDownloader(array $a): array
+    {
+        $object = $a['object'];
+        $overrides = [];
+        foreach (self::DOWNLOADER_OVERRIDES as $method) {
+            if (!method_exists($object, $method)) {
+                continue;
+            }
+            // Declared by the plugin's class (an anonymous one is named
+            // after the class it extends).
+            $declaring = (new \ReflectionMethod($object, $method))->getDeclaringClass();
+            if ($declaring->isAnonymous() || strpos($declaring->getName(), 'Composer\\Downloader\\') !== 0) {
+                $overrides[] = $method;
+            }
+        }
+
+        return ['parents' => array_values(class_parents($object)), 'overrides' => $overrides];
+    }
+
+    /** The FileDownloader methods a subclass's override of runs instead. */
+    private const DOWNLOADER_OVERRIDES = ['getInstallationSource', 'download', 'prepare', 'install', 'update', 'remove', 'cleanup', 'getLocalChanges', 'getInstallOperationAppendix', 'getFileName', 'processUrl'];
 
     /**
      * `object.promise`: a method returning ?PromiseInterface of a PHP
@@ -342,7 +383,7 @@ final class Console
             return in_array($method, ['isIgnored', 'isUpperBoundIgnored'], true);
         }
         if ($object instanceof DownloaderInterface) {
-            return in_array($method, ['getInstallationSource', 'download', 'prepare', 'install', 'update', 'remove', 'cleanup'], true);
+            return in_array($method, self::DOWNLOADER_OVERRIDES, true);
         }
 
         return false;
