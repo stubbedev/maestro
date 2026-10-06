@@ -186,6 +186,52 @@ func TestArrayModel(t *testing.T) {
 	}
 }
 
+// TestArrayShallowClone checks ShallowClone against setting each key into
+// a new array: the same entries, internal state and next free index, and
+// the nested arrays shared.
+func TestArrayShallowClone(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 4))
+	for round := range 300 {
+		a := NewArray()
+		for op := range rng.IntN(60) {
+			var k Key
+			if rng.IntN(2) == 0 {
+				k = IntKey(int64(rng.IntN(30) - 5))
+			} else {
+				k = StrKey(string(rune('a' + rng.IntN(26))))
+			}
+			switch rng.IntN(4) {
+			case 0:
+				a.DeleteKey(k)
+			case 1:
+				a.Append(ListOf(op))
+			default:
+				a.SetKey(k, op)
+			}
+		}
+
+		want := NewArrayCap(a.Len())
+		for k, v := range a.All() {
+			want.SetKey(k, v)
+		}
+		got := a.ShallowClone()
+		if !slices.Equal(got.entries, want.entries) || got.live != want.live || got.next != want.next ||
+			got.packed != want.packed || got.indexed != want.indexed {
+			t.Fatalf("round %d: ShallowClone %+v, want %+v", round, got, want)
+		}
+		for k, v := range got.All() {
+			if w, _ := a.GetKey(k); w != v {
+				t.Fatalf("round %d: %v not shared", round, k)
+			}
+		}
+		got.Append("x")
+		want.Append("x")
+		if !slices.Equal(got.Keys(), want.Keys()) {
+			t.Fatalf("round %d: append after clone: %v, want %v", round, got.Keys(), want.Keys())
+		}
+	}
+}
+
 func TestArrayCloneIsDeep(t *testing.T) {
 	inner := ListOf(1)
 	o := NewObject()
