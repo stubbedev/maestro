@@ -42,7 +42,7 @@ func BenchmarkStripWhitespace(b *testing.B) {
 	b.SetBytes(int64(len(src)))
 	b.ReportAllocs()
 	for b.Loop() {
-		out = l.strip(out[:0], buf, len(src), true)
+		out = l.strip(out[:0], buf, len(src), true, defaultPHPVersion)
 	}
 }
 

@@ -16,10 +16,10 @@ import (
 )
 
 // contentKey names a parse result by the SHA-256 of the file's contents
-// and the parser setting that changes it.
+// and the parser settings that change it.
 type contentKey struct {
-	sum          [32]byte
-	shortOpenTag bool
+	sum    [32]byte
+	parser parserKey
 }
 
 // diskCacheMaxEntries bounds the file: past it, only the results used by
@@ -59,7 +59,7 @@ func (c *ParseCache) UseFile(path string) {
 
 // diskHeader is the first line of the file: format and binary.
 func diskHeader() string {
-	h := "maestro classmap cache 1"
+	h := "maestro classmap cache 2"
 	if exe, err := os.Executable(); err == nil {
 		if info, err := os.Stat(exe); err == nil {
 			h += " " + strconv.FormatInt(info.Size(), 10) + " " + strconv.FormatInt(info.ModTime().UnixNano(), 10)
@@ -90,11 +90,11 @@ func (d *diskCache) load() map[contentKey][]string {
 
 			return entries
 		}
-		flag, err := r.ReadByte()
-		if err != nil {
+		var parser [3]byte // short_open_tag, PHP version (big-endian)
+		if _, err := io.ReadFull(r, parser[:]); err != nil {
 			return map[contentKey][]string{}
 		}
-		key.shortOpenTag = flag == 1
+		key.parser = parserKey{parser[0] == 1, phpVersion(binary.BigEndian.Uint16(parser[1:]))}
 		n, err := binary.ReadUvarint(r)
 		if err != nil || n > 1<<20 {
 			return map[contentKey][]string{}
@@ -174,11 +174,12 @@ func (c *ParseCache) Save() {
 			continue
 		}
 		_, _ = w.Write(key.sum[:])
-		flag := byte(0)
-		if key.shortOpenTag {
-			flag = 1
+		parser := [3]byte{}
+		if key.parser.shortOpenTag {
+			parser[0] = 1
 		}
-		_ = w.WriteByte(flag)
+		binary.BigEndian.PutUint16(parser[1:], uint16(key.parser.php))
+		_, _ = w.Write(parser[:])
 		_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(classes)))])
 		for _, class := range classes {
 			_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(class)))])
@@ -195,5 +196,5 @@ func (c *ParseCache) Save() {
 
 // contentKeyOf is the contentKey of contents parsed by p.
 func contentKeyOf(p Parser, contents []byte) contentKey {
-	return contentKey{sum: sha256.Sum256(contents), shortOpenTag: p.ShortOpenTag}
+	return contentKey{sum: sha256.Sum256(contents), parser: p.key()}
 }

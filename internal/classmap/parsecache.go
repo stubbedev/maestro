@@ -18,9 +18,19 @@ type fileKey struct {
 }
 
 type cacheKey struct {
-	file         fileKey
-	shortOpenTag bool
+	file   fileKey
+	parser parserKey
 }
+
+// parserKey is what a parse result depends on besides the file's contents:
+// the Parser settings, with the PHP version reduced to the scanner it
+// selects.
+type parserKey struct {
+	shortOpenTag bool
+	php          phpVersion
+}
+
+func (p Parser) key() parserKey { return parserKey{p.ShortOpenTag, p.phpVersion()} }
 
 // ParseCache keeps the classes found in files, by file identity, so that a
 // file parsed ahead of time (Warm, while maestro waits on the network or
@@ -50,7 +60,7 @@ func (c *ParseCache) lookup(p Parser, path string) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
-	v, ok := c.m.Load(cacheKey{key, p.ShortOpenTag})
+	v, ok := c.m.Load(cacheKey{key, p.key()})
 	if !ok {
 		return nil, false
 	}
@@ -63,7 +73,7 @@ func (c *ParseCache) store(p Parser, key fileKey, classes []string) {
 	if c == nil {
 		return
 	}
-	if _, loaded := c.m.LoadOrStore(cacheKey{key, p.ShortOpenTag}, classes); !loaded {
+	if _, loaded := c.m.LoadOrStore(cacheKey{key, p.key()}, classes); !loaded {
 		c.entries.Add(1)
 	}
 }

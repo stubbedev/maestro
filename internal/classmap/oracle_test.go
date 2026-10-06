@@ -18,7 +18,8 @@ import (
 )
 
 // The goldens are written by tools/oracle/classmap/*.php, which run the real
-// composer/class-map-generator 1.7.3 on PHP 8.4.
+// composer/class-map-generator 1.7.3 on PHP 8.4, except versions.* (every
+// PHP from 7.2 to 8.5, tools/oracle/classmap/versions.sh).
 
 // record is record() of tools/oracle/classmap/common.php for the Go port.
 func record(t *testing.T, path, base string) string {
@@ -27,7 +28,7 @@ func record(t *testing.T, path, base string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum := md5.Sum(StripWhitespace(src, true))
+	sum := md5.Sum(DefaultParser.StripWhitespace(src))
 	line := hex.EncodeToString(sum[:]) + " "
 	classes, err := FindClasses(path)
 	if err != nil {
@@ -80,7 +81,7 @@ func TestOracleFiles(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := StripWhitespace(src, true); !bytes.Equal(got, want) {
+			if got := DefaultParser.StripWhitespace(src); !bytes.Equal(got, want) {
 				t.Errorf("%s: php_strip_whitespace\n got %q\nwant %q", g.Path, got, want)
 			}
 		}
@@ -167,7 +168,7 @@ func checkRandom(t *testing.T, dir string) {
 			t.Fatal(err)
 		}
 		if got := record(t, tmp, tmp); got != lines[i] {
-			t.Errorf("case %d %q:\n got %s\nwant %s\nstrip %q", i, src, describeRecord(got), describeRecord(lines[i]), StripWhitespace(src, true))
+			t.Errorf("case %d %q:\n got %s\nwant %s\nstrip %q", i, src, describeRecord(got), describeRecord(lines[i]), DefaultParser.StripWhitespace(src))
 			if failures++; failures > 20 {
 				t.FailNow()
 			}
@@ -175,5 +176,90 @@ func checkRandom(t *testing.T, dir string) {
 		if i == len(lines)-1 && len(cases) > 0 {
 			t.Fatal("more cases than golden lines")
 		}
+	}
+}
+
+// TestOracleVersions checks the stripper and the parser against
+// php_strip_whitespace() and PhpFileParser::findClasses() on every PHP
+// minor version from 7.2 to 8.5, with short_open_tag On and Off
+// (tools/oracle/classmap/versions.sh; MAESTRO_ORACLE_VERSIONS names the
+// directory of another set it wrote).
+func TestOracleVersions(t *testing.T) {
+	dir := cmp(os.Getenv("MAESTRO_ORACLE_VERSIONS"), "testdata/oracle")
+	cases, err := os.ReadFile(filepath.Join(dir, "versions.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden, err := os.ReadFile(filepath.Join(dir, "versions.golden"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(golden), "\n"), "\n")
+	header, ok := strings.CutPrefix(lines[0], "# ")
+	if !ok {
+		t.Fatalf("bad header %q", lines[0])
+	}
+	var parsers []Parser
+	var names []string
+	for col := range strings.FieldsSeq(header) {
+		version, tag, _ := strings.Cut(col, "/")
+		parts := strings.Split(version, ".")
+		if len(parts) != 3 {
+			t.Fatalf("bad column %q", col)
+		}
+		id := 0
+		for _, part := range parts {
+			n, err := strconv.Atoi(part)
+			if err != nil {
+				t.Fatalf("bad column %q", col)
+			}
+			id = id*100 + n
+		}
+		parsers = append(parsers, Parser{ShortOpenTag: tag == "on", PHPVersionID: id})
+		names = append(names, col)
+	}
+	if len(parsers) != 18 {
+		t.Fatalf("%d columns", len(parsers))
+	}
+	failures := 0
+	i := 0
+	for ; len(cases) > 0; i++ {
+		if i+1 >= len(lines) {
+			t.Fatal("more cases than golden lines")
+		}
+		n := binary.BigEndian.Uint32(cases)
+		src := cases[4 : 4+n]
+		cases = cases[4+n:]
+		want := strings.Fields(lines[i+1])
+		if len(want) != len(parsers) {
+			t.Fatalf("line %d: %d columns", i+2, len(want))
+		}
+		for c, p := range parsers {
+			if want[c] == "=" {
+				want[c] = want[c-1]
+			}
+			strip := p.StripWhitespace(src)
+			sum := md5.Sum(strip)
+			got := hex.EncodeToString(sum[:]) + "/"
+			b := parseBuffers{src: append(append([]byte(nil), src...), make([]byte, stripPadding)...)}
+			if classes, err := p.classesIn(&b, len(src), ""); err != nil {
+				var e *Exception
+				if !errors.As(err, &e) {
+					t.Fatalf("case %d: unexpected error %v", i, err)
+				}
+				got += "!" + hex.EncodeToString([]byte(e.Message))
+			} else {
+				got += hex.EncodeToString([]byte(strings.Join(classes, "\x00")))
+			}
+			if got != want[c] {
+				t.Errorf("case %d %q, PHP %s:\n got %s\nwant %s\nstrip %q", i, src, names[c], got, want[c], strip)
+				if failures++; failures > 30 {
+					t.FailNow()
+				}
+			}
+		}
+	}
+	if i != len(lines)-1 {
+		t.Fatalf("%d cases for %d golden lines", i, len(lines)-1)
 	}
 }

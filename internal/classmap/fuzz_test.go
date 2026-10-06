@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+// fuzzVersions are the PHP versions the fuzz targets pick from: unknown,
+// then each minor version's scanner.
+var fuzzVersions = []int{0, 70205, 70300, 70400, 80000, 80100, 80200, 80300, 80400, 80500}
+
 // fuzzSeeds adds the synthetic and fixture sources as seeds.
 func fuzzSeeds(f *testing.F) {
 	f.Helper()
@@ -13,12 +17,12 @@ func fuzzSeeds(f *testing.F) {
 		paths, _ := filepath.Glob(pattern)
 		for _, p := range paths {
 			if src, err := os.ReadFile(p); err == nil && len(src) < 1<<16 {
-				f.Add(src, true)
+				f.Add(src, true, uint8(0))
 			}
 		}
 	}
-	f.Add([]byte("<?php $x = <<<EOT\n  a\n EOT;"), false)
-	f.Add([]byte("<? class A {} ?>"), false)
+	f.Add([]byte("<?php $x = <<<EOT\n  a\n EOT;"), false, uint8(1))
+	f.Add([]byte("<? class A {} ?>"), false, uint8(1))
 }
 
 // FuzzFindClasses runs php_strip_whitespace(), PhpFileCleaner and the class
@@ -26,8 +30,8 @@ func fuzzSeeds(f *testing.F) {
 // on what follows the input in the buffer.
 func FuzzFindClasses(f *testing.F) {
 	fuzzSeeds(f)
-	f.Fuzz(func(t *testing.T, src []byte, shortTags bool) {
-		p := Parser{ShortOpenTag: shortTags}
+	f.Fuzz(func(t *testing.T, src []byte, shortTags bool, version uint8) {
+		p := Parser{ShortOpenTag: shortTags, PHPVersionID: fuzzVersions[int(version)%len(fuzzVersions)]}
 		var b parseBuffers
 		b.src = append(append(b.src, src...), make([]byte, stripPadding)...)
 		classes, err := p.classesIn(&b, len(src), "fuzz.php")
@@ -54,12 +58,13 @@ func FuzzFindClasses(f *testing.F) {
 // strategies (one or more candidate keywords).
 func FuzzPhpFileCleaner(f *testing.F) {
 	fuzzSeeds(f)
-	f.Fuzz(func(t *testing.T, src []byte, single bool) {
+	f.Fuzz(func(t *testing.T, src []byte, single bool, version uint8) {
 		maxMatches := 2
 		if single {
 			maxMatches = 1
 		}
-		clean := cleanPhpFile(nil, src, maxMatches)
-		_ = extractClasses(clean)
+		enums := version%2 == 0
+		clean := cleanPhpFile(nil, src, maxMatches, enums)
+		_ = extractClasses(clean, enums)
 	})
 }

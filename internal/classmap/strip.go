@@ -1,12 +1,15 @@
 // Ports php_strip_whitespace() (ext/standard/basic_functions.c), zend_strip()
 // (Zend/zend_highlight.c) and the parts of the Zend language scanner
-// (Zend/zend_language_scanner.l) of PHP 8.4 that decide its output.
+// (Zend/zend_language_scanner.l) that decide its output, as of every PHP
+// minor version Composer 2.10 runs on (7.2 to 8.5; see phpVersion).
 //
 // PhpFileParser::findClasses() runs every file through php_strip_whitespace()
 // before looking for classes, so the classes found depend on exactly how PHP
 // tokenizes the file: which bytes are whitespace or comments (dropped),
 // where strings, heredocs and inline HTML start and end (kept verbatim), and
-// the quirks of zend_strip() around heredoc terminators.
+// the quirks of zend_strip() around heredoc terminators. That changes from
+// one PHP version to the next, so the scanner follows the version of the
+// PHP Composer runs on (Parser.PHPVersionID).
 //
 // The scanner is reproduced rule by rule, including re2c's longest-match
 // choice between rules, the state stack, the heredoc label stack and the
@@ -22,9 +25,9 @@
 // it had found so far. Errors are therefore tracked (lexer.exc) and honoured
 // only there.
 //
-// Settings: the CLI SAPI sets CG(skip_shebang), so a leading "#!" line is
-// dropped; short_open_tag is configurable (PHP's built-in default is On);
-// zend.multibyte is assumed Off (its default).
+// Settings: the CLI SAPI sets CG(skip_shebang) (PHP >= 8.0), so a leading
+// "#!" line is dropped; short_open_tag is configurable (PHP's built-in
+// default is On); zend.multibyte is assumed Off (its default).
 
 package classmap
 
@@ -93,6 +96,7 @@ type lexer struct {
 	nest      []byte     // nest_location_stack (only tracked during scan-ahead)
 	labels    []heredocLabel
 	shortTags bool
+	v         phpVersion
 
 	scanAhead bool // SCNG(heredoc_scan_ahead)
 	hdIndent  int  // SCNG(heredoc_indentation)
@@ -106,6 +110,10 @@ var (
 	labelStart [256]bool // [a-zA-Z_\x80-\xff]
 	labelSucc  [256]bool // [a-zA-Z0-9_\x80-\xff]
 	isWS       [256]bool // [ \n\r\t]
+	// badChar holds the bytes that only {ANY_CHAR} matches in
+	// ST_IN_SCRIPTING and ST_VAR_OFFSET: the control characters other
+	// than [\t\n\r], and DEL.
+	badChar [256]bool
 )
 
 func init() {
@@ -117,28 +125,40 @@ func init() {
 	for _, c := range []byte(" \n\r\t") {
 		isWS[c] = true
 	}
+	for c := range 0x20 {
+		badChar[c] = !isWS[c]
+	}
+	badChar[0x7f] = true
 }
 
 // StripWhitespace returns what php_strip_whitespace() returns for a file
-// with the given contents: the source with comments removed and whitespace
-// collapsed. shortOpenTag is PHP's short_open_tag setting.
-func StripWhitespace(contents []byte, shortOpenTag bool) []byte {
+// with the given contents under the parser's PHP: the source with comments
+// removed and whitespace collapsed.
+func (p Parser) StripWhitespace(contents []byte) []byte {
 	buf := make([]byte, len(contents)+stripPadding)
 	copy(buf, contents)
 	var l lexer
 
-	return l.strip(nil, buf, len(contents), shortOpenTag)
+	return l.strip(nil, buf, len(contents), p.ShortOpenTag, p.phpVersion())
 }
 
 // strip is zend_strip() over src[:lim], which must be followed by
 // stripPadding zero bytes (len(src) >= lim+stripPadding). The output is
-// appended to dst. The lexer is reset first; its stacks are reused.
+// appended to dst. The lexer is reset first; its stacks are reused. v is
+// the PHP version whose scanner is followed.
 //
 // Tokens copied verbatim are contiguous in src, so runs of them are copied
 // at once.
-func (l *lexer) strip(dst, src []byte, lim int, shortTags bool) []byte {
+func (l *lexer) strip(dst, src []byte, lim int, shortTags bool, v phpVersion) []byte {
+	state := stShebang
+	if v < php80 {
+		// open_file_for_scanning() of PHP 7.4 starts in SHEBANG for the
+		// first file scanned only (it resets CG(skip_shebang)), which is
+		// the main script; 7.2 and 7.3 have no SHEBANG state.
+		state = stInitial
+	}
 	*l = lexer{
-		src: src, lim: lim, shortTags: shortTags, state: stShebang,
+		src: src, lim: lim, shortTags: shortTags, v: v, state: state,
 		stack: l.stack[:0], nest: l.nest[:0], labels: l.labels[:0],
 	}
 	prevSpace := false
@@ -192,18 +212,18 @@ func (l *lexer) pop() {
 	l.stack = l.stack[:n]
 }
 
-// enterNesting is enter_nesting(). The nesting stack is only consulted for
-// the errors it raises, which only matter during scan-ahead (it starts out
-// empty there), so it is not tracked otherwise.
+// enterNesting is enter_nesting() (PHP >= 8.0). The nesting stack is only
+// consulted for the errors it raises, which only matter during scan-ahead
+// (it starts out empty there), so it is not tracked otherwise.
 func (l *lexer) enterNesting(c byte) {
-	if l.scanAhead {
+	if l.scanAhead && l.v >= php80 {
 		l.nest = append(l.nest, c)
 	}
 }
 
-// exitNesting is exit_nesting().
+// exitNesting is exit_nesting() (PHP >= 8.0).
 func (l *lexer) exitNesting(closing byte) {
-	if !l.scanAhead {
+	if !l.scanAhead || l.v < php80 {
 		return
 	}
 	n := len(l.nest)
@@ -298,6 +318,12 @@ func (l *lexer) lexInitial() token {
 
 				return tOther
 			}
+			// <INITIAL>"<?php" (PHP >= 7.4). Before, "<?php" not followed
+			// by whitespace was "<?" (with short tags) or inline HTML; both
+			// copy the same bytes, and nothing follows it at the end of
+			// the file, so the rule is applied to every version (and so is
+			// the "<?php" check of inline_char_handler, which only changes
+			// where verbatim inline HTML is split).
 			l.cur += 5
 			if l.cur == l.lim {
 				l.state = stInScripting
@@ -398,11 +424,14 @@ func (l *lexer) lexScripting() token {
 		}
 	case '\\':
 		l.cur++
-		if labelStart[s[l.cur]] {
+		if labelStart[s[l.cur]] && l.v >= php80 {
+			// T_NAME_FULLY_QUALIFIED; before PHP 8.0 "\" is a token of
+			// its own.
 			l.cur = l.qualifiedEnd(l.cur)
 		}
 	case '#':
-		if s[l.cur+1] == '[' {
+		if s[l.cur+1] == '[' && l.v >= php80 {
+			// T_ATTRIBUTE; before PHP 8.0 "#[" starts a comment.
 			l.cur += 2
 			l.enterNesting('[')
 
@@ -455,12 +484,18 @@ func (l *lexer) lexScripting() token {
 	case '?':
 		switch {
 		case s[l.cur+1] == '?':
-			if s[l.cur+2] == '=' {
+			if s[l.cur+2] == '=' && l.v >= php74 { // "??=" is PHP 7.4's
 				l.cur += 3
 			} else {
 				l.cur += 2
 			}
 		case s[l.cur+1] == '-' && s[l.cur+2] == '>':
+			if l.v < php80 {
+				// "?" before PHP 8.0's "?->"; "->" follows.
+				l.cur++
+
+				break
+			}
 			l.cur += 3
 			l.push(stLookingForProperty)
 		case s[l.cur+1] == '>':
@@ -507,7 +542,7 @@ func (l *lexer) lexScripting() token {
 		if isDec(s[l.cur+1]) {
 			l.scanNumber()
 		} else {
-			l.cur += operatorLen(s, l.cur)
+			l.cur += operatorLen(s, l.cur, l.v)
 		}
 	case '\'':
 		l.scanSingleQuoted()
@@ -520,9 +555,20 @@ func (l *lexer) lexScripting() token {
 		// The remaining operators, {TOKENS} and {ANY_CHAR}. Their exact
 		// extent matters after a heredoc's closing marker, where
 		// zend_strip() copies exactly one token.
-		l.cur += operatorLen(s, l.cur)
+		l.cur += operatorLen(s, l.cur, l.v)
 		if l.cur > l.lim {
 			return tEnd
+		}
+		if l.v < php74 && badChar[c] {
+			// Before PHP 7.4, {ANY_CHAR} warns and restarts the scanner
+			// (no T_BAD_CHARACTER), so the character is dropped (and the
+			// ones that follow it).
+			for l.cur < l.lim && badChar[s[l.cur]] {
+				l.cur++
+			}
+			l.text = l.cur
+
+			return l.lexScripting()
 		}
 	}
 
@@ -532,10 +578,14 @@ func (l *lexer) lexScripting() token {
 // operatorLen returns the length of the ST_IN_SCRIPTING token starting at
 // i, for a first character not handled by its own rules: the longest
 // operator, else 1 ({TOKENS} or {ANY_CHAR}). "&" followed by a variable or
-// "..." is also 1 (yyless(1)).
-func operatorLen(s []byte, i int) int {
+// "..." is also 1 (yyless(1)). v is the PHP version.
+func operatorLen(s []byte, i int, v phpVersion) int {
 	c, n1, n2 := s[i], s[i+1], s[i+2]
 	switch c {
+	case '|':
+		if n1 == c || n1 == '=' || n1 == '>' && v >= php85 { // "|>" is PHP 8.5's
+			return 2
+		}
 	case ':':
 		if n1 == ':' {
 			return 2
@@ -569,7 +619,7 @@ func operatorLen(s []byte, i int) int {
 		if n1 == '=' {
 			return 2
 		}
-	case '+', '&', '|':
+	case '+', '&':
 		if n1 == c || n1 == '=' {
 			return 2
 		}
@@ -584,7 +634,8 @@ func operatorLen(s []byte, i int) int {
 
 // scanLabelToken scans a token starting with a label character in
 // ST_IN_SCRIPTING: a (qualified) name, or one of the keyword rules that
-// match more than a label: "yield" ... "from", "public(set)" and friends.
+// match more than a label: "yield" ... "from", "public(set)" and friends
+// (PHP >= 8.4).
 func (l *lexer) scanLabelToken(i int) int {
 	end := l.labelEnd(i)
 	switch end - i {
@@ -595,7 +646,7 @@ func (l *lexer) scanLabelToken(i int) int {
 			}
 		}
 	case 6, 7, 9:
-		if l.src[end] == '(' && (equalFold(l.src[i:end], "public") || equalFold(l.src[i:end], "private") ||
+		if l.src[end] == '(' && l.v >= php84 && (equalFold(l.src[i:end], "public") || equalFold(l.src[i:end], "private") ||
 			equalFold(l.src[i:end], "protected")) && equalFold(l.src[end+1:end+5], "set)") {
 			return end + 5
 		}
@@ -604,9 +655,14 @@ func (l *lexer) scanLabelToken(i int) int {
 	return l.qualifiedEnd(i)
 }
 
-// qualifiedEnd returns the end of {LABEL}("\\"{LABEL})* starting at i.
+// qualifiedEnd returns the end of {LABEL}("\\"{LABEL})* starting at i: a
+// T_NAME_QUALIFIED (or T_NAME_RELATIVE) since PHP 8.0, only the {LABEL}
+// before.
 func (l *lexer) qualifiedEnd(i int) int {
 	end := l.labelEnd(i)
+	if l.v < php80 {
+		return end
+	}
 	for l.src[end] == '\\' && labelStart[l.src[end+1]] {
 		end = l.labelEnd(end + 1)
 	}
@@ -619,7 +675,21 @@ func (l *lexer) qualifiedEnd(i int) int {
 // character), or 0. The comment alternatives can overlap (a hash comment may
 // run over a newline into the next line), so like re2c's DFA this considers
 // every way to match and keeps the longest.
+//
+// Before PHP 8.3 the rule is "yield"{WHITESPACE}"from"[^a-zA-Z0-9_\x80-\xff]:
+// a comment between the words is a token of its own.
 func (l *lexer) yieldFromEnd(i int) int {
+	if l.v < php83 {
+		if !isWS[l.src[i]] {
+			return 0
+		}
+		p := l.wsEnd(i)
+		if equalFold(l.src[p:p+4], "from") && !labelSucc[l.src[p+4]] {
+			return p + 4
+		}
+
+		return 0
+	}
 	best := 0
 	// pending holds the reachable positions not yet expanded, in increasing
 	// order; it stays tiny.
@@ -697,13 +767,13 @@ func (l *lexer) castEnd(i int) int {
 		j++
 	}
 	switch s[j] | 0x20 {
-	case 'i', 'd', 'f', 'r', 's', 'b', 'a', 'o', 'u':
+	case 'i', 'd', 'f', 'r', 's', 'b', 'a', 'o', 'u', 'v':
 	default:
 		return 0
 	}
 	best := 0
 	for _, typ := range castTypes {
-		if !equalFold(s[j:j+len(typ)], typ) {
+		if !equalFold(s[j:j+len(typ)], typ) || typ == "void" && l.v < php85 {
 			continue
 		}
 		k := j + len(typ)
@@ -718,29 +788,34 @@ func (l *lexer) castEnd(i int) int {
 	return best
 }
 
+// castTypes are the types of the cast rules; "void" is PHP 8.5's.
 var castTypes = []string{
-	"int", "integer", "double", "float", "real", "string", "binary", "array", "object", "bool", "boolean", "unset",
+	"int", "integer", "double", "float", "real", "string", "binary", "array", "object", "bool", "boolean", "unset", "void",
 }
 
 // scanNumber scans the longest of {LNUM}, {DNUM}, {EXPONENT_DNUM}, {HNUM},
-// {BNUM} and {ONUM} at the cursor. An octal {LNUM} containing 8 or 9 raises
-// "Invalid numeric literal".
+// {BNUM} and {ONUM} (PHP >= 8.1) at the cursor. An octal {LNUM} containing
+// 8 or 9 raises "Invalid numeric literal". Digits are separated by "_"
+// since PHP 7.4.
 func (l *lexer) scanNumber() {
 	s := l.src
 	i := l.cur
+	sep := l.v >= php74
 	best, isLNUM := 0, false
-	if e := digitsEnd(s, i, isDec); e > 0 {
+	if e := digitsEnd(s, i, isDec, sep); e > 0 {
 		best, isLNUM = e, true
 	}
 	if s[i] == '0' {
 		var e int
 		switch s[i+1] | 0x20 {
 		case 'x':
-			e = digitsEnd(s, i+2, isHex)
+			e = digitsEnd(s, i+2, isHex, sep)
 		case 'b':
-			e = digitsEnd(s, i+2, isBin)
+			e = digitsEnd(s, i+2, isBin, sep)
 		case 'o':
-			e = digitsEnd(s, i+2, isOct)
+			if l.v >= php81 {
+				e = digitsEnd(s, i+2, isOct, sep)
+			}
 		}
 		if e > best {
 			best, isLNUM = e, false
@@ -748,13 +823,13 @@ func (l *lexer) scanNumber() {
 	}
 	// {DNUM}: ({LNUM}?"."{LNUM}) | ({LNUM}"."{LNUM}?)
 	mant := 0
-	lnum := digitsEnd(s, i, isDec)
+	lnum := digitsEnd(s, i, isDec, sep)
 	dot := i
 	if lnum > 0 {
 		dot = lnum
 	}
 	if s[dot] == '.' {
-		if e := digitsEnd(s, dot+1, isDec); e > 0 {
+		if e := digitsEnd(s, dot+1, isDec, sep); e > 0 {
 			mant = e
 		} else if lnum > 0 {
 			mant = dot + 1
@@ -772,7 +847,7 @@ func (l *lexer) scanNumber() {
 		if s[j] == '+' || s[j] == '-' {
 			j++
 		}
-		if e := digitsEnd(s, j, isDec); e > best {
+		if e := digitsEnd(s, j, isDec, sep); e > best {
 			best, isLNUM = e, false
 		}
 	}
@@ -787,8 +862,9 @@ func isOct(c byte) bool { return c >= '0' && c <= '7' }
 func isBin(c byte) bool { return c == '0' || c == '1' }
 func isHex(c byte) bool { return isDec(c) || c|0x20 >= 'a' && c|0x20 <= 'f' }
 
-// digitsEnd matches D+("_"D+)* at i and returns its end, or 0.
-func digitsEnd(s []byte, i int, digit func(byte) bool) int {
+// digitsEnd matches D+("_"D+)* (D+ without sep) at i and returns its end,
+// or 0.
+func digitsEnd(s []byte, i int, digit func(byte) bool, sep bool) int {
 	if !digit(s[i]) {
 		return 0
 	}
@@ -797,7 +873,7 @@ func digitsEnd(s []byte, i int, digit func(byte) bool) int {
 		for digit(s[i]) {
 			i++
 		}
-		if s[i] != '_' || !digit(s[i+1]) {
+		if !sep || s[i] != '_' || !digit(s[i+1]) {
 			return i
 		}
 		i++
@@ -805,12 +881,20 @@ func digitsEnd(s []byte, i int, digit func(byte) bool) int {
 }
 
 // scanLineComment scans the rest of a "#" or "//" comment: up to a newline
-// or "?>".
+// or "?>". Before PHP 8.0 the newline ("\r\n" counting as one) is part of
+// the comment.
 func (l *lexer) scanLineComment() {
 	s := l.src
 	for l.cur < l.lim {
 		switch s[l.cur] {
 		case '\r', '\n':
+			if l.v < php80 {
+				l.cur++
+				if s[l.cur-1] == '\r' && s[l.cur] == '\n' {
+					l.cur++
+				}
+			}
+
 			return
 		case '?':
 			if s[l.cur+1] == '>' {
@@ -836,8 +920,8 @@ func (l *lexer) scanBlockComment() {
 	}
 	if l.cur < l.lim {
 		l.cur++
-	} else {
-		l.exc = true // Unterminated comment
+	} else if l.v >= php80 {
+		l.exc = true // Unterminated comment (a warning before PHP 8.0)
 	}
 }
 
@@ -950,6 +1034,16 @@ func (l *lexer) scanHeredocStart() (token, bool) {
 	l.labels = append(l.labels, heredocLabel{start: start, length: length})
 	label := &l.labels[len(l.labels)-1]
 
+	if l.v < php73 {
+		// Check for ending label on the next line (no indentation, no
+		// scan-ahead).
+		if l.atClosingPHP72(*label) {
+			l.state = stEndHeredoc
+		}
+
+		return tStartHeredoc, true
+	}
+
 	saved := l.cur
 	indentation, spacing := l.indentation()
 	if l.cur == l.lim {
@@ -1049,7 +1143,7 @@ func (l *lexer) lexLookingForProperty() (token, bool) {
 		l.cur += 2
 
 		return tOther, false
-	case c == '?' && s[l.cur+1] == '-' && s[l.cur+2] == '>':
+	case c == '?' && s[l.cur+1] == '-' && s[l.cur+2] == '>' && l.v >= php80:
 		l.cur += 3
 
 		return tOther, false
@@ -1058,6 +1152,10 @@ func (l *lexer) lexLookingForProperty() (token, bool) {
 		l.pop()
 
 		return tOther, false
+	case l.v < php82:
+		// Comments are only scanned in this state since PHP 8.2; before,
+		// {ANY_CHAR} leaves it and ST_IN_SCRIPTING scans them (where "#["
+		// is an attribute in 8.0 and 8.1).
 	case c == '#':
 		l.cur++
 		l.scanLineComment()
@@ -1121,6 +1219,15 @@ func (l *lexer) lexVarOffset() token {
 		if l.cur > l.lim {
 			return tEnd
 		}
+		if l.v < php74 && badChar[c] {
+			// dropped, as in ST_IN_SCRIPTING
+			for l.cur < l.lim && badChar[s[l.cur]] {
+				l.cur++
+			}
+			l.text = l.cur
+
+			return l.lexVarOffset()
+		}
 	}
 
 	return tOther
@@ -1147,7 +1254,7 @@ func (l *lexer) lexEncapsed() token {
 		l.cur = l.labelEnd(l.cur + 1)
 		switch {
 		case s[l.cur] == '-' && s[l.cur+1] == '>' && labelStart[s[l.cur+2]],
-			s[l.cur] == '?' && s[l.cur+1] == '-' && s[l.cur+2] == '>' && labelStart[s[l.cur+3]]:
+			s[l.cur] == '?' && s[l.cur+1] == '-' && s[l.cur+2] == '>' && labelStart[s[l.cur+3]] && l.v >= php80:
 			l.push(stLookingForProperty)
 		case s[l.cur] == '[':
 			l.push(stVarOffset)
@@ -1239,6 +1346,15 @@ func (l *lexer) lexHeredocBody() token {
 			if c == '\r' && s[l.cur] == '\n' {
 				l.cur++
 			}
+			if l.v < php73 {
+				if l.atClosingPHP72(label) {
+					l.state = stEndHeredoc
+
+					return tOther
+				}
+
+				continue
+			}
 			indentation, spacing := l.indentation()
 			if l.cur == l.lim {
 				return tOther
@@ -1305,6 +1421,15 @@ func (l *lexer) lexNowdoc() token {
 		if c == '\r' && s[l.cur] == '\n' {
 			l.cur++
 		}
+		if l.v < php73 {
+			if l.atClosingPHP72(*label) {
+				l.state = stEndHeredoc
+
+				return tOther
+			}
+
+			continue
+		}
 		indentation, spacing := l.indentation()
 		if l.cur == l.lim {
 			return tOther
@@ -1328,6 +1453,21 @@ func (l *lexer) lexNowdoc() token {
 func (l *lexer) atLabel(label heredocLabel) bool {
 	return labelStart[l.src[l.cur]] && label.length < l.lim-l.cur &&
 		bytes.Equal(l.src[l.cur:l.cur+label.length], l.src[label.start:label.start+label.length])
+}
+
+// atClosingPHP72 reports whether a closing marker as PHP 7.2 knows it (before
+// the flexible heredoc syntax of 7.3) starts at the cursor: the label at the
+// start of the line, followed by an optional ";" and a newline.
+func (l *lexer) atClosingPHP72(label heredocLabel) bool {
+	if !l.atLabel(label) {
+		return false
+	}
+	end := l.cur + label.length
+	if l.src[end] == ';' {
+		end++
+	}
+
+	return l.src[end] == '\n' || l.src[end] == '\r'
 }
 
 // lexEndHeredoc is <ST_END_HEREDOC>{ANY_CHAR}.

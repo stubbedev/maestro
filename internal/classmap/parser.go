@@ -13,17 +13,24 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
-// Parser is PhpFileParser together with the PHP runtime setting its result
-// depends on.
+// Parser is PhpFileParser together with the PHP runtime its result depends
+// on.
 type Parser struct {
 	// ShortOpenTag is PHP's short_open_tag ini setting, which decides
 	// whether "<?" opens PHP code for php_strip_whitespace(). PHP's
 	// built-in default is On.
 	ShortOpenTag bool
+	// PHPVersionID is the PHP_VERSION_ID of the PHP that runs Composer,
+	// whose scanner php_strip_whitespace() uses (see phpVersion for what
+	// changes with it). 0 means unknown, which follows PHP 8.4.
+	PHPVersionID int
 }
 
-// DefaultParser uses PHP's built-in defaults.
+// DefaultParser uses PHP's built-in defaults, and PHP 8.4's scanner.
 var DefaultParser = Parser{ShortOpenTag: true}
+
+// phpVersion is the scanner version the parser follows.
+func (p Parser) phpVersion() phpVersion { return phpVersionOf(p.PHPVersionID) }
 
 // FindClasses is PhpFileParser::findClasses() with DefaultParser.
 func FindClasses(path string) ([]string, error) {
@@ -58,7 +65,8 @@ func (p Parser) findClasses(b *parseBuffers, path string) ([]string, error) {
 
 // classesIn is findClasses() for the contents in b.src[:n].
 func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error) {
-	b.strip = b.lex.strip(b.strip[:0], b.src, n, p.ShortOpenTag)
+	v := p.phpVersion()
+	b.strip = b.lex.strip(b.strip[:0], b.src, n, p.ShortOpenTag, v)
 	if len(b.strip) == 0 {
 		if len(bytes.Trim(b.src[:n], " \t\n\r\x00\x0B")) == 0 {
 			// The input file was really empty and thus contains no classes
@@ -70,14 +78,17 @@ func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error)
 		return nil, newException(parseSite, classRuntime, `File at "`+path+`" could not be parsed as PHP, it may be binary or corrupted`)
 	}
 
+	// getExtraTypes(): enums are only looked for on PHP >= 8.1.
+	enums := v >= php81
+
 	// return early if there is no chance of matching anything in this file
-	maxMatches := countTypeKeywords(b.strip)
+	maxMatches := countTypeKeywords(b.strip, enums)
 	if maxMatches == 0 {
 		return nil, nil
 	}
-	b.clean = cleanPhpFile(b.clean[:0], b.strip, maxMatches)
+	b.clean = cleanPhpFile(b.clean[:0], b.strip, maxMatches, enums)
 
-	return extractClasses(b.clean), nil
+	return extractClasses(b.clean, enums), nil
 }
 
 // readFile reads the file into b.src, followed by the zero padding the
@@ -210,8 +221,9 @@ func init() {
 }
 
 // typeKeyword returns the type keyword that may start at c[i] (matching
-// ASCII case-insensitively, as the patterns use the i flag), or "".
-func typeKeyword(c []byte, i int) string {
+// ASCII case-insensitively, as the patterns use the i flag), or "". enums
+// is whether "enum" is one (getExtraTypes(): PHP >= 8.1).
+func typeKeyword(c []byte, i int, enums bool) string {
 	var kw string
 	switch c[i] | 0x20 {
 	case 'c':
@@ -221,6 +233,9 @@ func typeKeyword(c []byte, i int) string {
 	case 't':
 		kw = "trait"
 	case 'e':
+		if !enums {
+			return ""
+		}
 		kw = "enum"
 	case 'n':
 		kw = "namespace"
@@ -234,9 +249,10 @@ func typeKeyword(c []byte, i int) string {
 	return kw
 }
 
-// countTypeKeywords counts the matches of '{\b(?:class|interface|trait|enum)\s}i',
-// stopping at 2 as only "none" and "exactly one" matter to the caller.
-func countTypeKeywords(c []byte) int {
+// countTypeKeywords counts the matches of '{\b(?:class|interface|trait|enum)\s}i'
+// ('|enum' only with enums), stopping at 2 as only "none" and "exactly one"
+// matter to the caller.
+func countTypeKeywords(c []byte, enums bool) int {
 	n := 0
 	// \b before a word character is the start of a word: only word
 	// starts are tried, then the rest of the word is skipped.
@@ -247,7 +263,7 @@ func countTypeKeywords(c []byte) int {
 			continue
 		}
 		if c[i]|0x20 != 'n' && typeStart[c[i]] {
-			if kw := typeKeyword(c, i); kw != "" {
+			if kw := typeKeyword(c, i, enums); kw != "" {
 				end := i + len(kw)
 				if end < len(c) && isPcreSpace[c[end]] {
 					n++
@@ -275,7 +291,9 @@ func countTypeKeywords(c []byte) int {
 //	     \b(?<![\\$:>])(?P<type>class|interface|trait|enum) \s++ (?P<name>[a-zA-Z_\x7f-\xff:][a-zA-Z0-9_\x7f-\xff:\-]*+)
 //	   | \b(?<![\\$:>])(?P<ns>namespace) (?P<nsname>\s++[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+(?:\s*+\\\s*+[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+)*+)? \s*+ [\{;]
 //	)
-func extractClasses(c []byte) []string {
+//
+// with '|enum' only when enums is set.
+func extractClasses(c []byte, enums bool) []string {
 	var classes []string
 	namespace := ""
 	for i := 0; i < len(c); i++ {
@@ -287,7 +305,7 @@ func extractClasses(c []byte) []string {
 				continue
 			}
 		}
-		kw := typeKeyword(c, i)
+		kw := typeKeyword(c, i, enums)
 		if kw == "" {
 			continue
 		}

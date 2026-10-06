@@ -6,13 +6,13 @@ import (
 )
 
 // countTypeKeywordsNaive tries the pattern at every position.
-func countTypeKeywordsNaive(c []byte) int {
+func countTypeKeywordsNaive(c []byte, enums bool) int {
 	n := 0
 	for i := 0; i < len(c); i++ {
 		if !typeStart[c[i]] || i > 0 && isWordChar[c[i-1]] {
 			continue
 		}
-		kw := typeKeyword(c, i)
+		kw := typeKeyword(c, i, enums)
 		if kw == "" || kw == "namespace" {
 			continue
 		}
@@ -37,8 +37,9 @@ func TestCountTypeKeywords_MatchesNaive(t *testing.T) {
 		for range r.IntN(8) {
 			b = append(b, parts[r.IntN(len(parts))]...)
 		}
-		if got, want := countTypeKeywords(b), countTypeKeywordsNaive(b); got != want {
-			t.Fatalf("countTypeKeywords(%q) = %d, want %d", b, got, want)
+		enums := r.IntN(2) == 0
+		if got, want := countTypeKeywords(b, enums), countTypeKeywordsNaive(b, enums); got != want {
+			t.Fatalf("countTypeKeywords(%q, %v) = %d, want %d", b, enums, got, want)
 		}
 	}
 }

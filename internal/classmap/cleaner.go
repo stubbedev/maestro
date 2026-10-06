@@ -6,9 +6,12 @@ import "bytes"
 
 // classTypes are the type keywords PhpFileParser::getExtraTypes() hands to
 // PhpFileCleaner::setTypeConfig() on PHP >= 8.1, keyed by first character.
+// Before 8.1 "enum" is not one (phpFileCleaner.enums).
 var classTypes = [256]string{'c': "class", 'i': "interface", 't': "trait", 'e': "enum"}
 
 // cleanerReject is PhpFileCleaner::$rejectChars: ?"'</ plus the type keys.
+// Without enums "e" is not one, which only changes how PHP copies the
+// text between reject characters, not the result.
 var cleanerReject = [256]bool{'?': true, '"': true, '\'': true, '<': true, '/': true, 'c': true, 'i': true, 't': true, 'e': true}
 
 // phpFileCleaner is PhpFileCleaner: it blanks out strings, heredocs and
@@ -19,12 +22,13 @@ type phpFileCleaner struct {
 	len        int
 	maxMatches int
 	index      int
+	enums      bool // "enum" is a type keyword
 }
 
 // cleanPhpFile is PhpFileCleaner::clean() for the given contents and number
 // of candidate type keywords. The result is appended to dst.
-func cleanPhpFile(dst, contents []byte, maxMatches int) []byte {
-	p := phpFileCleaner{contents: contents, len: len(contents), maxMatches: maxMatches}
+func cleanPhpFile(dst, contents []byte, maxMatches int, enums bool) []byte {
+	p := phpFileCleaner{contents: contents, len: len(contents), maxMatches: maxMatches, enums: enums}
 
 	return p.clean(dst)
 }
@@ -67,7 +71,7 @@ func (p *phpFileCleaner) clean(clean []byte) []byte {
 				continue
 			}
 
-			if p.maxMatches == 1 && classTypes[char] != "" {
+			if p.maxMatches == 1 && classTypes[char] != "" && (char != 'e' || p.enums) {
 				typ := classTypes[char]
 				if bytes.HasPrefix(c[p.index:], []byte(typ)) {
 					if end := p.matchType(typ); end > 0 {

@@ -9,6 +9,11 @@
 // followed) and parsed in parallel, while the class map, its ambiguous
 // classes and PSR violations are built in the exact order PHP visits the
 // files, so which file wins for a duplicate class is the same.
+//
+// What is found in a file depends on the PHP running Composer: its
+// short_open_tag, and its version, whose scanner php_strip_whitespace()
+// uses (PHP 7.2 to 8.5 are reproduced; see phpversion.go) and which decides
+// whether enums are looked for (PHP >= 8.1). Parser carries both.
 package classmap
 
 import (
@@ -49,7 +54,8 @@ var DefaultExtensions = []string{"php", "inc"}
 
 // Generator is ClassMapGenerator.
 type Generator struct {
-	// Parser decides how files are tokenized (PHP's short_open_tag).
+	// Parser decides how files are tokenized (PHP's short_open_tag and
+	// version).
 	Parser Parser
 
 	extensions   []string
