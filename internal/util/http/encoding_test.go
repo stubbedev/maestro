@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -78,6 +79,15 @@ func TestDecodingReader_CurlParity(t *testing.T) {
 		return b.String()
 	}
 
+	hx := func(s string) string {
+		b, err := hex.DecodeString(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return string(b)
+	}
+
 	raw := func(s string) string {
 		var b bytes.Buffer
 		w, _ := flate.NewWriter(&b, flate.DefaultCompression)
@@ -126,6 +136,48 @@ func TestDecodingReader_CurlParity(t *testing.T) {
 		{"gzip", zl("one") + "garbage", 23, "Failed writing received data to disk/application"},
 		{"deflate", zl("one") + "garbage", 23, "Failed writing received data to disk/application"},
 		{"deflate", raw("one") + "garbage", 23, "Failed writing received data to disk/application"},
+		// corrupt streams fail with zlib's message (inflate.go); a
+		// "deflate" body failing before its first block ends is decoded
+		// again as raw deflate, which may then be followed by 4 bytes
+		{"deflate", hx("4b043e"), 61, "Error while processing content unencoding: invalid distance code"},                                                                       // deflate-raw-baddist
+		{"deflate", hx("1b03"), 61, "Error while processing content unencoding: invalid literal/length code"},                                                                   // deflate-raw-badlit
+		{"deflate", hx("0700"), 61, "Error while processing content unencoding: invalid block type"},                                                                            // deflate-raw-btype
+		{"deflate", hx("4b044200"), 61, "Error while processing content unencoding: invalid distance too far back"},                                                             // deflate-raw-far
+		{"deflate", hx("010500000068656c6c6f"), 61, "Error while processing content unencoding: invalid stored block lengths"},                                                  // deflate-raw-stored
+		{"deflate", hx("f500000000000000000000"), 61, "Error while processing content unencoding: too many length or distance symbols"},                                         // deflate-raw-toomany
+		{"deflate", hx("789c4b043e"), 61, "Error while processing content unencoding: invalid stored block lengths"},                                                            // deflate-zlib-baddist
+		{"deflate", hx("789c4b044200"), 61, "Error while processing content unencoding: invalid stored block lengths"},                                                          // deflate-zlib-far
+		{"gzip", hx("1f8b08000000000000034b043e"), 61, "Error while processing content unencoding: invalid distance code"},                                                      // gzip-baddist
+		{"gzip", hx("1f8b08000000000000031b03"), 61, "Error while processing content unencoding: invalid literal/length code"},                                                  // gzip-badlit
+		{"gzip", hx("1f8b08000000000000030700"), 61, "Error while processing content unencoding: invalid block type"},                                                           // gzip-btype
+		{"gzip", hx("1f8b0800000000000003cb48cdc9c95728cf2fca4951c818658fb2a9c406000000000058020000"), 61, "Error while processing content unencoding: incorrect data check"},   // gzip-crc
+		{"gzip", hx("1f8b08000000000000034b044200"), 61, "Error while processing content unencoding: invalid distance too far back"},                                            // gzip-far
+		{"gzip", hx("1f8b08e0000000000003cb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: unknown header flags set"},               // gzip-flags
+		{"gzip", hx("1f8b08020000000000030000cb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: header crc mismatch"},                // gzip-hcrc
+		{"gzip", hx("1f8b0800000000000003cb48cdc9c95728cf2fca4951c818658fb2a9c406000d2ead2559020000"), 61, "Error while processing content unencoding: incorrect length check"}, // gzip-len
+		{"gzip", hx("1f8b0700000000000003cb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: unknown compression method"},             // gzip-method
+		{"gzip", hx("1f8b0800000000000003010500000068656c6c6f"), 61, "Error while processing content unencoding: invalid stored block lengths"},                                 // gzip-stored
+		{"gzip", hx("1f8b0800000000000003f500000000000000000000"), 61, "Error while processing content unencoding: too many length or distance symbols"},                        // gzip-toomany
+		{"deflate", hx("789ccb48cdc9c95728cf2fca4951c818658fb2a9c406008649e000"), 61, "Error while processing content unencoding: incorrect data check"},                        // zlib-adler
+		{"gzip", hx("8705cb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: unknown compression method"},                             // zlib-cm7
+		{"gzip", hx("78bbcb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: Unknown failure within decompression software."},         // zlib-dict
+		{"gzip", hx("799ccb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: incorrect header check"},                                 // zlib-method
+		{"gzip", hx("881ccb48cdc9c95728cf2fca4951c818658fb2a9c40600"), 61, "Error while processing content unencoding: invalid window size"},                                    // zlib-window
+		{"deflate", hx("05c1010900000080a0ffaf2d0000000000000000"), 61, "Error while processing content unencoding: invalid distances set"},                                     // d-distset
+		{"deflate", hx("0580810800000080fcad0f0000000000000000"), 61, "Error while processing content unencoding: invalid literal/lengths set"},                                 // d-litset
+		{"deflate", hx("050080e47f1b0000000000000000"), 61, "Error while processing content unencoding: invalid code -- missing end-of-block"},                                  // d-noeob
+		{"deflate", hx("050092000000000000000000"), 61, "Error while processing content unencoding: invalid code lengths set"},                                                  // d-oversub
+		{"deflate", hx("050002240000000000000000"), 61, "Error while processing content unencoding: invalid bit length repeat"},                                                 // d-repeat
+		{"gzip", hx("1f8b080000000000000305c1010900000080a0ffaf2d0000000000000000"), 61, "Error while processing content unencoding: invalid distances set"},                    // g-distset
+		{"gzip", hx("1f8b08000000000000030580810800000080fcad0f0000000000000000"), 61, "Error while processing content unencoding: invalid literal/lengths set"},                // g-litset
+		{"gzip", hx("1f8b0800000000000003050080e47f1b0000000000000000"), 61, "Error while processing content unencoding: invalid code -- missing end-of-block"},                 // g-noeob
+		{"gzip", hx("1f8b0800000000000003050092000000000000000000"), 61, "Error while processing content unencoding: invalid code lengths set"},                                 // g-oversub
+		{"gzip", hx("1f8b0800000000000003050002240000000000000000"), 61, "Error while processing content unencoding: invalid bit length repeat"},                                // g-repeat
+		{"deflate", hx("cbcf4b050061626364"), 0, "one"},                                                                                        // raw-trail4
+		{"deflate", hx("cbcf4b05006162636465"), 23, "Failed writing received data to disk/application"},                                        // raw-trail5
+		{"deflate", hx("789ccbcf4b0500029101436162"), 23, "Failed writing received data to disk/application"},                                  // zlib-trail
+		{"deflate", hx("789c000200fdff686907"), 61, "Error while processing content unencoding: invalid block type"},                           // zlib-second
+		{"deflate", hx("1f8b0800000000000003cbcf4b0500f1866c7a03000000"), 61, "Error while processing content unencoding: invalid block type"}, // gzip-as-deflate
 	} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			if tc.header != "" {

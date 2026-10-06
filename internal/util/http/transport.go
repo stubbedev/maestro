@@ -627,6 +627,17 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		applyBodyEnd(res, r, recorder.Load(), &h2, headText)
 	}
 
+	// curl reads a chunked body itself, failing where net/http may not,
+	// in its own words (chunks.go)
+	chunkFailure := ""
+	if rec := recorder.Load(); r.curlStatusLines && rec != nil {
+		chunkFailure = rec.chunkFailure()
+	}
+
+	if err == nil && chunkFailure != "" {
+		res.errno, res.errMsg = curleRecvError, chunkFailure
+	}
+
 	if err != nil {
 		var (
 			wErr   *writeError
@@ -643,6 +654,8 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		default:
 			if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 				res.err = cause
+			} else if chunkFailure != "" {
+				res.errno, res.errMsg = curleRecvError, chunkFailure
 			} else {
 				res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, true, time.Since(start), counter.n, resp.ContentLength)
 				if res.errno == curlePartialFile && resp.ContentLength > 0 {

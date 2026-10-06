@@ -168,6 +168,18 @@ func TestCurlError_Wording(t *testing.T) {
 			_, _ = io.WriteString(c, "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nhello")
 		case strings.HasPrefix(req, "GET /chunked "):
 			_, _ = io.WriteString(c, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+		case strings.HasPrefix(req, "GET /chunk/"):
+			// chunked bodies as http_chunks.c reads them
+			body := map[string]string{
+				"hex":     "zz\r\nok\r\n0\r\n\r\n",
+				"empty":   "\r\nok\r\n0\r\n\r\n",
+				"long":    "11111111111111111\r\nok\r\n0\r\n\r\n",
+				"overrun": "8000000000000000\r\nok\r\n0\r\n\r\n",
+				"crlf":    "2\r\nokXX\r\n0\r\n\r\n",
+				"trailer": "2\r\nok\r\n0\r\nX-T: 1\nX-U: 2\r\n\r\n",
+				"badend":  "2\r\nok\r\n0\r\nX-T: 1\rX\r\n\r\n",
+			}[strings.TrimPrefix(strings.Fields(req)[1], "/chunk/")]
+			_, _ = io.WriteString(c, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"+body)
 		case strings.HasPrefix(req, "GET /badstatus "):
 			_, _ = io.WriteString(c, "garbage\r\n\r\n")
 		case strings.HasPrefix(req, "GET /slowbody "):
@@ -215,6 +227,13 @@ func TestCurlError_Wording(t *testing.T) {
 		{"http://" + plain + "/partial", "", 0, 18, "end of response with 5 bytes missing"},
 		{"http://" + plain + "/chunked", "", 0, 18, "transfer closed with outstanding read data remaining"},
 		{"http://" + plain + "/badstatus", "", 0, 1, "Received HTTP/0.9 when not allowed"},
+		{"http://" + plain + "/chunk/hex", "", 0, 56, "chunk hex-length char not a hex digit: 0x7a"},
+		{"http://" + plain + "/chunk/empty", "", 0, 56, "chunk hex-length char not a hex digit: 0xd"},
+		{"http://" + plain + "/chunk/long", "", 0, 56, "chunk hex-length longer than 16"},
+		{"http://" + plain + "/chunk/overrun", "", 0, 56, "invalid chunk size: '8000000000000000'"},
+		{"http://" + plain + "/chunk/crlf", "", 0, 56, "Malformed encoding found in chunked-encoding"},
+		{"http://" + plain + "/chunk/trailer", "", 0, 0, ""},
+		{"http://" + plain + "/chunk/badend", "", 0, 56, "Malformed encoding found in chunked-encoding"},
 		{"http://" + plain + "/hang", "", time.Second, 28, "Operation timed out after "},
 		{"http://" + plain + "/slowbody", "", time.Second, 28, "Operation timed out after "},
 	} {

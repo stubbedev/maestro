@@ -8,9 +8,6 @@ package http
 
 import (
 	"bufio"
-	"compress/flate"
-	"compress/gzip"
-	"compress/zlib"
 	"errors"
 	"io"
 	"slices"
@@ -106,9 +103,11 @@ func decodingReaderFor(src io.Reader, header string, features int64) io.Reader {
 	for _, name := range slices.Backward(names) {
 		switch {
 		case (name == "gzip" || name == "x-gzip") && features&curlVersionLibz != 0:
-			r = &lazyDecoder{src: r, body: body, open: openGzip, zlib: true}
+			// inflateInit2(z, MAX_WBITS + 32): gzip or zlib
+			r = &lazyDecoder{src: r, body: body, open: openInflater(wrapAuto)}
 		case name == "deflate" && features&curlVersionLibz != 0:
-			r = &lazyDecoder{src: r, body: body, open: openDeflate, zlib: true}
+			// inflateInit(z), then raw deflate on a data error at the start
+			r = &lazyDecoder{src: r, body: body, open: openInflater(wrapZlib)}
 		case name == "br" && features&curlVersionBrotli != 0:
 			r = &lazyDecoder{src: r, body: body, open: func(r *bufio.Reader) (io.Reader, error) {
 				return brotli.NewReader(r, nil)
@@ -125,52 +124,11 @@ func decodingReaderFor(src io.Reader, header string, features int64) io.Reader {
 	return r
 }
 
-// openGzip opens a "gzip" body. curl inflates it with inflateInit2(z,
-// MAX_WBITS + 32), which detects a gzip or a zlib header from the first
-// two bytes and fails right away on anything else.
-func openGzip(br *bufio.Reader) (io.Reader, error) {
-	head, err := br.Peek(2)
-	if err != nil && len(head) == 0 {
-		return nil, err
+// openInflater opens a gzip or deflate body (inflate.go).
+func openInflater(wrap zlibWrap) func(*bufio.Reader) (io.Reader, error) {
+	return func(br *bufio.Reader) (io.Reader, error) {
+		return newInflater(br, wrap), nil
 	}
-
-	switch {
-	case head[0] == 0x1f && (len(head) == 1 || head[1] == 0x8b):
-		zr, err := gzip.NewReader(br)
-		if err != nil {
-			return nil, err
-		}
-
-		// zlib's inflate stops at the end of the first member
-		zr.Multistream(false)
-
-		return zr, nil
-	case len(head) == 1 && head[0]&0x0f == 8, isZlibHeader(head):
-		return zlib.NewReader(br)
-	}
-
-	return nil, gzip.ErrHeader
-}
-
-// isZlibHeader is whether two bytes start a zlib stream (RFC 1950: deflate
-// method, header check).
-func isZlibHeader(head []byte) bool {
-	return len(head) == 2 && head[0]&0x0f == 8 && (uint16(head[0])<<8|uint16(head[1]))%31 == 0
-}
-
-// openDeflate opens a "deflate" body: zlib-wrapped, or raw deflate as some
-// servers send it (curl retries with raw inflate on a bad zlib header).
-func openDeflate(br *bufio.Reader) (io.Reader, error) {
-	head, err := br.Peek(2)
-	if err != nil && len(head) == 0 {
-		return nil, err
-	}
-
-	if isZlibHeader(head) {
-		return zlib.NewReader(br)
-	}
-
-	return flate.NewReader(br), nil
 }
 
 // sourceReader is the body under the decoders; it remembers whether it
@@ -192,16 +150,11 @@ func (s *sourceReader) Read(b []byte) (int, error) {
 
 // lazyDecoder opens its decoder on the first read (curl's writers see the
 // body only once it arrives: an empty body decodes to nothing) and maps
-// its errors as curl does. The decoder reads through a bufio.Reader, which
-// the flate-based ones use as it is (it is an io.ByteReader), so what
-// follows the end of a zlib stream stays there to be looked at.
+// its errors as curl does.
 type lazyDecoder struct {
 	src  io.Reader
 	body *sourceReader
 	open func(*bufio.Reader) (io.Reader, error)
-	// zlib marks gzip and deflate: zlib's messages, and data after the
-	// end of the stream is an error.
-	zlib bool
 
 	buf  *bufio.Reader
 	dec  io.Reader
@@ -230,42 +183,11 @@ func (d *lazyDecoder) Read(b []byte) (int, error) {
 	}
 
 	if errors.Is(err, io.EOF) {
-		if d.zlib {
-			if err := d.trailing(); err != nil {
-				return n, err
-			}
-		}
-
 		d.done = true
 		_ = d.Close()
 	}
 
 	return n, err
-}
-
-// trailing is curl's check, once zlib reports the end of the stream, that
-// the body ends there too: anything after it is CURLE_WRITE_ERROR, a
-// second gzip member with its own message.
-func (d *lazyDecoder) trailing() error {
-	next, _ := d.buf.Peek(2)
-	if len(next) == 0 {
-		if d.body.err != nil {
-			return d.body.err
-		}
-
-		return nil
-	}
-
-	_ = d.Close()
-	d.done = true
-
-	if len(next) == 2 && next[0] == 0x1f && next[1] == 0x8b {
-		if _, gz := d.dec.(*gzip.Reader); gz {
-			return &encodingError{curleWriteError, "Multi-member gzip response not supported"}
-		}
-	}
-
-	return &encodingError{curleWriteError, curlWriteError}
 }
 
 // Close releases the decoder (zstd's runs goroutines) and those below it.
@@ -300,27 +222,12 @@ func (d *lazyDecoder) fail(err error) error {
 		return io.EOF
 	}
 
-	if d.zlib {
-		return &encodingError{curleBadContentEncoding, "Error while processing content unencoding: " + zlibMessage(err)}
+	if zerr, ok := errors.AsType[*zlibError](err); ok {
+		// process_zlib_error
+		return &encodingError{curleBadContentEncoding, "Error while processing content unencoding: " + zerr.Error()}
 	}
 
 	return &encodingError{curleBadContentEncoding, curlBadEncoding}
-}
-
-// zlibMessage is the zlib error message (z_stream.msg) for a failure of
-// Go's decoders: exact for header and checksum errors; zlib names the
-// precise defect of corrupt data, which Go's flate does not report.
-func zlibMessage(err error) string {
-	switch {
-	case errors.Is(err, gzip.ErrHeader):
-		return "incorrect header check"
-	case errors.Is(err, gzip.ErrChecksum), errors.Is(err, zlib.ErrChecksum):
-		return "incorrect data check"
-	case errors.Is(err, zlib.ErrDictionary):
-		return "need dictionary"
-	}
-
-	return "invalid block type"
 }
 
 // unknownEncoding is curl's error writer for an encoding it does not know.

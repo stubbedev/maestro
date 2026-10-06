@@ -231,11 +231,24 @@ func (r *headRecorder) trailer() []byte {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.chunks == nil || !r.chunks.done || r.chunks.failed {
+	if r.chunks == nil || !r.chunks.done || r.chunks.failure != "" {
 		return nil
 	}
 
 	return r.chunks.trailer
+}
+
+// chunkFailure is curl's error for the chunked body, "" when curl reads
+// it (or it is not chunked).
+func (r *headRecorder) chunkFailure() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.chunks == nil {
+		return ""
+	}
+
+	return r.chunks.failure
 }
 
 // earlyResponse returns the status and body of an informational head
@@ -263,101 +276,6 @@ func isChunked(head []byte) bool {
 	}
 
 	return false
-}
-
-// chunkTracker follows a chunked body as net/http reads it, to keep the
-// trailer section (lib/http_chunks.c hands each trailer line to the
-// header callback as received, without the empty line ending it).
-type chunkTracker struct {
-	state   int
-	line    []byte
-	left    int64
-	trailer []byte
-	done    bool
-	// failed is set when the chunks could not be followed (net/http then
-	// fails the body too).
-	failed bool
-}
-
-const (
-	chunkSize = iota
-	chunkData
-	chunkDataEnd
-	chunkTrailer
-)
-
-// feed follows bytes of the body; it reports whether it is done.
-func (t *chunkTracker) feed(b []byte) bool {
-	for len(b) > 0 && !t.done {
-		if t.state == chunkData {
-			k := min(int64(len(b)), t.left)
-			t.left -= k
-			b = b[k:]
-
-			if t.left == 0 {
-				t.state = chunkDataEnd
-			}
-
-			continue
-		}
-
-		i := bytes.IndexByte(b, '\n')
-		if i < 0 {
-			t.line = append(t.line, b...)
-			if len(t.line) > maxRecordedHead {
-				t.done, t.failed = true, true
-			}
-
-			break
-		}
-
-		line := append(t.line, b[:i+1]...)
-		t.line = nil
-		b = b[i+1:]
-
-		switch t.state {
-		case chunkSize:
-			size, ok := parseChunkSize(line)
-
-			switch {
-			case !ok:
-				t.done, t.failed = true, true
-			case size == 0:
-				t.state = chunkTrailer
-			default:
-				t.left, t.state = size, chunkData
-			}
-		case chunkDataEnd:
-			t.state = chunkSize
-		case chunkTrailer:
-			if len(bytes.TrimRight(line, "\r\n")) == 0 {
-				t.done = true
-			} else if t.trailer = append(t.trailer, line...); len(t.trailer) > maxRecordedHead {
-				t.done, t.failed = true, true
-			}
-		}
-	}
-
-	return t.done
-}
-
-// parseChunkSize reads a chunk-size line (hex digits, optional chunk
-// extensions after ';').
-func parseChunkSize(line []byte) (int64, bool) {
-	line = bytes.TrimRight(line, "\r\n")
-	line, _, _ = bytes.Cut(line, []byte(";"))
-	line = bytes.Trim(line, " \t")
-
-	if len(line) == 0 || len(line) > 16 {
-		return 0, false
-	}
-
-	n, err := strconv.ParseUint(string(line), 16, 64)
-	if err != nil || n > 1<<62 {
-		return 0, false
-	}
-
-	return int64(n), true
 }
 
 // headEnd is the offset just past the empty line ending the head that
