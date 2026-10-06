@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 )
 
@@ -44,7 +43,7 @@ func (p *VersionParser) ParseConstraints(constraints string) (semver.ConstraintI
 
 	c, err := p.VersionParser.ParseConstraints(constraints)
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Semver\VersionParser->parseConstraints`, "src/Composer/Package/Version/VersionParser.php", 34)
+		return nil, err
 	}
 
 	actual, _ := p.constraints.LoadOrStore(constraints, c)
