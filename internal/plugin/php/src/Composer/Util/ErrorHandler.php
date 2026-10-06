@@ -5,7 +5,8 @@
  * Composer 2.10.3's behaviour and messages (docs/PLUGINS.md §5.2 step 8).
  * Composer has one ErrorHandler for its code and plugin code alike: its
  * $hasShownDeprecationNotice is the process's (a static maestro keeps in
- * step with its own, internal/util's TriggerDeprecation). Locations in
+ * step with its own, internal/util's TriggerDeprecation), and the stack it
+ * lists at -v is Composer's (Maestro\Shim\Traces::current()). Locations in
  * the shim's Composer classes are Composer's (Traces::composerLocation()).
  * Written for PHP 7.2.5 to 8.5.
  */
@@ -92,7 +93,7 @@ class ErrorHandler
                     }
 
                     return null;
-                }, array_slice(debug_backtrace(), 2)), static function (?string $line) {
+                }, Traces::current(array_slice(debug_backtrace(), 2))), static function (?string $line) {
                     return $line !== null;
                 }));
             }

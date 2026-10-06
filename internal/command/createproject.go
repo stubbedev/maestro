@@ -228,7 +228,7 @@ var vcsNames = []string{".svn", "_svn", "CVS", "_darcs", ".arch-params", ".monot
 
 // installProjectAt is execute()'s call of installProject (line 155).
 func (c *CreateProjectCommand) installProjectAt(cio io.IO, cfg *config.Config, in console.Input, o InstallProjectOptions) (int, error) {
-	leave := phperr.Enter(`Composer\Command\CreateProjectCommand->installProject`, createProjectFile, 155)
+	leave := phperr.Push(`Composer\Command\CreateProjectCommand->installProject`, createProjectFile, 155)
 	code, err := c.InstallProject(cio, cfg, in, o)
 	leave()
 
@@ -256,7 +256,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 	installedFromVcs := false
 	if o.PackageName != nil {
-		leave := phperr.Enter(`Composer\Command\CreateProjectCommand->installRootPackage`, createProjectFile, 200)
+		leave := phperr.Push(`Composer\Command\CreateProjectCommand->installRootPackage`, createProjectFile, 200)
 		installedFromVcs, err = c.installRootPackage(in, cio, cfg, *o.PackageName, platformRequirementFilter, o)
 		leave()
 		if err != nil {

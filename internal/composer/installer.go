@@ -295,8 +295,9 @@ func (i *Installer) Run() (int, error) {
 		if i.update {
 			eventName = script.PreUpdateCmd
 		}
-		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); err != nil {
-			return 0, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 315)
+		done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 315)
+		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); done(err) != nil {
+			return 0, err
 		}
 	}
 
@@ -338,11 +339,13 @@ func (i *Installer) Run() (int, error) {
 
 	var res int
 	if i.update {
+		done := phperr.Enter(`Composer\Installer->doUpdate`, "Installer.php", 325)
 		res, err = i.doUpdate(localRepo, i.install)
-		phperr.Call(err, `Composer\Installer->doUpdate`, "Installer.php", 325)
+		err = done(err)
 	} else {
+		done := phperr.Enter(`Composer\Installer->doInstall`, "Installer.php", 327)
 		res, err = i.doInstall(localRepo, false)
-		phperr.Call(err, `Composer\Installer->doInstall`, "Installer.php", 327)
+		err = done(err)
 	}
 	if err != nil {
 		if nerr := notifyOnInstall(); nerr != nil {
@@ -484,8 +487,9 @@ func (i *Installer) Run() (int, error) {
 		if i.update {
 			eventName = script.PostUpdateCmd
 		}
-		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); err != nil {
-			return 0, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 441)
+		done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 441)
+		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); done(err) != nil {
+			return 0, err
 		}
 	}
 
@@ -815,9 +819,10 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 
 	if doInstall {
 		// TODO ensure lock is used from locker as-is, since it may not have been written to disk in case of executeOperations == false
+		done := phperr.Enter(`Composer\Installer->doInstall`, "Installer.php", 686)
 		res, err := i.doInstall(localRepo, true)
 
-		return res, phperr.Call(err, `Composer\Installer->doInstall`, "Installer.php", 686)
+		return res, done(err)
 	}
 
 	return 0, nil
@@ -1026,8 +1031,9 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	if err != nil {
 		return 0, err
 	}
-	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); err != nil {
-		return 0, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchInstallerEvent`, "Installer.php", 838)
+	done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchInstallerEvent`, "Installer.php", 838)
+	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); done(err) != nil {
+		return 0, err
 	}
 
 	operations := localRepoTransaction.Operations()
@@ -1082,8 +1088,9 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 		return 0, phperr.Call(err, `Composer\Package\Locker->getDevPackageNames`, "Installer.php", 875)
 	}
 	localRepo.SetDevPackageNames(devPackageNames)
-	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); err != nil {
-		return 0, phperr.Call(err, `Composer\Installer\InstallationManager->execute`, "Installer.php", 876)
+	done = phperr.Enter(`Composer\Installer\InstallationManager->execute`, "Installer.php", 876)
+	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); done(err) != nil {
+		return 0, err
 	}
 
 	// see https://github.com/composer/composer/issues/2764

@@ -50,7 +50,7 @@ func TestTriggerDeprecation(t *testing.T) {
 		RegisterErrorHandler(out)
 
 		TriggerDeprecation("first", phperr.At("eh.php", 21))
-		leave := phperr.Enter("f", "eh.php", 30)
+		leave := phperr.Push("f", "eh.php", 30)
 		TriggerDeprecation("second", phperr.At("eh.php", 22))
 		leave()
 		TriggerDeprecation("third", phperr.At("eh.php", 23))

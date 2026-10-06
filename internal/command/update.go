@@ -441,9 +441,10 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 		}
 	}
 
+	done := phperr.Enter(`Composer\Installer->run`, "UpdateCommand.php", 306)
 	result, err := install.Run()
-	if err != nil {
-		return 0, phperr.Call(err, `Composer\Installer->run`, "UpdateCommand.php", 306)
+	if done(err) != nil {
+		return 0, err
 	}
 
 	if result == 0 && !console.BoolOption(in, "lock") {

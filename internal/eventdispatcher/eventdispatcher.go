@@ -116,9 +116,12 @@ func (d *EventDispatcher) Dispatch(eventName string, event Event) (int, error) {
 		event = NewEvent(eventName, nil, nil)
 	}
 
+	// the calls of doDispatch() are in progress while the listeners run
+	// (phperr.Live: PHP code sees them in debug_backtrace())
+	done := phperr.Enter(edClass+"->doDispatch", edFile, 126)
 	ret, err := d.doDispatch(event)
 
-	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 126)
+	return ret, done(err)
 }
 
 // edClass and edFile name EventDispatcher in the frames of its calls.
@@ -147,9 +150,10 @@ func (d *EventDispatcher) DispatchScript(eventName string, devMode bool, additio
 		return 0, err
 	}
 
+	done := phperr.Enter(edClass+"->doDispatch", edFile, 142)
 	ret, err := d.doDispatch(NewScriptEvent(eventName, c, d.io, devMode, additionalArgs, flags))
 
-	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 142)
+	return ret, done(err)
 }
 
 // DispatchPackageEvent is dispatchPackageEvent().
@@ -159,9 +163,10 @@ func (d *EventDispatcher) DispatchPackageEvent(eventName string, devMode bool, l
 		return 0, err
 	}
 
+	done := phperr.Enter(edClass+"->doDispatch", edFile, 161)
 	ret, err := d.doDispatch(NewPackageEvent(eventName, c, d.io, devMode, localRepo, operations, operation))
 
-	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 161)
+	return ret, done(err)
 }
 
 // DispatchInstallerEvent is dispatchInstallerEvent(); executeOperations
@@ -172,9 +177,10 @@ func (d *EventDispatcher) DispatchInstallerEvent(eventName string, devMode, exec
 		return 0, err
 	}
 
+	done := phperr.Enter(edClass+"->doDispatch", edFile, 179)
 	ret, err := d.doDispatch(NewInstallerEvent(eventName, c, d.io, devMode, executeOperations, transaction))
 
-	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 179)
+	return ret, done(err)
 }
 
 // dispatchState is the per-dispatch bracket of PHP calls.
@@ -299,17 +305,19 @@ func (d *EventDispatcher) callPHPListener(event Event, l PHPCallable, formatted 
 		return 0, false, err
 	}
 
+	// `$callable($event)`
+	done := phperr.EnterCode(edFile, 232)
 	status, returnedFalse, err := rt.CallListener(l, event, func() {
 		if l.isArray() {
 			d.io.WriteError("> "+formatted+": "+l.Class+"->"+l.Method, true, io.Verbose)
 		}
 	})
+	err = done(err)
 	if status == StatusNotCallable && err == nil {
 		return 0, false, runtimeError(227, "Subscriber "+l.Class+"::"+l.Method+" for event "+event.Name()+" is not callable, make sure the function is defined and public")
 	}
 	if err != nil {
-		// `$callable($event)`
-		return 0, false, phperr.Locate(err, edFile, 232)
+		return 0, false, err
 	}
 
 	return boolToReturn(returnedFalse), false, nil
@@ -365,9 +373,9 @@ func (d *EventDispatcher) runComposerScript(event Event, callable, formatted str
 	scriptEvent := NewScriptEvent(scriptName, ctx.Composer, ctx.IO, ctx.DevMode, args, flags)
 	scriptEvent.SetOriginatingEvent(event)
 
+	done := phperr.Enter(edClass+"->dispatch", edFile, 268)
 	ret, err := d.Dispatch(scriptName, scriptEvent)
-	if err != nil {
-		phperr.Call(err, edClass+"->dispatch", edFile, 268)
+	if err = done(err); err != nil {
 		if _, ok := errors.AsType[*ScriptExecutionError](err); ok {
 			d.io.WriteError("<error>Script "+callable+" was called via "+event.Name()+"</error>", true, io.Quiet)
 		}
@@ -398,9 +406,15 @@ func (d *EventDispatcher) runPhpScript(event Event, callable string, st *dispatc
 		return 0, false, err
 	}
 
+	// `$className::$methodName($event)` in executeEventPhpScript(), called
+	// by doDispatch()
+	inScript := phperr.Within(phperr.Frame{Function: edClass + "->executeEventPhpScript", File: edFile, Line: 289})
+	inCode := phperr.EnterCode(edFile, 512)
 	status, returnedFalse, err := rt.CallPHPScript(className, methodName, event, func() {
 		d.echoPhpScript(event, className, methodName)
 	})
+	inCode(nil)
+	inScript()
 
 	switch {
 	case status == StatusNotAutoloadable && err == nil:
@@ -461,6 +475,8 @@ func (d *EventDispatcher) runCommandClass(event Event, className string, additio
 		input = php.ToString(v)
 	}
 
+	// `$app->run(new StringInput(...), $output)`, located on failure below
+	inCode := phperr.EnterCode(edFile, 341)
 	status, code, err := rt.RunCommandClass(className, event, input, func() bool {
 		if script.HasConstant(strings.ReplaceAll(php.Strtoupper(event.Name()), "-", "_")) {
 			d.io.WriteError("<warning>You cannot bind "+event.Name()+" to a Command class, use a non-reserved name</warning>", true, io.Quiet)
@@ -470,6 +486,7 @@ func (d *EventDispatcher) runCommandClass(event Event, className string, additio
 
 		return true
 	})
+	inCode(nil)
 
 	switch {
 	case status == StatusNotAutoloadable && err == nil:

@@ -149,7 +149,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"run-script", "process-timeout"}},
 				// Composer's ErrorHandler reports through the IO.
 				{args: []string{"run-script", "deprecation"}},
-				{args: []string{"run-script", "deprecation", "-v"}, normalize: normalizeStackTrace},
+				{args: []string{"run-script", "deprecation", "-v"}, normalize: normalizeComposerTrace},
 				// A Symfony command class as a script, in its own Application.
 				{args: []string{"run-script", "hello-command"}},
 				{args: []string{"run-script", "hello-command", "--", "you", "--shout"}},
@@ -683,27 +683,18 @@ var composerRoot = regexp.MustCompile(`phar://\S+?(?:\.phar|/maestro)/(src|vendo
 
 // pharMain is the outermost frame of Composer's trace: the phar's stub
 // requiring bin/composer, whose require() call is a line before the one of
-// Composer's source tree that maestro names (as its errors oracle does).
-var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:)11[23]\n(?: require\(\) at \S+\.phar:\d+\n)?`)
+// Composer's source tree that maestro names (as its errors oracle does). An
+// exception trace names the frame's function, the "Stack trace:" of
+// ErrorHandler at -v (a deprecation notice) only its file and line.
+var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:|^ @COMPOSER@/bin/composer:)11[23]\n(?: require\(\) at \S+\.phar:\d+\n| \S+\.phar:\d+\n)?`)
 
-// normalizeComposerTrace keeps the frames of exception traces (docs/PLUGINS.md
-// §5.12: maestro completes a PHP exception's trace with Composer's frames)
-// and reads Composer's root as @COMPOSER@ for both tools, the phar's stub
-// frame left out.
+// normalizeComposerTrace keeps the frames of exception traces and of
+// ErrorHandler's stack traces (docs/PLUGINS.md §5.12: maestro completes
+// them with Composer's frames) and reads Composer's root as @COMPOSER@ for
+// both tools, the phar's stub frame left out.
 func normalizeComposerTrace(s string) string {
 	return pharMain.ReplaceAllString(composerRoot.ReplaceAllString(s, "@COMPOSER@/$1/"), "${1}N\n")
 }
-
-// stackFrames are the frames of a "Stack trace:" Composer's ErrorHandler
-// writes at -v, after the first (the plugin's own line).
-var stackFrames = regexp.MustCompile(`(?m)^(Stack trace:\n \S+\n)(?: \S+\n)+`)
-
-// normalizeStackTrace drops the frames of ErrorHandler's stack traces below
-// the plugin's own line: below the plugin's code, Composer's frames are its
-// sources' (EventDispatcher.php, Application.php, ...) and maestro's the
-// shim's (docs/PLUGINS.md §10, risk 3): ErrorHandler lists debug_backtrace()
-// as it is, which maestro does not complete as it does exception traces.
-func normalizeStackTrace(s string) string { return stackFrames.ReplaceAllString(s, "$1") }
 
 // mergeAlphaUpdated is plugin-merge's modules/alpha with one more
 // requirement.

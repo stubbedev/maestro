@@ -101,7 +101,7 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 		checkVersion = 0
 	}
 	isStrict := console.BoolOption(in, "strict")
-	leave := phperr.Enter(`Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
+	leave := phperr.Push(`Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
 	errs, publishErrors, warnings, err := validator.Validate(file, checkAll, checkVersion)
 	leave()
 	if err != nil {
@@ -109,7 +109,7 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 	}
 
 	var lockErrors []string
-	leave = phperr.Enter(`Composer\Command\BaseCommand->createComposerInstance`, "ValidateCommand.php", 92)
+	leave = phperr.Push(`Composer\Command\BaseCommand->createComposerInstance`, "ValidateCommand.php", 92)
 	comp, err := c.CreateComposerInstance(in, cio, file, false, false)
 	leave()
 	if err != nil {

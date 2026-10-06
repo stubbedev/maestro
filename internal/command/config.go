@@ -1311,7 +1311,7 @@ func (*ConfigCommand) handleMultiValue(key string, callbacks multiValidator, val
 // line of ConfigCommand.php: on the stack while it runs, in the trace of
 // its error.
 func configCall(function string, line int, call func() error) error {
-	leave := phperr.Enter(function, configCommandFile, line)
+	leave := phperr.Push(function, configCommandFile, line)
 	err := call()
 	leave()
 
@@ -1323,8 +1323,8 @@ func configCall(function string, line int, call func() error) error {
 // from call_user_func(), which has no file and line.
 func callConfigSource(method string, line int, call func() error) error {
 	function := `Composer\Config\JsonConfigSource->` + method
-	leaveCall := phperr.Enter("call_user_func", configCommandFile, line)
-	leave := phperr.Enter(function, "", 0)
+	leaveCall := phperr.Push("call_user_func", configCommandFile, line)
+	leave := phperr.Push(function, "", 0)
 	err := call()
 	leave()
 	leaveCall()

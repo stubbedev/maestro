@@ -424,7 +424,7 @@ func (s *JSONConfigSource) RemoveLink(typ, name string) error {
 // whole-file fallback, args their arguments.
 func (s *JSONConfigSource) manipulateJSON(caller string, line int, method string, fb fallback, args ...any) error {
 	const frame = `Composer\Config\JsonConfigSource->manipulateJson`
-	leave := phperr.Enter(frame, jsonConfigSourceFile, line)
+	leave := phperr.Push(frame, jsonConfigSourceFile, line)
 	err := s.manipulate(caller, line, method, fb, args)
 	leave()
 
@@ -529,7 +529,7 @@ func (s *JSONConfigSource) rewrite(closure string, fb fallback, args []any) erro
 	}
 
 	// $fallback(...$args)
-	leave := phperr.Enter(closure, jsonConfigSourceFile, 427)
+	leave := phperr.Push(closure, jsonConfigSourceFile, 427)
 	err = fb(config, args)
 	leave()
 	if err != nil {

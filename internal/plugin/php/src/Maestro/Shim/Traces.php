@@ -116,6 +116,105 @@ final class Traces
     }
 
     /**
+     * The stack as Composer's would be where PHP code runs now: $trace (a
+     * debug_backtrace() taken there, innermost first) with each stretch of
+     * the shim's machinery replaced by the calls of Composer's that maestro
+     * has in progress there (`trace.live`, phperr.Live). ErrorHandler lists
+     * it under a deprecation notice at -v.
+     *
+     * A stretch of machinery starts at a boundary, the frame of the call
+     * the machinery made into PHP code, and holds the shim's calls into
+     * maestro (Rpc::call()) that led to it: maestro's calls in progress
+     * come in segments separated by those calls, innermost first, so a
+     * stretch takes one segment for each, and the outermost stretch takes
+     * the rest. The first call of a segment locates the boundary, as it
+     * would an exception's (Locate, or a Call naming the boundary's
+     * callee).
+     *
+     * @param list<array<string, mixed>> $trace
+     * @return list<array<string, mixed>>
+     */
+    public static function current(array $trace): array
+    {
+        $segments = null;
+        $next = 0;
+        $out = [];
+        $i = 0;
+        $n = count($trace);
+        while ($i < $n) {
+            $boundary = null;
+            for (; $i < $n; $i++) {
+                $frame = $trace[$i];
+                $file = isset($frame['file']) ? (string) $frame['file'] : '';
+                if ($file !== '' && self::internal($file)) {
+                    $boundary = $frame;
+                    $i++;
+
+                    break;
+                }
+                if ($file !== '') {
+                    list($frame['file'], $frame['line']) = self::composerLocation($file, isset($frame['line']) ? (int) $frame['line'] : 0);
+                }
+                $out[] = $frame;
+            }
+            if ($boundary === null) {
+                break;
+            }
+
+            $calls = 0;
+            for (; $i < $n && self::machinery($trace[$i]); $i++) {
+                if (isset($trace[$i]['class'], $trace[$i]['function']) && $trace[$i]['class'] === Rpc::class && $trace[$i]['function'] === 'call') {
+                    $calls++;
+                }
+            }
+
+            if ($segments === null) {
+                $segments = Rpc::call('trace.live');
+            }
+            $taken = $i < $n ? array_slice($segments, $next, $calls) : array_slice($segments, $next);
+            $next += count($taken);
+
+            $calls = [];
+            foreach ($taken as $k => $segment) {
+                foreach ($segment as $j => $call) {
+                    // a call into PHP code ([function '', file, line])
+                    // only stands for the boundary
+                    if ($call[0] === '' && ($k > 0 || $j > 0)) {
+                        continue;
+                    }
+                    $calls[] = $call;
+                }
+            }
+
+            $callee = (isset($boundary['class']) ? $boundary['class'] : '').(isset($boundary['type']) ? $boundary['type'] : '').(isset($boundary['function']) ? $boundary['function'] : '');
+            if ($calls !== [] && ($calls[0][0] === '' || $calls[0][0] === $callee)) {
+                $boundary['file'] = $calls[0][1];
+                $boundary['line'] = $calls[0][2];
+                array_shift($calls);
+            } else {
+                list($boundary['file'], $boundary['line']) = self::composerLocation((string) $boundary['file'], isset($boundary['line']) ? (int) $boundary['line'] : 0);
+            }
+            $out[] = $boundary;
+
+            foreach ($calls as $call) {
+                $frame = ['file' => $call[1], 'line' => $call[2], 'function' => $call[0]];
+                $pos = strpos($call[0], '->');
+                if ($pos === false) {
+                    $pos = strpos($call[0], '::');
+                }
+                if ($pos !== false && $pos > 0 && strpos(substr($call[0], 0, $pos), '{') === false) {
+                    $frame['class'] = substr($call[0], 0, $pos);
+                    $frame['type'] = substr($call[0], $pos, 2);
+                    $frame['function'] = substr($call[0], $pos + 2);
+                }
+                $out[] = $frame;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * The number of leading frames maestro gave each exception it threw
      * into PHP (a WeakMap where PHP has one).
      *

@@ -344,7 +344,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	if !isset(m, "name") {
 		m.Set("name", "dummy/dummy")
 	}
-	leave := phperr.Enter(`Composer\Package\Loader\ValidatingArrayLoader->load`, "ConfigValidator.php", 226)
+	leave := phperr.Push(`Composer\Package\Loader\ValidatingArrayLoader->load`, "ConfigValidator.php", 226)
 	_, lerr := l.Load(m, pkg.ClassCompletePackage)
 	leave()
 	if lerr != nil {

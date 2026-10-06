@@ -724,9 +724,10 @@ func (c *RequireCommand) doUpdate(in console.Input, out console.Output, cio io.I
 		}
 	}
 
+	done := phperr.Enter(`Composer\Installer->run`, "RequireCommand.php", 496)
 	status, err := install.Run()
-	if err != nil {
-		return 0, phperr.Call(err, `Composer\Installer->run`, "RequireCommand.php", 496)
+	if done(err) != nil {
+		return 0, err
 	}
 	if status != 0 && status != composer.ErrorAuditFailed {
 		if status == composer.ErrorDependencyResolutionFailed {

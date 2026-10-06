@@ -12,6 +12,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
@@ -374,7 +375,9 @@ func TestShimAPI_ListShapedLinks(t *testing.T) {
 
 // Composer has one ErrorHandler: a deprecation notice plugin code raises
 // after one maestro's code raised is hidden below -v (the static
-// $hasShownDeprecationNotice is shared).
+// $hasShownDeprecationNotice is shared), and at -v the "Stack trace:"
+// lists Composer's calls in progress below the plugin's own frames
+// (phperr.Live), not the shim's machinery.
 func TestShimAPI_ErrorHandler(t *testing.T) {
 	requirePHP(t)
 	withComposerRoot(t)
@@ -402,5 +405,36 @@ func TestShimAPI_ErrorHandler(t *testing.T) {
 	}
 	if n := util.DeprecationNoticeShown(); n != 2 {
 		t.Errorf("hasShownDeprecationNotice = %d, want 2", n)
+	}
+
+	// at -v, under a listener EventDispatcher::dispatch() calls
+	util.ResetErrorHandler()
+	leave := phperr.Within(phperr.Frame{Function: `Composer\EventDispatcher\EventDispatcher->doDispatch`, File: "EventDispatcher.php", Line: 126})
+	done := phperr.EnterCode("EventDispatcher.php", 232)
+	got = evalPHP(t, rt, trigger, php.ArrayOf("verbosity", int64(64)))
+	_ = done(nil)
+	leave()
+	if n := util.DeprecationNoticeShown(); n != 1 {
+		t.Errorf("hasShownDeprecationNotice = %d, want 1", n)
+	}
+	out, _ := got.(string)
+	out = strings.NewReplacer("<warning>", "", "</warning>", "").Replace(out)
+	root := phperr.Root()
+	for _, notice := range []string{"an old API", "another old API"} {
+		i := strings.Index(out, "Deprecation Notice: "+notice+" in ")
+		if i < 0 {
+			t.Fatalf("no notice %q in %q", notice, out)
+		}
+		lines := strings.Split(out[i:], "\n")
+		// the notice, "Stack trace:", the eval()'d code, its call in the
+		// test handler, the handler (called where Composer calls the
+		// listener), the dispatch, and nothing of the shim's below
+		if len(lines) < 7 || lines[1] != "Stack trace:" || !strings.Contains(lines[2], "eval()'d code:") ||
+			!strings.HasSuffix(lines[3], "/handlers.php:467") ||
+			lines[4] != " "+root+"/src/Composer/EventDispatcher/EventDispatcher.php:232" ||
+			lines[5] != " "+root+"/src/Composer/EventDispatcher/EventDispatcher.php:126" ||
+			(lines[6] != "" && !strings.HasPrefix(lines[6], "Deprecation Notice")) {
+			t.Errorf("stack trace of %q:\n%s", notice, strings.Join(lines, "\n"))
+		}
 	}
 }

@@ -170,7 +170,8 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 		}
 	}
 
+	done := phperr.Enter(`Composer\Installer->run`, "InstallCommand.php", 152)
 	code, err := install.Run()
 
-	return code, phperr.Call(err, `Composer\Installer->run`, "InstallCommand.php", 152)
+	return code, done(err)
 }

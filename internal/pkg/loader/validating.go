@@ -95,7 +95,7 @@ func (l *ValidatingArrayLoader) Load(config *php.Array, class string) (pkg.Packa
 	}
 
 	// the inner loader is an ArrayLoader wherever Composer builds one
-	leave := phperr.Enter(`Composer\Package\Loader\ArrayLoader->load`, "ValidatingArrayLoader.php", 618)
+	leave := phperr.Push(`Composer\Package\Loader\ArrayLoader->load`, "ValidatingArrayLoader.php", 618)
 	p, err := l.loader.Load(l.config, class)
 	leave()
 	l.config = php.NewArray()

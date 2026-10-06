@@ -261,7 +261,7 @@ func parseConstraintsValue(parser ConstraintParser, v any, file string, line int
 		return nil, phperr.Call(err, fn, file, line)
 	case float64:
 		if c != math.Trunc(c) && !math.IsInf(c, 0) && !math.IsNaN(c) {
-			leave := phperr.Enter(fn, file, line)
+			leave := phperr.Push(fn, file, line)
 			msg := "Implicit conversion from float " + php.ToString(c) + " to int loses precision"
 			util.RaiseDeprecation(msg, phperr.At(versionParser, 33))
 			util.RaiseDeprecation(msg, phperr.At(versionParser, 37))

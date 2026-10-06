@@ -450,9 +450,10 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 		install.SetUpdateAllowList(packages)
 	}
 
+	done := phperr.Enter(`Composer\Installer->run`, "RemoveCommand.php", 299)
 	status, err := install.Run()
-	if err != nil {
-		return 0, phperr.Call(err, `Composer\Installer->run`, "RemoveCommand.php", 299)
+	if done(err) != nil {
+		return 0, err
 	}
 	if status != 0 {
 		out2.WriteError("\n<error>Removal failed, reverting "+file+" to its original content.</error>", true, io.Normal)

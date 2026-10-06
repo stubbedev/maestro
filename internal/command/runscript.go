@@ -148,9 +148,10 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 
 	util.PutEnv("COMPOSER_DEV_MODE", devModeEnv(devMode))
 
+	done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, runScriptCommandFile, 140)
 	code, err := c2.EventDispatcher().DispatchScript(scriptName, devMode, args, nil)
 
-	return code, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchScript`, runScriptCommandFile, 140)
+	return code, done(err)
 }
 
 // devModeEnv is `$devMode ? '1' : '0'`.

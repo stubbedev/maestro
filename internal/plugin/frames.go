@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 )
 
@@ -36,9 +37,13 @@ func (r *Runtime) frameRuntime() *composer.Runtime {
 }
 
 // frameBoundary wraps a handler of a PHP → Go call: the frames pushed
-// before it are on PHP's stack already, below the PHP code calling.
+// before it are on PHP's stack already, below the PHP code calling. The
+// call is a mark on the stack of calls in progress (phperr.Callback), which
+// separates what maestro calls for it from what called the PHP code making
+// it (Maestro\Shim\Traces::current()).
 func (r *Runtime) frameBoundary(h rpc.Handler) rpc.Handler {
 	return func(v any) (any, error) {
+		defer phperr.Callback()()
 		depth := 0
 		if crt := r.frameRuntime(); crt != nil {
 			depth = len(crt.Frames())
@@ -129,4 +134,28 @@ func (r *Runtime) frameObject(v any) any {
 	}
 
 	return r.value(v)
+}
+
+// registerTraces registers `trace.live`: the calls of Composer's in
+// progress (phperr.Live), for the stack PHP code asks for while it runs
+// (ErrorHandler's "Stack trace:" at -v, Maestro\Shim\Traces::current()).
+// The result is a list of segments, innermost first, each a list of
+// frames [function, file, line] (function "" for the location of a call
+// into PHP code): the first holds what maestro called for the PHP code's
+// innermost call into maestro, each next one what it called for the call
+// before (outside) it; the frames of `trace.live` itself are left out.
+func (r *Runtime) registerTraces() {
+	r.Handle("trace.live", func(any) (any, error) {
+		segments := phperr.Live()
+		out := php.NewArrayCap(len(segments))
+		for _, segment := range segments[1:] {
+			frames := php.NewArrayCap(len(segment))
+			for _, f := range segment {
+				frames.Append(php.ListOf(f.Function, phperr.AbsPath(f.File), int64(f.Line)))
+			}
+			out.Append(frames)
+		}
+
+		return out, nil
+	})
 }

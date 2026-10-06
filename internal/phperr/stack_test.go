@@ -9,8 +9,8 @@ func TestEnterStack(t *testing.T) {
 	if s := Stack(); len(s) != 0 {
 		t.Fatalf("stack not empty: %v", s)
 	}
-	outer := Enter("outer", "a.php", 1)
-	inner := Enter("inner", "b.php", 2)
+	outer := Push("outer", "a.php", 1)
+	inner := Push("inner", "b.php", 2)
 	want := []Frame{{Function: "inner", File: "b.php", Line: 2}, {Function: "outer", File: "a.php", Line: 1}}
 	if s := Stack(); !slices.Equal(s, want) {
 		t.Errorf("got %v, want %v", s, want)

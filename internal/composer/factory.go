@@ -149,7 +149,7 @@ func (f *Factory) Create(out io.IO, cfg any, disablePlugins DisablePlugins, disa
 		}
 	}
 
-	leave := phperr.Enter(`Composer\Factory->createComposer`, "Factory.php", 631)
+	leave := phperr.Push(`Composer\Factory->createComposer`, "Factory.php", 631)
 	full, err := f.CreateComposer(out, cfg, disablePlugins, "", disableScripts)
 	leave()
 
@@ -406,7 +406,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	parser := pkg.NewVersionParser()
 	guesser := version.NewVersionGuesser(version.NewProcessExecutor(process), out)
 	rootLoader := f.loadRootPackage(rm, cfg, parser, guesser, out)
-	leave := phperr.Enter(`Composer\Package\Loader\RootPackageLoader->load`, "Factory.php", 394)
+	leave := phperr.Push(`Composer\Package\Loader\RootPackageLoader->load`, "Factory.php", 394)
 	loaded, err := rootLoader.LoadIn(localConfigArray, pkg.ClassRootPackage, cwd)
 	leave()
 	if err != nil {
@@ -460,7 +460,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	}
 
 	// add installers to the manager (must happen after download manager is created since they read it out of $composer)
-	leave = phperr.Enter(`Composer\Factory->createDefaultInstallers`, "Factory.php", 419)
+	leave = phperr.Push(`Composer\Factory->createDefaultInstallers`, "Factory.php", 419)
 	err = f.createDefaultInstallers(im, partial, full, out, process)
 	leave()
 	if err != nil {
@@ -488,15 +488,17 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 			pm.SetRunningInGlobalDir(true)
 		}
 
-		if err := pm.LoadInstalledPlugins(); err != nil {
-			return nil, nil, phperr.Call(err, `Composer\Plugin\PluginManager->loadInstalledPlugins`, "Factory.php", 448)
+		done := phperr.Enter(`Composer\Plugin\PluginManager->loadInstalledPlugins`, "Factory.php", 448)
+		if err := pm.LoadInstalledPlugins(); done(err) != nil {
+			return nil, nil, err
 		}
 	}
 
 	if fullLoad {
 		initEvent := eventdispatcher.NewEvent(eventdispatcher.PluginInit, nil, nil)
-		if _, err := partial.EventDispatcher().Dispatch(initEvent.Name(), initEvent); err != nil {
-			return nil, nil, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatch`, "Factory.php", 453)
+		done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatch`, "Factory.php", 453)
+		if _, err := partial.EventDispatcher().Dispatch(initEvent.Name(), initEvent); done(err) != nil {
+			return nil, nil, err
 		}
 
 		// once everything is initialized we can

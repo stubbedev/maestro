@@ -220,14 +220,16 @@ func (m *Manager) LoadInstalledPlugins() error {
 
 	if !m.ArePluginsDisabled("local") {
 		repo := m.composer.RepositoryManager().LocalRepository()
-		if err := m.loadRepository(repo, false, m.composer.Package()); err != nil {
-			return phperr.Call(err, pluginManagerClass+"->loadRepository", pluginManagerFile, 106)
+		done := phperr.Enter(pluginManagerClass+"->loadRepository", pluginManagerFile, 106)
+		if err := m.loadRepository(repo, false, m.composer.Package()); done(err) != nil {
+			return err
 		}
 	}
 
 	if m.globalComposer != nil && !m.ArePluginsDisabled("global") {
-		if err := m.loadRepository(m.globalComposer.RepositoryManager().LocalRepository(), true, nil); err != nil {
-			return phperr.Call(err, pluginManagerClass+"->loadRepository", pluginManagerFile, 110)
+		done := phperr.Enter(pluginManagerClass+"->loadRepository", pluginManagerFile, 110)
+		if err := m.loadRepository(m.globalComposer.RepositoryManager().LocalRepository(), true, nil); done(err) != nil {
+			return err
 		}
 	}
 
@@ -388,6 +390,14 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		return err
 	}
 
+	// the shim's addPlugin() (or, for a legacy composer-installer,
+	// InstallationManager::addInstaller()) is the call in progress while
+	// plugin code runs (phperr.Live); pluginLoadCall locates errors
+	pluginCall := phperr.Frame{Function: pluginManagerClass + "->addPlugin", File: pluginManagerFile, Line: 323}
+	if oldInstallerPlugin {
+		pluginCall = phperr.Frame{Function: `Composer\Installer\InstallationManager->addInstaller`, File: pluginManagerFile, Line: 315}
+	}
+	inPlugin := phperr.Within(pluginCall)
 	res, err := m.r.Call("plugin.load", m.r.framed(php.ArrayOf(
 		"pm", m,
 		"package", m.r.packageObject(p),
@@ -399,6 +409,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		"failOnMissing", failOnMissingClasses,
 		"runningInGlobalDir", m.runningInGlobalDir,
 	)))
+	inPlugin()
 	reg := registration{name: p.Name()}
 	if a, ok := res.(*php.Array); ok {
 		if list, ok := a.GetArray("registered"); ok {
@@ -723,13 +734,13 @@ func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRe
 			}
 		}
 
-		if err := m.RegisterPackage(p, false, isGlobalRepo); err != nil {
-			line := 533 // composer-plugin
-			if p.Type() == "composer-installer" {
-				line = 536
-			}
-
-			return phperr.Call(err, pluginManagerClass+"->registerPackage", pluginManagerFile, line)
+		line := 533 // composer-plugin
+		if p.Type() == "composer-installer" {
+			line = 536
+		}
+		done := phperr.Enter(pluginManagerClass+"->registerPackage", pluginManagerFile, line)
+		if err := m.RegisterPackage(p, false, isGlobalRepo); done(err) != nil {
+			return err
 		}
 	}
 

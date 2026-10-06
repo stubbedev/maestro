@@ -116,17 +116,14 @@ func (a *Application) CallOn(f phperr.Frame, object any, args []any, fn func() (
 	}
 	n := len(a.stack)
 	a.stack = append(a.stack, f)
-	// for what reads the stack while nothing is thrown (deprecation
-	// notices)
-	leave := phperr.Enter(f.Function, f.File, f.Line)
 	// popped on a panic too (runGuarded recovers Throwable panics)
-	defer func() {
-		a.stack = a.stack[:n]
-		leave()
-	}()
+	defer func() { a.stack = a.stack[:n] }()
+	// on the process's stack of calls in progress too, which PHP code
+	// running under it sees (phperr.Live)
+	done := phperr.Enter(f.Function, f.File, f.Line)
 	code, err := fn()
 
-	return code, phperr.Call(err, f.Function, f.File, f.Line)
+	return code, done(err)
 }
 
 // Stack returns the frames of the PHP stack from the innermost call in
