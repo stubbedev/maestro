@@ -2,9 +2,12 @@ package plugin
 
 import (
 	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -170,6 +173,60 @@ func TestTmpIniContent_Equivalent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(plain) != string(restarted) {
-		t.Errorf("the restarted php differs:\n plain     %.400s\n restarted %.400s", plain, restarted)
+		t.Errorf("the restarted php differs:\n%s", phpDumpDiff(plain, restarted))
 	}
+}
+
+// phpDumpDiff lists what differs between two dumps of
+// TestTmpIniContent_Equivalent: extensions loaded on one side only and ini
+// settings with different values.
+func phpDumpDiff(plain, restarted []byte) string {
+	type dump struct {
+		ext, zend []string
+		ini       map[string]any
+	}
+	decode := func(b []byte) (d dump) {
+		var raw [3]json.RawMessage
+		if err := json.Unmarshal(b, &raw); err != nil {
+			return d
+		}
+		_ = json.Unmarshal(raw[0], &d.ext)
+		_ = json.Unmarshal(raw[1], &d.zend)
+		_ = json.Unmarshal(raw[2], &d.ini)
+
+		return d
+	}
+	p, r := decode(plain), decode(restarted)
+	var b strings.Builder
+	only := func(what string, a, other []string) {
+		for _, e := range a {
+			if !slices.Contains(other, e) {
+				fmt.Fprintf(&b, "  %s only: %s\n", what, e)
+			}
+		}
+	}
+	only("extension, plain", p.ext, r.ext)
+	only("extension, restarted", r.ext, p.ext)
+	only("zend extension, plain", p.zend, r.zend)
+	only("zend extension, restarted", r.zend, p.zend)
+	if slices.Equal(p.ext, r.ext) && slices.Equal(p.zend, r.zend) {
+		b.WriteString("  same extensions\n")
+	} else if b.Len() == 0 {
+		b.WriteString("  extensions loaded in another order\n")
+	}
+	keys := slices.Sorted(maps.Keys(p.ini))
+	for k := range r.ini {
+		if _, ok := p.ini[k]; !ok {
+			keys = append(keys, k)
+		}
+	}
+	for _, k := range keys {
+		pv, pok := p.ini[k]
+		rv, rok := r.ini[k]
+		if pok != rok || fmt.Sprint(pv) != fmt.Sprint(rv) {
+			fmt.Fprintf(&b, "  ini %s: plain %v, restarted %v\n", k, pv, rv)
+		}
+	}
+
+	return b.String()
 }
