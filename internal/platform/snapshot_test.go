@@ -60,6 +60,7 @@ func TestParseSnapshot_Values(t *testing.T) {
 			"P":{"\u0000p":[["\u0000x",1],[{"\u0000s":"/w=="},2],[5,3]]}},
 		"extensions":[["Core","8.3.0","info"],["noversion",false,null]],
 		"ini_files":[false,"/a.ini,\n/b.ini"],
+		"configure_command":" './configure'  '--enable-sigchild' ",
 		"calls":[{"callable":"f","args":[1,"x"],"value":{"\u0000s":"AAE="}},
 			{"callable":["C","m"],"args":[],"error":["Error","boom"]}]}`
 
@@ -118,6 +119,10 @@ func TestParseSnapshot_Values(t *testing.T) {
 
 	if _, ok := s.LoadedIniFile(); ok {
 		t.Error("LoadedIniFile() should be false")
+	}
+
+	if cc, ok := s.ConfigureCommand(); !ok || cc != " './configure'  '--enable-sigchild' " {
+		t.Errorf("ConfigureCommand() = %q, %v", cc, ok)
 	}
 
 	s.functions = map[string]struct{}{"f": {}}

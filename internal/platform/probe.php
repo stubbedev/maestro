@@ -159,6 +159,20 @@ $maestroProbe['ini_files'] = array(
 );
 $maestroProbe['zend_extensions'] = get_loaded_extensions(true);
 
+// DiagnoseCommand::checkPlatform's "Configure Command" of
+// phpinfo(INFO_GENERAL), matched with its pattern (null when it does not
+// match, as when PHP was built without it; phpinfo may be disabled, which
+// Composer would not survive).
+$maestroProbe['configure_command'] = null;
+if (function_exists('phpinfo')) {
+    ob_start();
+    phpinfo(INFO_GENERAL);
+    $maestroInfo = ob_get_clean();
+    if (is_string($maestroInfo) && preg_match('{Configure Command(?: *</td><td class="v">| *=> *)(.*?)(?:</td>|$)}m', $maestroInfo, $maestroMatch)) {
+        $maestroProbe['configure_command'] = $maestroMatch[1];
+    }
+}
+
 // Every Runtime::invoke and Runtime::construct call in Composer, plus the
 // functions maestro asks about elsewhere (listed in doc.go).
 $maestroProbe['calls'] = array(

@@ -181,6 +181,14 @@ func checkOracle(t *testing.T, s *Snapshot, g *php.Array) {
 		t.Errorf("ZendExtensions = %q, want %q", s.ZendExtensions, want)
 	}
 
+	// Goldens recorded before the probe recorded it lack the key.
+	if want, recorded := g.Get("configure_command"); recorded {
+		got, ok := s.ConfigureCommand()
+		if wantStr, isString := want.(string); ok != isString || got != wantStr {
+			t.Errorf("ConfigureCommand() = %q, %v, want %#v", got, ok, want)
+		}
+	}
+
 	x := arrayAt(g, "xdebug")
 	version, _ := valueAt(x, "version").(string)
 	mode, _ := valueAt(x, "mode").(string)

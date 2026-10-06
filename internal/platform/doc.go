@@ -22,7 +22,10 @@
 //	new Imagick() ->getVersion()                      PlatformRepository (lib-imagick-imagemagick)
 //
 // plus php_uname('s'|'n'|'r'|'v'|'m') (User-Agent, diagnose), xdebug_info
-// ('mode'), ioncube_loader_iversion() and sys_get_temp_dir(). NewRuntime
+// ('mode'), ioncube_loader_iversion() and sys_get_temp_dir(), and the
+// "Configure Command" of phpinfo(INFO_GENERAL), matched as diagnose's
+// checkPlatform matches it (its --enable-sigchild and --with-curlwrappers
+// warnings; phpinfo(INFO_GENERAL) takes about 10 µs). NewRuntime
 // answers Runtime from a Snapshot; anything the probe does not record is
 // a *NotProbedError, so a new call site fails loudly in tests. Errors PHP
 // would throw come back as *PHPError with PHP 8's class and message (minus

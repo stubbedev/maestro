@@ -37,6 +37,9 @@ type Snapshot struct {
 	scannedIni    string // php_ini_scanned_files()
 	hasScannedIni bool   // php_ini_scanned_files() !== false
 
+	configureCommand    string // phpinfo(INFO_GENERAL)'s Configure Command
+	hasConfigureCommand bool   // DiagnoseCommand's pattern matched it
+
 	ini            *php.Array          // ini_get_all(null, false)
 	constants      map[string]any      // get_defined_constants()
 	classConstants *php.Array          // class name => its constants, for the probed classes
@@ -188,6 +191,8 @@ func (s *Snapshot) fill(root *php.Array) error {
 		scanned, _ := files.Get(1)
 		s.scannedIni, s.hasScannedIni = unwrap(scanned).(string)
 	}
+
+	s.configureCommand, s.hasConfigureCommand = unwrap(valueAt(root, "configure_command")).(string)
 
 	exts := arrayAt(root, "extensions")
 	s.Extensions = make([]Extension, 0, exts.Len())
@@ -477,6 +482,13 @@ func (s *Snapshot) IniFiles() []string {
 
 // LoadedIniFile is php_ini_loaded_file(); ok is false for false.
 func (s *Snapshot) LoadedIniFile() (string, bool) { return s.loadedIni, s.loadedIni != "" }
+
+// ConfigureCommand is the "Configure Command" of phpinfo(INFO_GENERAL),
+// as DiagnoseCommand::checkPlatform matches it; ok is false when its
+// pattern does not match (php built without it).
+func (s *Snapshot) ConfigureCommand() (string, bool) {
+	return s.configureCommand, s.hasConfigureCommand
+}
 
 // ShortOpenTag is the short_open_tag setting, for classmap.Parser.
 func (s *Snapshot) ShortOpenTag() bool { return s.IniBool("short_open_tag") }

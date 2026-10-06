@@ -203,6 +203,15 @@ $out['IniHelper::getAll'] = IniHelper::getAll();
 $out['php_ini_loaded_file'] = php_ini_loaded_file();
 $out['zend_extensions'] = get_loaded_extensions(true);
 
+// DiagnoseCommand::checkPlatform's Configure Command (null without a match).
+ob_start();
+phpinfo(INFO_GENERAL);
+$phpinfo = ob_get_clean();
+$out['configure_command'] = null;
+if (is_string($phpinfo) && \Composer\Pcre\Preg::isMatchStrictGroups('{Configure Command(?: *</td><td class="v">| *=> *)(.*?)(?:</td>|$)}m', $phpinfo, $match)) {
+    $out['configure_command'] = $match[1];
+}
+
 $xdebugActive = XdebugHandler::isXdebugActive();
 $prop = static function (string $name) {
     $p = new ReflectionProperty(XdebugHandler::class, $name);
