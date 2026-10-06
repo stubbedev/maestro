@@ -814,7 +814,10 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) {
 		out.SetVerbosity(console.VerbosityVerbose)
 	}
 
-	if c, err := a.GetComposer(false, new(true), nil); err == nil && c != nil {
+	util.SilencerSuppress()
+	c, err := a.GetComposer(false, new(true), nil)
+	util.SilencerRestore()
+	if err == nil && c != nil {
 		cfg := c.Config()
 		const minSpaceFree = 100 * 1024 * 1024
 		for _, key := range []string{"home", "vendor-dir", ""} {

@@ -112,8 +112,9 @@ func array(v any) *php.Array {
 }
 
 // NewWarning makes the \ErrorException Composer's ErrorHandler throws for
-// a PHP warning raised at site; internal/util, above this package, sets it
-// to its ErrorException.
+// a PHP warning raised at site, or nil when the warning is silenced (the
+// code then goes on with null); internal/util, above this package, sets
+// it to its ErrorException.
 var NewWarning = func(message string, site phperr.Site) error { return errors.New(message) }
 
 const baseIOFile = "BaseIO.php"
@@ -127,7 +128,7 @@ func dim(v any, key string, line int) (any, error) {
 	case *php.Array:
 		f, ok := c.Get(key)
 		if !ok {
-			return nil, NewWarning(`Undefined array key "`+key+`"`, phperr.At(baseIOFile, line))
+			return nil, NewWarning(`Undefined array key "`+key+`"`, phperr.At(baseIOFile, line)) //nolint:nilnil // null when silenced
 		}
 
 		return f, nil

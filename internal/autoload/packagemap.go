@@ -36,6 +36,12 @@ type Autoloads struct {
 	// ExcludeFromClassmap lists regexes (without delimiters) of paths to
 	// leave out of the class map.
 	ExcludeFromClassmap []string
+
+	// classmapValue is the first classmap entry that is not a string (a
+	// root package's path given as a scalar), at classmapIndex: dump()
+	// passes it to buildExclusionRegex(string $dir)
+	classmapValue any
+	classmapIndex int
 }
 
 // DevFilter is parseAutoloads' $filteredDevPackages: which packages to
@@ -139,23 +145,23 @@ func (g *Generator) ParseAutoloads(packageMap []PackageMapEntry, rootPackage pkg
 	// classmap or psr-0/4 entries with higher precedence rules
 	a := &Autoloads{PSR0: php.NewArray(), PSR4: php.NewArray(), Files: php.NewArray()}
 	if err := g.parseAutoloadsType(reverseSortedMap, typePSR0, rootPackage, a); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 607)
 	}
 	if err := g.parseAutoloadsType(reverseSortedMap, typePSR4, rootPackage, a); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 608)
 	}
 	if err := g.parseAutoloadsType(reverseSortedMap, typeClassmap, rootPackage, a); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 609)
 	}
 	// sorted (i.e. dependents first) for files to ensure that dependencies
 	// are loaded/available once a file is included
 	if err := g.parseAutoloadsType(sortedPackageMap, typeFiles, rootPackage, a); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 612)
 	}
 	// using sorted here but it does not really matter as all are excluded
 	// equally
 	if err := g.parseAutoloadsType(sortedPackageMap, typeExclude, rootPackage, a); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloadsType`, "AutoloadGenerator.php", 614)
 	}
 
 	php.Krsort(a.PSR0, 0)
@@ -219,18 +225,38 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 				namespace = php.StrKey(php.LtrimSet(k.String(), `\`))
 			}
 			for _, pv := range castArray(paths) {
-				path := php.ToString(pv)
-				if (typ == typeFiles || typ == typeClassmap || typ == typeExclude) && php.ToBool(targetDir.Value()) && !util.IsReadable(installPath+"/"+path) {
-					if p == rootPackage {
-						// remove target-dir from file paths of the root package
-						var err error
-						if path, err = stripTargetDir(targetDir.S, path); err != nil {
-							return err
-						}
-					} else {
-						// add target-dir from file paths that don't have it
-						path = targetDir.S + "/" + path
+				// a path that is not a string is cast where PHP
+				// concatenates it and fails where it reaches a string
+				// parameter (strict_types)
+				path, isString := pv.(string)
+				_, isArray := pv.(*php.Array)
+				if !isString && !isArray {
+					path = php.ToString(pv)
+				}
+				if (typ == typeFiles || typ == typeClassmap || typ == typeExclude) && php.ToBool(targetDir.Value()) {
+					if isArray {
+						return &util.ErrorException{Message: "Array to string conversion", Site: phperr.At("AutoloadGenerator.php", 1282)}
 					}
+					if !util.IsReadable(installPath + "/" + path) {
+						if p == rootPackage {
+							if !isString {
+								return typeError("ltrim", php.ZvalValueName(pv), 1286)
+							}
+							// remove target-dir from file paths of the root package
+							var err error
+							if path, err = stripTargetDir(targetDir.S, path); err != nil {
+								return err
+							}
+						} else {
+							// add target-dir from file paths that don't have it
+							path = targetDir.S + "/" + path
+						}
+						pv, isString = path, true
+					}
+				}
+
+				if typ == typeExclude && !isString {
+					return typeError("strtr", php.ZvalValueName(pv), 1295)
 				}
 
 				if typ == typeExclude {
@@ -246,17 +272,30 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 				}
 
 				relativePath := installPath + "/" + path
+				var rawRelative any // the value when it is not a string
 				if empty(installPath) {
 					relativePath = path
-					if empty(path) {
-						relativePath = "."
+					if !isString {
+						rawRelative = pv
 					}
+					if !php.ToBool(pv) {
+						relativePath, rawRelative = ".", nil
+					}
+				} else if isArray {
+					return &util.ErrorException{Message: "Array to string conversion", Site: phperr.At("AutoloadGenerator.php", 1324)}
 				}
 
 				switch typ {
 				case typeFiles:
+					if !isString {
+						return pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::getFileIdentifier`, 2, "path", "string", pv).
+							Called(`Composer\Autoload\AutoloadGenerator->getFileIdentifier`, phperr.At("AutoloadGenerator.php", 1346), "AutoloadGenerator.php", 1327)
+					}
 					a.Files.Set(fileIdentifier(p, path), relativePath)
 				case typeClassmap:
+					if rawRelative != nil && a.classmapValue == nil {
+						a.classmapValue, a.classmapIndex = rawRelative, len(a.Classmap)
+					}
 					a.Classmap = append(a.Classmap, relativePath)
 				default:
 					psr := a.PSR0

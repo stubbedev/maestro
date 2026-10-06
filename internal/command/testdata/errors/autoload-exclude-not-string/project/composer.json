@@ -1,0 +1,3 @@
+{
+    "autoload": {"exclude-from-classmap": [5]}
+}

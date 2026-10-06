@@ -41,7 +41,9 @@ type Generator struct {
 	// devModeValue is a $devMode that is not a bool (installed.json's
 	// "dev", stored in the untyped property as is); devMode is its
 	// truthiness
-	devModeValue              any
+	devModeValue any
+	// suffixValue is a configured autoloader-suffix that is not a string
+	suffixValue               any
 	classMapAuthoritative     bool
 	apcu                      bool
 	apcuPrefix                *string
@@ -164,7 +166,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	}
 	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, filter)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloads`, "AutoloadGenerator.php", 264)
 	}
 
 	if err := d.namespaces(autoloads); err != nil {
@@ -186,6 +188,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		return nil, err
 	}
 
+	g.suffixValue = nil
 	if suffix, err = g.suffix(config, d.vendorPath, suffix, locker); err != nil {
 		return nil, err
 	}
@@ -325,7 +328,11 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 	// every scan, planned first so that their files are walked and parsed
 	// together (classmap.Generator.Prefetch), then run in order
 	scans := make([]psrScan, 0, len(autoloads.Classmap))
-	for _, dir := range autoloads.Classmap {
+	for i, dir := range autoloads.Classmap {
+		if autoloads.classmapValue != nil && i == autoloads.classmapIndex {
+			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue).
+				Called(`Composer\Autoload\AutoloadGenerator->buildExclusionRegex`, phperr.At("AutoloadGenerator.php", 488), "AutoloadGenerator.php", 329)
+		}
 		scans = append(scans, psrScan{dir, buildExclusionRegex(dir, excluded), classmap.Classmap, ""})
 	}
 	if scanPsrPackages {
@@ -339,7 +346,12 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 
 	for _, s := range scans {
 		if err := gen.ScanPaths(s.dir, s.excluded, s.typ, s.namespace, nil); err != nil {
-			return nil, err
+			line := 359 // the PSR directories
+			if s.typ == classmap.Classmap {
+				line = 329
+			}
+
+			return nil, phperr.Call(err, `Composer\ClassMapGenerator\ClassMapGenerator->scanPaths`, "AutoloadGenerator.php", line)
 		}
 	}
 
@@ -402,7 +414,14 @@ func (g *Generator) suffix(config Config, vendorPath, suffix string, locker Lock
 		return "", err
 	}
 	if configured != nil {
-		return php.ToString(configured), nil
+		if str, ok := configured.(string); ok {
+			return str, nil
+		}
+		// kept as is: getStaticFile(string $suffix) rejects it once the
+		// other files are written (write)
+		g.suffixValue = configured
+
+		return "", nil
 	}
 
 	// carry over existing autoload.php's suffix if possible and none is
@@ -470,7 +489,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 
 	includePathsFile, err := d.includePathsFile(packageMap)
 	if err != nil {
-		return err
+		return phperr.Call(err, `Composer\Autoload\AutoloadGenerator->getIncludePathsFile`, "AutoloadGenerator.php", 444)
 	}
 	if err := putOrRemove(d.targetDir+"/include_paths.php", includePathsFile); err != nil {
 		return err
@@ -484,6 +503,10 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 		return err
 	}
 
+	if g.suffixValue != nil {
+		return pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::getStaticFile`, 1, "suffix", "string", g.suffixValue).
+			Called(`Composer\Autoload\AutoloadGenerator->getStaticFile`, phperr.At("AutoloadGenerator.php", 1152), "AutoloadGenerator.php", 455)
+	}
 	staticFile, err := d.staticFile(suffix)
 	if err != nil {
 		return phperr.Call(err, `Composer\Autoload\AutoloadGenerator->getStaticFile`, "AutoloadGenerator.php", 455)

@@ -29,6 +29,7 @@ type FilesystemRepository struct {
 	rootPackage  pkg.RootPackageInterface
 	// FilesystemRepository's own private $devMode, read from the file.
 	fsDevMode, fsDevModeKnown bool
+	fsDevModeValue            any
 	installedVersionsSink     func(versions *php.Array)
 	// deferWrites and pending: see DeferWrites.
 	deferWrites bool
@@ -92,6 +93,10 @@ func (r *FilesystemRepository) DevMode() (devMode, ok bool) {
 	return r.fsDevMode, r.fsDevModeKnown
 }
 
+// DevModeValue is getDevMode() when installed.json's "dev" is not a bool
+// (DevMode gives its truthiness); nil otherwise.
+func (r *FilesystemRepository) DevModeValue() any { return r.fsDevModeValue }
+
 // initialize ports FilesystemRepository::initialize: it reads the file.
 func (r *FilesystemRepository) initialize() error {
 	r.baseInitialize()
@@ -148,7 +153,12 @@ func (r *FilesystemRepository) readPackageList() (*php.Array, error) {
 			r.SetDevPackageNames(stringValues(names))
 		}
 		if v, _ := data.Get("dev"); v != nil {
+			// $this->devMode = $data['dev'] (an untyped property): a
+			// value that is not a bool is kept for DevModeValue
 			r.fsDevMode, r.fsDevModeKnown = php.ToBool(v), true
+			if _, ok := v.(bool); !ok {
+				r.fsDevModeValue = v
+			}
 		}
 	}
 	list, ok := packages.(*php.Array)

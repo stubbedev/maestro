@@ -7,6 +7,7 @@ package util
 import (
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/phperr"
@@ -21,12 +22,30 @@ var errorHandler struct {
 	shown int
 }
 
-// The warnings internal/io raises are ErrorHandler's ErrorExceptions.
+// The warnings internal/io raises are ErrorHandler's ErrorExceptions,
+// none while Silencer::suppress() is in effect.
 func init() {
 	io.NewWarning = func(message string, site phperr.Site) error {
+		if silenced.Load() > 0 {
+			return nil
+		}
+
 		return &ErrorException{Message: message, Site: site}
 	}
 }
+
+// silenced counts the Silencer::suppress() calls not restored yet.
+var silenced atomic.Int32
+
+// SilencerSuppress ports Silencer::suppress(): until SilencerRestore,
+// error_reporting() leaves out warnings and notices, so ErrorHandler does
+// not throw for them and the code goes on with the value PHP gives (null
+// for a missing key). Only warnings raised through io.NewWarning honour
+// it.
+func SilencerSuppress() { silenced.Add(1) }
+
+// SilencerRestore ports Silencer::restore().
+func SilencerRestore() { silenced.Add(-1) }
 
 // RegisterErrorHandler ports ErrorHandler::register($io): the IO
 // deprecation notices are written to (Application::doRun registers its

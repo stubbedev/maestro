@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -181,6 +182,12 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 	}
 
 	util.PutEnv("COMPOSER_DEV_MODE", map[bool]string{true: "1", false: "0"}[devMode])
+	// dispatchScript(string $eventName, bool $devMode) rejects an
+	// installed.json "dev" that is not a bool (strict_types)
+	if r, ok := localRepo.(interface{ DevModeValue() any }); ok && r.DevModeValue() != nil {
+		return 0, pkg.ArgumentTypeError(`Composer\EventDispatcher\EventDispatcher::dispatchScript`, 2, "devMode", "bool", r.DevModeValue()).
+			Called(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, phperr.At("EventDispatcher.php", 138), "ReinstallCommand.php", 167)
+	}
 	if _, err := eventDispatcher.DispatchScript(script.PreInstallCmd, devMode, nil, nil); err != nil {
 		return 0, err
 	}

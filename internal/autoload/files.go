@@ -327,7 +327,12 @@ func (d *dump) includePathsFile(packageMap []PackageMapEntry) (string, error) {
 		}
 
 		for _, v := range p.IncludePaths().Values() {
-			includePath := php.TrimSet(php.ToString(v), "/")
+			str, ok := v.(string)
+			if !ok {
+				// trim(string $string) under strict_types
+				return "", typeError("trim", php.ZvalValueName(v), 694)
+			}
+			includePath := php.TrimSet(str, "/")
 			if installPath != "" {
 				includePath = installPath + "/" + includePath
 			}
