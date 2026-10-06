@@ -10,7 +10,6 @@ import (
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -22,7 +21,7 @@ const noMaxAge = -1
 // hasProvidersCheck ports hasProviders.
 func (r *ComposerRepository) hasProvidersCheck() (bool, error) {
 	if _, _, err := r.loadRootServerFile(noMaxAge); err != nil {
-		return false, phperr.Call(err, `Composer\Repository\ComposerRepository->loadRootServerFile`, "ComposerRepository.php", 1095)
+		return false, err
 	}
 
 	return r.hasProviders, nil
@@ -107,7 +106,7 @@ func (r *ComposerRepository) loadRootServerFile(rootMaxAge int64) (*php.Array, b
 	if !hasSet {
 		data, err = r.fetchFile(r.packagesJSONURL(), "packages.json", "", true)
 		if err != nil {
-			return nil, false, phperr.Call(err, `Composer\Repository\ComposerRepository->fetchFile`, "ComposerRepository.php", 1467)
+			return nil, false, err
 		}
 	}
 	if data == nil {
@@ -279,7 +278,7 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 			r.securityAdvisoryConfig.apiURL = url
 		}
 		if r.securityAdvisoryConfig.apiURL == "" && !r.hasAvailablePackageList {
-			return &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 1543), Message: "Invalid security advisory configuration on " + r.RepoName() + ": If the repository does not provide a security-advisories.api-url then available-packages or available-package-patterns are required to be provided for performance reason."}
+			return &util.UnexpectedValueError{Message: "Invalid security advisory configuration on " + r.RepoName() + ": If the repository does not provide a security-advisories.api-url then available-packages or available-package-patterns are required to be provided for performance reason."}
 		}
 	}
 
@@ -330,7 +329,7 @@ var urlOriginRegex = php.MustCompile(`{^[^:]++://[^/]*+}`)
 // against the repository URL's scheme and host.
 func (r *ComposerRepository) canonicalizeURL(url string) (string, error) {
 	if url == "" {
-		return "", &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 1583), Message: "Expected a string with a value and not an empty string"}
+		return "", &util.InvalidArgumentError{Message: "Expected a string with a value and not an empty string"}
 	}
 
 	if strings.HasPrefix(url, "/") {
@@ -353,7 +352,7 @@ func (r *ComposerRepository) loadDataFromServer() ([]*php.Array, error) {
 		return nil, err
 	}
 	if consumed {
-		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1604), Message: "loadRootServerFile should not return true during initialization"}
+		return nil, &util.LogicError{Message: "loadRootServerFile should not return true during initialization"}
 	}
 
 	return r.loadIncludes(data)
@@ -548,7 +547,7 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 			from = " from " + source
 		}
 
-		return nil, newRuntimeError(phperr.At("ComposerRepository.php", 1726), "Could not load packages in "+r.RepoName()+from+": ["+exceptionClass(err)+"] "+err.Error(), err)
+		return nil, newRuntimeError("Could not load packages in "+r.RepoName()+from+": ["+exceptionClass(err)+"] "+err.Error(), err)
 	}
 
 	for _, p := range packageInstances {

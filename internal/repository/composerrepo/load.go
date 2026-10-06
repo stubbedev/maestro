@@ -11,7 +11,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/metadataminifier"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -162,7 +161,7 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 
 			uid := get(data, "uid")
 			if _, ok := uid.(*php.Array); ok {
-				return nil, (&pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}).Raised("", "ComposerRepository.php", 1204)
+				return nil, &pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}
 			}
 			if v, _ := versionsToLoad.Get(uid); v != nil {
 				continue
@@ -254,7 +253,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 	r.rootFileLoaded()
 
 	if r.lazyProvidersURL == "" {
-		return repository.LoadResult{}, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1289), Message: "loadAsyncPackages only supports v2 protocol composer repos with a metadata-url"}
+		return repository.LoadResult{}, &util.LogicError{Message: "loadAsyncPackages only supports v2 protocol composer repos with a metadata-url"}
 	}
 
 	// load ~dev versions of the packages as well if needed
@@ -535,10 +534,10 @@ func (r *ComposerRepository) isVersionAcceptable(constraint semver.ConstraintInt
 // Composer's ErrorHandler throws.
 func versionOffsetError(v any) error {
 	if _, ok := v.(string); ok {
-		return (&pkg.TypeError{Message: "Cannot access offset of type string on string"}).Raised("", "ComposerRepository.php", 1329)
+		return &pkg.TypeError{Message: "Cannot access offset of type string on string"}
 	}
 
-	return &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(v), Site: phperr.At("ComposerRepository.php", 1329)}
+	return &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(v)}
 }
 
 // expandEach calls fn with each version MetadataMinifier::expand($versions)
@@ -620,7 +619,6 @@ func expandVersions(items []any) ([]any, error) {
 		return out, nil
 	}
 
-	const file = "MetadataMinifier.php"
 	expanded := make([]any, 0, len(items))
 	var expandedVersion any
 	for _, versionData := range items {
@@ -633,7 +631,7 @@ func expandVersions(items []any) ([]any, error) {
 
 		data, ok := versionData.(*php.Array)
 		if !ok {
-			return nil, &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(versionData) + " given", Site: phperr.At(file, 34)}
+			return nil, &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(versionData) + " given"}
 		}
 		// arrays are values: the entry appended before keeps its keys
 		if a, ok := expandedVersion.(*php.Array); ok {
@@ -645,9 +643,9 @@ func expandVersions(items []any) ([]any, error) {
 				case *php.Array:
 					c.DeleteKey(k)
 				case string:
-					return nil, (&php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}).Raised("", file, 36)
+					return nil, &php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}
 				default:
-					return nil, (&php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}).Raised("", file, 36)
+					return nil, &php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}
 				}
 
 				continue
@@ -655,7 +653,7 @@ func expandVersions(items []any) ([]any, error) {
 			// expandedVersion is truthy: never null or false here
 			a, _, _, e := php.WritableArray(expandedVersion)
 			if e != nil {
-				return nil, e.Raised("", file, 38)
+				return nil, e
 			}
 			a.SetKey(k, val)
 		}

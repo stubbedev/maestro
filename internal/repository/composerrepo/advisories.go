@@ -11,7 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -84,41 +83,38 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 	}
 
 	parser := pkg.NewVersionParser()
-	// the $create closure, called at line (758 or 796) by the closures
-	// array_map() runs
-	create := func(data any, name string, line int) (repository.Advisory, error) {
+	// the $create closure, called by the closures array_map() runs
+	create := func(data any, name string) (repository.Advisory, error) {
 		dataArray, ok := data.(*php.Array)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Repository\ComposerRepository::{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, 1, "data", "array", data).
-				Called(`Composer\Repository\ComposerRepository->{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, phperr.At("ComposerRepository.php", 724), "ComposerRepository.php", line)
+			return nil, pkg.ArgumentTypeError(`Composer\Repository\ComposerRepository::{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, 1, "data", "array", data)
 		}
 		advisory, err := repository.CreatePartialSecurityAdvisory(name, dataArray, parser)
 		if err != nil {
 			return nil, err
 		}
 		if _, full := advisory.(*repository.SecurityAdvisory); !allowPartialAdvisories && !full {
-			return nil, &util.RuntimeError{Site: phperr.At("ComposerRepository.php", 727), Message: "Advisory for " + name + " could not be loaded as a full advisory from " + r.RepoName() + php.EOL + php.VarExport(dataArray)}
+			return nil, &util.RuntimeError{Message: "Advisory for " + name + " could not be loaded as a full advisory from " + r.RepoName() + php.EOL + php.VarExport(dataArray)}
 		}
 		constraint, ok := packageConstraintMap.Get(name)
 		if !ok {
-			return nil, &util.ErrorException{Site: phperr.At("ComposerRepository.php", 729), Message: `Undefined array key "` + name + `"`}
+			return nil, &util.ErrorException{Message: `Undefined array key "` + name + `"`}
 		}
 		if constraint == nil {
 			// $advisory->affectedVersions->matches(null) at line 729: the
 			// method of the constraint's class
-			class, file, decl := "Constraint", "vendor/composer/semver/src/Constraint/Constraint.php", 134
+			class := "Constraint"
 			switch advisory.Partial().AffectedVersions.(type) {
 			case *semver.MultiConstraint:
-				class, file, decl = "MultiConstraint", "MultiConstraint.php", 117
+				class = "MultiConstraint"
 			case *semver.MatchAllConstraint:
-				class, file, decl = "MatchAllConstraint", "MatchAllConstraint.php", 29
+				class = "MatchAllConstraint"
 			case *semver.MatchNoneConstraint:
-				class, file, decl = "MatchNoneConstraint", "MatchNoneConstraint.php", 27
+				class = "MatchNoneConstraint"
 			}
 			fn := `Composer\Semver\Constraint\` + class
 
-			return nil, (&pkg.TypeError{Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}).
-				Called(fn+"->matches", phperr.At(file, decl), "ComposerRepository.php", 729)
+			return nil, &pkg.TypeError{Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}
 		}
 		if !advisory.Partial().AffectedVersions.Matches(constraint) {
 			return nil, nil
@@ -126,10 +122,10 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 		return advisory, nil
 	}
-	createAll := func(list *php.Array, name string, line int) ([]repository.Advisory, error) {
+	createAll := func(list *php.Array, name string) ([]repository.Advisory, error) {
 		var out []repository.Advisory
 		for _, data := range list.All() {
-			advisory, err := create(data, name, line)
+			advisory, err := create(data, name)
 			if err != nil {
 				return nil, err
 			}
@@ -165,7 +161,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 				namesFound.Set(name, struct{}{})
 				if list.Len() > 0 {
-					created, err := createAll(list, name, 758)
+					created, err := createAll(list, name)
 					if err != nil {
 						return err
 					}
@@ -207,7 +203,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 				continue
 			}
 			if list := asArray(raw); list.Len() > 0 {
-				created, err := createAll(list, name, 796)
+				created, err := createAll(list, name)
 				if err != nil {
 					return repository.AdvisoryResult{}, err
 				}
@@ -279,7 +275,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 		}
 		filter, ok := get(asArrayOrNil(decoded), "filter").(*php.Array)
 		if !ok {
-			return nil, transportErrorAt(phperr.At("ComposerRepository.php", 847), "Filter api-url "+r.filterConfig.APIURL+" returned an unexpected response for "+r.RepoName(), 0)
+			return nil, transportErrorAt("Filter api-url "+r.filterConfig.APIURL+" returned an unexpected response for "+r.RepoName(), 0)
 		}
 
 		return r.entryBuilder().Build(filter, packageConstraintMap, "")
@@ -427,7 +423,7 @@ func (r *ComposerRepository) loadFilterSummary() (*repository.NameMap[*repositor
 
 	lists, ok := get(data, "filter").(*php.Array)
 	if !ok {
-		return nil, transportErrorAt(phperr.At("ComposerRepository.php", 962), "Filter summary URL "+r.filterConfig.SummaryURL+" returned 404 for "+r.RepoName(), 404)
+		return nil, transportErrorAt("Filter summary URL "+r.filterConfig.SummaryURL+" returned 404 for "+r.RepoName(), 404)
 	}
 
 	for k, raw := range lists.All() {
@@ -438,14 +434,14 @@ func (r *ComposerRepository) loadFilterSummary() (*repository.NameMap[*repositor
 				listName = k.String()
 			}
 
-			return nil, &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 968), Message: "Invalid filter summary received from " + r.RepoName() + `: list "` + listName + `" must map to an object of package => constraint`}
+			return nil, &util.UnexpectedValueError{Message: "Invalid filter summary received from " + r.RepoName() + `: list "` + listName + `" must map to an object of package => constraint`}
 		}
 		listName := k.String()
 
 		for packageName, rawConstraint := range packages.All() {
 			constraint, isString := rawConstraint.(string)
 			if !packageName.IsString() || !isString {
-				return nil, &util.UnexpectedValueError{Site: phperr.At("ComposerRepository.php", 973), Message: "Invalid filter summary received from " + r.RepoName() + `: list "` + listName + `" entries must be strings`}
+				return nil, &util.UnexpectedValueError{Message: "Invalid filter summary received from " + r.RepoName() + `: list "` + listName + `" entries must be strings`}
 			}
 			list, ok := summary.Get(listName)
 			if !ok {
