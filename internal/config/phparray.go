@@ -21,7 +21,7 @@ const jsonConfigSourceFile = "JsonConfigSource.php"
 func writable(v any, line int) (arr *php.Array, replace bool, err error) {
 	arr, replace, deprecated, e := php.WritableArray(v)
 	if e != nil {
-		return nil, false, e.Raised("", jsonConfigSourceFile, line)
+		return nil, false, e
 	}
 	if deprecated {
 		util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At(jsonConfigSourceFile, line))
@@ -77,15 +77,15 @@ func unsetIn(line int, a *php.Array, keys ...any) error {
 			return nil
 		case bool:
 			if c {
-				return (&php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}).Raised("", jsonConfigSourceFile, line)
+				return &php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}
 			}
 			util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At(jsonConfigSourceFile, line))
 
 			return nil
 		case string:
-			return (&php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}).Raised("", jsonConfigSourceFile, line)
+			return &php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}
 		default:
-			return (&php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}).Raised("", jsonConfigSourceFile, line)
+			return &php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}
 		}
 	}
 
@@ -113,13 +113,11 @@ func isEmptyArray(v any) bool {
 	return ok && a.Len() == 0
 }
 
-// arrayIsList is array_is_list($v) at line, with its TypeError for
-// non-arrays.
-func arrayIsList(v any, line int) (bool, error) {
+// arrayIsList is array_is_list($v), with its TypeError for non-arrays.
+func arrayIsList(v any) (bool, error) {
 	a, ok := v.(*php.Array)
 	if !ok {
-		return false, (&php.EngineError{Class: "TypeError", Message: "array_is_list(): Argument #1 ($array) must be of type array, " + zvalName(v) + " given"}).
-			Raised("array_is_list", jsonConfigSourceFile, line)
+		return false, &php.EngineError{Class: "TypeError", Message: "array_is_list(): Argument #1 ($array) must be of type array, " + zvalName(v) + " given"}
 	}
 
 	return a.IsList(), nil

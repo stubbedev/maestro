@@ -216,10 +216,9 @@ func isset(a *php.Array, k any) bool {
 }
 
 // arrayArgError is the TypeError PHP throws when an array function gets a
-// non-array argument, in the call at line of Config.php.
-func arrayArgError(fn string, arg int, v any, line int) error {
-	return (&php.EngineError{Class: "TypeError", Message: fn + "(): Argument #" + strconv.Itoa(arg) + " must be of type array, " + php.ZvalValueName(v) + " given"}).
-		Raised(fn, "Config.php", line)
+// non-array argument.
+func arrayArgError(fn string, arg int, v any) error {
+	return &php.EngineError{Class: "TypeError", Message: fn + "(): Argument #" + strconv.Itoa(arg) + " must be of type array, " + php.ZvalValueName(v) + " given"}
 }
 
 var authKeys = [...]string{"bitbucket-oauth", "github-oauth", "gitlab-oauth", "gitlab-token", "http-basic", "bearer", "client-certificate", "forgejo-token"}
@@ -260,7 +259,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 	switch {
 	case isStr && contains(authKeys[:], key) && isset(c.config, key):
 		cur, _ := c.config.Get(key)
-		merged, err := arrayMerge(cur, val, 205)
+		merged, err := arrayMerge(cur, val)
 		if err != nil {
 			return err
 		}
@@ -272,7 +271,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 		cur, _ := c.get(key).(*php.Array)
 		c.config.Set(key, php.ArrayMerge(v, cur, v))
 	case isStr && (key == "gitlab-domains" || key == "github-domains") && isset(c.config, key):
-		merged, err := arrayMerge(c.get(key), val, 213)
+		merged, err := arrayMerge(c.get(key), val)
 		if err != nil {
 			return err
 		}
@@ -297,7 +296,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 			cur = php.ArrayOf("*", s)
 			c.setSource(key+"*", source)
 		}
-		merged, err := arrayMerge(cur, val, 224)
+		merged, err := arrayMerge(cur, val)
 		if err != nil {
 			return err
 		}
@@ -312,7 +311,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 		if audit, ok := c.config.GetArray("audit"); ok {
 			currentIgnores, _ = audit.Get("ignore")
 		}
-		merged, err := arrayMerge(c.get("audit"), val, 238)
+		merged, err := arrayMerge(c.get("audit"), val)
 		if err != nil {
 			return err
 		}
@@ -323,7 +322,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 		if ign, ok := valArr.Get("ignore"); ok && ign != nil {
 			incoming = ign
 		}
-		ignores, err := arrayMerge(currentIgnores, incoming, 240)
+		ignores, err := arrayMerge(currentIgnores, incoming)
 		if err != nil {
 			return err
 		}
@@ -335,8 +334,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 	default:
 		c.config.SetKey(k, val)
 		if !isStr {
-			return (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::setSourceOfConfigValue(): Argument #2 ($path) must be of type string, int given"}).
-				Called(`Composer\Config->setSourceOfConfigValue`, phperr.At("Config.php", 596), "Config.php", 299)
+			return &php.EngineError{Class: "TypeError", Message: "Composer\\Config::setSourceOfConfigValue(): Argument #2 ($path) must be of type string, int given"}
 		}
 	}
 
@@ -448,8 +446,7 @@ func (c *Config) mergeRepositories(repos *php.Array, source string) error {
 				u, _ := repo.Get("url")
 				url, ok := u.(string)
 				if !ok {
-					return (&php.EngineError{Class: "TypeError", Message: "Composer\\Pcre\\Preg::isMatch(): Argument #2 ($subject) must be of type string, " + php.ZvalValueName(u) + " given"}).
-						Called(`Composer\Pcre\Preg::isMatch`, phperr.At("vendor/composer/pcre/src/Preg.php", 289), "Config.php", 322)
+					return &php.EngineError{Class: "TypeError", Message: "Composer\\Pcre\\Preg::isMatch(): Argument #2 ($subject) must be of type string, " + php.ZvalValueName(u) + " given"}
 				}
 				if m, err := packagistURL.IsMatch(url); err != nil {
 					return err
@@ -593,8 +590,7 @@ func (c *Config) Get(key string, flags int) (any, error) {
 		}
 		s, ok := v.(string)
 		if !ok {
-			return nil, (&php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Platform::expandPath(): Argument #1 ($path) must be of type string, " + php.ZvalValueName(v) + " given"}).
-				Called(`Composer\Util\Platform::expandPath`, phperr.At("Platform.php", 158), "Config.php", 466)
+			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Platform::expandPath(): Argument #1 ($path) must be of type string, " + php.ZvalValueName(v) + " given"}
 		}
 		expanded, err := util.ExpandPath(s)
 		if err != nil {
@@ -683,7 +679,7 @@ func (c *Config) cacheFilesMaxsize() (any, error) {
 		return nil, err
 	}
 	if m == nil {
-		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 434), Message: "Could not parse the value of 'cache-files-maxsize': " + raw}
+		return nil, &util.RuntimeError{Message: "Could not parse the value of 'cache-files-maxsize': " + raw}
 	}
 	size := php.ToFloat(m.Get(1))
 	if unit, ok := m.Group(2); ok {
@@ -722,7 +718,7 @@ func (c *Config) binCompat() (any, error) {
 			return nil, err
 		}
 
-		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 472), Message: "Invalid value for 'bin-compat': " + str + ". Expected auto, full or proxy"}
+		return nil, &util.RuntimeError{Message: "Invalid value for 'bin-compat': " + str + ". Expected auto, full or proxy"}
 	}
 
 	if value == "symlink" {
@@ -742,7 +738,7 @@ func (c *Config) discardChanges() (any, error) {
 			return env != "false" && php.ToBool(env), nil
 		}
 
-		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 487), Message: "Invalid value for COMPOSER_DISCARD_CHANGES: " + env + ". Expected 1, 0, true, false or stash"}
+		return nil, &util.RuntimeError{Message: "Invalid value for COMPOSER_DISCARD_CHANGES: " + env + ". Expected 1, 0, true, false or stash"}
 	}
 
 	v := c.get("discard-changes")
@@ -752,7 +748,7 @@ func (c *Config) discardChanges() (any, error) {
 			return nil, err
 		}
 
-		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 500), Message: "Invalid value for 'discard-changes': " + str + ". Expected true, false or stash"}
+		return nil, &util.RuntimeError{Message: "Invalid value for 'discard-changes': " + str + ". Expected true, false or stash"}
 	}
 
 	return v, nil
@@ -764,12 +760,10 @@ func (c *Config) githubProtocols() (any, error) {
 	if !ok {
 		// array_search() runs only with secure-http, reset() always
 		if php.ToBool(c.get("secure-http")) {
-			return nil, (&php.EngineError{Class: "TypeError", Message: "array_search(): Argument #2 ($haystack) must be of type array, " + php.ZvalValueName(v) + " given"}).
-				Raised("array_search", "Config.php", 509)
+			return nil, &php.EngineError{Class: "TypeError", Message: "array_search(): Argument #2 ($haystack) must be of type array, " + php.ZvalValueName(v) + " given"}
 		}
 
-		return nil, (&php.EngineError{Class: "TypeError", Message: "reset(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(v) + " given"}).
-			Raised("reset", "Config.php", 512)
+		return nil, &php.EngineError{Class: "TypeError", Message: "reset(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(v) + " given"}
 	}
 	if php.ToBool(c.get("secure-http")) {
 		if index, found := php.ArraySearch("git", protos, false); found {
@@ -778,7 +772,7 @@ func (c *Config) githubProtocols() (any, error) {
 		}
 	}
 	if _, first, ok := protos.First(); ok && first == "http" {
-		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 513), Message: `The http protocol for github is not available anymore, update your config's github-protocols to use "https", "git" or "ssh"`}
+		return nil, &util.RuntimeError{Message: `The http protocol for github is not available anymore, update your config's github-protocols to use "https", "git" or "ssh"`}
 	}
 
 	return protos, nil
@@ -790,7 +784,7 @@ func (c *Config) audit() (any, error) {
 	abandonedEnv, abandonedSet := c.getComposerEnv("COMPOSER_AUDIT_ABANDONED")
 	if abandonedSet {
 		if !contains(policy.Audits[:], abandonedEnv) {
-			return nil, &util.RuntimeError{Site: phperr.At("Config.php", 530), Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + abandonedEnv + ". Expected one of " + strings.Join(policy.Audits[:], ", ") + "."}
+			return nil, &util.RuntimeError{Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + abandonedEnv + ". Expected one of " + strings.Join(policy.Audits[:], ", ") + "."}
 		}
 	}
 	_, blockAbandonedSet := c.getComposerEnv("COMPOSER_SECURITY_BLOCKING_ABANDONED")
@@ -827,12 +821,11 @@ func (c *Config) All(flags int) (*php.Array, error) {
 	cfg := php.NewArrayCap(c.config.Len())
 	for k := range c.config.All() {
 		if k.IsInt() {
-			return nil, (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::get(): Argument #1 ($key) must be of type string, int given"}).
-				Called(`Composer\Config->get`, phperr.At("Config.php", 364), "Config.php", 580)
+			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::get(): Argument #1 ($key) must be of type string, int given"}
 		}
 		v, err := c.Get(k.String(), flags)
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Config->get`, "Config.php", 580)
+			return nil, err
 		}
 		cfg.SetKey(k, v)
 	}
@@ -1001,13 +994,11 @@ func (c *Config) ProhibitURLByConfig(url string, out io.IO, repoOptions *php.Arr
 				}
 
 				e := util.NewTransportError("Your configuration does not allow connections to "+util.SanitizeURL(url)+". See https://getcomposer.org/doc/06-config.md#secure-svn-domains for details.", 400)
-				e.Site = phperr.At("Config.php", 709)
 
 				return e
 			}
 
 			e := util.NewTransportError("Your configuration does not allow connections to "+util.SanitizeURL(url)+". See https://getcomposer.org/doc/06-config.md#secure-http for details.", 400)
-			e.Site = phperr.At("Config.php", 712)
 
 			return e
 		}
@@ -1087,16 +1078,16 @@ func isArray(v any) bool {
 	return ok
 }
 
-// arrayMerge is array_merge($a, $b) at line of Config.php, with PHP's
-// TypeError for non-arrays.
-func arrayMerge(a, b any, line int) (*php.Array, error) {
+// arrayMerge is array_merge($a, $b), with PHP's TypeError for
+// non-arrays.
+func arrayMerge(a, b any) (*php.Array, error) {
 	x, ok := a.(*php.Array)
 	if !ok {
-		return nil, arrayArgError("array_merge", 1, a, line)
+		return nil, arrayArgError("array_merge", 1, a)
 	}
 	y, ok := b.(*php.Array)
 	if !ok {
-		return nil, arrayArgError("array_merge", 2, b, line)
+		return nil, arrayArgError("array_merge", 2, b)
 	}
 
 	return php.ArrayMerge(x, y), nil
