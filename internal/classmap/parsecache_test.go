@@ -213,7 +213,10 @@ func TestParseCache_Releases(t *testing.T) {
 	moved := t.TempDir()
 	stampFile(t, moved, "lib/Foo.php", "<?php class Foo {}", stamp)
 	fraction := stampFile(t, moved, "src/Bar.php", "<?php class Qux {}", stamp+1)
-	if err := os.Chtimes(filepath.Join(moved, "src", "Bar.php"), time.Unix(stamp+1, 5), time.Unix(stamp+1, 5)); err != nil {
+	// a millisecond: NTFS keeps 100ns units, so a smaller fraction would
+	// be lost there and the file would show its stamp again
+	touched := time.Unix(stamp+1, int64(time.Millisecond))
+	if err := os.Chtimes(filepath.Join(moved, "src", "Bar.php"), touched, touched); err != nil {
 		t.Fatal(err)
 	}
 	_ = fraction
