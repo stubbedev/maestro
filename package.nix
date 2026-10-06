@@ -1,8 +1,8 @@
 {
   lib,
   buildGo127Module,
-  # Set by the flake from `self.shortRev or self.dirtyShortRev`; falls back to
-  # the placeholder used when nothing was stamped in.
+  # Set by the flake from `self.shortRev or self.dirtyShortRev`, or null for
+  # a release build, which reports the bare version like the release binaries.
   rev ? "unknown",
   version ? "0-unstable",
 }:
@@ -24,7 +24,7 @@ buildGo127Module {
   ldflags = [
     "-s"
     "-w"
-    "-X main.version=${version}+${rev}"
+    "-X main.version=${version}${lib.optionalString (rev != null) "+${rev}"}"
   ];
 
   # Every test fakes the registry or works on temp dirs; none reach the network.

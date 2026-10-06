@@ -14,10 +14,21 @@
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        # Nix has no version to read from the source tree, so builds from a
-        # checkout are stamped with the commit date and hash.
-        rev = self.shortRev or self.dirtyShortRev or "unknown";
-        version = "0-unstable-${self.lastModifiedDate or "0"}";
+        # Flakes can't see git tags, so `just release` commits release.json
+        # with the release version and the release commit's own commit time
+        # (it pins the commit date to make that knowable). A clean build of
+        # exactly that commit reports the plain version, like the release
+        # binaries; anything else is stamped with the date and hash.
+        release = builtins.fromJSON (builtins.readFile ./release.json);
+        isRelease = self ? rev && (self.lastModified or 0) == release.commitTime;
+        rev =
+          if isRelease
+          then null
+          else self.shortRev or self.dirtyShortRev or "unknown";
+        version =
+          if isRelease
+          then release.version
+          else "${release.version}-unstable-${self.lastModifiedDate or "0"}";
       in {
         packages = rec {
           maestro = pkgs.callPackage ./package.nix {inherit rev version;};

@@ -68,9 +68,11 @@ release-patch: (release "patch")
 release-minor: (release "minor")
 release-major: (release "major")
 
-# The version lives in the git tag: publish.yml stamps it into the binary, so
-# there is no version file to bump. Syncs the flake vendorHash, runs the gates,
-# tags, and pushes -- the tag push triggers .github/workflows/publish.yml.
+# The version lives in the git tag: publish.yml stamps it into the binary.
+# Nix can't see tags, so the release commit also records the version in
+# release.json for flake.nix. Syncs the flake vendorHash, runs the gates,
+# commits, tags, and pushes -- the tag push triggers
+# .github/workflows/publish.yml.
 # Tag a release and push it.
 release level:
     #!/usr/bin/env bash
@@ -101,21 +103,25 @@ release level:
         git add package.nix
         git commit -m "chore(nix): update vendorHash for $new"
     fi
-    # GitHub honours [skip ci] on a tag push too, so a tag landing on the
-    # vendorHash commit that .github/workflows/flake.yml pushes ("chore(nix):
-    # update vendorHash [skip ci]") creates the tag and the release quietly
-    # never builds. Put an empty commit under the tag in that case.
+    # flake.nix reports the bare version only for the commit whose commit
+    # time equals release.json's commitTime, so pin both dates to it. The
+    # tag always sits on this commit, which also keeps it off the "[skip ci]"
+    # vendorHash commit .github/workflows/flake.yml pushes (GitHub honours
+    # [skip ci] on a tag push too, and the release would quietly never build).
+    now="$(date +%s)"
+    printf '{\n  "version": "%s",\n  "commitTime": %s\n}\n' "${new#v}" "$now" > release.json
+    git add release.json
+    GIT_AUTHOR_DATE="@$now +0000" GIT_COMMITTER_DATE="@$now +0000" \
+        git commit -m "chore: release $new"
     # The flake workflow can push its own vendorHash commit to main while
     # this recipe runs; both commits carry the same content, so rebasing
     # onto theirs drops ours as empty and both sides converge instead of
-    # a push being rejected. Re-checking the guard and re-tagging every
-    # iteration keeps the tag on the head that actually lands.
+    # a push being rejected. --committer-date-is-author-date keeps the
+    # release commit's pinned commit time through the rebase. Re-tagging
+    # every iteration keeps the tag on the head that actually lands.
     for _ in 1 2 3 4 5; do
         git fetch origin main --quiet
-        git rebase origin/main
-        if git log -1 --format=%B | grep -qiE '\[(skip ci|ci skip)\]'; then
-            git commit --allow-empty -m "chore: release $new"
-        fi
+        git rebase --committer-date-is-author-date origin/main
         git tag -f --annotate -m "$new" "$new"
         if git push origin HEAD && git push origin "$new"; then
             echo "released $new"
