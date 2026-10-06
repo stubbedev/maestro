@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -189,7 +191,9 @@ func TestBinaryInstaller_Oracle(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			for path, want := range s.Tree {
+			want := dropEmptyBinDir(s.Tree, got)
+
+			for path, want := range want {
 				g, ok := got[path]
 				if !ok {
 					t.Errorf("%s missing", path)
@@ -205,7 +209,7 @@ func TestBinaryInstaller_Oracle(t *testing.T) {
 			}
 
 			for path := range got {
-				if _, ok := s.Tree[path]; !ok {
+				if _, ok := want[path]; !ok {
 					t.Errorf("%s unexpected", path)
 				}
 			}
@@ -227,4 +231,38 @@ func deref(s *string) string {
 	}
 
 	return *s
+}
+
+// dropEmptyBinDir applies deviation 7 (docs/PORTING.md) to Composer's tree:
+// an empty bin dir that maestro didn't create, and the parents that only
+// held it, are not expected. Composer's removeBinaries creates the bin dir
+// even for packages without binaries; maestro doesn't.
+func dropEmptyBinDir(tree, got map[string]treeEntry) map[string]treeEntry {
+	want := maps.Clone(tree)
+
+	hasChild := func(dir string) bool {
+		for p := range want {
+			if strings.HasPrefix(p, dir+"/") {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	for dir, e := range tree {
+		if e.Type != "dir" || path.Base(dir) != "bin" {
+			continue
+		}
+
+		for d := dir; d != "." && want[d].Type == "dir" && !hasChild(d); d = path.Dir(d) {
+			if _, ok := got[d]; ok {
+				break
+			}
+
+			delete(want, d)
+		}
+	}
+
+	return want
 }

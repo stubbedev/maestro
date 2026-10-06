@@ -138,14 +138,20 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 }
 
 // RemoveBinaries is removeBinaries().
+//
+// Deliberate deviation (docs/PORTING.md 7): Composer calls initializeBinDir()
+// before checking for binaries, so removing a package without binaries
+// creates an empty bin dir, and whether it survives a batch of removals
+// depends on the order the removals finish. maestro only touches the bin
+// dir for packages that have binaries.
 func (b *BinaryInstaller) RemoveBinaries(p pkg.PackageInterface) error {
-	if err := b.initializeBinDir(); err != nil {
-		return err
-	}
-
 	binaries := binariesOf(p)
 	if len(binaries) == 0 {
 		return nil
+	}
+
+	if err := b.initializeBinDir(); err != nil {
+		return err
 	}
 
 	for _, bin := range binaries {

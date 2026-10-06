@@ -55,6 +55,12 @@ deviations listed below.
 6. **`--version`** prints Composer's exact lines, then one extra stderr
    line, `maestro version X`, so people can tell which tool they run;
    anything parsing stdout or the first line sees Composer's output.
+7. **No stray empty `vendor/bin`.** Composer's
+   `BinaryInstaller::removeBinaries` creates the bin dir even when the
+   removed package has no binaries, so an emptied bin dir survives or not
+   depending on the order removals finish. maestro only touches the bin dir
+   for packages with binaries: an empty bin dir is never created by a
+   removal, and the last binary removed takes it away.
 
 ## Layout
 

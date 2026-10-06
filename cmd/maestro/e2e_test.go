@@ -48,9 +48,9 @@
 //     (dump-autoload --apcu without --apcu-prefix: bin2hex(random_bytes(10))).
 //   - Scenario-specific ones, each documented at its step (normalize):
 //     fund's package order (normalizeFund) and diagnose's phar-only checks
-//     and binary path (normalizeDiagnose); and one of the file tree,
-//     plugin-captainhook's `install --no-dev` (binDirRace): an empty
-//     vendor/bin that Composer leaves behind in some runs only.
+//     and binary path (normalizeDiagnose).
+//   - An empty vendor/bin that Composer leaves behind and maestro doesn't
+//     create (emptyBinDirs; deviation 7 in docs/PORTING.md).
 //
 // It needs php, git, unzip and the network, so it only runs with
 // MAESTRO_E2E=1. Knobs: MAESTRO_E2E_BIN (a prebuilt maestro instead of
@@ -555,6 +555,8 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 			t.Errorf("%s: stderr differs (- Composer, + maestro):\n%s", label, d)
 		}
 
+		emptyBinDirs(w.tree, g.tree)
+
 		if s.normalizeTree != nil {
 			s.normalizeTree(w.tree, g.tree)
 		}
@@ -710,4 +712,35 @@ func speedReport(timings []timing, phases []string) string {
 	row("**total**", sums)
 
 	return b.String()
+}
+
+// emptyBinDirs drops an empty */vendor/bin from Composer's tree when
+// maestro has none: deviation 7 in docs/PORTING.md. Composer's
+// BinaryInstaller::removeBinaries creates the bin dir even for packages
+// without binaries, so removals leave it behind empty depending on the order
+// they finish (plugin-captainhook's `install --no-dev` left it in 4 of 80
+// runs); maestro never creates it there.
+func emptyBinDirs(composer, maestro map[string]entry) {
+	for dir, e := range composer {
+		if e.kind != "dir" || !strings.HasSuffix(dir, "/vendor/bin") && dir != "vendor/bin" {
+			continue
+		}
+
+		if _, ok := maestro[dir]; ok {
+			continue
+		}
+
+		empty := true
+		for p := range composer {
+			if strings.HasPrefix(p, dir+"/") {
+				empty = false
+
+				break
+			}
+		}
+
+		if empty {
+			delete(composer, dir)
+		}
+	}
 }

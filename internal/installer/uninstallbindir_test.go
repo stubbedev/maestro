@@ -13,34 +13,32 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-// TestInstallationManager_UninstallBinDirFollowsStartOrder is the root
-// cause of the plugin-captainhook e2e flake (docs/tasks/binflake.md).
+// TestInstallationManager_UninstallBinDirIndependentOfOrder pins deviation
+// 7 (docs/PORTING.md, docs/tasks/binflake.md).
 //
-// LibraryInstaller::uninstall calls BinaryInstaller::removeBinaries once
-// the package's directory is gone, and removeBinaries starts with
-// initializeBinDir(), which creates the bin dir, before it returns early
-// for a package without binaries; a package with binaries removes the bin
-// dir again when it is left empty. So when a batch removes every package,
-// vendor/bin survives (empty) unless the last removeBinaries call is for a
-// package with binaries. Composer runs those callbacks in the order its
-// `rm -rf` processes are seen finishing, which varies between runs;
-// maestro runs them in the order the removals started (util.Scheduler),
-// whatever order they finish in. Start order is also Composer's outcome in
-// the common case (the process started last is nearly always seen
-// finishing last: 76 of 80 fresh runs of the fixture, see the task's
-// report).
-func TestInstallationManager_UninstallBinDirFollowsStartOrder(t *testing.T) {
+// LibraryInstaller::uninstall calls BinaryInstaller::removeBinaries once the
+// package's directory is gone. Composer's removeBinaries creates the bin dir
+// before returning early for a package without binaries, so when a batch
+// removes every package, an emptied vendor/bin survives unless the binary
+// package's callback happens to run last, which depends on the order its
+// `rm -rf` processes are seen finishing. maestro only touches the bin dir
+// for packages with binaries, so the outcome is the same in every order: the
+// last binary removed takes the empty bin dir away, and removals never
+// create it.
+func TestInstallationManager_UninstallBinDirIndependentOfOrder(t *testing.T) {
 	tests := []struct {
-		name     string
-		order    []string // removal (start) order; "tool" has a binary
-		wantBins bool     // vendor/bin left behind (empty)
+		name         string
+		order        []string // removal (start) order; "tool" has a binary
+		binDirBefore bool     // vendor/bin exists (holding tool's proxy) before
 	}{
 		// plugin-captainhook's install --no-dev: captainhook/captainhook,
 		// the only package with a binary, is removed last.
-		{"binary package started last", []string{"a", "b", "tool"}, false},
-		// a package without binaries recreates the bin dir after the
-		// binary package removed it.
+		{"binary package started last", []string{"a", "b", "tool"}, true},
+		// Composer recreates the bin dir here (a package without binaries
+		// settles after the binary package removed it); maestro doesn't.
 		{"binary package started first", []string{"tool", "a", "b"}, true},
+		// Composer creates an empty bin dir here; maestro doesn't.
+		{"no binary packages, no bin dir", []string{"a", "b"}, false},
 	}
 
 	for _, tt := range tests {
@@ -105,10 +103,12 @@ func TestInstallationManager_UninstallBinDirFollowsStartOrder(t *testing.T) {
 				ops = append(ops, operation.NewUninstallOperation(p))
 			}
 
-			mustMkdir(t, binDir)
+			if tt.binDirBefore {
+				mustMkdir(t, binDir)
 
-			if err := os.WriteFile(binDir+"/tool", []byte("proxy"), 0o755); err != nil {
-				t.Fatal(err)
+				if err := os.WriteFile(binDir+"/tool", []byte("proxy"), 0o755); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			manager := NewManager(nil, newBufferIO(t), nil)
@@ -118,15 +118,8 @@ func TestInstallationManager_UninstallBinDirFollowsStartOrder(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			entries, err := os.ReadDir(binDir)
-
-			switch {
-			case tt.wantBins && err != nil:
-				t.Errorf("vendor/bin was removed, want it left (empty): %v", err)
-			case tt.wantBins && len(entries) != 0:
-				t.Errorf("vendor/bin holds %v, want it empty", entries)
-			case !tt.wantBins && err == nil:
-				t.Errorf("vendor/bin was left behind, want it removed")
+			if _, err := os.Lstat(binDir); err == nil {
+				t.Errorf("vendor/bin exists after removing every package, want it gone")
 			}
 		})
 	}
