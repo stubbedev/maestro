@@ -97,7 +97,8 @@ func setUp(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, workingDir: workingDir, vendorDir: workingDir + "/composer-test-autoload"}
+	// Composer's test joins with DIRECTORY_SEPARATOR.
+	e := &env{t: t, workingDir: workingDir, vendorDir: workingDir + string(filepath.Separator) + "composer-test-autoload"}
 	e.mkdir(e.vendorDir)
 	e.config = testConfig{
 		"vendor-dir":       func() any { return e.vendorDir },
@@ -259,7 +260,11 @@ func runPHP(t *testing.T, code string) string {
 	if _, err := exec.LookPath("php"); err != nil {
 		t.Skip("php not available")
 	}
-	out, err := exec.Command("php", "-r", code).CombinedOutput()
+	// On stdin rather than with -r: Windows caps a command line at 32767
+	// characters.
+	cmd := exec.Command("php")
+	cmd.Stdin = strings.NewReader("<?php\n" + code)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("php: %v\n%s", err, out)
 	}

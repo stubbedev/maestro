@@ -3,6 +3,7 @@ package autoload
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -134,10 +135,22 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 		targetDir, val(s, "scanPsr").(bool), str(s, "suffix"), oracleLocker{str(s, "lockHash")}, val(s, "strictAmbiguous").(bool))
 
 	result := sub(s, "result")
-	replace := func(v string) string { return strings.ReplaceAll(v, root, "%ROOT%") }
+	// The golden ran on Linux. On Windows the paths join with backslashes
+	// where Composer's code uses DIRECTORY_SEPARATOR or realpath(), so both
+	// sides are compared with every backslash as a slash there.
+	golden := func(v string) string {
+		if runtime.GOOS == "windows" {
+			return strings.ReplaceAll(v, `\`, "/")
+		}
+
+		return v
+	}
+	replace := func(v string) string {
+		return golden(strings.ReplaceAll(strings.ReplaceAll(v, root, "%ROOT%"), filepath.ToSlash(root), "%ROOT%"))
+	}
 
 	if wantErr := sub(result, "error"); wantErr != nil {
-		if err == nil || replace(err.Error()) != str(wantErr, "message") {
+		if err == nil || replace(err.Error()) != golden(str(wantErr, "message")) {
 			t.Errorf("error %v, want %s: %s", err, str(wantErr, "class"), str(wantErr, "message"))
 		}
 	} else if err != nil {
@@ -152,7 +165,7 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 		}
 	}
 
-	if got, want := sortedLines(replace(bio.Output())), sortedLines(str(result, "output")); !slices.Equal(got, want) {
+	if got, want := sortedLines(replace(bio.Output())), sortedLines(golden(str(result, "output"))); !slices.Equal(got, want) {
 		t.Errorf("output:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
@@ -170,7 +183,7 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 			t.Errorf("%s written, PHP did not", name)
 		case ok && readErr != nil:
 			t.Errorf("%s not written: %v", name, readErr)
-		case ok && replace(string(got)) != want:
+		case ok && replace(string(got)) != golden(want):
 			t.Errorf("%s:\n%s\nwant:\n%s", name, replace(string(got)), want)
 		}
 	}

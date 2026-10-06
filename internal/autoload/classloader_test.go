@@ -7,6 +7,7 @@ package autoload
 import (
 	"math/rand/v2"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -191,7 +192,7 @@ func TestGenerator_CreateLoader(t *testing.T) {
 		PSR4:                php.ArrayOf(`Bar\`, php.ListOf("/y", "/z")),
 		Classmap:            []string{"cm", "missing"},
 		Files:               php.NewArray(),
-		ExcludeFromClassmap: []string{php.PregQuote(e.workingDir, "") + "/cm/b.php($|/)"},
+		ExcludeFromClassmap: []string{php.PregQuote(filepath.ToSlash(e.workingDir), "") + "/cm/b.php($|/)"},
 	}
 	l, err := e.generator.CreateLoader(autoloads, e.vendorDir)
 	if err != nil {
@@ -206,7 +207,7 @@ func TestGenerator_CreateLoader(t *testing.T) {
 	if got, want := php.VarExport(l.PrefixLengthsPsr4), "array (\n  'B' => \n  array (\n    'Bar\\\\' => 4,\n  ),\n)"; got != want {
 		t.Errorf("prefixLengthsPsr4 %s, want %s", got, want)
 	}
-	if got, want := php.VarExport(l.ClassMap), "array (\n  'CmA' => '"+e.workingDir+"/cm/a.php',\n)"; got != want {
+	if got, want := php.VarExport(l.ClassMap), "array (\n  'CmA' => '"+filepath.ToSlash(e.workingDir)+"/cm/a.php',\n)"; got != want {
 		t.Errorf("classMap %s, want %s", got, want)
 	}
 	if want := `<warning>Could not scan for classes inside "missing" which does not appear to be a file nor a folder</warning>` + "\n"; e.io.Output() != want {

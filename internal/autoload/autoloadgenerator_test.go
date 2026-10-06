@@ -1085,8 +1085,8 @@ return array(
 	if err != nil {
 		t.Fatal(err)
 	}
-	want1 := php.PregQuote(filepath.Dir(e.workingDir), "") + "/excludedroot($|/)"
-	want2 := php.PregQuote(e.workingDir, "") + "/root/excl($|/)"
+	want1 := php.PregQuote(filepath.ToSlash(filepath.Dir(e.workingDir)), "") + "/excludedroot($|/)"
+	want2 := php.PregQuote(filepath.ToSlash(e.workingDir), "") + "/root/excl($|/)"
 	if len(parsed.ExcludeFromClassmap) != 2 || parsed.ExcludeFromClassmap[0] != want1 || parsed.ExcludeFromClassmap[1] != want2 {
 		t.Errorf("exclude-from-classmap %q, want [%q %q]", parsed.ExcludeFromClassmap, want1, want2)
 	}
