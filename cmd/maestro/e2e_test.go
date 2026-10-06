@@ -2,7 +2,8 @@
 // every scenario (e2e_scenarios_test.go) runs once with the official
 // composer.phar 2.10.3 and once with maestro, from a cold cache and store
 // and again from the warm ones the cold run left, and each step must give
-// the same exit code, stdout, stderr and files.
+// the same exit code, stdout, stderr and files, except how errors are
+// rendered (free, docs/PORTING.md "The contract").
 //
 // Both tools run a scenario in the same directory (one after the other; the
 // first run's directory is renamed away), with the same environment apart
@@ -15,7 +16,9 @@
 // What is compared after every step:
 //
 //   - the exit code;
-//   - stdout and stderr, after the normalisations below;
+//   - stdout and stderr, after the normalisations below; where Composer
+//     rendered an exception on stderr, its rendering is compared by the
+//     messages it reports (compareStderr);
 //   - every file under the scenario root except the two caches: the project
 //     (composer.json, composer.lock byte for byte, the whole vendor/ tree,
 //     files scripts wrote), COMPOSER_HOME and any other directory a step
@@ -77,6 +80,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // The official composer.phar 2.10.3 and the sha256 getcomposer.org
@@ -575,9 +580,7 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 			t.Errorf("%s: stdout differs (- Composer, + maestro):\n%s", label, d)
 		}
 
-		if d := textDiff(norm(normalizeOutput(w.stderr)), norm(normalizeOutput(g.stderr))); d != "" {
-			t.Errorf("%s: stderr differs (- Composer, + maestro):\n%s", label, d)
-		}
+		compareStderr(t, label, norm(normalizeOutput(w.stderr)), norm(normalizeOutput(g.stderr)))
 
 		emptyBinDirs(w.tree, g.tree)
 
@@ -589,6 +592,57 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 			t.Errorf("%s: files differ:\n%s", label, d)
 		}
 	}
+}
+
+// compareStderr compares a step's stderr. How errors are rendered is free
+// (docs/PORTING.md "The contract", #13): where Composer rendered an
+// exception, what it wrote before the rendering must start maestro's stderr
+// as it is, and the rendering must report the messages of Composer's
+// exception and its previous ones (testutil.ErrorRendering, compared
+// without whitespace); the boxes, classes, "In File.php line N:" headings,
+// "Exception trace:" stacks and the command synopsis after them are not
+// compared. Any other stderr is compared as it is.
+func compareStderr(t *testing.T, label, want, got string) {
+	t.Helper()
+
+	messages, start := testutil.ErrorRendering(want)
+	if len(messages) == 0 {
+		if d := textDiff(want, got); d != "" {
+			t.Errorf("%s: stderr differs (- Composer, + maestro):\n%s", label, d)
+		}
+
+		return
+	}
+
+	head := want[:start]
+	if !strings.HasPrefix(got, head) {
+		gotHead := got
+		if n := strings.Count(head, "\n"); n < strings.Count(got, "\n") {
+			gotHead = got[:lineEnd(got, n)]
+		}
+
+		if d := textDiff(head, gotHead); d != "" {
+			t.Errorf("%s: stderr before the error differs (- Composer, + maestro):\n%s", label, d)
+		}
+	}
+
+	rest := testutil.CompactMessage(got[min(len(head), len(got)):])
+	for _, m := range messages {
+		if !strings.Contains(rest, m) {
+			t.Errorf("%s: stderr does not report Composer's error %q:\n%s", label, m, got)
+		}
+	}
+}
+
+// lineEnd is the byte offset just after the n-th "\n" of s.
+func lineEnd(s string, n int) int {
+	off := 0
+
+	for range n {
+		off += strings.IndexByte(s[off:], '\n') + 1
+	}
+
+	return off
 }
 
 // progressLine matches a progress bar line: "n/N [===>---] p%" or, for a
