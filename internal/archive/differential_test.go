@@ -65,6 +65,22 @@ func extract(path string, format archive.Format, opts *archive.Options, umask in
 	return tree, nil
 }
 
+// skipReference skips a comparison with the reference extractors in -short
+// mode, and on Windows: maestro reproduces unzip, tar and PharData under a
+// Unix umask, which Composer on Windows (ZipArchive or 7-Zip, on a
+// filesystem without permission bits) does not run.
+func skipReference(t *testing.T) {
+	t.Helper()
+
+	if testing.Short() {
+		t.Skip("compares with the reference extractors; skipped in -short mode")
+	}
+
+	if runtime.GOOS == "windows" {
+		t.Skip("compares with the Unix reference extractors, which Composer does not use on Windows")
+	}
+}
+
 func write(t *testing.T, name string, data []byte) string {
 	t.Helper()
 
@@ -82,20 +98,19 @@ func write(t *testing.T, name string, data []byte) string {
 // (archivetest.InfoZip); a case whose names this file system cannot store
 // is left out (archivetest.Unstorable).
 func TestDifferentialZip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compares with the reference extractors; skipped in -short mode")
-	}
+	skipReference(t)
 	unzip := archivetest.NeedInfoZip(t)
 
 	locales := []struct {
 		lcAll  string
 		locale archive.Locale
 	}{{"C.UTF-8", archive.LocaleUTF8}, {"C", archive.LocaleC}}
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		// LocaleC reproduces unzip on glibc, whose C locale cannot convert
-		// non-ASCII characters (unzip escapes them as #Uxxxx); macOS's C
-		// locale maps them to single Latin-1 bytes instead.
-		t.Log("C locale cases skipped: they reproduce glibc's C locale")
+		// non-ASCII characters (unzip escapes them as #Uxxxx), and on
+		// macOS, whose C locale maps U+0080 to U+00FF to single Latin-1
+		// bytes that APFS refuses.
+		t.Log("C locale cases skipped: they reproduce glibc's and macOS's C locale")
 		locales = locales[:1]
 	}
 
@@ -124,9 +139,7 @@ func TestDifferentialZip(t *testing.T) {
 // TestDifferentialPharTar extracts the generated tar corpus, plain and
 // gzip-compressed, with PHP's PharData and with maestro.
 func TestDifferentialPharTar(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compares with the reference extractors; skipped in -short mode")
-	}
+	skipReference(t)
 	archivetest.Need(t, "php")
 
 	var c archivetest.Tally
@@ -154,9 +167,7 @@ func TestDifferentialPharTar(t *testing.T) {
 // PharData's extraction of the same tar uncompressed: PHP's bz2 extension
 // is not needed to know what the decompressed tar holds.
 func TestDifferentialPharTarBzip2(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compares with the reference extractors; skipped in -short mode")
-	}
+	skipReference(t)
 	archivetest.Need(t, "php", "bzip2")
 
 	var c archivetest.Tally
@@ -185,9 +196,7 @@ func TestDifferentialPharTarBzip2(t *testing.T) {
 // TestDifferentialXz extracts the tar corpus, xz-compressed, with GNU tar
 // and with maestro.
 func TestDifferentialXz(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compares with the reference extractors; skipped in -short mode")
-	}
+	skipReference(t)
 	tar := archivetest.NeedGNUTar(t)
 	archivetest.Need(t, "xz")
 
@@ -209,9 +218,7 @@ func TestDifferentialXz(t *testing.T) {
 
 // TestDifferentialGzip decompresses gzip dists with gzip and with maestro.
 func TestDifferentialGzip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compares with the reference extractors; skipped in -short mode")
-	}
+	skipReference(t)
 	archivetest.Need(t, "gzip")
 
 	member := archivetest.Gzip([]byte("hello\n"))
