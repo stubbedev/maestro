@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"runtime"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
@@ -114,6 +115,10 @@ func TestProxyManager_GetProxyForRequestThrowsOnBadProxyUrl(t *testing.T) {
 }
 
 func TestProxyManager_LowercaseOverridesUppercase(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("environment names are case insensitive on Windows: http_proxy and HTTP_PROXY are one variable")
+	}
+
 	for _, tc := range []struct {
 		server   map[string]string
 		url      string

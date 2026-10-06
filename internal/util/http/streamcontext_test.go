@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/base64"
 	"errors"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -49,7 +50,11 @@ func TestStreamContextFactory_GetContext(t *testing.T) {
 func TestStreamContextFactory_HttpProxy(t *testing.T) {
 	rt := newStreamContextTest(t)
 	t.Setenv("http_proxy", "http://username:p%40ssword@proxyserver.net:3128/")
-	t.Setenv("HTTP_PROXY", "http://proxyserver/")
+	// Environment names are case insensitive on Windows, where this would
+	// overwrite http_proxy instead of being shadowed by it.
+	if runtime.GOOS != "windows" {
+		t.Setenv("HTTP_PROXY", "http://proxyserver/")
+	}
 
 	context, err := GetContext("http://example.org", php.ArrayOf("http", php.ArrayOf("method", "GET", "header", "User-Agent: foo")), rt)
 	if err != nil {

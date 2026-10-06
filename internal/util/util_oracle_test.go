@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -290,6 +291,12 @@ func TestOracle_PlatformExpandPath(t *testing.T) {
 	os.Unsetenv("UNSET_VAR")
 
 	for _, c := range o.Expand {
+		// The oracle ran on Linux; Windows environment names are case
+		// insensitive, so getenv('foo') finds FOO there.
+		if runtime.GOOS == "windows" && (c.In == "$foo" || c.In == "%foo%") {
+			continue
+		}
+
 		if got, err := expandPath(c.In, false); err != nil || got != c.Posix {
 			t.Errorf("expandPath(%q, posix) = %q, %v; want %q", c.In, got, err, c.Posix)
 		}

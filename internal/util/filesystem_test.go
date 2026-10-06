@@ -512,7 +512,8 @@ func TestFilesystem_RemoveDirectoryPhpSymlinks(t *testing.T) {
 	}
 
 	// RecursiveIteratorIterator calls isDir() on a symlink to a directory,
-	// so it is rmdir'ed, which fails.
+	// so it is rmdir'ed, which fails on Unix; on Windows rmdir() is how a
+	// directory symlink is removed, and the target stays.
 	mustMkdir(t, workingDir+"/tree2")
 
 	if err := os.Symlink(workingDir+"/target", workingDir+"/tree2/dirlink"); err != nil {
@@ -520,6 +521,14 @@ func TestFilesystem_RemoveDirectoryPhpSymlinks(t *testing.T) {
 	}
 
 	_, err := RemoveDirectoryPhp(workingDir + "/tree2")
+	if runtime.GOOS == "windows" {
+		if err != nil || !fileExists(workingDir+"/target/keep") {
+			t.Errorf("RemoveDirectoryPhp(dir symlink) error = %v", err)
+		}
+
+		return
+	}
+
 	if err == nil || !strings.HasPrefix(err.Error(), "Could not delete "+workingDir+"/tree2/dirlink: rmdir("+workingDir+"/tree2/dirlink): ") {
 		t.Errorf("RemoveDirectoryPhp(dir symlink) error = %v", err)
 	}
@@ -542,8 +551,16 @@ func TestFilesystem_EnsureDirectoryExists(t *testing.T) {
 		t.Errorf("EnsureDirectoryExists(file) = %v", err)
 	}
 
+	// PHP's recursive mkdir() stops at the existing file and creates
+	// file/sub below it, which is ENOTDIR on Unix and ERROR_PATH_NOT_FOUND
+	// (ENOENT) on Windows.
+	want := "Not a directory"
+	if runtime.GOOS == "windows" {
+		want = "No such file or directory"
+	}
+
 	err := EnsureDirectoryExists(workingDir + "/file/sub")
-	if err == nil || err.Error() != workingDir+"/file/sub does not exist and could not be created: mkdir(): Not a directory" {
+	if err == nil || err.Error() != workingDir+"/file/sub does not exist and could not be created: mkdir(): "+want {
 		t.Errorf("EnsureDirectoryExists(file/sub) = %v", err)
 	}
 
@@ -647,7 +664,8 @@ func TestFilesystem_RelativeSymlink(t *testing.T) {
 		t.Fatalf("RelativeSymlink = %v, %v", ok, err)
 	}
 
-	if link, err := os.Readlink(workingDir + "/vendor/bin/tool"); err != nil || link != "../acme/pkg/bin/tool" {
+	// PHP's symlink() on Windows normalizes the target to backslashes.
+	if link, err := os.Readlink(workingDir + "/vendor/bin/tool"); err != nil || link != filepath.FromSlash("../acme/pkg/bin/tool") {
 		t.Errorf("link = %q, %v", link, err)
 	}
 
