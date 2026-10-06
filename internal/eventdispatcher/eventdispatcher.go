@@ -115,11 +115,7 @@ func (d *EventDispatcher) Dispatch(eventName string, event Event) (int, error) {
 		event = NewEvent(eventName, nil, nil)
 	}
 
-	// the calls of doDispatch() are in progress while the listeners run
-	// (phperr.Live: PHP code sees them in debug_backtrace())
-	ret, err := d.doDispatch(event)
-
-	return ret, err
+	return d.doDispatch(event)
 }
 
 // fullComposer is the `assert($this->composer instanceof Composer)` of the

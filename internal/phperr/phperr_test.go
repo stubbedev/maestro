@@ -11,7 +11,6 @@ import (
 type exc struct {
 	msg  string
 	prev error
-	phperr.Site
 }
 
 func (e *exc) Error() string      { return e.msg }
@@ -23,42 +22,35 @@ type wrapper struct{ err error }
 func (w *wrapper) Error() string { return w.err.Error() }
 func (w *wrapper) Unwrap() error { return w.err }
 
-func TestSiteOf(t *testing.T) {
-	prev := &exc{msg: "inner", Site: phperr.At("VersionParser.php", 526)}
-	e := &exc{msg: "outer", prev: prev, Site: phperr.At("ArrayLoader.php", 412)}
+func TestPreviousOf(t *testing.T) {
+	prev := &exc{msg: "inner"}
+	e := &exc{msg: "outer", prev: prev}
 
-	if s, ok := phperr.SiteOf(e); !ok || s != phperr.At("ArrayLoader.php", 412) {
-		t.Errorf("SiteOf(e) = %v, %v", s, ok)
-	}
-	if !phperr.Is(e, "ArrayLoader.php", 412) {
-		t.Error("Is(e, ArrayLoader.php, 412) = false")
-	}
 	if p := phperr.PreviousOf(e); !errors.Is(p, prev) || p == nil {
 		t.Errorf("PreviousOf(e) = %v", p)
 	}
 
 	// a wrapper keeping the message is transparent
-	w := &wrapper{err: e}
-	if s, ok := phperr.SiteOf(w); !ok || s.Line != 412 {
-		t.Errorf("SiteOf(wrapper) = %v, %v", s, ok)
-	}
-	if p := phperr.PreviousOf(w); !errors.Is(p, prev) || p == nil {
+	if p := phperr.PreviousOf(&wrapper{err: e}); !errors.Is(p, prev) || p == nil {
 		t.Errorf("PreviousOf(wrapper) = %v", p)
 	}
 
 	// one that changes the message is a different exception
-	ctx := fmt.Errorf("context: %w", e)
-	if s, ok := phperr.SiteOf(ctx); ok {
-		t.Errorf("SiteOf(fmt wrapper) = %v, want none", s)
-	}
-	if phperr.PreviousOf(ctx) != nil {
+	if phperr.PreviousOf(fmt.Errorf("context: %w", e)) != nil {
 		t.Error("PreviousOf(fmt wrapper) != nil")
 	}
 
-	if _, ok := phperr.SiteOf(errors.New("plain")); ok {
-		t.Error("SiteOf(plain error) found a site")
+	if phperr.PreviousOf(errors.New("plain")) != nil {
+		t.Error("PreviousOf(plain error) != nil")
 	}
-	if _, ok := phperr.SiteOf(&exc{msg: "unsited"}); ok {
-		t.Error("SiteOf(zero site) found a site")
+}
+
+func TestSetRoot(t *testing.T) {
+	old := phperr.Root()
+	t.Cleanup(func() { phperr.SetRoot(old) })
+
+	phperr.SetRoot("phar:///usr/local/bin/maestro")
+	if got := phperr.Root(); got != "phar:///usr/local/bin/maestro" {
+		t.Errorf("Root() = %q", got)
 	}
 }

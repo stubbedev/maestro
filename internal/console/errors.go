@@ -63,7 +63,7 @@ type Error struct {
 	Kind         Kind
 	Message      string
 	Alternatives []string // CommandNotFoundException::getAlternatives()
-	File         string   // the PHP file that throws (as phperr.At takes it)
+	File         string   // the PHP file that throws
 	Line         int
 	Prev         error
 }
