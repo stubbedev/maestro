@@ -124,6 +124,10 @@ func TestFileDownloader_InstallDoesNotChmodBinOutsideOfPackage(t *testing.T) {
 }
 
 func TestFileDownloader_InstallChmodsBinaries(t *testing.T) {
+	if util.IsWindows() {
+		t.Skip("Windows has no execute bit for chmod() to set")
+	}
+
 	vendorDir := t.TempDir() + "/vendor"
 	path := vendorDir + "/a/b"
 

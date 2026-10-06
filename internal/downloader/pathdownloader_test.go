@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/testutil"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // PathDownloader has no test in Composer's suite; these cover its
@@ -71,20 +72,29 @@ func TestPathDownloader_SymlinkRelative(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	link, err := os.Readlink(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Windows gets an NTFS junction, always to the absolute realpath.
+	verb := "Symlinking"
+	if util.IsWindows() {
+		verb = "Junctioning"
+		if !util.IsJunction(path) {
+			t.Fatalf("%s is no junction; output %q", path, downloadLines(pr.out))
+		}
+	} else {
+		link, err := os.Readlink(path)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if strings.HasPrefix(link, "/") || !strings.HasSuffix(link, "/") {
-		t.Fatalf("link %q is not relative with a trailing slash", link)
+		if strings.HasPrefix(link, "/") || !strings.HasSuffix(link, "/") {
+			t.Fatalf("link %q is not relative with a trailing slash", link)
+		}
 	}
 
 	if !fileExists(path + "/lib/A.php") {
 		t.Fatal("the symlink does not resolve to the source")
 	}
 
-	if want := "  - Installing a/b (dev-main abc): Symlinking from " + src; !slices.Contains(downloadLines(pr.out), want) {
+	if want := "  - Installing a/b (dev-main abc): " + verb + " from " + src; !slices.Contains(downloadLines(pr.out), want) {
 		t.Fatalf("output %q lacks %q", downloadLines(pr.out), want)
 	}
 
@@ -99,6 +109,10 @@ func TestPathDownloader_SymlinkRelative(t *testing.T) {
 }
 
 func TestPathDownloader_SymlinkAbsolute(t *testing.T) {
+	if util.IsWindows() {
+		t.Skip("Windows gets a junction, which is always absolute (TestPathDownloader_SymlinkRelative)")
+	}
+
 	d, pr := newPathDownloader(t)
 	src := sourceTree(t)
 	p := pathPackage(src)
@@ -141,7 +155,8 @@ func TestPathDownloader_Mirror(t *testing.T) {
 		}
 	}
 
-	if fi, err := os.Stat(path + "/tool"); err != nil || fi.Mode().Perm()&0o111 == 0 {
+	// Windows keeps no execute bits.
+	if fi, err := os.Stat(path + "/tool"); err != nil || !util.IsWindows() && fi.Mode().Perm()&0o111 == 0 {
 		t.Errorf("tool lost its executable bits: %v", err)
 	}
 
@@ -195,7 +210,8 @@ func TestPathDownloader_DownloadErrors(t *testing.T) {
 	}
 
 	_, err = d.Download(pathPackage(src), src+"/lib", nil)
-	if err == nil || err.Error() != `Package a/b cannot install to "`+src+`/lib" inside its source at "`+src+`"` {
+	// Both paths as realpath() gives them (backslashes on Windows).
+	if err == nil || err.Error() != `Package a/b cannot install to "`+util.Realpath(src+"/lib")+`" inside its source at "`+util.Realpath(src)+`"` {
 		t.Fatalf("error %v", err)
 	}
 

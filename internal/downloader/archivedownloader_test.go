@@ -295,8 +295,14 @@ func checkTree(t *testing.T, path string) {
 		t.Fatalf("composer.json: %q, %v", data, err)
 	}
 
+	// Windows keeps no execute bits: every writable file is 0666 there.
+	want := os.FileMode(0o755)
+	if util.IsWindows() {
+		want = 0o666
+	}
+
 	fi, err := os.Stat(path + "/bin/tool")
-	if err != nil || fi.Mode().Perm() != 0o755 {
+	if err != nil || fi.Mode().Perm() != want {
 		t.Fatalf("bin/tool: %v, %v", fi, err)
 	}
 }
@@ -1140,8 +1146,8 @@ func TestTarDownloader_PharDataNeedsCompressionExtension(t *testing.T) {
 		data      []byte
 		want      string
 	}{
-		{"tmp-a.bz2", "bz2", []byte("BZh91AY&SY"), `unable to decompress bzipped phar archive "` + dir + `/tmp-a.bz2" to temporary file, enable bz2 extension in php.ini`},
-		{"tmp-b.gz", "zlib", []byte{0x1f, 0x8b, 8, 0}, `unable to decompress gzipped phar archive "` + dir + `/tmp-b.gz" to temporary file, enable zlib extension in php.ini`},
+		{"tmp-a.bz2", "bz2", []byte("BZh91AY&SY"), `unable to decompress bzipped phar archive "` + filepath.Join(dir, "tmp-a.bz2") + `" to temporary file, enable bz2 extension in php.ini`},
+		{"tmp-b.gz", "zlib", []byte{0x1f, 0x8b, 8, 0}, `unable to decompress gzipped phar archive "` + filepath.Join(dir, "tmp-b.gz") + `" to temporary file, enable zlib extension in php.ini`},
 	} {
 		file := filepath.Join(dir, c.name)
 		if err := os.WriteFile(file, c.data, 0o644); err != nil {
