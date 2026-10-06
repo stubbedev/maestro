@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
@@ -220,9 +221,10 @@ func (m *ioMirror) Rev() uint64 {
 	return m.rev
 }
 
-// MirrorSnapshot implements rpc.Mirror. A ConsoleIO also carries its
-// protected input and output (docs/PLUGINS.md §5.9, §5.12: the run's
-// input and output mirrors; bamarni/composer-bin-plugin reads them).
+// MirrorSnapshot implements rpc.Mirror. A ConsoleIO (and a BufferIO) also
+// carries its protected input and output (docs/PLUGINS.md §5.9, §5.12:
+// the run's input and output mirrors; bamarni/composer-bin-plugin reads
+// them, getTable() and getProgressBar() write to them).
 func (m *ioMirror) MirrorSnapshot() (*php.Array, error) {
 	st := m.state()
 
@@ -233,7 +235,10 @@ func (m *ioMirror) MirrorSnapshot() (*php.Array, error) {
 		"veryVerbose", st.veryVerbose,
 		"debug", st.debug,
 	)
-	if c, ok := m.io.(*io.ConsoleIO); ok && m.r != nil {
+	if c, ok := m.io.(interface {
+		ConsoleInput() console.Input
+		ConsoleOutput() console.Output
+	}); ok && m.r != nil {
 		if in := c.ConsoleInput(); in != nil {
 			s.Set("input", m.r.inputObject(in))
 		}
@@ -259,6 +264,10 @@ func (r *Runtime) ioObject(v io.IO) any {
 	if !hashable(v) {
 		return nil
 	}
+	if p, ok := v.(*phpIO); ok {
+		// An IO created in PHP is PHP's object again.
+		return p.obj
+	}
 	m := r.bridge.object(v, func() rpc.Object {
 		m := &ioMirror{io: v, r: r}
 		m.last = m.state()
@@ -269,9 +278,10 @@ func (r *Runtime) ioObject(v io.IO) any {
 	return m
 }
 
-// ioParam returns param i as an IO: maestro's own, or maestro's null IO
-// for a PHP NullIO; ok is false for null.
-func ioParam(a args, i int) (io.IO, bool, error) {
+// ioParam returns param i as an IO: maestro's own, maestro's null IO for a
+// PHP NullIO (it does nothing either way), or the proxy of any other IO
+// created in PHP (proxy_io.go); ok is false for null.
+func (r *Runtime) ioParam(a args, i int) (io.IO, bool, error) {
 	switch v := a.at(i).(type) {
 	case nil:
 		return nil, false, nil
@@ -282,7 +292,7 @@ func ioParam(a args, i int) (io.IO, bool, error) {
 			return io.NewNullIO(), true, nil
 		}
 
-		return nil, false, a.errorf("maestro does not support passing a %s created in PHP to maestro yet", v.Class)
+		return r.phpIOFor(v), true, nil
 	}
 
 	return nil, false, a.errorf("param %d is a %T, not an IO", i, a.at(i))

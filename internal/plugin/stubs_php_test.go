@@ -4,12 +4,14 @@ package plugin
 // Composer 2.10.3's behaviour, in the shim, on a fixture project.
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/policy"
 )
 
@@ -162,5 +164,73 @@ func TestShimStubs_CommandHelpers(t *testing.T) {
 	got = evalPHP(t, p.rt, `return var_export($vars['a']->audit, true).' '.$vars['a']->auditFormat;`, php.ArrayOf("a", p.rt.value(a1)))
 	if got != "true json" {
 		t.Errorf("PHP's AuditConfig after maestro's change = %v", got)
+	}
+}
+
+// An IO created in PHP given to maestro: a Composer and an Installer
+// created with it write to it and follow its verbosity; maestro's calls
+// of its methods reach the PHP object, and it comes back as itself.
+func TestShimStubs_PHPCreatedIO(t *testing.T) {
+	requirePHP(t)
+
+	p := newEvalProject(t, "commands")
+
+	got := evalPHP(t, p.rt, `
+		$io = new \Composer\IO\BufferIO('', \Symfony\Component\Console\Output\OutputInterface::VERBOSITY_VERBOSE);
+		$composer = \Composer\Factory::create($io, null, true);
+		$code = \Composer\Installer::create($io, $composer)->setDryRun(true)->setAudit(false)->run();
+
+		return ['code' => $code, 'output' => $io->getOutput(), 'io' => $io];
+	`, nil)
+	if code := get(t, got, "code"); code != int64(0) {
+		t.Errorf("code = %v", code)
+	}
+	out := php.ToString(get(t, got, "output"))
+	for _, want := range []string{
+		"Loading composer repositories with package information\n",
+		"Updating dependencies\n",
+		"Lock file operations: 1 install, 0 updates, 0 removals\n",
+		"  - Locking maestro-test/commands-plugin (1.0.0)\n",
+		// -v only.
+		"Dependency resolution completed in ",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the PHP IO's output lacks %q:\n%s", want, out)
+		}
+	}
+
+	// maestro's proxy of the IO: each method is the PHP object's.
+	obj, ok := get(t, got, "io").(*rpc.PHPObject)
+	if !ok {
+		t.Fatalf("io = %#v", get(t, got, "io"))
+	}
+	pio := p.rt.phpIOFor(obj)
+	if !pio.IsVerbose() || pio.IsVeryVerbose() || pio.IsInteractive() || pio.IsDecorated() {
+		t.Errorf("flags: verbose %v, very verbose %v, interactive %v, decorated %v", pio.IsVerbose(), pio.IsVeryVerbose(), pio.IsInteractive(), pio.IsDecorated())
+	}
+	pw := "secret"
+	pio.SetAuthentication("example.org", "user", &pw)
+	if !pio.HasAuthentication("example.org") || *pio.Authentication("example.org").Username != "user" || len(pio.Authentications()) != 1 {
+		t.Errorf("authentications = %#v", pio.Authentications())
+	}
+	if p.rt.value(pio) != obj {
+		t.Errorf("the IO crossed back as %#v", p.rt.value(pio))
+	}
+
+	// A question with maestro's validator, answered from PHP's inputs.
+	evalPHP(t, p.rt, `$vars['io']->setUserInputs(['bad', 'good']);`, php.ArrayOf("io", obj))
+	answer, err := pio.AskAndValidate("Name? ", func(v any) (any, error) {
+		if php.ToString(v) != "good" {
+			return nil, errors.New("not good")
+		}
+
+		return "validated " + php.ToString(v), nil
+	}, 3, nil)
+	if err != nil || answer != "validated good" {
+		t.Errorf("AskAndValidate = %v, %v", answer, err)
+	}
+	out = php.ToString(evalPHP(t, p.rt, `return $vars['io']->getOutput();`, php.ArrayOf("io", obj)))
+	if !strings.Contains(out, "not good") {
+		t.Errorf("the validator's error was not shown:\n%s", out)
 	}
 }

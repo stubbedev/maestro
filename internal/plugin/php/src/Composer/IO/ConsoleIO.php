@@ -108,7 +108,11 @@ class ConsoleIO extends \Composer\IO\BaseIO
     public function enableDebugging(float $startTime)
     {
         if (Remote::owned($this)) {
-            Remote::unsupported(static::class, 'enableDebugging');
+            // maestro's IO prefixes what it writes (`--profile`'s
+            // "[%.1fMiB/%.2fs] ", with maestro's memory usage).
+            Rpc::call('io.enableDebugging', [$this, $startTime]);
+
+            return;
         }
 
         $this->startTime = $startTime;
@@ -117,7 +121,11 @@ class ConsoleIO extends \Composer\IO\BaseIO
     public function enableTimestamps(string $format = \DATE_RFC3339_EXTENDED)
     {
         if (Remote::owned($this)) {
-            Remote::unsupported(static::class, 'enableTimestamps');
+            // maestro formats as DateTime::format() in PHP's default
+            // time zone.
+            Rpc::call('io.enableTimestamps', [$this, $format, date_default_timezone_get()]);
+
+            return;
         }
 
         $this->sendTimestamps = $format;
@@ -125,16 +133,17 @@ class ConsoleIO extends \Composer\IO\BaseIO
 
     public function getProgressBar(int $max = 0)
     {
-        if (Remote::owned($this)) {
+        if (Remote::owned($this) && $this->output === null) {
             Remote::unsupported(static::class, 'getProgressBar');
         }
 
+        // On maestro's IO, its output's mirror (filled by IOAdapter).
         return new ProgressBar($this->getErrorOutput(), $max);
     }
 
     public function getTable(): \Symfony\Component\Console\Helper\Table
     {
-        if (Remote::owned($this)) {
+        if (Remote::owned($this) && $this->output === null) {
             Remote::unsupported(static::class, 'getTable');
         }
 

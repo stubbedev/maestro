@@ -25,3 +25,7 @@ func (a ioConfig) Get(key string) any {
 }
 
 func (a ioConfig) Merge(config *php.Array, source string) { _ = a.c.Merge(config, source) }
+
+// Config returns the Config a value of ForIO adapts (for an IO written in
+// PHP, whose loadConfiguration() takes the Config itself).
+func (a ioConfig) Config() *Config { return a.c }

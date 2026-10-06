@@ -98,7 +98,7 @@ func (r *Runtime) registerUtil() {
 	// proc.execute: command, cwd, io, capture, tty.
 	r.Handle("proc.execute", func(v any) (any, error) {
 		a := argsOf("proc.execute", v)
-		out, ok, err := ioParam(a, 2)
+		out, ok, err := r.ioParam(a, 2)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func (r *Runtime) registerUtil() {
 	// JsonFile: each PHP instance has a maestro peer (json.new).
 	r.Handle("json.new", func(v any) (any, error) {
 		a := argsOf("json.new", v)
-		out, ok, err := ioParam(a, 1)
+		out, ok, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -349,7 +349,7 @@ func (r *Runtime) registerManipulator() {
 func (r *Runtime) registerConfigSources() {
 	r.Handle("cfgsrc.new", func(v any) (any, error) {
 		a := argsOf("cfgsrc.new", v)
-		out, ok, err := ioParam(a, 2)
+		out, ok, err := r.ioParam(a, 2)
 		if err != nil {
 			return nil, err
 		}

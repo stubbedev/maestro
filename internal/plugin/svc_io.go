@@ -6,7 +6,9 @@ package plugin
 
 import (
 	"fmt"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
@@ -217,6 +219,36 @@ func (r *Runtime) registerIO() {
 
 		return nil, nil
 	})
+	// ConsoleIO::enableDebugging($startTime): microtime(true) in PHP.
+	method("enableDebugging", func(out io.IO, a args) (any, error) {
+		c, ok := out.(interface{ EnableDebugging(time.Time) })
+		if !ok {
+			return nil, unsupportedf("maestro does not support %s::enableDebugging() in plugins yet", ioClass(out))
+		}
+		sec, frac := math.Modf(php.ToFloat(a.at(1)))
+		c.EnableDebugging(time.Unix(int64(sec), int64(frac*1e9)))
+
+		return nil, nil
+	})
+	// ConsoleIO::enableTimestamps($format): each message prefixed with
+	// (new \DateTime())->format($format), in PHP's default time zone
+	// (param 2).
+	method("enableTimestamps", func(out io.IO, a args) (any, error) {
+		c, ok := out.(interface {
+			EnableTimestampsFunc(func(time.Time) string)
+		})
+		if !ok {
+			return nil, unsupportedf("maestro does not support %s::enableTimestamps() in plugins yet", ioClass(out))
+		}
+		loc, err := time.LoadLocation(a.str(2))
+		if err != nil {
+			loc = time.UTC
+		}
+		format := a.str(1)
+		c.EnableTimestampsFunc(func(t time.Time) string { return php.DateFormat(format, t.In(loc)) })
+
+		return nil, nil
+	})
 	method("getOutput", func(out io.IO, a args) (any, error) {
 		b, ok := out.(*io.BufferIO)
 		if !ok {
@@ -269,3 +301,6 @@ func joinMessages(messages []string, newline bool) string {
 
 	return strings.Join(messages, "")
 }
+
+// ioClass is the PHP class maestro's IO crosses as.
+func ioClass(out io.IO) string { return (&ioMirror{io: out}).PHPClass() }

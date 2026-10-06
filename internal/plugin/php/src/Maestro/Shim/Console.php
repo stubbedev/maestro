@@ -10,6 +10,7 @@ namespace Maestro\Shim;
 use Composer\Autoload\ClassLoader;
 use Composer\Command\BaseCommand;
 use Composer\Downloader\DownloaderInterface;
+use Composer\IO\IOInterface;
 use Composer\Repository\RepositoryInterface;
 use Symfony\Component\Console\Application as SymfonyApplication;
 use Symfony\Component\Console\Command\Command;
@@ -314,7 +315,7 @@ final class Console
 
     /**
      * The methods maestro calls on PHP objects it uses: outputs it writes
-     * to, repositories and downloaders written in PHP.
+     * to, IOs, repositories and downloaders created in PHP.
      *
      * @param object $object
      */
@@ -325,6 +326,15 @@ final class Console
         }
         if ($object instanceof RepositoryInterface) {
             return in_array($method, ['getRepoName', 'hasPackage', 'findPackage', 'findPackages', 'getPackages', 'loadPackages', 'search', 'getProviders', 'count'], true);
+        }
+        if ($object instanceof IOInterface) {
+            return in_array($method, [
+                'isInteractive', 'isVerbose', 'isVeryVerbose', 'isDebug', 'isDecorated',
+                'write', 'writeError', 'writeRaw', 'writeErrorRaw', 'overwrite', 'overwriteError',
+                'ask', 'askConfirmation', 'askAndValidate', 'askAndHideAnswer', 'select',
+                'getAuthentications', 'hasAuthentication', 'getAuthentication', 'setAuthentication', 'loadConfiguration',
+                'emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log',
+            ], true);
         }
         if ($object instanceof DownloaderInterface) {
             return in_array($method, ['getInstallationSource', 'download', 'prepare', 'install', 'update', 'remove', 'cleanup'], true);

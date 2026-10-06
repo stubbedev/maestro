@@ -25,6 +25,7 @@ type phpObjects struct {
 	mu          sync.Mutex
 	repos       map[*rpc.PHPObject]*proxyRepository
 	downloaders map[*rpc.PHPObject]*proxyDownloader
+	ios         map[*rpc.PHPObject]*phpIO
 }
 
 // callObject calls a method of a PHP object maestro uses (`object.call`).

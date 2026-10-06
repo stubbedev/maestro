@@ -545,7 +545,7 @@ func (r *Runtime) registerNewDispatcher() {
 		default:
 			return nil, a.errorf("param 1 is not a Composer instance maestro knows")
 		}
-		out, _, err := ioParam(a, 2)
+		out, _, err := r.ioParam(a, 2)
 		if err != nil {
 			return nil, err
 		}

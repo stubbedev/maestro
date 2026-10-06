@@ -77,7 +77,8 @@ final class IOAdapter implements MirrorAdapter
     public static function state(ConsoleIO $io, string $key)
     {
         if (!Remote::owned($io)) {
-            Remote::unsupported(get_class($io), 'is'.ucfirst($key));
+            // ConsoleIO asks only for maestro's own IOs.
+            throw new \Maestro\Shim\ProtocolException('maestro shim: '.get_class($io).' is not maestro\'s IO');
         }
         $state = Remote::read($io, ConsoleIO::class, ['maestroState'])['maestroState'];
 

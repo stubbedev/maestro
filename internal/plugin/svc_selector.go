@@ -134,7 +134,7 @@ func (r *Runtime) registerSelectors() {
 		if !ok {
 			return nil, unsupportedf("maestro does not support Composer\\Repository\\RepositorySet::createPool() with a Request created in PHP yet")
 		}
-		out, _, err := ioParam(a, 2)
+		out, _, err := r.ioParam(a, 2)
 		if err != nil {
 			return nil, err
 		}
@@ -256,7 +256,7 @@ func (r *Runtime) registerSelectors() {
 		}
 		opts.PlatformRequirementFilter = f
 		if a.has(6) {
-			out, ok, err := ioParam(a, 6)
+			out, ok, err := r.ioParam(a, 6)
 			if err != nil {
 				return nil, err
 			}

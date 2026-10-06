@@ -63,7 +63,7 @@ func (r *Runtime) registerHTTP() {
 
 	r.Handle("http.new", func(v any) (any, error) {
 		a := argsOf("http.new", v)
-		out, _, err := ioParam(a, 1)
+		out, _, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +142,7 @@ func (r *Runtime) registerHTTP() {
 	})
 	r.Handle("http.outputWarnings", func(v any) (any, error) {
 		a := argsOf("http.outputWarnings", v)
-		out, _, err := ioParam(a, 0)
+		out, _, err := r.ioParam(a, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +165,7 @@ func (r *Runtime) registerHTTP() {
 
 	r.Handle("rfs.new", func(v any) (any, error) {
 		a := argsOf("rfs.new", v)
-		out, _, err := ioParam(a, 1)
+		out, _, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -435,7 +435,7 @@ func (r *Runtime) registerDownloadManager() {
 func (r *Runtime) registerCache() {
 	r.Handle("cache.new", func(v any) (any, error) {
 		a := argsOf("cache.new", v)
-		out, _, err := ioParam(a, 1)
+		out, _, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}

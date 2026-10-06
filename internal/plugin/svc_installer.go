@@ -688,7 +688,7 @@ func (r *Runtime) installerNew(v any) (any, error) {
 	switch desc.kind {
 	case kindLibrary, kindPlugin:
 		var out io.IO
-		out, _, err = ioParam(p, 0)
+		out, _, err = r.ioParam(p, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -709,7 +709,7 @@ func (r *Runtime) installerNew(v any) (any, error) {
 		}
 	case kindMetapackage:
 		var out io.IO
-		out, _, err = ioParam(p, 0)
+		out, _, err = r.ioParam(p, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -910,7 +910,7 @@ func (r *Runtime) installerNewBinary(v any) (any, error) {
 		return nil, a.errorf("param 0 is a %T, not a BinaryInstaller created in PHP", a.at(0))
 	}
 	p := args{method: "installer.newBinary", list: a.arrayOrEmpty(2).Values()}
-	out, _, err := ioParam(p, 0)
+	out, _, err := r.ioParam(p, 0)
 	if err != nil {
 		return nil, err
 	}

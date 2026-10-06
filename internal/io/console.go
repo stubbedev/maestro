@@ -34,9 +34,9 @@ type ConsoleIO struct {
 	lastMessage    string
 	lastMessageErr string
 
-	timestampLayout string // "" when timestamps are off
-	debugging       bool
-	startTime       time.Time
+	timestamp func(time.Time) string // nil when timestamps are off
+	debugging bool
+	startTime time.Time
 }
 
 // NewConsoleIO mirrors new ConsoleIO($input, $output, $helperSet).
@@ -61,7 +61,13 @@ func (c *ConsoleIO) EnableTimestamps(layout string) {
 	if layout == "" {
 		layout = "2006-01-02T15:04:05.000-07:00"
 	}
-	c.timestampLayout = layout
+	c.timestamp = func(t time.Time) string { return t.Format(layout) }
+}
+
+// EnableTimestampsFunc is EnableTimestamps with the time formatted by
+// format (enableTimestamps($format) from PHP: (new \DateTime())->format()).
+func (c *ConsoleIO) EnableTimestampsFunc(format func(time.Time) string) {
+	c.timestamp = format
 }
 
 // ConsoleOutput returns the output the IO writes to (ConsoleIO's protected
@@ -149,9 +155,9 @@ func (c *ConsoleIO) doWrite(messages []string, newline, stderr bool, verbosity V
 		}
 	}
 
-	if c.timestampLayout != "" {
+	if c.timestamp != nil {
 		for i, m := range messages {
-			messages[i] = "[" + time.Now().Format(c.timestampLayout) + "] " + m
+			messages[i] = "[" + c.timestamp(time.Now()) + "] " + m
 		}
 	}
 

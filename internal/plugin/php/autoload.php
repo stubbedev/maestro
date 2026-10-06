@@ -537,6 +537,7 @@ return array(
         'Maestro\\Shim\\Dispatch' => 'src/Maestro/Shim/Dispatch.php',
         'Maestro\\Shim\\Exceptions' => 'src/Maestro/Shim/Exceptions.php',
         'Maestro\\Shim\\Frames' => 'src/Maestro/Shim/Frames.php',
+        'Maestro\\Shim\\GoCallable' => 'src/Maestro/Shim/GoCallable.php',
         'Maestro\\Shim\\GoConsoleOutput' => 'src/Maestro/Shim/GoConsoleOutput.php',
         'Maestro\\Shim\\GoOutput' => 'src/Maestro/Shim/GoOutput.php',
         'Maestro\\Shim\\Handles' => 'src/Maestro/Shim/Handles.php',

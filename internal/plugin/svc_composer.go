@@ -278,7 +278,7 @@ func (r *Runtime) registerConfig() {
 	})
 	method("setBaseDir", func(c *config.Config, a args) (any, error) { c.SetBaseDir(a.str(1)); return nil, nil })
 	method("prohibitUrlByConfig", func(c *config.Config, a args) (any, error) {
-		out, _, err := ioParam(a, 2)
+		out, _, err := r.ioParam(a, 2)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func (r *Runtime) registerLocker() {
 	// new Locker($io, new JsonFile($path), $im, $contents) in PHP.
 	r.Handle("locker.new", func(v any) (any, error) {
 		a := argsOf("locker.new", v)
-		out, ok, err := ioParam(a, 1)
+		out, ok, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -517,7 +517,7 @@ func (r *Runtime) registerInstallationManager() {
 		return nil, nil
 	})
 	method("notifyInstalls", func(im composer.InstallationManager, a args) (any, error) {
-		out, _, err := ioParam(a, 1)
+		out, _, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -709,8 +709,8 @@ func localConfigArg(a args, i int) any {
 
 // ioArg is the IO param (the first of the Factory methods) as maestro
 // uses it; maestro's null IO for null.
-func ioArg(a args) (io.IO, error) {
-	out, ok, err := ioParam(a, 0)
+func (r *Runtime) ioArg(a args) (io.IO, error) {
+	out, ok, err := r.ioParam(a, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +727,7 @@ func ioArg(a args) (io.IO, error) {
 func (r *Runtime) registerFactory() {
 	r.Handle("factory.createComposer", func(v any) (any, error) {
 		a := argsOf("factory.createComposer", v)
-		out, err := ioArg(a)
+		out, err := r.ioArg(a)
 		if err != nil {
 			return nil, err
 		}
@@ -750,7 +750,7 @@ func (r *Runtime) registerFactory() {
 	})
 	r.Handle("factory.create", func(v any) (any, error) {
 		a := argsOf("factory.create", v)
-		out, err := ioArg(a)
+		out, err := r.ioArg(a)
 		if err != nil {
 			return nil, err
 		}
@@ -763,7 +763,7 @@ func (r *Runtime) registerFactory() {
 	})
 	r.Handle("factory.createGlobal", func(v any) (any, error) {
 		a := argsOf("factory.createGlobal", v)
-		out, err := ioArg(a)
+		out, err := r.ioArg(a)
 		if err != nil {
 			return nil, err
 		}
@@ -776,7 +776,7 @@ func (r *Runtime) registerFactory() {
 	})
 	r.Handle("factory.createConfig", func(v any) (any, error) {
 		a := argsOf("factory.createConfig", v)
-		out, err := ioArg(a)
+		out, err := r.ioArg(a)
 		if err != nil {
 			return nil, err
 		}

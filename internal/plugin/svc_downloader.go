@@ -47,7 +47,7 @@ func (r *Runtime) newDownloader(a args) (any, error) {
 	if !ok {
 		return nil, unsupportedf("maestro does not support creating a %s in plugins yet", o.Class)
 	}
-	out, _, err := ioParam(a, 1)
+	out, _, err := r.ioParam(a, 1)
 	if err != nil {
 		return nil, err
 	}

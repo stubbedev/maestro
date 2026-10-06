@@ -572,7 +572,7 @@ func (r *Runtime) registerRepositoriesPhase5() {
 func (r *Runtime) registerFilesystemRepositories() {
 	r.Handle("repo.newFilesystem", func(v any) (any, error) {
 		a := argsOf("repo.newFilesystem", v)
-		out, ok, err := ioParam(a, 2)
+		out, ok, err := r.ioParam(a, 2)
 		if err != nil {
 			return nil, err
 		}
@@ -622,7 +622,7 @@ func (r *Runtime) registerFilesystemRepositories() {
 // `factory.createHttpDownloader`).
 func (r *Runtime) registerRepositoryFactory() {
 	ioAndConfig := func(a args) (io.IO, *config.Config, error) {
-		out, _, err := ioParam(a, 0)
+		out, _, err := r.ioParam(a, 0)
 		if err != nil {
 			return nil, nil, err
 		}

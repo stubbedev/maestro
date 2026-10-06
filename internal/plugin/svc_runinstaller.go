@@ -99,7 +99,7 @@ func settingAs[T any](s settings, name string) (T, error) {
 func (r *Runtime) newInstallerFromSettings(a args) (*composer.Installer, error) {
 	s := settings{a: a, s: a.arrayOrEmpty(0)}
 
-	out, ok, err := ioParam(args{method: a.method, list: []any{mustGet(s.s, "io")}}, 0)
+	out, ok, err := r.ioParam(args{method: a.method, list: []any{mustGet(s.s, "io")}}, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (r *Runtime) registerRunInstaller() {
 
 	r.Handle("suggested.new", func(v any) (any, error) {
 		a := argsOf("suggested.new", v)
-		out, _, err := ioParam(a, 1)
+		out, _, err := r.ioParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
