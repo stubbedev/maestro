@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Input is InputInterface plus StreamableInputInterface.
@@ -57,9 +55,6 @@ type BaseInput struct {
 	parseClass string
 }
 
-// inputPHP is the file of Symfony's Input class.
-const inputPHP = "vendor/symfony/console/Input/Input.php"
-
 func (in *BaseInput) init(definition *InputDefinition, parse func() error, parseClass string) error {
 	in.interactive = true
 	in.parse = parse
@@ -97,7 +92,7 @@ func (in *BaseInput) Bind(definition *InputDefinition) error {
 	in.extraArgs = nil
 	in.definition = definition
 
-	return phperr.Call(in.parse(), in.parseClass+"->parse", inputPHP, 55)
+	return in.parse()
 }
 
 // Validate implements Input.

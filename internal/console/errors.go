@@ -5,8 +5,6 @@ package console
 import (
 	"errors"
 	"fmt"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Kind identifies the PHP exception class of an Error.
@@ -68,7 +66,6 @@ type Error struct {
 	File         string   // the PHP file that throws (as phperr.At takes it)
 	Line         int
 	Prev         error
-	phperr.Frames
 }
 
 // newError returns the console exception thrown at file:line, a file of
