@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/stubbedev/maestro/internal/autoload"
+	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
@@ -205,6 +206,15 @@ func (r *Runtime) registerComposer() {
 
 	r.registerFactory()
 
+	// Factory's protected static directory helpers: maestro's ports, on
+	// the environment PHP's putenv() reached.
+	r.Handle("factory.getHomeDir", func(any) (any, error) { return config.HomeDir() })
+	r.Handle("factory.getCacheDir", func(v any) (any, error) {
+		return config.CacheDir(argsOf("factory.getCacheDir", v).str(0))
+	})
+	r.Handle("factory.getDataDir", func(v any) (any, error) {
+		return config.DataDir(argsOf("factory.getDataDir", v).str(0))
+	})
 	r.Handle("factory.getComposerFile", func(any) (any, error) { return composer.GetComposerFile() })
 	r.Handle("factory.getLockFile", func(v any) (any, error) {
 		a := argsOf("factory.getLockFile", v)
@@ -543,6 +553,66 @@ func (r *Runtime) registerAutoloadGenerator() {
 		})
 	}
 
+	// setPlatformRequirementFilter($filter): the filter crosses as its
+	// description (ServiceAdapter::describeFilter()).
+	method("setPlatformRequirementFilter", func(g *autoload.Generator, a args) (any, error) {
+		f, err := filterFromPHP(a.at(1))
+		if err != nil {
+			return nil, err
+		}
+		g.SetPlatformRequirementFilter(f)
+
+		return nil, nil
+	})
+	// dump($config, $localRepo, $rootPackage, $installationManager,
+	// $targetDir, $scanPsrPackages, $suffix, $locker, $strictAmbiguous):
+	// maestro writes the autoloader (dispatching the autoload-dump events)
+	// and returns the class map's contents, from which PHP builds
+	// Composer's ClassMap.
+	method("dump", func(g *autoload.Generator, a args) (any, error) {
+		cfg, err := param[*config.Config](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		repo, err := goRepositoryParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		localRepo, ok := repo.(repository.InstalledRepositoryInterface)
+		if !ok {
+			return nil, a.errorf("param 2 is not an installed repository")
+		}
+		p, err := packageParam(a, 3)
+		if err != nil {
+			return nil, err
+		}
+		root, ok := p.(pkg.RootPackageInterface)
+		if !ok {
+			return nil, a.errorf("param 3 is not a root package")
+		}
+		im, err := param[autoload.InstallationManager](a, 4)
+		if err != nil {
+			return nil, err
+		}
+		var l autoload.Locker
+		if a.has(8) {
+			if l, err = param[*locker.Locker](a, 8); err != nil {
+				return nil, err
+			}
+		}
+		suffix, _ := a.nullableString(7)
+		adapted := &installedRepoForAutoload{repo: localRepo}
+		classMap, err := g.Dump(cfg, adapted, root, im, a.str(5), a.boolean(6), suffix, l, a.boolean(9))
+		if err == nil {
+			err = adapted.err
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		return classMapValue(classMap)
+	})
+
 	method("setDevMode", func(g *autoload.Generator, a args) (any, error) { g.SetDevMode(a.boolean(1)); return nil, nil })
 	method("setClassMapAuthoritative", func(g *autoload.Generator, a args) (any, error) {
 		g.SetClassMapAuthoritative(a.boolean(1))
@@ -788,4 +858,98 @@ func (r *Runtime) registerFactory() {
 
 		return r.value(cfg), nil
 	})
+	// $factory->createDownloadManager($io, $config, $httpDownloader,
+	// $process, $eventDispatcher): maestro's manager with its downloaders,
+	// as Factory sets one up; PHP's ProcessExecutor is PHP's, so the
+	// downloaders get maestro's own on the same IO.
+	r.Handle("factory.createDownloadManager", func(v any) (any, error) {
+		a := argsOf("factory.createDownloadManager", v)
+		out, err := r.ioArg(a)
+		if err != nil {
+			return nil, err
+		}
+		cfg, err := param[*config.Config](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		hd, err := param[*http.HttpDownloader](a, 2)
+		if err != nil {
+			return nil, err
+		}
+		ed, err := dispatcherParam(a, 4)
+		if err != nil {
+			return nil, err
+		}
+		dm, err := r.factory().CreateDownloadManager(out, cfg, hd, util.NewProcessExecutor(out), ed)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.value(dm), nil
+	})
+	// $factory->createArchiveManager($config, $dm, $loop).
+	r.Handle("factory.createArchiveManager", func(v any) (any, error) {
+		a := argsOf("factory.createArchiveManager", v)
+		cfg, err := param[*config.Config](a, 0)
+		if err != nil {
+			return nil, err
+		}
+		dm, err := param[*downloader.DownloadManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		loop, err := param[*http.Loop](a, 2)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.value(r.factory().CreateArchiveManager(cfg, dm, loop)), nil
+	})
+}
+
+// installedRepoForAutoload is the local repository as AutoloadGenerator
+// reads it, whose CanonicalPackages cannot fail: the error is kept and
+// returned after the dump (as composer.GeneratorAdapter does).
+type installedRepoForAutoload struct {
+	repo repository.InstalledRepositoryInterface
+	err  error
+}
+
+func (r *installedRepoForAutoload) DevPackageNames() []string { return r.repo.DevPackageNames() }
+
+func (r *installedRepoForAutoload) CanonicalPackages() []pkg.PackageInterface {
+	packages, err := r.repo.CanonicalPackages()
+	if err != nil && r.err == nil {
+		r.err = err
+	}
+
+	return packages
+}
+
+// classMapValue is what PHP builds Composer's ClassMap of a dump from:
+// its map, its ambiguous classes (every path, as addAmbiguousClass()
+// recorded them) and its PSR violations by path, in order.
+func classMapValue(m *classmap.ClassMap) (*php.Array, error) {
+	classes := php.NewArray()
+	for class, path := range m.Map() {
+		classes.Set(class, path)
+	}
+	ambiguous := php.NewArray()
+	list, err := m.AmbiguousClasses(nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range list {
+		ambiguous.Set(c.Class, php.StringList(c.Paths))
+	}
+	violations := php.NewArray()
+	for path, vs := range m.RawPsrViolations() {
+		entries := php.NewArrayCap(len(vs))
+		for _, v := range vs {
+			entries.Append(php.ArrayOf("warning", v.Warning, "className", v.ClassName))
+		}
+		violations.Set(path, entries)
+	}
+
+	return php.ArrayOf("map", classes, "ambiguous", ambiguous, "psrViolations", violations), nil
 }

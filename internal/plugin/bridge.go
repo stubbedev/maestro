@@ -188,11 +188,21 @@ func (r *Runtime) adopt(a args, v any) error {
 	if !ok {
 		return a.errorf("param 0 is not an object being constructed in PHP (a %T)", a.at(0))
 	}
+
+	return r.adoptAs(a, r.bridge.object(v, func() rpc.Object { return &service{v: v, class: o.Class} }))
+}
+
+// adoptAs is adopt with the object maestro's service crosses as (obj: a
+// service mirror such as the Config's).
+func (r *Runtime) adoptAs(a args, obj rpc.Object) error {
+	o, ok := a.at(0).(*rpc.PHPObject)
+	if !ok {
+		return a.errorf("param 0 is not an object being constructed in PHP (a %T)", a.at(0))
+	}
 	conn, err := r.started()
 	if err != nil {
 		return err
 	}
-	obj := r.bridge.object(v, func() rpc.Object { return &service{v: v, class: o.Class} })
 
 	return conn.Adopt(o, obj)
 }

@@ -12,7 +12,9 @@ class InstallationManager
 {
     public function __construct(\Composer\Util\Loop $loop, \Composer\IO\IOInterface $io, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::__construct() in plugins yet');
+        // maestro's manager (im.new), whose proxy this object is from now
+        // on.
+        \Maestro\Shim\Rpc::call('im.new', [$this, $loop, $io, $eventDispatcher]);
     }
 
     public function addInstaller(\Composer\Installer\InstallerInterface $installer): void

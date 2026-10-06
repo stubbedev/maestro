@@ -22,7 +22,9 @@ class DownloadManager
 {
     public function __construct(IOInterface $io, bool $preferSource = false, ?Filesystem $filesystem = null)
     {
-        Remote::unsupported(self::class, '__construct');
+        // maestro's manager (dm.new), whose proxy this object is from now
+        // on; with no downloaders yet, as Composer's.
+        Rpc::call('dm.new', [$this, $io, $preferSource]);
     }
 
     public function setPreferSource(bool $preferSource): self

@@ -32,7 +32,12 @@ class PluginManager
 
     public function __construct(\Composer\IO\IOInterface $io, \Composer\Composer $composer, ?\Composer\PartialComposer $globalComposer = null, $disablePlugins = false)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Plugin\\PluginManager::__construct() in plugins yet');
+        // maestro's manager (pm.new), with its allow-plugins rules, whose
+        // mirror this object is from now on (its properties come with the
+        // reply); loading plugins into it is maestro's policy and this
+        // process's mechanism, as for the managers Factory creates.
+        $this->versionParser = new \Composer\Package\Version\VersionParser();
+        \Maestro\Shim\Rpc::call('pm.new', [$this, $io, $composer, $globalComposer, $disablePlugins]);
     }
 
     public function addPlugin(\Composer\Plugin\PluginInterface $plugin, bool $isGlobalPlugin = false, ?\Composer\Package\PackageInterface $sourcePackage = null): void

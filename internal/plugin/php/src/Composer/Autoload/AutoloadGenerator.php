@@ -14,7 +14,10 @@ class AutoloadGenerator
 {
     public function __construct(\Composer\EventDispatcher\EventDispatcher $eventDispatcher, ?\Composer\IO\IOInterface $io = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Autoload\\AutoloadGenerator::__construct() in plugins yet');
+        // maestro's generator (ag.new), whose proxy this object is from
+        // now on (magento/magento-composer-installer's
+        // new AutoloadGenerator(new EventDispatcher($composer, $io))).
+        \Maestro\Shim\Rpc::call('ag.new', [$this, $eventDispatcher, $io]);
     }
 
     public function buildPackageMap(\Composer\Installer\InstallationManager $installationManager, \Composer\Package\PackageInterface $rootPackage, array $packages)
@@ -53,7 +56,25 @@ class AutoloadGenerator
 
     public function dump(\Composer\Config $config, \Composer\Repository\InstalledRepositoryInterface $localRepo, \Composer\Package\RootPackageInterface $rootPackage, \Composer\Installer\InstallationManager $installationManager, string $targetDir, bool $scanPsrPackages = false, ?string $suffix = null, ?\Composer\Package\Locker $locker = null, bool $strictAmbiguous = false)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Autoload\\AutoloadGenerator::dump() in plugins yet');
+        // maestro writes the autoloader (ag.dump); the result is
+        // Composer's ClassMap of what it found.
+        $d = \Maestro\Shim\Rpc::call('ag.dump', [$this, $config, $localRepo, $rootPackage, $installationManager, $targetDir, $scanPsrPackages, $suffix, $locker, $strictAmbiguous]);
+        $classMap = new \Composer\ClassMapGenerator\ClassMap();
+        foreach ($d['map'] as $class => $path) {
+            $classMap->addClass((string) $class, $path);
+        }
+        foreach ($d['ambiguous'] as $class => $paths) {
+            foreach ($paths as $path) {
+                $classMap->addAmbiguousClass((string) $class, $path);
+            }
+        }
+        foreach ($d['psrViolations'] as $path => $violations) {
+            foreach ($violations as $violation) {
+                $classMap->addPsrViolation($violation['warning'], $violation['className'], (string) $path);
+            }
+        }
+
+        return $classMap;
     }
 
     protected function filterPackageMap(array $packageMap, \Composer\Package\RootPackageInterface $rootPackage)
@@ -73,7 +94,7 @@ class AutoloadGenerator
 
     protected function getFileIdentifier(\Composer\Package\PackageInterface $package, string $path)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Autoload\\AutoloadGenerator::getFileIdentifier() in plugins yet');
+        return hash('md5', $package->getName() . ':' . $path);
     }
 
     protected function getIncludeFilesFile(array $files, \Composer\Util\Filesystem $filesystem, string $basePath, string $vendorPath, string $vendorPathCode, string $appBaseDirCode)
@@ -133,12 +154,14 @@ class AutoloadGenerator
 
     public function setIgnorePlatformRequirements($ignorePlatformReqs)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Autoload\\AutoloadGenerator::setIgnorePlatformRequirements() in plugins yet');
+        trigger_error('AutoloadGenerator::setIgnorePlatformRequirements is deprecated since Composer 2.2, use setPlatformRequirementFilter instead.', E_USER_DEPRECATED);
+
+        $this->setPlatformRequirementFilter(\Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory::fromBoolOrList($ignorePlatformReqs));
     }
 
     public function setPlatformRequirementFilter(\Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterInterface $platformRequirementFilter)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Autoload\\AutoloadGenerator::setPlatformRequirementFilter() in plugins yet');
+        \Maestro\Shim\Rpc::call('ag.setPlatformRequirementFilter', [$this, ["\0filter" => \Maestro\Shim\Adapter\ServiceAdapter::describeFilter($platformRequirementFilter)]]);
     }
 
     public function setRunScripts(bool $runScripts = true)

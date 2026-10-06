@@ -40,7 +40,10 @@ class Config
 
     public function __construct(bool $useEnvironment = true, ?string $baseDir = null)
     {
-        Remote::unsupported(self::class, '__construct');
+        // maestro's Config with Composer's defaults (config.new); this
+        // object is its proxy from now on.
+        $this->baseDir = is_string($baseDir) && '' !== $baseDir ? $baseDir : null;
+        Rpc::call('config.new', [$this, $useEnvironment, $baseDir]);
     }
 
     public function setConfigSource(ConfigSourceInterface $source): void

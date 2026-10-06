@@ -12,7 +12,9 @@ class RepositoryManager
 {
     public function __construct(\Composer\IO\IOInterface $io, \Composer\Config $config, \Composer\Util\HttpDownloader $httpDownloader, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null, ?\Composer\Util\ProcessExecutor $process = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::__construct() in plugins yet');
+        // maestro's manager (rm.new), whose proxy this object is from now
+        // on; its ProcessExecutor is maestro's, on the same IO.
+        \Maestro\Shim\Rpc::call('rm.new', [$this, $io, $config, $httpDownloader, $eventDispatcher]);
     }
 
     public function addRepository(\Composer\Repository\RepositoryInterface $repository): void
