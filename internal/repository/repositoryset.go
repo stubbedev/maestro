@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -67,7 +66,7 @@ type RepositorySet struct {
 func NewRepositorySet(minimumStability string, stabilityFlags *php.Array, rootAliases []RootAlias, rootReferences *php.Array, rootRequires, temporaryConstraints *ConstraintMap) (*RepositorySet, error) {
 	minimum, ok := pkg.StabilityValue(minimumStability)
 	if !ok {
-		return nil, &util.ErrorException{Site: phperr.At("RepositorySet.php", 119), Message: `Undefined array key "` + minimumStability + `"`}
+		return nil, &util.ErrorException{Message: `Undefined array key "` + minimumStability + `"`}
 	}
 	s := &RepositorySet{
 		rootAliases:           RootAliasesPerPackage(rootAliases),
@@ -99,17 +98,6 @@ func NewRepositorySet(minimumStability string, stabilityFlags *php.Array, rootAl
 	}
 
 	return s, nil
-}
-
-// loadPackagesClass is the class declaring repo's loadPackages(), as a
-// trace names its call.
-func loadPackagesClass(repo RepositoryInterface) string {
-	switch c := repo.Class(); c {
-	case `Composer\Repository\ComposerRepository`, `Composer\Repository\CompositeRepository`, `Composer\Repository\FilterRepository`:
-		return c
-	}
-
-	return `Composer\Repository\ArrayRepository`
 }
 
 // RootAliasesPerPackage ports RepositorySet::getRootAliasesPerPackage:
@@ -168,7 +156,7 @@ func (s *RepositorySet) LockForPool() error {
 			installed = true
 		}
 		if installed && !s.allowInstalledRepositories {
-			return &util.LogicError{Site: phperr.At("RepositorySet.php", 345), Message: "The pool can not accept packages from an installed repository"}
+			return &util.LogicError{Message: "The pool can not accept packages from an installed repository"}
 		}
 	}
 
@@ -182,7 +170,7 @@ func (s *RepositorySet) LockForPool() error {
 // repositories.
 func (s *RepositorySet) AddRepository(repo RepositoryInterface) error {
 	if s.locked {
-		return &util.RuntimeError{Site: phperr.At("RepositorySet.php", 167), Message: "Pool has already been created from this repository set, it cannot be modified anymore."}
+		return &util.RuntimeError{Message: "Pool has already been created from this repository set, it cannot be modified anymore."}
 	}
 
 	if composite, ok := AsComposite(repo); ok {
@@ -208,7 +196,7 @@ func (s *RepositorySet) FindPackages(name string, constraint semver.ConstraintIn
 			if err != nil {
 				// a repository written in PHP left its code through the
 				// call (docs/PLUGINS.md §5.12)
-				return nil, phperr.Locate(err, "RepositorySet.php", 197)
+				return nil, err
 			}
 			candidates = append(candidates, found...)
 		}
@@ -221,7 +209,7 @@ func (s *RepositorySet) FindPackages(name string, constraint semver.ConstraintIn
 		for _, repo := range s.repositories {
 			result, err := repo.LoadPackages(nameMap, acceptable, stabilityFlags, nil)
 			if err != nil {
-				return nil, phperr.CallTo(err, loadPackagesClass(repo)+`->loadPackages`, "RepositorySet.php", 201)
+				return nil, err
 			}
 			candidates = append(candidates, result.Packages...)
 			// avoid loading the same package again from other repositories once it has been found
@@ -367,7 +355,7 @@ func (s *RepositorySet) Providers(packageName string) ([]ProviderInfo, error) {
 	for _, repo := range s.repositories {
 		repoProviders, err := repo.Providers(packageName)
 		if err != nil {
-			return nil, phperr.Locate(err, "RepositorySet.php", 312)
+			return nil, err
 		}
 		providers = mergeProviders(providers, repoProviders)
 	}

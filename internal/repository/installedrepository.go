@@ -5,7 +5,6 @@ package repository
 import (
 	"slices"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -47,7 +46,7 @@ func (r *InstalledRepository) AddRepository(repository RepositoryInterface) erro
 		return r.CompositeRepository.AddRepository(repository)
 	}
 
-	return &util.LogicError{Site: phperr.At("InstalledRepository.php", 275), Message: "An InstalledRepository can not contain a repository of type " + repository.Class() + " (" + repository.RepoName() + ")"}
+	return &util.LogicError{Message: "An InstalledRepository can not contain a repository of type " + repository.Class() + " (" + repository.RepoName() + ")"}
 }
 
 // FindPackagesWithReplacersAndProviders ports
