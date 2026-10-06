@@ -29,6 +29,9 @@ type phpObjects struct {
 	// subclassDownloaders are the downloaders of FileDownloader
 	// subclasses written in PHP, by maestro's downloader they extend.
 	subclassDownloaders map[downloader.Downloader]*subclassDownloader
+	// executors are the ProcessExecutors of PHP code whose asynchronous
+	// processes maestro's loops drive.
+	executors map[*rpc.PHPObject]*phpProcessJobs
 }
 
 // callObject calls a method of a PHP object maestro uses (`object.call`).

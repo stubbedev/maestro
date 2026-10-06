@@ -5,6 +5,9 @@
  * of maestro's event loop (loop.*); one created in PHP is maestro's too.
  * wait() runs maestro's loop until no job is left, settling the promises
  * of maestro's work (and so PHP's then() callbacks), as Composer's does.
+ * The asynchronous processes of PHP code run in PHP, on the executor
+ * getProcessExecutor() gives, and maestro's loop drives them whenever it
+ * waits (docs/PLUGINS.md §5.12).
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -22,6 +25,10 @@ class Loop
     {
         Rpc::call('loop.new', [$this, $httpDownloader]);
         $this->processExecutor = $processExecutor;
+        if ($processExecutor !== null) {
+            $processExecutor->enableAsync();
+            Rpc::call('loop.phpProcessExecutor', [$this, $processExecutor]);
+        }
     }
 
     public function getHttpDownloader(): HttpDownloader
@@ -36,6 +43,8 @@ class Loop
             // processes of PHP code run in PHP, as Composer runs them.
             $this->processExecutor = new ProcessExecutor();
             $this->processExecutor->enableAsync();
+            // maestro's loop drives and counts them whenever it waits
+            Rpc::call('loop.phpProcessExecutor', [$this, $this->processExecutor]);
         }
 
         return $this->processExecutor;
@@ -54,29 +63,13 @@ class Loop
         );
 
         // The jobs are maestro's (downloads, its processes) and the
-        // processes PHP code started on this loop's executor: the progress
-        // counts both, as Composer's countActiveJobs() does.
-        $phpActive = function (): int {
-            return $this->processExecutor !== null ? $this->processExecutor->countActiveJobs() : 0;
-        };
+        // processes PHP code started on this loop's executor, which
+        // maestro's loop drives and counts with its own, as Composer's
+        // countActiveJobs() does.
         if ($progress !== null) {
-            $progress->start(Rpc::call('loop.countJobs', [$this]) + $phpActive());
+            $progress->start(Rpc::call('loop.countJobs', [$this]));
         }
-        // maestro's jobs, then PHP's, whose callbacks may start more of
-        // either.
-        $lastUpdate = 0;
-        do {
-            Rpc::call('loop.wait', [$this]);
-            $phpJobs = false;
-            while (($active = $phpActive()) > 0) {
-                $phpJobs = true;
-                if ($progress !== null && microtime(true) - $lastUpdate > 0.1) {
-                    $lastUpdate = microtime(true);
-                    $progress->setProgress(max(0, $progress->getMaxSteps() - $active));
-                }
-                usleep(1000);
-            }
-        } while ($phpJobs);
+        Rpc::call('loop.wait', [$this]);
         if ($progress !== null) {
             $progress->finish();
         }

@@ -9,6 +9,9 @@
 package plugin
 
 import (
+	"errors"
+	"slices"
+
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
@@ -258,12 +261,9 @@ func (r *Runtime) registerHTTP() {
 	loopMethod("getHttpDownloader", func(l *http.Loop, _ args) (any, error) { return r.value(l.HttpDownloader()), nil })
 	loopMethod("hasProcessExecutor", func(l *http.Loop, _ args) (any, error) { return l.ProcessExecutor() != nil, nil })
 	loopMethod("countJobs", func(l *http.Loop, _ args) (any, error) {
-		n := l.HttpDownloader().CountActiveJobs()
-		if pe := l.ProcessExecutor(); pe != nil {
-			n += pe.CountActiveJobs()
-		}
+		n, err := l.CountActiveJobs()
 
-		return int64(n), nil
+		return int64(n), err
 	})
 	// wait($promises): PHP checks its promises itself (React's all()), as
 	// Composer's Loop does; maestro runs its loop until no job is left,
@@ -273,6 +273,45 @@ func (r *Runtime) registerHTTP() {
 	})
 	loopMethod("abortJobs", func(l *http.Loop, _ args) (any, error) {
 		l.AbortJobs()
+
+		return nil, nil
+	})
+	// The ProcessExecutor PHP has for the loop (getProcessExecutor(), or
+	// the one given to new Loop()): its asynchronous processes run in PHP,
+	// as Composer runs them, and maestro's loop drives and counts them
+	// whenever it waits, as Composer's loop does the processes of its one
+	// executor.
+	loopMethod("phpProcessExecutor", func(l *http.Loop, a args) (any, error) {
+		obj, ok := a.at(1).(*rpc.PHPObject)
+		if !ok {
+			return nil, a.errorf("param 1 is a %T, not a PHP object", a.at(1))
+		}
+		r.phpObjs.mu.Lock()
+		defer r.phpObjs.mu.Unlock()
+		if r.phpObjs.executors == nil {
+			r.phpObjs.executors = map[*rpc.PHPObject]*phpProcessJobs{}
+		}
+		src, ok := r.phpObjs.executors[obj]
+		if !ok {
+			src = &phpProcessJobs{r: r, obj: obj}
+			r.phpObjs.executors[obj] = src
+		}
+		if !slices.Contains(src.loops, l) {
+			src.loops = append(src.loops, l)
+			l.AddJobSource(src)
+		}
+
+		return nil, nil
+	})
+	// executeAsync() queued a job on a PHP executor: the loops it belongs
+	// to poll it until it has none left.
+	r.Handle("proc.asyncStarted", func(v any) (any, error) {
+		obj, _ := argsOf("proc.asyncStarted", v).at(0).(*rpc.PHPObject)
+		r.phpObjs.mu.Lock()
+		defer r.phpObjs.mu.Unlock()
+		if src, ok := r.phpObjs.executors[obj]; ok {
+			src.active = true
+		}
 
 		return nil, nil
 	})
@@ -533,4 +572,46 @@ func (r *Runtime) registerCache() {
 	method("gcVcsCache", func(c *cache.Cache, a args) (any, error) { return c.GcVcsCache(a.integer(1)) })
 	method("sha1", func(c *cache.Cache, a args) (any, error) { return orFalse(c.Sha1(a.str(1))) })
 	method("sha256", func(c *cache.Cache, a args) (any, error) { return orFalse(c.Sha256(a.str(1))) })
+}
+
+// phpProcessJobs is a ProcessExecutor of PHP code as a job source of
+// maestro's loops (http.JobSource): its countActiveJobs(), which settles
+// the finished processes (their then() callbacks run in PHP), starts
+// queued ones and checks their timeouts. It is polled only while it may
+// have jobs: from the executeAsync() that queues one until a poll finds
+// none.
+type phpProcessJobs struct {
+	r     *Runtime
+	obj   *rpc.PHPObject
+	loops []*http.Loop
+
+	active bool // guarded by r.phpObjs.mu
+}
+
+// CountActiveJobs implements http.JobSource.
+func (p *phpProcessJobs) CountActiveJobs() (int, error) {
+	p.r.phpObjs.mu.Lock()
+	active := p.active
+	p.r.phpObjs.mu.Unlock()
+	if !active {
+		return 0, nil
+	}
+
+	v, err := p.r.callObject(p.obj, "countActiveJobs")
+	if errors.Is(err, rpc.ErrBaton) {
+		// a wait off the PHP baton: PHP's processes progress when PHP
+		// next waits for them
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	n := php.ToNativeInt(v)
+	if n == 0 {
+		p.r.phpObjs.mu.Lock()
+		p.active = false
+		p.r.phpObjs.mu.Unlock()
+	}
+
+	return n, nil
 }

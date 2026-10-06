@@ -385,6 +385,10 @@ final class Console
         if ($object instanceof DownloaderInterface) {
             return in_array($method, self::DOWNLOADER_OVERRIDES, true);
         }
+        if ($object instanceof \Composer\Util\ProcessExecutor) {
+            // maestro's loops drive the asynchronous processes of PHP code
+            return $method === 'countActiveJobs';
+        }
 
         return false;
     }

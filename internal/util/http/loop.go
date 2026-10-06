@@ -38,6 +38,58 @@ type Loop struct {
 	mu              sync.Mutex
 	currentPromises map[int][]Waitable
 	waitIndex       int
+	sources         []JobSource
+}
+
+// JobSource is asynchronous work Wait drives and counts besides the
+// downloader's and the executor's: the processes the plugin runtime's PHP
+// code started on the loop's ProcessExecutor (docs/PLUGINS.md §5.12),
+// which Composer's loop counts with its own, as they are on its one
+// executor. CountActiveJobs is ProcessExecutor::countActiveJobs(): it
+// settles the jobs that finished (running their callbacks) and starts
+// queued ones, and returns the number still active, or what it threw (a
+// process's ProcessTimedOutException), which ends Wait as it ends
+// Composer's. Wait calls it on the goroutine driving the loop.
+type JobSource interface {
+	CountActiveJobs() (int, error)
+}
+
+// AddJobSource makes Wait drive and count src's jobs from now on.
+func (l *Loop) AddJobSource(src JobSource) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sources = append(l.sources, src)
+}
+
+// CountActiveJobs is the jobs Composer's wait() counts:
+// $httpDownloader->countActiveJobs() + $processExecutor->countActiveJobs(),
+// the job sources' included (driving them).
+func (l *Loop) CountActiveJobs() (int, error) {
+	n := l.httpDownloader.CountActiveJobs()
+	if l.processExecutor != nil {
+		n += l.processExecutor.CountActiveJobs()
+	}
+	external, err := l.sourceJobs()
+
+	return n + external, err
+}
+
+// sourceJobs is the active jobs of the job sources (driving them).
+func (l *Loop) sourceJobs() (int, error) {
+	l.mu.Lock()
+	sources := slices.Clone(l.sources)
+	l.mu.Unlock()
+
+	n := 0
+	for _, src := range sources {
+		c, err := src.CountActiveJobs()
+		if err != nil {
+			return n, err
+		}
+		n += c
+	}
+
+	return n, nil
 }
 
 // NewLoop is new Loop($httpDownloader, $processExecutor); processExecutor
@@ -86,18 +138,27 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	sched := l.httpDownloader.Scheduler()
 
 	if progress != nil {
-		progress.StartMax(l.countedJobs(sched))
+		total, err := l.countedJobs(sched)
+		if err != nil {
+			return err
+		}
+		progress.StartMax(total)
 	}
 
 	var lastUpdate time.Time
 
 	for {
-		if progress != nil && time.Since(lastUpdate) > 100*time.Millisecond {
-			lastUpdate = time.Now()
-			progress.SetProgress(progress.MaxSteps() - l.countedJobs(sched))
+		external, err := l.sourceJobs()
+		if err != nil {
+			return err
 		}
 
-		if sched.Pending()+l.queuedJobs() == 0 {
+		if progress != nil && time.Since(lastUpdate) > 100*time.Millisecond {
+			lastUpdate = time.Now()
+			progress.SetProgress(progress.MaxSteps() - (sched.Counted() + l.queuedJobs() + external))
+		}
+
+		if sched.Pending()+l.queuedJobs()+external == 0 {
 			break
 		}
 
@@ -105,6 +166,14 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 			wait := time.Duration(0)
 			if progress != nil {
 				wait = 100 * time.Millisecond
+			}
+			if external > 0 {
+				// the sources make progress only when polled, as
+				// Composer's loop polls its processes
+				wait = time.Millisecond
+				if sched.Pending() == 0 {
+					time.Sleep(wait)
+				}
 			}
 
 			sched.WaitReady(wait, nil)
@@ -117,6 +186,7 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 		progress.Finish()
 	}
 
+	// (an exception above leaves the group, as in Composer)
 	l.mu.Lock()
 	delete(l.currentPromises, waitIndex)
 	l.mu.Unlock()
@@ -132,9 +202,12 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 // take a ticket only when they start. Composer counts a job until its
 // completion is processed, so a progress bar starts at the number of
 // queued jobs. Background work (the package store) is waited for but not
-// counted, as Composer has no such job.
-func (l *Loop) countedJobs(sched *util.Scheduler) int {
-	return sched.Counted() + l.queuedJobs()
+// counted, as Composer has no such job. The job sources' jobs count as
+// the processes of Composer's executor do.
+func (l *Loop) countedJobs(sched *util.Scheduler) (int, error) {
+	external, err := l.sourceJobs()
+
+	return sched.Counted() + l.queuedJobs() + external, err
 }
 
 // queuedJobs is the number of requests and processes waiting for a slot.

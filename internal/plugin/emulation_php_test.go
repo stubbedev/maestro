@@ -14,7 +14,73 @@ import (
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/util/http"
 )
+
+// A process PHP code starts asynchronously on its loop's executor makes
+// progress while maestro's loop waits, not only while PHP does: Composer
+// has one loop, whose wait() drives the processes of its executor
+// whoever started them, and counts them.
+func TestInternals_AsyncProcessesOnMaestrosLoop(t *testing.T) {
+	requirePHP(t)
+
+	p := newEvalProject(t, "commands")
+
+	loop := evalPHP(t, p.rt, `
+		$loop = \Composer\Factory::create($vars['io'], null, true)->getLoop();
+		$GLOBALS['maestroAsync'] = [];
+		foreach (['one', 'two'] as $word) {
+			$loop->getProcessExecutor()->executeAsync('sleep 0.2; echo '.$word)->then(function ($process) {
+				$GLOBALS['maestroAsync'][] = trim($process->getOutput());
+			});
+		}
+
+		return $loop;
+	`, php.ArrayOf("io", p.rt.value(p.out)))
+	l, ok := unwrap(loop).(*http.Loop)
+	if !ok {
+		t.Fatalf("the loop is a %T", unwrap(loop))
+	}
+
+	if n, err := l.CountActiveJobs(); err != nil || n != 2 {
+		t.Errorf("CountActiveJobs = %d, %v; want PHP's 2 processes", n, err)
+	}
+	// maestro's own wait (an Installer's, a download's) runs them to
+	// the end, and their callbacks
+	if err := l.Wait(nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := lines(evalPHP(t, p.rt, `return $GLOBALS['maestroAsync'];`, nil)); got != "one\ntwo" {
+		t.Errorf("the callbacks saw %q", got)
+	}
+	if n, err := l.CountActiveJobs(); err != nil || n != 0 {
+		t.Errorf("CountActiveJobs after the wait = %d, %v", n, err)
+	}
+
+	// PHP's own wait still does, and a timeout ends it as it ends
+	// Composer's.
+	got := evalPHP(t, p.rt, `
+		$loop = $vars['loop'];
+		$out = [];
+		$loop->getProcessExecutor()->executeAsync('echo three')->then(function ($process) use (&$out) {
+			$out[] = trim($process->getOutput());
+		});
+		$loop->wait([]);
+		\Composer\Util\ProcessExecutor::setTimeout(1);
+		$loop->getProcessExecutor()->executeAsync('sleep 5');
+		try {
+			$loop->wait([]);
+		} catch (\Symfony\Component\Process\Exception\ProcessTimedOutException $e) {
+			$out[] = get_class($e);
+		}
+		\Composer\Util\ProcessExecutor::setTimeout(300);
+
+		return $out;
+	`, php.ArrayOf("loop", loop))
+	if want := "three\nSymfony\\Component\\Process\\Exception\\ProcessTimedOutException"; lines(got) != want {
+		t.Errorf("PHP's waits: %q, want %q", lines(got), want)
+	}
+}
 
 // A Pool from maestro holds what Composer's PoolBuilder passes to new
 // Pool(): the optimizer's removals by name and by kept package, and the

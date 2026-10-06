@@ -161,6 +161,10 @@ class ProcessExecutor
             $this->startJob($job['id']);
         }
 
+        // The loops this executor belongs to drive it while they wait,
+        // maestro's own included.
+        \Maestro\Shim\Rpc::call('proc.asyncStarted', [$this]);
+
         return $promise;
     }
 
