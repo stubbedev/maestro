@@ -178,6 +178,8 @@ func (i *Installer) IsVerbose() bool { return i.verbose }
 // SetIgnorePlatformRequirements ports the deprecated
 // setIgnorePlatformRequirements: true, false or a list of names.
 func (i *Installer) SetIgnorePlatformRequirements(ignorePlatformReqs any) (*Installer, error) {
+	util.TriggerDeprecation("Installer::setIgnorePlatformRequirements is deprecated since Composer 2.2, use setPlatformRequirementFilter instead.", phperr.At("Installer.php", 1459))
+
 	f, err := filter.FromBoolOrList(ignorePlatformReqs)
 	if err != nil {
 		return nil, err

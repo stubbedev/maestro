@@ -597,9 +597,14 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 	}
 
 	if scripts := subArray(config, "scripts"); scripts != nil {
-		// The reserved names composer, php and putenv only trigger a
-		// deprecation notice in PHP.
-		p.SetScripts(castListeners(scripts))
+		scripts = castListeners(scripts)
+		for _, reserved := range [...]string{"composer", "php", "putenv"} {
+			if scripts.Has(reserved) {
+				util.TriggerDeprecation("The `"+reserved+"` script name is reserved for internal use, please avoid defining it", phperr.At("ArrayLoader.php", 271))
+			}
+		}
+
+		p.SetScripts(scripts)
 	}
 
 	if s, ok := get(config, "description").(string); ok && !empty(s) {

@@ -272,6 +272,24 @@ func (l Links) Without(key string) Links {
 // check for a list).
 func (l Links) hasZeroKey() bool { return l.Has("0") }
 
+// LinksListError is what Package::setRequires (setConflicts, ...;
+// setter is the method name) does with a list-shaped $links: its
+// convertLinksToMap raises an E_USER_NOTICE, which Composer's
+// ErrorHandler throws as this \ErrorException before anything is set. It
+// is nil for a map (no "0" key). Package's Go setters convert a list
+// silently, as PHP does without the ErrorHandler; callers handing over
+// links from PHP (the plugin shim) check this first.
+func LinksListError(setter string, links Links) error {
+	if !links.hasZeroKey() {
+		return nil
+	}
+
+	return &util.ErrorException{
+		Message: "Package::" + setter + " must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage.",
+		Site:    phperr.At("Package.php", 716),
+	}
+}
+
 // mergeList ports array_merge($links, $list): int keys of links are
 // renumbered from 0, string keys kept, and the list appended.
 func (l Links) mergeList(list []*Link) Links {

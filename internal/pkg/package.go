@@ -348,7 +348,8 @@ func (p *Package) ReleaseDate() (time.Time, bool) {
 }
 
 // setLinks stores links, converting a list as Package::setRequires and
-// friends do (PHP also triggers a deprecation notice there).
+// friends do when the notice they raise is not thrown (under Composer's
+// ErrorHandler it is: LinksListError).
 func (p *Package) setLinks(dst *Links, links Links) {
 	if links.hasZeroKey() {
 		links = LinksOf(collectLinks(links)...)

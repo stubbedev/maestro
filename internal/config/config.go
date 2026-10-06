@@ -721,9 +721,10 @@ func (c *Config) binCompat() (any, error) {
 		return nil, &util.RuntimeError{Site: phperr.At("Config.php", 472), Message: "Invalid value for 'bin-compat': " + str + ". Expected auto, full or proxy"}
 	}
 
-	// PHP raises an E_USER_DEPRECATED notice for "symlink" here, which
-	// Composer's ErrorHandler only reports with the PHP file and line it
-	// came from; maestro does not reproduce it.
+	if value == "symlink" {
+		util.TriggerDeprecation(`config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead.`, phperr.At("Config.php", 478))
+	}
+
 	return value, nil
 }
 

@@ -329,3 +329,41 @@ func TestShimAPI_IO(t *testing.T) {
 		t.Errorf("output %q, want %q", got, wantOut)
 	}
 }
+
+// A list-shaped setRequires throws the \ErrorException Composer's
+// ErrorHandler makes of Package::convertLinksToMap's notice; a
+// RootAliasPackage has set its own links by then (Composer 2.10.3).
+func TestShimAPI_ListShapedLinks(t *testing.T) {
+	requirePHP(t)
+
+	rt, _, _ := newTestRuntime(t)
+	start(t, rt)
+
+	root := pkg.NewRootPackage("acme/app", "1.0.0.0", "1.0.0")
+	alias := pkg.NewRootAliasPackage(root, "2.0.0.0", "2.0.0")
+
+	got := evalPHP(t, rt, `
+		$out = [];
+		foreach (['p', 'a'] as $k) {
+			try {
+				$vars[$k]->setRequires([new \Composer\Package\Link('acme/app', 'x/y', new \Composer\Semver\Constraint\MatchAllConstraint(), \Composer\Package\Link::TYPE_REQUIRE, '*')]);
+				$out[] = 'no exception';
+			} catch (\ErrorException $e) {
+				$out[] = get_class($e).': '.$e->getMessage();
+			}
+		}
+
+		return implode("\n", $out);
+	`, php.ArrayOf("p", rt.packageObject(root), "a", rt.packageObject(alias)))
+
+	msg := "ErrorException: Package::setRequires must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage."
+	if got != msg+"\n"+msg {
+		t.Errorf("got %v", got)
+	}
+	if root.Requires().Len() != 0 {
+		t.Errorf("root requires %v", linkKeys(root.Requires()))
+	}
+	if keys := linkKeys(alias.Requires()); len(keys) != 1 || keys[0] != "0" {
+		t.Errorf("alias requires %v", keys)
+	}
+}

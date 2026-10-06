@@ -474,6 +474,17 @@ func (r *Runtime) registerPackages() {
 			if err != nil {
 				return err
 			}
+			// The shim's Package::setRequires throws for a list itself; a
+			// RootAliasPackage hands its links over as given, and PHP's
+			// sets its own links before its aliased package's setter
+			// throws the \ErrorException.
+			if err := pkg.LinksListError(method, links); err != nil {
+				if ra, ok := p.(*pkg.RootAliasPackage); ok {
+					ra.SetOwnLinks(method, links)
+				}
+
+				return err
+			}
 			var target interface {
 				SetRequires(pkg.Links)
 				SetDevRequires(pkg.Links)

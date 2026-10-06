@@ -91,6 +91,29 @@ func (a *RootAliasPackage) SetReplaces(replaces Links) {
 	a.root.SetReplaces(replaces)
 }
 
+// SetOwnLinks is the first statement of RootAliasPackage::setRequires
+// (setDevRequires, ... as setter names): the alias's own links, without
+// the aliased package's. With list-shaped links PHP stops there, as the
+// aliased package's setter throws (LinksListError).
+func (a *RootAliasPackage) SetOwnLinks(setter string, links Links) {
+	switch setter {
+	case "setRequires":
+		a.requires = a.replaceSelfVersionDependencies(links, TypeRequire)
+	case "setDevRequires":
+		a.devRequires = a.replaceSelfVersionDependencies(links, TypeDevRequire)
+	case "setConflicts":
+		a.conflicts = a.replaceSelfVersionDependencies(links, TypeConflict)
+	case "setProvides":
+		a.provides = a.replaceSelfVersionDependencies(links, TypeProvide)
+	case "setReplaces":
+		a.replaces = a.replaceSelfVersionDependencies(links, TypeReplace)
+	default:
+		return
+	}
+
+	a.rev++
+}
+
 // SetAutoload ports RootAliasPackage::setAutoload.
 func (a *RootAliasPackage) SetAutoload(autoload *php.Array) { a.root.SetAutoload(autoload) }
 

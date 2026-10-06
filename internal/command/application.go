@@ -188,6 +188,9 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 	cio := io.NewConsoleIO(in, out, console.NewHelperSet(console.NewQuestionHelper()))
 	a.io = cio
 
+	// Register error handler again to pass it the IO instance
+	util.RegisterErrorHandler(cio)
+
 	if in.HasParameterOption([]string{"--no-cache"}, false) {
 		cio.WriteError("Disabling cache usage", true, io.Debug)
 		util.PutEnv("COMPOSER_CACHE_DIR", util.GetDevNull())
