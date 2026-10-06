@@ -58,7 +58,9 @@ func (m *RepositoryManager) FindPackage(name string, constraint semver.Constrain
 	for _, repo := range m.repositories {
 		p, err := repo.FindPackage(name, constraint)
 		if err != nil || p != nil {
-			return p, err
+			// a repository written in PHP left its code through the call
+			// (docs/PLUGINS.md §5.12)
+			return p, phperr.Locate(err, "RepositoryManager.php", 67)
 		}
 	}
 
@@ -71,7 +73,7 @@ func (m *RepositoryManager) FindPackages(name string, constraint semver.Constrai
 	for _, repo := range m.repositories {
 		found, err := repo.FindPackages(name, constraint)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Locate(err, "RepositoryManager.php", 88)
 		}
 		packages = append(packages, found...)
 	}

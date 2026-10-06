@@ -113,12 +113,15 @@ func (e *PHPException) AddFrame(fr phperr.Frame) {
 
 // LocateCall implements phperr.Locator: the boundary frame's call is
 // Composer's at file:line.
-func (e *PHPException) LocateCall(file string, line int) {
-	if e.open {
-		e.open = false
-		last := &e.Trace[len(e.Trace)-1]
-		last.File, last.Line = phperr.AbsPath(file), line
+func (e *PHPException) LocateCall(file string, line int) bool {
+	if !e.open {
+		return false
 	}
+	e.open = false
+	last := &e.Trace[len(e.Trace)-1]
+	last.File, last.Line = phperr.AbsPath(file), line
+
+	return true
 }
 
 // OpenFrame is the boundary frame while its location is not Composer's

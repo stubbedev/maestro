@@ -206,7 +206,9 @@ func (s *RepositorySet) FindPackages(name string, constraint semver.ConstraintIn
 		for _, repo := range s.repositories {
 			found, err := repo.FindPackages(name, constraint)
 			if err != nil {
-				return nil, err
+				// a repository written in PHP left its code through the
+				// call (docs/PLUGINS.md §5.12)
+				return nil, phperr.Locate(err, "RepositorySet.php", 197)
 			}
 			candidates = append(candidates, found...)
 		}
@@ -219,7 +221,7 @@ func (s *RepositorySet) FindPackages(name string, constraint semver.ConstraintIn
 		for _, repo := range s.repositories {
 			result, err := repo.LoadPackages(nameMap, acceptable, stabilityFlags, nil)
 			if err != nil {
-				return nil, phperr.Call(err, loadPackagesClass(repo)+`->loadPackages`, "RepositorySet.php", 201)
+				return nil, phperr.CallTo(err, loadPackagesClass(repo)+`->loadPackages`, "RepositorySet.php", 201)
 			}
 			candidates = append(candidates, result.Packages...)
 			// avoid loading the same package again from other repositories once it has been found
@@ -365,7 +367,7 @@ func (s *RepositorySet) Providers(packageName string) ([]ProviderInfo, error) {
 	for _, repo := range s.repositories {
 		repoProviders, err := repo.Providers(packageName)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Locate(err, "RepositorySet.php", 312)
 		}
 		providers = mergeProviders(providers, repoProviders)
 	}

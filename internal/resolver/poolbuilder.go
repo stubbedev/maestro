@@ -490,7 +490,7 @@ func (b *PoolBuilder) loadPackagesMarkedForLoading(request *Request, repositorie
 		for _, packageBatch := range packageBatches {
 			result, err := repo.LoadPackages(packageBatch, b.acceptableStabilities, b.stabilityFlags, b.loadedPerRepo[repoIndex])
 			if err != nil {
-				return phperr.Call(err, repository.LoadPackagesClass(repo)+"->loadPackages", "PoolBuilder.php", 452)
+				return phperr.CallTo(err, repository.LoadPackagesClass(repo)+"->loadPackages", "PoolBuilder.php", 452)
 			}
 
 			for _, name := range result.NamesFound {

@@ -857,7 +857,8 @@ func (m *Manager) isPluginAllowed(packageName string, isGlobalPlugin, optional, 
 
 			answer, err := m.io.Ask(`Do you trust "<fg=green;options=bold>`+packageName+`</>" to execute code and wish to enable it now? (writes "allow-plugins" to composer.json) [<comment>y,n,d,?</comment>] `, def)
 			if err != nil {
-				return false, err
+				// an IO written in PHP left its code through the call
+				return false, phperr.Locate(err, pluginManagerFile, 781)
 			}
 			switch a, _ := answer.(string); a {
 			case "y", "n", "d":

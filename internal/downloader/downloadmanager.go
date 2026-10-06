@@ -282,7 +282,9 @@ func (m *DownloadManager) Prepare(typ string, p pkg.PackageInterface, targetDir 
 		return resolved(""), err
 	}
 
-	return d.Prepare(typ, p, targetDir, prev)
+	promise, err := d.Prepare(typ, p, targetDir, prev)
+
+	return promise, callAt(err, 281)
 }
 
 // Install is install($package, $targetDir).
@@ -294,7 +296,9 @@ func (m *DownloadManager) Install(p pkg.PackageInterface, targetDir string) (*Pr
 		return resolved(""), err
 	}
 
-	return d.Install(p, targetDir)
+	promise, err := d.Install(p, targetDir)
+
+	return promise, callAt(err, 302)
 }
 
 // Update is update($initial, $target, $targetDir).
@@ -320,13 +324,17 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 	// if we have a downloader present before, but not after, the package
 	// became a metapackage and its files should be removed
 	if d == nil {
-		return initialDownloader.Remove(initial, targetDir)
+		promise, err := initialDownloader.Remove(initial, targetDir)
+
+		return promise, callAt(err, 331)
 	}
 
 	// we had no downloader but now have one, so a metapackage became a
 	// concrete package and we just install it
 	if initialDownloader == nil {
-		return d.Install(target, targetDir)
+		promise, err := d.Install(target, targetDir)
+
+		return promise, callAt(err, 336)
 	}
 
 	initialType, initialOK := m.DownloaderType(initialDownloader)
@@ -335,6 +343,7 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 
 	if sameType {
 		promise, err := d.Update(initial, target, targetDir)
+		err = callAt(err, 343)
 		if err == nil {
 			return promise, nil
 		}
@@ -346,6 +355,7 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 		m.io.WriteError("<error>    Update failed ("+err.Error()+")</error>", true, mio.Normal)
 
 		reinstall, aerr := m.io.AskConfirmation("    Would you like to try reinstalling the package instead [<comment>yes</comment>]? ", true)
+		aerr = phperr.Locate(aerr, "DownloadManager.php", 349) // an IO written in PHP
 		if aerr != nil {
 			return nil, aerr
 		}
@@ -364,13 +374,14 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 		// on a type change the existing source install is about to be
 		// wiped, so run its uninstall guard first to avoid silently
 		// dropping local changes in a modified VCS checkout
-		if promise, err = initialDownloader.Prepare("uninstall", initial, targetDir, nil); err != nil {
+		if promise, err = initialDownloader.Prepare("uninstall", initial, targetDir, nil); callAt(err, 362) != nil {
 			return nil, err
 		}
 	}
 
 	promise = then(promise, func(string) (*Promise, string, error) {
 		promise, err := initialDownloader.Remove(initial, targetDir)
+		err = callAt(err, 366)
 
 		return promise, "", err
 	}, nil)
@@ -391,7 +402,9 @@ func (m *DownloadManager) Remove(p pkg.PackageInterface, targetDir string) (*Pro
 		return resolved(""), err
 	}
 
-	return d.Remove(p, targetDir)
+	promise, err := d.Remove(p, targetDir)
+
+	return promise, callAt(err, 386)
 }
 
 // Cleanup is cleanup($type, $package, $targetDir, $prevPackage).
@@ -403,8 +416,16 @@ func (m *DownloadManager) Cleanup(typ string, p pkg.PackageInterface, targetDir 
 		return resolved(""), err
 	}
 
-	return d.Cleanup(typ, p, targetDir, prev)
+	promise, err := d.Cleanup(typ, p, targetDir, prev)
+
+	return promise, callAt(err, 406)
 }
+
+// callAt locates an error a downloader's method threw at its call in
+// DownloadManager.php (phperr.Locate): one written in PHP left its code
+// through that call, which its trace names as Composer's (docs/PLUGINS.md
+// §5.12). maestro's own downloaders' errors are left alone.
+func callAt(err error, line int) error { return phperr.Locate(err, "DownloadManager.php", line) }
 
 // ResolvePackageInstallPreference is resolvePackageInstallPreference() for
 // the plugin shim (a subclass's call of the protected method).

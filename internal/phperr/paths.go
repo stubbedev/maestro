@@ -46,6 +46,7 @@ var paths = map[string]string{
 	"CompletePackage.php":                  "src/Composer/Package/CompletePackage.php",
 	"CompletionInput.php":                  "vendor/symfony/console/Completion/CompletionInput.php",
 	"ComposerRepository.php":               "src/Composer/Repository/ComposerRepository.php",
+	"CompositeRepository.php":              "src/Composer/Repository/CompositeRepository.php",
 	"Config.php":                           "src/Composer/Config.php",
 	"ConfigCommand.php":                    "src/Composer/Command/ConfigCommand.php",
 	"ConfigValidator.php":                  "src/Composer/Util/ConfigValidator.php",

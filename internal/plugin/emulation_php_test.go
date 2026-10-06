@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
@@ -108,6 +109,111 @@ func TestInternals_Traces(t *testing.T) {
 	}
 	if _, ok := pe.OpenFrame(); !ok {
 		t.Error("the trace does not end at the call maestro made")
+	}
+}
+
+// An exception a repository or IO written in PHP throws when maestro calls
+// it names Composer's call site of it, not the shim's: the frame of the
+// method maestro called is at RepositoryManager.php:88 (findPackages()),
+// at AuthHelper.php:240 (ask()).
+func TestInternals_TracesOfPHPObjects(t *testing.T) {
+	requirePHP(t)
+
+	withComposerRoot(t)
+	p := newEvalProject(t, "commands")
+
+	got := evalPHP(t, p.rt, `
+		$rm = \Composer\Factory::create($vars['io'], null, true)->getRepositoryManager();
+		$rm->addRepository(new class extends \Composer\Repository\ArrayRepository {
+			public function findPackages(string $name, $constraint = null)
+			{
+				throw new \RuntimeException('no '.$name);
+			}
+		});
+		$io = new class extends \Composer\IO\NullIO {
+			public function isInteractive(): bool
+			{
+				return true;
+			}
+
+			public function ask($question, $default = null)
+			{
+				throw new \RuntimeException('no answer');
+			}
+		};
+
+		return [$rm, $io];
+	`, php.ArrayOf("io", p.rt.value(p.out)))
+	list, _ := got.(*php.Array)
+	if list == nil || list.Len() != 2 {
+		t.Fatalf("got %v", got)
+	}
+	rm, ok := unwrap(list.Values()[0]).(*repository.RepositoryManager)
+	if !ok {
+		t.Fatalf("the manager is a %T", unwrap(list.Values()[0]))
+	}
+	pio, _, err := p.rt.ioParam(argsOf("test", php.ListOf(list.Values()[1])), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	boundary := func(err error) string {
+		pe, ok := errors.AsType[*rpc.PHPException](err)
+		if !ok {
+			t.Fatalf("err = %v", err)
+		}
+		for _, f := range pe.Trace {
+			if f.Function == "findPackages" || f.Function == "ask" {
+				return f.Function + " " + f.File + ":" + php.ToString(int64(f.Line))
+			}
+		}
+		t.Fatalf("no frame of the PHP method: %+v", pe.Trace)
+
+		return ""
+	}
+
+	_, err = rm.FindPackages("acme/a", nil)
+	if f := boundary(err); f != "findPackages phar:///maestro/src/Composer/Repository/RepositoryManager.php:88" {
+		t.Errorf("findPackages() frame %s", f)
+	}
+
+	auth := http.NewAuthHelper(pio, config.New(false, "").ForHTTP())
+	_, err = auth.PromptAuthIfNeeded("https://example.org/x", "example.org", 401, "Unauthorized", nil, 0, "")
+	if f := boundary(err); f != "ask phar:///maestro/src/Composer/Util/AuthHelper.php:240" {
+		t.Errorf("ask() frame %s", f)
+	}
+
+	// an installer: the frame of its install() in the trace PHP sees
+	frame := evalPHP(t, p.rt, `
+		$composer = \Composer\Factory::create($vars['io'], null, true);
+		$im = $composer->getInstallationManager();
+		$im->addInstaller(new class($vars['io'], $composer) extends \Composer\Installer\LibraryInstaller {
+			public function supports(string $packageType)
+			{
+				return $packageType === 'maestro-throws';
+			}
+
+			public function install(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\Package\PackageInterface $package)
+			{
+				throw new \RuntimeException('cannot install');
+			}
+		});
+		$package = new \Composer\Package\Package('acme/throws', '1.0.0.0', '1.0.0');
+		$package->setType('maestro-throws');
+		try {
+			$im->install($composer->getRepositoryManager()->getLocalRepository(), new \Composer\DependencyResolver\Operation\InstallOperation($package));
+		} catch (\RuntimeException $e) {
+			foreach ($e->getTrace() as $frame) {
+				if ($frame['function'] === 'install') {
+					return $frame['file'].':'.$frame['line'];
+				}
+			}
+		}
+
+		return 'no frame';
+	`, php.ArrayOf("io", p.rt.value(p.out)))
+	if frame != "phar:///maestro/src/Composer/Installer/InstallationManager.php:468" {
+		t.Errorf("install() frame %v", frame)
 	}
 }
 

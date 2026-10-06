@@ -126,6 +126,7 @@ func (m *Manager) Installer(typ string) (Installer, error) {
 
 	for _, installer := range m.installers {
 		ok, err := installer.Supports(typ)
+		err = callAt(err, 128) // $installer->supports($type)
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +157,9 @@ func (m *Manager) IsPackageInstalled(repo repository.InstalledRepositoryInterfac
 		return false, err
 	}
 
-	return installer.IsInstalled(repo, p)
+	ok, err := installer.IsInstalled(repo, p)
+
+	return ok, callAt(err, 148)
 }
 
 // EnsureBinariesPresence is ensureBinariesPresence(): it installs the
@@ -175,7 +178,7 @@ func (m *Manager) EnsureBinariesPresence(p pkg.PackageInterface) error {
 
 	// if the given installer support installing binaries
 	if bp, ok := installer.(BinaryPresence); ok {
-		return bp.EnsureBinariesPresence(p)
+		return callAt(bp.EnsureBinariesPresence(p), 168)
 	}
 
 	return nil
@@ -417,7 +420,9 @@ func (m *Manager) downloadAndExecuteBatch(repo repository.InstalledRepositoryInt
 				return Resolved(), nil
 			}
 
-			return installer.Cleanup(opType, p, initial)
+			promise, err := installer.Cleanup(opType, p, initial)
+
+			return promise, callAt(err, 276)
 		})
 
 		if opType != operation.TypeUninstall {
@@ -537,6 +542,7 @@ func (m *Manager) executeBatch(repo repository.InstalledRepositoryInterface, ope
 		}
 
 		promise, err := installer.Prepare(opType, p, initial)
+		err = callAt(err, 376)
 		if err != nil {
 			return err
 		}
@@ -616,6 +622,13 @@ type progressIO interface {
 	ProgressBar(maxSteps int) *console.ProgressBar
 }
 
+// callAt locates an error an installer's method threw at its call in
+// InstallationManager.php (phperr.Locate): one written in PHP left its
+// code through that call, which its trace names as Composer's
+// (docs/PLUGINS.md §5.12). maestro's own installers' errors are left
+// alone.
+func callAt(err error, line int) error { return phperr.Locate(err, "InstallationManager.php", line) }
+
 // installerClass is the class declaring the installer's methods, as an
 // exception's trace names it.
 func installerClass(installer Installer) string {
@@ -675,7 +688,9 @@ func (m *Manager) Download(p pkg.PackageInterface) (*Promise, error) {
 		return nil, err
 	}
 
-	return installer.Cleanup("install", p, nil)
+	promise, err := installer.Cleanup("install", p, nil)
+
+	return promise, callAt(err, 452)
 }
 
 // Install is install(): it executes an install operation.
@@ -688,6 +703,7 @@ func (m *Manager) Install(repo repository.InstalledRepositoryInterface, op *oper
 	}
 
 	promise, err := installer.Install(repo, p)
+	err = callAt(err, 468)
 	if err != nil {
 		return nil, err
 	}
@@ -714,6 +730,7 @@ func (m *Manager) Update(repo repository.InstalledRepositoryInterface, op *opera
 		}
 
 		promise, err := installer.Update(repo, initial, target)
+		err = callAt(err, 491)
 		if err != nil {
 			return nil, err
 		}
@@ -729,6 +746,7 @@ func (m *Manager) Update(repo repository.InstalledRepositoryInterface, op *opera
 	}
 
 	promise, err := initialInstaller.Uninstall(repo, initial)
+	err = callAt(err, 494)
 	if err != nil {
 		return nil, err
 	}
@@ -740,6 +758,7 @@ func (m *Manager) Update(repo repository.InstalledRepositoryInterface, op *opera
 
 	return Then(promise, func() (*Promise, error) {
 		promise, err := installer.Install(repo, target)
+		err = callAt(err, 501)
 		if err != nil || promise != nil {
 			return promise, err
 		}
@@ -757,7 +776,9 @@ func (m *Manager) Uninstall(repo repository.InstalledRepositoryInterface, op *op
 		return nil, err
 	}
 
-	return installer.Uninstall(repo, p)
+	promise, err := installer.Uninstall(repo, p)
+
+	return promise, callAt(err, 525)
 }
 
 // MarkAliasInstalled is markAliasInstalled().
@@ -785,7 +806,9 @@ func (m *Manager) InstallPath(p pkg.PackageInterface) (string, bool, error) {
 		return "", false, err
 	}
 
-	return installer.InstallPath(p)
+	path, ok, err := installer.InstallPath(p)
+
+	return path, ok, callAt(err, 565)
 }
 
 // SetOutputProgress is setOutputProgress().

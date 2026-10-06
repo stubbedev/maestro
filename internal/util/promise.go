@@ -437,13 +437,15 @@ func AwaitAll(promises []Waitable) error {
 // RejectedPromise runs then()'s callback at once), so its trace holds the
 // call's frame. A promise rejected later is rejected from the event loop,
 // whose stack maestro does not reproduce: its exception gets no frame here.
+// The callee may be PHP code (an installer or downloader written in PHP),
+// whose exception then gets the call's location instead (phperr.CallTo).
 func CallSync[T any](p *Promise[T], err error, function, file string, line int) (*Promise[T], error) {
 	if err != nil {
-		return p, phperr.Call(err, function, file, line)
+		return p, phperr.CallTo(err, function, file, line)
 	}
 	if p != nil {
 		if settled, rejection := p.Result(); settled && rejection != nil {
-			phperr.Call(rejection, function, file, line)
+			phperr.CallTo(rejection, function, file, line)
 		}
 	}
 

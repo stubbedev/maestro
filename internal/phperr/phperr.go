@@ -151,9 +151,39 @@ func Call(err error, function, file string, line int) error {
 // callee they know but whose call they do not: an exception PHP code of
 // the plugin runtime threw, whose trace reaches the call maestro made
 // into that code (docs/PLUGINS.md §5.12). LocateCall sets the file and
-// line of that call.
+// line of that call, and reports whether the call awaited them.
 type Locator interface {
-	LocateCall(file string, line int)
+	LocateCall(file string, line int) bool
+}
+
+// CallTo is Call of a callee that may be PHP code which maestro names by
+// another class than PHP's trace does (a method of a repository or
+// downloader written in PHP, which the object's class may inherit): an
+// error whose trace awaits the location of maestro's call into that code
+// (a Locator) gets it, as from Locate, instead of the frame; any other
+// gets the frame. It returns err (nil for nil).
+func CallTo(err error, function, file string, line int) error {
+	if err == nil {
+		return nil
+	}
+	fr := Frame{Function: function, File: file, Line: line}
+	seen := map[error]bool{}
+	for e := err; e != nil; e = PreviousOf(e) {
+		t := tracedOf(e)
+		if t == nil {
+			continue
+		}
+		if seen[t] {
+			break
+		}
+		seen[t] = true
+		if l, ok := t.(Locator); ok && l.LocateCall(file, line) {
+			continue
+		}
+		t.AddFrame(fr)
+	}
+
+	return err
 }
 
 // Locate records that err left the PHP code it was thrown in through

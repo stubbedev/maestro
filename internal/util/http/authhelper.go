@@ -111,7 +111,8 @@ func (h *AuthHelper) StoreAuth(origin string, storeAuth StoreAuth) error {
 			"y",
 		)
 		if err != nil {
-			return err
+			// an IO written in PHP left its code through the call
+			return phperr.Locate(err, "AuthHelper.php", 50)
 		}
 
 		if answer == "y" {
@@ -155,7 +156,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 				return AuthResult{}, transportError(phperr.At("AuthHelper.php", 107), "Could not authenticate against "+origin, 403)
 			}
 
-			if _, err := h.io.Ask("After authorizing your token, confirm that you would like to retry the request", nil); err != nil {
+			if _, err := h.io.Ask("After authorizing your token, confirm that you would like to retry the request", nil); phperr.Locate(err, "AuthHelper.php", 109) != nil {
 				return AuthResult{}, err
 			}
 
@@ -339,11 +340,13 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 		h.io.WriteError("    Authentication required (<info>"+origin+"</info>):", true, io.Normal)
 
 		username, err := h.io.Ask("      Username: ", nil)
+		err = phperr.Locate(err, "AuthHelper.php", 240) // an IO written in PHP
 		if err != nil {
 			return AuthResult{}, err
 		}
 
 		password, err := h.io.AskAndHideAnswer("      Password: ")
+		err = phperr.Locate(err, "AuthHelper.php", 241)
 		if err != nil {
 			return AuthResult{}, err
 		}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 )
@@ -82,7 +83,7 @@ func (r *CompositeRepository) HasPackage(p pkg.PackageInterface) (bool, error) {
 	for _, repo := range r.repositories {
 		has, err := repo.HasPackage(p)
 		if err != nil || has {
-			return has, err
+			return has, calledAt(err, 68)
 		}
 	}
 
@@ -94,7 +95,7 @@ func (r *CompositeRepository) FindPackage(name string, constraint semver.Constra
 	for _, repo := range r.repositories {
 		p, err := repo.FindPackage(name, constraint)
 		if err != nil || p != nil {
-			return p, err
+			return p, calledAt(err, 83)
 		}
 	}
 
@@ -107,7 +108,7 @@ func (r *CompositeRepository) FindPackages(name string, constraint semver.Constr
 	for _, repo := range r.repositories {
 		found, err := repo.FindPackages(name, constraint)
 		if err != nil {
-			return nil, err
+			return nil, calledAt(err, 100)
 		}
 		packages = append(packages, found...)
 	}
@@ -122,7 +123,7 @@ func (r *CompositeRepository) LoadPackages(packageNameMap *ConstraintMap, accept
 	for _, repo := range r.repositories {
 		loaded, err := repo.LoadPackages(packageNameMap, acceptableStabilities, stabilityFlags, alreadyLoaded)
 		if err != nil {
-			return LoadResult{}, err
+			return LoadResult{}, calledAt(err, 115)
 		}
 		result.Packages = append(result.Packages, loaded.Packages...)
 		for _, name := range loaded.NamesFound {
@@ -148,7 +149,7 @@ func (r *CompositeRepository) SearchWithIO(query string, mode int, typ string, o
 	for _, repo := range r.repositories {
 		results, err := repo.Search(query, mode, typ)
 		if err != nil {
-			return nil, err
+			return nil, calledAt(err, 134)
 		}
 		if out != nil {
 			out.WriteError("Searched "+repo.RepoName()+", found <info>"+itoa(len(results))+"</info> result(s)", true, io.VeryVerbose)
@@ -165,7 +166,7 @@ func (r *CompositeRepository) Packages() ([]pkg.PackageInterface, error) {
 	for _, repo := range r.repositories {
 		found, err := repo.Packages()
 		if err != nil {
-			return nil, err
+			return nil, calledAt(err, 152)
 		}
 		packages = append(packages, found...)
 	}
@@ -179,7 +180,7 @@ func (r *CompositeRepository) Providers(packageName string) ([]ProviderInfo, err
 	for _, repo := range r.repositories {
 		providers, err := repo.Providers(packageName)
 		if err != nil {
-			return nil, err
+			return nil, calledAt(err, 166)
 		}
 		results = mergeProviders(results, providers)
 	}
@@ -229,12 +230,21 @@ func (r *CompositeRepository) Count() (int, error) {
 	for _, repo := range r.repositories {
 		n, err := repo.Count()
 		if err != nil {
-			return 0, err
+			return 0, calledAt(err, 189)
 		}
 		total += n
 	}
 
 	return total, nil
+}
+
+// calledAt locates an error a repository's method threw at its call in
+// CompositeRepository.php (phperr.Locate): one written in PHP left its
+// code through that call, which its trace names as Composer's
+// (docs/PLUGINS.md §5.12). maestro's own repositories' errors are left
+// alone.
+func calledAt(err error, line int) error {
+	return phperr.Locate(err, "CompositeRepository.php", line)
 }
 
 // AddRepository ports CompositeRepository::addRepository: the
