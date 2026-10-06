@@ -5,7 +5,6 @@ package vcs
 import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -90,10 +89,10 @@ func (h *Hg) throwException(message, url string) error {
 	if _, ok, err := GetHgVersion(h.process); err != nil {
 		return err
 	} else if !ok {
-		return &util.RuntimeError{Message: util.SanitizeURL("Failed to clone " + url + ", hg was not found, check that it is installed and in your PATH env." + "\n\n" + h.process.GetErrorOutput()), Site: phperr.At("Hg.php", 99)}
+		return &util.RuntimeError{Message: util.SanitizeURL("Failed to clone " + url + ", hg was not found, check that it is installed and in your PATH env." + "\n\n" + h.process.GetErrorOutput())}
 	}
 
-	return &util.RuntimeError{Message: util.SanitizeURL(message), Site: phperr.At("Hg.php", 104)}
+	return &util.RuntimeError{Message: util.SanitizeURL(message)}
 }
 
 // GetHgVersion ports Hg::getVersion: the hg version, false when hg is not

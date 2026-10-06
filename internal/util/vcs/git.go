@@ -8,7 +8,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -44,7 +43,7 @@ func CheckForRepoOwnershipError(output, path string, ioi io.IO) error {
 	if strings.Contains(output, "fatal: detected dubious ownership") {
 		msg := `The repository at "` + path + `" does not have the correct ownership and git refuses to use it:` + php.EOL + php.EOL + output
 		if ioi == nil {
-			return &util.RuntimeError{Message: msg, Site: phperr.At("Git.php", 54)}
+			return &util.RuntimeError{Message: msg}
 		}
 
 		ioi.WriteError("<warning>"+msg+"</warning>", true, io.Normal)
@@ -169,7 +168,7 @@ func (g *Git) runCommand(commandCallables []CommandFunc, url, cwd string, initia
 	if ok, err := php.PregIsMatch(`{^ssh://[^@]+@[^:]+:[^0-9]+}`, url); err != nil {
 		return err
 	} else if ok {
-		return &util.InvalidArgumentError{Message: "The source URL " + util.SanitizeURL(url) + ` is invalid, ssh URLs should have a port number after ":".` + "\n" + "Use ssh://git@example.com:22/path or just git@example.com:path if you do not want to provide a password or custom port.", Site: phperr.At("Git.php", 144)}
+		return &util.InvalidArgumentError{Message: "The source URL " + util.SanitizeURL(url) + ` is invalid, ssh URLs should have a port number after ":".` + "\n" + "Use ssh://git@example.com:22/path or just git@example.com:path if you do not want to provide a password or custom port."}
 	}
 
 	if !initialClone {
@@ -920,10 +919,10 @@ func (g *Git) throwException(message, url string) error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Message: util.SanitizeURL("Failed to clone " + url + ", git was not found, check that it is installed and in your PATH env." + "\n\n" + g.process.GetErrorOutput()), Site: phperr.At("Git.php", 659)}
+		return &util.RuntimeError{Message: util.SanitizeURL("Failed to clone " + url + ", git was not found, check that it is installed and in your PATH env." + "\n\n" + g.process.GetErrorOutput())}
 	}
 
-	return &util.RuntimeError{Message: util.SanitizeURL(message), Site: phperr.At("Git.php", 662)}
+	return &util.RuntimeError{Message: util.SanitizeURL(message)}
 }
 
 // GetVersion ports Git::getVersion: the git version, false when git is

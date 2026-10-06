@@ -12,7 +12,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -64,7 +63,7 @@ func NewPerforce(repoConfig *php.Array, port, path string, process Process, isWi
 
 func newPerforce(repoConfig *php.Array, port, path string, process Process, isWindows bool, ioi io.IO, executable string) (*Perforce, error) {
 	if !IsValidPort(port) {
-		return nil, &util.SecurityError{Message: "Invalid Perforce port (" + port + "), it must be of the form [tcp|ssl:][host:]port", Site: phperr.At("Perforce.php", 69)}
+		return nil, &util.SecurityError{Message: "Invalid Perforce port (" + port + "), it must be of the form [tcp|ssl:][host:]port"}
 	}
 
 	p := &Perforce{windowsFlag: isWindows, p4Port: port, process: process, p4Executable: executable}
@@ -442,10 +441,10 @@ func (p *Perforce) IsLoggedIn() (bool, error) {
 				return false, nil
 			}
 
-			return false, &phpException{Message: "p4 command not found in path: " + errorOutput, Site: phperr.At("Perforce.php", 368)}
+			return false, &phpException{Message: "p4 command not found in path: " + errorOutput}
 		}
 
-		return false, &phpException{Message: "Invalid user name: " + strOf(p.GetUser()), Site: phperr.At("Perforce.php", 370)}
+		return false, &phpException{Message: "Invalid user name: " + strOf(p.GetUser())}
 	}
 
 	return true, nil
@@ -458,7 +457,7 @@ func (p *Perforce) ConnectClient() error {
 
 	spec, err := os.ReadFile(p.GetP4ClientSpec())
 	if err != nil {
-		return &util.ErrorException{Message: "file_get_contents(" + p.GetP4ClientSpec() + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("Perforce.php", 380)}
+		return &util.ErrorException{Message: "file_get_contents(" + p.GetP4ClientSpec() + "): Failed to open stream: " + util.Strerror(err)}
 	}
 
 	process := util.NewProcess(p4CreateClientCommand, "", nil, symfonyProcessTimeout)
@@ -518,7 +517,7 @@ func (p *Perforce) WriteP4ClientSpec() error {
 
 	spec, err := os.Create(clientSpec)
 	if err != nil {
-		return &util.ErrorException{Message: "fopen(" + clientSpec + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("Perforce.php", 425)}
+		return &util.ErrorException{Message: "fopen(" + clientSpec + "): Failed to open stream: " + util.Strerror(err)}
 	}
 
 	if err := p.WriteClientSpecToFile(spec); err != nil {
@@ -577,7 +576,7 @@ func (p *Perforce) P4Login() error {
 	}
 
 	if !process.IsSuccessful() {
-		return &phpException{Message: "Error logging in:" + p.process.GetErrorOutput(), Site: phperr.At("Perforce.php", 473)}
+		return &phpException{Message: "Error logging in:" + p.process.GetErrorOutput()}
 	}
 
 	return nil
@@ -797,7 +796,6 @@ func (p *Perforce) getP4Executable() string {
 // failures (not a \RuntimeException).
 type phpException struct {
 	Message string
-	phperr.Site
 }
 
 func (e *phpException) Error() string { return e.Message }
