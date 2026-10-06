@@ -398,3 +398,26 @@ func TestEventDispatcher_DispatcherDoesntReturnSkippedScripts(t *testing.T) {
 		t.Error("hasEventListeners() = true, want false")
 	}
 }
+
+// WillDispatchTo answers as HasEventListeners without the notice about
+// skipped scripts, which the dispatch itself prints.
+func TestEventDispatcher_WillDispatchToIsQuiet(t *testing.T) {
+	t.Setenv("COMPOSER_SKIP_SCRIPTS", "scriptName")
+	composer := createComposerInstance()
+	composer.root.SetScripts(php.ArrayOf("scriptName", php.ListOf("scriptName"), "other", php.ListOf("other")))
+
+	ioi := newRecordingIO()
+	d := newDispatcher(t, composer, ioi, processmock.New())
+
+	if d.WillDispatchTo(NewScriptEvent("scriptName", composer, ioi, false, nil, nil)) {
+		t.Error("WillDispatchTo(skipped) = true, want false")
+	}
+
+	if !d.WillDispatchTo(NewScriptEvent("other", composer, ioi, false, nil, nil)) {
+		t.Error("WillDispatchTo(other) = false, want true")
+	}
+
+	if len(ioi.errors) != 0 {
+		t.Errorf("output %q, want none", ioi.errors)
+	}
+}

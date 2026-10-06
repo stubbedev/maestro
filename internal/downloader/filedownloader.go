@@ -431,10 +431,27 @@ func (d *FileDownloader) dispatchPost(st *dlState, url dlURL, checksum pkg.NullS
 		return nil
 	}
 
-	ev := eventdispatcher.NewPostFileDownloadEvent(eventdispatcher.PostFileDownload, pkg.Str(st.fileName), checksum, url.processed, "package", st.p)
+	ev := postFileDownloadEvent(st, url, checksum)
 	_, err := d.events.Dispatch(ev.Name(), ev)
 
 	return err
+}
+
+// postListened reports whether dispatchPost would reach a listener, which
+// may read the file it names. A dispatcher that cannot tell counts as
+// having one.
+func (d *FileDownloader) postListened(st *dlState, url dlURL, checksum pkg.NullString) bool {
+	if d.events == nil {
+		return false
+	}
+
+	l, ok := d.events.(listenerChecker)
+
+	return !ok || l.WillDispatchTo(postFileDownloadEvent(st, url, checksum))
+}
+
+func postFileDownloadEvent(st *dlState, url dlURL, checksum pkg.NullString) *eventdispatcher.PostFileDownloadEvent {
+	return eventdispatcher.NewPostFileDownloadEvent(eventdispatcher.PostFileDownload, pkg.Str(st.fileName), checksum, url.processed, "package", st.p)
 }
 
 // accept is download()'s $accept closure.

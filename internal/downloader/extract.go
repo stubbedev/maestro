@@ -9,6 +9,7 @@ package downloader
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -140,10 +141,28 @@ func pharDataCheck(file string) error {
 // (ext/phar's phar_open_from_fp recognises gzip and bzip2 by their magic
 // bytes and needs zlib or bz2 for them).
 func pharCompressionCheck(file string, extensionLoaded func(name string) bool) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil
+	}
+
+	defer func() { _ = f.Close() }()
+
+	return pharCompressionCheckAt(file, f, extensionLoaded)
+}
+
+// pharCompressionCheckAt is pharCompressionCheck reading the archive from
+// src (which file names in the message): a store-backed cache hit checks
+// the open cached archive, which Composer would have copied to file.
+func pharCompressionCheckAt(file string, src io.ReaderAt, extensionLoaded func(name string) bool) error {
+	head := make([]byte, 3)
+	n, _ := src.ReadAt(head, 0)
+	head = head[:n]
+
 	switch {
-	case hasPrefix(file, []byte{0x1f, 0x8b}) && !extensionLoaded("zlib"):
+	case bytes.HasPrefix(head, []byte{0x1f, 0x8b}) && !extensionLoaded("zlib"):
 		return &util.UnexpectedValueError{Message: `unable to decompress gzipped phar archive "` + file + `" to temporary file, enable zlib extension in php.ini`, Site: phperr.At("TarDownloader.php", 37)}
-	case hasPrefix(file, []byte("BZh")) && !extensionLoaded("bz2"):
+	case bytes.HasPrefix(head, []byte("BZh")) && !extensionLoaded("bz2"):
 		return &util.UnexpectedValueError{Message: `unable to decompress bzipped phar archive "` + file + `" to temporary file, enable bz2 extension in php.ini`, Site: phperr.At("TarDownloader.php", 37)}
 	}
 

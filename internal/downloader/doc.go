@@ -22,10 +22,11 @@
 //     store have lost objects of the release, it is healed from that open
 //     archive (copied to the temporary file, as copyTo would have, and
 //     extracted): the network is never used for a cached archive.
-//     POST_FILE_DOWNLOAD names the temporary file, which then does not
-//     exist unless the store was healed. When the
-//     store lacks the release, the archive is copied and extracted as
-//     after a download.
+//     POST_FILE_DOWNLOAD names the temporary file, which is only written
+//     when something listens to that event or the store was healed. The
+//     tar checks of PharData (file name, zlib/bz2 for compressed tars)
+//     still apply. When the store lacks the release, the archive is
+//     copied and extracted as after a download.
 //   - A miss downloads the archive as Composer does, verifies it against
 //     the dist shasum, copies it into the files cache, and inserts it into
 //     the store (unless the store holds the release already: an archive

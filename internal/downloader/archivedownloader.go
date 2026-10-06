@@ -423,17 +423,40 @@ func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullStri
 	rel, cached := st.release, st.archive
 	st.release, st.archive = nil, nil
 	s := d.newStaged(p)
+	// Composer copies the cached archive to the temporary file that
+	// POST_FILE_DOWNLOAD names; copy it too when a listener may read it.
+	copied := d.postListened(st, url, checksum)
 
 	materialized := util.GoBackground(d.process.Scheduler(), func() (string, error) {
 		defer func() { _ = cached.Close() }()
+
+		// Composer extracts the archive on every install, so PharData's
+		// checks apply although the files come from the store.
+		if d.format == archive.Tar {
+			if err := pharDataCheck(st.fileName); err != nil {
+				return "", err
+			}
+
+			if err := pharCompressionCheckAt(st.fileName, cached, d.extensionLoaded); err != nil {
+				return "", err
+			}
+		}
+
+		if copied {
+			if err := copyOpenFile(cached, st.fileName); err != nil {
+				return "", err
+			}
+		}
 
 		err := d.store.Materialize(rel, s.dir, importOptions(p))
 		if _, ok := errors.AsType[*store.MissingError](err); !ok {
 			return "", err
 		}
 
-		if err := copyOpenFile(cached, st.fileName); err != nil {
-			return "", err
+		if !copied {
+			if err := copyOpenFile(cached, st.fileName); err != nil {
+				return "", err
+			}
 		}
 
 		return "", d.extractToStore(p, st.fileName, s.dir)

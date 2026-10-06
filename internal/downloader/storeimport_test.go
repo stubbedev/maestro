@@ -1,13 +1,18 @@
 package downloader
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/archive/archivetest"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // installIn installs p in a fresh project sharing the store and files
@@ -157,5 +162,93 @@ func TestArchiveDownloader_EditedHardlinkHealedFromFilesCache(t *testing.T) {
 
 	if res, err := shared.Verify(); err != nil || res.Missing != 0 || res.Corrupt != 0 || res.Restamped != 0 {
 		t.Fatalf("store not healed: %+v, %v", res, err)
+	}
+}
+
+// installWarm installs p in a second project after a first one put it in
+// the shared store and files cache, configuring the second project's deps
+// with setup.
+func installWarm(t *testing.T, p pkg.PackageInterface, ctor func(Deps) (*ArchiveDownloader, error), setup func(*Deps)) (*project, string, error) {
+	t.Helper()
+
+	opts := projectOptions{store: newStore(t), cacheDir: t.TempDir()}
+
+	first := newProject(t, t.TempDir(), opts)
+	d, err := ctor(first.deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := first.install(d, p); err != nil {
+		t.Fatal(err)
+	}
+
+	pr := newProject(t, t.TempDir(), opts)
+	setup(&pr.deps)
+
+	if d, err = ctor(pr.deps); err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := pr.install(d, p)
+
+	return pr, path, err
+}
+
+// Served from the store, the package still comes with the temporary file
+// POST_FILE_DOWNLOAD names, holding the archive as Composer's copy from the
+// files cache would, for listeners that read it.
+func TestArchiveDownloader_StorePostFileDownloadFileExists(t *testing.T) {
+	archive := githubZip()
+	srv := newDistServer(t, map[string][]byte{"/a.zip": archive})
+
+	var seen []string
+
+	pr, path, err := installWarm(t, distPackage(srv.URL+"/a.zip", "zip"), NewZipDownloader, func(deps *Deps) {
+		deps.EventDispatcher = &fakeDispatcher{listener: func(e eventdispatcher.Event) error {
+			if ev, ok := e.(*eventdispatcher.PostFileDownloadEvent); ok {
+				data, err := os.ReadFile(ev.FileName().S)
+				if err != nil {
+					return err
+				}
+
+				if !bytes.Equal(data, archive) {
+					t.Errorf("POST_FILE_DOWNLOAD file holds %d bytes, want the %d of the archive", len(data), len(archive))
+				}
+
+				seen = append(seen, ev.FileName().S)
+			}
+
+			return nil
+		}}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(seen) != 1 {
+		t.Fatalf("POST_FILE_DOWNLOAD fired %d times, want 1", len(seen))
+	}
+
+	checkTree(t, path)
+	checkNoLeftovers(t, pr.vendor)
+
+	if n := srv.requests("/a.zip"); n != 1 {
+		t.Fatalf("%d requests, want 1", n)
+	}
+}
+
+// A tar.gz the store holds from a run whose PHP had zlib still fails as
+// new \PharData() does when the PHP Composer runs on lacks it.
+func TestTarDownloader_StoreHitNeedsCompressionExtension(t *testing.T) {
+	srv := newDistServer(t, map[string][]byte{"/a.tar.gz": archivetest.Gzip(tarball())})
+
+	_, _, err := installWarm(t, distPackage(srv.URL+"/a.tar.gz", "tar"), NewTarDownloader, func(deps *Deps) {
+		deps.ExtensionLoaded = func(name string) bool { return name != "zlib" }
+	})
+	mustContain(t, err, "unable to decompress gzipped phar archive")
+
+	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+		t.Errorf("%T, want an UnexpectedValueException", err)
 	}
 }

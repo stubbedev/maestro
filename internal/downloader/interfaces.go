@@ -101,7 +101,15 @@ type EventDispatcher interface {
 	Dispatch(eventName string, event eventdispatcher.Event) (int, error)
 }
 
+// listenerChecker is what an EventDispatcher may implement to tell whether
+// an event would reach a listener, so that the downloaders can skip work
+// only a listener would see (EventDispatcher.WillDispatchTo).
+type listenerChecker interface {
+	WillDispatchTo(event eventdispatcher.Event) bool
+}
+
 var (
 	_ HTTPDownloader  = (*http.HttpDownloader)(nil)
 	_ EventDispatcher = (*eventdispatcher.EventDispatcher)(nil)
+	_ listenerChecker = (*eventdispatcher.EventDispatcher)(nil)
 )

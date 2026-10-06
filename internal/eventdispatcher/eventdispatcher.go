@@ -742,13 +742,19 @@ func (d *EventDispatcher) AddSubscriber(subscriber EventSubscriber) {
 // getListeners returns all listeners of an event, by descending priority,
 // the root package's scripts last among priority 0.
 func (d *EventDispatcher) getListeners(event Event) []Listener {
+	return d.listenersOf(event, true)
+}
+
+// listenersOf is getListeners; notice prints getScriptListeners' notice
+// about scripts COMPOSER_SKIP_SCRIPTS skips.
+func (d *EventDispatcher) listenersOf(event Event, notice bool) []Listener {
 	if d.listenersFor != nil {
 		return d.listenersFor(event)
 	}
 
 	var scriptListeners []Listener
 	if d.runScripts {
-		scriptListeners = d.getScriptListeners(event)
+		scriptListeners = d.getScriptListeners(event, notice)
 	}
 
 	byPriority := d.listeners[event.Name()]
@@ -776,8 +782,15 @@ func (d *EventDispatcher) HasEventListeners(event Event) bool {
 	return len(d.getListeners(event)) > 0
 }
 
+// WillDispatchTo reports whether dispatching event now would call a
+// listener: HasEventListeners without its output, for code preparing for
+// an event it dispatches later (which prints the output then).
+func (d *EventDispatcher) WillDispatchTo(event Event) bool {
+	return len(d.listenersOf(event, false)) > 0
+}
+
 // getScriptListeners returns the root package's scripts for an event.
-func (d *EventDispatcher) getScriptListeners(event Event) []Listener {
+func (d *EventDispatcher) getScriptListeners(event Event, notice bool) []Listener {
 	scripts := d.composer.Package().Scripts()
 	if scripts == nil {
 		return nil
@@ -789,6 +802,10 @@ func (d *EventDispatcher) getScriptListeners(event Event) []Listener {
 	}
 
 	if slices.Contains(d.skipScripts, event.Name()) {
+		if !notice {
+			return nil
+		}
+
 		d.io.WriteError("Skipped script listeners for <info>"+event.Name()+"</info> because of COMPOSER_SKIP_SCRIPTS", true, io.Verbose)
 
 		return nil
