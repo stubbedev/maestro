@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -24,23 +23,23 @@ type URLSource struct {
 func Validate(listName string, source *php.Array) (*URLSource, error) {
 	typ, ok := source.Get("type")
 	if !ok || typ == nil {
-		return nil, &util.RuntimeError{Message: `Source configuration is missing the "type" field.`, Site: phperr.At("SourceValidator.php", 28)}
+		return nil, &util.RuntimeError{Message: `Source configuration is missing the "type" field.`}
 	}
 
 	if typ == "url" {
 		return validateURLSource(listName, source)
 	}
 
-	return nil, &util.RuntimeError{Message: `Unsupported source type "` + php.ToString(typ) + `". Only "url" is currently supported.`, Site: phperr.At("SourceValidator.php", 35)}
+	return nil, &util.RuntimeError{Message: `Unsupported source type "` + php.ToString(typ) + `". Only "url" is currently supported.`}
 }
 
 func validateURLSource(listName string, source *php.Array) (*URLSource, error) {
 	url, ok := source.GetString("url")
 	if !ok {
-		return nil, &util.RuntimeError{Message: `Source configuration is missing a string "url" field.`, Site: phperr.At("SourceValidator.php", 44)}
+		return nil, &util.RuntimeError{Message: `Source configuration is missing a string "url" field.`}
 	}
 	if !strings.HasPrefix(url, "https://") {
-		return nil, &util.RuntimeError{Message: `Source URL for policy list "` + listName + `" must start with "https://"; got "` + url + `".`, Site: phperr.At("SourceValidator.php", 47)}
+		return nil, &util.RuntimeError{Message: `Source URL for policy list "` + listName + `" must start with "https://"; got "` + url + `".`}
 	}
 
 	return &URLSource{ListName: listName, URL: url}, nil
