@@ -604,7 +604,8 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 // "Exception trace:" stacks and the command synopsis after them are not
 // compared. The hints Composer writes just before the rendering
 // (composerHints) are part of maestro's error, as many "Hint: " lines in
-// maestro's wording. Deprecation notices are free as well: each one Composer
+// maestro's wording, which keep the links Composer's hints give.
+// Deprecation notices are free as well: each one Composer
 // printed (and its note that more were hidden) must be reported by a line
 // of maestro's (testutil.ComposerNotices, RemoveNotices), in the same
 // order; their locations and stack traces are not compared. Any other
@@ -627,9 +628,14 @@ func compareStderr(t *testing.T, label, want, got string) {
 		return
 	}
 
-	head, hints := composerHints(want[:start])
+	head, hints, links := composerHints(want[:start])
 	if hints > 0 && strings.Count(got, "Hint: ") < hints {
 		t.Errorf("%s: stderr does not report Composer's %d hint(s) about the error:\n%s", label, hints, got)
+	}
+	for _, link := range links {
+		if !strings.Contains(got, link) {
+			t.Errorf("%s: stderr does not give the link %s of Composer's hint about the error:\n%s", label, link, got)
+		}
 	}
 	if !strings.HasPrefix(got, head) {
 		gotHead := got
@@ -656,10 +662,14 @@ func compareStderr(t *testing.T, label, want, got string) {
 // in its own wording (#13).
 var composerHint = regexp.MustCompile(`^(?:The following exception |The disk hosting |Check https://getcomposer\.org/|Plugins have been disabled|If you intend to run Composer without connecting to the internet)`)
 
+// hintLink is a link in a hint of Composer's.
+var hintLink = regexp.MustCompile(`https://\S+`)
+
 // composerHints removes the hint lines that end what Composer wrote
-// before an error's rendering, returning the rest and how many hints there
-// were (a "Check ... for details" line counts with the hint it follows).
-func composerHints(head string) (rest string, hints int) {
+// before an error's rendering, returning the rest, how many hints there
+// were (a "Check ... for details" line counts with the hint it follows)
+// and the links they give.
+func composerHints(head string) (rest string, hints int, links []string) {
 	lines := strings.SplitAfter(head, "\n")
 	end := len(lines)
 	if end > 0 && lines[end-1] == "" {
@@ -670,10 +680,11 @@ func composerHints(head string) (rest string, hints int) {
 		if !strings.HasPrefix(lines[n-1], "Check ") {
 			hints++
 		}
+		links = append(links, hintLink.FindAllString(lines[n-1], -1)...)
 		n--
 	}
 
-	return strings.Join(lines[:n], ""), hints
+	return strings.Join(lines[:n], ""), hints, links
 }
 
 // lineEnd is the byte offset just after the n-th "\n" of s.
@@ -870,5 +881,16 @@ func emptyBinDirs(composer, maestro map[string]entry) {
 		if empty {
 			delete(composer, dir)
 		}
+	}
+}
+
+func TestComposerHints(t *testing.T) {
+	head := "Loading composer repositories\r\n" +
+		"The following exception is caused by a process timeout\r\n" +
+		"Check https://getcomposer.org/doc/06-config.md#process-timeout for details\r\n"
+
+	rest, hints, links := composerHints(head)
+	if rest != "Loading composer repositories\r\n" || hints != 1 || !slices.Equal(links, []string{"https://getcomposer.org/doc/06-config.md#process-timeout"}) {
+		t.Errorf("composerHints: %q, %d, %q", rest, hints, links)
 	}
 }
