@@ -5,7 +5,10 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -40,8 +43,36 @@ func (e *PHPNotFoundError) Is(target error) bool { return target == ErrPHPNotFou
 // the PATH (PATHEXT applies on Windows). Composer has no setting choosing
 // another php for itself, so neither does maestro; put the wanted php
 // first in PATH.
+//
+// On Windows the file name keeps its case on disk, as a shell finding php
+// gives it (and php then reports as PHP_BINARY): ExecutableFinder appends
+// PATHEXT's extension in its own case, "php.EXE".
 func FindPHP() (string, bool) {
-	return util.NewExecutableFinder().Find("php")
+	path, ok := util.NewExecutableFinder().Find("php")
+	if ok && runtime.GOOS == "windows" {
+		path = nameOnDisk(path)
+	}
+
+	return path, ok
+}
+
+// nameOnDisk is path with its last element spelled as the directory lists
+// it (on a case-insensitive file system).
+func nameOnDisk(path string) string {
+	dir, base := filepath.Split(path)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return path
+	}
+
+	for _, e := range entries {
+		if strings.EqualFold(e.Name(), base) {
+			return dir + e.Name()
+		}
+	}
+
+	return path
 }
 
 // Probe runs probe.php with binary and parses what it reports.
