@@ -3,8 +3,6 @@
 
 package eventdispatcher
 
-import "github.com/stubbedev/maestro/internal/phperr"
-
 // The PHP file the dispatcher's exceptions are thrown from, for the "In
 // EventDispatcher.php line N:" rendering.
 const dispatcherFile = "EventDispatcher.php"
@@ -19,7 +17,6 @@ type ScriptExecutionError struct {
 	// as by a plugin).
 	File string
 	Line int
-	phperr.Frames
 }
 
 func (e *ScriptExecutionError) Error() string { return e.Message }
@@ -41,7 +38,6 @@ type Error struct {
 	Class   string
 	Message string
 	Line    int
-	phperr.Frames
 }
 
 func (e *Error) Error() string { return e.Message }
