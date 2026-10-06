@@ -144,9 +144,6 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 	dialer := newDialer(connectTimeout)
 
 	t := &http.Transport{
-		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
-			return dialer.DialContext(ctx, network, addr)
-		},
 		TLSClientConfig:     tlsConfig,
 		TLSHandshakeTimeout: connectTimeout,
 		ForceAttemptHTTP2:   !key.http1,
@@ -161,32 +158,73 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 		t.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 	}
 
-	if key.proxy == "" {
-		// direct https: net/http's own TLS dial (dialTLS), unless a
-		// connection was opened ahead (Preconnect)
-		t.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
-			if c := p.takePreconnected(ctx, key, addr); c != nil {
-				return c, nil
+	var proxyURL *url.URL
+
+	if key.proxy != "" {
+		if u, err := url.Parse(key.proxy); err == nil {
+			if key.proxyAuth != "" {
+				user, pass, _ := strings.Cut(key.proxyAuth, ":")
+				u.User = url.UserPassword(user, pass)
 			}
 
-			return dialTLS(ctx, dialer, network, addr, t.TLSClientConfig, t.TLSHandshakeTimeout)
+			proxyURL = u
 		}
 	}
 
-	if key.proxy != "" {
-		proxyURL, err := url.Parse(key.proxy)
-		if err == nil {
-			if key.proxyAuth != "" {
-				user, pass, _ := strings.Cut(key.proxyAuth, ":")
-				proxyURL.User = url.UserPassword(user, pass)
+	if proxyURL != nil {
+		// http requests go to the proxy; https ones through a CONNECT
+		// tunnel DialTLSContext opens (tunnel.go)
+		t.Proxy = func(req *http.Request) (*url.URL, error) {
+			if req.URL.Scheme == "https" {
+				return nil, nil
 			}
 
-			t.Proxy = http.ProxyURL(proxyURL)
+			return proxyURL, nil
+		}
+	}
+
+	t.DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+		c, err := dialer.DialContext(ctx, network, addr)
+		if err != nil {
+			return nil, err
 		}
 
-		if key.proxyHeader != "" {
-			t.ProxyConnectHeader = http.Header{"Proxy-Authorization": {key.proxyHeader}}
+		return &headConn{Conn: c}, nil
+	}
+
+	t.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+		var (
+			conn    *tls.Conn
+			connect []byte
+			err     error
+		)
+
+		switch {
+		case proxyURL == nil:
+			// net/http's own TLS dial (dialTLS), unless a connection was
+			// opened ahead (Preconnect)
+			if c := p.takePreconnected(ctx, key, addr); c != nil {
+				conn, _ = c.(*tls.Conn)
+			}
+
+			if conn == nil {
+				conn, err = dialTLS(ctx, dialer, network, addr, t.TLSClientConfig, t.TLSHandshakeTimeout)
+			}
+		case proxyURL.Scheme == "https" && addr == canonicalProxyAddr(proxyURL):
+			// the TLS connection to an https proxy, for http requests;
+			// curl speaks HTTP/1.1 to proxies (CURLPROXY_HTTPS)
+			cfg := t.TLSClientConfig.Clone()
+			cfg.NextProtos = nil
+			conn, err = dialTLS(ctx, dialer, network, addr, cfg, t.TLSHandshakeTimeout)
+		default:
+			conn, connect, err = dialTunnel(ctx, dialer, network, proxyURL, key.proxyHeader, addr, t.TLSClientConfig, t.TLSHandshakeTimeout)
 		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		return recordingTLSConn(conn, connect), nil
 	}
 
 	c := &http.Client{
@@ -433,6 +471,10 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	var (
 		connected atomic.Bool
 		primaryIP atomic.Pointer[string]
+		// recorder records the response heads (HTTP/1); connectHead is the
+		// CONNECT head of an HTTP/2 connection's tunnel.
+		recorder    atomic.Pointer[headRecorder]
+		connectHead atomic.Pointer[[]byte]
 	)
 
 	host := req.URL.Hostname()
@@ -445,9 +487,30 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		}
 	}
 
+	// the peer curl names in connect errors: the target, or for a request
+	// sent to a proxy (http through a proxy) the proxy, followed by
+	// " over proxy <proxy host>"
+	peerHost, peerPort, via := host, port, ""
+
+	if r.key.proxy != "" {
+		if pu, err := url.Parse(r.key.proxy); err == nil {
+			via = " over proxy " + pu.Hostname()
+
+			if req.URL.Scheme != "https" {
+				peerHost, peerPort, _ = net.SplitHostPort(canonicalProxyAddr(pu))
+			}
+		}
+	}
+
 	trace := &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
 			connected.Store(true)
+
+			if hc := asHeadConn(info.Conn); hc != nil {
+				recorder.Store(hc.record())
+			} else if head := takeConnectHeads(info.Conn); head != nil {
+				connectHead.Store(&head)
+			}
 
 			if addr, ok := info.Conn.RemoteAddr().(*net.TCPAddr); ok {
 				ip := addr.IP.String()
@@ -476,7 +539,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 			return finish()
 		}
 
-		res.errno, res.errMsg = curlError(ctx, err, host, port, connected.Load(), time.Since(start), 0)
+		res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0)
 
 		return finish()
 	}
@@ -485,7 +548,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	res.status = resp.StatusCode
 	res.info.HTTPCode = resp.StatusCode
 	res.info.DownloadContentLength = resp.ContentLength
-	res.headers = responseHeaderLines(resp, r.curlStatusLines)
+	res.headers = headerLines(resp, r.curlStatusLines, recorder.Load(), connectHead.Load())
 
 	if r.maxFileSize > 0 && resp.ContentLength > r.maxFileSize {
 		res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 521), "Maximum allowed download size reached. Content-length header indicates "+strconv.FormatInt(resp.ContentLength, 10)+" bytes. Allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
@@ -541,7 +604,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 			if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 				res.err = cause
 			} else {
-				res.errno, res.errMsg = curlError(ctx, err, host, port, true, time.Since(start), counter.n)
+				res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, true, time.Since(start), counter.n)
 				if res.errno == curlePartialFile && resp.ContentLength > 0 {
 					res.errMsg = "transfer closed with " + strconv.FormatInt(resp.ContentLength-counter.n, 10) + " bytes remaining to read"
 				}
@@ -626,10 +689,41 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 	}
 }
 
-// responseHeaderLines renders the response head as the header lines curl
-// (or $http_response_header) holds: the status line, then the fields.
-// net/http does not keep the order fields arrived in, so they are sorted
-// by name; HTTP/2 names are lowercase as on the wire.
+// headerLines are the header lines of a response: for curl (curlStatus)
+// Composer's explode("\r\n", rtrim(...)) of what curl wrote to its header
+// handle, CONNECT and 1xx heads included; for the stream wrapper
+// $http_response_header. They come from the heads recorded on the
+// connection (headcapture.go), else from net/http's parse of the final one
+// (HTTP/2).
+func headerLines(resp *http.Response, curlStatus bool, rec *headRecorder, h2Connect *[]byte) []string {
+	var (
+		connect, heads []byte
+		ok             bool
+	)
+
+	if rec != nil {
+		connect, heads, ok = rec.heads()
+	} else if h2Connect != nil {
+		connect = *h2Connect
+	}
+
+	switch {
+	case !curlStatus && ok:
+		return streamHeaderLines(heads)
+	case !curlStatus:
+		return responseHeaderLines(resp, false)
+	case ok:
+		return curlHeaderLines(curlHeaderText(append(append([]byte(nil), connect...), heads...)))
+	}
+
+	return curlHeaderLines(curlHeaderText(connect) + strings.Join(responseHeaderLines(resp, true), "\r\n"))
+}
+
+// responseHeaderLines renders a response head net/http parsed as header
+// lines: the status line, then the fields. net/http does not keep the
+// order fields arrived in, so they are sorted by name; HTTP/2 names are
+// lowercase as on the wire, and curl writes the status line as
+// "HTTP/2 200 ".
 func responseHeaderLines(resp *http.Response, curlStatus bool) []string {
 	lines := make([]string, 0, len(resp.Header)+1)
 
@@ -709,9 +803,14 @@ func (w fileWriter) Write(b []byte) (int, error) {
 }
 
 // curlError maps a net/http failure to the curl error number and message
-// curl reports for the same failure.
-func curlError(ctx context.Context, err error, host, port string, connected bool, elapsed time.Duration, received int64) (int, string) {
+// curl reports for the same failure. host and port name the peer, via
+// the proxy (" over proxy <host>", or "").
+func curlError(ctx context.Context, err error, host, port, via string, connected bool, elapsed time.Duration, received int64) (int, string) {
 	ms := strconv.FormatInt(elapsed.Milliseconds(), 10)
+
+	if te, ok := errors.AsType[*tunnelError](err); ok {
+		return te.errno, te.msg
+	}
 
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(context.Cause(ctx), context.DeadlineExceeded) {
 		if !connected {
@@ -767,13 +866,12 @@ func curlError(ctx context.Context, err error, host, port string, connected bool
 		return curleSendError, "Send failure: Broken pipe"
 	}
 
-	var opErr *net.OpError
-	if errors.As(err, &opErr) && opErr.Op == "dial" {
+	if opErr := dialError(err); opErr != nil {
 		if opErr.Timeout() {
-			return curleOperationTimedout, "Failed to connect to " + hostPort(host, port) + " after " + ms + " ms: Timeout was reached"
+			return curleOperationTimedout, "Failed to connect to " + hostPort(host, port) + via + " after " + ms + " ms: Timeout was reached"
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + " after " + ms + " ms: Could not connect to server"
+		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + via + " after " + ms + " ms: Could not connect to server"
 	}
 
 	if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
@@ -796,10 +894,30 @@ func curlError(ctx context.Context, err error, host, port string, connected bool
 			return curleGotNothing, "Empty reply from server"
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + " after " + ms + " ms: Could not connect to server"
+		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + via + " after " + ms + " ms: Could not connect to server"
 	}
 
 	return curleRecvError, "Failure when receiving data from the peer: " + msg
+}
+
+// dialError is the failed dial in err, also when net/http reports it as
+// the failure to reach a proxy ("proxyconnect").
+func dialError(err error) *net.OpError {
+	for {
+		opErr, ok := errors.AsType[*net.OpError](err)
+		if !ok {
+			return nil
+		}
+
+		switch opErr.Op {
+		case "dial":
+			return opErr
+		case "proxyconnect":
+			err = opErr.Err
+		default:
+			return nil
+		}
+	}
 }
 
 // hostPort is how libcurl 8.22 (the one PHP links in the reference

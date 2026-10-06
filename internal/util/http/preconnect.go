@@ -221,12 +221,18 @@ func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handsha
 // direct https request (persistConn.addTLS): dial, then the handshake with
 // the transport's TLS config, the server name being the host of addr, under
 // the TLS handshake timeout.
-func dialTLS(ctx context.Context, dialer *net.Dialer, network, addr string, base *tls.Config, handshakeTimeout time.Duration) (net.Conn, error) {
+func dialTLS(ctx context.Context, dialer *net.Dialer, network, addr string, base *tls.Config, handshakeTimeout time.Duration) (*tls.Conn, error) {
 	plain, err := dialer.DialContext(ctx, network, addr)
 	if err != nil {
 		return nil, err
 	}
 
+	return tlsHandshake(ctx, plain, addr, base, handshakeTimeout)
+}
+
+// tlsHandshake runs the TLS handshake on a connection to addr as net/http
+// does (persistConn.addTLS); the connection is closed when it fails.
+func tlsHandshake(ctx context.Context, plain net.Conn, addr string, base *tls.Config, handshakeTimeout time.Duration) (*tls.Conn, error) {
 	cfg := base.Clone()
 	if cfg == nil {
 		cfg = &tls.Config{}
