@@ -195,7 +195,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | `internal/locker` | Composer\Package\Locker |
 | `internal/config` | Composer\Config, Composer\Config\* |
 | `internal/cache` | Composer\Cache, and where maestro keeps its own files |
-| `internal/platform` | Composer\Platform (php/extension detection runs `php` once, cached) |
+| `internal/platform` | Composer\Platform (php/extension detection runs `php` once, cached; on Linux its result is reused across runs while nothing it came from changed) |
 | `internal/filter` | Composer\Filter\PlatformRequirementFilter |
 | `internal/repository` | Composer\Repository: interfaces, generic repositories, RepositoryManager, RepositorySet |
 | `internal/repository/composerrepo` | Composer\Repository\ComposerRepository |

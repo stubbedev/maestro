@@ -226,5 +226,13 @@ if ($maestroXdebug['loaded']) {
 }
 $maestroProbe['xdebug'] = $maestroXdebug;
 
+// The files this process maps (its binary, libraries and extensions), which
+// maestro checks before reusing a cached copy of this result (Linux).
+$maestroProbe['mapped_files'] = null;
+$maestroMaps = @file_get_contents('/proc/self/maps');
+if (is_string($maestroMaps) && preg_match_all('{^\S+ \S+ \S+ \S+ \S+\s+(/.*)$}m', $maestroMaps, $maestroMatch)) {
+    $maestroProbe['mapped_files'] = array_values(array_unique($maestroMatch[1]));
+}
+
 ob_end_clean();
 echo "\n\0maestro-probe\0", json_encode(maestro_probe_enc($maestroProbe), defined('JSON_PRESERVE_ZERO_FRACTION') ? JSON_PRESERVE_ZERO_FRACTION : 0);
