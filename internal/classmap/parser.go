@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -102,7 +103,11 @@ func (b *parseBuffers) readFile(path string) (int, error) {
 
 // readFileKey is readFile, also returning the identity of the file read
 // (keyed false when it has none).
+// fileReads counts the files read for parsing, for tests.
+var fileReads atomic.Int64
+
 func (b *parseBuffers) readFileKey(path string) (n int, key fileKey, keyed bool, err error) {
+	fileReads.Add(1)
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fileKey{}, false, err

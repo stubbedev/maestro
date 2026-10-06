@@ -51,15 +51,45 @@ type ParseCache struct {
 // NewParseCache returns an empty cache.
 func NewParseCache() *ParseCache { return &ParseCache{} }
 
-// lookup returns the cached classes of the file at path for the parser.
-func (c *ParseCache) lookup(p Parser, path string) ([]string, bool) {
-	if c == nil || !c.warmed.Load() || c.entries.Load() == 0 {
+// lookupByIdentity finds the file's result by its identity (one stat):
+// in memory, or through the content hash an earlier run recorded for it,
+// when that file was not changed since.
+func (c *ParseCache) lookupByIdentity(p Parser, path string) ([]string, bool) {
+	inMemory, disk := c.inMemory(), c != nil && c.disk != nil
+	if !inMemory && !disk {
 		return nil, false
 	}
 	key, ok := statKey(path)
 	if !ok {
 		return nil, false
 	}
+	if inMemory {
+		if classes, ok := c.lookupKey(p, key); ok {
+			return classes, true
+		}
+	}
+	if !disk {
+		return nil, false
+	}
+	sum, ok := c.disk.statSum(key)
+	if !ok {
+		return nil, false
+	}
+	classes, ok := c.disk.get(contentKey{sum: sum, parser: p.key()})
+	if ok {
+		c.store(p, key, classes)
+	}
+
+	return classes, ok
+}
+
+// inMemory reports whether lookups by file identity can find anything.
+func (c *ParseCache) inMemory() bool {
+	return c != nil && c.warmed.Load() && c.entries.Load() > 0
+}
+
+// lookupKey is lookup for a file whose identity is known.
+func (c *ParseCache) lookupKey(p Parser, key fileKey) ([]string, bool) {
 	v, ok := c.m.Load(cacheKey{key, p.key()})
 	if !ok {
 		return nil, false
@@ -99,17 +129,20 @@ func (c *ParseCache) Warm(p Parser, extensions []string, requests []ScanRequest)
 
 // cachedFindClasses is findClasses() through the cache.
 func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCache) ([]string, error) {
-	if classes, ok := cache.lookup(p, path); ok {
+	if classes, ok := cache.lookupByIdentity(p, path); ok {
 		return classes, nil
 	}
+	disk := cache != nil && cache.disk != nil
 	n, key, keyed, err := b.readFileKey(path)
 	if err != nil {
 		return nil, readError(path, err)
 	}
 	var content contentKey
-	disk := cache != nil && cache.disk != nil
 	if disk {
 		content = contentKeyOf(p, b.src[:n])
+		if keyed {
+			cache.disk.putStat(key, content.sum)
+		}
 		if classes, ok := cache.disk.get(content); ok {
 			if keyed {
 				cache.store(p, key, classes)

@@ -67,3 +67,53 @@ func TestParseCache_FollowsContents(t *testing.T) {
 		later.Save()
 	}
 }
+
+// A later run finds an unchanged file's result through the identity the
+// cache file recorded for it, without reading the file; an identity not
+// safely older than the cache file (a change within the same timestamp
+// tick could hide behind it) is not trusted, and the file is read.
+func TestParseCache_IdentityIndex(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.php")
+	if err := os.WriteFile(file, []byte("<?php class Foo {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := statKey(file); !ok {
+		t.Skip("no file identities on this platform")
+	}
+	cacheFile := filepath.Join(t.TempDir(), "cache.bin")
+
+	first := NewParseCache()
+	first.UseFile(cacheFile)
+	if got := scanWithCache(t, first, dir); !slices.Equal(got, []string{"Foo"}) {
+		t.Fatalf("first scan: %q", got)
+	}
+	first.Save()
+
+	margin := statTrustMargin
+	t.Cleanup(func() { statTrustMargin = margin })
+	scan := func(trust time.Duration) int64 {
+		t.Helper()
+		statTrustMargin = trust
+		before := fileReads.Load()
+		if got := scanWithCache(t, readCache(cacheFile), dir); !slices.Equal(got, []string{"Foo"}) {
+			t.Fatalf("scan: %q", got)
+		}
+
+		return fileReads.Load() - before
+	}
+
+	if n := scan(-time.Hour); n != 0 {
+		t.Errorf("unchanged file read %d times, want 0", n)
+	}
+	if n := scan(time.Hour); n != 1 {
+		t.Errorf("racily recorded file read %d times, want 1", n)
+	}
+}
+
+func readCache(path string) *ParseCache {
+	c := NewParseCache()
+	c.UseFile(path)
+
+	return c
+}
