@@ -4,7 +4,6 @@ package vcs
 
 import (
 	mio "github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
@@ -30,7 +29,7 @@ func (d *HgDownloader) doDownload(pkg.PackageInterface, string, string, pkg.Pack
 	}
 
 	if !found {
-		return &util.RuntimeError{Site: phperr.At("HgDownloader.php", 30), Message: "hg was not found in your PATH, skipping source download"}
+		return &util.RuntimeError{Message: "hg was not found in your PATH, skipping source download"}
 	}
 
 	return nil
@@ -47,7 +46,7 @@ func (d *HgDownloader) doInstall(p pkg.PackageInterface, path, url string) error
 		return err
 	}
 
-	return d.mustExecute(phperr.At("HgDownloader.php", 51), []string{"hg", "up", "--", p.SourceReference().S}, nil, realpathCwd(path))
+	return d.mustExecute([]string{"hg", "up", "--", p.SourceReference().S}, nil, realpathCwd(path))
 }
 
 func (d *HgDownloader) doUpdate(_, target pkg.PackageInterface, path, url string) error {
@@ -57,7 +56,7 @@ func (d *HgDownloader) doUpdate(_, target pkg.PackageInterface, path, url string
 	d.io.WriteError(" Updating to "+ref, true, mio.Normal)
 
 	if !d.hasMetadataRepository(path) {
-		return &util.RuntimeError{Site: phperr.At("HgDownloader.php", 68), Message: "The .hg directory is missing from " + path + ", see https://getcomposer.org/commit-deps for more information"}
+		return &util.RuntimeError{Message: "The .hg directory is missing from " + path + ", see https://getcomposer.org/commit-deps for more information"}
 	}
 
 	pull := func(url string) util.Command { return util.Cmd("hg", "pull", "--", url) }
@@ -86,7 +85,7 @@ func (d *HgDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.Nu
 
 func (d *HgDownloader) commitLogs(fromReference, toReference, path string) (string, error) {
 	var output string
-	if err := d.mustExecute(phperr.At("HgDownloader.php", 108), []string{"hg", "log", "-r", fromReference + ":" + toReference, "--style", "compact"}, &output, realpathCwd(path)); err != nil {
+	if err := d.mustExecute([]string{"hg", "log", "-r", fromReference + ":" + toReference, "--style", "compact"}, &output, realpathCwd(path)); err != nil {
 		return "", err
 	}
 
