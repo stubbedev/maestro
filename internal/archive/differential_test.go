@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/archive"
@@ -87,6 +88,13 @@ func TestDifferentialZip(t *testing.T) {
 		lcAll  string
 		locale archive.Locale
 	}{{"C.UTF-8", archive.LocaleUTF8}, {"C", archive.LocaleC}}
+	if runtime.GOOS != "linux" {
+		// LocaleC reproduces unzip on glibc, whose C locale cannot convert
+		// non-ASCII characters (unzip escapes them as #Uxxxx); macOS's C
+		// locale maps them to single Latin-1 bytes instead.
+		t.Log("C locale cases skipped: they reproduce glibc's C locale")
+		locales = locales[:1]
+	}
 
 	var c archivetest.Tally
 
