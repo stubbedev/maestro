@@ -1,5 +1,7 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and perform LF normalization; check them out with
+# LF everywhere, as the fixtures, expected outputs and generated PHP are
+# compared byte for byte (a Windows checkout would otherwise get CRLF).
+* text=auto eol=lf
 
 # Go files
 *.go text eol=lf
