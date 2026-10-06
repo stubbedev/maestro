@@ -142,6 +142,8 @@ type transportPool struct {
 	pre map[preKey]*preconn
 	// ahead are the transfers started ahead (prefetch.go).
 	ahead prefetches
+	// first are the first connection attempts (firstconn.go).
+	first map[firstConnKey]*firstConn
 }
 
 func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (*http.Client, *transferResult) {
@@ -534,9 +536,17 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		}
 	}
 
+	// the first transfer to the address, which the others wait for
+	// (awaitFirstConn)
+	firstConnected, firstSent, firstDone := p.awaitFirstConn(ctx, r.key, req.URL)
+	defer firstDone()
+
 	trace := &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
 			connected.Store(true)
+
+			_, isH2 := info.Conn.(*h2HeadConn)
+			firstConnected(isH2)
 
 			if idle != nil {
 				idle.Reset(r.readTimeout)
@@ -561,7 +571,11 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				}
 			}
 		},
-		WroteHeaders: h2.wroteHeaders,
+		WroteHeaders: func() {
+			h2.wroteHeaders()
+			firstSent()
+		},
+		ConnectStart: func(string, string) { firstSent() },
 	}
 	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 
