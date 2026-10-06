@@ -355,3 +355,42 @@ func TestLibraryInstaller_WithoutDownloadManager(t *testing.T) {
 		t.Errorf("err = %v, want LogicException", err)
 	}
 }
+
+// The vendor directory is resolved again once it is no longer the
+// directory resolved before.
+func TestLibraryInstaller_InstallPathFollowsVendorDirChanges(t *testing.T) {
+	f, _ := newLibraryFixture(t)
+	library := f.installer(t, pkg.Str("library"), nil, nil)
+	p := newPackage("vendor/pkg", "1.0.0")
+
+	for range 2 {
+		if got, _, err := library.InstallPath(p); err != nil || got != f.vendorDir+"/vendor/pkg" {
+			t.Fatalf("InstallPath = %q, %v", got, err)
+		}
+	}
+
+	// removed: created again, at the same place
+	if err := os.RemoveAll(f.vendorDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, _, err := library.InstallPath(p); err != nil || got != f.vendorDir+"/vendor/pkg" || !fileExists(f.vendorDir) {
+		t.Fatalf("after removal: InstallPath = %q, %v", got, err)
+	}
+
+	// replaced by a link elsewhere: the link's target, as realpath() gives
+	elsewhere := f.rootDir + "/elsewhere"
+	mustMkdir(t, elsewhere)
+
+	if err := os.RemoveAll(f.vendorDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Symlink(elsewhere, f.vendorDir); err != nil {
+		t.Skip(err)
+	}
+
+	if got, _, err := library.InstallPath(p); err != nil || got != elsewhere+"/vendor/pkg" {
+		t.Errorf("through a link: InstallPath = %q, %v", got, err)
+	}
+}
