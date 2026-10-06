@@ -162,14 +162,34 @@ func (h *HttpDownloader) Add(url string, options *php.Array) (*util.Promise[*Res
 // that would not go through curl, or whose URL holds credentials, are not
 // prefetched.
 func (h *HttpDownloader) Prefetch(url string, options *php.Array) {
+	h.prefetch(url, options, false)
+}
+
+// PrefetchResponse is Prefetch for a speculative reader of the response:
+// it also returns a function waiting for the prefetched transfer, which
+// gives its status and body (ok false when the request was not prefetched
+// or the transfer failed). The response the later Add takes is the same.
+func (h *HttpDownloader) PrefetchResponse(url string, options *php.Array) func() (status int, body string, ok bool) {
+	t := h.prefetch(url, options, true)
+	if t == nil {
+		return func() (int, string, bool) { return 0, "", false }
+	}
+
+	return t.response
+}
+
+// prefetch is Prefetch, returning the prefetched transfer (nil for none).
+func (h *HttpDownloader) prefetch(url string, options *php.Array, urgent bool) *prefetchedTransfer {
 	h.mu.Lock()
-	defer h.unlock()
+	// nothing is settled here: the lock is released without running the
+	// settlements of others (the caller may be any goroutine)
+	defer h.mu.Unlock()
 
 	if h.disabled || !h.allowAsync || url == "" {
-		return
+		return nil
 	}
 	if m, _ := urlCredentialsRegex.MatchStrictGroups(url); m != nil {
-		return
+		return nil
 	}
 
 	merged := h.options
@@ -178,10 +198,10 @@ func (h *HttpDownloader) Prefetch(url string, options *php.Array) {
 	}
 	job := &httpJob{url: url, options: merged.Clone(), origin: util.GetOrigin(url, configList(h.config, "gitlab-domains"))}
 	if !h.canUseCurl(job) {
-		return
+		return nil
 	}
 
-	h.curl.prefetch(job.origin, url, job.options)
+	return h.curl.prefetch(job.origin, url, job.options, urgent)
 }
 
 // Copy is copy($url, $to, $options): a download into the file to,
