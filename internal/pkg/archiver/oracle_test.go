@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -104,6 +105,17 @@ func loadOracle(t *testing.T) *oracleGolden {
 	testutil.LoadJSONGolden(t, "testdata/oracle/archiver.json.gz", &g)
 
 	return &g
+}
+
+// skipOnWindows skips a test comparing archives byte for byte with the
+// Linux goldens: the archivers record fileperms(), which is 0666 or 0444
+// for every file on Windows, and the trees hold names Windows refuses.
+func skipOnWindows(t *testing.T) {
+	t.Helper()
+
+	if runtime.GOOS == "windows" {
+		t.Skip("the goldens hold Linux file modes and names Windows cannot store")
+	}
 }
 
 // skipLocked reports whether a tree holds a file nobody may read, which
@@ -510,6 +522,8 @@ func archiveIntoOut(t *testing.T, tree []oracleEntry, run func(work string) (str
 }
 
 func TestOracle_Archivers(t *testing.T) {
+	skipOnWindows(t)
+
 	g := loadOracle(t)
 
 	for i, c := range g.Cases {
@@ -556,6 +570,8 @@ func TestOracle_Archivers(t *testing.T) {
 }
 
 func TestOracle_PharTargets(t *testing.T) {
+	skipOnWindows(t)
+
 	g := loadOracle(t)
 
 	tree := []oracleEntry{{"a", "file", "eA==", 0o644, 1600000000}, {"d", "dir", "", 0o755, 1600000000}, {"d/b", "file", "eXk=", 0o600, 1600000000}, {"e", "dir", "", 0o755, 1600000000}}
@@ -585,6 +601,8 @@ func TestOracle_PharTargets(t *testing.T) {
 }
 
 func TestOracle_ArchiveManagerRootPackage(t *testing.T) {
+	skipOnWindows(t)
+
 	g := loadOracle(t)
 
 	cwd, err := os.Getwd()

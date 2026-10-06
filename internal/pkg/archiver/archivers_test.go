@@ -74,13 +74,20 @@ func TestZipArchiver_SimpleFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assertZipArchive(t, []string{"file.txt", "foo/bar/baz", "x/baz", "x/includeme", "zfoo" + cwd + "/file.txt"}, map[string]string{
-		"file.txt":                 "content",
-		"foo/bar/baz":              "content",
-		"x/baz":                    "content",
-		"x/includeme":              "content",
-		"zfoo" + cwd + "/file.txt": "content",
-	})
+	order := []string{"file.txt", "foo/bar/baz", "x/baz", "x/includeme"}
+	files := map[string]string{
+		"file.txt":    "content",
+		"foo/bar/baz": "content",
+		"x/baz":       "content",
+		"x/includeme": "content",
+	}
+	// A drive's colon cannot be in a file name on Windows.
+	if !util.IsWindows() {
+		order = append(order, "zfoo"+cwd+"/file.txt")
+		files["zfoo"+cwd+"/file.txt"] = "content"
+	}
+
+	assertZipArchive(t, order, files)
 }
 
 func TestZipArchiver_GitignoreExcludeNegation(t *testing.T) {

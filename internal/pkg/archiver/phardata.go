@@ -207,11 +207,17 @@ func (p *pharData) addFile(base, pathname string) error {
 		fname = pathname
 	}
 
-	if !strings.HasPrefix(fname, base+"/") {
+	// fname must continue base with a slash: IS_SLASH, which takes a
+	// backslash too on Windows, where the key is unixified.
+	if !strings.HasPrefix(fname, base) || len(fname) <= len(base) ||
+		fname[len(base)] != '/' && (fname[len(base)] != '\\' || !util.IsWindows()) {
 		return &util.UnexpectedValueError{Message: `Iterator Composer\Package\Archiver\ArchivableFilesFilter returned a path "` + fname + `" that is not in the base directory "` + base + `"`}
 	}
 
 	key := fname[len(base)+1:]
+	if util.IsWindows() {
+		key = strings.ReplaceAll(key, `\`, "/")
+	}
 
 	fi, err := os.Stat(fname)
 	if err == nil {
