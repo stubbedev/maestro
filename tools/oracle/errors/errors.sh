@@ -42,8 +42,7 @@
 # directory names, what depends on the machine's php (its version, and the
 # pool and rule counts, which include one platform package per loaded
 # extension), the resolution time, and where Composer's sources are
-# (Composer's and maestro's, phar://<maestro executable>, both read
-# @COMPOSER@).
+# (@COMPOSER@).
 set -uo pipefail
 root=$(pwd)
 data=$root/internal/command/testdata/errors
@@ -61,15 +60,12 @@ work=$(mktemp -d /tmp/maestro-errors.XXXXXX)
 cleanup() { [ -n "${srvpid:-}" ] && kill "$srvpid" 2>/dev/null; [ $keep = 1 ] && echo "work: $work" || rm -rf "$work"; }
 trap cleanup EXIT
 
-# maestro is always $work/maestro: its executable's path is the root of the
-# Composer files it names (phperr.Root).
-maestro=$work/maestro
 if [ -n "${MAESTRO:-}" ]; then
-	cp "$MAESTRO" "$maestro" || exit 1
+	maestro=$(realpath "$MAESTRO") || exit 1
 else
+	maestro=$work/maestro
 	go build -o "$maestro" ./cmd/maestro || exit 1
 fi
-mroot=phar://$maestro
 
 composer=${ORACLE_COMPOSER:-}
 if [ -z "$composer" ]; then
@@ -100,7 +96,6 @@ normalize() {
 		-e "s#$work/run#@DIR@#g" \
 		-e "s#127\.0\.0\.1:$port#@SERVER@#g" \
 		-e "s#$croot/#@COMPOSER@/#g" \
-		-e "s#$mroot/#@COMPOSER@/#g" \
 		-e '/^Running cache garbage collection$/d' \
 		-e 's/^(Running [^ ]+ \([^)]*\) with PHP ).* on .*$/\1@PHP@ on @OS@/' \
 		-e 's#/tmp/composer_archive[0-9a-f]+#/tmp/composer_archive@RAND@#g' \
