@@ -42,7 +42,7 @@ func NewGit(ioi io.IO, config http.Config, process Process, fs Filesystem) *Git 
 // so pass io only where this is a soft failure.
 func CheckForRepoOwnershipError(output, path string, ioi io.IO) error {
 	if strings.Contains(output, "fatal: detected dubious ownership") {
-		msg := `The repository at "` + path + `" does not have the correct ownership and git refuses to use it:` + "\n\n" + output
+		msg := `The repository at "` + path + `" does not have the correct ownership and git refuses to use it:` + php.EOL + php.EOL + output
 		if ioi == nil {
 			return &util.RuntimeError{Message: msg, Site: phperr.At("Git.php", 54)}
 		}

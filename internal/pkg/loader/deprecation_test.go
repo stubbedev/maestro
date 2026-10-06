@@ -30,7 +30,7 @@ func TestArrayLoader_ReservedScriptNames(t *testing.T) {
 
 	want := "<warning>Deprecation Notice: The `composer` script name is reserved for internal use, please avoid defining it in " + phperr.AbsPath("ArrayLoader.php") + ":271</warning>\n" +
 		"<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n"
-	if got := out.Output(); got != want {
+	if got := php.NormalizeEOL(out.Output()); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
 }

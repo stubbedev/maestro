@@ -97,7 +97,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 			return nil, err
 		}
 		if _, full := advisory.(*repository.SecurityAdvisory); !allowPartialAdvisories && !full {
-			return nil, &util.RuntimeError{Site: phperr.At("ComposerRepository.php", 727), Message: "Advisory for " + name + " could not be loaded as a full advisory from " + r.RepoName() + "\n" + php.VarExport(dataArray)}
+			return nil, &util.RuntimeError{Site: phperr.At("ComposerRepository.php", 727), Message: "Advisory for " + name + " could not be loaded as a full advisory from " + r.RepoName() + php.EOL + php.VarExport(dataArray)}
 		}
 		constraint, ok := packageConstraintMap.Get(name)
 		if !ok {

@@ -203,8 +203,9 @@ func TestOracle_ValidatingArrayLoader(t *testing.T) {
 				t.Errorf("%s: errors\n got %q\nwant %q", what, l.Errors(), c.Errors)
 			}
 
-			if !slices.Equal(l.Warnings(), c.Warnings) {
-				t.Errorf("%s: warnings\n got %q\nwant %q", what, l.Warnings(), c.Warnings)
+			// The goldens' PHP_EOL is "\n".
+			if got := normalizeEOLs(l.Warnings()); !slices.Equal(got, c.Warnings) {
+				t.Errorf("%s: warnings\n got %q\nwant %q", what, got, c.Warnings)
 			}
 		}
 

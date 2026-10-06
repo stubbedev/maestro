@@ -213,8 +213,8 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 			return 0, err
 		}
 		cio.WriteError("<error>Schema validation error, aborting</error>", true, io.Normal)
-		errs := " - " + strings.Join(ve.Errors, "\n - ")
-		cio.WriteError(ve.Message+":\n"+errs, true, io.Normal)
+		errs := " - " + strings.Join(ve.Errors, php.EOL+" - ")
+		cio.WriteError(ve.Message+":"+php.EOL+errs, true, io.Normal)
 		_ = os.Remove(file.Path())
 
 		return 1, nil

@@ -417,7 +417,9 @@ func TestComposerRepository_Oracle(t *testing.T) {
 					result, err = runStep(t, repo, step)
 				}
 				if err != nil {
-					result = php.ArrayOf("e", php.ListOf(errorClass(err), err.Error()))
+					// The goldens come from PHP on Linux; messages joined with PHP_EOL
+					// end lines with "\r\n" on Windows.
+					result = php.ArrayOf("e", php.ListOf(errorClass(err), php.NormalizeEOL(err.Error())))
 				}
 
 				want := results[i].(*php.Array)
@@ -428,7 +430,7 @@ func TestComposerRepository_Oracle(t *testing.T) {
 				if got, w := encodeOracle(t, result), encodeOracle(t, get(want, "result")); got != w {
 					t.Errorf("step %d %s: result\n got %s\nwant %s", i, label, got, w)
 				}
-				if got, w := out.Output(), php.ToString(get(want, "output")); got != w {
+				if got, w := php.NormalizeEOL(out.Output()), php.ToString(get(want, "output")); got != w {
 					t.Errorf("step %d %s: output\n got %q\nwant %q", i, label, got, w)
 				}
 				if got, w := encodeOracle(t, cacheFiles(t, cacheDir)), encodeOracle(t, get(want, "cache")); got != w {

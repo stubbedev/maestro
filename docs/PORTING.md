@@ -140,6 +140,13 @@ Cycle-breaking decisions already made:
   int/string key coercion and list/object encoding behave as in PHP.
 - Concurrency is allowed only where output and side effects stay identical
   and deterministic.
+- Line endings: where Composer or Symfony Console use `PHP_EOL` (every line
+  `writeln()` and `write($msg, true)` end, `newLine()`, messages joined
+  with it), the port uses `php.EOL`, which is `"\r\n"` on Windows; where
+  they write a literal `"\n"`, so does the port. Tests that compare
+  captured output with `"\n"` expectations pass it through
+  `php.NormalizeEOL` (Symfony's `getDisplay(true)`); tests about a
+  `PHP_EOL` site force Windows' with `php.SetEOLForTest(t, "\r\n")`.
 
 ## Tests
 

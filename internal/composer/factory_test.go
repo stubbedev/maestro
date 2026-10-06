@@ -5,9 +5,11 @@ package composer
 import (
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -79,17 +81,41 @@ func TestFactory_CreateComposerFailsWithoutComposerJSON(t *testing.T) {
 	f := newFactoryMock(t, testRuntime(t, 0))
 	_, err := f.CreateComposer(newBufferIO(t), "./composer.json", PluginsEnabled, "", false)
 	var iae *util.InvalidArgumentError
-	if !errors.As(err, &iae) || iae.Message != "Composer could not find a composer.json file in "+dir+"\nTo initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage" {
+	if !errors.As(err, &iae) || iae.Message != "Composer could not find a composer.json file in "+dir+php.EOL+"To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage" {
 		t.Errorf("err = %v", err)
 	}
 
 	_, err = f.CreateComposer(newBufferIO(t), "other.json", PluginsEnabled, "", false)
-	if !errors.As(err, &iae) || iae.Message != "Composer could not find the config file: other.json\nTo initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage" {
+	if !errors.As(err, &iae) || iae.Message != "Composer could not find the config file: other.json"+php.EOL+"To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage" {
 		t.Errorf("err = %v", err)
 	}
 
 	_, err = f.CreatePartialComposer(newBufferIO(t), "other.json", PluginsEnabled, "", false)
-	if !errors.As(err, &iae) || iae.Message != "Composer could not find the config file: other.json\n" {
+	if !errors.As(err, &iae) || iae.Message != "Composer could not find the config file: other.json"+php.EOL {
+		t.Errorf("err = %v", err)
+	}
+}
+
+// Factory::createConfig joins its messages with PHP_EOL, "\r\n" on
+// Windows.
+func TestFactory_CreateComposerMessagesUseWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+	dir := tempDir(t)
+	t.Chdir(dir)
+	f := newFactoryMock(t, testRuntime(t, 0))
+
+	_, err := f.CreateComposer(newBufferIO(t), "other.json", PluginsEnabled, "", false)
+	var iae *util.InvalidArgumentError
+	if !errors.As(err, &iae) || iae.Message != "Composer could not find the config file: other.json\r\nTo initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage" {
+		t.Errorf("err = %v", err)
+	}
+
+	if err := os.WriteFile("composer.json", []byte(`{"require": "nope"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.CreateComposer(newBufferIO(t), "composer.json", PluginsEnabled, "", false)
+	var ve *json.ValidationError
+	if !errors.As(err, &ve) || !strings.Contains(ve.Message, " does not match the expected JSON schema:\r\n - ") {
 		t.Errorf("err = %v", err)
 	}
 }

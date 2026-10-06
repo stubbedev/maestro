@@ -5,7 +5,6 @@ package vcs
 import (
 	stdio "io"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,15 +15,6 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
-
-// phpEOL is PHP_EOL.
-var phpEOL = func() string {
-	if runtime.GOOS == "windows" {
-		return "\r\n"
-	}
-
-	return "\n"
-}()
 
 // symfonyProcessTimeout is the default timeout of a Symfony Process.
 const symfonyProcessTimeout = 60 * time.Second
@@ -348,7 +338,7 @@ func (p *Perforce) getP4variable(name string) (*string, error) {
 		}
 
 		result := php.Trim(p.commandResult)
-		for line := range strings.SplitSeq(result, phpEOL) {
+		for line := range strings.SplitSeq(result, php.EOL) {
 			fields := strings.Split(line, "=")
 			if fields[0] != name {
 				continue
@@ -499,22 +489,22 @@ func (p *Perforce) WriteClientSpecToFile(spec stdio.Writer) error {
 
 	var b strings.Builder
 
-	b.WriteString("Client: " + p.GetClient() + phpEOL + phpEOL)
-	b.WriteString("Update: " + now + phpEOL + phpEOL)
-	b.WriteString("Access: " + now + phpEOL)
-	b.WriteString("Owner:  " + user + phpEOL + phpEOL)
-	b.WriteString("Description:" + phpEOL)
-	b.WriteString("  Created by " + user + " from composer." + phpEOL + phpEOL)
-	b.WriteString("Root: " + p.path + phpEOL + phpEOL)
-	b.WriteString("Options:  noallwrite noclobber nocompress unlocked modtime rmdir" + phpEOL + phpEOL)
-	b.WriteString("SubmitOptions:  revertunchanged" + phpEOL + phpEOL)
-	b.WriteString("LineEnd:  local" + phpEOL + phpEOL)
+	b.WriteString("Client: " + p.GetClient() + php.EOL + php.EOL)
+	b.WriteString("Update: " + now + php.EOL + php.EOL)
+	b.WriteString("Access: " + now + php.EOL)
+	b.WriteString("Owner:  " + user + php.EOL + php.EOL)
+	b.WriteString("Description:" + php.EOL)
+	b.WriteString("  Created by " + user + " from composer." + php.EOL + php.EOL)
+	b.WriteString("Root: " + p.path + php.EOL + php.EOL)
+	b.WriteString("Options:  noallwrite noclobber nocompress unlocked modtime rmdir" + php.EOL + php.EOL)
+	b.WriteString("SubmitOptions:  revertunchanged" + php.EOL + php.EOL)
+	b.WriteString("LineEnd:  local" + php.EOL + php.EOL)
 
 	if p.IsStream() {
-		b.WriteString("Stream:" + phpEOL)
-		b.WriteString("  " + p.GetStreamWithoutLabel(strOf(p.p4Stream)) + phpEOL)
+		b.WriteString("Stream:" + php.EOL)
+		b.WriteString("  " + p.GetStreamWithoutLabel(strOf(p.p4Stream)) + php.EOL)
 	} else {
-		b.WriteString("View:  " + p.GetStream() + "/...  //" + p.GetClient() + "/... " + phpEOL)
+		b.WriteString("View:  " + p.GetStream() + "/...  //" + p.GetClient() + "/... " + php.EOL)
 	}
 
 	_, err := stdio.WriteString(spec, b.String())
@@ -671,7 +661,7 @@ func (p *Perforce) GetBranches() (*php.Array, error) {
 			return nil, err
 		}
 
-		for line := range strings.SplitSeq(p.commandResult, phpEOL) {
+		for line := range strings.SplitSeq(p.commandResult, php.EOL) {
 			resBits := strings.Split(line, " ")
 			if len(resBits) > 4 {
 				branch, _, err := php.PregReplace(`/[^A-Za-z0-9 ]/`, "", resBits[4], -1)
@@ -689,7 +679,7 @@ func (p *Perforce) GetBranches() (*php.Array, error) {
 		return nil, err
 	}
 
-	lastCommit, _, _ := strings.Cut(p.commandResult, phpEOL)
+	lastCommit, _, _ := strings.Cut(p.commandResult, php.EOL)
 	lastCommitNum := field(strings.Split(lastCommit, " "), 1)
 
 	branch, _ := possibleBranches.Get(p.p4Branch)
@@ -706,7 +696,7 @@ func (p *Perforce) GetTags() (*php.Array, error) {
 
 	tags := php.NewArray()
 
-	for line := range strings.SplitSeq(p.commandResult, phpEOL) {
+	for line := range strings.SplitSeq(p.commandResult, php.EOL) {
 		if strings.Contains(line, "Label") {
 			fields := strings.Split(line, " ")
 			tags.Set(field(fields, 1), p.GetStream()+"@"+field(fields, 1))
@@ -723,7 +713,7 @@ func (p *Perforce) CheckStream() (bool, error) {
 		return false, err
 	}
 
-	for line := range strings.SplitSeq(p.commandResult, phpEOL) {
+	for line := range strings.SplitSeq(p.commandResult, php.EOL) {
 		if strings.Contains(line, "Depot") {
 			fields := strings.Split(line, " ")
 			if p.p4Depot == field(fields, 1) {

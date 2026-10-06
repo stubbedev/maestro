@@ -894,8 +894,8 @@ func (m *Manager) isPluginAllowed(packageName string, isGlobalPlugin, optional, 
 		global = "global "
 	}
 
-	return false, &PluginBlockedError{Message: packageName + globally + " contains a Composer plugin which is blocked by your allow-plugins config. You may add it to the list if you consider it safe.\n" +
-		`You can run "composer ` + global + `config --no-plugins allow-plugins.` + packageName + ` [true|false]" to enable it (true) or disable it explicitly and suppress this exception (false)` + "\n" +
+	return false, &PluginBlockedError{Message: packageName + globally + " contains a Composer plugin which is blocked by your allow-plugins config. You may add it to the list if you consider it safe." + php.EOL +
+		`You can run "composer ` + global + `config --no-plugins allow-plugins.` + packageName + ` [true|false]" to enable it (true) or disable it explicitly and suppress this exception (false)` + php.EOL +
 		"See https://getcomposer.org/allow-plugins"}
 }
 

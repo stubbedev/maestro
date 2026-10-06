@@ -93,13 +93,45 @@ func TestPackageDiscovery_PlatformExceptionDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ":\n" +
-		"  - a/a 1.0.0 requires php ^8.0 which does not match your installed version 7.4.0 (Package overridden via config.platform).\n" +
+	// getPlatformExceptionDetails joins with PHP_EOL.
+	want := ":" + php.EOL +
+		"  - a/a 1.0.0 requires php ^8.0 which does not match your installed version 7.4.0 (Package overridden via config.platform)." + php.EOL +
 		// ext-foo is only "disabled" when the running PHP has it loaded
-		"  - a/a 1.0.0 requires ext-foo * but it is not present.\n" +
+		"  - a/a 1.0.0 requires ext-foo * but it is not present." + php.EOL +
 		"  - a/a 1.0.0 requires ext-bar * but it is not present."
 	if got != want {
-		t.Errorf("got\n%s\nwant\n%s", got, want)
+		t.Errorf("got\n%q\nwant\n%q", got, want)
+	}
+}
+
+// TestPackageDiscovery_PlatformExceptionDetailsWindowsEOL checks that the
+// details end their lines with PHP_EOL, "\r\n" on Windows.
+func TestPackageDiscovery_PlatformExceptionDetailsWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	d := command.NewPackageDiscovery(command.NewBaseCommand("require"))
+	candidate := pkg.NewCompletePackage("a/a", "1.0.0.0", "1.0.0")
+	c, err := pkg.NewVersionParser().ParseConstraints("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b pkg.LinksBuilder
+	for _, name := range []string{"ext-foo", "ext-bar"} {
+		b.Set(name, pkg.NewLink("a/a", name, c, pkg.TypeRequire, pkg.Str("*")))
+	}
+	candidate.SetRequires(b.Build())
+
+	repo, err := repository.NewPlatformRepository(nil, php.ArrayOf("php", "7.4.0"), repository.PlatformOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := d.PlatformExceptionDetails(candidate, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ":\r\n  - a/a 1.0.0 requires ext-foo * but it is not present.\r\n  - a/a 1.0.0 requires ext-bar * but it is not present."
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

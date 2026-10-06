@@ -62,7 +62,7 @@ func TestJsonConfigSourceOracle(t *testing.T) {
 			if op.E != nil {
 				if err == nil {
 					t.Errorf("%s: no error, want %s: %s", where, op.E[0], op.E[1])
-				} else if class, msg := errorClass(err), strings.ReplaceAll(err.Error(), dir, "<DIR>"); class != op.E[0] || msg != op.E[1] {
+				} else if class, msg := errorClass(err), php.NormalizeEOL(strings.ReplaceAll(err.Error(), dir, "<DIR>")); class != op.E[0] || msg != op.E[1] {
 					t.Errorf("%s: got %s: %s\nwant %s: %s", where, class, msg, op.E[0], op.E[1])
 				}
 			} else if err != nil {

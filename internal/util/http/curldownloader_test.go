@@ -148,13 +148,13 @@ func TestHttpDownloader_OutputWarnings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if wrote, _ := OutputWarnings(b, "$URL", php.NewArray()); wrote || b.Output() != "" {
+	if wrote, _ := OutputWarnings(b, "$URL", php.NewArray()); wrote || php.NormalizeEOL(b.Output()) != "" {
 		t.Fatal("expected nothing written")
 	}
 
 	// warning/info keys present but filtered out by version constraints
 	data := mustJSON(t, `{"warning":"old warning msg","warning-versions":"<2.0","warnings":[{"message":"should not appear","versions":"<2.2"}]}`)
-	if wrote, _ := OutputWarnings(b, "$URL", data); wrote || b.Output() != "" {
+	if wrote, _ := OutputWarnings(b, "$URL", data); wrote || php.NormalizeEOL(b.Output()) != "" {
 		t.Fatal("expected nothing written")
 	}
 
@@ -177,8 +177,8 @@ func TestHttpDownloader_OutputWarnings(t *testing.T) {
 		"<warning>Warning from $URL: visible warning</warning>\n" +
 		"Info from $URL: visible info\n"
 
-	if b.Output() != want {
-		t.Fatalf("got %q", b.Output())
+	if php.NormalizeEOL(b.Output()) != want {
+		t.Fatalf("got %q", php.NormalizeEOL(b.Output()))
 	}
 }
 
@@ -190,8 +190,8 @@ func TestHttpDownloader_OutputWarningsStripsColors(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if b.Output() != "<warning>Warning from https://u:***@example.org: red text</warning>\n" {
-		t.Fatalf("got %q", b.Output())
+	if php.NormalizeEOL(b.Output()) != "<warning>Warning from https://u:***@example.org: red text</warning>\n" {
+		t.Fatalf("got %q", php.NormalizeEOL(b.Output()))
 	}
 }
 
@@ -251,7 +251,7 @@ func TestHttpDownloader_GetAndHeaders(t *testing.T) {
 		t.Fatalf("request headers %v", gotHeaders)
 	}
 
-	out := b.Output()
+	out := php.NormalizeEOL(b.Output())
 	if !strings.Contains(out, "Downloading "+srv.URL+"/packages.json\n") || !strings.Contains(out, "[200] "+srv.URL+"/packages.json\n") {
 		t.Fatalf("output %q", out)
 	}
@@ -325,8 +325,8 @@ func TestHttpDownloader_Redirects(t *testing.T) {
 		"Following redirect (2) " + srv.URL + "/b/target?x=1",
 		"Following redirect (3) " + srv.URL + "/final",
 	} {
-		if !strings.Contains(b.Output(), line+"\n") {
-			t.Fatalf("missing %q in %q", line, b.Output())
+		if !strings.Contains(php.NormalizeEOL(b.Output()), line+"\n") {
+			t.Fatalf("missing %q in %q", line, php.NormalizeEOL(b.Output()))
 		}
 	}
 
@@ -378,12 +378,12 @@ func TestHttpDownloader_RetriesServerErrors(t *testing.T) {
 		t.Fatalf("got %v %v", r, err)
 	}
 
-	if !strings.Contains(b.Output(), "Retrying (1) "+srv.URL+" due to status code 502\n") ||
-		!strings.Contains(b.Output(), "Retrying (2) "+srv.URL+" due to status code 502\n") {
-		t.Fatal(b.Output())
+	if !strings.Contains(php.NormalizeEOL(b.Output()), "Retrying (1) "+srv.URL+" due to status code 502\n") ||
+		!strings.Contains(php.NormalizeEOL(b.Output()), "Retrying (2) "+srv.URL+" due to status code 502\n") {
+		t.Fatal(php.NormalizeEOL(b.Output()))
 	}
 
-	if strings.Count(b.Output(), "Downloading ") != 1 {
+	if strings.Count(php.NormalizeEOL(b.Output()), "Downloading ") != 1 {
 		t.Fatal("expected only the first attempt announced")
 	}
 }
@@ -414,7 +414,7 @@ func TestHttpDownloader_FailedResponse(t *testing.T) {
 	}
 
 	full := `{"error":"` + body + `"}`
-	want := `The "` + srv.URL + `/missing" file could not be downloaded (HTTP/1.1 404 Not Found):` + "\n" + full[:200] + "..."
+	want := `The "` + srv.URL + `/missing" file could not be downloaded (HTTP/1.1 404 Not Found):` + php.EOL + full[:200] + "..."
 
 	if te.Message != want || te.Code != http.StatusNotFound || te.StatusCode != http.StatusNotFound || authString(te.Response) != full || len(te.Headers) == 0 || te.ResponseInfo == nil {
 		t.Fatalf("got %q code %d status %d", te.Message, te.Code, te.StatusCode)
@@ -423,6 +423,26 @@ func TestHttpDownloader_FailedResponse(t *testing.T) {
 	// POSTs are not retried
 	_, err = h.Get(srv.URL+"/post", php.ArrayOf("http", php.ArrayOf("method", "POST", "content", "a=b")))
 	if err == nil || err.Error() != `The "`+srv.URL+`/post" file could not be downloaded (HTTP/1.1 503 Service Unavailable)` {
+		t.Fatalf("got %v", err)
+	}
+}
+
+// CurlDownloader::failResponse puts PHP_EOL, "\r\n" on Windows, before the
+// JSON body it quotes.
+func TestHttpDownloader_FailedResponseWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"gone"}`))
+	}))
+	defer srv.Close()
+
+	h, _ := newTestDownloader(t, nil, "")
+
+	_, err := h.Get(srv.URL+"/missing", nil)
+	if te, ok := errors.AsType[*util.TransportError](err); !ok || te.Message != `The "`+srv.URL+`/missing" file could not be downloaded (HTTP/1.1 404 Not Found):`+"\r\n"+`{"error":"gone"}` {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -443,8 +463,8 @@ func TestHttpDownloader_CurlErrors(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 
-	if !strings.Contains(b.Output(), "Retrying (3) http://"+addr+"/x due to curl error 7\n") {
-		t.Fatal(b.Output())
+	if !strings.Contains(php.NormalizeEOL(b.Output()), "Retrying (3) http://"+addr+"/x due to curl error 7\n") {
+		t.Fatal(php.NormalizeEOL(b.Output()))
 	}
 
 	te, _ := errors.AsType[*util.TransportError](err)
@@ -785,7 +805,7 @@ func TestLoop_CallbacksRunInStartOrder(t *testing.T) {
 	}
 
 	var lines []string
-	for line := range strings.SplitSeq(out.Output(), "\n") {
+	for line := range strings.SplitSeq(php.NormalizeEOL(out.Output()), "\n") {
 		if strings.HasPrefix(line, "[200]") || strings.HasPrefix(line, "callback") {
 			lines = append(lines, strings.ReplaceAll(line, srv.URL, ""))
 		}
@@ -935,6 +955,6 @@ func TestLoop_WaitProgressCountsQueuedJobs(t *testing.T) {
 	}
 
 	if got := progress.MaxSteps(); got != 6 {
-		t.Fatalf("progress max %d, want 6\n%s", got, out.Fetch())
+		t.Fatalf("progress max %d, want 6\n%s", got, php.NormalizeEOL(out.Fetch()))
 	}
 }

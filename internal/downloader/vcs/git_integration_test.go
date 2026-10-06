@@ -13,6 +13,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -157,7 +158,7 @@ func TestGitIntegration_InstallChangesUpdateRemove(t *testing.T) {
 		t.Fatalf("stashed change not reapplied: %q", got)
 	}
 
-	if out := buffer.Output(); !strings.Contains(out, "Re-applying stashed changes") || !strings.Contains(out, "Checking out "+up.v2[:10]) {
+	if out := php.NormalizeEOL(buffer.Output()); !strings.Contains(out, "Re-applying stashed changes") || !strings.Contains(out, "Checking out "+up.v2[:10]) {
 		t.Fatalf("output %q", out)
 	}
 
@@ -208,8 +209,8 @@ func TestGitIntegration_VerboseUpdateLogsCommits(t *testing.T) {
 
 	short := git(t, path, "rev-parse", "--short", up.v2)
 	// the console turns the escaped \< back into <
-	if want := "    Pulling in changes:\n      " + short + " - t: second <change>\n      \n"; !strings.Contains(buffer.Output(), want) {
-		t.Fatalf("output %q lacks %q", buffer.Output(), want)
+	if want := "    Pulling in changes:\n      " + short + " - t: second <change>\n      \n"; !strings.Contains(php.NormalizeEOL(buffer.Output()), want) {
+		t.Fatalf("output %q lacks %q", php.NormalizeEOL(buffer.Output()), want)
 	}
 
 	// and back
@@ -217,8 +218,8 @@ func TestGitIntegration_VerboseUpdateLogsCommits(t *testing.T) {
 	d.io = buffer2
 	noError(t, run(updateSteps(d, main, v1, path)...))
 
-	if !strings.Contains(buffer2.Output(), "    Rolling back changes:\n") {
-		t.Fatalf("output %q", buffer2.Output())
+	if !strings.Contains(php.NormalizeEOL(buffer2.Output()), "    Rolling back changes:\n") {
+		t.Fatalf("output %q", php.NormalizeEOL(buffer2.Output()))
 	}
 }
 
@@ -256,7 +257,7 @@ func TestGitIntegration_InstallThroughMirrorCache(t *testing.T) {
 		t.Fatalf("composer remote %q", got)
 	}
 
-	if out := buffer.Output(); !strings.Contains(out, "  - Syncing dummy/pkg (1.0.0) into cache") || !strings.Contains(out, "Cloning "+up.v1[:10]+" from cache") {
+	if out := php.NormalizeEOL(buffer.Output()); !strings.Contains(out, "  - Syncing dummy/pkg (1.0.0) into cache") || !strings.Contains(out, "Cloning "+up.v1[:10]+" from cache") {
 		t.Fatalf("output %q", out)
 	}
 

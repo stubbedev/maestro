@@ -310,7 +310,7 @@ func TestInstallationManager_ExecuteOrder(t *testing.T) {
 		"write true",
 	})
 
-	if got := io.Output(); got != "  - Marking c/c (2.0.0) as installed, alias of c/c (1.0.0)\n" {
+	if got := php.NormalizeEOL(io.Output()); got != "  - Marking c/c (2.0.0) as installed, alias of c/c (1.0.0)\n" {
 		t.Errorf("output %q", got)
 	}
 }
@@ -437,7 +437,7 @@ func TestInstallationManager_ExecuteFailure(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 
-	if got := io.Output(); got != "    Install of b/b failed\n" {
+	if got := php.NormalizeEOL(io.Output()); got != "    Install of b/b failed\n" {
 		t.Errorf("output %q", got)
 	}
 

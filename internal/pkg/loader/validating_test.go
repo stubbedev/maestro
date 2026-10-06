@@ -81,7 +81,8 @@ func TestValidatingArrayLoader_LoadWarnings(t *testing.T) {
 			continue
 		}
 
-		if got := sorted(l.Warnings()); !slices.Equal(got, sorted(expected)) {
+		// The provider's messages were exported where PHP_EOL is "\n".
+		if got := sorted(normalizeEOLs(l.Warnings())); !slices.Equal(got, sorted(expected)) {
 			t.Errorf("%s: warnings\n got %q\nwant %q", enc(t, config), got, sorted(expected))
 		}
 	}
@@ -195,4 +196,14 @@ func TestValidatingArrayLoader_ValidatePackageRejectsMaliciousMetadata(t *testin
 			t.Errorf("%s: got %v, want %q", c.p, err, c.message)
 		}
 	}
+}
+
+// normalizeEOLs is php.NormalizeEOL on each message.
+func normalizeEOLs(messages []string) []string {
+	out := make([]string, len(messages))
+	for i, m := range messages {
+		out[i] = php.NormalizeEOL(m)
+	}
+
+	return out
 }

@@ -389,8 +389,8 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 				cio.Write("<warning>WARNING</warning>", true, io.Normal)
 				cio.Write("<comment>GitHub has a rate limit on their API. "+
 					"You currently have <options=bold>"+phpSprintfU(php.ToInt(remaining))+"</options=bold> "+
-					"out of <options=bold>"+phpSprintfU(php.ToInt(limit))+"</options=bold> requests left.\n"+
-					"See https://developer.github.com/v3/#rate-limiting and also\n"+
+					"out of <options=bold>"+phpSprintfU(php.ToInt(limit))+"</options=bold> requests left."+php.EOL+
+					"See https://developer.github.com/v3/#rate-limiting and also"+php.EOL+
 					"    https://getcomposer.org/doc/articles/troubleshooting.md#api-rate-limit-and-oauth-tokens</comment>", true, io.Normal)
 			} else {
 				c.outputResult(true)
@@ -518,7 +518,7 @@ func (c *DiagnoseCommand) checkComposerSchema() (any, error) {
 			msgs  []string
 		}{{"error", errs}, {"warning", warnings}} {
 			for _, msg := range m.msgs {
-				output.WriteString("<" + m.style + ">" + msg + "</" + m.style + ">\n")
+				output.WriteString("<" + m.style + ">" + msg + "</" + m.style + ">" + php.EOL)
 			}
 		}
 
@@ -541,7 +541,7 @@ func (c *DiagnoseCommand) checkComposerLockSchema(l *locker.Locker) (any, error)
 		}
 		var output strings.Builder
 		for _, e := range ve.Errors {
-			output.WriteString("<error>" + e + "</error>\n")
+			output.WriteString("<error>" + e + "</error>" + php.EOL)
 		}
 
 		return php.Trim(output.String()), nil
@@ -768,7 +768,7 @@ func (c *DiagnoseCommand) checkComposerAudit(cfg *config.Config) any {
 	}
 
 	if result > 0 {
-		return "<highlight>Audit found some issues:</>\n" + auditOutput
+		return "<highlight>Audit found some issues:</>" + php.EOL + auditOutput
 	}
 
 	return true
@@ -917,7 +917,7 @@ func (c *DiagnoseCommand) outputResult(result any) {
 func (c *DiagnoseCommand) checkPlatform() any {
 	var output strings.Builder
 	out := func(msg, style string) {
-		output.WriteString("<" + style + ">" + msg + "</" + style + ">\n")
+		output.WriteString("<" + style + ">" + msg + "</" + style + ">" + php.EOL)
 	}
 
 	type issue struct {
@@ -931,8 +931,8 @@ func (c *DiagnoseCommand) checkPlatform() any {
 	if c.view != nil {
 		iniFiles = c.view.IniFiles
 	}
-	iniMessage := "\n\n" + util.IniGetMessage(iniFiles)
-	iniMessage += "\nIf you can not modify the ini file, you can also run `php -d option=value` to modify ini values on the fly. You can use -d multiple times."
+	iniMessage := php.EOL + php.EOL + util.IniGetMessage(iniFiles)
+	iniMessage += php.EOL + "If you can not modify the ini file, you can also run `php -d option=value` to modify ini values on the fly. You can use -d multiple times."
 
 	if !c.functionExists("json_decode") {
 		errs = append(errs, issue{name: "json"})
@@ -1012,45 +1012,45 @@ func (c *DiagnoseCommand) checkPlatform() any {
 			var text string
 			switch e.name {
 			case "json":
-				text = "\nThe json extension is missing.\nInstall it or recompile php without --disable-json"
+				text = php.EOL + "The json extension is missing." + php.EOL + "Install it or recompile php without --disable-json"
 			case "phar":
-				text = "\nThe phar extension is missing.\nInstall it or recompile php without --disable-phar"
+				text = php.EOL + "The phar extension is missing." + php.EOL + "Install it or recompile php without --disable-phar"
 			case "filter":
-				text = "\nThe filter extension is missing.\nInstall it or recompile php without --disable-filter"
+				text = php.EOL + "The filter extension is missing." + php.EOL + "Install it or recompile php without --disable-filter"
 			case "hash":
-				text = "\nThe hash extension is missing.\nInstall it or recompile php without --disable-hash"
+				text = php.EOL + "The hash extension is missing." + php.EOL + "Install it or recompile php without --disable-hash"
 			case "iconv_mbstring":
-				text = "\nThe iconv OR mbstring extension is required and both are missing.\nInstall either of them or recompile php without --disable-iconv"
+				text = php.EOL + "The iconv OR mbstring extension is required and both are missing." + php.EOL + "Install either of them or recompile php without --disable-iconv"
 			case "php":
-				text = "\nYour PHP (" + e.current + ") is too old, you must upgrade to PHP 7.2.5 or higher."
+				text = php.EOL + "Your PHP (" + e.current + ") is too old, you must upgrade to PHP 7.2.5 or higher."
 			case "allow_url_fopen":
-				text = "\nThe allow_url_fopen setting is incorrect.\nAdd the following to the end of your `php.ini`:\n    allow_url_fopen = On"
+				text = php.EOL + "The allow_url_fopen setting is incorrect." + php.EOL + "Add the following to the end of your `php.ini`:" + php.EOL + "    allow_url_fopen = On"
 				displayIniMessage = true
 			case "ioncube":
-				text = "\nYour ionCube Loader extension (" + e.current + ") is incompatible with Phar files.\nUpgrade to ionCube 4.0.9 or higher or remove this line (path may be different) from your `php.ini` to disable it:\n    zend_extension = /usr/lib/php5/20090626+lfs/ioncube_loader_lin_5.3.so"
+				text = php.EOL + "Your ionCube Loader extension (" + e.current + ") is incompatible with Phar files." + php.EOL + "Upgrade to ionCube 4.0.9 or higher or remove this line (path may be different) from your `php.ini` to disable it:" + php.EOL + "    zend_extension = /usr/lib/php5/20090626+lfs/ioncube_loader_lin_5.3.so"
 				displayIniMessage = true
 			case "openssl":
-				text = "\nThe openssl extension is missing, which means that secure HTTPS transfers are impossible.\nIf possible you should enable it or recompile php with --with-openssl"
+				text = php.EOL + "The openssl extension is missing, which means that secure HTTPS transfers are impossible." + php.EOL + "If possible you should enable it or recompile php with --with-openssl"
 			}
 			out(text, "error")
 		}
 
-		output.WriteString("\n")
+		output.WriteString(php.EOL)
 	}
 
 	for _, w := range warnings {
 		var text string
 		switch w.name {
 		case "apc_cli":
-			text = "The apc.enable_cli setting is incorrect.\nAdd the following to the end of your `php.ini`:\n  apc.enable_cli = Off"
+			text = "The apc.enable_cli setting is incorrect." + php.EOL + "Add the following to the end of your `php.ini`:" + php.EOL + "  apc.enable_cli = Off"
 			displayIniMessage = true
 		case "zlib":
-			text = "The zlib extension is not loaded, this can slow down Composer a lot.\nIf possible, enable it or recompile php with --with-zlib\n"
+			text = "The zlib extension is not loaded, this can slow down Composer a lot." + php.EOL + "If possible, enable it or recompile php with --with-zlib" + php.EOL
 			displayIniMessage = true
 		case "sigchild":
-			text = "PHP was compiled with --enable-sigchild which can cause issues on some platforms.\nRecompile it without this flag if possible, see also:\n  https://bugs.php.net/bug.php?id=22999"
+			text = "PHP was compiled with --enable-sigchild which can cause issues on some platforms." + php.EOL + "Recompile it without this flag if possible, see also:" + php.EOL + "  https://bugs.php.net/bug.php?id=22999"
 		case "curlwrappers":
-			text = "PHP was compiled with --with-curlwrappers which will cause issues with HTTP authentication and GitHub.\n Recompile it without this flag if possible"
+			text = "PHP was compiled with --with-curlwrappers which will cause issues with HTTP authentication and GitHub." + php.EOL + " Recompile it without this flag if possible"
 		case "openssl_version":
 			// Attempt to parse version number out, fallback to whole string value.
 			v, _ := c.constant("OPENSSL_VERSION_TEXT")
@@ -1065,16 +1065,16 @@ func (c *DiagnoseCommand) checkPlatform() any {
 			if opensslVersion == "" || opensslVersion == "0" {
 				opensslVersion = full
 			}
-			text = "The OpenSSL library (" + opensslVersion + ") used by PHP does not support TLSv1.2 or TLSv1.1.\nIf possible you should upgrade OpenSSL to version 1.0.1 or above."
+			text = "The OpenSSL library (" + opensslVersion + ") used by PHP does not support TLSv1.2 or TLSv1.1." + php.EOL + "If possible you should upgrade OpenSSL to version 1.0.1 or above."
 		case "xdebug_loaded":
-			text = "The xdebug extension is loaded, this can slow down Composer a little.\n Disabling it when using Composer is recommended."
+			text = "The xdebug extension is loaded, this can slow down Composer a little." + php.EOL + " Disabling it when using Composer is recommended."
 		case "xdebug_profile":
-			text = "The xdebug.profiler_enabled setting is enabled, this can slow down Composer a lot.\nAdd the following to the end of your `php.ini` to disable it:\n  xdebug.profiler_enabled = 0"
+			text = "The xdebug.profiler_enabled setting is enabled, this can slow down Composer a lot." + php.EOL + "Add the following to the end of your `php.ini` to disable it:" + php.EOL + "  xdebug.profiler_enabled = 0"
 			displayIniMessage = true
 		case "onedrive":
-			text = "The Windows OneDrive folder is not supported on PHP versions below 7.2.23 and 7.3.10.\nUpgrade your PHP (" + w.current + ") to use this location with Composer.\n"
+			text = "The Windows OneDrive folder is not supported on PHP versions below 7.2.23 and 7.3.10." + php.EOL + "Upgrade your PHP (" + w.current + ") to use this location with Composer." + php.EOL
 		case "uopz":
-			text = "The uopz extension ignores exit calls and may not work with all Composer commands.\nDisabling it when using Composer is recommended."
+			text = "The uopz extension ignores exit calls and may not work with all Composer commands." + php.EOL + "Disabling it when using Composer is recommended."
 		}
 		out(text, "comment")
 	}

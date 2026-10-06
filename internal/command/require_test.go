@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -33,7 +34,7 @@ func TestRequireCommand_RequireThrowsIfNoneMatches(t *testing.T) {
 
 	appTester := commandtest.GetApplicationTester(t)
 	_, err := appTester.RunArgs(commandtest.Options{}, "command", "require", "--dry-run", true, "--no-audit", true, "packages", []string{"required/pkg"})
-	assertRequireInvalidArgument(t, err, "Package required/pkg has requirements incompatible with your PHP version, PHP extensions and Composer version:\n"+
+	assertRequireInvalidArgument(t, err, "Package required/pkg has requirements incompatible with your PHP version, PHP extensions and Composer version:"+php.EOL+
 		"  - required/pkg 1.0.0 requires ext-foobar ^1 but it is not present.")
 }
 

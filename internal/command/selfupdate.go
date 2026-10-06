@@ -351,7 +351,7 @@ func setChannel(home, channel string, ioi io.IO) error {
 	if err := os.MkdirAll(home, 0o777); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(home, channelFile), []byte(channel+"\n"), 0o666); err != nil {
+	if err := os.WriteFile(filepath.Join(home, channelFile), []byte(channel+php.EOL), 0o666); err != nil {
 		return err
 	}
 	if channel != "stable" && channel != "preview" && channel != "snapshot" {

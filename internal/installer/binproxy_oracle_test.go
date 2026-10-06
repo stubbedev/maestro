@@ -144,7 +144,7 @@ func TestBinaryInstaller_Oracle(t *testing.T) {
 				t.Errorf("exception = %v, want %v", deref(exception), deref(s.Exception))
 			}
 
-			if got := strings.ReplaceAll(buf.Output(), root, "%ROOT%"); got != s.Output {
+			if got := strings.ReplaceAll(php.NormalizeEOL(buf.Output()), root, "%ROOT%"); got != s.Output {
 				t.Errorf("output:\n%q\nwant\n%q", got, s.Output)
 			}
 

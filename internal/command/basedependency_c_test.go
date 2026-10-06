@@ -8,6 +8,7 @@ import (
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -46,7 +47,7 @@ func TestBaseDependencyCommand_PrintTree(t *testing.T) {
 	want := "|--b/b 1.0 (requires a/a ^1.0)\n" +
 		"|  `--__root__ (requires b/b ^1.0)\n" +
 		"`--c/c 2.0 (requires a/a *) (circular dependency aborted here)\n"
-	if got := bio.Output(); got != want {
+	if got := php.NormalizeEOL(bio.Output()); got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }
@@ -59,7 +60,7 @@ func TestBaseDependencyCommand_PrintTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	// bottom-up: the root (found at the second level) comes first
-	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(php.NormalizeEOL(buf.String()), "\n"), "\n")
 	want := []string{
 		"__root__ -   requires b/b (^1.0)",
 		"b/b      1.0 requires a/a (^1.0)",

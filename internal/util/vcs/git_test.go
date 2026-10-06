@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http/httpmock"
 	"github.com/stubbedev/maestro/internal/util/processmock"
@@ -437,13 +438,24 @@ func TestGit_MaskCredentials(t *testing.T) {
 	}
 }
 
+// Git::checkForRepoOwnershipError joins the message with PHP_EOL, "\r\n" on
+// Windows.
+func TestGit_CheckForRepoOwnershipErrorWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	err := CheckForRepoOwnershipError("fatal: detected dubious ownership in repository", "/p", nil)
+	if err == nil || err.Error() != "The repository at \"/p\" does not have the correct ownership and git refuses to use it:\r\n\r\nfatal: detected dubious ownership in repository" {
+		t.Fatalf("got %q", err)
+	}
+}
+
 func TestGit_CheckForRepoOwnershipError(t *testing.T) {
 	if err := CheckForRepoOwnershipError("ok", "/p", nil); err != nil {
 		t.Fatal(err)
 	}
 
 	err := CheckForRepoOwnershipError("fatal: detected dubious ownership in repository", "/p", nil)
-	if err == nil || err.Error() != "The repository at \"/p\" does not have the correct ownership and git refuses to use it:\n\nfatal: detected dubious ownership in repository" {
+	if err == nil || err.Error() != "The repository at \"/p\" does not have the correct ownership and git refuses to use it:"+php.EOL+php.EOL+"fatal: detected dubious ownership in repository" {
 		t.Fatalf("got %v", err)
 	}
 

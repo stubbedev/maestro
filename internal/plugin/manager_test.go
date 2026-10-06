@@ -63,6 +63,20 @@ func allowTestManager(t *testing.T, allow any, sortPackages bool) (*Manager, *io
 
 func bufferText(out *io.BufferIO) string { return strings.ReplaceAll(out.Output(), "\r", "") }
 
+// PluginManager::isPluginAllowed joins PluginBlockedException's lines with
+// PHP_EOL, "\r\n" on Windows.
+func TestManager_IsPluginAllowed_BlockedWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	m, _, _ := allowTestManager(t, php.ArrayOf("vendor/*", true), false)
+	_, err := m.IsPluginAllowed("third/party", false, false)
+	if want := "third/party contains a Composer plugin which is blocked by your allow-plugins config. You may add it to the list if you consider it safe.\r\n" +
+		`You can run "composer config --no-plugins allow-plugins.third/party [true|false]" to enable it (true) or disable it explicitly and suppress this exception (false)` + "\r\n" +
+		"See https://getcomposer.org/allow-plugins"; err == nil || err.Error() != want {
+		t.Errorf("message: %q", err)
+	}
+}
+
 func TestManager_IsPluginAllowed_Rules(t *testing.T) {
 	m, _, _ := allowTestManager(t, php.ArrayOf("vendor/*", true, "vendor/blocked", false, "other/plugin", false), false)
 
@@ -87,8 +101,8 @@ func TestManager_IsPluginAllowed_Rules(t *testing.T) {
 	if _, ok := errors.AsType[*PluginBlockedError](err); !ok {
 		t.Fatalf("not blocked: %v", err)
 	}
-	if want := "third/party contains a Composer plugin which is blocked by your allow-plugins config. You may add it to the list if you consider it safe.\n" +
-		`You can run "composer config --no-plugins allow-plugins.third/party [true|false]" to enable it (true) or disable it explicitly and suppress this exception (false)` + "\n" +
+	if want := "third/party contains a Composer plugin which is blocked by your allow-plugins config. You may add it to the list if you consider it safe." + php.EOL +
+		`You can run "composer config --no-plugins allow-plugins.third/party [true|false]" to enable it (true) or disable it explicitly and suppress this exception (false)` + php.EOL +
 		"See https://getcomposer.org/allow-plugins"; err.Error() != want {
 		t.Errorf("message:\n%s", err.Error())
 	}

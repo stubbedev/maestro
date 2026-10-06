@@ -848,7 +848,7 @@ func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMes
 	}
 	if ct := strings.ToLower(contentType); !warningsOutput && (ct == "application/json" || ct == "application/json; charset=utf-8") {
 		body := response.Body()
-		details = ":\n" + body[:min(200, len(body))]
+		details = ":" + php.EOL + body[:min(200, len(body))]
 
 		if len(body) > 200 {
 			details += "..."

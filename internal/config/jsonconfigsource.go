@@ -504,7 +504,7 @@ func (s *JSONConfigSource) manipulate(caller string, line int, method string, fb
 		// restore contents to the original state
 		_, _ = util.FilePutContentsIfModified(path, []byte(contents))
 
-		return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 466), Message: "Failed to update composer.json with a valid format, reverting to the original content. Please report an issue to us with details (command you run and a copy of your composer.json). \n" + strings.Join(ve.Errors, "\n"), Prev: ve}
+		return &util.RuntimeError{Site: phperr.At("JsonConfigSource.php", 466), Message: "Failed to update composer.json with a valid format, reverting to the original content. Please report an issue to us with details (command you run and a copy of your composer.json). " + php.EOL + strings.Join(ve.Errors, php.EOL), Prev: ve}
 	}
 
 	if newFile {

@@ -77,7 +77,8 @@ func TestFactoryOracle(t *testing.T) {
 			t.Fatal(err)
 		}
 		where := "case " + strconv.Itoa(i) + " " + c.Kind
-		rel := func(s string) string { return strings.ReplaceAll(s, base, "<BASE>") }
+		// The goldens were recorded where PHP_EOL is "\n".
+		rel := func(s string) string { return php.NormalizeEOL(strings.ReplaceAll(s, base, "<BASE>")) }
 		abs := func(s string) string { return strings.ReplaceAll(s, "<BASE>", base) }
 		check := func(what string, got string, err error, want oracleResult) {
 			t.Helper()

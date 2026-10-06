@@ -179,7 +179,7 @@ func TestInstallationManager_IntegrationZip(t *testing.T) {
 
 	var installing []string
 
-	for line := range strings.SplitSeq(out.Output(), "\n") {
+	for line := range strings.SplitSeq(php.NormalizeEOL(out.Output()), "\n") {
 		if strings.HasPrefix(line, "  - Installing ") {
 			installing = append(installing, line)
 		}
@@ -191,7 +191,7 @@ func TestInstallationManager_IntegrationZip(t *testing.T) {
 	}
 
 	if !slices.Equal(installing, want) {
-		t.Errorf("install lines:\n%s\nwant\n%s\nfull output:\n%s", strings.Join(installing, "\n"), strings.Join(want, "\n"), out.Output())
+		t.Errorf("install lines:\n%s\nwant\n%s\nfull output:\n%s", strings.Join(installing, "\n"), strings.Join(want, "\n"), php.NormalizeEOL(out.Output()))
 	}
 
 	packages, _ := repo.Packages()
@@ -247,7 +247,7 @@ func TestInstallationManager_ArchiveInstallContinuations(t *testing.T) {
 
 	var got []string
 
-	for line := range strings.SplitSeq(z.out.Output(), "\n") {
+	for line := range strings.SplitSeq(php.NormalizeEOL(z.out.Output()), "\n") {
 		if strings.HasPrefix(line, "  - Installing ") || strings.HasPrefix(line, "    <warning>Skipped") {
 			got = append(got, line)
 		}
@@ -262,7 +262,7 @@ func TestInstallationManager_ArchiveInstallContinuations(t *testing.T) {
 	}
 
 	if !slices.Equal(got, want) {
-		t.Errorf("output:\n%s\nwant\n%s\nfull output:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"), z.out.Output())
+		t.Errorf("output:\n%s\nwant\n%s\nfull output:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"), php.NormalizeEOL(z.out.Output()))
 	}
 }
 
@@ -439,7 +439,7 @@ func TestInstallationManager_ExecuteFailureLeavesProgressLine(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 
-	if got := out.Fetch(); strings.HasSuffix(got, "\n") || !strings.Contains(got, "    Install of b/b failed\n") {
+	if got := php.NormalizeEOL(out.Fetch()); strings.HasSuffix(got, "\n") || !strings.Contains(got, "    Install of b/b failed\n") {
 		t.Errorf("output %q: want the progress bar's last line without a line break", got)
 	}
 }

@@ -389,7 +389,7 @@ func ValidateJSONSchema(out io.IO, fileOrData any, schema int, source string) er
 	if !errors.As(err, &ve) {
 		return err
 	}
-	msg := ve.Message + ", this may result in errors and should be resolved:\n - " + strings.Join(ve.Errors, "\n - ")
+	msg := ve.Message + ", this may result in errors and should be resolved:" + php.EOL + " - " + strings.Join(ve.Errors, php.EOL+" - ")
 	if out != nil {
 		out.WriteError("<warning>"+msg+"</>", true, io.Normal)
 

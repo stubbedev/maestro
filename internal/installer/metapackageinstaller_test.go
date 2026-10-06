@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -22,7 +23,7 @@ func TestMetapackageInstaller_Install(t *testing.T) {
 
 	equalCalls(t, repo.rec.list(), []string{"addPackage foo/meta-1.0.0.0"})
 
-	if got := io.Output(); got != "  - Installing foo/meta (1.0.0)\n" {
+	if got := php.NormalizeEOL(io.Output()); got != "  - Installing foo/meta (1.0.0)\n" {
 		t.Errorf("output %q", got)
 	}
 }
@@ -40,7 +41,7 @@ func TestMetapackageInstaller_Update(t *testing.T) {
 
 	equalCalls(t, repo.rec.list(), []string{"hasPackage foo/meta-1.0.0.0", "removePackage foo/meta-1.0.0.0", "addPackage foo/meta-1.0.1.0"})
 
-	if got := io.Output(); got != "  - Upgrading foo/meta (1.0.0 => 1.0.1)\n" {
+	if got := php.NormalizeEOL(io.Output()); got != "  - Upgrading foo/meta (1.0.0 => 1.0.1)\n" {
 		t.Errorf("output %q", got)
 	}
 
@@ -63,7 +64,7 @@ func TestMetapackageInstaller_Uninstall(t *testing.T) {
 
 	equalCalls(t, repo.rec.list(), []string{"hasPackage foo/meta-1.0.0.0", "removePackage foo/meta-1.0.0.0"})
 
-	if got := io.Output(); got != "  - Removing foo/meta (1.0.0)\n" {
+	if got := php.NormalizeEOL(io.Output()); got != "  - Removing foo/meta (1.0.0)\n" {
 		t.Errorf("output %q", got)
 	}
 

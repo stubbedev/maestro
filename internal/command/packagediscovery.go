@@ -511,7 +511,7 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 					return "", "", err
 				}
 				if stable == nil {
-					additional = "\n\nAdditionally, the package was only found with a stability of \"" + candidate.Stability() + "\" while your minimum stability is \"" + effectiveMinimumStability + "\"."
+					additional = php.EOL + php.EOL + "Additionally, the package was only found with a stability of \"" + candidate.Stability() + "\" while your minimum stability is \"" + effectiveMinimumStability + "\"."
 				}
 
 				details, err := d.PlatformExceptionDetails(candidate, platformRepo)
@@ -688,5 +688,5 @@ func (*PackageDiscovery) PlatformExceptionDetails(candidate pkg.PackageInterface
 		return "", nil
 	}
 
-	return ":\n  - " + strings.Join(details, "\n  - "), nil
+	return ":" + php.EOL + "  - " + strings.Join(details, php.EOL+"  - "), nil
 }

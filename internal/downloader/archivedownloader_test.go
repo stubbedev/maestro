@@ -747,8 +747,8 @@ func TestArchiveDownloader_MirrorFallback(t *testing.T) {
 
 	checkTree(t, path)
 
-	if !strings.Contains(pr.out.Output(), "    Failed downloading a/b, trying the next URL (404: ") {
-		t.Fatalf("output %q", pr.out.Output())
+	if !strings.Contains(php.NormalizeEOL(pr.out.Output()), "    Failed downloading a/b, trying the next URL (404: ") {
+		t.Fatalf("output %q", php.NormalizeEOL(pr.out.Output()))
 	}
 }
 
@@ -772,7 +772,7 @@ func TestZipDownloader_ErrorMessages(t *testing.T) {
 		t.Fatalf("error %q, want %q", err, want)
 	}
 
-	out := pr.out.Output()
+	out := php.NormalizeEOL(pr.out.Output())
 	for _, line := range []string{
 		"    <warning>Failed to extract a/b: (9) " + unzipPath() + " -qq " + tmpFile + " -d ",
 		"    The archive may contain identical file names with different capitalization (which fails on case insensitive filesystems)\n",
@@ -1093,12 +1093,12 @@ func TestArchiveDownloader_UpdateAndRemove(t *testing.T) {
 		t.Fatal("the package was not removed")
 	}
 
-	if !strings.Contains(pr.out.Output(), "  - Upgrading a/b (1.0.0 => 1.1.0): Extracting archive\n") {
-		t.Fatalf("output %q", pr.out.Output())
+	if !strings.Contains(php.NormalizeEOL(pr.out.Output()), "  - Upgrading a/b (1.0.0 => 1.1.0): Extracting archive\n") {
+		t.Fatalf("output %q", php.NormalizeEOL(pr.out.Output()))
 	}
 
-	if !strings.Contains(pr.out.Output(), "  - Removing a/b (1.1.0)\n") {
-		t.Fatalf("output %q", pr.out.Output())
+	if !strings.Contains(php.NormalizeEOL(pr.out.Output()), "  - Removing a/b (1.1.0)\n") {
+		t.Fatalf("output %q", php.NormalizeEOL(pr.out.Output()))
 	}
 }
 
@@ -1130,8 +1130,8 @@ func TestFileDownloader_FilesCache(t *testing.T) {
 			verb = "Loading"
 		}
 
-		if !strings.HasPrefix(pr.out.Output(), "  - "+verb+" a/b") {
-			t.Fatalf("run %d output %q", i, pr.out.Output())
+		if !strings.HasPrefix(php.NormalizeEOL(pr.out.Output()), "  - "+verb+" a/b") {
+			t.Fatalf("run %d output %q", i, php.NormalizeEOL(pr.out.Output()))
 		}
 	}
 

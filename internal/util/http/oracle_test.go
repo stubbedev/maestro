@@ -200,9 +200,9 @@ func TestOracle_AuthenticationOptions(t *testing.T) {
 		options := h.AddAuthenticationOptions(php.ArrayOf("http", php.ArrayOf("header", list("Accept: x"))), origin, url)
 		h.AddAuthenticationOptions(php.NewArray(), origin, url)
 
-		if encode(t, options) != encode(t, arrayValue(c, "options")) || b.Output() != str(c, "output") {
+		if encode(t, options) != encode(t, arrayValue(c, "options")) || php.NormalizeEOL(b.Output()) != str(c, "output") {
 			t.Errorf("%s %s %s/%s: got %s %q, want %s %q", origin, url, str(c, "username"), str(c, "password"),
-				encode(t, options), b.Output(), encode(t, arrayValue(c, "options")), str(c, "output"))
+				encode(t, options), php.NormalizeEOL(b.Output()), encode(t, arrayValue(c, "options")), str(c, "output"))
 		}
 	}
 }
@@ -273,8 +273,8 @@ func TestOracle_OutputWarnings(t *testing.T) {
 		}
 
 		wrote, err := OutputWarnings(b, "https://user:secret@repo.example.org", arrayValue(c, "data"))
-		if err != nil || wrote != arrayValue(c, "wrote") || b.Output() != str(c, "output") {
-			t.Errorf("%s decorated=%v: got %v %q %v, want %q", encode(t, arrayValue(c, "data")), decorated, wrote, b.Output(), err, str(c, "output"))
+		if err != nil || wrote != arrayValue(c, "wrote") || php.NormalizeEOL(b.Output()) != str(c, "output") {
+			t.Errorf("%s decorated=%v: got %v %q %v, want %q", encode(t, arrayValue(c, "data")), decorated, wrote, php.NormalizeEOL(b.Output()), err, str(c, "output"))
 		}
 	}
 }

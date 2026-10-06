@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 )
 
@@ -228,7 +229,7 @@ func expectOutput(t *testing.T, b *io.BufferIO, lines ...string) {
 	if len(lines) > 0 {
 		want += "\n"
 	}
-	if got := b.Output(); got != want {
+	if got := php.NormalizeEOL(b.Output()); got != want {
 		t.Errorf("output:\n%q\nwant:\n%q", got, want)
 	}
 }

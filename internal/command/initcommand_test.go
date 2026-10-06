@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -292,6 +293,28 @@ func TestInitCommand_RunCommandInvalid(t *testing.T) {
 				t.Fatalf("error output %q does not match %s", out, tc.message)
 			}
 		})
+	}
+}
+
+// TestInitCommand_SchemaErrorWindowsEOL checks that the schema validation
+// error lists its errors with PHP_EOL, "\r\n" on Windows, as the
+// output's own line endings are.
+func TestInitCommand_SchemaErrorWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+	initSetUp(t)
+	initTempDirWithoutFiles(t)
+
+	appTester := commandtest.GetApplicationTester(t)
+	params := []console.Param{console.P("command", "init"), console.P("--no-interaction", true), console.P("--name", "test/pkg"), console.P("--homepage", "not-a-url")}
+	if _, err := appTester.Run(params, commandtest.Options{CaptureStderrSeparately: true}); err != nil {
+		t.Fatal(err)
+	}
+	want := "Writing ./composer.json\r\n" +
+		"Schema validation error, aborting\r\n" +
+		"\"./composer.json\" does not match the expected JSON schema:\r\n" +
+		" - homepage : Invalid URL format\r\n"
+	if out := appTester.ErrorOutput(false); out != want {
+		t.Errorf("error output %q, want %q", out, want)
 	}
 }
 

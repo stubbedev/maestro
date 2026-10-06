@@ -170,7 +170,7 @@ func (m *ioMock) SetAuthentication(repositoryName, username string, password *st
 func (m *ioMock) assertComplete(t *testing.T) {
 	t.Helper()
 
-	output := m.Output()
+	output := php.NormalizeEOL(m.Output())
 
 	if m.expectations == nil {
 		return

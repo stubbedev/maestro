@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Options are ApplicationTester::run()'s $options; nil pointers are unset.
@@ -110,7 +111,8 @@ func (a *ApplicationTester) Display(normalize bool) string {
 	}
 	s := a.outBuf.String()
 	if normalize {
-		s = strings.ReplaceAll(s, "\r\n", "\n")
+		// str_replace(\PHP_EOL, "\n", $display)
+		s = php.NormalizeEOL(s)
 	}
 
 	return s
@@ -123,7 +125,8 @@ func (a *ApplicationTester) ErrorOutput(normalize bool) string {
 	}
 	s := a.errBuf.String()
 	if normalize {
-		s = strings.ReplaceAll(s, "\r\n", "\n")
+		// str_replace(\PHP_EOL, "\n", $display)
+		s = php.NormalizeEOL(s)
 	}
 
 	return s

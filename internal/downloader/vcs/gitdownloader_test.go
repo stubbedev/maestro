@@ -343,8 +343,8 @@ func TestGitDownloader_DowngradeShowsAppropriateMessage(t *testing.T) {
 	dir := gitDir(t, ".git")
 	noError(t, run(updateSteps(g.downloader(t), oldPackage, newPackage, dir)...))
 
-	if !strings.Contains(buffer.Output(), "Downgrading ") {
-		t.Fatalf("output %q has no Downgrading line", buffer.Output())
+	if !strings.Contains(php.NormalizeEOL(buffer.Output()), "Downgrading ") {
+		t.Fatalf("output %q has no Downgrading line", php.NormalizeEOL(buffer.Output()))
 	}
 }
 
@@ -359,8 +359,8 @@ func TestGitDownloader_NotUsingDowngradingWithReferences(t *testing.T) {
 	dir := gitDir(t, ".git")
 	noError(t, run(updateSteps(g.downloader(t), oldPackage, newPackage, dir)...))
 
-	if !strings.Contains(buffer.Output(), "Upgrading ") {
-		t.Fatalf("output %q has no Upgrading line", buffer.Output())
+	if !strings.Contains(php.NormalizeEOL(buffer.Output()), "Upgrading ") {
+		t.Fatalf("output %q has no Upgrading line", php.NormalizeEOL(buffer.Output()))
 	}
 }
 

@@ -142,7 +142,7 @@ func (r *PackageRepository) SecurityAdvisories(packageConstraintMap *ConstraintM
 				return AdvisoryResult{}, err
 			}
 			if _, full := advisory.(*SecurityAdvisory); !allowPartial && !full {
-				return AdvisoryResult{}, &util.RuntimeError{Site: phperr.At("PackageRepository.php", 97), Message: "Advisory for " + packageName + " could not be loaded as a full advisory from " + r.RepoName() + "\n" + php.VarExport(advisoryData)}
+				return AdvisoryResult{}, &util.RuntimeError{Site: phperr.At("PackageRepository.php", 97), Message: "Advisory for " + packageName + " could not be loaded as a full advisory from " + r.RepoName() + php.EOL + php.VarExport(advisoryData)}
 			}
 
 			if advisory.Partial().AffectedVersions.Matches(constraint) {

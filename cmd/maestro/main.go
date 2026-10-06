@@ -21,6 +21,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/plugin"
 )
@@ -49,7 +50,7 @@ func run() int {
 	if view, _, err := rt.ComposerView(); err == nil {
 		if err := view.CheckBinComposer(); err != nil {
 			if ue, ok := errors.AsType[*platform.UnsupportedPHPError](err); ok {
-				fmt.Fprint(os.Stdout, ue.Message+"\n")
+				fmt.Fprint(os.Stdout, ue.Message+php.EOL)
 
 				return 1
 			}

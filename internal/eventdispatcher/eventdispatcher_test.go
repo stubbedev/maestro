@@ -149,7 +149,7 @@ func TestEventDispatcher_DispatcherRemoveListener(t *testing.T) {
 		"> ev1: " + testClass + "::someMethod\n" +
 		"> ev2: " + testClass + "::someMethod\n" +
 		"> ev2: " + testClass + "->someMethod\n"
-	if got := out.Output(); got != expected {
+	if got := php.NormalizeEOL(out.Output()); got != expected {
 		t.Fatalf("output:\n%s\nwant:\n%s", got, expected)
 	}
 
@@ -162,7 +162,7 @@ func TestEventDispatcher_DispatcherRemoveListener(t *testing.T) {
 
 	expected += "> ev1: " + testClass + "::someMethod\n" +
 		"> ev2: " + testClass + "::someMethod\n"
-	if got := out.Output(); got != expected {
+	if got := php.NormalizeEOL(out.Output()); got != expected {
 		t.Fatalf("output:\n%s\nwant:\n%s", got, expected)
 	}
 }

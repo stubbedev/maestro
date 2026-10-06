@@ -175,7 +175,7 @@ func TestPluginInstaller_InstallRollsBack(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 
-	if got := io.Output(); got != "Plugin initialization failed (broken plugin), uninstalling plugin\n" {
+	if got := php.NormalizeEOL(io.Output()); got != "Plugin initialization failed (broken plugin), uninstalling plugin\n" {
 		t.Errorf("output %q", got)
 	}
 

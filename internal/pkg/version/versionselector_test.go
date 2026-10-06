@@ -115,8 +115,8 @@ func TestVersionSelector_LatestVersionIsReturnedThatMatchesPhpRequirements(t *te
 		t.Errorf("got %v, want 1.0.0", got)
 	}
 
-	if want := "<warning>Cannot use foo/bar's latest version 2.1.0 as it requires php >=5.6 which is not satisfied by your platform.\n"; out.Output() != want {
-		t.Errorf("output %q, want %q", out.Output(), want)
+	if want := "<warning>Cannot use foo/bar's latest version 2.1.0 as it requires php >=5.6 which is not satisfied by your platform.\n"; php.NormalizeEOL(out.Output()) != want {
+		t.Errorf("output %q, want %q", php.NormalizeEOL(out.Output()), want)
 	}
 
 	out = bufferIO(64)
@@ -125,8 +125,8 @@ func TestVersionSelector_LatestVersionIsReturnedThatMatchesPhpRequirements(t *te
 	}
 
 	if want := "<warning>Cannot use foo/bar's latest version 2.1.0 as it requires php >=5.6 which is not satisfied by your platform.\n" +
-		"<warning>Cannot use foo/bar 2.0.0 as it requires php >=5.6 which is not satisfied by your platform.\n"; out.Output() != want {
-		t.Errorf("output %q, want %q", out.Output(), want)
+		"<warning>Cannot use foo/bar 2.0.0 as it requires php >=5.6 which is not satisfied by your platform.\n"; php.NormalizeEOL(out.Output()) != want {
+		t.Errorf("output %q, want %q", php.NormalizeEOL(out.Output()), want)
 	}
 
 	if got := best(t, s, "foo/bar", version.FindBestCandidateOptions{PlatformRequirementFilter: ignoreAll{}}); got.String() != packages[3].String() {

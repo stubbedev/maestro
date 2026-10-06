@@ -181,7 +181,7 @@ func TestAutoloadGenerator_DuplicateFilesWarning(t *testing.T) {
 	e.assertFileContentEquals("autoload_files_duplicates.php", e.vendorDir+"/composer/autoload_files.php")
 	want := `<warning>The following "files" autoload rules are included multiple times, this may cause issues and should be resolved:</warning>` + "\n" +
 		`<warning> - $baseDir . '/foo.php'</warning>` + "\n"
-	if got := e.io.Output(); got != want {
+	if got := php.NormalizeEOL(e.io.Output()); got != want {
 		t.Errorf("output %q, want %q", got, want)
 	}
 }

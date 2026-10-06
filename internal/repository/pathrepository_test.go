@@ -373,7 +373,7 @@ func TestRepositoryManager_PackagistWarning(t *testing.T) {
 	rm := NewRepositoryManager(out, config.New(false, ""), nil, nil, nil)
 	rm.SetRepositoryClass("package", newPackageRepository)
 	must(rm.CreateRepository("package", php.ArrayOf("package", php.NewArray(), "packagist", false), "foo"))
-	if want := "<warning>Repository \"foo\" ({\"package\":[],\"packagist\":false}) has a packagist key which should be in its own repository definition</warning>\n"; out.Output() != want {
-		t.Errorf("%q", out.Output())
+	if want := "<warning>Repository \"foo\" ({\"package\":[],\"packagist\":false}) has a packagist key which should be in its own repository definition</warning>\n"; php.NormalizeEOL(out.Output()) != want {
+		t.Errorf("%q", php.NormalizeEOL(out.Output()))
 	}
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -55,7 +56,7 @@ func TestTriggerDeprecation(t *testing.T) {
 		leave()
 		TriggerDeprecation("third", phperr.At("eh.php", 23))
 
-		if got := out.Output(); got != c.want {
+		if got := php.NormalizeEOL(out.Output()); got != c.want {
 			t.Errorf("verbosity %d:\n got %q\nwant %q", c.verbosity, got, c.want)
 		}
 	}

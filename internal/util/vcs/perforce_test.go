@@ -123,7 +123,7 @@ func TestPerforce_QueryP4UserWithUserSetInP4VariablesWithWindowsOS(t *testing.T)
 	f := newPerforceFixture(t)
 	f.createNewPerforceWithWindowsFlag(t, true)
 	f.perforce.SetUser(nil)
-	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("p4 set"), Stdout: "P4USER=TEST_P4VARIABLE_USER" + phpEOL}}, true, nil)
+	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("p4 set"), Stdout: "P4USER=TEST_P4VARIABLE_USER" + php.EOL}}, true, nil)
 
 	if err := f.perforce.QueryP4User(); err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestPerforce_QueryP4UserWithUserSetInP4VariablesNotWindowsOS(t *testing.T) 
 	f := newPerforceFixture(t)
 	f.createNewPerforceWithWindowsFlag(t, false)
 	f.perforce.SetUser(nil)
-	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("echo $P4USER"), Stdout: "TEST_P4VARIABLE_USER" + phpEOL}}, true, nil)
+	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("echo $P4USER"), Stdout: "TEST_P4VARIABLE_USER" + php.EOL}}, true, nil)
 
 	if err := f.perforce.QueryP4User(); err != nil {
 		t.Fatal(err)
@@ -258,7 +258,7 @@ func TestPerforce_QueryP4PasswordWithPasswordAlreadySet(t *testing.T) {
 func TestPerforce_QueryP4PasswordWithPasswordSetInP4VariablesWithWindowsOS(t *testing.T) {
 	f := newPerforceFixture(t)
 	f.createNewPerforceWithWindowsFlag(t, true)
-	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("p4 set"), Stdout: "P4PASSWD=TEST_P4VARIABLE_PASSWORD" + phpEOL}}, true, nil)
+	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("p4 set"), Stdout: "P4PASSWD=TEST_P4VARIABLE_PASSWORD" + php.EOL}}, true, nil)
 
 	expectEqual(t, queryPassword(t, f.perforce), "TEST_P4VARIABLE_PASSWORD")
 }
@@ -266,7 +266,7 @@ func TestPerforce_QueryP4PasswordWithPasswordSetInP4VariablesWithWindowsOS(t *te
 func TestPerforce_QueryP4PasswordWithPasswordSetInP4VariablesNotWindowsOS(t *testing.T) {
 	f := newPerforceFixture(t)
 	f.createNewPerforceWithWindowsFlag(t, false)
-	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("echo $P4PASSWD"), Stdout: "TEST_P4VARIABLE_PASSWORD" + phpEOL}}, true, nil)
+	f.process.Expects([]processmock.Expectation{{Cmd: util.ShellCmd("echo $P4PASSWD"), Stdout: "TEST_P4VARIABLE_PASSWORD" + php.EOL}}, true, nil)
 
 	expectEqual(t, queryPassword(t, f.perforce), "TEST_P4VARIABLE_PASSWORD")
 }
@@ -288,16 +288,16 @@ func assertClientSpec(t *testing.T, p *Perforce, withStream bool) {
 	}
 
 	expected := []string{
-		"Client: composer_perforce_TEST_depot", phpEOL,
-		"Update:", phpEOL,
+		"Client: composer_perforce_TEST_depot", php.EOL,
+		"Update:", php.EOL,
 		"Access:",
-		"Owner:  user", phpEOL,
+		"Owner:  user", php.EOL,
 		"Description:",
-		"  Created by user from composer.", phpEOL,
-		"Root: path", phpEOL,
-		"Options:  noallwrite noclobber nocompress unlocked modtime rmdir", phpEOL,
-		"SubmitOptions:  revertunchanged", phpEOL,
-		"LineEnd:  local", phpEOL,
+		"  Created by user from composer.", php.EOL,
+		"Root: path", php.EOL,
+		"Options:  noallwrite noclobber nocompress unlocked modtime rmdir", php.EOL,
+		"SubmitOptions:  revertunchanged", php.EOL,
+		"LineEnd:  local", php.EOL,
 	}
 	if withStream {
 		expected = append(expected, "Stream:", "  //depot/branch")
@@ -331,6 +331,31 @@ func TestPerforce_WriteP4ClientSpecWithStream(t *testing.T) {
 	assertClientSpec(t, f.perforce, true)
 }
 
+// Perforce::writeClientSpecToFile ends every line with PHP_EOL, "\r\n" on
+// Windows, and getTags() splits p4's output at PHP_EOL.
+func TestPerforce_WindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	f := newPerforceFixture(t)
+	f.setPerforceToStream()
+	assertClientSpec(t, f.perforce, true)
+
+	var b strings.Builder
+	if err := f.perforce.WriteClientSpecToFile(&b); err != nil {
+		t.Fatal(err)
+	}
+	spec := b.String()
+	if strings.Count(spec, "\n") != strings.Count(spec, "\r\n") || !strings.HasPrefix(spec, "Client: composer_perforce_TEST_depot_branch\r\n\r\nUpdate: ") ||
+		!strings.HasSuffix(spec, "LineEnd:  local\r\n\r\nStream:\r\n  //depot/branch\r\n") {
+		t.Fatalf("spec %q", spec)
+	}
+
+	f.process.Expects([]processmock.Expectation{
+		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot_branch", "-p", "port", "labels"), Stdout: strings.ReplaceAll(labelsOutput, "\n", "\r\n")},
+	}, true, nil)
+	assertTags(t, f.perforce, "//depot/branch")
+}
+
 func TestPerforce_IsLoggedIn(t *testing.T) {
 	f := newPerforceFixture(t)
 	f.process.Expects([]processmock.Expectation{processmock.Cmd("p4", "-u", "user", "-p", "port", "login", "-s")}, true, nil)
@@ -359,7 +384,7 @@ func TestPerforce_GetBranchesWithStream(t *testing.T) {
 	f := newPerforceFixture(t)
 	f.setPerforceToStream()
 	f.process.Expects([]processmock.Expectation{
-		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot_branch", "-p", "port", "streams", "//depot/..."), Stdout: "Stream //depot/branch mainline none 'branch'" + phpEOL},
+		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot_branch", "-p", "port", "streams", "//depot/..."), Stdout: "Stream //depot/branch mainline none 'branch'" + php.EOL},
 		{Cmd: util.Cmd("p4", "-u", "user", "-p", "port", "changes", "//depot/branch/..."), Stdout: "Change 1234 on 2014/03/19 by Clark.Stuth@Clark.Stuth_test_client 'test changelist'"},
 	}, true, nil)
 
@@ -394,7 +419,7 @@ const labelsOutput = "Label 0.0.1 2013/07/31 'First Label!'\nLabel 0.0.2 2013/08
 func TestPerforce_GetTagsWithoutStream(t *testing.T) {
 	f := newPerforceFixture(t)
 	f.process.Expects([]processmock.Expectation{
-		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot", "-p", "port", "labels"), Stdout: strings.ReplaceAll(labelsOutput, "\n", phpEOL)},
+		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot", "-p", "port", "labels"), Stdout: strings.ReplaceAll(labelsOutput, "\n", php.EOL)},
 	}, true, nil)
 
 	assertTags(t, f.perforce, "//depot")
@@ -404,7 +429,7 @@ func TestPerforce_GetTagsWithStream(t *testing.T) {
 	f := newPerforceFixture(t)
 	f.setPerforceToStream()
 	f.process.Expects([]processmock.Expectation{
-		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot_branch", "-p", "port", "labels"), Stdout: strings.ReplaceAll(labelsOutput, "\n", phpEOL)},
+		{Cmd: util.Cmd("p4", "-u", "user", "-c", "composer_perforce_TEST_depot_branch", "-p", "port", "labels"), Stdout: strings.ReplaceAll(labelsOutput, "\n", php.EOL)},
 	}, true, nil)
 
 	assertTags(t, f.perforce, "//depot/branch")

@@ -210,8 +210,8 @@ func TestGenerator_CreateLoader(t *testing.T) {
 	if got, want := php.VarExport(l.ClassMap), "array (\n  'CmA' => '"+filepath.ToSlash(e.workingDir)+"/cm/a.php',\n)"; got != want {
 		t.Errorf("classMap %s, want %s", got, want)
 	}
-	if want := `<warning>Could not scan for classes inside "missing" which does not appear to be a file nor a folder</warning>` + "\n"; e.io.Output() != want {
-		t.Errorf("output %q, want %q", e.io.Output(), want)
+	if want := `<warning>Could not scan for classes inside "missing" which does not appear to be a file nor a folder</warning>` + "\n"; php.NormalizeEOL(e.io.Output()) != want {
+		t.Errorf("output %q, want %q", php.NormalizeEOL(e.io.Output()), want)
 	}
 	if _, err := os.Stat(e.vendorDir + "/composer"); err == nil {
 		t.Error("CreateLoader wrote files")

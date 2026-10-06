@@ -32,7 +32,7 @@ func expectOutput(t *testing.T, io *mio.BufferIO, lines ...string) {
 		want.WriteString(l + "\n")
 	}
 
-	if got := io.Output(); got != want.String() {
+	if got := php.NormalizeEOL(io.Output()); got != want.String() {
 		t.Errorf("output:\n%q\nwant\n%q", got, want.String())
 	}
 }
@@ -240,7 +240,7 @@ func TestSuggestedPackagesReporter_OutputModes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got := io.Output(); got[:len("a/a suggests:\n")] != "a/a suggests:\n" {
+	if got := php.NormalizeEOL(io.Output()); got[:len("a/a suggests:\n")] != "a/a suggests:\n" {
 		t.Errorf("output %q", got)
 	}
 

@@ -634,7 +634,10 @@ func checkException(t *testing.T, test integrationTest, err error) {
 	if err == nil {
 		t.Fatalf("expected %s", test.expectException)
 	}
-	if want := php.Rtrim(test.expect); !strings.Contains(err.Error(), want) {
+	// InstallerTest expects rtrim(str_replace("\n", PHP_EOL, $expect)): the
+	// fixtures' exception messages are written with "\n" where Composer
+	// uses PHP_EOL.
+	if want := php.Rtrim(strings.ReplaceAll(test.expect, "\n", php.EOL)); !strings.Contains(err.Error(), want) {
 		t.Errorf("error %q does not contain %q", err.Error(), want)
 	}
 }

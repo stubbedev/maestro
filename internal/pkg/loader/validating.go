@@ -356,7 +356,7 @@ func (l *ValidatingArrayLoader) validateLicense(releaseDate time.Time, hasReleas
 			if validator.Validate(php.Trim(toValidate)) {
 				l.warnf("License ", jsonEncode(lic), " must not contain extra spaces, make sure to trim it.")
 			} else {
-				l.warnf("License ", jsonEncode(lic), " is not a valid SPDX license identifier, see https://spdx.org/licenses/ if you use an open license.\n",
+				l.warnf("License ", jsonEncode(lic), " is not a valid SPDX license identifier, see https://spdx.org/licenses/ if you use an open license.", php.EOL,
 					"If the software is closed-source, you may use \"proprietary\" as license.")
 			}
 		}

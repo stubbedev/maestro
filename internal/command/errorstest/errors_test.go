@@ -32,6 +32,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -175,7 +176,8 @@ func runScenario(t *testing.T, dir, flag, serverURL string) string {
 
 	host := strings.TrimPrefix(serverURL, "http://")
 
-	return normalize(buf.String(), run, root, host) + "exit " + strconv.Itoa(code) + "\n"
+	// The goldens record Composer on Linux, where PHP_EOL is "\n".
+	return normalize(php.NormalizeEOL(buf.String()), run, root, host) + "exit " + strconv.Itoa(code) + "\n"
 }
 
 // workDir creates the scenario's directory with the shape of the oracle's

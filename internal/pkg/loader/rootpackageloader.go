@@ -263,7 +263,7 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 		}
 
 		if name := get(config, "name"); links.Has(name) {
-			return &util.RuntimeError{Site: phperr.At("RootPackageLoader.php", 169), Message: "Root package '" + php.ToString(name) + "' cannot require itself in its composer.json\n" +
+			return &util.RuntimeError{Site: phperr.At("RootPackageLoader.php", 169), Message: "Root package '" + php.ToString(name) + "' cannot require itself in its composer.json" + php.EOL +
 				"Did you accidentally name your root package after an external package?"}
 		}
 	}

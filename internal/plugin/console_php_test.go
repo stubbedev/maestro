@@ -15,6 +15,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // runApp runs maestro's Application on the plugin runtime of a project,
@@ -38,7 +39,9 @@ func (p *project) runApp(args ...string) (string, int) {
 		p.t.Fatalf("%v: %v", args, err)
 	}
 
-	return buf.String(), code
+	// getDisplay(true): maestro's Output ends lines with PHP_EOL; the
+	// expectations below use "\n" for those (and cr for PHP's own).
+	return php.NormalizeEOL(buf.String()), code
 }
 
 func TestPlugins_Commands(t *testing.T) {

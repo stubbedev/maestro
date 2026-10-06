@@ -178,7 +178,7 @@ func readError(path string, err error) error {
 // helpful is the "may be helpful" suffix with PHP's warning for a failed
 // fopen() in fn.
 func helpful(fn, path string, err error) string {
-	return "\nThe following message may be helpful:\n" + fn + "(" + path + "): Failed to open stream: " + strerror(err)
+	return php.EOL + "The following message may be helpful:" + php.EOL + fn + "(" + path + "): Failed to open stream: " + strerror(err)
 }
 
 // strerror returns the C library's message for the errno behind err.

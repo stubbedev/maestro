@@ -235,7 +235,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 				instructions = "To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage"
 			}
 
-			return nil, nil, &util.InvalidArgumentError{Site: phperr.At("Factory.php", 308), Message: message + "\n" + instructions}
+			return nil, nil, &util.InvalidArgumentError{Site: phperr.At("Factory.php", 308), Message: message + php.EOL + instructions}
 		}
 
 		if !util.IsInputCompletionProcess() {
@@ -245,9 +245,9 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 					return nil, nil, phperr.Call(err, `Composer\Json\JsonFile->validateSchema`, "Factory.php", 313)
 				}
 
-				errs := " - " + strings.Join(ve.Errors, "\n - ")
+				errs := " - " + strings.Join(ve.Errors, php.EOL+" - ")
 
-				return nil, nil, &json.ValidationError{Site: phperr.At("Factory.php", 317), Message: ve.Message + ":\n" + errs}
+				return nil, nil, &json.ValidationError{Site: phperr.At("Factory.php", 317), Message: ve.Message + ":" + php.EOL + errs}
 			}
 		}
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/processmock"
 )
@@ -56,7 +57,7 @@ func TestGitDownloader_CleanChangesPrompt(t *testing.T) {
 		"    Discard changes [y,n,v,d,s,?]? the diff",
 		"    Discard changes [y,n,v,d,s,?]? ",
 	}, "\n")
-	if got := buffer.Output(); got != want {
+	if got := php.NormalizeEOL(buffer.Output()); got != want {
 		t.Fatalf("output:\n%s\nwant:\n%s", got, want)
 	}
 
@@ -80,7 +81,7 @@ func TestGitDownloader_CleanChangesUninstallHasNoStash(t *testing.T) {
 	_, err := g.downloader(t).Prepare("uninstall", p, dir, nil)
 	wantError[*util.RuntimeError](t, err, "Update aborted")
 
-	out := buffer.Output()
+	out := php.NormalizeEOL(buffer.Output())
 	if !strings.Contains(out, "Discard changes [y,n,v,d,?]?") || !strings.Contains(out, "y - discard changes and apply the uninstall") || strings.Contains(out, "s - stash") {
 		t.Fatalf("output %q", out)
 	}
@@ -206,8 +207,8 @@ func TestGitDownloader_UpdateToCommitGone(t *testing.T) {
 	wantError[*util.RuntimeError](t, err, "Failed to execute git checkout "+ref+" -- && git reset --hard "+ref+" --\n\nfatal: reference is not a tree: "+ref+
 		"\nIt looks like the commit hash is not available in the repository, maybe the tag was recreated? Run \"composer update dummy/pkg\" to resolve this.")
 
-	if !strings.Contains(buffer.Output(), ref+" is gone (history was rewritten?)") {
-		t.Fatalf("output %q", buffer.Output())
+	if !strings.Contains(php.NormalizeEOL(buffer.Output()), ref+" is gone (history was rewritten?)") {
+		t.Fatalf("output %q", php.NormalizeEOL(buffer.Output()))
 	}
 }
 
@@ -271,7 +272,7 @@ func TestSvnDownloader_CleanChanges(t *testing.T) {
 		"    ? - print help",
 		"    Discard changes [y,n,v,?]? ",
 	}, "\n")
-	if got := buffer.Output(); got != want {
+	if got := php.NormalizeEOL(buffer.Output()); got != want {
 		t.Fatalf("output:\n%q\nwant:\n%q", got, want)
 	}
 }

@@ -181,7 +181,7 @@ func writeFile(t *testing.T, path string, data []byte, mode os.FileMode) {
 }
 
 func outputLines(b *mio.BufferIO) []string {
-	out := strings.TrimRight(b.Output(), "\n")
+	out := strings.TrimRight(php.NormalizeEOL(b.Output()), "\n")
 	if out == "" {
 		return nil
 	}

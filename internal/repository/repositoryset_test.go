@@ -154,6 +154,25 @@ func TestPackageRepository_AdvisoriesAndFilter(t *testing.T) {
 	}
 }
 
+// PackageRepository::getSecurityAdvisories puts PHP_EOL, "\r\n" on Windows,
+// between its message and the var_export()ed advisory (whose own lines end
+// with "\n").
+func TestPackageRepository_PartialAdvisoryWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	config := must(php.JSONDecode(`{
+		"package": {"name": "a/a", "version": "1.0.0"},
+		"security-advisories": {"a/a": [{"advisoryId": "PKSA-2", "affectedVersions": ">=1.0"}]}
+	}`, true)).(*php.Array)
+	repo := must(NewPackageRepository(config))
+
+	_, err := repo.SecurityAdvisories(NewConstraintMap("a/a", mustConstraint(t, "1.0.0")), false)
+	want := "Advisory for a/a could not be loaded as a full advisory from package repo (defining 1 package)\r\narray (\n  'advisoryId' => 'PKSA-2',\n  'affectedVersions' => '>=1.0',\n)"
+	if err == nil || err.Error() != want {
+		t.Fatalf("got %q\nwant %q", err, want)
+	}
+}
+
 func TestPackageRepository_InvalidDefinition(t *testing.T) {
 	repo := must(NewPackageRepository(php.ArrayOf("package", php.ArrayOf("name", "a/a"))))
 	_, err := repo.Packages()

@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 type generateScenario struct {
@@ -194,7 +196,7 @@ func runScenario(t *testing.T, s generateScenario, cwd string) generateResult {
 			res.Error = &struct {
 				Class   string `json:"class"`
 				Message string `json:"message"`
-			}{e.Class, strip(e.Message)}
+			}{e.Class, strip(php.NormalizeEOL(e.Message))} // the goldens' PHP_EOL is "\n"
 
 			break
 		}

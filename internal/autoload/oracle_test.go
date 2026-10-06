@@ -165,7 +165,7 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 		}
 	}
 
-	if got, want := sortedLines(replace(bio.Output())), sortedLines(golden(str(result, "output"))); !slices.Equal(got, want) {
+	if got, want := sortedLines(replace(php.NormalizeEOL(bio.Output()))), sortedLines(golden(str(result, "output"))); !slices.Equal(got, want) {
 		t.Errorf("output:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 

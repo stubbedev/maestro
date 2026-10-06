@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -188,6 +189,44 @@ func TestDiagnoseCommand_ConfigureCommandWarnings(t *testing.T) {
 		}
 		if output := appTester.Display(true); !strings.Contains(output, tc.want) {
 			t.Errorf("%s: output lacks %q:\n%s", tc.configure, tc.want, output)
+		}
+	}
+}
+
+// TestDiagnoseCommand_PlatformWarningsWindowsEOL checks that checkPlatform
+// builds its messages with PHP_EOL, "\r\n" on Windows, as the output's own
+// line endings are.
+func TestDiagnoseCommand_PlatformWarningsWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+	t.Setenv("COMPOSER_DISABLE_NETWORK", "1")
+	t.Setenv("COMPOSER_IPRESOLVE", "")
+	probe, err := os.ReadFile("../composer/testdata/platform/php84.probe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	commandtest.InitTempComposer(t, `{"name": "foo/bar", "description": "test pkg", "require": {"acme/lib": "*"}}`, nil, nil, true)
+
+	appTester := diagnoseWithPlatform(t, probe, "'./configure'  '--enable-sigchild' '--with-curlwrappers'")
+	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "diagnose"); err != nil {
+		t.Fatal(err)
+	}
+	output := appTester.Display(false)
+	for _, want := range []string{
+		// checkComposerSchema
+		"Checking composer.json: <warning>WARNING</warning>\r\n" +
+			"<warning>No license specified, it is recommended to do so. For closed-source software you may use \"proprietary\" as license.</warning>\r\n" +
+			"<warning>require.acme/lib : unbound version constraints (*) should be avoided</warning>\r\n" +
+			"Checking platform settings: ",
+		// checkPlatform
+		"Checking platform settings: PHP was compiled with --enable-sigchild which can cause issues on some platforms.\r\n" +
+			"Recompile it without this flag if possible, see also:\r\n" +
+			"  https://bugs.php.net/bug.php?id=22999\r\n" +
+			"PHP was compiled with --with-curlwrappers which will cause issues with HTTP authentication and GitHub.\r\n" +
+			" Recompile it without this flag if possible\r\n" +
+			"Checking git settings: ",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output lacks %q:\n%q", want, output)
 		}
 	}
 }
