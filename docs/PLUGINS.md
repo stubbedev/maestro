@@ -1240,9 +1240,15 @@ outermost-first list of `[object, args, function]` for the method calls
 that would be on Composer's stack at that point, `function` named as PHP's
 backtrace names it ("Composer\Installer->run"):
 
-- the Application's `doRun($input, $output)`, `doRunCommand()`, and the
+- the Application's `run()` (no arguments from bin/composer, the input
+  and output of a nested run) and Symfony's `run()` below it, Composer's
+  and Symfony's `doRun($input, $output)`, `doRunCommand()`, and the
   running command's `run()`, `initialize()`, `interact()` and `execute()`
   (the console's `CallOn` tells maestro's Application, which pushes them);
+- the Application's `getComposer()`, with the arguments of its call site
+  (BaseCommand's three, one or two from the Application itself; none when
+  PHP code called it, whose frame is real), and its private
+  `getPluginCommands()`;
 - the `Composer\Installer`'s `run()`, `doUpdate()` and `doInstall()`;
 - the PluginManager's `loadInstalledPlugins()`, `loadRepository()` and
   `registerPackage()` while a plugin loads (`addPlugin()` is the shim's own
@@ -1257,13 +1263,27 @@ dispatch). The shim's implementation of that method starts with
 `Frames::resumes($this, __FUNCTION__)`, which runs the rest of the call
 there (the inner frames, then the handler) instead of the method's work:
 `debug_backtrace()` shows Composer's `class`, `function`, `object` and
-`args`. The methods entered are the shim's `Application::doRun()`,
-`Installer::run()`/`doUpdate()`/`doInstall()`, `PluginManager::
-loadInstalledPlugins()`/`registerPackage()`/`loadRepository()` (private),
-and the hooks of maestro's own commands (`Console::builtin()`). Frames of
-methods the bundled Symfony Console declares (`doRunCommand()`,
-`Command::run()`) cannot be entered so and are left out: every frame PHP
-shows is one of Composer's, though not every one of Composer's is there.
+`args`. The methods entered are the shim's `Application::run()`/`doRun()`/
+`getComposer()`/`getPluginCommands()` (private), `Installer::run()`/
+`doUpdate()`/`doInstall()`, `PluginManager::loadInstalledPlugins()`/
+`registerPackage()`/`loadRepository()` (private), the hooks of maestro's
+own commands (`Console::builtin()`), and the bundled Symfony Console's
+`Application::run()`/`doRun()`/`doRunCommand()` and `Command::run()`.
+
+The Console is Composer's vendor/ copy, line for line, which traces name
+as Composer's files, so its files stay as they are on disk:
+`Maestro\Shim\SymfonyHooks` requires `Application.php` and
+`Command/Command.php` (when the shim's autoloader loads their classes)
+through a `file` stream wrapper that hands PHP their code with the
+`Frames::resumes()` call after the opening brace of those methods, on the
+brace's line. `__FILE__`, the lines and the rest of the code are the
+files'; the wrapper is PHP's own again as soon as the file is open, and a
+file that does not have the methods as expected is required as it is.
+This works with opcache (its file cache included). Every frame PHP shows
+is one of Composer's; the ones maestro does not push (the EventDispatcher's,
+a command's own helpers such as RequireCommand's `doUpdate()`, Factory's)
+are not there. plugin-internals compares the console's, the
+PluginManager's and the Installer's frames with Composer's.
 
 **Exception traces.** An exception's trace is Composer's call stack, not
 the shim's (`Maestro\Shim\Traces`). An exception PHP code throws goes to
@@ -1282,10 +1302,41 @@ machinery. Files are named as Composer's stack names them, under
 files line for line; the shim's Composer classes name Composer's line
 where they call plugin code with an `@line N` comment (`@line path:N` for
 the eval() of an already loaded plugin class, "PluginManager.php(305) :
-eval()'d code"), and keep their own location elsewhere. A boundary maestro
-does not locate (a PHP installer, repository, downloader or IO maestro
-calls, whose Composer call site maestro does not name) keeps the shim's
-location.
+eval()'d code"), and keep their own location elsewhere; so does an error
+PHP raises there (ErrorHandler names the `\ErrorException`'s location as
+Composer's). The calls of an installer, repository, downloader or IO
+written in PHP are located at Composer's call site too
+(InstallationManager's, DownloadManager's, RepositoryManager's,
+RepositorySet's and CompositeRepository's calls, AuthHelper's,
+DownloadManager's and PluginManager's questions); where a port records
+the call as a frame naming the object's class (PoolBuilder's
+`loadPackages()`, `util.CallSync`), `phperr.CallTo` locates the boundary
+instead when PHP names the method by the class declaring it. A boundary
+of a call no port locates keeps the shim's location.
+
+**The stack in progress.** PHP code can ask for the stack while it runs:
+at -v, Composer's ErrorHandler lists `debug_backtrace()` under a
+deprecation notice ("Stack trace:"). The calls that lead into PHP code
+therefore also record themselves while in progress, on one stack for the
+process (`phperr.Enter`, `EnterCode`, `Within`; `Live`): `Enter`'s
+function ends the call and adds its frame to the error it returned, as
+`Call` does, and `EnterCode` locates it, as `Locate` does. The console's
+`CallOn`, `Application::run()`'s callers, the EventDispatcher's calls
+(`doDispatch()`, `executeEventPhpScript()`, the listener, script and
+command class calls, an @script's dispatch), RunScriptCommand, the
+Installer and the commands running it, Factory's plugin loading and init
+event and the PluginManager's loading use them; a call PHP code makes
+into maestro is a mark on that stack (`phperr.Callback`, in every
+handler), so it comes in segments. The shim's ErrorHandler lists
+`Maestro\Shim\Traces::current()`: PHP's frames, each stretch of the
+shim's machinery replaced by the calls maestro has in progress there
+(`trace.live`), a stretch taking one segment for each call into maestro
+it holds (`Rpc::call()` frames); the first call of a segment locates the
+boundary, as for an exception. plugin-runtime's `run-script deprecation
+-v` compares it with Composer's. Composer has one ErrorHandler: its
+`$hasShownDeprecationNotice` is a static the sync engine keeps in step
+with internal/util's (`util.DeprecationNoticeShown`), so below -v a
+notice of plugin code after one of maestro's is hidden, as in Composer.
 
 **Asynchronous processes.** The processes PHP code starts with
 `$loop->getProcessExecutor()->executeAsync()` run in PHP (Symfony
@@ -1295,6 +1346,20 @@ source of maestro's `http.Loop` (`loop.phpProcessExecutor`), which
 maestro's waits poll (`countActiveJobs()`, `object.call`) while
 `executeAsync()` said it has jobs (`proc.asyncStarted`), count in the
 progress bar and end with what a poll throws (a `ProcessTimedOutException`).
+The executor `getProcessExecutor()` gives PHP writes to the IO of maestro's
+loop's executor, as Composer's one executor does.
+
+A ProcessExecutor PHP code gives one of maestro's services (`new
+FileDownloader(..., $filesystem, $process)`, `new RepositoryManager()`,
+`new Locker()`, `new EventDispatcher()`, `createDownloadManager()`) is
+honoured: maestro's service gets an executor standing for it
+(`processExecutorOf`, one per object): for a loop's executor, that loop's
+own (a loop created in PHP gets one on its scheduler), whose `wait()`
+drives the asynchronous jobs, so a FileDownloader created in PHP with it
+removes packages (`Filesystem::removeDirectoryAsync()`); for any other,
+one on the same IO, asynchronous after `enableAsync()` (`proc.describe`).
+A Filesystem given runs on its executor (`fs.describe`). The two
+executors share the loop but not `maxJobs`.
 
 **`Composer\Installer` mirror.** This is a Go-owned service proxy whose
 setters are RPC to the live Go Installer
@@ -1366,10 +1431,28 @@ orders them.
   other goroutine meanwhile fails with `rpc.ErrBaton` instead of corrupting
   the stack; `Runtime.Delegate(fn)` lends the baton to the goroutine running
   `fn`.
+- Parallel work that must reach an IO created in PHP (a process's output
+  written through a ProcessExecutor's IO, a download's debug lines, a
+  signal handler's line) does so through `rpc.Conn.Run`: at once on the
+  holder, on the calling goroutine when the baton is free (a guest, which
+  other calls wait for instead of failing with `ErrBaton`), or posted to
+  the holder, which makes the posted calls in order before its next call,
+  before it gives the baton up, and while it waits for parallel work
+  (util's wait hooks, run by the Scheduler's and Process's waits and
+  `util.WaitServing`). A call whose result does not matter (a write) does
+  not wait; one that returns a value (`isDebug()`, `ask()`) waits for the
+  holder, so a wait of the holder for such work must serve the hooks.
+  `util.Process` runs its output callback on the goroutine waiting for the
+  process, as Symfony's `wait()` does. Such an IO is `io.Foreign`: the
+  shortcuts maestro takes on its own IOs that skip or reorder calls are not
+  taken (the install notifications are sent and waited for as Composer
+  does). Platform requirement filters written in PHP are only called on
+  the main flow.
 - Parallel Go work (HTTP downloads, store imports, classmap scans) must
-  never call PHP. Every place where Composer would call plugin code during a
-  "parallel" phase calls it synchronously in Composer's order on the main
-  flow, and only then starts the parallel part:
+  never call plugin code otherwise. Every place where Composer would call
+  plugin code during a "parallel" phase calls it synchronously in
+  Composer's order on the main flow, and only then starts the parallel
+  part:
   - `PRE_FILE_DOWNLOAD` and `POST_FILE_DOWNLOAD` events: Composer dispatches
     PRE when a download is queued and POST in the promise callback, at loop
     wait. Go dispatches POST in queue order after waiting, which is
@@ -1592,6 +1675,7 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 | `command.run` | `command`, `app`, `input` (an input mirror), `output` (an output mirror), `name`, `description`, `frames` | `int` |
 | `object.call` | `object`, `method`, `args[]` | value. A generic call on a PHP-owned object, used by Go proxies of PHP outputs (`write`, `setVerbosity`, `getVerbosity`, `setDecorated`, `isDecorated`), IOs, platform requirement filters, repositories and downloaders. Only methods of the interface the proxy implements may be called (and a FileDownloader subclass's protected hooks). |
 | `downloader.describe` | `object` | `{parents: [class…], overrides: [method…]}` of a FileDownloader subclass written in PHP |
+| `proc.describe` / `fs.describe` | `object` | `{io, async}` of a ProcessExecutor, `{executor}` of a Filesystem PHP code gives a service of maestro's (§5.12) |
 | `autoload.install` | `vendorDir`, `psr0`, `psr4`, `classmap` | `null` |
 | `dispatch.begin` / `dispatch.end` | `depth` | `null` |
 | `iv.reload` | `data`, `selfDir?` | `null` |
@@ -1623,7 +1707,8 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `promise.*` | `settled {id, ok}` (PHP's promise `id` settled), `rejection {id}` (throws the rejection reason of maestro's promise `id`) |
 | `dm.*`, `downloader.*` | DownloadManager and downloader methods (promises are returned as handles) |
 | `http.*` | HttpDownloader `get`, `add`, `copy`, `addCopy`, `wait`, `getOptions`, `setOptions`, `new`; RemoteFilesystem |
-| `loop.*` | `wait` (promise handles), `getHttpDownloader`, `getProcessExecutor`, `new` |
+| `loop.*` | `wait` (promise handles), `getHttpDownloader`, `getProcessExecutor`, `new`; `processExecutorIO` (the IO of the loop's executor) |
+| `trace.live` | none | the calls of Composer's in progress (`phperr.Live`), in segments (§5.12) |
 | `proc.*` | `execute` (cmd string\|array, cwd, io, capture, tty: the PHP ProcessExecutor keeps its error output), `splitLines`, `escape`, `requiresGitDirEnv`; `executeAsync` (phase 5); the timeout is a synced static |
 | `fs.*` | every `Util\Filesystem` method (no receiver: maestro's Filesystem works on the shared working directory) |
 | `json.*` | `new` (the maestro peer of a PHP JsonFile, which keeps read()'s indentation), `read`, `write`, `validateSchema`, `validateJsonSchema`, `validateSyntax`, `encode`, `parseJson`, `detectIndenting`, `manipulate` (method, contents, args; phase 5) |
@@ -2095,10 +2180,12 @@ trampoline closures and exception traces showing them, a Go error's file
 in PHP being the basename of Composer's, `Pool`s without the security and
 filter-list removals, asynchronous PHP processes making progress only
 while PHP waited) were closed by issue #2 (§5.12); the e2e fixture
-plugin-internals compares them with Composer. What remains: the frames of
-methods the bundled Symfony Console declares are not on PHP's stack, and
-ErrorHandler's -v "Stack trace:" lists `debug_backtrace()` as PHP has it.
-vaimo/composer-patches passes its fixture; its remote patch downloads (FileDownloader from PHP) are
+plugin-internals compares them with Composer. What remained then (the
+frames of methods the bundled Symfony Console declares, ErrorHandler's -v
+"Stack trace:" listing `debug_backtrace()` as PHP has it, the shim's
+location for maestro's calls of installers, repositories, downloaders and
+IOs written in PHP, ErrorHandler's state apart from maestro's) was closed
+since (§5.12). vaimo/composer-patches passes its fixture; its remote patch downloads (FileDownloader from PHP) are
 covered only in-process. (A PHP subclass of FileDownloader with its own
 overrides, LockTransaction's own properties and
 `Transaction::$resultPackagesByName`, gaps of this phase, were closed
@@ -2205,13 +2292,11 @@ What stays a stub in `php/src`, and why:
 - `Maestro\Shim\Server`'s "no handler" error is a protocol mismatch
   between maestro and its shim, not an API member.
 
-Known limits of the above: a `ProcessExecutor` (or `Filesystem`) given
-to a service created in PHP is PHP's own, so maestro's service runs its
-processes on its own executor (a FileDownloader created in PHP removes
-files without a Loop's asynchronous executor, as Composer's does when it
-is not given one); calls from maestro's parallel work to an IO or filter
-created in PHP are dropped (§5.14); `AutoloadGenerator::getAutoloadRealFile()`
-takes `$prependAutoloader` as `'true'` or anything else.
+Known limits of the above: `AutoloadGenerator::getAutoloadRealFile()`
+takes `$prependAutoloader` as `'true'` or anything else. (A
+`ProcessExecutor` or `Filesystem` given to a service created in PHP is
+honoured, and the calls of maestro's parallel work reach an IO created in
+PHP in Composer's order: §5.12, §5.14.)
 
 `TestShimStubs_*` (`internal/plugin/stubs_*_php_test.go`,
 MAESTRO_PHP_TESTS=1) cover these in-process; the `plugin-stubs` e2e
@@ -2367,7 +2452,7 @@ tier 2 fixtures, once Windows e2e exists.
 | --- | --- | --- | --- |
 | 1 | **Internals-dependent plugins** (flex, discovery, bamarni, vaimo) rely on stack frames, private and protected props, clone and re-construct, and `Closure::bind`. Any upstream refactor on their side or a gap in our emulation breaks them. | High / high (flex is among the most installed plugins) | Phase 6 with explicit per-plugin fixtures; the property parity list (§5.12); unsupported paths throw a named `UnsupportedApiException` instead of misbehaving silently |
 | 2 | **Output interleaving** between two processes: unflushed Go buffers, PHP `ob_*` buffers, `overwrite()` and progress bars spanning both sides | Medium / high (byte-identical output is a hard goal) | Flush before every transfer (D11); IO methods all go through Go; e2e compares exact bytes, including under pty |
-| 3 | **Exception file and line in `-v` and `-vvv` output** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | maestro names Composer's files and lines (phperr) and completes PHP traces with Composer's frames (§5.12), compared by plugin-runtime and plugin-internals; the shim's own throw sites name Composer's line; ErrorHandler's "Stack trace:" is normalised |
+| 3 | **Exception file and line in `-v` and `-vvv` output** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | maestro names Composer's files and lines (phperr) and completes PHP traces with Composer's frames (§5.12), compared by plugin-runtime and plugin-internals; the shim's own throw sites and raised errors name Composer's line; ErrorHandler's "Stack trace:" lists Composer's calls in progress (phperr.Live) |
 | 4 | **Promise timing.** `then()` callbacks of PHP installers run immediately instead of at loop wait, and parallel Go ops change completion order | Medium / low | PHP-installer ops run sequentially in op order; fixtures for magento-style and yii2 `->then()` installers |
 | 5 | **stdin sharing** when stdin is a pipe and the run is still interactive (`SHELL_INTERACTIVE`): PHP's STDIN buffer can swallow lines meant for Go | Low / medium | Go reads unbuffered; documented; pty tests; if needed later, a stdin relay that hands stdin to PHP only while PHP runs a prompt |
 | 6 | **Re-entrancy of Go ports.** Nested `Installer::run`, `Factory::create` and Application runs from inside events require every Go port to be free of package-level state | Medium / high | Requirement in §7; e2e for merge-plugin, discovery, ergebnis, laminas |

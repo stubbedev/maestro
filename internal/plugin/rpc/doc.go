@@ -21,7 +21,11 @@
 // holder's goroutine and nest. A call from any other goroutine while the
 // baton is held is a bug (a parallel download calling plugin code) and
 // fails with ErrBaton instead of corrupting the stack. Delegate lends the
-// baton to one other goroutine explicitly.
+// baton to one other goroutine explicitly. Parallel work whose calls must
+// reach PHP (an IO created in PHP) makes them through Run: on the holder,
+// as a guest when the baton is free, or posted to the holder, which makes
+// them in order before its next call, before it gives the baton up, and
+// while it waits (ServePosted, util's wait hooks).
 //
 // # Sync
 //
