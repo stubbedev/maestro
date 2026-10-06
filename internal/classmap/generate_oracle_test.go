@@ -139,6 +139,12 @@ func checkGenerate(t *testing.T, golden string, exact bool) {
 			}
 			if !exact {
 				got, want = normalizeResult(got), normalizeResult(want)
+				if s.Cwd == "tree" && s.Dedupe {
+					got, want = resolveAliases(t, got, cwd), resolveAliases(t, want, cwd)
+				}
+				if s.Cwd == "tree" && want.Error != nil {
+					got, want = errorOnly(got), errorOnly(want)
+				}
 			}
 			// Round trip through JSON, as the golden went through it.
 			gotJSON, _ := json.Marshal(got)
@@ -239,6 +245,45 @@ func normalizeResult(r generateResult) generateResult {
 	slices.SortFunc(out.RawViolations, func(a, b rawList) int { return strings.Compare(a.Path, b.Path) })
 
 	return out
+}
+
+// resolveAliases replaces each path in the map by the file it resolves to.
+// The tree reaches some files through several paths (a symlinked directory,
+// a symlinked file); with avoidDuplicateScans the generator keeps whichever
+// path the Finder visits first and skips the others by realpath, so the
+// path recorded depends on the readdir order of the file system the tree
+// was built on (hash order on ext4, name order on APFS, creation order on
+// tmpfs). maestro reads directories in readdir order as Composer does;
+// TestOracleGenerateLive checks the exact paths against php on one file
+// system. Here only the file each class came from is compared.
+func resolveAliases(t *testing.T, r generateResult, cwd string) generateResult {
+	t.Helper()
+	r.Map = slices.Clone(r.Map)
+	for i, e := range r.Map {
+		if e[1] == "*" || !strings.HasPrefix(e[1], "<cwd>/") {
+			continue
+		}
+		real, err := filepath.EvalSymlinks(filepath.Join(cwd, strings.TrimPrefix(e[1], "<cwd>/")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rel, err := filepath.Rel(cwd, real)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Map[i][1] = "<cwd>/" + filepath.ToSlash(rel)
+	}
+
+	return r
+}
+
+// errorOnly keeps only the error of a result. When a scan of the tree fails
+// (an unreadable directory or file, a broken symlink), what was collected
+// before the failure is whatever the Finder visited before the bad entry,
+// which depends on the readdir order of the file system; Composer never
+// shows that partial map, as the exception ends the command.
+func errorOnly(r generateResult) generateResult {
+	return generateResult{Error: r.Error}
 }
 
 // canonical turns empty lists into nil ones, as PHP's [] and Go's nil both
