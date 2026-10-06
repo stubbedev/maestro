@@ -7,9 +7,12 @@ package autoload
 
 import (
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/io"
@@ -43,10 +46,9 @@ type dump struct {
 	// files is what autoload_files.php returns, nil without one.
 	files *php.Array
 	// staticClassMap is autoload_static.php's $classMap value, exported
-	// in the background while the other files are built (deliberate
-	// deviation 3, speed): ready once staticClassMapDone is closed.
-	staticClassMap     string
-	staticClassMapDone chan struct{}
+	// with autoload_classmap.php (classmap), "" when staticFile exports
+	// it.
+	staticClassMap string
 
 	exclusions exclusionRegexes
 }
@@ -181,49 +183,147 @@ func (d *dump) namespacesOf(name string, rules *php.Array) (string, []namespaceP
 	return string(append(b, ");\n"...)), entries, nil
 }
 
-// classmap builds autoload_classmap.php, and starts exporting
-// autoload_static.php's class map.
+// classmap builds autoload_classmap.php and autoload_static.php's class
+// map, in parallel chunks of classes (deliberate deviation 3, speed).
 func (d *dump) classmap(classMap *classmap.ClassMap) error {
 	d.classes = classMap.Classes()
-	d.classPaths = make([]pathRef, 0, len(d.classes))
+	paths := make([]string, 0, len(d.classes))
 	for _, path := range classMap.Map() {
-		ref, err := d.pathRef(path)
-		if err != nil {
-			return err
-		}
-		d.classPaths = append(d.classPaths, ref)
+		paths = append(paths, path)
 	}
-	d.startStaticClassMap()
+	d.classPaths = make([]pathRef, len(d.classes))
 
+	// The static class map is exported in chunks when no strtr() match
+	// can span two entries' lines (no replaced text holds a newline).
+	// Otherwise, or when the replacements fail, staticFile exports it
+	// whole (and fails the same way).
+	var replacements map[string]string
+	static := len(d.classes) > 0
+	if static {
+		var err error
+		replacements, err = d.staticReplacements()
+		static = err == nil
+	}
+	for k := range replacements {
+		if strings.Contains(k, "\n") {
+			static = false
+		}
+	}
+
+	type chunk struct {
+		classmapFile, staticClassMap []byte
+		err                          error
+	}
+	chunks := make([]chunk, (len(d.classes)+classmapChunk-1)/classmapChunk)
+	parallelChunks(len(chunks), func(c int) {
+		lo, hi := c*classmapChunk, min((c+1)*classmapChunk, len(d.classes))
+		b := make([]byte, 0, (hi-lo)*128)
+		for i := lo; i < hi; i++ {
+			ref, err := d.pathRef(paths[i])
+			if err != nil {
+				chunks[c].err = err
+
+				return
+			}
+			d.classPaths[i] = ref
+			b = append(b, "    "...)
+			b = php.AppendVarExport(b, d.classes[i])
+			b = append(b, " => "...)
+			b = ref.appendCode(b)
+			b = append(b, ",\n"...)
+		}
+		chunks[c].classmapFile = b
+		if static {
+			chunks[c].staticClassMap = d.staticClassMapChunk(lo, hi, replacements)
+		}
+	})
+
+	// the first failing class's error, as a loop over them would return
 	b := d.appendHeader("autoload_classmap.php")
-	for i, className := range d.classes {
-		b = append(b, "    "...)
-		b = php.AppendVarExport(b, className)
-		b = append(b, " => "...)
-		b = d.classPaths[i].appendCode(b)
-		b = append(b, ",\n"...)
+	n := len(b) + len(");\n")
+	for _, c := range chunks {
+		if c.err != nil {
+			return c.err
+		}
+		n += len(c.classmapFile)
+	}
+	b = slices.Grow(b, n-len(b))
+	for _, c := range chunks {
+		b = append(b, c.classmapFile...)
 	}
 	d.classmapFile = string(append(b, ");\n"...))
+
+	if static {
+		// what staticProperty makes of var_export's first and last lines
+		head, tail := indentExport("array (\n"), appendIndented(nil, ")")
+		n := len(head) + len(tail)
+		for _, c := range chunks {
+			n += len(c.staticClassMap)
+		}
+		b := make([]byte, 0, n)
+		b = append(b, head...)
+		for _, c := range chunks {
+			b = append(b, c.staticClassMap...)
+		}
+		d.staticClassMap = string(append(b, tail...))
+	}
 
 	return nil
 }
 
-// startStaticClassMap exports autoload_static.php's $classMap in the
-// background (staticClassMap). A failure leaves it to staticFile, which
-// fails the same way.
-func (d *dump) startStaticClassMap() {
-	d.staticClassMapDone = make(chan struct{})
-	go func() {
-		defer close(d.staticClassMapDone)
-		if len(d.classes) == 0 {
-			return
+// classmapChunk is the number of classes per chunk the class map files
+// are built in.
+const classmapChunk = 512
+
+// parallelChunks runs fn(0..n-1) on up to GOMAXPROCS goroutines.
+func parallelChunks(n int, fn func(i int)) {
+	workers := min(runtime.GOMAXPROCS(0), n)
+	if workers <= 1 {
+		for i := range n {
+			fn(i)
 		}
-		replacements, err := d.staticReplacements()
-		if err != nil {
-			return
+
+		return
+	}
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			for {
+				i := int(next.Add(1) - 1)
+				if i >= n {
+					return
+				}
+				fn(i)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+// staticClassMapChunk is the part of staticProperty(staticClassMapValue(),
+// replacements) that holds the entries of classes lo to hi-1: their lines
+// of var_export's output, strtr()ed and re-indented as in the whole, since
+// var_export puts each entry on its own line, the re-indent works line by
+// line and no strtr() match spans lines.
+func (d *dump) staticClassMapChunk(lo, hi int, replacements map[string]string) []byte {
+	// var_export's lines for these entries (the array's keys are the
+	// classes as PHP keys)
+	b := make([]byte, 0, (hi-lo)*160)
+	for i := lo; i < hi; i++ {
+		b = append(b, "  "...)
+		if k := php.StrKey(d.classes[i]); k.IsInt() {
+			b = strconv.AppendInt(b, k.Int(), 10)
+		} else {
+			b = php.AppendVarExport(b, d.classes[i])
 		}
-		d.staticClassMap = staticProperty(d.staticClassMapValue(), replacements)
-	}()
+		b = append(b, " => "...)
+		b = php.AppendVarExport(b, d.classPaths[i].value(d.vendorDir, d.baseDir))
+		b = append(b, ",\n"...)
+	}
+	replaced := php.StrtrPairs(string(b), replacements)
+
+	return appendIndented(b[:0], replaced)
 }
 
 // staticClassMapValue is the class loader's classMap as getStaticFile
@@ -599,8 +699,8 @@ func (d *dump) staticFile(suffix string) (string, error) {
 			return "", err
 		}
 	}
-	// the classMap, exported apart (startStaticClassMap), is the only one
-	// the loader holds
+	// the classMap, exported apart (classmap), is the only one the loader
+	// holds
 	replacements, err := d.staticReplacements()
 	if err != nil {
 		return "", err
@@ -635,11 +735,7 @@ class ComposerStaticInit` + suffix + `
 		}
 	}
 	if len(d.classes) > 0 {
-		exported := ""
-		if d.staticClassMapDone != nil {
-			<-d.staticClassMapDone
-			exported = d.staticClassMap
-		}
+		exported := d.staticClassMap
 		if exported == "" {
 			exported = staticProperty(d.staticClassMapValue(), replacements)
 		}
@@ -723,7 +819,14 @@ func (d *dump) values(refs []pathRef) *php.Array {
 // doubled plus four, trailing spaces before a newline or the end are
 // dropped, then leading whitespace of the whole is trimmed.
 func indentExport(s string) string {
-	b := make([]byte, 0, len(s)+len(s)/4)
+	return php.Ltrim(string(appendIndented(make([]byte, 0, len(s)+len(s)/4), s)))
+}
+
+// appendIndented appends indentExport's result for s to dst, without the
+// final ltrim.
+func appendIndented(dst []byte, s string) []byte {
+	start := len(dst)
+	b := dst
 	for lineStart := 0; ; {
 		// ^ matches at the start and after each newline except a final one.
 		n := 0
@@ -749,8 +852,8 @@ func indentExport(s string) string {
 	}
 
 	// / +$/m: spaces before each newline and at the end.
-	out := b[:0]
-	for i := 0; i < len(b); {
+	out := b[:start]
+	for i := start; i < len(b); {
 		if b[i] != ' ' {
 			out = append(out, b[i])
 			i++
@@ -767,5 +870,5 @@ func indentExport(s string) string {
 		i = j
 	}
 
-	return php.Ltrim(string(out))
+	return out
 }
