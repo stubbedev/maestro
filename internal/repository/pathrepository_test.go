@@ -34,7 +34,13 @@ func fixturePath(t *testing.T, parts ...string) string {
 func createPathRepo(t *testing.T, options *php.Array) *PathRepository {
 	t.Helper()
 
-	return must(NewPathRepository(options, io.NewNullIO(), util.NewProcessExecutor(nil)))
+	// As in a real run, the executor is the Loop's, so VersionGuesser's
+	// feature-branch guessing (taken when the checkout is not on a default
+	// branch, e.g. a detached HEAD in CI) may run git asynchronously.
+	process := util.NewProcessExecutor(nil)
+	process.EnableAsync()
+
+	return must(NewPathRepository(options, io.NewNullIO(), process))
 }
 
 func TestPathRepository_LoadPackageFromFileSystemWithIncorrectPath(t *testing.T) {
