@@ -29,6 +29,7 @@ import (
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
+	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
 )
 
 // Factory ports Composer\Factory: it creates configured Composer instances.
@@ -382,6 +383,8 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	// initialize repository manager; cached metadata files are kept
 	// decoded between runs (deliberate deviation 3)
 	composerrepo.UseDecodedCache(cache.DecodedMetadata())
+	// so is git's version, which the root package's version guess asks
+	vcsutil.UseVersionCache(cache.Dir() + "/git-version")
 	rm := repository.Manager(out, cfg, httpDownloader, dispatcher, process, repository.ExternalTypes{
 		Composer: composerrepo.Constructor,
 		VCS:      rvcs.NewRepository,

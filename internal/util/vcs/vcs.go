@@ -5,7 +5,8 @@
 //
 // The static caches of the PHP classes (the git, hg and svn binary
 // versions, Perforce's p4 executable) describe the machine, not a Composer
-// instance, so they stay process-wide as in PHP; nothing else here is
+// instance, so they stay process-wide as in PHP, as does where git's
+// version is kept across runs (UseVersionCache); nothing else here is
 // package-level mutable state.
 package vcs
 

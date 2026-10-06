@@ -42,6 +42,13 @@ func recordFixture(t *testing.T) (dir string, scans []RecordScan) {
 // (hit), else scanned and recorded.
 func recorded(t *testing.T, records, id, anchor string, scans []RecordScan) (m *ClassMap, hit bool) {
 	t.Helper()
+
+	return recordedWith(t, records, id, anchor, scans, nil)
+}
+
+// recordedWith is recorded, with scans through cache.
+func recordedWith(t *testing.T, records, id, anchor string, scans []RecordScan, cache *ParseCache) (m *ClassMap, hit bool) {
+	t.Helper()
 	rec, ok := NewRecord(records, id, []string{anchor}, DefaultParser, nil, scans)
 	if !ok {
 		t.Fatal("the scans cannot be recorded")
@@ -49,7 +56,7 @@ func recorded(t *testing.T, records, id, anchor string, scans []RecordScan) (m *
 	if m, ok := rec.Load(); ok {
 		return m, true
 	}
-	g := NewGenerator(nil).AvoidDuplicateScans(nil)
+	g := NewGenerator(nil).AvoidDuplicateScans(nil).SetParseCache(cache)
 	g.StartRecording()
 	for _, s := range scans {
 		if err := g.ScanPaths(s.Path, s.Excluded, s.Type, s.Namespace, nil); err != nil {
@@ -203,5 +210,62 @@ func TestRecord_NotUsedWhenRacy(t *testing.T) {
 	recorded(t, records, "p", dir, scans)
 	if _, hit := recorded(t, records, "p", dir, scans); hit {
 		t.Error("a record of files changed just before it was used")
+	}
+}
+
+// A store release's file, taken by its stamp, keeps its record valid
+// when the store hard-links it into another project (which changes its
+// change time); any other change to it, or a new change time of a file
+// without a stamp, still makes the record miss.
+func TestRecord_StampedFilesWithoutChangeTime(t *testing.T) {
+	const stamp = 1_000_000_000
+	for name, tc := range map[string]struct {
+		change func(t *testing.T, dir string)
+		hit    bool
+	}{
+		"linked elsewhere": {func(t *testing.T, dir string) {
+			if err := os.Link(filepath.Join(dir, "lib/a.php"), filepath.Join(t.TempDir(), "a.php")); err != nil {
+				t.Skip("no hardlinks:", err)
+			}
+		}, true},
+		"stamp gone": {func(t *testing.T, dir string) {
+			if err := os.Chtimes(filepath.Join(dir, "lib/a.php"), time.Unix(stamp, 1), time.Unix(stamp, 1)); err != nil {
+				t.Fatal(err)
+			}
+		}, false},
+		"unstamped file linked elsewhere": {func(t *testing.T, dir string) {
+			if err := os.Link(filepath.Join(dir, "lib/sub/b.php"), filepath.Join(t.TempDir(), "b.php")); err != nil {
+				t.Skip("no hardlinks:", err)
+			}
+		}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			trustRecent(t)
+			dir, scans := recordFixture(t)
+			release := &memRelease{name: "a/b", files: []StampedFile{
+				stampFile(t, dir, "lib/a.php", `<?php class Dup {} class A {}`, stamp),
+			}}
+			records := t.TempDir()
+			cache := func() *ParseCache {
+				c := NewParseCache()
+				c.AddReleases([]Release{release})
+
+				return c
+			}
+			want, _ := recordedWith(t, records, "p", dir, scans, cache())
+			if _, hit := recordedWith(t, records, "p", dir, scans, cache()); !hit {
+				t.Fatal("the record was not used")
+			}
+			time.Sleep(20 * time.Millisecond) // a new change time
+			tc.change(t, dir)
+
+			got, hit := recordedWith(t, records, "p", dir, scans, cache())
+			if hit != tc.hit {
+				t.Fatalf("record used: %v, want %v", hit, tc.hit)
+			}
+			if !reflect.DeepEqual(viewOf(t, got), viewOf(t, want)) {
+				t.Errorf("class map\n%+v\nwant\n%+v", viewOf(t, got), viewOf(t, want))
+			}
+		})
 	}
 }
