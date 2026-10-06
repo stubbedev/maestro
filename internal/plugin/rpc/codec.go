@@ -452,7 +452,7 @@ func (d *Decoder) object(t *php.Array) (any, error) {
 			return nil, err
 		}
 		d.c.h.adopted[h] = m
-		d.c.pendingReg = append(d.c.pendingReg, registration{tmp: h, h: gh, m: m})
+		d.c.pendingReg = append(d.c.pendingReg, registration{tmp: h, h: gh, m: m, rev: m.Rev()})
 
 		return m, nil
 	}

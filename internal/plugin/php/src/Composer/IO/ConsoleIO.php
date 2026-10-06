@@ -1,15 +1,26 @@
 <?php
 
 /*
- * maestro's plugin shim: Composer\IO\ConsoleIO (docs/PLUGINS.md §4.3, §5.9):
- * the mirror of maestro's console IO. Its flags (verbosity, decoration,
- * interactivity) are mirror fields, kept up to date by the sync engine;
- * every other method is maestro's (io.*). Creating one in PHP is not
- * supported yet.
+ * maestro's plugin shim: Composer\IO\ConsoleIO (docs/PLUGINS.md §4.3, §5.9).
+ * maestro's console IO crosses as an instance of this class: its flags
+ * (verbosity, decoration, interactivity) are mirror fields, kept up to date
+ * by the sync engine, and every other method is maestro's (io.*). An IO
+ * created in PHP (a BufferIO, a plugin's own ConsoleIO) behaves as
+ * Composer's, on its own input, output and helpers.
  * Written for PHP 7.2.5 to 8.5.
  */
 
 namespace Composer\IO;
+
+use Composer\Question\StrictConfirmationQuestion;
+use Maestro\Shim\Remote;
+use Maestro\Shim\Rpc;
+use Symfony\Component\Console\Helper\ProgressBar;
+use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
+use Symfony\Component\Console\Question\Question;
 
 class ConsoleIO extends \Composer\IO\BaseIO
 {
@@ -21,157 +32,371 @@ class ConsoleIO extends \Composer\IO\BaseIO
     protected $lastMessageErr = '';
     protected $output;
 
+    private $sendTimestamps = false;
+    private $startTime;
+    private $verbosityMap;
+
     public function __construct(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output, \Symfony\Component\Console\Helper\HelperSet $helperSet)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\IO\\ConsoleIO::__construct() in plugins yet');
+        $this->input = $input;
+        $this->output = $output;
+        $this->helperSet = $helperSet;
+        $this->verbosityMap = [
+            self::QUIET => OutputInterface::VERBOSITY_QUIET,
+            self::NORMAL => OutputInterface::VERBOSITY_NORMAL,
+            self::VERBOSE => OutputInterface::VERBOSITY_VERBOSE,
+            self::VERY_VERBOSE => OutputInterface::VERBOSITY_VERY_VERBOSE,
+            self::DEBUG => OutputInterface::VERBOSITY_DEBUG,
+        ];
     }
 
     public function ask($question, $default = null)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'ask');
+        if (Remote::owned($this)) {
+            return Rpc::call('io.ask', [$this, $question, $default]);
         }
 
-        return \Maestro\Shim\Rpc::call('io.ask', [$this, $question, $default]);
+        /** @var \Symfony\Component\Console\Helper\QuestionHelper $helper */
+        $helper = $this->helperSet->get('question');
+        $question = new Question(self::sanitize($question), is_string($default) ? self::sanitize($default) : $default);
+
+        return $helper->ask($this->input, $this->getErrorOutput(), $question);
     }
 
     public function askAndHideAnswer($question)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'askAndHideAnswer');
+        if (Remote::owned($this)) {
+            return Rpc::call('io.askAndHideAnswer', [$this, $question]);
         }
 
-        return \Maestro\Shim\Rpc::call('io.askAndHideAnswer', [$this, $question]);
+        /** @var \Symfony\Component\Console\Helper\QuestionHelper $helper */
+        $helper = $this->helperSet->get('question');
+        $question = new Question(self::sanitize($question));
+        $question->setHidden(true);
+
+        return $helper->ask($this->input, $this->getErrorOutput(), $question);
     }
 
     public function askAndValidate($question, $validator, $attempts = null, $default = null)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'askAndValidate');
+        if (Remote::owned($this)) {
+            return Rpc::call('io.askAndValidate', [$this, $question, $validator, $attempts, $default]);
         }
 
-        return \Maestro\Shim\Rpc::call('io.askAndValidate', [$this, $question, $validator, $attempts, $default]);
+        /** @var \Symfony\Component\Console\Helper\QuestionHelper $helper */
+        $helper = $this->helperSet->get('question');
+        $question = new Question(self::sanitize($question), is_string($default) ? self::sanitize($default) : $default);
+        $question->setValidator($validator);
+        $question->setMaxAttempts($attempts);
+
+        return $helper->ask($this->input, $this->getErrorOutput(), $question);
     }
 
     public function askConfirmation($question, $default = true)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'askConfirmation');
+        if (Remote::owned($this)) {
+            return Rpc::call('io.askConfirmation', [$this, $question, $default]);
         }
 
-        return \Maestro\Shim\Rpc::call('io.askConfirmation', [$this, $question, $default]);
+        /** @var \Symfony\Component\Console\Helper\QuestionHelper $helper */
+        $helper = $this->helperSet->get('question');
+        $question = new StrictConfirmationQuestion(self::sanitize($question), is_string($default) ? self::sanitize($default) : $default);
+
+        return $helper->ask($this->input, $this->getErrorOutput(), $question);
     }
 
     public function enableDebugging(float $startTime)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\IO\\ConsoleIO::enableDebugging() in plugins yet');
+        if (Remote::owned($this)) {
+            Remote::unsupported(static::class, 'enableDebugging');
+        }
+
+        $this->startTime = $startTime;
     }
 
     public function enableTimestamps(string $format = \DATE_RFC3339_EXTENDED)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\IO\\ConsoleIO::enableTimestamps() in plugins yet');
+        if (Remote::owned($this)) {
+            Remote::unsupported(static::class, 'enableTimestamps');
+        }
+
+        $this->sendTimestamps = $format;
     }
 
     public function getProgressBar(int $max = 0)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\IO\\ConsoleIO::getProgressBar() in plugins yet');
+        if (Remote::owned($this)) {
+            Remote::unsupported(static::class, 'getProgressBar');
+        }
+
+        return new ProgressBar($this->getErrorOutput(), $max);
     }
 
     public function getTable(): \Symfony\Component\Console\Helper\Table
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\IO\\ConsoleIO::getTable() in plugins yet');
+        if (Remote::owned($this)) {
+            Remote::unsupported(static::class, 'getTable');
+        }
+
+        return new Table($this->output);
     }
 
     public function isDebug()
     {
-        return \Maestro\Shim\Adapter\IOAdapter::state($this, 'debug');
+        if (Remote::owned($this)) {
+            return \Maestro\Shim\Adapter\IOAdapter::state($this, 'debug');
+        }
+
+        return $this->output->isDebug();
     }
 
     public function isDecorated()
     {
-        return \Maestro\Shim\Adapter\IOAdapter::state($this, 'decorated');
+        if (Remote::owned($this)) {
+            return \Maestro\Shim\Adapter\IOAdapter::state($this, 'decorated');
+        }
+
+        return $this->output->isDecorated();
     }
 
     public function isInteractive()
     {
-        return \Maestro\Shim\Adapter\IOAdapter::state($this, 'interactive');
+        if (Remote::owned($this)) {
+            return \Maestro\Shim\Adapter\IOAdapter::state($this, 'interactive');
+        }
+
+        return $this->input->isInteractive();
     }
 
     public function isVerbose()
     {
-        return \Maestro\Shim\Adapter\IOAdapter::state($this, 'verbose');
+        if (Remote::owned($this)) {
+            return \Maestro\Shim\Adapter\IOAdapter::state($this, 'verbose');
+        }
+
+        return $this->output->isVerbose();
     }
 
     public function isVeryVerbose()
     {
-        return \Maestro\Shim\Adapter\IOAdapter::state($this, 'veryVerbose');
+        if (Remote::owned($this)) {
+            return \Maestro\Shim\Adapter\IOAdapter::state($this, 'veryVerbose');
+        }
+
+        return $this->output->isVeryVerbose();
     }
 
     public function overwrite($messages, bool $newline = true, ?int $size = null, int $verbosity = self::NORMAL)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'overwrite');
+        if (Remote::owned($this)) {
+            Rpc::call('io.overwrite', [$this, $messages, $newline, $size, $verbosity]);
+
+            return;
         }
 
-        \Maestro\Shim\Rpc::call('io.overwrite', [$this, $messages, $newline, $size, $verbosity]);
+        $this->doOverwrite($messages, $newline, $size, false, $verbosity);
     }
 
     public function overwriteError($messages, bool $newline = true, ?int $size = null, int $verbosity = self::NORMAL)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'overwriteError');
+        if (Remote::owned($this)) {
+            Rpc::call('io.overwriteError', [$this, $messages, $newline, $size, $verbosity]);
+
+            return;
         }
 
-        \Maestro\Shim\Rpc::call('io.overwriteError', [$this, $messages, $newline, $size, $verbosity]);
+        $this->doOverwrite($messages, $newline, $size, true, $verbosity);
     }
 
     public static function sanitize($messages, bool $allowNewlines = true)
     {
-        return \Maestro\Shim\Rpc::call('io.sanitize', [$messages, $allowNewlines]);
+        return Rpc::call('io.sanitize', [$messages, $allowNewlines]);
     }
 
     public function select($question, $choices, $default, $attempts = false, $errorMessage = 'Value "%s" is invalid', $multiselect = false)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'select');
+        if (Remote::owned($this)) {
+            return Rpc::call('io.select', [$this, $question, $choices, $default, $attempts, $errorMessage, $multiselect]);
         }
 
-        return \Maestro\Shim\Rpc::call('io.select', [$this, $question, $choices, $default, $attempts, $errorMessage, $multiselect]);
+        /** @var \Symfony\Component\Console\Helper\QuestionHelper $helper */
+        $helper = $this->helperSet->get('question');
+        $question = new ChoiceQuestion(self::sanitize($question), self::sanitize($choices), is_string($default) ? self::sanitize($default) : $default);
+        $question->setMaxAttempts($attempts ?: null); // IOInterface requires false, and Question requires null or int
+        $question->setErrorMessage($errorMessage);
+        $question->setMultiselect($multiselect);
+
+        $result = $helper->ask($this->input, $this->getErrorOutput(), $question);
+
+        $isAssoc = (bool) \count(array_filter(array_keys($choices), 'is_string'));
+        if ($isAssoc) {
+            return $result;
+        }
+
+        if (!is_array($result)) {
+            return (string) array_search($result, $choices, true);
+        }
+
+        $results = [];
+        foreach ($choices as $index => $choice) {
+            if (in_array($choice, $result, true)) {
+                $results[] = (string) $index;
+            }
+        }
+
+        return $results;
     }
 
     public function write($messages, bool $newline = true, int $verbosity = self::NORMAL)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'write');
+        if (Remote::owned($this)) {
+            Rpc::call('io.write', [$this, $messages, $newline, $verbosity]);
+
+            return;
         }
 
-        \Maestro\Shim\Rpc::call('io.write', [$this, $messages, $newline, $verbosity]);
+        $messages = self::sanitize($messages);
+
+        $this->doWrite($messages, $newline, false, $verbosity);
     }
 
     public function writeError($messages, bool $newline = true, int $verbosity = self::NORMAL)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'writeError');
+        if (Remote::owned($this)) {
+            Rpc::call('io.writeError', [$this, $messages, $newline, $verbosity]);
+
+            return;
         }
 
-        \Maestro\Shim\Rpc::call('io.writeError', [$this, $messages, $newline, $verbosity]);
+        $messages = self::sanitize($messages);
+
+        $this->doWrite($messages, $newline, true, $verbosity);
     }
 
     public function writeErrorRaw($messages, bool $newline = true, int $verbosity = self::NORMAL)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'writeErrorRaw');
+        if (Remote::owned($this)) {
+            Rpc::call('io.writeErrorRaw', [$this, $messages, $newline, $verbosity]);
+
+            return;
         }
 
-        \Maestro\Shim\Rpc::call('io.writeErrorRaw', [$this, $messages, $newline, $verbosity]);
+        $this->doWrite($messages, $newline, true, $verbosity, true);
     }
 
     public function writeRaw($messages, bool $newline = true, int $verbosity = self::NORMAL)
     {
-        if (!\Maestro\Shim\Remote::owned($this)) {
-            \Maestro\Shim\Remote::unsupported(static::class, 'writeRaw');
+        if (Remote::owned($this)) {
+            Rpc::call('io.writeRaw', [$this, $messages, $newline, $verbosity]);
+
+            return;
         }
 
-        \Maestro\Shim\Rpc::call('io.writeRaw', [$this, $messages, $newline, $verbosity]);
+        $this->doWrite($messages, $newline, false, $verbosity, true);
+    }
+
+    /**
+     * @param string[]|string $messages
+     */
+    private function doWrite($messages, bool $newline, bool $stderr, int $verbosity, bool $raw = false): void
+    {
+        $sfVerbosity = $this->verbosityMap[$verbosity];
+        if ($sfVerbosity > $this->output->getVerbosity()) {
+            return;
+        }
+
+        if ($raw) {
+            $sfVerbosity |= OutputInterface::OUTPUT_RAW;
+        }
+
+        if (null !== $this->startTime) {
+            $memoryUsage = memory_get_usage() / 1024 / 1024;
+            $timeSpent = microtime(true) - $this->startTime;
+            $messages = array_map(static function ($message) use ($memoryUsage, $timeSpent): string {
+                return sprintf('[%.1fMiB/%.2fs] %s', $memoryUsage, $timeSpent, $message);
+            }, (array) $messages);
+        }
+
+        if ($this->sendTimestamps !== false) {
+            $messages = array_map(function ($message): string {
+                return sprintf('[%s] %s', (new \DateTime())->format($this->sendTimestamps), $message);
+            }, (array) $messages);
+        }
+
+        if (true === $stderr && $this->output instanceof ConsoleOutputInterface) {
+            $this->output->getErrorOutput()->write($messages, $newline, $sfVerbosity);
+            $this->lastMessageErr = implode($newline ? "\n" : '', (array) $messages);
+
+            return;
+        }
+
+        $this->output->write($messages, $newline, $sfVerbosity);
+        $this->lastMessage = implode($newline ? "\n" : '', (array) $messages);
+    }
+
+    /**
+     * @param string[]|string $messages
+     */
+    private function doOverwrite($messages, bool $newline, ?int $size, bool $stderr, int $verbosity): void
+    {
+        // messages can be an array, let's convert it to string anyway
+        $messages = implode($newline ? "\n" : '', (array) $messages);
+
+        $decorated = $stderr ? $this->getErrorOutput()->isDecorated() : $this->output->isDecorated();
+
+        // backspaces corrupt non-decorated output, so write a plain line instead
+        if (!$decorated) {
+            if ($messages !== '') {
+                $this->doWrite($messages, true, $stderr, $verbosity);
+            }
+            if ($stderr) {
+                $this->lastMessageErr = $messages;
+            } else {
+                $this->lastMessage = $messages;
+            }
+
+            return;
+        }
+
+        // since overwrite is supposed to overwrite last message...
+        if (!isset($size)) {
+            // removing possible formatting of lastMessage with strip_tags
+            $size = strlen(strip_tags($stderr ? $this->lastMessageErr : $this->lastMessage));
+        }
+        // ...let's fill its length with backspaces
+        $this->doWrite(str_repeat("\x08", $size), false, $stderr, $verbosity);
+
+        // write the new message
+        $this->doWrite($messages, false, $stderr, $verbosity);
+
+        // In cmd.exe on Win8.1 (possibly 10?), the line can not be cleared, so we need to
+        // track the length of previous output and fill it with spaces to make sure the line is cleared.
+        // See https://github.com/composer/composer/pull/5836 for more details
+        $fill = $size - strlen(strip_tags($messages));
+        if ($fill > 0) {
+            // whitespace whatever has left
+            $this->doWrite(str_repeat(' ', $fill), false, $stderr, $verbosity);
+            // move the cursor back
+            $this->doWrite(str_repeat("\x08", $fill), false, $stderr, $verbosity);
+        }
+
+        if ($newline) {
+            $this->doWrite('', true, $stderr, $verbosity);
+        }
+
+        if ($stderr) {
+            $this->lastMessageErr = $messages;
+        } else {
+            $this->lastMessage = $messages;
+        }
+    }
+
+    private function getErrorOutput(): OutputInterface
+    {
+        if ($this->output instanceof ConsoleOutputInterface) {
+            return $this->output->getErrorOutput();
+        }
+
+        return $this->output;
     }
 }

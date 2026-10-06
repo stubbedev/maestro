@@ -1,0 +1,27 @@
+{
+    "name": "maestro-test/custom-directory",
+    "description": "mnsami/composer-custom-directory-installer: its three plugin classes (LibraryInstaller and PluginInstaller subclasses; PearPlugin skips itself, as Composer 2 has no PearInstaller), installer-paths for libraries, custom installer-types and a plugin that really activates from its custom path.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "mnsami/composer-custom-directory-installer": "2.2.1",
+        "local/lib-thing": "1.0.0",
+        "local/other-thing": "1.0.0",
+        "local/hello-plugin": "1.0.0"
+    },
+    "extra": {
+        "installer-types": ["custom-lib"],
+        "installer-paths": {
+            "lib/{$vendor}/{$name|FP}/": ["local/lib-thing"],
+            "plugins/{$name}/": ["local/hello-plugin"],
+            "custom/{$type}/{$name}/": ["type:custom-lib"]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "mnsami/composer-custom-directory-installer": true,
+            "local/hello-plugin": true
+        }
+    }
+}

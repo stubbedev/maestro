@@ -3,7 +3,6 @@ package store
 import (
 	"crypto/sha256"
 	"errors"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -96,8 +95,8 @@ type VerifyResult struct {
 	// they were removed.
 	Corrupt int
 	// Restamped counts intact objects whose metadata had been changed
-	// (a write that kept the content, a chmod); they were replaced by
-	// fresh copies.
+	// (a write that kept the content, a chmod, another name linked to
+	// them); they were replaced by fresh copies.
 	Restamped int
 	Releases  int
 	// CorruptReleases counts unreadable indexes; they were removed.
@@ -195,15 +194,13 @@ type Stats struct {
 	// ReleaseBytes is the size of every release's files added up: what
 	// keeping each release whole would use.
 	ReleaseBytes int64
-	// LinkedBytes is the size of the files package directories share with
-	// the store through hardlinks, each counted once per extra link.
-	LinkedBytes int64
 }
 
 // Saved is the number of bytes the store saves: content shared between
-// releases plus content package directories share with it.
+// releases. Package directories are clones or copies, which the store
+// cannot account for.
 func (st Stats) Saved() int64 {
-	return max(st.ReleaseBytes-st.ObjectBytes, 0) + st.LinkedBytes
+	return max(st.ReleaseBytes-st.ObjectBytes, 0)
 }
 
 // Stats reports what the store holds.
@@ -213,10 +210,6 @@ func (s *Store) Stats() (Stats, error) {
 	err := s.walkObjects(func(_ string, _ *[32]byte, _ fs.FileMode, st fileStat) error {
 		res.Objects++
 		res.ObjectBytes += st.size
-
-		if st.nlink > 1 {
-			res.LinkedBytes += st.size * int64(st.nlink-1) //nolint:gosec // link counts are small.
-		}
 
 		return nil
 	})
@@ -323,93 +316,4 @@ func remove(path string) error {
 	}
 
 	return nil
-}
-
-// Unshare gives the regular file at path an inode of its own if it shares
-// one (a hardlink to a store object), so that it can be changed in place
-// without changing the store or other projects. The copy keeps the mode.
-func Unshare(path string) error {
-	st, err := lstat(path)
-	if err != nil || !st.regular || st.nlink <= 1 {
-		return err
-	}
-
-	in, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = in.Close() }()
-
-	tmp := tmpName(filepath.Dir(path), "."+filepath.Base(path)+".maestro-")
-
-	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(out, in)
-	if err == nil {
-		err = out.Chmod(unixMode(st.mode))
-	}
-
-	if cerr := out.Close(); err == nil {
-		err = cerr
-	}
-
-	if err == nil {
-		err = os.Rename(tmp, path)
-	}
-
-	if err != nil {
-		_ = os.Remove(tmp)
-	}
-
-	return err
-}
-
-// Chmod is os.Chmod for files materialized from the store (Composer's
-// chmod of package binaries): when the mode actually changes, the file is
-// unshared first so the change stays in this project. Like chmod, it
-// follows symlinks.
-func Chmod(path string, mode fs.FileMode) error {
-	real, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return err
-	}
-
-	st, err := lstat(real)
-	if err != nil {
-		return err
-	}
-
-	if unixMode(st.mode) == mode {
-		return nil
-	}
-
-	if err := Unshare(real); err != nil {
-		return err
-	}
-
-	return os.Chmod(real, mode)
-}
-
-// unixMode turns raw permission and set-id/sticky bits into an
-// fs.FileMode.
-func unixMode(bits fs.FileMode) fs.FileMode {
-	m := bits & fs.ModePerm
-
-	if bits&0o4000 != 0 {
-		m |= fs.ModeSetuid
-	}
-
-	if bits&0o2000 != 0 {
-		m |= fs.ModeSetgid
-	}
-
-	if bits&0o1000 != 0 {
-		m |= fs.ModeSticky
-	}
-
-	return m
 }

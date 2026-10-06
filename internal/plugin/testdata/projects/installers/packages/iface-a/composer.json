@@ -1,0 +1,6 @@
+{
+    "name": "local/iface-a",
+    "version": "1.0.0",
+    "type": "iface-thing",
+    "require": {"maestro-test/installers-plugin": "*"}
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -203,6 +204,8 @@ func (r *Runtime) registerComposer() {
 	r.registerLocker()
 	r.registerInstallationManager()
 	r.registerAutoloadGenerator()
+
+	r.registerFactory()
 
 	r.Handle("factory.getComposerFile", func(any) (any, error) { return composer.GetComposerFile() })
 	r.Handle("factory.getLockFile", func(v any) (any, error) {
@@ -586,4 +589,116 @@ func autoloadsValue(a *autoload.Autoloads) *php.Array {
 		"files", orEmptyArray(a.Files),
 		"exclude-from-classmap", php.StringList(a.ExcludeFromClassmap),
 	)
+}
+
+// disablePluginsArg is a `bool|'local'|'global' $disablePlugins` param.
+func disablePluginsArg(a args, i int) composer.DisablePlugins {
+	switch v := a.at(i).(type) {
+	case string:
+		switch v {
+		case "local":
+			return composer.PluginsDisabledLocal
+		case "global":
+			return composer.PluginsDisabledGlobal
+		}
+	}
+	if a.boolean(i) {
+		return composer.PluginsDisabled
+	}
+
+	return composer.PluginsEnabled
+}
+
+// localConfigArg is a `string|array|null $localConfig` param as the
+// Factory takes it.
+func localConfigArg(a args, i int) any {
+	switch v := a.at(i).(type) {
+	case string, *php.Array:
+		return v
+	}
+
+	return nil
+}
+
+// ioArg is the IO param (the first of the Factory methods) as maestro
+// uses it; maestro's null IO for null.
+func ioArg(a args) (io.IO, error) {
+	out, ok, err := ioParam(a, 0)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return io.NewNullIO(), nil
+	}
+
+	return out, nil
+}
+
+// registerFactory registers the Factory methods that create Composer
+// instances (docs/PLUGINS.md §5.11): maestro builds them, re-entrantly,
+// loading their plugins in this same PHP process.
+func (r *Runtime) registerFactory() {
+	r.Handle("factory.createComposer", func(v any) (any, error) {
+		a := argsOf("factory.createComposer", v)
+		out, err := ioArg(a)
+		if err != nil {
+			return nil, err
+		}
+		cwd, _ := a.nullableString(3)
+		fullLoad := !a.has(4) || a.boolean(4)
+		if !fullLoad {
+			c, err := r.factory().CreatePartialComposer(out, localConfigArg(a, 1), disablePluginsArg(a, 2), cwd, a.boolean(5))
+			if err != nil {
+				return nil, err
+			}
+
+			return r.value(c), nil
+		}
+		c, err := r.factory().CreateComposer(out, localConfigArg(a, 1), disablePluginsArg(a, 2), cwd, a.boolean(5))
+		if err != nil {
+			return nil, err
+		}
+
+		return r.value(c), nil
+	})
+	r.Handle("factory.create", func(v any) (any, error) {
+		a := argsOf("factory.create", v)
+		out, err := ioArg(a)
+		if err != nil {
+			return nil, err
+		}
+		c, err := r.factory().Create(out, localConfigArg(a, 1), disablePluginsArg(a, 2), a.boolean(3))
+		if err != nil {
+			return nil, err
+		}
+
+		return r.value(c), nil
+	})
+	r.Handle("factory.createGlobal", func(v any) (any, error) {
+		a := argsOf("factory.createGlobal", v)
+		out, err := ioArg(a)
+		if err != nil {
+			return nil, err
+		}
+		c, err := r.factory().CreateGlobal(out, a.boolean(1), a.boolean(2))
+		if err != nil || c == nil {
+			return nil, err
+		}
+
+		return r.value(c), nil
+	})
+	r.Handle("factory.createConfig", func(v any) (any, error) {
+		a := argsOf("factory.createConfig", v)
+		out, err := ioArg(a)
+		if err != nil {
+			return nil, err
+		}
+		cwd, _ := a.nullableString(1)
+		cfg, err := r.factory().CreateConfig(out, cwd)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.value(cfg), nil
+	})
 }

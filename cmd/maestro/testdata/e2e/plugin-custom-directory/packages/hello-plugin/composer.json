@@ -1,0 +1,15 @@
+{
+    "name": "local/hello-plugin",
+    "version": "1.0.0",
+    "type": "composer-plugin",
+    "require": {
+        "composer-plugin-api": "^2.0",
+        "mnsami/composer-custom-directory-installer": "^2.2"
+    },
+    "autoload": {
+        "psr-4": {"Local\\Hello\\": "src/"}
+    },
+    "extra": {
+        "class": "Local\\Hello\\Plugin"
+    }
+}

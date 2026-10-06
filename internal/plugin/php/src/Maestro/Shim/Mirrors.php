@@ -22,6 +22,23 @@ final class Mirrors
     /** @var array<string, MirrorAdapter|null> by concrete class */
     private static $byClass = [];
 
+    /**
+     * The adapters of mirrors built by an adapter whose base is not a
+     * class (console objects: vendored Symfony classes), by
+     * spl_object_id.
+     *
+     * @var array<int, MirrorAdapter>
+     */
+    private static $objectAdapters = [];
+
+    /**
+     * Mirrors whose adapter finds their changes itself (PolledMirrorAdapter),
+     * by spl_object_id.
+     *
+     * @var array<int, object>
+     */
+    private static $polled = [];
+
     /** @var array<int, array{0: object, 1: array<string, true>}> by spl_object_id */
     private static $dirty = [];
 
@@ -44,6 +61,9 @@ final class Mirrors
      */
     public static function adapterOf($objectOrClass): ?MirrorAdapter
     {
+        if (is_object($objectOrClass) && isset(self::$objectAdapters[spl_object_id($objectOrClass)])) {
+            return self::$objectAdapters[spl_object_id($objectOrClass)];
+        }
         $class = is_object($objectOrClass) ? get_class($objectOrClass) : $objectOrClass;
         if (!array_key_exists($class, self::$byClass)) {
             $found = null;
@@ -83,6 +103,12 @@ final class Mirrors
 
         $object = $adapter->create($handle, $class, is_array($snapshot) ? $snapshot : []);
         self::$revs[$handle] = 0;
+        if (!class_exists($adapter->base(), false) && !interface_exists($adapter->base(), false)) {
+            self::$objectAdapters[spl_object_id($object)] = $adapter;
+        }
+        if ($adapter instanceof PolledMirrorAdapter) {
+            self::$polled[spl_object_id($object)] = $object;
+        }
 
         return $object;
     }
@@ -104,6 +130,21 @@ final class Mirrors
         }
 
         return $r->newInstanceWithoutConstructor();
+    }
+
+    /**
+     * Makes a PHP object of a family whose adapter's base is not a class
+     * (a vendored Symfony input) a mirror of that family: maestro adopts it
+     * when it first crosses (docs/PLUGINS.md §5.3, PHP-born data).
+     *
+     * @param object $object
+     */
+    public static function adopt($object, MirrorAdapter $adapter): void
+    {
+        self::$objectAdapters[spl_object_id($object)] = $adapter;
+        if ($adapter instanceof PolledMirrorAdapter) {
+            self::$polled[spl_object_id($object)] = $object;
+        }
     }
 
     /**
@@ -152,11 +193,25 @@ final class Mirrors
     public static function outgoing(): array
     {
         self::$sendingRevs = [];
-        if (self::$dirty === []) {
+        if (self::$dirty === [] && self::$polled === []) {
             return [];
         }
 
         $out = [];
+        foreach (self::$polled as $object) {
+            $adapter = self::adapterOf($object);
+            $h = Handles::lookup($object);
+            if (!$adapter instanceof PolledMirrorAdapter || $h === null || $h <= 0) {
+                continue;
+            }
+            $fields = $adapter->poll($object);
+            if ($fields === null || $fields === []) {
+                continue;
+            }
+            $rev = (isset(self::$revs[$h]) ? self::$revs[$h] : 0) + 1;
+            self::$sendingRevs[$h] = $rev;
+            $out[] = ['h' => $h, 'r' => $rev, 'f' => $fields];
+        }
         foreach (self::$dirty as $entry) {
             $object = $entry[0];
             $h = Handles::lookup($object);

@@ -54,8 +54,10 @@ func (s *Store) objectPath(sum *[32]byte, perm fs.FileMode) string {
 }
 
 // stamp is what an intact object's stat shows: a regular file of the
-// indexed size with the object's mode and a modification time derived from
-// its hash.
+// indexed size with the object's mode, a modification time derived from
+// its hash, and no other name (an object linked into a package directory
+// by an earlier maestro, or by anyone else, could be written through that
+// link).
 type stamp struct {
 	size  int64
 	mtime int64
@@ -68,7 +70,7 @@ func stampOf(size int64, perm fs.FileMode, sum *[32]byte) stamp {
 
 // check fails with errStale unless st is the object as the store wrote it.
 func (w stamp) check(st fileStat) error {
-	if !st.regular || st.size != w.size || st.mode != w.perm || st.mtime != w.mtime || st.mtimeNs != 0 {
+	if !st.regular || st.nlink != 1 || st.size != w.size || st.mode != w.perm || st.mtime != w.mtime || st.mtimeNs != 0 {
 		return errStale
 	}
 
@@ -107,15 +109,16 @@ func (s *Store) publishObject(f *os.File, sum *[32]byte, perm fs.FileMode, path 
 	}
 
 	if err == nil {
-		err = s.ensureShard(0, sum, path)
-	}
+		err = s.intoShard(0, sum, path, func() error {
+			if replace {
+				return os.Rename(f.Name(), path)
+			}
 
-	if err == nil {
-		if replace {
-			err = os.Rename(f.Name(), path)
-		} else if err = renameNoReplace(f.Name(), path); errors.Is(err, fs.ErrExist) {
-			err = os.Remove(f.Name())
-			return err
+			return renameNoReplace(f.Name(), path)
+		})
+
+		if !replace && errors.Is(err, fs.ErrExist) {
+			return os.Remove(f.Name())
 		}
 	}
 
@@ -195,8 +198,10 @@ func (s *Store) putObjectStream(r io.Reader, size int64, perm fs.FileMode, h has
 // heal makes the object for e (content hash, size) with perm intact again
 // after it failed its stamp check or vanished: from its own content when
 // that still hashes right, else from another mode's object of the same
-// content. The stale object is dropped (projects linked to it keep their
-// copy). It fails with *MissingError when no intact content is left.
+// content. The content is hashed as it is copied into a new file, so
+// nothing written to the old one meanwhile can get in; the new object
+// replaces the old name (any other names of the old inode keep it). It
+// fails with *MissingError when no intact content is left.
 func (s *Store) heal(e *Entry, perm fs.FileMode) error {
 	path := s.objectPath(&e.Hash, perm)
 

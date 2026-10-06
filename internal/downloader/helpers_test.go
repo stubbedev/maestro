@@ -1,6 +1,8 @@
 package downloader
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"os"
 	"strings"
 	"sync"
@@ -103,6 +105,7 @@ func (f *fakeDispatcher) Dispatch(_ string, e eventdispatcher.Event) (int, error
 type fakeCache struct {
 	t        *testing.T
 	copyTo   func(key, target string) bool
+	open     func(key string) *os.File
 	copyFrom func(key, source string) bool
 	gc       func(ttl int, maxSize int64)
 	gcNeeded bool
@@ -120,6 +123,14 @@ func (c *fakeCache) CopyTo(key, target string) (bool, error) {
 	}
 
 	return c.copyTo(key, target), nil
+}
+
+func (c *fakeCache) Open(key string) (*os.File, error) {
+	if c.open == nil {
+		return nil, nil
+	}
+
+	return c.open(key), nil
 }
 
 func (c *fakeCache) CopyFrom(key, source string) (bool, error) {
@@ -176,4 +187,10 @@ func outputLines(b *mio.BufferIO) []string {
 	}
 
 	return strings.Split(out, "\n")
+}
+
+func sha1Hex(s string) string {
+	sum := sha1.Sum([]byte(s))
+
+	return hex.EncodeToString(sum[:])
 }

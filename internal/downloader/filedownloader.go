@@ -40,10 +40,10 @@ type Deps struct {
 	// EventDispatcher fires PRE_FILE_DOWNLOAD and POST_FILE_DOWNLOAD.
 	EventDispatcher EventDispatcher
 	// Cache is Composer's files cache (cache-files-dir), nil when
-	// cache-files-ttl is 0 (Factory::createDownloadManager). The archive
-	// downloaders do not keep archives in it, but follow it to decide
-	// whether the package store may be read and written (see the package
-	// documentation).
+	// cache-files-ttl is 0 (Factory::createDownloadManager). Every
+	// downloader keeps its archives in it as Composer does; the archive
+	// downloaders also follow it to decide whether the package store may
+	// be read and written (see the package documentation).
 	Cache Cache
 	// Filesystem defaults to one running commands through Process.
 	Filesystem *util.Filesystem
@@ -225,9 +225,11 @@ type dlState struct {
 	fileName string
 	urls     []dlURL
 	retries  int
-	// tryStore: the package store is still to be looked up (store-backed
-	// downloads, first attempt).
-	tryStore bool
+	// release and archive are a cache hit of a store-backed download whose
+	// release the store holds: the release, and the cached archive, open
+	// in case the store lost objects of it.
+	release *store.Release
+	archive *os.File
 	// stagedFromStore: the package was materialized from the store.
 	stagedFromStore bool
 }
@@ -309,14 +311,6 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 
 	checksum := p.DistSha1Checksum()
 
-	if st.tryStore {
-		st.tryStore = false
-
-		if rel := d.lookupStore(p); rel != nil {
-			return d.fromStore(st, rel, url, checksum), nil
-		}
-	}
-
 	var result *Promise
 
 	hit, err := d.fromCache(st, url.cacheKey, checksum)
@@ -327,6 +321,10 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 	if hit {
 		if st.c.output {
 			st.c.io.WriteError("  - Loading <info>"+p.Name()+"</info> (<comment>"+p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>) from cache", true, mio.VeryVerbose)
+		}
+
+		if st.release != nil {
+			return d.fromStore(st, url, checksum), nil
 		}
 
 		result = resolved(st.fileName)
@@ -382,10 +380,11 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 }
 
 // fromCache is the files cache branch of download(): the cached archive
-// copied to the temporary file when present with a valid checksum.
-// Store-backed downloads never read the files cache.
+// copied to the temporary file when present with a valid checksum. For a
+// store-backed download whose release the store holds, the archive is not
+// copied but kept open in st (the package comes from the store).
 func (d *FileDownloader) fromCache(st *dlState, key string, checksum pkg.NullString) (bool, error) {
-	if d.cache == nil || d.format != 0 {
+	if d.cache == nil {
 		return false, nil
 	}
 
@@ -402,8 +401,14 @@ func (d *FileDownloader) fromCache(st *dlState, key string, checksum pkg.NullStr
 		}
 	}
 
-	copied, err := d.cache.CopyTo(key, st.fileName)
-	if err != nil || !copied {
+	if rel := d.lookupStore(st.p); rel != nil {
+		f, err := d.cache.Open(key)
+		if err != nil || f == nil {
+			return false, err
+		}
+
+		st.release, st.archive = rel, f
+	} else if copied, err := d.cache.CopyTo(key, st.fileName); err != nil || !copied {
 		return false, err
 	}
 
@@ -451,7 +456,7 @@ func (d *FileDownloader) accept(st *dlState, r *http.Response) string {
 		d.metadata.set(p.Name(), fileSize)
 	}
 
-	if d.cache != nil && d.format == 0 && !d.cache.IsReadOnly() {
+	if d.cache != nil && !d.cache.IsReadOnly() {
 		d.mu.Lock()
 		d.lastCacheWrites[p.Name()] = key
 		d.mu.Unlock()

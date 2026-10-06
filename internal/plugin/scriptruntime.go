@@ -8,7 +8,6 @@ package plugin
 import (
 	"errors"
 
-	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
@@ -138,27 +137,17 @@ func (r *Runtime) RunCommandClass(className string, ev eventdispatcher.Event, in
 	if err := r.startFor("script "+className, out); err != nil {
 		return "", 0, err
 	}
-	verbosity, decorated := console.VerbosityNormal, false
+	// Composer reuses its ConsoleIO's output (a new ConsoleOutput for any
+	// other IO).
+	var output any
 	if out != nil {
-		decorated = out.IsDecorated()
-		switch {
-		case out.IsDebug():
-			verbosity = console.VerbosityDebug
-		case out.IsVeryVerbose():
-			verbosity = console.VerbosityVeryVerbose
-		case out.IsVerbose():
-			verbosity = console.VerbosityVerbose
-		}
-		if q, ok := out.(interface{ IsQuiet() bool }); ok && q.IsQuiet() {
-			verbosity = console.VerbosityQuiet
-		}
+		output = r.outputObject(ioOutput(out))
 	}
 	res, ran, err := r.callWithBefore("script.commandClass", php.ArrayOf(
 		"class", className,
 		"event", r.eventObject(ev),
 		"input", input,
-		"verbosity", int64(verbosity),
-		"decorated", decorated,
+		"output", output,
 	), before)
 	if err != nil {
 		return ranStatus(ran), 0, err
@@ -270,9 +259,19 @@ func (r *Runtime) startFor(purpose string, out io.IO) error {
 	return r.flushPending()
 }
 
-// flushPending sends the dispatch brackets and the class loader that
-// waited for PHP to start, in their order.
+// flushPending sends the project class loaders, the dispatch brackets and
+// the class loader that waited for PHP to start, in their order.
 func (r *Runtime) flushPending() error {
+	r.commands.mu.Lock()
+	projectLoaders := r.commands.pendingLoaders
+	r.commands.pendingLoaders = nil
+	r.commands.mu.Unlock()
+	for _, l := range projectLoaders {
+		if err := r.sendProjectLoader(l); err != nil {
+			return err
+		}
+	}
+
 	r.mu.Lock()
 	begins, loader := r.pendingBegins, r.pendingLoader
 	r.pendingBegins, r.pendingLoader = nil, nil

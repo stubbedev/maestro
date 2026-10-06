@@ -1,0 +1,8 @@
+{
+    "name": "local/other-thing",
+    "version": "1.0.0",
+    "type": "custom-lib",
+    "autoload": {
+        "psr-4": {"Local\\Other\\": "src/"}
+    }
+}

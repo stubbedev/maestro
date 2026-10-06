@@ -1,0 +1,15 @@
+{
+    "name": "local/theme-thing",
+    "version": "1.0.0",
+    "type": "wordpress-theme",
+    "description": "A wordpress-theme package installed by composer/installers.",
+    "require": {
+        "composer/installers": "^2.0"
+    },
+    "extra": {
+        "installer-name": "renamed-theme"
+    },
+    "autoload": {
+        "psr-4": {"Local\\Theme\\": "src/"}
+    }
+}

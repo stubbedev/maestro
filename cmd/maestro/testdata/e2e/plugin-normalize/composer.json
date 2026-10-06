@@ -1,0 +1,16 @@
+{
+    "require": {
+        "psr/log": "^3.0"
+    },
+    "name": "maestro-test/normalize",
+    "description": "ergebnis/composer-normalize: the normalize command, its nested update --lock.",
+    "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true
+        }
+    },
+    "require-dev": {
+        "ergebnis/composer-normalize": "2.54.0"
+    },
+    "type": "project"
+}

@@ -825,8 +825,13 @@ func throwableInfo(err error) (class, file string, line, code int, prev error) {
 	return "Exception", "", 0, 0, nil
 }
 
-// isConsoleExceptionValue is "$e instanceof ExceptionInterface".
+// isConsoleExceptionValue is "$e instanceof ExceptionInterface", for the
+// console's own errors and for exceptions that know their PHP classes (the
+// plugin runtime's).
 func isConsoleExceptionValue(err error) bool {
+	if i, ok := err.(interface{ InstanceOf(class string) bool }); ok {
+		return i.InstanceOf(`Symfony\Component\Console\Exception\ExceptionInterface`)
+	}
 	e, ok := err.(*Error) //nolint:errorlint // instanceof applies to the object itself.
 
 	return ok && e.Is(ErrConsole)

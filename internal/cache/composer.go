@@ -1,7 +1,8 @@
 // Ports src/Composer/Cache.php: Composer's cache directories (repository
-// metadata, VCS mirrors). Dist archives are kept by internal/store
-// instead, but the files cache Composer keeps them in still works as
-// Composer's does.
+// metadata, dist archives, VCS mirrors). The archive downloaders keep
+// every dist archive in the files cache as Composer does (and extract it
+// into internal/store); Open is their copyTo when the store has the
+// package already.
 
 package cache
 
@@ -269,6 +270,43 @@ func (c *Cache) CopyTo(file, target string) (bool, error) {
 	c.io.WriteError("Reading "+c.root+file+" from cache", true, mio.Debug)
 
 	return util.Copy(c.root+file, target)
+}
+
+// Open is copyTo($file, $target) without the copy: the cached file is
+// marked as recently used and its debug line printed as copyTo does, and
+// it is returned open (nil when missing), so that its content stays
+// readable even if a garbage collection removes it meanwhile.
+func (c *Cache) Open(file string) (*os.File, error) {
+	if !c.IsEnabled() {
+		return nil, nil
+	}
+
+	file = c.key(file)
+
+	f, err := os.Open(c.root + file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	now := c.now()
+
+	if fi, err := f.Stat(); err != nil || !fi.Mode().IsRegular() {
+		_ = f.Close()
+
+		return nil, err
+	} else if os.Chtimes(c.root+file, now, fi.ModTime()) != nil {
+		// fallback in case the above failed due to incorrect ownership
+		// see composer/composer#4070
+		_ = os.Chtimes(c.root+file, now, now)
+	}
+
+	c.io.WriteError("Reading "+c.root+file+" from cache", true, mio.Debug)
+
+	return f, nil
 }
 
 // GcIsNecessary is gcIsNecessary(): true once in a while (1 in 51), at

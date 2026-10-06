@@ -52,7 +52,7 @@ Notes:
   extraction (native, into the store, while other downloads run) and
   autoload dumping.
 - Warm runs show the store (deviation 1): packages are materialized from the
-  extracted store (reflink/hardlink) instead of unzipping cached archives.
+  extracted store (reflink or copy) instead of unzipping cached archives.
 - Commands that mostly wait on Packagist metadata (`commands`, `verbosity`:
   show/outdated/audit/search) gain the least.
 - The real-world scenarios run with `--no-plugins --no-scripts` until the

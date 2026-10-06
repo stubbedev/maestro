@@ -6,6 +6,7 @@ package downloader
 
 import (
 	"errors"
+	"io"
 	"os"
 	"slices"
 
@@ -81,8 +82,6 @@ func (a *ArchiveDownloader) download(c call, p pkg.PackageInterface, path string
 	if err != nil {
 		return nil, err
 	}
-
-	st.tryStore = true
 
 	promise, err := a.attempt(st)
 	if err != nil {
@@ -399,9 +398,9 @@ func (d *FileDownloader) storeAccess() (read, write bool) {
 }
 
 // lookupStore returns the release of p's dist when the shared store holds
-// it.
+// it (store-backed downloads only).
 func (d *FileDownloader) lookupStore(p pkg.PackageInterface) *store.Release {
-	if read, _ := d.storeAccess(); !read {
+	if read, _ := d.storeAccess(); !read || d.format == 0 {
 		return nil
 	}
 
@@ -413,48 +412,69 @@ func (d *FileDownloader) lookupStore(p pkg.PackageInterface) *store.Release {
 	return rel
 }
 
-// fromStore is download()'s cache hit for a dist in the store: the package
-// is materialized into a staging directory instead of copying the archive.
-// When objects went missing from the store, the archive is downloaded
-// after all.
-func (d *FileDownloader) fromStore(st *dlState, rel *store.Release, url dlURL, checksum pkg.NullString) *Promise {
+// fromStore is download()'s cache hit for a dist whose release the store
+// holds: the package is materialized from the store into a staging
+// directory instead of extracting the cached archive. When objects went
+// missing from the store (or were found modified and dropped), the store
+// is healed from the cached archive, opened when the cache was read: it is
+// copied to the temporary file, as copyTo would have, and extracted.
+func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullString) *Promise {
 	p := st.p
-
-	if st.c.output {
-		st.c.io.WriteError("  - Loading <info>"+p.Name()+"</info> (<comment>"+p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>) from cache", true, mio.VeryVerbose)
-	}
-
-	dir := d.randomDir()
-	d.addCleanupPath(p, dir)
+	rel, cached := st.release, st.archive
+	st.release, st.archive = nil, nil
+	s := d.newStaged(p)
 
 	materialized := util.GoBackground(d.process.Scheduler(), func() (string, error) {
-		return "", d.store.Materialize(rel, dir)
+		defer func() { _ = cached.Close() }()
+
+		err := d.store.Materialize(rel, s.dir)
+		if _, ok := errors.AsType[*store.MissingError](err); !ok {
+			return "", err
+		}
+
+		if err := copyOpenFile(cached, st.fileName); err != nil {
+			return "", err
+		}
+
+		return "", d.extractToStore(p, st.fileName, s.dir)
 	})
 
-	return then(materialized, func(string) (*Promise, string, error) {
+	// failures are reported by install(), as an extraction failure would be
+	finish := func(err error) (string, error) {
 		st.stagedFromStore = true
-		d.setStaged(st.fileName, &staged{dir: dir})
+		d.finishStage(p, st.fileName, s, err)
 
 		if err := d.dispatchPost(st, url, checksum); err != nil {
-			return nil, "", err
+			return "", err
 		}
 
-		return nil, st.fileName, nil
+		return st.fileName, nil
+	}
+
+	return then(materialized, func(string) (*Promise, string, error) {
+		file, err := finish(nil)
+
+		return nil, file, err
 	}, func(err error) (*Promise, string, error) {
-		d.removeCleanupPath(p, dir)
+		file, err := finish(err)
 
-		if _, ok := errors.AsType[*store.MissingError](err); ok {
-			promise, err := d.attempt(st)
-
-			return promise, "", err
-		}
-
-		// reported by install(), as an extraction failure would be
-		st.stagedFromStore = true
-		d.setStaged(st.fileName, &staged{dir: dir, err: err})
-
-		return nil, st.fileName, nil
+		return nil, file, err
 	})
+}
+
+// copyOpenFile is copy() from an open file to a new file at target.
+func copyOpenFile(src *os.File, target string) error {
+	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // copy()'s mode, the umask applies
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(out, src)
+	if cerr := out.Close(); err == nil {
+		err = cerr
+	}
+
+	return err
 }
 
 func (d *FileDownloader) setStaged(fileName string, s *staged) {

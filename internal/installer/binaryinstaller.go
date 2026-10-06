@@ -356,11 +356,11 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 	return proxyCode + "\n" + phpProxyCode(binPathExported, binPath, streamHint, globalsCode, streamProxy), nil
 }
 
-// silentChmod is Silencer::call('chmod', $path, 0777 & ~umask()), through
-// the store so that a file sharing its inode with a store object is unshared
-// first.
+// silentChmod is Silencer::call('chmod', $path, 0777 & ~umask()). Package
+// files never share an inode with the package store (internal/store), so a
+// plain chmod changes this project only.
 func silentChmod(path string) {
-	_ = store.Chmod(path, 0o777&^store.Umask())
+	_ = os.Chmod(path, 0o777&^store.Umask())
 }
 
 // filePutContents is file_put_contents() under Composer's error handler,

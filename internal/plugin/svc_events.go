@@ -79,8 +79,11 @@ func (m *eventMirror) MirrorSnapshot() (*php.Array, error) {
 		s.Set("transaction", m.r.value(e.Transaction()))
 	case *eventdispatcher.CommandEvent:
 		s.Set("commandName", e.CommandName())
+		s.Set("input", m.r.inputObject(e.Input()))
+		s.Set("output", m.r.outputObject(e.Output()))
 	case *eventdispatcher.PreCommandRunEvent:
 		s.Set("command", e.Command())
+		s.Set("input", m.r.inputObject(e.Input()))
 	}
 
 	return s, nil

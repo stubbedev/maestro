@@ -245,6 +245,13 @@ func (in *CompletionInput) Bind(definition *InputDefinition) error {
 	return nil
 }
 
+// CompletionTokens returns the tokens being completed, the application name first
+// (CompletionInput's $tokens).
+func (in *CompletionInput) CompletionTokens() []string { return in.tokens }
+
+// CurrentIndex returns the index of the token at the cursor.
+func (in *CompletionInput) CurrentIndex() int { return in.currentIndex }
+
 // CompletionType returns the completion type.
 func (in *CompletionInput) CompletionType() string { return in.completionType }
 

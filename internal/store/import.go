@@ -18,7 +18,7 @@ import (
 var errUnsupported = errors.New("reflinks unsupported")
 
 // device is the import method chosen for one destination device. Under
-// Auto it only ever moves down: clone, hardlink, copy.
+// Auto it only ever moves down, from clone to copy.
 type device struct {
 	method atomic.Int32
 }
@@ -224,7 +224,7 @@ func (s *Store) importFile(dev *device, e *Entry, dst string) error {
 	obj := s.objectPath(&e.Hash, objPerm)
 	want := stampOf(e.Size, objPerm, &e.Hash)
 
-	err := s.importObject(dev, obj, dst, perm, objPerm == perm, want)
+	err := s.importObject(dev, obj, dst, perm, want)
 	if !errors.Is(err, errStale) && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
@@ -233,56 +233,27 @@ func (s *Store) importFile(dev *device, e *Entry, dst string) error {
 		return herr
 	}
 
-	return s.importObject(dev, obj, dst, perm, objPerm == perm, want)
+	return s.importObject(dev, obj, dst, perm, want)
 }
 
 // importObject creates dst with permission bits perm from the object obj
-// with the device's method, moving the device down to the next method when
-// the filesystem refuses one (under Auto). linkable says a hardlink would
-// carry the right mode.
-func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, linkable bool, want stamp) error {
-	for {
-		switch m := dev.get(); {
-		case m == Clone:
-			err := cloneObject(obj, dst, perm, s.umask, want)
-			if !errors.Is(err, errUnsupported) {
-				return err
-			}
-
-			if s.method != Auto {
-				return fmt.Errorf("store: cannot clone %s: the filesystem does not support reflinks", dst)
-			}
-
-			dev.demote(Clone, Hardlink)
-		case m == Hardlink && linkable:
-			st, err := lstat(obj)
-			if err != nil {
-				return err
-			}
-
-			if err := want.check(st); err != nil {
-				return err
-			}
-
-			err = os.Link(obj, dst)
-
-			switch {
-			case err == nil:
-				return nil
-			case linkLimit(err):
-				// This object has as many links as the filesystem allows.
-				return s.copyObject(obj, dst, perm, want)
-			case !linkUnsupported(err):
-				return err
-			case s.method != Auto:
-				return fmt.Errorf("store: cannot hardlink %s: %w", dst, err)
-			}
-
-			dev.demote(Hardlink, Copy)
-		default:
-			return s.copyObject(obj, dst, perm, want)
+// with the device's method, moving the device down to copying when the
+// filesystem cannot clone (under Auto).
+func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, want stamp) error {
+	if dev.get() == Clone {
+		err := cloneObject(obj, dst, perm, s.umask, want)
+		if !errors.Is(err, errUnsupported) {
+			return err
 		}
+
+		if s.method != Auto {
+			return fmt.Errorf("store: cannot clone %s: the filesystem does not support reflinks", dst)
+		}
+
+		dev.demote(Clone, Copy)
 	}
+
+	return s.copyObject(obj, dst, perm, want)
 }
 
 // copyObject creates dst as a copy of the object obj (copy_file_range

@@ -1,0 +1,8 @@
+{
+    "name": "local/custom-thing",
+    "version": "1.0.0",
+    "type": "custom-type",
+    "autoload": {
+        "psr-4": {"Local\\Custom\\": "src/"}
+    }
+}

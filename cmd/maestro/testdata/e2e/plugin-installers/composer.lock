@@ -1,0 +1,392 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "d4cf9e424148e25cc16e52c85e64f539",
+    "packages": [
+        {
+            "name": "cmb2/cmb2",
+            "version": "v2.13.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/CMB2/CMB2.git",
+                "reference": "0f2498434d97876f6f141fa1de99c8ec87840a4a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/CMB2/CMB2/zipball/0f2498434d97876f6f141fa1de99c8ec87840a4a",
+                "reference": "0f2498434d97876f6f141fa1de99c8ec87840a4a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">7.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.6",
+                "yoast/phpunit-polyfills": "^1.1"
+            },
+            "suggest": {
+                "composer/installers": "~1.0"
+            },
+            "type": "wordpress-plugin",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "Justin Sternberg",
+                    "email": "justin@dsgnwrks.pro",
+                    "homepage": "https://dsgnwrks.pro",
+                    "role": "Developer"
+                },
+                {
+                    "name": "WebDevStudios",
+                    "email": "contact@webdevstudios.com",
+                    "homepage": "https://github.com/WebDevStudios",
+                    "role": "Developer"
+                }
+            ],
+            "description": "CMB2 is a metabox, custom fields, and forms library for WordPress that will blow your mind.",
+            "homepage": "https://github.com/CMB2/CMB2",
+            "keywords": [
+                "metabox",
+                "plugin",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/CMB2/CMB2/issues",
+                "source": "http://wordpress.org/support/plugin/cmb2"
+            },
+            "time": "2026-10-03T19:02:06+00:00"
+        },
+        {
+            "name": "composer/installers",
+            "version": "v2.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/composer/installers.git",
+                "reference": "12fb2dfe5e16183de69e784a7b84046c43d97e8e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/composer/installers/zipball/12fb2dfe5e16183de69e784a7b84046c43d97e8e",
+                "reference": "12fb2dfe5e16183de69e784a7b84046c43d97e8e",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^1.0 || ^2.0",
+                "php": "^7.2 || ^8.0"
+            },
+            "require-dev": {
+                "composer/composer": "^1.10.27 || ^2.7",
+                "composer/semver": "^1.7.2 || ^3.4.0",
+                "phpstan/phpstan": "^1.11",
+                "phpstan/phpstan-phpunit": "^1",
+                "symfony/phpunit-bridge": "^7.1.1",
+                "symfony/process": "^5 || ^6 || ^7"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Composer\\Installers\\Plugin",
+                "branch-alias": {
+                    "dev-main": "2.x-dev"
+                },
+                "plugin-modifies-install-path": true
+            },
+            "autoload": {
+                "psr-4": {
+                    "Composer\\Installers\\": "src/Composer/Installers"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Kyle Robinson Young",
+                    "email": "kyle@dontkry.com",
+                    "homepage": "https://github.com/shama"
+                }
+            ],
+            "description": "A multi-framework Composer library installer",
+            "homepage": "https://composer.github.io/installers/",
+            "keywords": [
+                "Dolibarr",
+                "Eliasis",
+                "Hurad",
+                "ImageCMS",
+                "Kanboard",
+                "Lan Management System",
+                "MODX Evo",
+                "MantisBT",
+                "Mautic",
+                "Maya",
+                "OXID",
+                "Plentymarkets",
+                "Porto",
+                "RadPHP",
+                "SMF",
+                "Starbug",
+                "Thelia",
+                "Whmcs",
+                "WolfCMS",
+                "agl",
+                "annotatecms",
+                "attogram",
+                "bitrix",
+                "cakephp",
+                "chef",
+                "cockpit",
+                "codeigniter",
+                "concrete5",
+                "concreteCMS",
+                "croogo",
+                "dokuwiki",
+                "drupal",
+                "eZ Platform",
+                "elgg",
+                "expressionengine",
+                "fuelphp",
+                "grav",
+                "installer",
+                "itop",
+                "known",
+                "kohana",
+                "laravel",
+                "lavalite",
+                "lithium",
+                "magento",
+                "majima",
+                "mako",
+                "matomo",
+                "mediawiki",
+                "miaoxing",
+                "modulework",
+                "modx",
+                "moodle",
+                "osclass",
+                "pantheon",
+                "phpbb",
+                "piwik",
+                "ppi",
+                "processwire",
+                "puppet",
+                "pxcms",
+                "reindex",
+                "roundcube",
+                "shopware",
+                "silverstripe",
+                "sydes",
+                "sylius",
+                "tastyigniter",
+                "wordpress",
+                "yawik",
+                "zend",
+                "zikula"
+            ],
+            "support": {
+                "issues": "https://github.com/composer/installers/issues",
+                "source": "https://github.com/composer/installers/tree/v2.3.0"
+            },
+            "funding": [
+                {
+                    "url": "https://packagist.com",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/composer",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/composer/composer",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2024-06-24T20:46:46+00:00"
+        },
+        {
+            "name": "local/bin-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/bin-thing",
+                "reference": "5b3ff59f863d62519ad3d87b490ffda60aa954b7"
+            },
+            "require": {
+                "composer/installers": "^2.0"
+            },
+            "bin": [
+                "bin/bin-thing"
+            ],
+            "type": "silverstripe-module",
+            "autoload": {
+                "psr-4": {
+                    "Local\\Bin\\": "src/"
+                }
+            },
+            "description": "A silverstripe-module package installed by composer/installers.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "local/cake-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/cake-thing",
+                "reference": "58256f80eb48671d9ce6b0276e856a997955f29d"
+            },
+            "require": {
+                "composer/installers": "^2.0"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "Local\\Cake\\": "src/"
+                }
+            },
+            "description": "A cakephp-plugin package installed by composer/installers.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "local/drupal-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/drupal-thing",
+                "reference": "435b088ae4a054a188bdd342c7f69cd034f39310"
+            },
+            "require": {
+                "composer/installers": "^2.0"
+            },
+            "type": "drupal-module",
+            "autoload": {
+                "psr-4": {
+                    "Local\\Drupal\\": "src/"
+                }
+            },
+            "description": "A drupal-module package installed by composer/installers.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "local/moodle-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/moodle-thing",
+                "reference": "cb6ef63b1cf2fe043d80c6256679036c8cf0de18"
+            },
+            "require": {
+                "composer/installers": "^2.0"
+            },
+            "type": "moodle-mod",
+            "autoload": {
+                "psr-4": {
+                    "Local\\Moodle\\": "src/"
+                }
+            },
+            "description": "A moodle-mod package installed by composer/installers.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "local/theme-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/theme-thing",
+                "reference": "ed18f13f9c099cc8acb16c486fba302bc617a1bd"
+            },
+            "require": {
+                "composer/installers": "^2.0"
+            },
+            "type": "wordpress-theme",
+            "extra": {
+                "installer-name": "renamed-theme"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Local\\Theme\\": "src/"
+                }
+            },
+            "description": "A wordpress-theme package installed by composer/installers.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "stuttter/ludicrousdb",
+            "version": "5.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stuttter/ludicrousdb.git",
+                "reference": "a5886a067d3c93860782787259e3b34f4cfa55fc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stuttter/ludicrousdb/zipball/a5886a067d3c93860782787259e3b34f4cfa55fc",
+                "reference": "a5886a067d3c93860782787259e3b34f4cfa55fc",
+                "shasum": ""
+            },
+            "require": {
+                "composer/installers": "^1.12 || ^2.0",
+                "php": ">=7.4"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
+                "php-stubs/wordpress-stubs": "7.1.*",
+                "phpcompatibility/phpcompatibility-wp": "^2.1",
+                "phpstan/phpstan": "^2.2.13",
+                "phpunit/phpunit": "^9.6",
+                "sirbrillig/phpcs-variable-analysis": "^3.0",
+                "wp-coding-standards/wpcs": "^3.4.1"
+            },
+            "type": "wordpress-plugin",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "John James Jacoby",
+                    "email": "johnjamesjacoby@me.com"
+                },
+                {
+                    "name": "Jonny Harris",
+                    "email": "jon@spacedmonkey.co.uk"
+                }
+            ],
+            "description": "LudicrousDB is a database class that supports replication, failover, load balancing, & partitioning, based on Automattic's HyperDB drop-in.",
+            "homepage": "https://github.com/stuttter/ludicrousdb",
+            "support": {
+                "issues": "https://github.com/stuttter/ludicrousdb/issues",
+                "source": "https://github.com/stuttter/ludicrousdb"
+            },
+            "time": "2026-09-23T00:42:08+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

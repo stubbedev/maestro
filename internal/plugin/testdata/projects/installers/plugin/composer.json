@@ -1,0 +1,8 @@
+{
+    "name": "maestro-test/installers-plugin",
+    "version": "1.0.0",
+    "type": "composer-plugin",
+    "require": {"composer-plugin-api": "^2.0"},
+    "autoload": {"psr-4": {"MaestroTest\\Installers\\": "src/"}},
+    "extra": {"class": "MaestroTest\\Installers\\Plugin"}
+}

@@ -64,6 +64,14 @@ func (c *ConsoleIO) EnableTimestamps(layout string) {
 	c.timestampLayout = layout
 }
 
+// ConsoleOutput returns the output the IO writes to (ConsoleIO's protected
+// $output, which EventDispatcher reads for command-class scripts).
+func (c *ConsoleIO) ConsoleOutput() console.Output { return c.output }
+
+// ConsoleInput returns the input the IO asks with (ConsoleIO's protected
+// $input).
+func (c *ConsoleIO) ConsoleInput() console.Input { return c.input }
+
 // IsInteractive implements IO.
 func (c *ConsoleIO) IsInteractive() bool { return c.input.IsInteractive() }
 

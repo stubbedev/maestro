@@ -55,11 +55,9 @@ func (s *Store) Insert(d Dist, path string) (*Release, error) {
 		return nil, err
 	}
 
-	if err := s.ensureShard(1, &id, indexPath); err != nil {
-		return nil, err
-	}
+	data := encodeIndex(entries)
 
-	if err := s.writeAtomic(indexPath, encodeIndex(entries)); err != nil {
+	if err := s.intoShard(1, &id, indexPath, func() error { return s.writeAtomic(indexPath, data) }); err != nil {
 		return nil, err
 	}
 

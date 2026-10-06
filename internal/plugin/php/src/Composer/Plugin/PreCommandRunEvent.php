@@ -2,8 +2,9 @@
 
 /*
  * maestro's plugin shim: Composer\Plugin\PreCommandRunEvent
- * (docs/PLUGINS.md §4.4), a mirror of maestro's. The input mirror comes with
- * the command support (phase 4).
+ * (docs/PLUGINS.md §4.4), a mirror of maestro's, whose input is maestro's
+ * (an input mirror: what listeners change in it reaches the command,
+ * §5.9).
  * Written for PHP 7.2.5 to 8.5.
  */
 

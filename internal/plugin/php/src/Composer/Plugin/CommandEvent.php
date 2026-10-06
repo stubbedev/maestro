@@ -2,8 +2,8 @@
 
 /*
  * maestro's plugin shim: Composer\Plugin\CommandEvent (docs/PLUGINS.md
- * §4.4), a mirror of maestro's. The input and output mirrors come with the
- * command support (phase 4).
+ * §4.4), a mirror of maestro's, whose input and output are maestro's (input
+ * and output mirrors, §5.9).
  * Written for PHP 7.2.5 to 8.5.
  */
 

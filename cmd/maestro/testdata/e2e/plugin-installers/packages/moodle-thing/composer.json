@@ -1,0 +1,12 @@
+{
+    "name": "local/moodle-thing",
+    "version": "1.0.0",
+    "type": "moodle-mod",
+    "description": "A moodle-mod package installed by composer/installers.",
+    "require": {
+        "composer/installers": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"Local\\Moodle\\": "src/"}
+    }
+}

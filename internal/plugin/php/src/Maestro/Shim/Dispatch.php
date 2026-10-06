@@ -12,7 +12,6 @@ use Composer\IO\ConsoleIO;
 use Composer\Util\ProcessExecutor;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
@@ -117,10 +116,9 @@ final class Dispatch
         $app->add($cmd);
         $app->setDefaultCommand((string) $cmd->getName(), true);
 
-        // Composer reuses its ConsoleIO's output; maestro's output is the
-        // same terminal, with the same verbosity, decoration and styles.
-        $formatter = new OutputFormatter((bool) $a['decorated'], \Composer\Factory::createAdditionalStyles());
-        $output = new ConsoleOutput((int) $a['verbosity'], (bool) $a['decorated'], $formatter);
+        // reusing the output from $this->io is mostly needed for tests, but generally speaking
+        // it does not hurt to keep the same stream as the current Application
+        $output = isset($a['output']) ? $a['output'] : new ConsoleOutput();
 
         $return = $app->run(new StringInput($a['input']), $output);
 

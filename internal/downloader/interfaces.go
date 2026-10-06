@@ -6,6 +6,8 @@
 package downloader
 
 import (
+	"os"
+
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -77,6 +79,9 @@ type Cache interface {
 	IsReadOnly() bool
 	Sha1(file string) (string, bool, error)
 	CopyTo(file, target string) (bool, error)
+	// Open is maestro's copyTo without the copy (cache.Cache.Open): the
+	// cached file, open, or nil when missing.
+	Open(file string) (*os.File, error)
 	CopyFrom(file, source string) (bool, error)
 	Remove(file string) (bool, error)
 	GcIsNecessary() bool

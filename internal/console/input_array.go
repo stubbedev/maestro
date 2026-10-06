@@ -65,6 +65,9 @@ func normalizeParams(parameters []Param) []Param {
 	return out
 }
 
+// Parameters returns the parameter array (ArrayInput's $parameters).
+func (in *ArrayInput) Parameters() []Param { return in.parameters }
+
 // Clone implements Input.
 func (in *ArrayInput) Clone() Input {
 	c := &ArrayInput{BaseInput: in.cloneBase(), parameters: in.parameters}

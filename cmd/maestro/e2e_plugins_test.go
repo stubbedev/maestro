@@ -120,7 +120,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"install", "--no-scripts"}},
 				{args: []string{"dump-autoload"}},
 				{args: []string{"dump-autoload", "-o"}},
-				{args: []string{"install", "-vvv"}, env: noCacheGC},
+				{args: []string{"install", "-vvv"}},
 				{args: []string{"run-script", "custom", "--", "x", "y"}},
 				{args: []string{"update", "--lock"}},
 				// Not in allow-plugins any more, non-interactive: blocked.
@@ -158,6 +158,18 @@ func pluginScenarios() []scenario {
 				{args: []string{"dump-autoload"}},
 				{args: []string{"run-script", "missing-command"}},
 				{args: []string{"run-script", "plain-command"}},
+				// The command class as a command of maestro's Application
+				// (docs/PLUGINS.md phase 4): listed, described, completed and
+				// run in PHP, with its own errors.
+				{args: []string{"list"}},
+				{args: []string{"help", "hello-command"}},
+				{args: []string{"hello-command", "--help"}},
+				{args: []string{"hello-command", "you", "--shout", "-v"}},
+				{args: []string{"hello-command", "a", "b"}},
+				{args: []string{"hello-command", "--nope", "-v"}, normalize: func(s string) string { return normalizeBundled(normalizeTrace(s)) }},
+				{args: []string{"run-script", "--list"}},
+				{args: []string{"_complete", "-n", "-c1", "--shell=bash", "-icomposer", "-ihello"}},
+				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-ihello-command", "-i--sh"}},
 			},
 		},
 		{
@@ -172,7 +184,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"update"}, env: stubbedevSkip},
 				{args: []string{"install", "--no-plugins"}},
 				{args: []string{"dump-autoload"}},
-				{args: []string{"install", "-vvv"}, env: append(slices.Clone(stubbedevSkip), "LARAVEL_MCP_SKIP_DOWNLOAD=1", noCacheGC[0])},
+				{args: []string{"install", "-vvv"}, env: append(slices.Clone(stubbedevSkip), "LARAVEL_MCP_SKIP_DOWNLOAD=1")},
 			},
 		},
 		{
@@ -204,18 +216,14 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// The plugin rewrites its own src/GeneratedConfig.php in place.
-			// With store objects linked by hardlink (the default import method
-			// where reflinks are missing) that changes the store's object,
-			// which the store then drops, so the warm phase downloads the
-			// package again where Composer reads its cache (HANDOFF:
-			// internal/store); copies keep the store intact.
+			// The plugin rewrites its own src/GeneratedConfig.php in place:
+			// the store and the warm phase's project must not see it.
 			name:    "plugin-phpstan",
 			fixture: "plugin-phpstan",
 			steps: []step{
-				{args: []string{"install"}, env: copyImport},
-				{args: []string{"update", "--lock"}, env: copyImport},
-				{args: []string{"remove", "phpstan/phpstan-deprecation-rules"}, env: copyImport},
+				{args: []string{"install"}},
+				{args: []string{"update", "--lock"}},
+				{args: []string{"remove", "phpstan/phpstan-deprecation-rules"}},
 			},
 		},
 		{
@@ -225,6 +233,13 @@ func pluginScenarios() []scenario {
 				{args: []string{"install"}},
 				{args: []string{"dump-autoload"}},
 				{args: []string{"install", "--no-dev"}},
+				// Its CommandProvider (docs/PLUGINS.md phase 4).
+				{args: []string{"pest:dump-plugins"}, setup: removeFile("project/vendor/pest-plugins.json")},
+				{args: []string{"list"}},
+				{args: []string{"help", "pest:dump-plugins"}},
+				{args: []string{"pest:dump-plugins", "-vvv"}},
+				{args: []string{"_complete", "-n", "-c1", "--shell=bash", "-icomposer", "-ipest"}},
+				{args: []string{"pest:dump-plugins", "--no-plugins"}},
 			},
 		},
 		{
@@ -245,9 +260,9 @@ func pluginScenarios() []scenario {
 			name:    "plugin-infection",
 			fixture: "plugin-infection",
 			steps: []step{
-				{args: []string{"install"}, env: copyImport},
-				{args: []string{"remove", "testo/bridge-infection"}, env: copyImport},
-				{args: []string{"install", "--no-plugins"}, env: copyImport},
+				{args: []string{"install"}},
+				{args: []string{"remove", "testo/bridge-infection"}},
+				{args: []string{"install", "--no-plugins"}},
 			},
 		},
 		{
@@ -294,6 +309,108 @@ func pluginScenarios() []scenario {
 				{args: []string{"update"}},
 				{args: []string{"require", "psr/log:3.0.2"}},
 				{args: []string{"dump-autoload"}},
+				// Its CommandProvider (docs/PLUGINS.md phase 4): the command
+				// by its alias and by its name.
+				{args: []string{"scaffold"}, setup: removeFile("project/web/robots.txt")},
+				{args: []string{"drupal:scaffold", "-v"}},
+				{args: []string{"help", "scaffold"}},
+				{args: []string{"list"}},
+			},
+		},
+		{
+			// ergebnis/composer-normalize (docs/PLUGINS.md phase 4): a plugin
+			// command creating its own Composer instance (new Factory()),
+			// then running `update --lock` in a new Application.
+			name:    "plugin-normalize",
+			fixture: "plugin-normalize",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"normalize", "--dry-run", "--diff"}},
+				{args: []string{"normalize"}},
+				{args: []string{"normalize", "-vvv"}},
+				{args: []string{"normalize", "--indent-size=x", "--indent-style=space"}},
+				{args: []string{"help", "normalize"}},
+			},
+		},
+		{
+			// composer/installers (docs/PLUGINS.md phase 3): a LibraryInstaller
+			// subclass overriding supports(), getInstallPath() and
+			// uninstall() (whose parent::uninstall() promise it chains), for
+			// framework types from Packagist and path packages:
+			// installer-paths by vendor:, type: and name, installer-name,
+			// framework locations, binaries from a custom path. Removals are
+			// one package per step: the "Deleting" lines of several come in
+			// the order Composer's `rm -rf` processes happen to finish.
+			name:    "plugin-installers",
+			fixture: "plugin-installers",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"remove", "local/moodle-thing"}},
+				{args: []string{"require", "local/moodle-thing:1.0.0"}},
+				{args: []string{"remove", "cmb2/cmb2"}},
+				{args: []string{"dump-autoload", "-o"}},
+				{args: []string{"install", "-vvv"}},
+				{args: []string{"update", "--lock"}},
+				{args: []string{"install", "--no-plugins"}},
+			},
+		},
+		{
+			// oomphinc/composer-installers-extender: its Installer extends
+			// composer/installers' (a class of another plugin) and calls
+			// LibraryInstaller::getInstallPath() past its parent.
+			name:    "plugin-installers-extender",
+			fixture: "plugin-installers-extender",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"remove", "local/custom-thing"}},
+				{args: []string{"require", "local/custom-thing:1.0.0"}},
+				{args: []string{"dump-autoload"}},
+			},
+		},
+		{
+			// mnsami/composer-custom-directory-installer: three plugin
+			// classes in extra.class; PearPlugin finds no
+			// Composer\Installer\PearInstaller (Composer 2 has none) and
+			// registers nothing; its PluginInstaller subclass installs and
+			// activates a plugin from a custom path.
+			name:    "plugin-custom-directory",
+			fixture: "plugin-custom-directory",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"dump-autoload"}},
+				{args: []string{"remove", "local/other-thing"}},
+				{args: []string{"install", "-vvv"}},
+				// Uninstalled by the PluginInstaller subclass: deactivated
+				// and uninstalled.
+				{args: []string{"remove", "local/hello-plugin"}},
+			},
+		},
+		{
+			// johnpbloch/wordpress-core-installer: getInstallPath() keeps a
+			// static map of the paths it handed out (a stateful installer).
+			name:    "plugin-wordpress-core",
+			fixture: "plugin-wordpress-core",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"update", "local/wordpress"}, setup: writeFile("project/packages/wordpress/composer.json", wordpressUpdated)},
+				{args: []string{"install"}},
+				{args: []string{"remove", "local/wordpress"}},
+			},
+		},
+		{
+			// yiisoft/yii2-composer: install()/update()/uninstall() return
+			// parent's promise ->then() a callback writing
+			// vendor/yiisoft/extensions.php.
+			name:    "plugin-yii2",
+			fixture: "plugin-yii2",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"update", "local/yii-ext"}, setup: writeFile("project/packages/yii-ext/composer.json", yiiExtUpdated)},
+				{args: []string{"remove", "local/yii-other"}},
+				{args: []string{"require", "local/yii-other:1.0.0"}},
+				{args: []string{"install", "-v"}},
 			},
 		},
 		{
@@ -313,11 +430,23 @@ func pluginScenarios() []scenario {
 			steps: []step{
 				{args: []string{"global", "install"}},
 				{args: []string{"install"}},
-				{args: []string{"install", "-vvv"}, env: noCacheGC},
+				{args: []string{"install", "-vvv"}},
 				{args: []string{"install", "--no-plugins"}},
 				{args: []string{"global", "update"}},
 			},
 		},
+	}
+}
+
+// removeFile removes a file of the scenario root before a step (so the
+// step's rewrite of it shows).
+func removeFile(path string) func(t *testing.T, root string) {
+	return func(t *testing.T, root string) {
+		t.Helper()
+
+		if err := os.Remove(filepath.Join(root, path)); err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -328,16 +457,6 @@ func gitProject(t *testing.T, root string) {
 
 	gitRepo(t, filepath.Join(root, "project"), commit{files: map[string]string{"README.md": "# project\n"}})
 }
-
-// noCacheGC turns off Cache::gc() (COMPOSER_TEST_SUITE, the only switch
-// Composer has): each cache collects its garbage with a chance of 1 in 51
-// per run, and -vvv prints "Running cache garbage collection" when it
-// does, in either tool.
-var noCacheGC = []string{"COMPOSER_TEST_SUITE=1"}
-
-// copyImport makes maestro import package files by copy (see
-// plugin-phpstan).
-var copyImport = []string{"MAESTRO_PACKAGE_IMPORT_METHOD=copy"}
 
 // stubbedevSkip makes all stubbedev plugins but laravel-dev-mcp skip their
 // binary download.
@@ -388,6 +507,14 @@ var traceFrame = regexp.MustCompile(`(?m)^ \S+\(\) at \S+\n`)
 // design. The exception's own file and line are kept.
 func normalizeTrace(s string) string { return traceFrame.ReplaceAllString(s, "") }
 
+// bundledPath is the directory of the libraries Composer bundles: in the
+// phar, or in maestro's shim (docs/PLUGINS.md §5.1).
+var bundledPath = regexp.MustCompile(`phar://\S*?\.phar/vendor/|\S*/maestro/shim/[0-9a-f]{64}/lib/`)
+
+// normalizeBundled replaces the location of the bundled libraries (an
+// exception thrown by the bundled symfony/console names its file).
+func normalizeBundled(s string) string { return bundledPath.ReplaceAllString(s, "<bundled>/") }
+
 // stackFrames are the frames of a "Stack trace:" Composer's ErrorHandler
 // writes at -v, after the first (the plugin's own line).
 var stackFrames = regexp.MustCompile(`(?m)^(Stack trace:\n \S+\n)(?: \S+\n)+`)
@@ -395,3 +522,30 @@ var stackFrames = regexp.MustCompile(`(?m)^(Stack trace:\n \S+\n)(?: \S+\n)+`)
 // normalizeStackTrace drops the frames of ErrorHandler's stack traces below
 // the plugin's own line, for the reason of normalizeTrace.
 func normalizeStackTrace(s string) string { return stackFrames.ReplaceAllString(s, "$1") }
+
+// wordpressUpdated is plugin-wordpress-core's stand-in for WordPress at a
+// new version.
+const wordpressUpdated = `{
+    "name": "local/wordpress",
+    "version": "6.8.1",
+    "type": "wordpress-core",
+    "require": {
+        "johnpbloch/wordpress-core-installer": "^2.0"
+    }
+}
+`
+
+// yiiExtUpdated is plugin-yii2's extension at a new version, with another
+// bootstrap class.
+const yiiExtUpdated = `{
+    "name": "local/yii-ext",
+    "version": "1.1.0",
+    "type": "yii2-extension",
+    "autoload": {
+        "psr-4": {"local\\yiiext\\": "src/"}
+    },
+    "extra": {
+        "bootstrap": "local\\yiiext\\NewBootstrap"
+    }
+}
+`

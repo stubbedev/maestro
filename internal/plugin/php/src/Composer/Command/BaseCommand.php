@@ -5,8 +5,10 @@
  * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.11) for commands run in
  * PHP: the Composer instance it holds (setComposer() or its Application's),
  * its IO, and initialize() with the PRE_COMMAND_RUN event and the COMPOSER_*
- * option variables. Running plugin commands in maestro's Application comes
- * with phase 4.
+ * option variables. maestro's Application runs plugin commands here
+ * (command.run, docs/PLUGINS.md §5.7); maestro's own commands cross as
+ * instances of their classes (descriptive only: running one from PHP is
+ * not supported yet).
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -44,7 +46,18 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function createComposerInstance(\Symfony\Component\Console\Input\InputInterface $input, \Composer\IO\IOInterface $io, $config = null, ?bool $disablePlugins = null, ?bool $disableScripts = null): \Composer\Composer
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::createComposerInstance() in plugins yet');
+        $disablePlugins = $disablePlugins === true || $input->hasParameterOption('--no-plugins');
+        $disableScripts = $disableScripts === true || $input->hasParameterOption('--no-scripts');
+
+        $application = parent::getApplication();
+        if ($application instanceof \Composer\Console\Application && $application->getDisablePluginsByDefault()) {
+            $disablePlugins = true;
+        }
+        if ($application instanceof \Composer\Console\Application && $application->getDisableScriptsByDefault()) {
+            $disableScripts = true;
+        }
+
+        return \Composer\Factory::create($io, $config, $disablePlugins, $disableScripts);
     }
 
     protected function createPolicyConfig(\Composer\Config $config, ?\Symfony\Component\Console\Input\InputInterface $input): \Composer\Policy\PolicyConfig
@@ -54,7 +67,16 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function formatRequirements(array $requirements)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::formatRequirements() in plugins yet');
+        $requires = [];
+        $requirements = $this->normalizeRequirements($requirements);
+        foreach ($requirements as $requirement) {
+            if (!isset($requirement['version'])) {
+                throw new \UnexpectedValueException('Option '.$requirement['name'] .' is missing a version constraint, use e.g. '.$requirement['name'].':^1.0');
+            }
+            $requires[$requirement['name']] = $requirement['version'];
+        }
+
+        return $requires;
     }
 
     public function getApplication(): \Composer\Console\Application
@@ -102,12 +124,69 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function getPreferredInstallOptions(\Composer\Config $config, \Symfony\Component\Console\Input\InputInterface $input, bool $keepVcsRequiresPreferSource = false)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::getPreferredInstallOptions() in plugins yet');
+        $preferSource = false;
+        $preferDist = false;
+
+        switch ($config->get('preferred-install')) {
+            case 'source':
+                $preferSource = true;
+                break;
+            case 'dist':
+                $preferDist = true;
+                break;
+            case 'auto':
+            default:
+                // noop
+                break;
+        }
+
+        if (!$input->hasOption('prefer-dist') || !$input->hasOption('prefer-source')) {
+            return [$preferSource, $preferDist];
+        }
+
+        if ($input->hasOption('prefer-install') && is_string($input->getOption('prefer-install'))) {
+            if ($input->getOption('prefer-source')) {
+                throw new \InvalidArgumentException('--prefer-source can not be used together with --prefer-install');
+            }
+            if ($input->getOption('prefer-dist')) {
+                throw new \InvalidArgumentException('--prefer-dist can not be used together with --prefer-install');
+            }
+            switch ($input->getOption('prefer-install')) {
+                case 'dist':
+                    $input->setOption('prefer-dist', true);
+                    break;
+                case 'source':
+                    $input->setOption('prefer-source', true);
+                    break;
+                case 'auto':
+                    $preferDist = false;
+                    $preferSource = false;
+                    break;
+                default:
+                    throw new \UnexpectedValueException('--prefer-install accepts one of "dist", "source" or "auto", got '.$input->getOption('prefer-install'));
+            }
+        }
+
+        if ($input->getOption('prefer-source') || $input->getOption('prefer-dist') || ($keepVcsRequiresPreferSource && $input->hasOption('keep-vcs') && $input->getOption('keep-vcs'))) {
+            $preferSource = $input->getOption('prefer-source') || ($keepVcsRequiresPreferSource && $input->hasOption('keep-vcs') && $input->getOption('keep-vcs'));
+            $preferDist = $input->getOption('prefer-dist');
+        }
+
+        return [$preferSource, $preferDist];
     }
 
     protected function getTerminalWidth()
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::getTerminalWidth() in plugins yet');
+        $terminal = new \Symfony\Component\Console\Terminal();
+        $width = $terminal->getWidth();
+
+        if (\Composer\Util\Platform::isWindows()) {
+            $width--;
+        } else {
+            $width = max(80, $width);
+        }
+
+        return $width;
     }
 
     protected function initialize(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): void
@@ -192,12 +271,16 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function normalizeRequirements(array $requirements)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::normalizeRequirements() in plugins yet');
+        $parser = new \Composer\Package\Version\VersionParser();
+
+        return $parser->parseNameVersionPairs($requirements);
     }
 
     protected function renderTable(array $table, \Symfony\Component\Console\Output\OutputInterface $output)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::renderTable() in plugins yet');
+        $renderer = new \Symfony\Component\Console\Helper\Table($output);
+        $renderer->setStyle('compact');
+        $renderer->setRows($table)->render();
     }
 
     public function requireComposer(?bool $disablePlugins = null, ?bool $disableScripts = null): \Composer\Composer

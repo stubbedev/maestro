@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -127,7 +128,10 @@ func (z *zipProject) installOp(name string, bins ...any) operation.Operation {
 func TestInstallationManager_IntegrationZip(t *testing.T) {
 	const n = 24
 
-	var inFlight, maxInFlight atomic.Int64
+	var (
+		inFlight, maxInFlight atomic.Int64
+		release               sync.Once
+	)
 
 	block := make(chan struct{})
 
@@ -141,12 +145,11 @@ func TestInstallationManager_IntegrationZip(t *testing.T) {
 		}
 
 		if cur >= 4 {
-			// enough concurrency observed: release everyone
-			select {
-			case <-block:
-			default:
-				close(block)
-			}
+			// enough concurrency observed: release everyone (once: several
+			// handlers get here at the same time, and a second close
+			// panicked the handler, which the client saw as curl error 52,
+			// "Empty reply from server")
+			release.Do(func() { close(block) })
 		}
 
 		<-block

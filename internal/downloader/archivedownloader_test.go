@@ -180,10 +180,12 @@ type project struct {
 }
 
 type projectOptions struct {
+	store *store.Store
+	// cacheDir is the files cache (default <root>/cache/files).
+	cacheDir  string
 	verbosity int
 	noCache   bool
 	readOnly  bool
-	store     *store.Store
 }
 
 func newProject(t *testing.T, root string, opts projectOptions) *project {
@@ -206,7 +208,11 @@ func newProject(t *testing.T, root string, opts projectOptions) *project {
 	deps := Deps{IO: out, Config: configAdapter{c}, HTTPDownloader: h, Process: process, Filesystem: util.NewFilesystem(process), Store: opts.store, Metadata: NewMetadata()}
 
 	if !opts.noCache {
-		filesCache, err := cache.New(out, root+"/cache/files", "a-z0-9_./", nil, opts.readOnly)
+		if opts.cacheDir == "" {
+			opts.cacheDir = root + "/cache/files"
+		}
+
+		filesCache, err := cache.New(out, opts.cacheDir, "a-z0-9_./", nil, opts.readOnly)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -312,8 +318,9 @@ func checkNoLeftovers(t *testing.T, vendor string) {
 func TestArchiveDownloader_StoreSecondInstallMakesNoRequest(t *testing.T) {
 	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
 	shared := newStore(t)
+	files := t.TempDir()
 
-	first := newProject(t, t.TempDir(), projectOptions{store: shared})
+	first := newProject(t, t.TempDir(), projectOptions{store: shared, cacheDir: files})
 
 	d, err := NewZipDownloader(first.deps)
 	if err != nil {
@@ -341,7 +348,7 @@ func TestArchiveDownloader_StoreSecondInstallMakesNoRequest(t *testing.T) {
 	}
 
 	// another project (or worktree) on the same machine
-	second := newProject(t, t.TempDir(), projectOptions{store: shared, verbosity: console.VerbosityVeryVerbose})
+	second := newProject(t, t.TempDir(), projectOptions{store: shared, cacheDir: files, verbosity: console.VerbosityVeryVerbose})
 
 	d, err = NewZipDownloader(second.deps)
 	if err != nil {
@@ -367,6 +374,216 @@ func TestArchiveDownloader_StoreSecondInstallMakesNoRequest(t *testing.T) {
 	if got := downloadLines(second.out); !slices.Equal(got, want) {
 		t.Fatalf("output %q, want %q", got, want)
 	}
+}
+
+// installTwice installs a/b from srv in a first project, runs between,
+// then installs it in a second project sharing the store and files cache,
+// and returns the second project's output.
+func installTwice(t *testing.T, srv *distServer, verbosity int, between func(shared *store.Store, files string)) []string {
+	t.Helper()
+
+	shared := newStore(t)
+	files := t.TempDir()
+
+	for i := range 2 {
+		opts := projectOptions{store: shared, cacheDir: files}
+		if i == 1 {
+			between(shared, files)
+			opts.verbosity = verbosity
+		}
+
+		pr := newProject(t, t.TempDir(), opts)
+
+		d, err := NewZipDownloader(pr.deps)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		path, err := pr.install(d, distPackage(srv.URL+"/a.zip", "zip"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		checkTree(t, path)
+		checkNoLeftovers(t, pr.vendor)
+
+		if i == 1 {
+			return downloadLines(pr.out)
+		}
+	}
+
+	return nil
+}
+
+// The files cache decides between "Loading from cache" and "Downloading",
+// as in Composer: a release the store holds whose archive the cache lost
+// (garbage collection, clear-cache) is downloaded again.
+func TestArchiveDownloader_ArchiveGoneFromFilesCache(t *testing.T) {
+	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
+
+	got := installTwice(t, srv, console.VerbosityVeryVerbose, func(_ *store.Store, files string) {
+		if err := os.RemoveAll(files); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	want := []string{
+		"  - Downloading a/b (1.0.0)",
+		"  - Installing a/b (1.0.0): Extracting archive",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("output %q, want %q", got, want)
+	}
+
+	if n := srv.requests("/a.zip"); n != 2 {
+		t.Fatalf("%d requests, want 2", n)
+	}
+}
+
+// Store objects that went missing (or were modified and dropped) are
+// restored from the cached archive: no request, Composer's cache hit
+// output.
+func TestArchiveDownloader_StoreHealedFromFilesCache(t *testing.T) {
+	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
+
+	var shared *store.Store
+
+	got := installTwice(t, srv, console.VerbosityVeryVerbose, func(s *store.Store, _ string) {
+		shared = s
+
+		if err := os.RemoveAll(filepath.Join(s.Root(), "files")); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.Mkdir(filepath.Join(s.Root(), "files"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	want := []string{
+		"  - Loading a/b (1.0.0) from cache",
+		"  - Installing a/b (1.0.0): Extracting archive",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("output %q, want %q", got, want)
+	}
+
+	if n := srv.requests("/a.zip"); n != 1 {
+		t.Fatalf("%d requests, want 1", n)
+	}
+
+	if res, err := shared.Verify(); err != nil || res.Missing != 0 || res.Corrupt != 0 || res.Releases != 1 {
+		t.Fatalf("store not healed: %+v, %v", res, err)
+	}
+}
+
+// A warm files cache with an empty store (a first maestro run where
+// Composer ran before, a pruned store) extracts the cached archive.
+func TestArchiveDownloader_FilesCacheWithoutStore(t *testing.T) {
+	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
+
+	got := installTwice(t, srv, console.VerbosityVeryVerbose, func(s *store.Store, _ string) {
+		if _, err := s.Prune(0); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	want := []string{
+		"  - Loading a/b (1.0.0) from cache",
+		"  - Installing a/b (1.0.0): Extracting archive",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("output %q, want %q", got, want)
+	}
+
+	if n := srv.requests("/a.zip"); n != 1 {
+		t.Fatalf("%d requests, want 1", n)
+	}
+}
+
+// -vvv prints the files cache's own lines, as Composer's copyFrom and
+// copyTo do.
+func TestArchiveDownloader_FilesCacheDebugLines(t *testing.T) {
+	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
+	shared := newStore(t)
+	files := t.TempDir()
+	key := files + "/a/b/" + sha1Hex(srv.URL+"/a.zip") + ".zip"
+
+	for i, want := range [][]string{
+		{"  - Downloading a/b (1.0.0)", "Writing " + key + " into cache from @TMP@", "  - Installing a/b (1.0.0): Extracting archive"},
+		{"Reading " + key + " from cache", "  - Loading a/b (1.0.0) from cache", "  - Installing a/b (1.0.0): Extracting archive"},
+	} {
+		pr := newProject(t, t.TempDir(), projectOptions{store: shared, cacheDir: files, verbosity: console.VerbosityDebug})
+
+		d, err := NewZipDownloader(pr.deps)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p := distPackage(srv.URL+"/a.zip", "zip")
+		tmp := d.fileName(p)
+
+		if _, err := pr.install(d, p); err != nil {
+			t.Fatal(err)
+		}
+
+		var got []string
+
+		for _, l := range downloadLines(pr.out) {
+			if strings.HasPrefix(l, "Writing ") || strings.HasPrefix(l, "Reading ") || strings.HasPrefix(l, "  - ") {
+				got = append(got, strings.ReplaceAll(l, tmp, "@TMP@"))
+			}
+		}
+
+		if !slices.Equal(got, want) {
+			t.Fatalf("run %d: output %q, want %q", i+1, got, want)
+		}
+	}
+}
+
+// A corrupt cached archive that the store needs is reported as Composer
+// reports it (an extraction failure), and dropped from the cache so that
+// the next run downloads it again.
+func TestArchiveDownloader_CorruptCachedArchive(t *testing.T) {
+	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
+	shared := newStore(t)
+	files := t.TempDir()
+
+	pr := newProject(t, t.TempDir(), projectOptions{store: shared, cacheDir: files})
+
+	d, err := NewZipDownloader(pr.deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := pr.install(d, distPackage(srv.URL+"/a.zip", "zip")); err != nil {
+		t.Fatal(err)
+	}
+
+	key := files + "/a/b/" + sha1Hex(srv.URL+"/a.zip") + ".zip"
+
+	if err := os.WriteFile(key, []byte("not a zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.RemoveAll(filepath.Join(shared.Root(), "files")); err != nil {
+		t.Fatal(err)
+	}
+
+	pr = newProject(t, t.TempDir(), projectOptions{store: shared, cacheDir: files})
+
+	if d, err = NewZipDownloader(pr.deps); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pr.install(d, distPackage(srv.URL+"/a.zip", "zip"))
+	mustContain(t, err, "is not a zip archive.")
+
+	if _, err := os.Stat(key); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("corrupt archive kept in the cache: %v", err)
+	}
+
+	checkNoLeftovers(t, pr.vendor)
 }
 
 func TestArchiveDownloader_StoreNotUsedWithoutFilesCache(t *testing.T) {

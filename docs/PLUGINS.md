@@ -835,15 +835,23 @@ exactly PHP's virtual dispatch.
 
 **Promises.** Methods that return `?PromiseInterface` in Composer:
 
-- When Go calls PHP, the PHP result is either `null` or a promise. Go waits
-  on it by sending `promise.wait {h}`. PHP resolves the promise synchronously
-  if it is a shim promise. For a foreign promise (vendored
-  `React\Promise\Promise`), PHP runs `then` callbacks immediately when it is
-  already settled. A pending foreign promise is an error, as in Composer,
-  where it would hang.
-- When PHP calls a Go base method, Go performs the operation to completion
-  and returns `\React\Promise\resolve($value)`. `parent::install()->then(cb)`
-  therefore runs `cb` immediately, before control returns to Go.
+- When Go calls PHP, the PHP result is either `null` or a promise. PHP hands
+  the promise over as `{id, s}` (its state: fulfilled, rejected or
+  pending, `Maestro\Shim\Promises::watch`); Go stands in for it with a
+  promise of its own. A pending one settles when PHP reports it
+  (`promise.settled {id, ok}`), which runs maestro's continuations (the
+  InstallationManager's execute-operation → cleanup → write chain) right
+  there, as React runs them while the promise settles.
+- When PHP calls a Go base method, Go returns its promise the same way:
+  settled ones become `\React\Promise\resolve()`/`reject()`, a pending one a
+  `Deferred` that Go settles (`promise.settle {id, ok}`) on the goroutine
+  settling its promise (the one driving the event loop, which holds the
+  PHP baton). `parent::uninstall()->then(cb)` thus runs `cb` when the
+  removal finishes, after the "Removing" lines of the other operations of
+  the batch, exactly as in Composer.
+- Rejection reasons cross as exceptions: the side that needs one calls the
+  other (`promise.reason` into PHP, `promise.rejection` into Go), which
+  throws it, so a PHP exception keeps its identity (D12).
 
 **Ordering within a batch.** InstallationManager's Go port calls `download`
 for every operation in order, then `prepare` → op → `cleanup` → `write` per
@@ -863,6 +871,42 @@ rollback on failure through the Go plugin manager. That re-enters PHP for
 **Stateful installers** (wordpress-core-installer's static path map,
 BitrixInstaller's `ask()` from `getInstallPath`) work naturally, because the
 PHP object lives for the whole process and IO calls re-enter Go.
+
+**As implemented (phase 3).** `svc_installer.go`, `promises.go`,
+`php/src/Maestro/Shim/Installers.php` and `Promises.php`, and the shim
+classes `LibraryInstaller`, `PluginInstaller`, `MetapackageInstaller`,
+`NoopInstaller`, `ProjectInstaller`, `BinaryInstaller`:
+
+- The base constructors set Composer's properties in PHP (as Composer's
+  constructors do, through the Config proxy) and call
+  `installer.new {obj, describe(obj), params}`; Go builds the peer
+  (`installer.NewLibraryInstaller` etc.) and gives it the proxy as its
+  `installer.Virtuals`. `NoopInstaller` has no constructor: its peer is
+  created on its first base call (or `addInstaller`). The override set is
+  computed once, by reflection, in `Installers::describe`.
+- Every other base method is `installer.base {obj, level, method, args}`;
+  `level` is the shim class declaring it (`self::class`), so
+  `parent::install()` in a PluginInstaller subclass runs Go's
+  PluginInstaller and `LibraryInstaller::getInstallPath($p)` (oomphinc)
+  runs LibraryInstaller's even on a PluginInstaller peer. The peer's
+  `vendorDir` comes back with every result and is written into the PHP
+  property (initializeVendorDir() resolves it in Go), and goes to PHP with
+  every `installer.call`. `getDownloadManager()`, `getPluginManager()` and
+  `disablePlugins()` are PHP, as in Composer.
+- The proxy the InstallationManager holds is one value per PHP object
+  (`removeInstaller` compares identities) and has the PHP object's
+  interfaces: `BinaryPresenceInterface` for LibraryInstaller subclasses
+  and interface implementations that declare it, `instanceof
+  PluginInstaller` (`disablePlugins()`) for PluginInstaller subclasses.
+  `im.getInstaller` returns the PHP object itself, or a proxy object of
+  maestro's own installer's class.
+- A `BinaryInstaller` created in PHP has a Go peer
+  (`installer.newBinary`), which the LibraryInstaller peers it is passed
+  to use; a subclass overriding `installBinaries()`/`removeBinaries()` is
+  called in PHP instead.
+- Legacy `composer-installer` plugins are added by `plugin.load` and
+  removed again by `plugin.deactivate`/`plugin.uninstall` through
+  `removeInstaller`, as PluginManager does.
 
 ### 5.7 Commands and Symfony Console
 
@@ -932,6 +976,73 @@ reasons:
   ships, so `instanceof` checks and the exception classes are identical.
 
 Cost: about 1.1 MB of embedded source, loaded lazily per class.
+
+**As implemented (phase 4).** `proxy_command.go`, `svc_console.go` and
+`php/src/Maestro/Shim/Console.php` (with the Input, Output, Command and
+Application adapters, `GoOutput`/`GoConsoleOutput` and `Definitions`), and
+the shim classes `Composer\Console\Application`, `Console\Input\InputOption`,
+`Console\Input\InputArgument`, `Question\StrictConfirmationQuestion`,
+`IO\BufferIO` and `IO\ConsoleIO` (Composer's behaviour for IOs created in
+PHP), `Factory::create`/`createComposer`/`createGlobal`/`createConfig`:
+
+- A PHP command crosses as a description (`Console::describe`: class,
+  `instanceof BaseCommand`, name, aliases, description, help, hidden,
+  enabled, isProxyCommand, ignoreValidationErrors, process title, usages,
+  native definition). Its proxy embeds `command.BaseCommand` for BaseCommand
+  subclasses (`isProxyCommand`, telemetry), a plain `console.Command`
+  otherwise; one proxy per PHP object. `command.run` attaches the command
+  to the Application mirror, gives it the name and description maestro's
+  Application gave it (script commands), and runs `$command->run($input,
+  $output)`; `command.complete` runs `$command->complete()` on a
+  `CompletionInput::fromTokens()` of maestro's tokens.
+- The input of `command.run` (and of CommandEvent/PreCommandRunEvent) is
+  maestro's own as a mirror: a vendored ArgvInput/StringInput/ArrayInput
+  filled from maestro's state (definition, arguments, options,
+  interactivity, tokens or parameters). PHP's changes go back while it stays
+  bound to maestro's definition (a polled adapter, `PolledMirrorAdapter`),
+  so a PRE_COMMAND_RUN listener's `setOption()` reaches maestro's command;
+  once PHP rebinds it (Symfony's `Command::run`) it is PHP's. An input
+  created in PHP and given to `run()`/`doRun()` is adopted as it crosses
+  (the codec's PHP-born mirror path): maestro runs it and its binding shows
+  in PHP's object, as in Composer.
+- Outputs: maestro's console output on the inherited stdout/stderr is a
+  vendored `ConsoleOutput` writing to fds 1 and 2 itself (D11); any other
+  maestro output (a test's buffer) is a `Maestro\Shim\GoOutput`
+  (`GoConsoleOutput` with an error output) whose formatted writes come to
+  maestro (`output.write`). Their verbosity and decoration follow maestro's
+  and PHP's `setVerbosity()`/`setDecorated()` go back (polled). An output
+  created in PHP and given to maestro is a `phpOutput` proxy (`object.call`
+  for `write` and the setters; its verbosity and decoration are cached,
+  since maestro reads them while it syncs).
+- Command-class scripts in events (`script.commandClass`) get the
+  ConsoleIO's output that way (a new ConsoleOutput for any other IO), as
+  EventDispatcher does.
+- maestro's Application crosses as a `Composer\Console\Application` mirror
+  constructed as Symfony's (name, version); `new Application()` in PHP
+  creates a maestro Application on Setup's Factory (`app.new`). Symfony's
+  own methods (find, has, all, get, add, getDefinition, setAutoExit, ...)
+  stay PHP's: `getDefaultCommands()` is maestro's commands (`app.commands`:
+  PHP commands as themselves, maestro's as instances of their classes
+  filled with Symfony's Command properties), `getDefaultInputDefinition()`,
+  `getHelp()` and `getLongVersion()` are Composer's, and `run()`/`doRun()`
+  run maestro's Application (`app.run`/`app.doRun`, with the commands PHP
+  added through `add()`); with auto-exit PHP exits with the code itself.
+  Running maestro's own commands directly from PHP (`$app->find('install')
+  ->run(...)`) is not supported yet: their classes' `execute()` are stubs.
+- Script commands: before looking for them, Composer's Application
+  registers the root package's class loader (createLoader, with its
+  warnings); internal/command calls `RegisterProjectLoader` for that, and
+  the loader is registered in PHP (`autoload.register`) now or when PHP
+  starts. `ScriptCommand` starts PHP only when it runs already or that
+  loader finds a file for the class (ClassLoader::findFile, `loaderMayDefine`),
+  then `command.script` does `class_exists()`, `is_subclass_of(Command)`,
+  the SingleCommandApplication warning and `new $class($script)`.
+- `getPluginCommands()` asks PHP only when PHP runs (no plugin was
+  instantiated otherwise).
+- The bundled packages: the shim registers a ClassLoader of its `lib/`
+  (the phar's vendor directory) at boot, so `InstalledVersions` reports
+  Composer's bundled packages first, as the phar's does (the functional
+  fixtures installed-versions/installed-versions2 check it).
 
 ### 5.8 Where plugin mutations flow back
 
@@ -1410,15 +1521,18 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 | `plugin.load` | `pm`, `package`, `classes[]`, `loader` (`{vendorDir, psr0, psr4, classmap}`), `files` (identifier => path), `isGlobal`, `legacyInstaller`, `failOnMissing`, `runningInGlobalDir` | `{registered: [object, …]}` |
 | `plugin.deactivate` / `plugin.uninstall` | `pm`, `objects[]` | `null` |
 | `capability.commands` | `composer`, `io` | `[descriptor…]` (§5.7) |
+| `command.script` | `class`, `script`, `io` | descriptor, or `null` when the script is not a command class |
+| `command.complete` | `command`, `app`, `tokens[]`, `index` | `{values: [...], options: [names]}` |
+| `autoload.register` | `vendorDir`, `psr0`, `psr4`, `classmap` | `null` (a project class loader, `register(false)`) |
 | `listener.call` | `h` (the callable or its holder), `event` | `{status: "ok"\|"notCallable", returnedFalse: bool}` |
 | `script.php` | `class`, `method`, `event` | `{status: "ok"\|"notAutoloadable"\|"notCallable", returnedFalse: bool}` |
-| `script.commandClass` | `class`, `event`, `input` (string), `verbosity`, `decorated` | `{status: "ok"\|"notAutoloadable"\|"notCommand"\|"skipped", code: int}` |
+| `script.commandClass` | `class`, `event`, `input` (string), `output` (the ConsoleIO's output, or null) | `{status: "ok"\|"notAutoloadable"\|"notCommand"\|"skipped", code: int}` |
 | `callable.invoke` | `callable`, `args[]` | value (a validator of `askAndValidate`) |
-| `installer.call` | `h`, `method`, `args[]`, `frames` | value (`null`, string, bool, or promise handle) |
-| `promise.wait` | `h` | `{resolved: <value>}` or err |
-| `command.describe` | `h` | descriptor |
-| `command.run` | `h`, `tokens[]`, `interactive`, `frames` | `int`, or a `ret` with `exit` |
-| `object.call` | `h`, `method`, `args[]` | value. A generic call on a PHP-owned object, used by Go proxies of PHP IO/output objects, validators, closures and user repositories. Only methods of the interface the proxy implements may be called. |
+| `installer.call` | `h`, `method`, `args[]`, `vendorDir?`, `frames` | `{v: value}`, or `{p: {id, s}}` for a promise (§5.6) |
+| `promise.settle` | `id`, `ok` | `null`: maestro's promise `id` settled; PHP settles its Deferred |
+| `promise.reason` | `id` | throws the rejection reason of PHP's promise `id` |
+| `command.run` | `command`, `app`, `input` (an input mirror), `output` (an output mirror), `name`, `description`, `frames` | `int` |
+| `object.call` | `object`, `method`, `args[]` | value. A generic call on a PHP-owned object, used by Go proxies of PHP outputs (`write`, `setVerbosity`, `getVerbosity`, `setDecorated`, `isDecorated`). Only methods of the interface the proxy implements may be called. |
 | `autoload.install` | `vendorDir`, `psr0`, `psr4`, `classmap` | `null` |
 | `dispatch.begin` / `dispatch.end` | `depth` | `null` |
 | `iv.reload` | `data`, `selfDir?` | `null` |
@@ -1445,8 +1559,9 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `event.*` | `stopPropagation`, `setOriginatingEvent` |
 | `repo.*` | `packages` (handles plus snapshots), `findPackage`, `findPackages`, `search`, `loadPackages`, `getProviders`, `addPackage`, `removePackage`, `write`, `reload`, `setDevPackageNames`, `getDevPackageNames`, `getDevMode`, `isFresh`, `getRepoName`, `count`, `new` (array/installed/composite/platform/root) |
 | `rm.*` | `getLocalRepository`, `getRepositories`, `findPackage`, `findPackages`, `createRepository`, `addRepository`, `prependRepository`, `setRepositoryClass`, `setLocalRepository` |
-| `im.*` | `getInstallPath`, `addInstaller`, `removeInstaller`, `getInstaller`, `isPackageInstalled`, `install`, `update`, `uninstall`, `execute`, `ensureBinariesPresence`, `disablePlugins`, `setOutputProgress`, `notifyInstalls` |
-| `installer.*` | `new`, `base`, `clone`, `run` (Composer\Installer), Installer setters |
+| `im.*` | `getInstallPath`, `addInstaller`, `removeInstaller`, `getInstaller`, `isPackageInstalled`, `download`, `install`, `update`, `uninstall`, `markAliasInstalled`, `markAliasUninstalled`, `execute`, `reset`, `ensureBinariesPresence`, `disablePlugins`, `setOutputProgress`, `notifyInstalls` |
+| `installer.*` | `new`, `base`, `newBinary`, `binary`, `determineBinaryCaller` (the installers, §5.6); `clone`, `run` (Composer\Installer), Installer setters |
+| `promise.*` | `settled {id, ok}` (PHP's promise `id` settled), `rejection {id}` (throws the rejection reason of maestro's promise `id`) |
 | `dm.*`, `downloader.*` | DownloadManager and downloader methods (promises are returned as handles) |
 | `http.*` | HttpDownloader `get`, `add`, `copy`, `addCopy`, `wait`, `getOptions`, `setOptions`, `new`; RemoteFilesystem |
 | `loop.*` | `wait` (promise handles), `getHttpDownloader`, `getProcessExecutor`, `new` |
@@ -1459,8 +1574,8 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `loader.*` | `ArrayLoader` load, `loadPackages`; `ArrayDumper` dump |
 | `selector.*`, `reposet.*`, `transaction.*`, `pool.*` | tier 5–6 internals |
 | `factory.*` | `create`, `createGlobal`, `createComposer`, `createConfig`, `getComposerFile`, `getLockFile`, `createRemoteFilesystem`, `createHttpDownloader` |
-| `app.*` | `new`, `run`, `doRun`, `find`, `has`, `get`, `all`, `add`, `getVersion`, `getName`, `getLongVersion`, `getComposer`, `resetComposer`, `getIO`, `getDefinition`, `setAutoExit`, `setCatchExceptions`, `getDisablePluginsByDefault`, `getDisableScriptsByDefault`, `getInitialWorkingDirectory` |
-| `cmd.*` | built-in command mirror methods: `run`, `getDefinition`, … |
+| `app.*` | `new`, `run`, `doRun`, `commands` (getDefaultCommands), `getComposer`, `resetComposer`, `getIO`, `getDisablePluginsByDefault`, `getDisableScriptsByDefault`, `getInitialWorkingDirectory` (Symfony's own methods stay PHP's, §5.7) |
+| `output.*` | `write` (a GoOutput's formatted message), `errorOutput` |
 | `cache.*` | `Cache` methods, `new` |
 
 Every method listed in §4 with Backing **RPC** has exactly one handler
@@ -1658,13 +1773,33 @@ composer.lock pins.
 **Phase 3: custom installers.**
 - `InstallerInterface`, the base classes and the Go peers (vtable, override
   sets).
-- Promises (vendored react/promise, `promise.wait`).
+- Promises (vendored react/promise; the promise bridge of §5.6).
 - `addInstaller`/`removeInstaller`; PluginInstaller and MetapackageInstaller
   bases; BinaryInstaller.
 - `Autoload\ClassMapGenerator::createMap`.
 - Fixtures: composer/installers (several framework types, `installer-paths`,
   `installer-name`), oomphinc, mnsami (all three classes, including the
   absence of PearInstaller), wordpress-core-installer, yii2-composer.
+
+Status: done. The promise bridge replaces `promise.wait` (§5.6): pending
+promises stay pending on both sides, so callbacks of PHP installers run
+when Composer runs them (three removals in one batch print their
+"Removing" lines, then the installer's callbacks; in the order the
+removals started, where Composer's is the order its `rm -rf` processes
+finish, so the e2e fixtures remove one package per step). Beyond the list:
+`ProjectInstaller`/`NoopInstaller` bases, `im.download`/`install`/
+`update`/`uninstall`/`markAlias*`/`execute`/`reset`, and
+`Autoload\ClassMapGenerator::dump`. The e2e fixtures are
+`cmd/maestro/testdata/e2e/plugin-installers` (composer/installers: Packagist
+wordpress-plugins and path packages of drupal, cakephp, moodle, wordpress
+theme and silverstripe types; installer-paths by vendor, type and name;
+installer-name; binaries from a custom path; removals),
+`plugin-installers-extender`, `plugin-custom-directory` (mnsami, with a
+plugin installed and activated by its PluginInstaller subclass from a
+custom path), `plugin-wordpress-core` and `plugin-yii2`, cold and warm;
+`TestPlugins_Installers` (MAESTRO_PHP_TESTS=1) covers the interface and
+MetapackageInstaller kinds, a legacy composer-installer, identity through
+add/remove/getInstaller and a rejected promise.
 
 **Phase 4: commands and Symfony Console.**
 - Vendored symfony/console in use.
@@ -1677,6 +1812,31 @@ composer.lock pins.
   `BufferIO`.
 - Fixtures: pest `pest:dump-plugins`, drupal `scaffold`, ergebnis
   `normalize` (including its nested `update --lock`), command-class script.
+
+Status: done (§5.7 "As implemented"). The fixtures are `plugin-pest`
+(`pest:dump-plugins`, `list`, `help`, completion, `--no-plugins`),
+`plugin-drupal` (`scaffold` by its alias and `drupal:scaffold`, `help`,
+`list`), `plugin-normalize` (ergebnis/composer-normalize 2.54.0: `--dry-run
+--diff`, `normalize` with its nested `update --lock` in a new Application
+and its own `new Factory()->createComposer()`, `-vvv`, an option error) and
+`plugin-runtime`'s command-class script (`hello-command`: listed,
+described, completed, run with arguments and options, its errors), cold and
+warm; the functional fixtures installed-versions, installed-versions2 and
+plugin-autoloading-only-loads-dependencies pass (cmd/maestro
+`TestAllFunctional`), and RunScriptCommandTest's two Symfony-command tests
+run on the plugin runtime (MAESTRO_PHP_TESTS=1). `TestPlugins_Commands`
+(MAESTRO_PHP_TESTS=1) covers a plugin's commands in-process: help,
+completion of a `Composer\Console\Input\InputOption`'s values, the
+Application and maestro's commands as PHP sees them, BaseCommand's helpers,
+BufferIO, a PRE_COMMAND_RUN listener changing a built-in command's input,
+`new Factory()->createComposer()`, nested Applications writing to the
+command's output and to a PHP BufferedOutput, and a command-class script.
+Beyond the list: BaseCommand's `createComposerInstance`,
+`getPreferredInstallOptions`, `formatRequirements`, `normalizeRequirements`,
+`renderTable` and `getTerminalWidth`; `Factory::create`, `createGlobal`
+and `createConfig`. Not yet: running maestro's own commands from PHP
+(`$app->find('install')->run()`), BaseCommand's audit/policy/platform
+filter helpers, IOs created in PHP given to maestro (other than NullIO).
 
 **Phase 5: resolver-time and write APIs.**
 - `PRE_POOL_CREATE` (tiers), `PRE_OPERATIONS_EXEC`.

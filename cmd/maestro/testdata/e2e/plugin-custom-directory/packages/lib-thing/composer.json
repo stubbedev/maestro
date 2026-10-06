@@ -1,0 +1,7 @@
+{
+    "name": "local/lib-thing",
+    "version": "1.0.0",
+    "autoload": {
+        "psr-4": {"Local\\Lib\\": "src/"}
+    }
+}

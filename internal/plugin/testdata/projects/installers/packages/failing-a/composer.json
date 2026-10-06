@@ -1,0 +1,6 @@
+{
+    "name": "local/failing-a",
+    "version": "1.0.0",
+    "type": "failing-thing",
+    "require": {"maestro-test/installers-plugin": "*"}
+}

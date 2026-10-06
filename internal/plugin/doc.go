@@ -34,6 +34,34 @@
 //     classes call (api.go registers them; coverage_test.go checks the
 //     set against the shim's source).
 //
+// Custom installers (phase 3):
+//
+//   - svc_installer.go gives the shim's installer base classes their Go
+//     peers and holds the proxies maestro's InstallationManager calls:
+//     PHP for the methods a class overrides, the peer otherwise, with the
+//     peer's own calls to overridable methods coming back through the
+//     proxy (docs/PLUGINS.md §5.6, D9).
+//   - promises.go bridges maestro's promises and PHP's React promises
+//     both ways, pending ones included.
+//
+// Commands and the Symfony Console (phase 4):
+//
+//   - proxy_command.go holds the proxies maestro's Application lists,
+//     describes, completes and runs for commands written in PHP (the
+//     commands of CommandProvider capabilities, composer.json scripts
+//     naming a Symfony Command class): they run in PHP on the vendored
+//     symfony/console (`command.run`), from the description PHP gave when
+//     they crossed. It also gives PHP maestro's Application (a
+//     Composer\Console\Application whose Symfony part is PHP's over maestro's
+//     commands) and commands (instances of their classes), and runs the
+//     Applications PHP creates or runs (`app.*`), re-entrantly.
+//   - svc_console.go makes maestro's inputs and outputs PHP mirrors
+//     (vendored ArgvInput/ArrayInput/StringInput objects whose changes come
+//     back, a ConsoleOutput on the inherited fds or a GoOutput writing
+//     through maestro) and PHP's outputs maestro's (phpOutput); an input
+//     created in PHP is adopted when it first crosses.
+//   - php/src/Maestro/Shim/Console.php is the PHP half.
+//
 // # Differences from Composer that are not observable
 //
 // When PHP code calls exit() or dies of a fatal error mid-call, Go-side

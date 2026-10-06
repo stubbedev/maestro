@@ -10,7 +10,11 @@
 // first run's directory is renamed away), with the same environment apart
 // from separate COMPOSER_HOME/COMPOSER_CACHE_DIR/MAESTRO_CACHE_DIR
 // directories that also sit at the same paths, so absolute paths need no
-// normalisation. What is compared after every step:
+// normalisation. COMPOSER_TEST_SUITE=1 is set for both: it is the only
+// switch Composer has for its cache garbage collection (Cache::gcIsNecessary,
+// otherwise a 1 in 51 draw per run, which removes cached files and prints
+// "Running cache garbage collection" at -vv), and it has no other effect.
+// What is compared after every step:
 //
 //   - the exit code;
 //   - stdout and stderr, after the normalisations below;
@@ -37,8 +41,6 @@
 //     checked-out commit, the current branch and the remotes' URLs.
 //   - The name of a dist's temporary file in messages
 //     (vendor/composer/tmp-<md5 including spl_object_hash()>).
-//   - "Running cache garbage collection" (-vv): Composer collects garbage
-//     at random (Cache::gcIsNecessary, a 1 in 51 draw).
 //   - Durations printed at -vv ("... completed in 0.003 seconds").
 //   - The "maestro version X" line `--version` adds on stderr (maestro's
 //     own build, cmd/maestro/main.go).
@@ -283,12 +285,20 @@ func buildMaestro(t *testing.T, dir string) string {
 	return bin
 }
 
-// runScenario runs every step of sc with one tool in <dir>/run and moves
-// the result to <dir>/<tool>-<phase>. The cold phase starts with empty
-// caches; the warm phase starts a fresh project with the caches (and the
-// store) the cold phase left.
+// runScenario runs every step of sc with one tool in <dir>/run and, with
+// MAESTRO_E2E_KEEP, moves the result to <dir>/<tool>-<phase> (else it is
+// removed once snapshotted). The cold phase starts with empty caches; the
+// warm phase starts a fresh project with the caches (and the store) the
+// cold phase left. dir is removed when the (sub)test t ends, unless
+// MAESTRO_E2E_KEEP is set: real-world scenarios hold several vendor trees
+// and caches, which must not pile up in the temporary directory.
 func runScenario(t *testing.T, sc scenario, dir, tool string, cmd []string, phase string) ([]stepResult, time.Duration) {
 	t.Helper()
+
+	keep := os.Getenv("MAESTRO_E2E_KEEP") != ""
+	if !keep {
+		t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	}
 
 	root := filepath.Join(dir, "run")
 	caches := filepath.Join(dir, tool+"-caches")
@@ -363,6 +373,14 @@ func runScenario(t *testing.T, sc scenario, dir, tool string, cmd []string, phas
 		}
 	}
 
+	if !keep {
+		if err := os.RemoveAll(root); err != nil {
+			t.Fatal(err)
+		}
+
+		return results, total
+	}
+
 	done := filepath.Join(dir, tool+"-"+phase)
 	if err := os.RemoveAll(done); err != nil {
 		t.Fatal(err)
@@ -418,6 +436,7 @@ func e2eEnv(root string) []string {
 		"COMPOSER_CACHE_DIR="+filepath.Join(root, "cache"),
 		"MAESTRO_CACHE_DIR="+filepath.Join(root, "mcache"),
 		"COMPOSER_NO_INTERACTION=1",
+		"COMPOSER_TEST_SUITE=1",
 		"COLUMNS=120",
 		"GIT_CONFIG_NOSYSTEM=1",
 	)
@@ -554,10 +573,6 @@ var timings = regexp.MustCompile(`(completed in )\d+(?:\.\d+)? seconds`)
 // box wrapped the name, so the layout is kept.
 var tmpFile = regexp.MustCompile(`/tmp-[0-9a-f]+(?: *\n +[0-9a-f]+)?`)
 
-// cacheGC is Cache::gc's -vv line, printed when gcIsNecessary() draws
-// random_int(0, 50) === 0.
-var cacheGC = regexp.MustCompile(`(?m)^Running cache garbage collection\n`)
-
 // maestroVersion is the line `maestro --version` adds on stderr after
 // Composer's (cmd/maestro's doc): maestro names its own build there.
 var maestroVersion = regexp.MustCompile(`(?m)^maestro version .*\n`)
@@ -590,8 +605,6 @@ func normalizeOutput(s string) string {
 	s = tmpFile.ReplaceAllStringFunc(s, func(m string) string {
 		return "/tmp-" + regexp.MustCompile(`[0-9a-f]`).ReplaceAllString(m[len("/tmp-"):], "x")
 	})
-
-	s = cacheGC.ReplaceAllString(s, "")
 
 	return maestroVersion.ReplaceAllString(s, "")
 }

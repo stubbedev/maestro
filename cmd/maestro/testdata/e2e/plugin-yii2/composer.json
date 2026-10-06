@@ -1,0 +1,17 @@
+{
+    "name": "maestro-test/yii2",
+    "description": "yiisoft/yii2-composer: its Installer's install()/update()/uninstall() chain parent's promise with then() to maintain vendor/yiisoft/extensions.php; its plugin listens to package events.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "yiisoft/yii2-composer": "2.0.11",
+        "local/yii-ext": "^1.0",
+        "local/yii-other": "1.0.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true
+        }
+    }
+}

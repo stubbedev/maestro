@@ -1,9 +1,11 @@
 <?php
 
 /*
- * maestro's plugin shim: Composer\Factory (docs/PLUGINS.md §4.2). The file
- * names honour maestro's environment (factory.*), which PHP's putenv()
- * changes reach through the sync engine.
+ * maestro's plugin shim: Composer\Factory (docs/PLUGINS.md §4.2, §5.11).
+ * The file names honour maestro's environment (factory.*), which PHP's
+ * putenv() changes reach through the sync engine; the Composer instances
+ * and configs are maestro's, created re-entrantly (their plugins load in
+ * this same process).
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -18,7 +20,7 @@ class Factory
 
     public static function create(\Composer\IO\IOInterface $io, $config = null, $disablePlugins = false, bool $disableScripts = false): \Composer\Composer
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Factory::create() in plugins yet');
+        return \Maestro\Shim\Rpc::call('factory.create', [$io, $config, $disablePlugins, $disableScripts]);
     }
 
     public static function createAdditionalStyles(): array
@@ -36,12 +38,12 @@ class Factory
 
     public function createComposer(\Composer\IO\IOInterface $io, $localConfig = null, $disablePlugins = false, ?string $cwd = null, bool $fullLoad = true, bool $disableScripts = false)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Factory::createComposer() in plugins yet');
+        return \Maestro\Shim\Rpc::call('factory.createComposer', [$io, $localConfig, $disablePlugins, $cwd, $fullLoad, $disableScripts]);
     }
 
     public static function createConfig(?\Composer\IO\IOInterface $io = null, ?string $cwd = null): \Composer\Config
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Factory::createConfig() in plugins yet');
+        return \Maestro\Shim\Rpc::call('factory.createConfig', [$io, $cwd]);
     }
 
     protected function createDefaultInstallers(\Composer\Installer\InstallationManager $im, \Composer\PartialComposer $composer, \Composer\IO\IOInterface $io, ?\Composer\Util\ProcessExecutor $process = null): void
@@ -56,7 +58,7 @@ class Factory
 
     public static function createGlobal(\Composer\IO\IOInterface $io, bool $disablePlugins = false, bool $disableScripts = false): ?\Composer\Composer
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Factory::createGlobal() in plugins yet');
+        return \Maestro\Shim\Rpc::call('factory.createGlobal', [$io, $disablePlugins, $disableScripts]);
     }
 
     protected function createGlobalComposer(\Composer\IO\IOInterface $io, \Composer\Config $config, $disablePlugins, bool $disableScripts, bool $fullLoad = false): ?\Composer\PartialComposer

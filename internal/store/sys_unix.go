@@ -3,7 +3,6 @@
 package store
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 
@@ -39,17 +38,4 @@ func umaskBySetting() fs.FileMode {
 	unix.Umask(old)
 
 	return fs.FileMode(old) & fs.ModePerm //nolint:gosec // a umask is 0o777 at most.
-}
-
-// linkLimit reports a hardlink refused because the file has as many links
-// as the filesystem allows.
-func linkLimit(err error) bool {
-	return errors.Is(err, unix.EMLINK)
-}
-
-// linkUnsupported reports a hardlink the destination cannot have: across
-// filesystems, or on one without hardlinks.
-func linkUnsupported(err error) bool {
-	return errors.Is(err, unix.EXDEV) || errors.Is(err, unix.EPERM) || errors.Is(err, unix.ENOTSUP) ||
-		errors.Is(err, unix.EOPNOTSUPP) || errors.Is(err, unix.ENOSYS)
 }

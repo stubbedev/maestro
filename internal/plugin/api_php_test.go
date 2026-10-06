@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -215,5 +216,116 @@ func TestPlugins_API(t *testing.T) {
 	// both have).
 	if got := p.childOutput() + output; !strings.Contains(got, "from-php|\n") {
 		t.Errorf("the @php script saw the wrong variables:\n%s\nchild:\n%s", output, p.childOutput())
+	}
+}
+
+// TestPlugins_Installers runs custom installers (docs/PLUGINS.md §5.6)
+// through maestro's InstallationManager: a LibraryInstaller subclass
+// whose getInstallPath()/installCode() overrides the Go base honours and
+// which chains parent::install()'s promise, a direct InstallerInterface
+// implementation, a MetapackageInstaller subclass, a legacy
+// composer-installer, addInstaller/removeInstaller/getInstaller identity,
+// and a rejected promise reaching maestro as the PHP exception.
+func TestPlugins_Installers(t *testing.T) {
+	requirePHP(t)
+
+	p := newProject(t, "installers", console.VerbosityNormal)
+
+	code, err := p.install(true)
+	output := p.output()
+	if err != nil || code != 0 {
+		t.Fatalf("update = %d, %v\n%s\nchild:\n%s", code, err, output, p.childOutput())
+	}
+	for _, want := range []string{
+		"getInstaller is the object: true",
+		"after removeInstaller: Composer\\Installer\\LibraryInstaller",
+		"plugin installer: Composer\\Installer\\PluginInstaller same=true",
+		"PearInstaller exists: false",
+		"classmap: MaestroTest\\Installers\\CustomInstaller,MaestroTest\\Installers\\FailedException,MaestroTest\\Installers\\FailingInstaller,MaestroTest\\Installers\\IfaceInstaller,MaestroTest\\Installers\\PackInstaller,MaestroTest\\Installers\\Plugin",
+		"binary caller: php",
+		"custom install path: " + filepath.Join(p.dir, "vendor", "maestro-test", "installers-plugin"),
+		"Loading \"maestro-test/legacy-installer\" which is a legacy composer-installer built for Composer 1.x, it is likely to cause issues as you are running Composer 2.x.",
+		"installCode local/custom-a at custom/custom-a",
+		"parent::install() gave a promise: true",
+		"installed local/custom-a in repo=true file=true vendorDir resolved=true",
+		"pack installed local/pack-a path=NULL",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("update output lacks %q:\n%s\nchild:\n%s", want, output, p.childOutput())
+		}
+	}
+	for _, file := range []string{"custom/custom-a/file.php", "iface/iface-a", "legacy-installed/legacy-a/file.php"} {
+		if _, err := os.Stat(filepath.Join(p.dir, file)); err != nil {
+			t.Errorf("%s: %v", file, err)
+		}
+	}
+	installedPHP, err := os.ReadFile(filepath.Join(p.dir, "vendor", "composer", "installed.php"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`'install_path' => __DIR__ . '/../../custom/custom-a',`,
+		`'install_path' => __DIR__ . '/../../iface/iface-a',`,
+		`'install_path' => __DIR__ . '/../../legacy-installed/legacy-a',`,
+		`'install_path' => null,`,
+	} {
+		if !strings.Contains(string(installedPHP), want) {
+			t.Errorf("installed.php lacks %q:\n%s", want, installedPHP)
+		}
+	}
+
+	// A rejected promise of the installer fails the operation with the
+	// PHP exception.
+	data, err := os.ReadFile(filepath.Join(p.dir, "composer.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data = []byte(strings.Replace(string(data), `"local/legacy-a": "*"`, `"local/legacy-a": "*", "local/failing-a": "*"`, 1))
+	if err := os.WriteFile(filepath.Join(p.dir, "composer.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(p.dir, "composer.lock")); err != nil {
+		t.Fatal(err)
+	}
+	p.out, err = io.NewBufferIO("", console.VerbosityNormal, console.NewOutputFormatter(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.install(true)
+	output = p.output()
+	var e *PHPException
+	if !errors.As(err, &e) || e.Class != `MaestroTest\Installers\FailedException` || e.Message != "could not install local/failing-a" {
+		t.Fatalf("update with a failing installer: %v (%T)\n%s\nchild:\n%s", err, err, output, p.childOutput())
+	}
+	for _, want := range []string{"failing local/failing-a", "    Install of local/failing-a failed"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output lacks %q:\n%s", want, output)
+		}
+	}
+
+	// The custom installer's uninstall() chains the promise of
+	// parent::uninstall(), pending while the removal runs: its callback
+	// runs once the files are gone.
+	data = []byte(strings.Replace(strings.Replace(string(data), `, "local/failing-a": "*"`, "", 1), `"local/custom-a": "*",`, "", 1))
+	if err := os.WriteFile(filepath.Join(p.dir, "composer.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(p.dir, "composer.lock")); err != nil {
+		t.Fatal(err)
+	}
+	p.out, err = io.NewBufferIO("", console.VerbosityNormal, console.NewOutputFormatter(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err = p.install(true)
+	output = p.output()
+	if err != nil || code != 0 {
+		t.Fatalf("update removing local/custom-a = %d, %v\n%s\nchild:\n%s", code, err, output, p.childOutput())
+	}
+	if i, j := strings.Index(output, "  - Removing local/custom-a (1.0.0)"), strings.Index(output, "uninstalled local/custom-a file=false"); i < 0 || j < i {
+		t.Errorf("removal output:\n%s\nchild:\n%s", output, p.childOutput())
+	}
+	if final := p.rt.Finish(0); final != 0 {
+		t.Errorf("Finish = %d", final)
 	}
 }

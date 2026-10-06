@@ -1,0 +1,19 @@
+{
+    "name": "maestro-test/wordpress-core",
+    "description": "johnpbloch/wordpress-core-installer: a wordpress-core package (a small stand-in for WordPress) installed into extra.wordpress-install-dir, updated and removed.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "johnpbloch/wordpress-core-installer": "2.0.0",
+        "local/wordpress": "^6.8"
+    },
+    "extra": {
+        "wordpress-install-dir": "wp"
+    },
+    "config": {
+        "allow-plugins": {
+            "johnpbloch/wordpress-core-installer": true
+        }
+    }
+}

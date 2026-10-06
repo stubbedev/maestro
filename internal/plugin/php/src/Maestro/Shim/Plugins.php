@@ -127,7 +127,9 @@ final class Plugins
     public static function deactivate(array $a): void
     {
         foreach ($a['objects'] as $plugin) {
-            if (!$plugin instanceof InstallerInterface) {
+            if ($plugin instanceof InstallerInterface) {
+                self::removeInstaller($a['pm'], $plugin);
+            } else {
                 $a['pm']->removePlugin($plugin);
             }
         }
@@ -141,10 +143,22 @@ final class Plugins
     public static function uninstall(array $a): void
     {
         foreach ($a['objects'] as $plugin) {
-            if (!$plugin instanceof InstallerInterface) {
+            if ($plugin instanceof InstallerInterface) {
+                self::removeInstaller($a['pm'], $plugin);
+            } else {
                 $a['pm']->removePlugin($plugin);
                 $a['pm']->uninstallPlugin($plugin);
             }
         }
+    }
+
+    /**
+     * `$this->composer->getInstallationManager()->removeInstaller($plugin)`
+     * of a legacy installer.
+     */
+    private static function removeInstaller(PluginManager $pm, InstallerInterface $installer): void
+    {
+        $composer = Remote::read($pm, PluginManager::class, ['composer'])['composer'];
+        $composer->getInstallationManager()->removeInstaller($installer);
     }
 }

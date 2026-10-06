@@ -4,6 +4,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -318,6 +320,31 @@ func fixtureScenarios() []scenario {
 			},
 		},
 		{
+			// The package store finds every object modified in place (what
+			// a plugin rewriting its own files did to objects an earlier
+			// maestro linked into vendor/) and heals itself from the
+			// archives Composer's files cache keeps: offline, with
+			// Composer's cache hit output. Then the archives are gone too,
+			// and both tools download again.
+			name:    "store-heal",
+			fixture: "basic",
+			steps: []step{
+				{args: []string{"install"}},
+				{
+					args:  []string{"install", "-vv", "--no-progress"},
+					dir:   "wt1",
+					env:   []string{"COMPOSER_DISABLE_NETWORK=1"},
+					setup: setups(copyProject("wt1"), taintStore),
+				},
+				{
+					args:  []string{"install", "-vv", "--no-progress"},
+					dir:   "wt2",
+					setup: setups(copyProject("wt2"), removeAll("cache/files")),
+				},
+				{args: []string{"install", "-vv", "--no-progress"}, dir: "wt3", setup: copyProject("wt3")},
+			},
+		},
+		{
 			name:    "verbosity",
 			fixture: "basic",
 			steps: []step{
@@ -479,6 +506,60 @@ func fixtureScenarios() []scenario {
 				{args: []string{"install"}},
 			},
 		},
+	}
+}
+
+// setups runs several setups in order.
+func setups(fns ...func(*testing.T, string)) func(*testing.T, string) {
+	return func(t *testing.T, root string) {
+		t.Helper()
+
+		for _, fn := range fns {
+			fn(t, root)
+		}
+	}
+}
+
+// removeAll returns a setup deleting a path under the scenario root.
+func removeAll(rel string) func(*testing.T, string) {
+	return func(t *testing.T, root string) {
+		t.Helper()
+
+		if err := os.RemoveAll(filepath.Join(root, rel)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// taintStore overwrites every object of maestro's package store
+// (MAESTRO_CACHE_DIR's store/v1/files, internal/store) in place. Composer's
+// run has no store: nothing to do there.
+func taintStore(t *testing.T, root string) {
+	t.Helper()
+
+	err := filepath.WalkDir(filepath.Join(root, "mcache", "store", "v1", "files"), func(path string, d os.DirEntry, err error) error {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+
+		if err != nil || !d.Type().IsRegular() {
+			return err
+		}
+
+		f, err := os.OpenFile(path, os.O_WRONLY, 0)
+		if err != nil {
+			return err
+		}
+
+		_, err = f.WriteAt([]byte("tainted"), 0)
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

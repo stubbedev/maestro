@@ -1,0 +1,8 @@
+{
+    "name": "local/drupal-thing",
+    "version": "1.0.0",
+    "type": "drupal-module",
+    "autoload": {
+        "psr-4": {"Local\\Drupal\\": "src/"}
+    }
+}

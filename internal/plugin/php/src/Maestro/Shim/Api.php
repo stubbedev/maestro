@@ -22,6 +22,9 @@ final class Api
         Mirrors::register(new Adapter\OperationAdapter());
         Dispatch::register();
         Plugins::register();
+        Installers::register();
+        Promises::register();
+        Console::register();
         Server::register('iv.reload', [self::class, 'reloadInstalledVersions']);
     }
 

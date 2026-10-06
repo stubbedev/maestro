@@ -36,7 +36,7 @@ func FuzzInstall(f *testing.F) {
 		}
 
 		s, err := Open(filepath.Join(sandbox, "store"), &Options{
-			Method:  Hardlink,
+			Method:  Copy,
 			Archive: archive.Options{Locale: archive.LocaleUTF8, Limits: archive.Limits{MaxEntries: 5000, MaxFileSize: 16 << 20, MaxTotalSize: 32 << 20}},
 		})
 		if err != nil {

@@ -22,13 +22,11 @@ import (
 type Method int32
 
 const (
-	// Auto clones where the filesystem can, else hardlinks, else copies,
-	// decided once per destination device.
+	// Auto clones where the filesystem can, else copies, decided once per
+	// destination device.
 	Auto Method = iota
 	// Clone shares blocks copy-on-write (FICLONE, clonefile).
 	Clone
-	// Hardlink links the store's object.
-	Hardlink
 	// Copy writes the bytes out.
 	Copy
 )
@@ -37,8 +35,6 @@ func (m Method) String() string {
 	switch m {
 	case Clone:
 		return "clone"
-	case Hardlink:
-		return "hardlink"
 	case Copy:
 		return "copy"
 	case Auto:
@@ -51,21 +47,21 @@ func (m Method) String() string {
 // ParseMethod(os.Getenv(MethodEnv)).
 const MethodEnv = "MAESTRO_PACKAGE_IMPORT_METHOD"
 
-// ParseMethod reads an import method name: auto (or empty), clone,
-// hardlink or copy.
+// ParseMethod reads an import method name: auto (or empty), clone or copy.
+// There is no hardlink method: a package file sharing its inode with the
+// store would carry one project's in-place edits into every other project
+// (see the package documentation).
 func ParseMethod(s string) (Method, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "auto":
 		return Auto, nil
 	case "clone":
 		return Clone, nil
-	case "hardlink":
-		return Hardlink, nil
 	case "copy":
 		return Copy, nil
 	}
 
-	return Auto, fmt.Errorf("invalid %s %q (expected auto, clone, hardlink or copy)", MethodEnv, s)
+	return Auto, fmt.Errorf("invalid %s %q (expected auto, clone or copy)", MethodEnv, s)
 }
 
 // Options configure a Store. The zero value is ready to use.
@@ -210,13 +206,32 @@ func (s *Store) ensureShard(kind int, sum *[32]byte, path string) error {
 		return nil
 	}
 
-	if err := os.Mkdir(filepath.Dir(path), 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 
 	s.shards[kind][sum[0]].Store(true)
 
 	return nil
+}
+
+// intoShard runs place, which renames a finished file to path, after
+// making sure path's shard directory exists, and once more when the
+// directory turns out to have been removed meanwhile (the store emptied
+// by hand while this process runs).
+func (s *Store) intoShard(kind int, sum *[32]byte, path string, place func() error) error {
+	for retried := false; ; retried = true {
+		err := s.ensureShard(kind, sum, path)
+		if err == nil {
+			err = place()
+		}
+
+		if retried || !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+
+		s.shards[kind][sum[0]].Store(false)
+	}
 }
 
 // Lookup returns the release of a dist already in the store, or

@@ -30,9 +30,13 @@ deviations listed below.
 1. **Package store, pnpm style.** Dist archives are extracted once into a
    per-file content-addressed store (`internal/store`) shared by every project
    and git worktree on the machine. Files are imported into `vendor/` by
-   reflink clone, then hardlink, then copy (pnpm's `auto`). File contents,
-   modes, symlinks and directory layout match what Composer + `unzip` would
-   produce; file mtimes are not preserved.
+   reflink clone where the filesystem can, else by copy; never by hardlink,
+   so a vendor file edited in place never changes the store or another
+   project. The dist archives stay in Composer's files cache exactly as
+   Composer keeps them, which decides "Loading from cache" vs "Downloading"
+   and heals the store. File contents, modes, symlinks and directory layout
+   match what Composer + `unzip` would produce; file mtimes are not
+   preserved.
 2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go,
    reproducing exactly what Composer's preferred path (system `unzip -qq`,
    `tar`) produces on Unix.

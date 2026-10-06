@@ -1,0 +1,17 @@
+{
+    "name": "local/bin-thing",
+    "version": "1.0.0",
+    "type": "silverstripe-module",
+    "description": "A silverstripe-module package installed by composer/installers.",
+    "require": {
+        "composer/installers": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Local\\Bin\\": "src/"
+        }
+    },
+    "bin": [
+        "bin/bin-thing"
+    ]
+}

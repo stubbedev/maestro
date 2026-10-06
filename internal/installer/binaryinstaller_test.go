@@ -162,37 +162,6 @@ func TestBinaryInstaller_InstallBinaryRejectsTraversingBinPath(t *testing.T) {
 	}
 }
 
-// TestBinaryInstaller_ChmodUnsharesHardlinks checks that making a bin
-// executable does not change the file it shares an inode with (a store
-// object).
-func TestBinaryInstaller_ChmodUnsharesHardlinks(t *testing.T) {
-	rootDir, vendorDir, binDir := binaryFixture(t)
-
-	object := rootDir + "/object"
-	if err := os.WriteFile(object, []byte("#!/bin/sh\necho hi\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	mustMkdir(t, vendorDir+"/foo/bar")
-
-	if err := os.Link(object, vendorDir+"/foo/bar/tool"); err != nil {
-		t.Skip("hardlinks are not supported")
-	}
-
-	installer := NewBinaryInstaller(newBufferIO(t), binDir, "proxy", util.NewFilesystem(nil), pkg.Str(vendorDir))
-	if err := installer.InstallBinaries(binPackage("tool"), vendorDir+"/foo/bar", true); err != nil {
-		t.Fatal(err)
-	}
-
-	if st, _ := os.Stat(object); st.Mode().Perm() != 0o644 {
-		t.Errorf("store object mode changed to %v", st.Mode())
-	}
-
-	if st, _ := os.Stat(vendorDir + "/foo/bar/tool"); st.Mode().Perm() != 0o755 {
-		t.Errorf("bin mode %v", st.Mode())
-	}
-}
-
 func TestBinaryInstaller_DetermineBinaryCaller(t *testing.T) {
 	dir := t.TempDir()
 

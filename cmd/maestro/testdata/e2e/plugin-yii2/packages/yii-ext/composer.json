@@ -1,0 +1,11 @@
+{
+    "name": "local/yii-ext",
+    "version": "1.0.0",
+    "type": "yii2-extension",
+    "autoload": {
+        "psr-4": {"local\\yiiext\\": "src/"}
+    },
+    "extra": {
+        "bootstrap": "local\\yiiext\\Bootstrap"
+    }
+}

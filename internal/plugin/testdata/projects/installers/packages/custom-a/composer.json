@@ -1,0 +1,6 @@
+{
+    "name": "local/custom-a",
+    "version": "1.0.0",
+    "type": "custom-thing",
+    "require": {"maestro-test/installers-plugin": "*"}
+}

@@ -1,0 +1,21 @@
+{
+    "name": "maestro-test/commands-project",
+    "version": "1.0.0",
+    "description": "A project whose plugin provides commands (docs/PLUGINS.md phase 4) and whose script names a Symfony command class.",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/commands-plugin": "*"
+    },
+    "autoload": {
+        "psr-4": {"Project\\": "src/"}
+    },
+    "config": {
+        "allow-plugins": {"maestro-test/commands-plugin": true}
+    },
+    "scripts": {
+        "greet": "Project\\GreetCommand"
+    }
+}

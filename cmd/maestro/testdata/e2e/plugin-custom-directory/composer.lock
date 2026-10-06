@@ -1,0 +1,155 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "242778f0d6b8bd29614bd0c9eea337b3",
+    "packages": [
+        {
+            "name": "local/hello-plugin",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/hello-plugin",
+                "reference": "374db9410a2b0859d0c42069068dedab0aeb3747"
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "mnsami/composer-custom-directory-installer": "^2.2"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "Local\\Hello\\Plugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Local\\Hello\\": "src/"
+                }
+            },
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "local/lib-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/lib-thing",
+                "reference": "de5cb3eee205af8569fdeffa550e1dac44ef07e4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Local\\Lib\\": "src/"
+                }
+            },
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "local/other-thing",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/other-thing",
+                "reference": "43752b85de46a6149e2046a6794680df44ac49bb"
+            },
+            "type": "custom-lib",
+            "autoload": {
+                "psr-4": {
+                    "Local\\Other\\": "src/"
+                }
+            },
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "mnsami/composer-custom-directory-installer",
+            "version": "2.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mnsami/composer-custom-directory-installer.git",
+                "reference": "23b7039ea7cf18b5846faae2b9f4d9c9445e0039"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mnsami/composer-custom-directory-installer/zipball/23b7039ea7cf18b5846faae2b9f4d9c9445e0039",
+                "reference": "23b7039ea7cf18b5846faae2b9f4d9c9445e0039",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "composer/composer": "^2.0",
+                "friendsofphp/php-cs-fixer": "^3.75",
+                "phpunit/phpunit": "^10.5"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": [
+                    "Composer\\CustomDirectoryInstaller\\LibraryPlugin",
+                    "Composer\\CustomDirectoryInstaller\\PearPlugin",
+                    "Composer\\CustomDirectoryInstaller\\PluginPlugin"
+                ],
+                "branch-alias": {
+                    "dev-master": "2.2.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Composer\\CustomDirectoryInstaller\\": "src/Composer/CustomDirectoryInstaller"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mina Nabil Sami",
+                    "email": "mina.nsami@gmail.com"
+                }
+            ],
+            "description": "A composer plugin, to help install packages of different types in custom paths.",
+            "keywords": [
+                "composer",
+                "composer-installer",
+                "composer-plugin",
+                "custom-path",
+                "drupal",
+                "installer-paths",
+                "monorepo",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/mnsami/composer-custom-directory-installer/issues",
+                "source": "https://github.com/mnsami/composer-custom-directory-installer/tree/2.2.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/mnsami",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-05-20T07:57:55+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

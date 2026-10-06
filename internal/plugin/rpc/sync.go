@@ -47,6 +47,10 @@ var PHPStatics = map[string]any{
 type registration struct {
 	tmp, h Handle
 	m      Mirror
+	// rev is the mirror's revision when PHP's object was adopted: what
+	// PHP's object holds, so later changes reach it even when they happen
+	// before the registration is sent.
+	rev uint64
 }
 
 // syncState is what Go last agreed on with PHP.
@@ -111,7 +115,7 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 		for _, r := range c.pendingReg {
 			list.Append(php.ArrayOf("tmp", int64(r.tmp), "h", int64(r.h)))
 			e.sent[r.h] = true
-			e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: r.m, rev: r.m.Rev()})
+			e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: r.m, rev: r.rev})
 		}
 		s.Set("reg", list)
 		commits = append(commits, func() { c.pendingReg = nil })

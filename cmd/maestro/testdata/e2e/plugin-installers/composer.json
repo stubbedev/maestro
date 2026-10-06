@@ -1,0 +1,29 @@
+{
+    "name": "maestro-test/installers",
+    "description": "composer/installers: framework types, installer-paths ({$name}, type:, vendor:, package names), installer-name, binaries, uninstall.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "composer/installers": "2.3.0",
+        "cmb2/cmb2": "2.13.3",
+        "stuttter/ludicrousdb": "5.3.1",
+        "local/drupal-thing": "1.0.0",
+        "local/cake-thing": "1.0.0",
+        "local/moodle-thing": "1.0.0",
+        "local/theme-thing": "1.0.0",
+        "local/bin-thing": "1.0.0"
+    },
+    "extra": {
+        "installer-paths": {
+            "vendored/{$vendor}-{$name}/": ["vendor:stuttter"],
+            "web/app/plugins/{$name}/": ["type:wordpress-plugin"],
+            "custom/{$vendor}/{$name}/": ["local/drupal-thing"]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true
+        }
+    }
+}

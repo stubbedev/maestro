@@ -1,0 +1,26 @@
+{
+    "name": "maestro-test/installers-extender",
+    "description": "oomphinc/composer-installers-extender: an installer extending composer/installers' Installer (cross-plugin inheritance) for custom installer-types.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "composer/installers": "2.3.0",
+        "oomphinc/composer-installers-extender": "2.0.1",
+        "local/custom-thing": "1.0.0",
+        "local/drupal-thing": "1.0.0"
+    },
+    "extra": {
+        "installer-types": ["custom-type"],
+        "installer-paths": {
+            "web/custom/{$vendor}/{$name}/": ["type:custom-type"],
+            "web/modules/{$name}/": ["type:drupal-module"]
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "oomphinc/composer-installers-extender": true
+        }
+    }
+}

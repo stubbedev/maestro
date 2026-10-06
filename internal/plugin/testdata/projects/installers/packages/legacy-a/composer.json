@@ -1,0 +1,6 @@
+{
+    "name": "local/legacy-a",
+    "version": "1.0.0",
+    "type": "legacy-thing",
+    "require": {"maestro-test/legacy-installer": "*"}
+}

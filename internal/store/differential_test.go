@@ -18,7 +18,7 @@ import (
 
 // methods are the import methods the differential tests run with; Auto
 // also covers reflinks where the test directory supports them.
-var methods = []Method{Auto, Hardlink, Copy}
+var methods = []Method{Auto, Copy}
 
 // distCase is one archive the store differential tests install.
 type distCase struct {

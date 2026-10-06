@@ -8,20 +8,31 @@
 // Deviations 1 and 2 of docs/PORTING.md apply to the zip, tar, xz and gzip
 // downloaders. Their archives are extracted natively (internal/archive)
 // into the package store (internal/store), and package directories are
-// materialized from it. Composer's dist file cache (cache-files-dir) is
-// not used for them; the store takes its place:
+// materialized from it. Composer's files cache (cache-files-dir) keeps the
+// archives exactly as Composer keeps them (same keys, checksum check,
+// cache-read-only, garbage collection by cache-files-ttl and
+// cache-files-maxsize), and it alone decides between a cache hit and a
+// download, so the output is Composer's:
 //
-//   - With a files cache (cache-files-ttl > 0, the cache directory usable),
-//     a dist already in the store is not downloaded. Download prints the
-//     "Loading ... from cache" line Composer prints for a cache hit, and
-//     materializes the package into a staging directory under
-//     vendor/composer/ while the other downloads run. If objects went
-//     missing from the store, the archive is downloaded after all.
-//   - Otherwise (no files cache, or a read-only one for inserts) the
-//     archive is downloaded as Composer downloads it, verified against the
-//     dist shasum, and inserted into the store (or into a temporary store
-//     beside vendor/ when the shared one must not be written) and
-//     materialized into the staging directory.
+//   - A cache hit prints "Loading ... from cache". When the store holds
+//     the release (and may be read: a files cache with cache-files-ttl > 0
+//     and a usable directory), the archive is only opened, not copied, and
+//     the package is materialized from the store into a staging directory
+//     under vendor/composer/ while the other downloads run. Should the
+//     store have lost objects of the release, it is healed from that open
+//     archive (copied to the temporary file, as copyTo would have, and
+//     extracted): the network is never used for a cached archive.
+//     POST_FILE_DOWNLOAD names the temporary file, which then does not
+//     exist unless the store was healed. When the
+//     store lacks the release, the archive is copied and extracted as
+//     after a download.
+//   - A miss downloads the archive as Composer does, verifies it against
+//     the dist shasum, copies it into the files cache, and inserts it into
+//     the store (unless the store holds the release already: an archive
+//     the cache's garbage collection removed) or, when the shared store
+//     must not be written (no files cache, or a read-only one), into a
+//     temporary store beside vendor/, and materializes the package into
+//     the staging directory.
 //
 // Install then empties the target and renames the staging directory onto
 // it (or merges it in, as ArchiveDownloader does when the target is not

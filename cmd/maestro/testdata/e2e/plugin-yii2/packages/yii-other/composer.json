@@ -1,0 +1,8 @@
+{
+    "name": "local/yii-other",
+    "version": "1.0.0",
+    "type": "yii2-extension",
+    "autoload": {
+        "psr-0": {"local\\yiiother\\": "lib/"}
+    }
+}

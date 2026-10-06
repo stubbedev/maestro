@@ -1,0 +1,12 @@
+{
+    "name": "local/cake-thing",
+    "version": "1.0.0",
+    "type": "cakephp-plugin",
+    "description": "A cakephp-plugin package installed by composer/installers.",
+    "require": {
+        "composer/installers": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"Local\\Cake\\": "src/"}
+    }
+}

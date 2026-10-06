@@ -55,6 +55,14 @@ type ScriptCommandProvider interface {
 	ScriptCommand(c *composer.Composer, out io.IO, script, class string) (cmd console.Commander, ok bool, err error)
 }
 
+// ProjectLoaderRegistrar is implemented by a composer.PluginManager that
+// can run PHP (the plugin runtime): before looking for script commands
+// Composer registers a class loader for the root package's autoload
+// (createLoader, which may write warnings, then register()).
+type ProjectLoaderRegistrar interface {
+	RegisterProjectLoader(c *composer.Composer) error
+}
+
 // Application is Composer\Console\Application.
 type Application struct {
 	*console.Application
@@ -613,6 +621,13 @@ func (a *Application) addScriptCommands(cio *io.ConsoleIO) error {
 			// command class scripts; only the plugin runtime needs it.
 			if c, err = a.GetComposer(false, nil, nil); err != nil {
 				return err
+			}
+			if c != nil {
+				if p, ok := c.PluginManager().(ProjectLoaderRegistrar); ok {
+					if err := p.RegisterProjectLoader(c); err != nil {
+						return err
+					}
+				}
 			}
 		}
 

@@ -33,6 +33,14 @@ final class Autoloader
 
         spl_autoload_register([self::class, 'loadClass'], true, true);
 
+        // The phar's classes load through a ClassLoader of its vendor
+        // directory, through which InstalledVersions also reports the
+        // packages Composer bundles (lib/composer/installed.php); this one
+        // only stands for it in ClassLoader::getRegisteredLoaders().
+        $bundled = new \Composer\Autoload\ClassLoader($root.'/lib');
+        $bundled->setClassMapAuthoritative(true);
+        $bundled->register(false);
+
         foreach ($index['files'] as $id => $file) {
             if (empty($GLOBALS['__composer_autoload_files'][$id])) {
                 $GLOBALS['__composer_autoload_files'][$id] = true;

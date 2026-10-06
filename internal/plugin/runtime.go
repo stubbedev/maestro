@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
@@ -107,6 +108,16 @@ type Runtime struct {
 
 	// bridge holds the Go objects of the Composer API crossing to PHP.
 	bridge *bridge
+	// installers are the PHP installer objects and their peers
+	// (svc_installer.go); promises the promises crossing (promises.go).
+	installers *installerTable
+	promises   *promiseTable
+	// commands are the PHP commands and Applications maestro knows
+	// (proxy_command.go).
+	commands *commandTable
+	// composerFactory creates the Composer instances and Applications PHP
+	// asks for (Setup's Factory).
+	composerFactory *composer.Factory
 	// bootIO is the IO PHP's ErrorHandler reports through (the IO of
 	// whatever started PHP).
 	bootIO io.IO
@@ -144,10 +155,27 @@ func New(opts Options) *Runtime {
 		factories: map[string]rpc.MirrorFactory{},
 		tags:      map[string]rpc.TagDecoder{},
 		bridge:    newBridge(),
+
+		installers: newInstallerTable(),
+		promises:   newPromiseTable(),
+		commands:   newCommandTable(),
 	}
 	r.registerAPI()
 
 	return r
+}
+
+// factory is the Factory the Composer instances and Applications PHP
+// creates come from: Setup's, or a plain one.
+func (r *Runtime) factory() *composer.Factory {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.composerFactory == nil {
+		r.composerFactory = &composer.Factory{}
+	}
+
+	return r.composerFactory
 }
 
 // DefaultStatics are Composer's statics as this process holds them:

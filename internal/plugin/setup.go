@@ -54,6 +54,7 @@ func Setup(f *composer.Factory, opts Options) (*Runtime, error) {
 	}
 
 	rt := New(opts)
+	rt.composerFactory = f
 	if err := rt.exportRestartEnv(); err != nil {
 		return nil, err
 	}

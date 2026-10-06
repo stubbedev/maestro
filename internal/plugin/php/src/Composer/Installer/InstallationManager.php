@@ -17,7 +17,7 @@ class InstallationManager
 
     public function addInstaller(\Composer\Installer\InstallerInterface $installer): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::addInstaller() in plugins yet');
+        \Maestro\Shim\Rpc::call('im.addInstaller', [$this, $installer, \Maestro\Shim\Installers::describe($installer)]);
     }
 
     public function disablePlugins(): void
@@ -27,7 +27,7 @@ class InstallationManager
 
     public function download(\Composer\Package\PackageInterface $package): ?\React\Promise\PromiseInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::download() in plugins yet');
+        return \Maestro\Shim\Installers::promise(\Maestro\Shim\Rpc::call('im.download', [$this, $package]));
     }
 
     public function ensureBinariesPresence(\Composer\Package\PackageInterface $package): void
@@ -37,7 +37,7 @@ class InstallationManager
 
     public function execute(\Composer\Repository\InstalledRepositoryInterface $repo, array $operations, bool $devMode = true, bool $runScripts = true, bool $downloadOnly = false): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::execute() in plugins yet');
+        \Maestro\Shim\Rpc::call('im.execute', [$this, $repo, $operations, $devMode, $runScripts, $downloadOnly]);
     }
 
     public function getInstallPath(\Composer\Package\PackageInterface $package): ?string
@@ -47,12 +47,12 @@ class InstallationManager
 
     public function getInstaller(string $type): \Composer\Installer\InstallerInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::getInstaller() in plugins yet');
+        return \Maestro\Shim\Rpc::call('im.getInstaller', [$this, $type]);
     }
 
     public function install(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\DependencyResolver\Operation\InstallOperation $operation): ?\React\Promise\PromiseInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::install() in plugins yet');
+        return \Maestro\Shim\Installers::promise(\Maestro\Shim\Rpc::call('im.install', [$this, $repo, $operation]));
     }
 
     public function isPackageInstalled(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\Package\PackageInterface $package): bool
@@ -62,12 +62,12 @@ class InstallationManager
 
     public function markAliasInstalled(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\DependencyResolver\Operation\MarkAliasInstalledOperation $operation): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::markAliasInstalled() in plugins yet');
+        \Maestro\Shim\Rpc::call('im.markAliasInstalled', [$this, $repo, $operation]);
     }
 
     public function markAliasUninstalled(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\DependencyResolver\Operation\MarkAliasUninstalledOperation $operation): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::markAliasUninstalled() in plugins yet');
+        \Maestro\Shim\Rpc::call('im.markAliasUninstalled', [$this, $repo, $operation]);
     }
 
     public function notifyInstalls(\Composer\IO\IOInterface $io): void
@@ -77,12 +77,12 @@ class InstallationManager
 
     public function removeInstaller(\Composer\Installer\InstallerInterface $installer): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::removeInstaller() in plugins yet');
+        \Maestro\Shim\Rpc::call('im.removeInstaller', [$this, $installer]);
     }
 
     public function reset(): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::reset() in plugins yet');
+        \Maestro\Shim\Rpc::call('im.reset', [$this]);
     }
 
     public function setOutputProgress(bool $outputProgress): void
@@ -92,11 +92,11 @@ class InstallationManager
 
     public function uninstall(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\DependencyResolver\Operation\UninstallOperation $operation): ?\React\Promise\PromiseInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::uninstall() in plugins yet');
+        return \Maestro\Shim\Installers::promise(\Maestro\Shim\Rpc::call('im.uninstall', [$this, $repo, $operation]));
     }
 
     public function update(\Composer\Repository\InstalledRepositoryInterface $repo, \Composer\DependencyResolver\Operation\UpdateOperation $operation): ?\React\Promise\PromiseInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\InstallationManager::update() in plugins yet');
+        return \Maestro\Shim\Installers::promise(\Maestro\Shim\Rpc::call('im.update', [$this, $repo, $operation]));
     }
 }

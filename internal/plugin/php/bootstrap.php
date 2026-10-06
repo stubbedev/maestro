@@ -122,6 +122,26 @@ require __DIR__.'/src/Maestro/Shim/Autoloader.php';
 // bin/composer registers the error handler without an IO first.
 \Composer\Util\ErrorHandler::register();
 
+// What Composer's Application::__construct does for the application
+// maestro runs, once per process: xdebug's ini, the default timezone and
+// the out-of-memory hint.
+if (function_exists('ini_set') && extension_loaded('xdebug')) {
+    ini_set('xdebug.show_exception_trace', '0');
+    ini_set('xdebug.scream', '0');
+}
+if (function_exists('date_default_timezone_set') && function_exists('date_default_timezone_get')) {
+    date_default_timezone_set(\Composer\Util\Silencer::call('date_default_timezone_get'));
+}
+register_shutdown_function(static function () {
+    $lastError = error_get_last();
+
+    if ($lastError && $lastError['message'] &&
+       (strpos($lastError['message'], 'Allowed memory') !== false /*Zend PHP out of memory error*/ ||
+        strpos($lastError['message'], 'exceeded memory') !== false /*HHVM out of memory errors*/)) {
+        echo "\n". 'Check https://getcomposer.org/doc/articles/troubleshooting.md#memory-limit-errors for more info on how to handle out of memory errors.';
+    }
+});
+
 // The Composer API's mirror families, value tags and methods, before the
 // first message (boot's IO is a mirror).
 \Maestro\Shim\Api::register();

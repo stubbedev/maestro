@@ -1,0 +1,23 @@
+{
+    "name": "maestro-test/installers-project",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"type": "path", "url": "legacy", "options": {"symlink": false}},
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/installers-plugin": "*",
+        "maestro-test/legacy-installer": "*",
+        "local/custom-a": "*",
+        "local/iface-a": "*",
+        "local/pack-a": "*",
+        "local/legacy-a": "*"
+    },
+    "config": {
+        "allow-plugins": {
+            "maestro-test/installers-plugin": true,
+            "maestro-test/legacy-installer": true
+        }
+    }
+}

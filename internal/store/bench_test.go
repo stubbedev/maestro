@@ -43,7 +43,7 @@ func benchPackage(b *testing.B, dir string) (string, int64) {
 
 // BenchmarkImport materializes a 3,000-file package from a warm store.
 func BenchmarkImport(b *testing.B) {
-	for _, m := range []Method{Clone, Hardlink, Copy} {
+	for _, m := range []Method{Clone, Copy} {
 		b.Run(m.String(), func(b *testing.B) {
 			work := benchDir(b)
 			zip, total := benchPackage(b, work)

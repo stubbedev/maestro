@@ -414,7 +414,10 @@ func (r *ArrayRepository) RemovePackage(p pkg.PackageInterface) error {
 	}
 	for i, repoPackage := range packages {
 		if packageID == repoPackage.UniqueName() {
-			r.packages = slices.Delete(r.packages, i, i+1)
+			// a new array: slices returned by Packages() stay as they
+			// were (PHP's getPackages() returns a copy, which callers
+			// iterate while removing, as Factory::purgePackages does)
+			r.packages = slices.Concat(r.packages[:i:i], r.packages[i+1:])
 
 			// invalidate package map cache
 			r.packageMap = nil

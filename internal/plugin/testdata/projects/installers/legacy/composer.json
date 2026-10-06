@@ -1,0 +1,7 @@
+{
+    "name": "maestro-test/legacy-installer",
+    "version": "1.0.0",
+    "type": "composer-installer",
+    "autoload": {"psr-4": {"MaestroTest\\Legacy\\": "src/"}},
+    "extra": {"class": "MaestroTest\\Legacy\\Installer"}
+}

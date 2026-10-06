@@ -1,0 +1,12 @@
+{
+    "name": "local/drupal-thing",
+    "version": "1.0.0",
+    "type": "drupal-module",
+    "description": "A drupal-module package installed by composer/installers.",
+    "require": {
+        "composer/installers": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"Local\\Drupal\\": "src/"}
+    }
+}
