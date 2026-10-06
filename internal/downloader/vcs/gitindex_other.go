@@ -7,3 +7,7 @@ package vcs
 func statEntry(string, []byte) error {
 	return errIndexFallback
 }
+
+func untrackedIdent(string) (string, error) {
+	return "", errIndexFallback
+}

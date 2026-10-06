@@ -96,7 +96,10 @@ binary, its configuration and environment. The next install of the same
 key imports it unshared (clone or copy, never hardlink) and rewrites only
 what differs between two clones: the reflog times, and the stat data in
 `.git/index` (in Go for index v2 to v4 with SHA-1, else `git update-index
---refresh`). No git process runs on a hit, except `git config --list`
+--refresh`). Until #24 the empty untracked cache that feature.manyFiles
+(core.untrackedCache) adds, whose ident names the work tree, sent every
+hit to `git update-index`: 20 git processes for this project's install,
+10 after (none per package; the rest is root-package and lock checks). No git process runs on a hit, except `git config --list`
 once per process. A miss pays for storing the checkout once (some 35 ms a
 package here, mostly hashing and writing the packfile). The trees are
 identical to git's but for those two files (diff -r, find -printf %M),

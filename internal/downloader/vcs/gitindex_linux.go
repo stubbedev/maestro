@@ -2,6 +2,7 @@ package vcs
 
 import (
 	"encoding/binary"
+	"path/filepath"
 
 	"golang.org/x/sys/unix"
 )
@@ -27,4 +28,25 @@ func statEntry(path string, e []byte) error {
 	binary.BigEndian.PutUint32(e[36:], uint32(st.Size)) //nolint:gosec // as above.
 
 	return nil
+}
+
+// untrackedIdent is the ident git's untracked cache records for
+// workTree: its real path and the kernel name.
+func untrackedIdent(workTree string) (string, error) {
+	abs, err := filepath.Abs(workTree)
+	if err != nil {
+		return "", errIndexFallback
+	}
+
+	real, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", errIndexFallback
+	}
+
+	var uts unix.Utsname
+	if err := unix.Uname(&uts); err != nil {
+		return "", errIndexFallback
+	}
+
+	return "Location " + real + ", system " + unix.ByteSliceToString(uts.Sysname[:]), nil
 }
