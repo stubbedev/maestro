@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -94,6 +95,17 @@ func cloneObject(src, dst string, perm, _ fs.FileMode, want stamp) error {
 
 	if err == nil && st.mode != perm {
 		err = os.Chmod(dst, perm)
+	}
+
+	// clonefile gives the clone the source's attributes, its modification
+	// time (the stamp's) among them, but the man page does not list the
+	// times: a clone that does not show the stamp's time is given it.
+	if err == nil {
+		var cst fileStat
+		if cst, err = lstat(dst); err == nil && (cst.mtime != want.mtime || cst.mtimeNs != 0) {
+			mtime := time.Unix(want.mtime, 0)
+			err = os.Chtimes(dst, mtime, mtime)
+		}
 	}
 
 	if err != nil {
