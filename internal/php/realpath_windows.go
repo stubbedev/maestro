@@ -1,4 +1,4 @@
-package util
+package php
 
 import (
 	"io/fs"
@@ -11,14 +11,14 @@ import (
 // maxReparsePoints is the number of links Windows follows in one path.
 const maxReparsePoints = 63
 
-// evalSymlinks resolves path as PHP's realpath() does on Windows
+// EvalSymlinks resolves path as PHP's realpath() does on Windows
 // (tsrm_realpath_r): every symlink and junction on it, component by
 // component. filepath.EvalSymlinks alone would not do: since Go 1.23 it
 // leaves junctions (mount points) alone, as os.Lstat reports them as
 // irregular files, and a path through one then fails as "not a
 // directory"; Composer's Filesystem::junction() makes them for path
 // repositories.
-func evalSymlinks(path string) (string, error) {
+func EvalSymlinks(path string) (string, error) {
 	for range maxReparsePoints {
 		next, found, err := followLink(path)
 		if err != nil {

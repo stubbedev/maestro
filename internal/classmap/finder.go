@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -281,7 +282,7 @@ func realpath(path string) (string, bool) {
 		}
 		path = cwd + "/" + path
 	}
-	real, err := filepath.EvalSymlinks(path)
+	real, err := php.EvalSymlinks(path)
 	if err != nil {
 		return "", false
 	}
