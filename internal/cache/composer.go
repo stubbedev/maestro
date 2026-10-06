@@ -26,7 +26,6 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -143,7 +142,7 @@ func (c *Cache) Read(file string) (string, bool, error) {
 
 	data, err := os.ReadFile(c.root + file)
 	if err != nil {
-		return "", false, &util.ErrorException{Message: "file_get_contents(" + c.root + file + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("Cache.php", 128)}
+		return "", false, &util.ErrorException{Message: "file_get_contents(" + c.root + file + "): Failed to open stream: " + util.Strerror(err)}
 	}
 
 	return string(data), true, nil
@@ -213,7 +212,7 @@ func (c *Cache) Write(file, contents string) (bool, error) {
 	err := writeFile(tempFileName, contents)
 	if err == nil {
 		if rerr := os.Rename(tempFileName, c.root+file); rerr != nil {
-			err = &util.ErrorException{Message: "rename(" + tempFileName + "," + c.root + file + "): " + util.Strerror(rerr), Site: phperr.At("Cache.php", 149)}
+			err = &util.ErrorException{Message: "rename(" + tempFileName + "," + c.root + file + "): " + util.Strerror(rerr)}
 		}
 	}
 
@@ -249,7 +248,7 @@ func (c *Cache) Write(file, contents string) (bool, error) {
 func writeFile(path, contents string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // file_put_contents mode, umask applies
 	if err != nil {
-		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("Cache.php", 149)}
+		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}
 	}
 
 	n, werr := io.WriteString(f, contents)
