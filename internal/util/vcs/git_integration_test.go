@@ -149,13 +149,15 @@ func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
 		}
 	}
 
-	// a ref already in the mirror: no sync
+	// a ref already in the mirror: no sync; the first mirror the Go
+	// reader may read is also asked of git, and the configuration probed
 	ok, err = g.FetchRefOrSyncMirror(upstream, cache, first, "")
 	if err != nil || !ok {
 		t.Fatalf("FetchRefOrSyncMirror: %v %v", ok, err)
 	}
 
 	if got, want := process.take(), []string{
+		"git config --list --show-origin -z @" + cache,
 		"git rev-parse --git-dir @" + cache,
 		"git rev-parse --quiet --verify " + first + "^{commit} @" + cache,
 	}; !slices.Equal(got, want) {
@@ -176,18 +178,16 @@ func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
 		t.Fatalf("FetchRefOrSyncMirror: %v %v", ok, err)
 	}
 
+	// from now on the reader answers: git only verifies what it does not
+	// hold, and syncs
 	if got, want := process.take(), []string{
-		"git rev-parse --git-dir @" + cache,
 		"git rev-parse --quiet --verify " + second + "^{commit} @" + cache,
-		"git rev-parse --git-dir @" + cache,
 		"git remote -v @" + cache,
 		"git remote set-url origin -- " + upstream + " @" + cache,
 		"git remote update --prune origin @" + cache,
 		"git gc --auto @" + cache,
 		"git remote -v @" + cache,
 		"git remote set-url origin -- " + upstream + " @" + cache,
-		"git rev-parse --git-dir @" + cache,
-		"git rev-parse --quiet --verify " + second + "^{commit} @" + cache,
 	}; !slices.Equal(got, want) {
 		t.Fatalf("commands:\n%s", strings.Join(got, "\n"))
 	}
@@ -218,6 +218,16 @@ func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
 
 	if log := process.take(); slices.Contains(log, "git remote update --prune origin @"+cache) {
 		t.Fatalf("mirror synced:\n%s", strings.Join(log, "\n"))
+	}
+
+	// git branch and git tag were compared once; now neither runs
+	ok, err = g.FetchRefOrSyncMirror(upstream, cache, second, "dev-main")
+	if err != nil || !ok {
+		t.Fatalf("FetchRefOrSyncMirror: %v %v", ok, err)
+	}
+
+	if log := process.take(); len(log) != 0 {
+		t.Fatalf("commands:\n%s", strings.Join(log, "\n"))
 	}
 
 	// a ref that does not exist anywhere

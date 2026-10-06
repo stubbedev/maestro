@@ -30,6 +30,7 @@ type Git struct {
 	process        Process
 	filesystem     Filesystem
 	httpDownloader http.Getter
+	mirror         mirrorReading
 }
 
 // NewGit is new Git($io, $config, $process, $fs).
@@ -595,11 +596,26 @@ func (g *Git) isBareRepository(dir string) (bool, error) {
 		return false, nil
 	}
 
+	return g.isBareMirror(dir, g.mirrorAt(dir))
+}
+
+// isBareMirror is isBareRepository for an existing dir, answered by m
+// (the reader of the mirror at dir, or nil) when it is trusted to.
+func (g *Git) isBareMirror(dir string, m *mirror) (bool, error) {
+	if m != nil && g.trusted(queryGitDir) {
+		return true, nil
+	}
+
 	var output string
 
 	code, err := g.process.Execute(util.Cmd("git", "rev-parse", "--git-dir"), &output, dir)
+	isBare := err == nil && code == 0 && php.Trim(output) == "."
 
-	return err == nil && code == 0 && php.Trim(output) == ".", err
+	if m != nil && err == nil {
+		g.calibrate(queryGitDir, isBare)
+	}
+
+	return isBare, err
 }
 
 var sha1Ref = php.MustCompile(`{^[a-f0-9]{40}$}`)
@@ -608,7 +624,12 @@ var sha1Ref = php.MustCompile(`{^[a-f0-9]{40}$}`)
 // the mirror at dir, syncing it first if it is not. An empty prettyVersion
 // is null.
 func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, error) {
-	inMirror, err := g.checkRefIsInMirror(dir, ref)
+	var m *mirror
+	if isDir(dir) {
+		m = g.mirrorAt(dir)
+	}
+
+	inMirror, err := g.checkRefIsInMirror(dir, ref, m)
 	if err != nil {
 		return false, err
 	}
@@ -625,16 +646,22 @@ func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, e
 
 			hasBranches, hasTags := false, false
 
-			if code, err := g.process.Execute(util.Cmd("git", "branch"), &output, dir); err != nil {
+			if listed, ok := g.mirrorList(m, queryBranch, (*mirror).branchOutput); ok {
+				branches, hasBranches = listed, true
+			} else if code, err := g.process.Execute(util.Cmd("git", "branch"), &output, dir); err != nil {
 				return false, err
 			} else if code == 0 {
 				branches, hasBranches = output, true
+				g.calibrateList(m, queryBranch, (*mirror).branchOutput, output)
 			}
 
-			if code, err := g.process.Execute(util.Cmd("git", "tag"), &output, dir); err != nil {
+			if listed, ok := g.mirrorList(m, queryTag, (*mirror).tagOutput); ok {
+				tags, hasTags = listed, true
+			} else if code, err := g.process.Execute(util.Cmd("git", "tag"), &output, dir); err != nil {
 				return false, err
 			} else if code == 0 {
 				tags, hasTags = output, true
+				g.calibrateList(m, queryTag, (*mirror).tagOutput, output)
 			}
 
 			// if the pretty version cannot be found as a branch (nor branch with 'v' in front of the branch as it may have been stripped when generating pretty name),
@@ -671,18 +698,60 @@ func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, e
 		return false, err
 	}
 
-	return g.checkRefIsInMirror(dir, ref)
+	var synced *mirror
+	if isDir(dir) {
+		synced = g.mirrorAt(dir)
+	}
+
+	return g.checkRefIsInMirror(dir, ref, synced)
 }
 
-func (g *Git) checkRefIsInMirror(dir, ref string) (bool, error) {
-	if isMirror, err := g.isBareRepository(dir); err != nil {
-		return false, err
-	} else if isMirror {
+// mirrorList is list (git branch or git tag) of the mirror m when the
+// reader is trusted to answer q and knows the answer.
+func (g *Git) mirrorList(m *mirror, q mirrorQuery, list func(*mirror) (string, bool)) (string, bool) {
+	if m == nil || !g.trusted(q) {
+		return "", false
+	}
+
+	return list(m)
+}
+
+// calibrateList compares the reader's list with git's output for q.
+func (g *Git) calibrateList(m *mirror, q mirrorQuery, list func(*mirror) (string, bool), output string) {
+	if m == nil {
+		return
+	}
+
+	if listed, ok := list(m); ok {
+		g.calibrate(q, listed == output)
+	}
+}
+
+// checkRefIsInMirror ports checkRefIsInMirror(); m is the reader of the
+// mirror at dir, or nil.
+func (g *Git) checkRefIsInMirror(dir, ref string, m *mirror) (bool, error) {
+	if m != nil && g.trusted(queryGitDir) && g.trusted(queryVerify) && m.isCommit(ref) {
+		return true, nil
+	}
+
+	isMirror := false
+	if isDir(dir) {
+		var err error
+		if isMirror, err = g.isBareMirror(dir, m); err != nil {
+			return false, err
+		}
+	}
+
+	if isMirror {
 		var ignoredOutput string
 
 		exitCode, err := g.process.Execute(util.Cmd("git", "rev-parse", "--quiet", "--verify", ref+"^{commit}"), &ignoredOutput, dir)
 		if err != nil {
 			return false, err
+		}
+
+		if m != nil && m.isCommit(ref) {
+			g.calibrate(queryVerify, exitCode == 0)
 		}
 
 		if exitCode == 0 {
