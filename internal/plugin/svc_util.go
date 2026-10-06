@@ -48,6 +48,16 @@ func (r *Runtime) registerUtil() {
 	})
 	fs("removeDirectory", func(a args) (any, error) { return filesystem().RemoveDirectory(a.str(0)) })
 	fs("removeDirectoryPhp", func(a args) (any, error) { return util.RemoveDirectoryPhp(a.str(0)) })
+	// Filesystem::removeEdgeCases() (private) for removeDirectoryAsync():
+	// whether the removal was done, or null.
+	fs("removeEdgeCases", func(a args) (any, error) {
+		result, done, err := util.RemoveEdgeCases(a.str(0))
+		if err != nil || !done {
+			return nil, err
+		}
+
+		return result, nil
+	})
 	fs("ensureDirectoryExists", func(a args) (any, error) { return nil, util.EnsureDirectoryExists(a.str(0)) })
 	fs("copyThenRemove", func(a args) (any, error) { return nil, util.CopyThenRemove(a.str(0), a.str(1)) })
 	fs("copy", func(a args) (any, error) { return util.Copy(a.str(0), a.str(1)) })
@@ -338,6 +348,8 @@ func (r *Runtime) registerManipulator() {
 			return m.SetRepositoryURL(p.str(0), p.str(1))
 		case "format":
 			return m.Format(p.at(0), p.integer(1), p.boolean(2))
+		case "detectIndenting":
+			return nil, m.DetectIndenting()
 		}
 
 		return nil, a.errorf("JsonManipulator has no method %s", a.str(1))

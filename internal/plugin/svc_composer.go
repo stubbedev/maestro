@@ -556,7 +556,7 @@ func (r *Runtime) registerAutoloadGenerator() {
 	// setPlatformRequirementFilter($filter): the filter crosses as its
 	// description (ServiceAdapter::describeFilter()).
 	method("setPlatformRequirementFilter", func(g *autoload.Generator, a args) (any, error) {
-		f, err := filterFromPHP(a.at(1))
+		f, err := r.filterFromPHP(a.at(1))
 		if err != nil {
 			return nil, err
 		}

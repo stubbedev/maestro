@@ -228,7 +228,7 @@ func (s *Solver) Solve(request *Request, filter version.PlatformRequirementFilte
 		return nil, err
 	}
 
-	return NewLockTransaction(s.pool, present, request.FixedPackagesMap(), s.decisions)
+	return NewLockTransaction(s.pool, present, request.FixedPackages(), s.decisions)
 }
 
 // propagate ports propagate: the rule that conflicts, or nil.

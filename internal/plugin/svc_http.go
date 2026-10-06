@@ -198,6 +198,28 @@ func (r *Runtime) registerHTTP() {
 		return fs.GetContents(a.str(1), a.str(2), !a.has(3) || a.boolean(3), a.arrayOrEmpty(4))
 	})
 	rfsMethod("getOptions", func(fs *http.RemoteFilesystem, _ args) (any, error) { return fs.Options(), nil })
+	// The protected methods a subclass calls (parent::get(), ...).
+	rfsMethod("get", func(fs *http.RemoteFilesystem, a args) (any, error) {
+		var fileName *string
+		if name, ok := a.nullableString(4); ok {
+			fileName = &name
+		}
+
+		return fs.Get(a.str(1), a.str(2), a.arrayOrEmpty(3), fileName, !a.has(5) || a.boolean(5))
+	})
+	rfsMethod("getOptionsForUrl", func(fs *http.RemoteFilesystem, a args) (any, error) {
+		return fs.OptionsForURL(a.str(1), a.arrayOrEmpty(2)), nil
+	})
+	rfsMethod("callbackGet", func(fs *http.RemoteFilesystem, a args) (any, error) {
+		return nil, fs.CallbackGet(a.integer(1), a.integer(2), a.str(3), a.integer(4), int64(a.integer(5)), int64(a.integer(6)))
+	})
+	rfsMethod("promptAuthAndRetry", func(fs *http.RemoteFilesystem, a args) (any, error) {
+		return nil, fs.PromptAuthAndRetry(a.integer(1), a.str(2), stringList(a.at(3)))
+	})
+	// Url::sanitize() for getRemoteContents()'s MaxFileSizeExceededException.
+	r.Handle("rfs.sanitizeUrl", func(v any) (any, error) {
+		return util.SanitizeURLChecked(argsOf("rfs.sanitizeUrl", v).str(0))
+	})
 	rfsMethod("setOptions", func(fs *http.RemoteFilesystem, a args) (any, error) {
 		fs.SetOptions(a.arrayOrEmpty(1))
 
@@ -279,6 +301,14 @@ func (r *Runtime) registerDownloadManager() {
 		dm.SetPreferSource(a.boolean(1))
 
 		return nil, nil
+	})
+	dmMethod("resolvePackageInstallPreference", func(dm *downloader.DownloadManager, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return dm.ResolvePackageInstallPreference(p)
 	})
 	dmMethod("setPreferDist", func(dm *downloader.DownloadManager, a args) (any, error) {
 		dm.SetPreferDist(a.boolean(1))

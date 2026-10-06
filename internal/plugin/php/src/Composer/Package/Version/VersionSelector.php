@@ -43,7 +43,9 @@ class VersionSelector
             };
             $filter = \Closure::bind($read, $platformRequirementFilter, \Composer\Filter\PlatformRequirementFilter\IgnoreListPlatformRequirementFilter::class)();
         } else {
-            \Maestro\Shim\Remote::unsupported(self::class, 'findBestCandidate');
+            // A filter class of the plugin's own: maestro calls its
+            // isIgnored() and isUpperBoundIgnored().
+            $filter = $platformRequirementFilter;
         }
         if (!is_bool($showWarnings) && !is_callable($showWarnings)) {
             $showWarnings = (bool) $showWarnings;

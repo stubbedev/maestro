@@ -223,6 +223,12 @@ func removeDirectoryCommand(directory string) Command {
 	return Cmd("rm", "-rf", directory)
 }
 
+// RemoveEdgeCases is removeEdgeCases for the plugin shim, whose
+// Filesystem::removeDirectoryAsync() runs the removal in PHP.
+func RemoveEdgeCases(directory string) (result, done bool, err error) {
+	return removeEdgeCases(directory)
+}
+
 // removeEdgeCases ports Filesystem::removeEdgeCases; done reports whether an
 // edge case was hit (always with an error), result is then whether removal
 // succeeded.

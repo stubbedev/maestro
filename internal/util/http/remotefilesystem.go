@@ -144,6 +144,41 @@ func (r *RemoteFilesystem) GetContents(originURL, fileURL string, progress bool,
 	return result, err
 }
 
+// Get is the protected get($originUrl, $fileUrl, $additionalOptions,
+// $fileName, $progress) a subclass calls in PHP (plugin shim): the content,
+// true for a download into fileName (non-nil), or false.
+func (r *RemoteFilesystem) Get(originURL, fileURL string, additionalOptions *php.Array, fileName *string, progress bool) (any, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	name := ""
+	if fileName != nil {
+		name = *fileName
+	}
+	result, ok, err := r.get(originURL, fileURL, additionalOptions, name, fileName != nil, progress)
+	switch {
+	case err != nil:
+		return nil, err
+	case !ok:
+		return false, nil
+	case fileName != nil:
+		return true, nil
+	}
+
+	return result, nil
+}
+
+// OptionsForURL is the protected getOptionsForUrl() (plugin shim).
+func (r *RemoteFilesystem) OptionsForURL(originURL string, additionalOptions *php.Array) *php.Array {
+	return r.optionsForURL(originURL, additionalOptions)
+}
+
+// PromptAuthAndRetry is the protected promptAuthAndRetry() (plugin shim):
+// its TransportException "RETRY" when the request is to be made again.
+func (r *RemoteFilesystem) PromptAuthAndRetry(httpStatus int, reason string, headers []string) error {
+	return r.promptAuthAndRetry(httpStatus, reason, headers)
+}
+
 // Options is getOptions().
 func (r *RemoteFilesystem) Options() *php.Array {
 	r.mu.Lock()

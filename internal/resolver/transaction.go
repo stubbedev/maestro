@@ -21,7 +21,51 @@ type Transaction struct {
 	presentPackages      []pkg.PackageInterface
 	resultPackageMap     []pkg.PackageInterface
 	resultPackagesByName map[string][]pkg.PackageInterface
+	// resultPackages are the result packages as given, which
+	// ResultPackagesByName reads $resultPackagesByName's order from.
+	resultPackages []pkg.PackageInterface
 }
+
+// KeyedPackage is an entry of a PHP array of packages: its key and the
+// package.
+type KeyedPackage struct {
+	Key     int
+	Package pkg.PackageInterface
+}
+
+// NamedPackages is an entry of $resultPackagesByName.
+type NamedPackages struct {
+	Name     string
+	Packages []KeyedPackage
+}
+
+// ResultPackagesByName returns the protected $resultPackagesByName as
+// setResultPackageMaps() builds it: the names in the order it meets them,
+// each with its packages ordered by uasort(), which keeps their keys.
+func (t *Transaction) ResultPackagesByName() []NamedPackages {
+	var out []NamedPackages
+	index := map[string]int{}
+	for _, p := range t.resultPackages {
+		for _, name := range p.Names(true) {
+			i, ok := index[name]
+			if !ok {
+				i = len(out)
+				index[name] = i
+				out = append(out, NamedPackages{Name: name})
+			}
+			out[i].Packages = append(out[i].Packages, KeyedPackage{Key: len(out[i].Packages), Package: p})
+		}
+	}
+	for _, e := range out {
+		php.SortSlice(e.Packages, func(a, b KeyedPackage) int { return packageSort(a.Package, b.Package) })
+	}
+
+	return out
+}
+
+// CalculateOperations is the protected calculateOperations(): the
+// operations, computed again (new operation objects).
+func (t *Transaction) CalculateOperations() []operation.Operation { return t.calculateOperations() }
 
 // NewTransaction is new Transaction($presentPackages, $resultPackages).
 func NewTransaction(presentPackages, resultPackages []pkg.PackageInterface) *Transaction {
@@ -70,6 +114,7 @@ func packageSort(a, b pkg.PackageInterface) int {
 }
 
 func (t *Transaction) setResultPackageMaps(resultPackages []pkg.PackageInterface) {
+	t.resultPackages = resultPackages
 	var set pkgSet
 	t.resultPackagesByName = map[string][]pkg.PackageInterface{}
 	for _, p := range resultPackages {
@@ -369,16 +414,32 @@ type LockTransaction struct {
 	Transaction
 	presentMap    pkgSet
 	unlockableMap map[int]pkg.PackageInterface
-	all           []pkg.PackageInterface
-	nonDev        []pkg.PackageInterface
-	dev           []pkg.PackageInterface
+	// unlockable are the packages of $unlockableMap in its order.
+	unlockable []pkg.PackageInterface
+	all        []pkg.PackageInterface
+	nonDev     []pkg.PackageInterface
+	dev        []pkg.PackageInterface
+	// revision counts the changes of $resultPackages.
+	revision int
 }
 
 // NewLockTransaction is new LockTransaction($pool, $presentMap,
 // $unlockableMap, $decisions): presentMap are the present packages,
-// unlockableMap the fixed packages by id.
-func NewLockTransaction(pool *Pool, presentMap []pkg.PackageInterface, unlockableMap map[int]pkg.PackageInterface, decisions *Decisions) (*LockTransaction, error) {
-	t := &LockTransaction{unlockableMap: unlockableMap}
+// unlockable the fixed packages ($unlockableMap, keyed by their ids), in
+// order.
+func NewLockTransaction(pool *Pool, presentMap, unlockable []pkg.PackageInterface, decisions *Decisions) (*LockTransaction, error) {
+	t := &LockTransaction{unlockableMap: make(map[int]pkg.PackageInterface, len(unlockable))}
+	position := map[int]int{}
+	for _, p := range unlockable {
+		// $map[$id] = $package: a later one replaces the value in place.
+		if i, ok := position[p.ID()]; ok {
+			t.unlockable[i] = p
+		} else {
+			position[p.ID()] = len(t.unlockable)
+			t.unlockable = append(t.unlockable, p)
+		}
+		t.unlockableMap[p.ID()] = p
+	}
 	for _, p := range presentMap {
 		t.presentMap.add(p)
 	}
@@ -390,9 +451,27 @@ func NewLockTransaction(pool *Pool, presentMap []pkg.PackageInterface, unlockabl
 	return t, nil
 }
 
+// PresentMap returns the protected $presentMap's packages, in order.
+func (t *LockTransaction) PresentMap() []pkg.PackageInterface { return t.presentMap.appendTo(nil) }
+
+// UnlockableMap returns the protected $unlockableMap's packages (keyed
+// by their ids), in order.
+func (t *LockTransaction) UnlockableMap() []pkg.PackageInterface { return t.unlockable }
+
+// ResultPackages returns the protected $resultPackages: its 'all',
+// 'non-dev' and 'dev' lists; dev has nil where setNonDevPackages() unset
+// an entry (PHP's array keeps the other keys).
+func (t *LockTransaction) ResultPackages() (all, nonDev, dev []pkg.PackageInterface) {
+	return t.all, t.nonDev, t.dev
+}
+
+// Revision counts the changes of the result packages (for mirrors).
+func (t *LockTransaction) Revision() int { return t.revision }
+
 // SetResultPackages ports setResultPackages: the installed packages of
 // the decisions, last decision first.
 func (t *LockTransaction) SetResultPackages(pool *Pool, decisions *Decisions) error {
+	t.revision++
 	t.all, t.nonDev, t.dev = nil, nil, nil
 	for _, decision := range decisions.Reversed {
 		if decision.Literal <= 0 {
@@ -419,6 +498,7 @@ func (t *LockTransaction) SetNonDevPackages(extractionResult *LockTransaction) e
 		return err
 	}
 
+	t.revision++
 	t.dev = t.nonDev
 	t.nonDev = nil
 

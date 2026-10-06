@@ -70,6 +70,11 @@ final class Exceptions
         $code = isset($x['code']) ? $x['code'] : 0;
 
         $e = self::create($class, $message, $code, $previous);
+        // The class's own properties (a TransportException's response, a
+        // JsonValidationException's errors).
+        if (isset($x['props']['scope'], $x['props']['values']) && is_a($e, (string) $x['props']['scope'])) {
+            Remote::fill($e, (string) $x['props']['scope'], $x['props']['values']);
+        }
         // maestro's throw site: the Composer file and line that throw it.
         if (isset($x['file']) && is_string($x['file']) && $x['file'] !== '') {
             self::locate($e, $x['file'], isset($x['line']) ? (int) $x['line'] : 0);

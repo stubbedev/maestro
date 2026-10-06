@@ -385,6 +385,12 @@ func (m *DownloadManager) Cleanup(typ string, p pkg.PackageInterface, targetDir 
 	return d.Cleanup(typ, p, targetDir, prev)
 }
 
+// ResolvePackageInstallPreference is resolvePackageInstallPreference() for
+// the plugin shim (a subclass's call of the protected method).
+func (m *DownloadManager) ResolvePackageInstallPreference(p pkg.PackageInterface) (string, error) {
+	return m.resolvePackageInstallPreference(p)
+}
+
 // resolvePackageInstallPreference is resolvePackageInstallPreference():
 // "dist" or "source", or the PcreException Preg::isMatch throws.
 func (m *DownloadManager) resolvePackageInstallPreference(p pkg.PackageInterface) (string, error) {

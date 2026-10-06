@@ -14,7 +14,6 @@ use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
 use Composer\Util\Filesystem;
 use Maestro\Shim\Promises;
-use Maestro\Shim\Remote;
 use Maestro\Shim\Rpc;
 use React\Promise\PromiseInterface;
 
@@ -109,6 +108,6 @@ class DownloadManager
 
     protected function resolvePackageInstallPreference(PackageInterface $package): string
     {
-        Remote::unsupported(self::class, 'resolvePackageInstallPreference');
+        return Rpc::call('dm.resolvePackageInstallPreference', [$this, $package]);
     }
 }

@@ -2,7 +2,9 @@
 
 /*
  * maestro's plugin shim: Composer\Util\Filesystem (docs/PLUGINS.md §4.8):
- * every method is maestro's internal/util Filesystem (fs.*). Relative paths
+ * the methods are maestro's internal/util Filesystem (fs.*), but for
+ * directorySize(), getProcess() and removeDirectoryAsync(), whose process
+ * runs on this executor's asynchronous jobs as in Composer. Relative paths
  * resolve against the working directory both sides share (the sync engine
  * carries chdir()).
  * Written for PHP 7.2.5 to 8.5.
@@ -31,7 +33,17 @@ class Filesystem
 
     protected function directorySize(string $directory)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Filesystem::directorySize() in plugins yet');
+        $it = new \RecursiveDirectoryIterator($directory, \RecursiveDirectoryIterator::SKIP_DOTS);
+        $ri = new \RecursiveIteratorIterator($it, \RecursiveIteratorIterator::CHILD_FIRST);
+
+        $size = 0;
+        foreach ($ri as $file) {
+            if ($file->isFile()) {
+                $size += $file->getSize();
+            }
+        }
+
+        return $size;
     }
 
     public function emptyDirectory(string $dir, bool $ensureDirectoryExists = true)
@@ -66,7 +78,11 @@ class Filesystem
 
     protected function getProcess()
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Filesystem::getProcess() in plugins yet');
+        if (null === $this->processExecutor) {
+            $this->processExecutor = new ProcessExecutor();
+        }
+
+        return $this->processExecutor;
     }
 
     public function isAbsolutePath(string $path)
@@ -126,7 +142,38 @@ class Filesystem
 
     public function removeDirectoryAsync(string $directory)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Filesystem::removeDirectoryAsync() in plugins yet');
+        // Composer's removeEdgeCases() is maestro's (fs.removeEdgeCases),
+        // but for its proc_open() check, which is this process's.
+        $edgeCaseResult = \Maestro\Shim\Rpc::call('fs.removeEdgeCases', [$directory]);
+        if ($edgeCaseResult === null && !\function_exists('proc_open')) {
+            $edgeCaseResult = $this->removeDirectoryPhp($directory);
+        }
+        if ($edgeCaseResult !== null) {
+            return \React\Promise\resolve($edgeCaseResult);
+        }
+
+        if (Platform::isWindows()) {
+            $cmd = ['rmdir', '/S', '/Q', Platform::realpath($directory)];
+        } else {
+            $cmd = ['rm', '-rf', $directory];
+        }
+
+        // The removal runs on this executor's asynchronous jobs, as in
+        // Composer (the executor of a Loop).
+        $promise = $this->getProcess()->executeAsync($cmd);
+
+        return $promise->then(function ($process) use ($directory) {
+            // clear stat cache because external processes aren't tracked by the php stat cache
+            clearstatcache();
+
+            if ($process->isSuccessful()) {
+                if (!is_dir($directory)) {
+                    return \React\Promise\resolve(true);
+                }
+            }
+
+            return \React\Promise\resolve($this->removeDirectoryPhp($directory));
+        });
     }
 
     public function removeDirectoryPhp(string $directory)

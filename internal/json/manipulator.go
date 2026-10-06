@@ -146,6 +146,18 @@ func NewManipulator(contents string) (*Manipulator, error) {
 	return m, nil
 }
 
+// DetectIndenting ports JsonManipulator::detectIndenting: the indent of the
+// current contents.
+func (m *Manipulator) DetectIndenting() error {
+	indent, err := detectIndenting(m.contents)
+	if err != nil {
+		return err
+	}
+	m.indent = indent
+
+	return nil
+}
+
 // Contents ports JsonManipulator::getContents.
 func (m *Manipulator) Contents() string { return m.contents + m.newline }
 

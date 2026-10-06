@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -197,6 +198,23 @@ func (r *Runtime) registerResolverEvents() {
 // registerRequest registers the `request.*` methods: the Request of
 // PRE_POOL_CREATE, a proxy of maestro's.
 func (r *Runtime) registerRequest() {
+	// new Request(?LockArrayRepository $lockedRepository = null): maestro's
+	// Request (for RepositorySet::createPool()), on maestro's lock
+	// repository (a Locker's).
+	r.Handle("request.new", func(v any) (any, error) {
+		a := argsOf("request.new", v)
+		var locked *repository.LockArrayRepository
+		if a.has(1) {
+			l, err := param[*repository.LockArrayRepository](a, 1)
+			if err != nil {
+				return nil, unsupportedf("maestro does not support a Request on a LockArrayRepository created in PHP yet")
+			}
+			locked = l
+		}
+
+		return nil, r.adopt(a, resolver.NewRequest(locked))
+	})
+
 	method := func(name string, fn func(req *resolver.Request, a args) (any, error)) {
 		r.Handle("request."+name, func(v any) (any, error) {
 			a := argsOf("request."+name, v)
@@ -378,5 +396,56 @@ func (r *Runtime) registerTransactions() {
 		}
 
 		return out, nil
+	})
+	// The protected calculateOperations() (a subclass's parent call): the
+	// operations computed again, as new operation objects.
+	r.Handle("transaction.calculateOperations", func(v any) (any, error) {
+		a := argsOf("transaction.calculateOperations", v)
+		var ops []operation.Operation
+		switch t := serviceValue(a.at(0)).(type) {
+		case *resolver.Transaction:
+			ops = t.CalculateOperations()
+		case *resolver.LockTransaction:
+			ops = t.CalculateOperations()
+		default:
+			return nil, a.errorf("param 0 is not a transaction maestro knows")
+		}
+		out := php.NewArrayCap(len(ops))
+		for _, op := range ops {
+			out.Append(r.value(op))
+		}
+
+		return out, nil
+	})
+	lockMethod := func(name string, fn func(t *resolver.LockTransaction, a args) (any, error)) {
+		r.Handle("transaction."+name, func(v any) (any, error) {
+			a := argsOf("transaction."+name, v)
+			t, err := receiver[*resolver.LockTransaction](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return fn(t, a)
+		})
+	}
+	lockMethod("getNewLockPackages", func(t *resolver.LockTransaction, a args) (any, error) {
+		packages, err := t.NewLockPackages(a.boolean(1), a.boolean(2))
+		if err != nil {
+			return nil, err
+		}
+		out := php.NewArrayCap(len(packages))
+		for _, p := range packages {
+			out.Append(r.value(p))
+		}
+
+		return out, nil
+	})
+	lockMethod("setNonDevPackages", func(t *resolver.LockTransaction, a args) (any, error) {
+		extraction, err := param[*resolver.LockTransaction](a, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, t.SetNonDevPackages(extraction)
 	})
 }

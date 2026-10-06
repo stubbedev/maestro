@@ -10,7 +10,6 @@
 
 namespace Composer\Json;
 
-use Maestro\Shim\Remote;
 use Maestro\Shim\Rpc;
 
 class JsonManipulator
@@ -134,6 +133,6 @@ class JsonManipulator
 
     protected function detectIndenting(): void
     {
-        Remote::unsupported(self::class, 'detectIndenting');
+        $this->edit('detectIndenting', []);
     }
 }

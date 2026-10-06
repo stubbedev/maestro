@@ -30,7 +30,8 @@ class PreCommandRunEvent extends \Composer\EventDispatcher\Event
     public function getInput(): \Symfony\Component\Console\Input\InputInterface
     {
         if ($this->input === null) {
-            \Maestro\Shim\Remote::unsupported(self::class, 'getInput');
+            // maestro's events always cross with their input.
+            throw new \Maestro\Shim\ProtocolException('maestro shim: the event has no input');
         }
 
         return $this->input;

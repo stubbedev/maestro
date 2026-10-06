@@ -247,7 +247,8 @@ func (r *Runtime) applyInstallerSettings(inst *composer.Installer, s settings) e
 		inst.SetPlatformRequirementFilter(pf)
 	case nil:
 	case *rpc.PHPObject:
-		return unsupportedf("maestro does not support running an Installer with a %s yet", f.Class)
+		// A filter class of the plugin's own.
+		inst.SetPlatformRequirementFilter(r.phpFilter(f))
 	}
 
 	if v := s.get("additionalFixedRepository"); v != nil {

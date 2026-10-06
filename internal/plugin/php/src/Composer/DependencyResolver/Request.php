@@ -3,7 +3,7 @@
 /*
  * maestro's plugin shim: Composer\DependencyResolver\Request
  * (docs/PLUGINS.md §4.12): the request of PRE_POOL_CREATE, a proxy of
- * maestro's (request.*). Creating one in PHP is not supported.
+ * maestro's (request.*); one created in PHP is maestro's too.
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -13,7 +13,6 @@ use Composer\Package\BasePackage;
 use Composer\Package\PackageInterface;
 use Composer\Repository\LockArrayRepository;
 use Composer\Semver\Constraint\ConstraintInterface;
-use Maestro\Shim\Remote;
 use Maestro\Shim\Rpc;
 
 class Request
@@ -32,7 +31,10 @@ class Request
 
     public function __construct(?LockArrayRepository $lockedRepository = null)
     {
-        Remote::unsupported(self::class, '__construct');
+        // maestro's Request (request.new), whose proxy this object is from
+        // now on.
+        $this->lockedRepository = $lockedRepository;
+        Rpc::call('request.new', [$this, $lockedRepository]);
     }
 
     public function requireName(string $packageName, ?ConstraintInterface $constraint = null): void

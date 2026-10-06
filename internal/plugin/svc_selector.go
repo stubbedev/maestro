@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
-	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -250,7 +249,7 @@ func (r *Runtime) registerSelectors() {
 		if target, ok := a.nullableString(2); ok {
 			opts.TargetPackageVersion = target
 		}
-		f, err := filter.FromBoolOrList(a.at(4))
+		f, err := r.filterFromPHP(a.at(4))
 		if err != nil {
 			return nil, err
 		}

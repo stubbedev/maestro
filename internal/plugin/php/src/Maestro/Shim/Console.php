@@ -10,6 +10,7 @@ namespace Maestro\Shim;
 use Composer\Autoload\ClassLoader;
 use Composer\Command\BaseCommand;
 use Composer\Downloader\DownloaderInterface;
+use Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterInterface;
 use Composer\IO\IOInterface;
 use Composer\Repository\RepositoryInterface;
 use Symfony\Component\Console\Application as SymfonyApplication;
@@ -315,7 +316,8 @@ final class Console
 
     /**
      * The methods maestro calls on PHP objects it uses: outputs it writes
-     * to, IOs, repositories and downloaders created in PHP.
+     * to, IOs, platform requirement filters, repositories and downloaders
+     * created in PHP.
      *
      * @param object $object
      */
@@ -335,6 +337,9 @@ final class Console
                 'getAuthentications', 'hasAuthentication', 'getAuthentication', 'setAuthentication', 'loadConfiguration',
                 'emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug', 'log',
             ], true);
+        }
+        if ($object instanceof PlatformRequirementFilterInterface) {
+            return in_array($method, ['isIgnored', 'isUpperBoundIgnored'], true);
         }
         if ($object instanceof DownloaderInterface) {
             return in_array($method, ['getInstallationSource', 'download', 'prepare', 'install', 'update', 'remove', 'cleanup'], true);

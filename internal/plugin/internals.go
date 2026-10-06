@@ -373,7 +373,7 @@ func (r *Runtime) applyInstallerFields(inst *composer.Installer, fields *php.Arr
 		inst.SetSuggestedPackagesReporter(rep)
 	}
 	if v, ok := get("platformRequirementFilter"); ok {
-		f, err := filterFromPHP(v)
+		f, err := r.filterFromPHP(v)
 		if err != nil {
 			return err
 		}
@@ -405,9 +405,10 @@ func (r *Runtime) applyInstallerFields(inst *composer.Installer, fields *php.Arr
 }
 
 // filterFromPHP is the platform requirement filter a PHP value stands
-// for: true, false or a list (Composer\Installer::run's description), or
-// the filter object's description the ServiceAdapter sends.
-func filterFromPHP(v any) (version.PlatformRequirementFilter, error) {
+// for: true, false or a list (Composer\Installer::run's description), the
+// filter object's description the ServiceAdapter sends, or a filter class
+// of a plugin's own (phpFilter).
+func (r *Runtime) filterFromPHP(v any) (version.PlatformRequirementFilter, error) {
 	if a, ok := v.(*php.Array); ok {
 		if d, ok := a.Get("\x00filter"); ok {
 			v = d
@@ -417,7 +418,7 @@ func filterFromPHP(v any) (version.PlatformRequirementFilter, error) {
 	case bool, *php.Array:
 		return filter.FromBoolOrList(v)
 	case *rpc.PHPObject:
-		return nil, unsupportedf("maestro does not support a %s as a platform requirement filter yet", t.Class)
+		return r.phpFilter(t), nil
 	}
 
 	return nil, &typeError{msg: fmt.Sprintf("a platform requirement filter is a %T", v)}
@@ -430,17 +431,65 @@ func filterFromPHP(v any) (version.PlatformRequirementFilter, error) {
 // yet cross with their core fields (the lazy tier of docs/PLUGINS.md
 // §5.3); $operations stay null until getOperations() asks maestro.
 func (r *Runtime) transactionObject(v any, t *resolver.Transaction, class string) any {
+	lock, _ := v.(*resolver.LockTransaction)
+
 	return r.bridge.object(v, func() rpc.Object {
 		return r.newServiceMirror(v, class,
 			func() (*php.Array, error) {
-				return php.ArrayOf(
+				byName := php.NewArray()
+				for _, e := range t.ResultPackagesByName() {
+					byName.Set(e.Name, r.keyedPackages(e.Packages))
+				}
+				props := php.ArrayOf(
 					"presentPackages", r.lazyPackageList(t.PresentPackages()),
 					"resultPackageMap", php.ArrayOf("\x00idmap", r.lazyPackageList(t.ResultPackageMap())),
-				), nil
+					"resultPackagesByName", byName,
+				)
+				if lock != nil {
+					// LockTransaction's own: $presentMap by spl_object_id,
+					// $unlockableMap by package id, $resultPackages.
+					unlockable := php.NewArray()
+					for _, p := range lock.UnlockableMap() {
+						unlockable.Set(int64(p.ID()), r.lazyPackage(p))
+					}
+					all, nonDev, dev := lock.ResultPackages()
+					devList := php.NewArray()
+					for i, p := range dev {
+						if p != nil {
+							devList.Set(int64(i), r.lazyPackage(p))
+						}
+					}
+					props.Set("presentMap", php.ArrayOf("\x00idmap", r.lazyPackageList(lock.PresentMap())))
+					props.Set("unlockableMap", unlockable)
+					props.Set("resultPackages", php.ArrayOf(
+						"all", r.lazyPackageList(all),
+						"non-dev", r.lazyPackageList(nonDev),
+						"dev", devList,
+					))
+				}
+
+				return props, nil
 			},
-			func() string { return "" },
+			func() string {
+				if lock != nil {
+					return strconv.Itoa(lock.Revision())
+				}
+
+				return ""
+			},
 			nil)
 	})
+}
+
+// keyedPackages is a PHP array of packages with their keys (the lazy
+// tier, as lazyPackageList).
+func (r *Runtime) keyedPackages(packages []resolver.KeyedPackage) *php.Array {
+	out := php.NewArrayCap(len(packages))
+	for _, kp := range packages {
+		out.Set(int64(kp.Key), r.lazyPackage(kp.Package))
+	}
+
+	return out
 }
 
 // registerInternals registers the handlers of the internals emulation.

@@ -79,28 +79,66 @@ class RemoteFilesystem
         return $value;
     }
 
+    // The protected methods are maestro's (a subclass's parent::get(),
+    // ...), but for getRemoteContents(), which reads the stream context it
+    // is given in PHP, as Composer does. maestro's copy() and
+    // getContents() do not call a subclass's overrides of them.
+
     protected function get(string $originUrl, string $fileUrl, array $additionalOptions = [], ?string $fileName = null, bool $progress = true)
     {
-        Remote::unsupported(self::class, 'get');
+        return Rpc::call('rfs.get', [$this, $originUrl, $fileUrl, $additionalOptions, $fileName, $progress]);
     }
 
     protected function getRemoteContents(string $originUrl, string $fileUrl, $context, ?array &$responseHeaders = null, ?int $maxFileSize = null)
     {
-        Remote::unsupported(self::class, 'getRemoteContents');
+        $result = false;
+
+        if (\PHP_VERSION_ID >= 80400) {
+            http_clear_last_response_headers();
+        }
+
+        try {
+            $e = null;
+            if ($maxFileSize !== null) {
+                $result = file_get_contents($fileUrl, false, $context, 0, $maxFileSize);
+            } else {
+                // passing `null` to file_get_contents will convert `null` to `0` and return 0 bytes
+                $result = file_get_contents($fileUrl, false, $context);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        if ($result !== false && $maxFileSize !== null && Platform::strlen($result) >= $maxFileSize) {
+            throw new \Composer\Downloader\MaxFileSizeExceededException('Maximum allowed download size reached. Downloaded ' . Platform::strlen($result) . ' of allowed ' .  $maxFileSize . ' bytes for ' . Rpc::call('rfs.sanitizeUrl', [$fileUrl]));
+        }
+
+        // https://www.php.net/manual/en/reserved.variables.httpresponseheader.php
+        if (\PHP_VERSION_ID >= 80400) {
+            $responseHeaders = http_get_last_response_headers() ?? [];
+            http_clear_last_response_headers();
+        } else {
+            $responseHeaders = $http_response_header ?? [];
+        }
+
+        if (null !== $e) {
+            throw $e;
+        }
+
+        return $result;
     }
 
     protected function callbackGet(int $notificationCode, int $severity, ?string $message, int $messageCode, int $bytesTransferred, int $bytesMax)
     {
-        Remote::unsupported(self::class, 'callbackGet');
+        Rpc::call('rfs.callbackGet', [$this, $notificationCode, $severity, $message, $messageCode, $bytesTransferred, $bytesMax]);
     }
 
     protected function promptAuthAndRetry($httpStatus, ?string $reason = null, array $headers = [])
     {
-        Remote::unsupported(self::class, 'promptAuthAndRetry');
+        Rpc::call('rfs.promptAuthAndRetry', [$this, $httpStatus, $reason, $headers]);
     }
 
     protected function getOptionsForUrl(string $originUrl, array $additionalOptions)
     {
-        Remote::unsupported(self::class, 'getOptionsForUrl');
+        return Rpc::call('rfs.getOptionsForUrl', [$this, $originUrl, $additionalOptions]);
     }
 }

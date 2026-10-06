@@ -31,7 +31,8 @@ class CommandEvent extends \Composer\EventDispatcher\Event
     public function getInput(): \Symfony\Component\Console\Input\InputInterface
     {
         if ($this->input === null) {
-            \Maestro\Shim\Remote::unsupported(self::class, 'getInput');
+            // maestro's events always cross with their input.
+            throw new \Maestro\Shim\ProtocolException('maestro shim: the event has no input');
         }
 
         return $this->input;
@@ -40,7 +41,8 @@ class CommandEvent extends \Composer\EventDispatcher\Event
     public function getOutput(): \Symfony\Component\Console\Output\OutputInterface
     {
         if ($this->output === null) {
-            \Maestro\Shim\Remote::unsupported(self::class, 'getOutput');
+            // maestro's events always cross with their output.
+            throw new \Maestro\Shim\ProtocolException('maestro shim: the event has no output');
         }
 
         return $this->output;

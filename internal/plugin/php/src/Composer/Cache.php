@@ -11,7 +11,6 @@ namespace Composer;
 
 use Composer\IO\IOInterface;
 use Composer\Util\Filesystem;
-use Maestro\Shim\Remote;
 use Maestro\Shim\Rpc;
 
 class Cache
@@ -108,6 +107,7 @@ class Cache
 
     protected function getFinder()
     {
-        Remote::unsupported(self::class, 'getFinder');
+        // Composer's $this->root is getRoot().
+        return \Symfony\Component\Finder\Finder::create()->in($this->getRoot())->files();
     }
 }

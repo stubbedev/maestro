@@ -5,7 +5,8 @@
  * (docs/PLUGINS.md §4.7, §5.12). maestro's transactions (the
  * PRE_OPERATIONS_EXEC event's) cross with Composer's protected properties
  * filled ($operations, $presentPackages, $resultPackageMap, keyed by
- * spl_object_id as Composer keys it), so symfony/flex's Closure::bind
+ * spl_object_id as Composer keys it, $resultPackagesByName with the keys
+ * uasort() left), so symfony/flex's Closure::bind
  * into the class reads them; `new Transaction($present, $result)` computes
  * the operations with maestro's algorithm (transaction.new) and keeps
  * Composer's properties.
@@ -76,16 +77,41 @@ class Transaction
 
     protected function calculateOperations(): array
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\DependencyResolver\\Transaction::calculateOperations() in plugins yet');
+        // maestro's algorithm on maestro's transaction (every Transaction
+        // is one, new Transaction() included): new operation objects, as
+        // Composer's.
+        return Rpc::call('transaction.calculateOperations', [$this]);
     }
 
     protected function getProvidersInResult(\Composer\Package\Link $link): array
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\DependencyResolver\\Transaction::getProvidersInResult() in plugins yet');
+        if (!isset($this->resultPackagesByName[$link->getTarget()])) {
+            return [];
+        }
+
+        return $this->resultPackagesByName[$link->getTarget()];
     }
 
     protected function getRootPackages(): array
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\DependencyResolver\\Transaction::getRootPackages() in plugins yet');
+        $roots = $this->resultPackageMap;
+
+        foreach ($this->resultPackageMap as $packageHash => $package) {
+            if (!isset($roots[$packageHash])) {
+                continue;
+            }
+
+            foreach ($package->getRequires() as $link) {
+                $possibleRequires = $this->getProvidersInResult($link);
+
+                foreach ($possibleRequires as $require) {
+                    if ($require !== $package) {
+                        unset($roots[spl_object_id($require)]);
+                    }
+                }
+            }
+        }
+
+        return $roots;
     }
 }

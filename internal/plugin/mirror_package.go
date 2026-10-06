@@ -199,22 +199,26 @@ func (r *Runtime) packageObject(p pkg.PackageInterface) any {
 func (r *Runtime) lazyPackageList(packages []pkg.PackageInterface) *php.Array {
 	a := php.NewArrayCap(len(packages))
 	for _, p := range packages {
-		if p == nil {
-			a.Append(nil)
-
-			continue
-		}
-		_, root := p.(pkg.RootPackageInterface)
-		_, alias := p.(pkg.Alias)
-		a.Append(r.bridge.object(p, func() rpc.Object {
-			m := &packageMirror{r: r, p: p}
-			m.lazy.Store(!root && !alias)
-
-			return m
-		}))
+		a.Append(r.lazyPackage(p))
 	}
 
 	return a
+}
+
+// lazyPackage is one package of lazyPackageList (nil for nil).
+func (r *Runtime) lazyPackage(p pkg.PackageInterface) any {
+	if p == nil {
+		return nil
+	}
+	_, root := p.(pkg.RootPackageInterface)
+	_, alias := p.(pkg.Alias)
+
+	return r.bridge.object(p, func() rpc.Object {
+		m := &packageMirror{r: r, p: p}
+		m.lazy.Store(!root && !alias)
+
+		return m
+	})
 }
 
 // packageList returns packages as a PHP list of package objects.

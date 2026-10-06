@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
@@ -561,6 +562,11 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 	}
 
 	x = php.ArrayOf("class", class, "message", err.Error(), "code", int64(code))
+	if scope, props := exceptionProps(err); props != nil {
+		// The exception class's own properties, which the shim writes
+		// into the exception in the scope of the class declaring them.
+		x.Set("props", php.ArrayOf("scope", scope, "values", props))
+	}
 	// Composer's throw site (docs/PLUGINS.md §5.10): Symfony renders "In
 	// <file> line <n>:" from it.
 	if site, ok := phperr.SiteOf(err); ok {
@@ -626,4 +632,36 @@ func (c *Conn) decodeException(v any, depth int) (*PHPException, error) {
 	e.Extra, _ = x.Get("extra")
 
 	return e, nil
+}
+
+// exceptionProps are the properties of err's exception class beyond its
+// message, code and previous, and the class declaring them: a
+// TransportException's response headers, body and status code, a
+// JsonValidationException's errors. Only the error itself counts, not one
+// it wraps.
+func exceptionProps(err error) (string, *php.Array) {
+	var te *util.TransportError
+	switch e := err.(type) { //nolint:errorlint // only the error itself is the exception thrown.
+	case *util.TransportError:
+		te = e
+	case *util.MaxFileSizeExceededError:
+		te = e.TransportError
+	case *json.ValidationError:
+		return `Composer\Json\JsonValidationException`, php.ArrayOf("errors", php.StringList(e.Errors))
+	default:
+		return "", nil
+	}
+
+	var headers, response, status any
+	if te.Headers != nil {
+		headers = php.StringList(te.Headers)
+	}
+	if te.Response != nil {
+		response = *te.Response
+	}
+	if te.StatusCode != 0 {
+		status = int64(te.StatusCode)
+	}
+
+	return `Composer\Downloader\TransportException`, php.ArrayOf("headers", headers, "response", response, "statusCode", status)
 }
