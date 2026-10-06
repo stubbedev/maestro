@@ -221,9 +221,10 @@ type speculatedFile struct {
 	response         func() (int, string, bool)
 	versions         []*speculatedVersion
 	// json and data are the file decoded last, data until it is handed
-	// over
-	json string
-	data *php.Array
+	// over; store stores it in the decoded cache (nil: no need)
+	json  string
+	data  *php.Array
+	store func()
 }
 
 // requestFiles reads name's cached files and starts their requests.
@@ -256,14 +257,21 @@ func (s *speculation) load(name string, st *speculatedName, files []*speculatedF
 	// and offers the decoded file to the loads, after the versions were
 	// scanned (the next level's requests come first)
 	decode := func(f *speculatedFile, json string) {
-		f.json, f.data, f.versions = json, nil, nil
+		f.json, f.data, f.versions, f.store = json, nil, nil, nil
 		if json == "" || s.stopped.Load() {
 			return
 		}
 		s.slots <- struct{}{}
 		defer func() { <-s.slots }()
 
-		if f.data = decodeArray(json); f.data != nil {
+		if json == f.cached {
+			// the decoded file is stored once handed over, after the
+			// next level's requests
+			f.data, f.store = s.r.decodeCached(f.cacheKey, json)
+		} else {
+			f.data = decodeArray(json)
+		}
+		if f.data != nil {
 			f.versions = s.versionsOf(name, f.data)
 		}
 	}
@@ -275,6 +283,10 @@ func (s *speculation) load(name string, st *speculatedName, files []*speculatedF
 		defer func() { <-s.slots }()
 
 		pre := s.prebuild(name, f.data, f.versions)
+		if f.store != nil {
+			f.store()
+			f.store = nil
+		}
 		s.r.decoded.rememberSlim(f.cacheKey, f.json, f.data)
 		s.r.decoded.offer(s.gen, f.cacheKey, f.json, f.data, pre)
 		f.data = nil
