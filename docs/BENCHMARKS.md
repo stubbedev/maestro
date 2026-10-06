@@ -73,6 +73,57 @@ listener might change the request, credentials are stored for the host,
 or on Windows. An update has no such window (the downloads start within
 10 ms of the solver result), so it is unchanged.
 
+## update --dry-run: p2 files kept decoded between runs (#22, 2026-10-06)
+
+Same machine and projects as #17 below (`update --dry-run --no-plugins
+--no-scripts -q`, COMPOSER_TEST_SUITE=1, the binaries run interleaved
+round by round, medians). Other agents' test suites kept the load at
+5-35 for the whole session, so the wall times are noisy; the CPU times
+(user + system) are steadier. "before" is f39b3ea, "after" this change.
+*offline*: warm caches with COMPOSER_DISABLE_NETWORK=1.
+
+| Project | Cache | Composer | maestro before | maestro after | CPU before → after |
+|---|---|---:|---:|---:|---:|
+| laravel | offline (20 rounds, load 5-8) | | 276 ms | 253 ms | 1167 → 989 ms |
+| laravel | offline (20 rounds, load 15) | | 381 ms | 319 ms | 1169 → 968 ms |
+| laravel | warm (15 rounds, load 22-29) | 2.79 s | 448-622 ms | 428-600 ms | 1221-1255 → 1026-1062 ms |
+| laravel | cold (10 rounds, load 15) | | 609 ms | 606 ms | 1443 → 1433 ms |
+| symfony | offline (12 rounds, load 16) | | 846 ms | 848 ms | 3753 → 3597 ms |
+| symfony | warm (10 rounds, load 22) | 7.70 s | 731 ms | 712 ms | 2897 → 2556 ms |
+| symfony | cold (6 rounds, load 15) | | 932 ms | 968 ms | 3371 → 3483 ms |
+
+What changed (deliberate deviation 3; normal output identical, checked
+offline and online on both projects, and the e2e update, require-remove,
+laravel, symfony, security, outdated, plugin-download-events,
+plugin-merge and plugin-flex scenarios pass):
+
+- **Decoded p2 files are cached.** A profile of the offline laravel run
+  put `json_decode` of p2 files at ~330 ms of ~1.18 s CPU. The cached
+  metadata files are now also kept decoded, in maestro's cache directory
+  (`p2/v1`, one slot per repository and file name), in a binary form
+  (`php.AppendBinary`): each string is stored and allocated once, arrays
+  are built at their final size and indexed once. Reading laravel/
+  framework's file back takes 3.1 ms against 7.5 ms for `json_decode`
+  (5x fewer allocations). A slot holds a copy of the JSON it was decoded
+  from and is read back only for that exact JSON: comparing the copy costs
+  ~0.1 ms per MB, where SHA-256 cost ~70 ms per run on this CPU (no SHA
+  extensions). The result is the array decoding gives, internal state
+  included (`TestDecodedCacheEqualsDecoding` over the p2 fixtures and all
+  cached Packagist files). A miss decodes the JSON and stores the slot
+  after the speculation sent the next level's requests; storing it
+  before them made the cold laravel run ~40 ms slower. The slots take
+  about twice the JSON's size (17 MB for laravel).
+- **The IO authentication store has a lock.** It was only safe while
+  every write happened under the downloader's lock; the prefetches read
+  it from other goroutines while a plugin or a credentials prompt may
+  write it on the main one. `BaseIO` now guards it with a read-write lock.
+
+Not done: the profile's other large items. Expanding minified versions
+runs three times per file (the speculation's version scan, its prebuild,
+the load) for ~190 ms CPU; the loads still decode (now from the cache)
+files the speculation has not handed over yet (~50 ms); GC is ~20%. The
+pool builder's first wave waits ~45 ms for laravel/framework's file.
+
 ## Store-backed git sources (issue #18, 2026-10-06)
 
 Machine as below, btrfs, git 2.55.0, the user's git configuration (index

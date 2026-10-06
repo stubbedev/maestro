@@ -579,7 +579,10 @@ func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames [
 			d.contents = r.decoded.take(d.cacheKey, contents)
 		}
 		if d.contents == nil {
-			d.contents = decodeArray(contents)
+			var store func()
+			if d.contents, store = r.decodeCached(d.cacheKey, contents); store != nil {
+				store()
+			}
 			if !slim {
 				r.decoded.rememberSlim(d.cacheKey, contents, d.contents)
 			}

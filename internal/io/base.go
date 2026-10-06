@@ -5,6 +5,7 @@ package io
 import (
 	"errors"
 	"strconv"
+	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
 )
@@ -19,8 +20,14 @@ type writer interface {
 // BaseIO holds the authentication store and the logger and configuration
 // code shared by the IO implementations. Embedders call init with
 // themselves so that writes reach their overrides.
+//
+// The store has its own lock: PHP has one thread, but here the metadata
+// prefetches and the speculated loads (internal/repository/composerrepo)
+// read credentials from other goroutines while the main one may store
+// them (a plugin, or a prompt for credentials, during the pool build).
 type BaseIO struct {
 	self  writer
+	mu    sync.RWMutex
 	names []string
 	auths map[string]Authentication
 }
@@ -29,6 +36,9 @@ func (b *BaseIO) init(self writer) { b.self = self }
 
 // Authentications returns the stored authentications in insertion order.
 func (b *BaseIO) Authentications() []RepositoryAuthentication {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
 	out := make([]RepositoryAuthentication, len(b.names))
 	for i, n := range b.names {
 		out[i] = RepositoryAuthentication{Repository: n, Authentication: b.auths[n]}
@@ -39,6 +49,9 @@ func (b *BaseIO) Authentications() []RepositoryAuthentication {
 
 // ResetAuthentications empties the authentication store.
 func (b *BaseIO) ResetAuthentications() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	b.names = nil
 	b.auths = nil
 }
@@ -46,6 +59,9 @@ func (b *BaseIO) ResetAuthentications() {
 // HasAuthentication reports whether credentials are stored for the
 // repository.
 func (b *BaseIO) HasAuthentication(repositoryName string) bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
 	_, ok := b.auths[repositoryName]
 
 	return ok
@@ -54,11 +70,17 @@ func (b *BaseIO) HasAuthentication(repositoryName string) bool {
 // Authentication returns the stored credentials, or a nil username and
 // password.
 func (b *BaseIO) Authentication(repositoryName string) Authentication {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
 	return b.auths[repositoryName]
 }
 
 // SetAuthentication stores credentials for the repository.
 func (b *BaseIO) SetAuthentication(repositoryName, username string, password *string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if b.auths == nil {
 		b.auths = map[string]Authentication{}
 	}
