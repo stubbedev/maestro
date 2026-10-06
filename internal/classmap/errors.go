@@ -2,8 +2,6 @@
 
 package classmap
 
-import "github.com/stubbedev/maestro/internal/phperr"
-
 // Exception is an exception thrown by the ported PHP code. Class is the
 // fully qualified name of the PHP exception class, which Composer prints
 // when it renders an uncaught exception; Message is its exact message.
@@ -13,7 +11,6 @@ type Exception struct {
 	// Prev is the $previous exception (not unwrapped, as PHP's catch
 	// does not look at it).
 	Prev error
-	phperr.Site
 }
 
 func (e *Exception) Error() string { return e.Message }
@@ -46,6 +43,6 @@ const (
 	classOutOfBounds       = "OutOfBoundsException"
 )
 
-func newException(site phperr.Site, class, message string) *Exception {
-	return &Exception{Class: class, Message: message, Site: site}
+func newException(class, message string) *Exception {
+	return &Exception{Class: class, Message: message}
 }
