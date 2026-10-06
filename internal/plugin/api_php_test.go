@@ -52,7 +52,7 @@ type project struct {
 	stdout  *os.File
 }
 
-func newProject(t *testing.T, fixture string, verbosity int) *project {
+func newProject(t *testing.T, fixture string, verbosity int, configure ...func(*Options)) *project {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -78,7 +78,11 @@ func newProject(t *testing.T, fixture string, verbosity int) *project {
 	t.Cleanup(func() { stdout.Close() })
 
 	f := &composer.Factory{Runtime: composer.NewRuntime("test", nil)}
-	rt, err := Setup(f, Options{CacheDir: filepath.Join(home, "cache"), Args: []string{"maestro", "install"}, Stdout: stdout, Stderr: stdout})
+	opts := Options{CacheDir: filepath.Join(home, "cache"), Args: []string{"maestro", "install"}, Stdout: stdout, Stderr: stdout}
+	for _, c := range configure {
+		c(&opts)
+	}
+	rt, err := Setup(f, opts)
 	if err != nil {
 		t.Fatal(err)
 	}

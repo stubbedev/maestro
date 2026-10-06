@@ -8,7 +8,7 @@ return array(
     'classmap' => array(
         'Attribute' => 'lib/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'CURLStringFile' => 'lib/symfony/polyfill-php81/Resources/stubs/CURLStringFile.php',
-        'Composer\\Advisory\\AuditConfig' => 'stubs/Composer/Advisory/AuditConfig.php',
+        'Composer\\Advisory\\AuditConfig' => 'src/Composer/Advisory/AuditConfig.php',
         'Composer\\Advisory\\Auditor' => 'stubs/Composer/Advisory/Auditor.php',
         'Composer\\Advisory\\IgnoredSecurityAdvisory' => 'stubs/Composer/Advisory/IgnoredSecurityAdvisory.php',
         'Composer\\Advisory\\PartialSecurityAdvisory' => 'stubs/Composer/Advisory/PartialSecurityAdvisory.php',
@@ -518,6 +518,7 @@ return array(
         'MabeEnum\\EnumSerializableTrait' => 'lib/marc-mabe/php-enum/src/EnumSerializableTrait.php',
         'MabeEnum\\EnumSet' => 'lib/marc-mabe/php-enum/src/EnumSet.php',
         'Maestro\\Shim\\Adapter\\ApplicationAdapter' => 'src/Maestro/Shim/Adapter/ApplicationAdapter.php',
+        'Maestro\\Shim\\Adapter\\AuditConfigAdapter' => 'src/Maestro/Shim/Adapter/AuditConfigAdapter.php',
         'Maestro\\Shim\\Adapter\\CommandAdapter' => 'src/Maestro/Shim/Adapter/CommandAdapter.php',
         'Maestro\\Shim\\Adapter\\EventAdapter' => 'src/Maestro/Shim/Adapter/EventAdapter.php',
         'Maestro\\Shim\\Adapter\\IOAdapter' => 'src/Maestro/Shim/Adapter/IOAdapter.php',

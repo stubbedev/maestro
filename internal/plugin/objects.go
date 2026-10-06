@@ -7,6 +7,7 @@ package plugin
 import (
 	"sync"
 
+	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
@@ -137,6 +138,8 @@ func (r *Runtime) value(v any) any {
 		return r.serviceObject(v, classInstallationManager)
 	case io.IO:
 		return r.ioObject(v)
+	case *advisory.AuditConfig:
+		return r.auditConfigObject(v)
 	case eventdispatcher.Event:
 		return r.eventObject(v)
 	case operation.Operation:

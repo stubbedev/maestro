@@ -192,10 +192,10 @@ func (r *Runtime) installerProps(s composer.InstallerState) (*php.Array, error) 
 	}
 	var auditConfig, policyConfig any
 	if s.AuditConfig != nil {
-		auditConfig = r.serviceObject(s.AuditConfig, `Composer\Advisory\AuditConfig`)
+		auditConfig = r.auditConfigObject(s.AuditConfig)
 	}
 	if s.PolicyConfig != nil {
-		policyConfig = r.serviceObject(s.PolicyConfig, `Composer\Policy\PolicyConfig`)
+		policyConfig = r.serviceObject(s.PolicyConfig, classPolicyConfig)
 	}
 	var reporter any
 	if s.SuggestedPackagesReporter != nil {

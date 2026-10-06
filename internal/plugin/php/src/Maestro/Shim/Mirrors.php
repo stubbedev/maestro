@@ -180,6 +180,11 @@ final class Mirrors
     public static function registered($object, int $h): void
     {
         self::$revs[$h] = 0;
+        // A PHP-born object of a polled family (an AuditConfig) is polled
+        // from now on, as the ones maestro built are.
+        if (self::adapterOf($object) instanceof PolledMirrorAdapter) {
+            self::$polled[spl_object_id($object)] = $object;
+        }
     }
 
     /**

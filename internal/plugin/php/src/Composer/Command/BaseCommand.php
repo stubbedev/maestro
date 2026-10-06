@@ -41,7 +41,15 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function createAuditConfig(\Symfony\Component\Console\Input\InputInterface $input): \Composer\Advisory\AuditConfig
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::createAuditConfig() in plugins yet');
+        // Handle both --audit and --no-audit flags
+        if ($input->hasOption('audit')) {
+            $audit = (bool) $input->getOption('audit');
+        } else {
+            $audit = !($input->hasOption('no-audit') && $input->getOption('no-audit'));
+        }
+        $auditFormat = $input->hasOption('audit-format') ? $this->getAuditFormat($input) : \Composer\Advisory\Auditor::FORMAT_SUMMARY;
+
+        return new \Composer\Advisory\AuditConfig($audit, $auditFormat);
     }
 
     protected function createComposerInstance(\Symfony\Component\Console\Input\InputInterface $input, \Composer\IO\IOInterface $io, $config = null, ?bool $disablePlugins = null, ?bool $disableScripts = null): \Composer\Composer
@@ -62,7 +70,21 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function createPolicyConfig(\Composer\Config $config, ?\Symfony\Component\Console\Input\InputInterface $input): \Composer\Policy\PolicyConfig
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::createPolicyConfig() in plugins yet');
+        // PolicyConfig::fromConfig($config): maestro's (policy.*), for
+        // Installer::setPolicyConfig().
+        $policyConfig = \Maestro\Shim\Rpc::call('policy.fromConfig', [$config]);
+
+        // --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + custom)
+        $noBlocking = \Composer\Util\Platform::getBoolEnv('COMPOSER_NO_BLOCKING', false)
+            || \Composer\Util\Platform::getBoolEnv('COMPOSER_NO_SECURITY_BLOCKING', false)
+            || ($input !== null && $input->hasOption('no-security-blocking') && $input->getOption('no-security-blocking'))
+            || ($input !== null && $input->hasOption('no-blocking') && $input->getOption('no-blocking'));
+
+        if ($noBlocking) {
+            $policyConfig = \Maestro\Shim\Rpc::call('policy.withBlockingDisabled', [$policyConfig]);
+        }
+
+        return $policyConfig;
     }
 
     protected function formatRequirements(array $requirements)
@@ -91,7 +113,16 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function getAuditFormat(\Symfony\Component\Console\Input\InputInterface $input, string $optName = 'audit-format'): string
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::getAuditFormat() in plugins yet');
+        if (!$input->hasOption($optName)) {
+            throw new \LogicException('This should not be called on a Command which has no '.$optName.' option defined.');
+        }
+
+        $val = $input->getOption($optName);
+        if (!in_array($val, \Composer\Advisory\Auditor::FORMATS, true)) {
+            throw new \InvalidArgumentException('--'.$optName.' must be one of '.implode(', ', \Composer\Advisory\Auditor::FORMATS).'.');
+        }
+
+        return $val;
     }
 
     public function getComposer(bool $required = true, ?bool $disablePlugins = null, ?bool $disableScripts = null)
@@ -119,7 +150,20 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function getPlatformRequirementFilter(\Symfony\Component\Console\Input\InputInterface $input): \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseCommand::getPlatformRequirementFilter() in plugins yet');
+        if (!$input->hasOption('ignore-platform-reqs') || !$input->hasOption('ignore-platform-req')) {
+            throw new \LogicException('Calling getPlatformRequirementFilter from a command which does not define the --ignore-platform-req[s] flags is not permitted.');
+        }
+
+        if (true === $input->getOption('ignore-platform-reqs')) {
+            return \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory::ignoreAll();
+        }
+
+        $ignores = $input->getOption('ignore-platform-req');
+        if (count($ignores) > 0) {
+            return \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory::fromBoolOrList($ignores);
+        }
+
+        return \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory::ignoreNothing();
     }
 
     protected function getPreferredInstallOptions(\Composer\Config $config, \Symfony\Component\Console\Input\InputInterface $input, bool $keepVcsRequiresPreferSource = false)
