@@ -142,7 +142,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"run-script", "process-timeout"}},
 				// Composer's ErrorHandler reports through the IO.
 				{args: []string{"run-script", "deprecation"}},
-				{args: []string{"run-script", "deprecation", "-v"}, normalize: normalizeComposerTrace},
+				{args: []string{"run-script", "deprecation", "-v"}},
 				// A Symfony command class as a script, in its own Application.
 				{args: []string{"run-script", "hello-command"}},
 				{args: []string{"run-script", "hello-command", "--", "you", "--shout"}},
@@ -679,15 +679,13 @@ var composerRoot = regexp.MustCompile(`phar://\S+?(?:\.phar|[/\\]maestro(?:\.exe
 
 // pharMain is the outermost frame of Composer's trace: the phar's stub
 // requiring bin/composer, whose require() call is a line before the one of
-// Composer's source tree that maestro names (as its errors oracle does). An
-// exception trace names the frame's function, the "Stack trace:" of
-// ErrorHandler at -v (a deprecation notice) only its file and line.
-var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:|^ @COMPOSER@/bin/composer:)11[23]\r?\n(?: require\(\) at \S+\.phar:\d+\r?\n| \S+\.phar:\d+\r?\n)?`)
+// Composer's source tree that maestro names (as its errors oracle does).
+var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:)11[23]\r?\n(?: require\(\) at \S+\.phar:\d+\r?\n)?`)
 
-// normalizeComposerTrace keeps the frames of exception traces and of
-// ErrorHandler's stack traces (docs/PLUGINS.md §5.12: maestro completes
-// them with Composer's frames) and reads Composer's root as @COMPOSER@ for
-// both tools, the phar's stub frame left out.
+// normalizeComposerTrace keeps the frames of exception traces
+// (docs/PLUGINS.md §5.12: maestro completes them with Composer's frames)
+// and reads Composer's root as @COMPOSER@ for both tools, the phar's stub
+// frame left out.
 func normalizeComposerTrace(s string) string {
 	return pharMain.ReplaceAllString(composerRoot.ReplaceAllString(s, "@COMPOSER@/$1/"), "${1}N\n")
 }

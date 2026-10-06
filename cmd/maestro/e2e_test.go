@@ -18,7 +18,8 @@
 //   - the exit code;
 //   - stdout and stderr, after the normalisations below; where Composer
 //     rendered an exception on stderr, its rendering is compared by the
-//     messages it reports (compareStderr);
+//     messages it reports, and its deprecation notices by their texts
+//     (compareStderr);
 //   - every file under the scenario root except the two caches: the project
 //     (composer.json, composer.lock byte for byte, the whole vendor/ tree,
 //     files scripts wrote), COMPOSER_HOME and any other directory a step
@@ -601,9 +602,21 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 // exception and its previous ones (testutil.ErrorRendering, compared
 // without whitespace); the boxes, classes, "In File.php line N:" headings,
 // "Exception trace:" stacks and the command synopsis after them are not
-// compared. Any other stderr is compared as it is.
+// compared. The hints Composer writes just before the rendering
+// (composerHints) are part of maestro's error, as many "Hint: " lines in
+// maestro's wording. Deprecation notices are free as well: each one Composer
+// printed (and its note that more were hidden) must be reported by a line
+// of maestro's (testutil.ComposerNotices, RemoveNotices), in the same
+// order; their locations and stack traces are not compared. Any other
+// stderr is compared as it is.
 func compareStderr(t *testing.T, label, want, got string) {
 	t.Helper()
+
+	notices, want := testutil.ComposerNotices(want)
+	got, missing := testutil.RemoveNotices(got, notices)
+	for _, n := range missing {
+		t.Errorf("%s: stderr does not report Composer's deprecation notice %q", label, n)
+	}
 
 	messages, start := testutil.ErrorRendering(want)
 	if len(messages) == 0 {
@@ -614,7 +627,10 @@ func compareStderr(t *testing.T, label, want, got string) {
 		return
 	}
 
-	head := want[:start]
+	head, hints := composerHints(want[:start])
+	if hints > 0 && strings.Count(got, "Hint: ") < hints {
+		t.Errorf("%s: stderr does not report Composer's %d hint(s) about the error:\n%s", label, hints, got)
+	}
 	if !strings.HasPrefix(got, head) {
 		gotHead := got
 		if n := strings.Count(head, "\n"); n < strings.Count(got, "\n") {
@@ -632,6 +648,32 @@ func compareStderr(t *testing.T, label, want, got string) {
 			t.Errorf("%s: stderr does not report Composer's error %q:\n%s", label, m, got)
 		}
 	}
+}
+
+// composerHint matches a line of Application::hintCommonErrors (and
+// HttpDownloader::getExceptionHints) that Composer writes before rendering
+// an exception. maestro reports them with the error as hints ("Hint: "),
+// in its own wording (#13).
+var composerHint = regexp.MustCompile(`^(?:The following exception |The disk hosting |Check https://getcomposer\.org/|Plugins have been disabled|If you intend to run Composer without connecting to the internet)`)
+
+// composerHints removes the hint lines that end what Composer wrote
+// before an error's rendering, returning the rest and how many hints there
+// were (a "Check ... for details" line counts with the hint it follows).
+func composerHints(head string) (rest string, hints int) {
+	lines := strings.SplitAfter(head, "\n")
+	end := len(lines)
+	if end > 0 && lines[end-1] == "" {
+		end--
+	}
+	n := end
+	for n > 0 && composerHint.MatchString(lines[n-1]) {
+		if !strings.HasPrefix(lines[n-1], "Check ") {
+			hints++
+		}
+		n--
+	}
+
+	return strings.Join(lines[:n], ""), hints
 }
 
 // lineEnd is the byte offset just after the n-th "\n" of s.
