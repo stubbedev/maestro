@@ -312,6 +312,39 @@ func (r *Runtime) registerRunInstaller() {
 		return php.ArrayOf("code", int64(code), "lockTransaction", tx), nil
 	})
 
+	// The protected doUpdate() and doInstall() (a subclass's parent
+	// call): the phase alone, on a maestro Installer built from the PHP
+	// Installer's properties as run() builds one.
+	phase := func(name string, fn func(inst *composer.Installer, localRepo repository.InstalledRepositoryInterface, flag bool) (int, error)) {
+		r.Handle("installer."+name, func(v any) (any, error) {
+			a := argsOf("installer."+name, v)
+			inst, err := r.newInstallerFromSettings(a)
+			if err != nil {
+				return nil, err
+			}
+			repo, err := goRepositoryParam(a, 1)
+			if err != nil {
+				return nil, err
+			}
+			localRepo, ok := repo.(repository.InstalledRepositoryInterface)
+			if !ok {
+				return nil, a.errorf("param 1 is not an installed repository")
+			}
+			code, err := fn(inst, localRepo, a.boolean(2))
+			if err != nil {
+				return nil, err
+			}
+			var tx any
+			if lt := inst.LockTransaction(); lt != nil {
+				tx = r.value(lt)
+			}
+
+			return php.ArrayOf("code", int64(code), "lockTransaction", tx), nil
+		})
+	}
+	phase("doUpdate", (*composer.Installer).DoUpdate)
+	phase("doInstall", (*composer.Installer).DoInstall)
+
 	r.Handle("suggested.new", func(v any) (any, error) {
 		a := argsOf("suggested.new", v)
 		out, _, err := r.ioParam(a, 1)

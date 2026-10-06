@@ -111,25 +111,43 @@ class Installer
             throw new \RuntimeException("The installer options updateMirrors and updateAllowList are mutually exclusive.");
         }
 
-        $settings = [];
-        foreach (get_object_vars($this) as $name => $value) {
-            $settings[$name] = $value;
-        }
-        $settings['platformRequirementFilter'] = ServiceAdapter::describeFilter($this->platformRequirementFilter);
-        $result = Rpc::call('installer.run', [$settings]);
+        $result = Rpc::call('installer.run', [$this->maestroSettings()]);
         $this->lockTransaction = $result['lockTransaction'];
 
         return $result['code'];
     }
 
+    /**
+     * The properties maestro builds its Installer from.
+     *
+     * @return array<string, mixed>
+     */
+    private function maestroSettings(): array
+    {
+        $settings = [];
+        foreach (get_object_vars($this) as $name => $value) {
+            $settings[$name] = $value;
+        }
+        $settings['platformRequirementFilter'] = ServiceAdapter::describeFilter($this->platformRequirementFilter);
+
+        return $settings;
+    }
+
     protected function doUpdate(\Composer\Repository\InstalledRepositoryInterface $localRepo, bool $doInstall): int
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer::doUpdate() in plugins yet');
+        // The update alone, without run()'s steps around it, on a maestro
+        // Installer built from these properties, as run() builds one.
+        $result = Rpc::call('installer.doUpdate', [$this->maestroSettings(), $localRepo, $doInstall]);
+        $this->lockTransaction = $result['lockTransaction'];
+
+        return $result['code'];
     }
 
     protected function doInstall(\Composer\Repository\InstalledRepositoryInterface $localRepo, bool $alreadySolved = false): int
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer::doInstall() in plugins yet');
+        $result = Rpc::call('installer.doInstall', [$this->maestroSettings(), $localRepo, $alreadySolved]);
+
+        return $result['code'];
     }
 
     protected function extractDevPackages(LockTransaction $lockTransaction, \Composer\Repository\PlatformRepository $platformRepo, array $aliases, \Composer\DependencyResolver\PolicyInterface $policy, ?\Composer\Repository\LockArrayRepository $lockedRepository = null): int
