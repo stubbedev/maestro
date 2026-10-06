@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/json"
@@ -41,10 +42,10 @@ type fallback func(config *php.Array, args []any) error
 
 // AddRepository ports JsonConfigSource::addRepository.
 func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo bool) error {
-	return s.manipulateJSON("addRepository", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("addRepository", 62, "addRepository", func(cfg *php.Array, args []any) error {
 		repo := arg(args, 0)
 		repoConfig := arg(args, 1)
-		if err := convertRepositoriesToList(cfg); err != nil {
+		if err := convertRepositoriesToList(cfg, 63); err != nil {
 			return err
 		}
 
@@ -68,7 +69,7 @@ func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo boo
 				cfg.Set("repositories", php.NewArray())
 			}
 
-			list, err := child(cfg, "repositories")
+			list, err := child(cfg, "repositories", 103)
 			if err != nil {
 				return err
 			}
@@ -82,7 +83,7 @@ func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo boo
 		}
 
 		// ensure uniqueness by removing any existing entries which use the same name
-		filtered, err := filterRepositoriesByName(cfg, repo)
+		filtered, err := filterRepositoriesByName(cfg, repo, 113)
 		if err != nil {
 			return err
 		}
@@ -99,17 +100,17 @@ func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo boo
 
 // InsertRepository ports JsonConfigSource::insertRepository.
 func (s *JSONConfigSource) InsertRepository(name string, config any, referenceName string, offset int) error {
-	return s.manipulateJSON("insertRepository", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("insertRepository", 130, "insertRepository", func(cfg *php.Array, args []any) error {
 		name := arg(args, 0)
 		repoConfig := arg(args, 1)
 		referenceName := arg(args, 2)
 		offset := php.ToInt(arg(args, 3))
-		if err := convertRepositoriesToList(cfg); err != nil {
+		if err := convertRepositoriesToList(cfg, 131); err != nil {
 			return err
 		}
 
 		// ensure uniqueness by removing any existing entries which use the same name
-		repos, err := filterRepositoriesByName(cfg, name)
+		repos, err := filterRepositoriesByName(cfg, name, 153)
 		if err != nil {
 			return err
 		}
@@ -140,7 +141,7 @@ func (s *JSONConfigSource) InsertRepository(name string, config any, referenceNa
 
 // SetRepositoryURL ports JsonConfigSource::setRepositoryUrl.
 func (s *JSONConfigSource) SetRepositoryURL(name, url string) error {
-	return s.manipulateJSON("setRepositoryUrl", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("setRepositoryUrl", 188, "setRepositoryUrl", func(cfg *php.Array, args []any) error {
 		name := arg(args, 0)
 		url := arg(args, 1)
 		repos, _ := cfg.Get("repositories")
@@ -150,11 +151,14 @@ func (s *JSONConfigSource) SetRepositoryURL(name, url string) error {
 				return nil
 			}
 
-			return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + zvalName(repos) + " given"}
+			return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + zvalName(repos) + " given", Site: phperr.At(jsonConfigSourceFile, 189)}
 		}
 		for index, repository := range list.All() {
-			if php.StrictEquals(name, index.Value()) || php.StrictEquals(name, repoName(repository)) {
-				return setIn(cfg, url, "repositories", index.Value(), "url")
+			if php.StrictEquals(name, index.Value()) {
+				return setIn(191, cfg, url, "repositories", index.Value(), "url")
+			}
+			if php.StrictEquals(name, repoName(repository)) {
+				return setIn(197, cfg, url, "repositories", index.Value(), "url")
 			}
 		}
 
@@ -164,14 +168,14 @@ func (s *JSONConfigSource) SetRepositoryURL(name, url string) error {
 
 // RemoveRepository ports JsonConfigSource::removeRepository.
 func (s *JSONConfigSource) RemoveRepository(name string) error {
-	return s.manipulateJSON("removeRepository", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("removeRepository", 210, "removeRepository", func(cfg *php.Array, args []any) error {
 		repo := arg(args, 0)
 		if getIn(cfg, "repositories", repo) != nil {
-			if err := unsetIn(cfg, "repositories", repo); err != nil {
+			if err := unsetIn(212, cfg, "repositories", repo); err != nil {
 				return err
 			}
 		} else {
-			filtered, err := filterRepositoriesByName(cfg, repo)
+			filtered, err := filterRepositoriesByName(cfg, repo, 214)
 			if err != nil {
 				return err
 			}
@@ -192,7 +196,7 @@ var authSettingPattern = php.MustCompile(`{^(bitbucket-oauth|github-oauth|gitlab
 func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 	authConfig := s.authConfig
 
-	return s.manipulateJSON("addConfigSetting", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("addConfigSetting", 231, "addConfigSetting", func(cfg *php.Array, args []any) error {
 		key := php.ToString(arg(args, 0))
 		val := arg(args, 1)
 		if m, err := authSettingPattern.IsMatch(key); err != nil {
@@ -200,10 +204,10 @@ func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 		} else if m {
 			key, host, _ := strings.Cut(key, ".")
 			if authConfig {
-				return setIn(cfg, val, key, host)
+				return setIn(235, cfg, val, key, host)
 			}
 
-			return setIn(cfg, val, "config", key, host)
+			return setIn(237, cfg, val, "config", key, host)
 		}
 
 		if strings.HasPrefix(key, "policy.") {
@@ -227,7 +231,7 @@ func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 			return nil
 		}
 
-		return setIn(cfg, val, "config", key)
+		return setIn(255, cfg, val, "config", key)
 	}, name, value)
 }
 
@@ -235,17 +239,17 @@ func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 func (s *JSONConfigSource) RemoveConfigSetting(name string) error {
 	authConfig := s.authConfig
 
-	return s.manipulateJSON("removeConfigSetting", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("removeConfigSetting", 266, "removeConfigSetting", func(cfg *php.Array, args []any) error {
 		key := php.ToString(arg(args, 0))
 		if m, err := authSettingPattern.IsMatch(key); err != nil {
 			return err
 		} else if m {
 			key, host, _ := strings.Cut(key, ".")
 			if authConfig {
-				return unsetIn(cfg, key, host)
+				return unsetIn(270, cfg, key, host)
 			}
 
-			return unsetIn(cfg, "config", key, host)
+			return unsetIn(272, cfg, "config", key, host)
 		}
 
 		if strings.HasPrefix(key, "policy.") {
@@ -294,13 +298,13 @@ func (s *JSONConfigSource) RemoveConfigSetting(name string) error {
 			return nil
 		}
 
-		return unsetIn(cfg, "config", key)
+		return unsetIn(308, cfg, "config", key)
 	}, name)
 }
 
 // AddProperty ports JsonConfigSource::addProperty.
 func (s *JSONConfigSource) AddProperty(name string, value any) error {
-	return s.manipulateJSON("addProperty", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("addProperty", 318, "addProperty", func(cfg *php.Array, args []any) error {
 		key := php.ToString(arg(args, 0))
 		val := arg(args, 1)
 		if !strings.HasPrefix(key, "extra.") && !strings.HasPrefix(key, "scripts.") {
@@ -313,15 +317,25 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 		last := bits[len(bits)-1]
 		bits = bits[:len(bits)-1]
 		// $arr = &$config[reset($bits)], then every bit, the first one
-		// included, below it
-		arr, err := referenceArray(cfg, bits[0])
+		// included, below it: the reference is holder[hkey]
+		holder, hkey := cfg, any(bits[0])
+		for _, bit := range bits {
+			v, _ := holder.Get(hkey)
+			// if (!isset($arr[$bit])) { $arr[$bit] = []; }
+			if a, ok := v.(*php.Array); !ok || getIn(a, bit) == nil {
+				arr, err := child(holder, hkey, 325)
+				if err != nil {
+					return err
+				}
+				arr.Set(bit, php.NewArray())
+				v = arr
+			}
+			// $arr = &$arr[$bit]
+			holder, hkey = v.(*php.Array), bit
+		}
+		arr, err := child(holder, hkey, 329)
 		if err != nil {
 			return err
-		}
-		for _, bit := range bits {
-			if arr, err = child(arr, bit); err != nil {
-				return err
-			}
 		}
 		arr.Set(last, val)
 
@@ -331,7 +345,7 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 
 // RemoveProperty ports JsonConfigSource::removeProperty.
 func (s *JSONConfigSource) RemoveProperty(name string) error {
-	return s.manipulateJSON("removeProperty", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("removeProperty", 341, "removeProperty", func(cfg *php.Array, args []any) error {
 		key := php.ToString(arg(args, 0))
 		lower := php.Strtolower(key)
 		if !strings.HasPrefix(key, "extra.") && !strings.HasPrefix(key, "scripts.") && !strings.HasPrefix(lower, "autoload.") && !strings.HasPrefix(lower, "autoload-dev.") {
@@ -364,33 +378,37 @@ func (s *JSONConfigSource) RemoveProperty(name string) error {
 			cur = next
 		}
 
-		return unsetIn(php.ArrayOf("v", cur), "v", last)
+		return unsetIn(352, php.ArrayOf("v", cur), "v", last)
 	}, name)
 }
 
 // AddLink ports JsonConfigSource::addLink.
 func (s *JSONConfigSource) AddLink(typ, name, value string) error {
-	return s.manipulateJSON("addLink", func(cfg *php.Array, args []any) error {
-		return setIn(cfg, arg(args, 2), arg(args, 0), arg(args, 1))
+	return s.manipulateJSON("addLink", 364, "addLink", func(cfg *php.Array, args []any) error {
+		return setIn(365, cfg, arg(args, 2), arg(args, 0), arg(args, 1))
 	}, typ, name, value)
 }
 
 // RemoveLink ports JsonConfigSource::removeLink.
 func (s *JSONConfigSource) RemoveLink(typ, name string) error {
-	err := s.manipulateJSON("removeSubNode", func(cfg *php.Array, args []any) error {
-		return unsetIn(cfg, arg(args, 0), arg(args, 1))
+	err := s.manipulateJSON("removeLink", 374, "removeSubNode", func(cfg *php.Array, args []any) error {
+		return unsetIn(375, cfg, arg(args, 0), arg(args, 1))
 	}, typ, name)
 	if err != nil {
 		return err
 	}
 
-	return s.manipulateJSON("removeMainKeyIfEmpty", func(cfg *php.Array, args []any) error {
+	return s.manipulateJSON("removeLink", 377, "removeMainKeyIfEmpty", func(cfg *php.Array, args []any) error {
 		typ := arg(args, 0)
-		v, _ := cfg.Get(typ)
+		v, set := cfg.Get(typ)
+		if !set {
+			// $config[$type] read without isset: the warning comes first
+			return &util.ErrorException{Message: "Undefined array key " + undefinedKey(typ), Site: phperr.At(jsonConfigSourceFile, 378)}
+		}
 		a, ok := v.(*php.Array)
 		if !ok {
 			return (&php.EngineError{Class: "TypeError", Message: "count(): Argument #1 ($value) must be of type Countable|array, " + php.ZvalValueName(v) + " given"}).
-				Raised("count", "JsonConfigSource.php", 378)
+				Raised("count", jsonConfigSourceFile, 378)
 		}
 		if a.Len() == 0 {
 			cfg.Delete(typ)
@@ -400,10 +418,20 @@ func (s *JSONConfigSource) RemoveLink(typ, name string) error {
 	}, typ)
 }
 
-// manipulateJSON ports JsonConfigSource::manipulateJson: method is the
-// JsonManipulator method to try, fb the whole-file fallback, args their
-// arguments.
-func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...any) error {
+// manipulateJSON ports JsonConfigSource::manipulateJson, called by
+// JsonConfigSource::<caller>() at line (where its fallback closure is
+// declared too): method is the JsonManipulator method to try, fb the
+// whole-file fallback, args their arguments.
+func (s *JSONConfigSource) manipulateJSON(caller string, line int, method string, fb fallback, args ...any) error {
+	const frame = `Composer\Config\JsonConfigSource->manipulateJson`
+	leave := phperr.Enter(frame, jsonConfigSourceFile, line)
+	err := s.manipulate(caller, line, method, fb, args)
+	leave()
+
+	return phperr.Call(err, frame, jsonConfigSourceFile, line)
+}
+
+func (s *JSONConfigSource) manipulate(caller string, line int, method string, fb fallback, args []any) error {
 	path := s.file.Path()
 	var contents string
 	exists := s.file.Exists()
@@ -438,7 +466,12 @@ func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...an
 		mainNode, name, found := strings.Cut(php.ToString(args[0]), ".")
 		if !found {
 			// [$mainNode, $name] = explode('.', $args[0], 2)
-			return &util.ErrorException{Message: "Undefined array key 1"}
+			line := 412
+			if method == "removeConfigSetting" {
+				line = 416
+			}
+
+			return &util.ErrorException{Message: "Undefined array key 1", Site: phperr.At(jsonConfigSourceFile, line)}
 		}
 		if method == "addConfigSetting" {
 			method = "addSubNode"
@@ -458,15 +491,16 @@ func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...an
 		if _, err := util.FilePutContentsIfModified(path, []byte(manipulator.Contents())); err != nil {
 			return err
 		}
-	} else if err := s.rewrite(fb, args); err != nil {
+	} else if err := s.rewrite(`Composer\Config\JsonConfigSource::{closure:Composer\Config\JsonConfigSource::`+caller+`():`+strconv.Itoa(line)+`}`, fb, args); err != nil {
 		return err
 	}
 
 	if err := s.file.ValidateSchema(json.LaxSchema, ""); err != nil {
 		var ve *json.ValidationError
 		if !errors.As(err, &ve) {
-			return err
+			return phperr.Call(err, `Composer\Json\JsonFile->validateSchema`, jsonConfigSourceFile, 462)
 		}
+		phperr.Call(ve, `Composer\Json\JsonFile->validateSchema`, jsonConfigSourceFile, 462)
 		// restore contents to the original state
 		_, _ = util.FilePutContentsIfModified(path, []byte(contents))
 
@@ -480,25 +514,26 @@ func (s *JSONConfigSource) manipulateJSON(method string, fb fallback, args ...an
 	return nil
 }
 
-// rewrite is the fallback of manipulateJson: decode the file, apply fb and
-// write the whole file back.
-func (s *JSONConfigSource) rewrite(fb fallback, args []any) error {
+// rewrite is the fallback of manipulateJson: decode the file, apply fb (the
+// closure as traces name it) and write the whole file back.
+func (s *JSONConfigSource) rewrite(closure string, fb fallback, args []any) error {
 	decoded, err := s.file.Read()
 	if err != nil {
 		return err
 	}
-	var config *php.Array
-	switch d := decoded.(type) {
-	case *php.Array:
-		config = d
-	case nil:
+	// new JsonManipulator($contents) has already rejected a file that is
+	// not a JSON object
+	config, ok := decoded.(*php.Array)
+	if !ok {
 		config = php.NewArray()
-	default:
-		return errScalarAsArray
 	}
 
-	if err := fb(config, args); err != nil {
-		return err
+	// $fallback(...$args)
+	leave := phperr.Enter(closure, jsonConfigSourceFile, 427)
+	err = fb(config, args)
+	leave()
+	if err != nil {
+		return phperr.Call(err, closure, jsonConfigSourceFile, 427)
 	}
 
 	// avoid ending up with arrays for keys that should be objects
@@ -510,20 +545,20 @@ func (s *JSONConfigSource) rewrite(fb fallback, args []any) error {
 			}
 		}
 		if policy.Len() == 0 {
-			_ = setIn(config, php.NewObject(), "config", "policy")
+			_ = setIn(437, config, php.NewObject(), "config", "policy")
 		}
 	}
 	for _, prop := range [...]string{"platform", "http-basic", "bearer", "gitlab-token", "gitlab-oauth", "github-oauth", "custom-headers", "forgejo-token", "preferred-install"} {
 		if isEmptyArray(getIn(config, "config", prop)) {
-			_ = setIn(config, php.NewObject(), "config", prop)
+			_ = setIn(442, config, php.NewObject(), "config", prop)
 		}
 	}
 	for _, prop := range [...]string{"psr-0", "psr-4"} {
 		if isEmptyArray(getIn(config, "autoload", prop)) {
-			_ = setIn(config, php.NewObject(), "autoload", prop)
+			_ = setIn(447, config, php.NewObject(), "autoload", prop)
 		}
 		if isEmptyArray(getIn(config, "autoload-dev", prop)) {
-			_ = setIn(config, php.NewObject(), "autoload-dev", prop)
+			_ = setIn(450, config, php.NewObject(), "autoload-dev", prop)
 		}
 	}
 	for _, prop := range [...]string{"require", "require-dev", "conflict", "provide", "replace", "suggest", "config", "autoload", "autoload-dev", "scripts", "scripts-descriptions", "scripts-aliases", "support"} {
@@ -603,22 +638,25 @@ func prependName(name any, config *php.Array) *php.Array {
 	return r
 }
 
-// referenceArray is $arr = &$config[$key] used as an array right after:
-// a missing key is created as null, which the following write turns into
-// an array.
-func referenceArray(config *php.Array, key string) (*php.Array, error) {
-	return child(config, key)
+// undefinedKey is how PHP's "Undefined array key" warning names key.
+func undefinedKey(key any) string {
+	k := php.ToKey(key)
+	if k.IsInt() {
+		return k.String()
+	}
+
+	return `"` + k.String() + `"`
 }
 
 // convertRepositoriesToList ports the conversion of an associative
 // "repositories" to a list that addRepository and insertRepository start
 // with.
-func convertRepositoriesToList(cfg *php.Array) error {
+func convertRepositoriesToList(cfg *php.Array, line int) error {
 	repos, ok := cfg.Get("repositories")
 	if !ok || repos == nil {
 		repos = php.NewArray()
 	}
-	isList, err := arrayIsList(repos)
+	isList, err := arrayIsList(repos, line)
 	if err != nil || isList {
 		return err
 	}
@@ -647,7 +685,7 @@ func convertRepositoriesToList(cfg *php.Array) error {
 
 // filterRepositoriesByName is array_values(array_filter($config['repositories']
 // ?? [], ...)) with the uniqueness predicate of JsonConfigSource.
-func filterRepositoriesByName(cfg *php.Array, name any) (*php.Array, error) {
+func filterRepositoriesByName(cfg *php.Array, name any, line int) (*php.Array, error) {
 	repos, _ := cfg.Get("repositories")
 	if repos == nil {
 		return php.NewArray(), nil
@@ -655,7 +693,7 @@ func filterRepositoriesByName(cfg *php.Array, name any) (*php.Array, error) {
 	list, ok := repos.(*php.Array)
 	if !ok {
 		return nil, (&php.EngineError{Class: "TypeError", Message: "array_filter(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(repos) + " given"}).
-			Raised("array_filter", "JsonConfigSource.php", 214)
+			Raised("array_filter", jsonConfigSourceFile, line)
 	}
 
 	disabled := php.ArrayOf(name, false)

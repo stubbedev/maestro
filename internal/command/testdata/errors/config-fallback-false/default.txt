@@ -1,0 +1,2 @@
+Deprecation Notice: Automatic conversion of false to array is deprecated in @COMPOSER@/src/Composer/Config/JsonConfigSource.php:325
+exit 0

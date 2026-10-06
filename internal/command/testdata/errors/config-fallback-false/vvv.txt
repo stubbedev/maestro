@@ -1,0 +1,18 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Reading ./composer.json (@DIR@/p/composer.json)
+Reading ./composer.json (@DIR@/p/composer.json)
+Deprecation Notice: Automatic conversion of false to array is deprecated in @COMPOSER@/src/Composer/Config/JsonConfigSource.php:325
+Stack trace:
+ @COMPOSER@/src/Composer/Config/JsonConfigSource.php:427
+ @COMPOSER@/src/Composer/Config/JsonConfigSource.php:318
+ @COMPOSER@/src/Composer/Command/ConfigCommand.php:933
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+exit 0

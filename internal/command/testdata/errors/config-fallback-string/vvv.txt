@@ -1,0 +1,30 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Reading ./composer.json (@DIR@/p/composer.json)
+Reading ./composer.json (@DIR@/p/composer.json)
+
+In JsonConfigSource.php line 255:
+                                                 
+  [TypeError]                                    
+  Cannot access offset of type string on string  
+                                                 
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:255
+ Composer\Config\JsonConfigSource::{closure:Composer\Config\JsonConfigSource::addConfigSetting():231}() at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:427
+ Composer\Config\JsonConfigSource->manipulateJson() at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:231
+ Composer\Config\JsonConfigSource->addConfigSetting() at n/a:n/a
+ call_user_func() at @COMPOSER@/src/Composer/Command/ConfigCommand.php:1130
+ Composer\Command\ConfigCommand->handleSingleValue() at @COMPOSER@/src/Composer/Command/ConfigCommand.php:749
+ Composer\Command\ConfigCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+config [-g|--global] [-e|--editor] [-a|--auth] [--unset] [-l|--list] [-f|--file FILE] [--absolute] [-j|--json] [-m|--merge] [--append] [--source] [--] [<setting-key> [<setting-value>...]]
+
+exit 1

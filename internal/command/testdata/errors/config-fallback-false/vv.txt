@@ -1,0 +1,13 @@
+Deprecation Notice: Automatic conversion of false to array is deprecated in @COMPOSER@/src/Composer/Config/JsonConfigSource.php:325
+Stack trace:
+ @COMPOSER@/src/Composer/Config/JsonConfigSource.php:427
+ @COMPOSER@/src/Composer/Config/JsonConfigSource.php:318
+ @COMPOSER@/src/Composer/Command/ConfigCommand.php:933
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+exit 0

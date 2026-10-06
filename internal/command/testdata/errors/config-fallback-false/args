@@ -1,0 +1,4 @@
+config
+extra.foo
+1
+--json

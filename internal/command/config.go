@@ -494,9 +494,16 @@ func (c *ConfigCommand) Execute(in console.Input, out console.Output) (int, erro
 	}
 
 	if in.Option("global") == false {
-		data, err := readArray(c.ConfigFile)
+		read, err := c.ConfigFile.Read()
 		if err != nil {
 			return 0, err
+		}
+		// Config::merge(array $config) under strict_types: a file
+		// holding a scalar is its TypeError
+		data, ok := read.(*php.Array)
+		if !ok {
+			return 0, pkg.ArgumentTypeError(`Composer\Config::merge`, 1, "config", "array", read).
+				Called(`Composer\Config->merge`, phperr.At("Config.php", 199), configCommandFile, 209)
 		}
 		if err := c.Config.Merge(data, c.ConfigFile.Path()); err != nil {
 			return 0, err
@@ -756,7 +763,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 	// (JsonConfigSource handles the cascade-cleanup of empty ancestors for policy.*),
 	// so handle them all in one place rather than repeating the check in each branch below.
 	if unset && (settingKey == "audit" || settingKey == "policy" || strings.HasPrefix(settingKey, "policy.")) {
-		return 0, src.RemoveConfigSetting(settingKey)
+		return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 595, func() error { return src.RemoveConfigSetting(settingKey) })
 	}
 
 	// handle policy.*.ignore / policy.advisories.ignore-id with --json + --merge support (mirrors audit.ignore)
@@ -816,7 +823,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 		}
 
-		return 0, src.AddConfigSetting(settingKey, value)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 648, func() error { return src.AddConfigSetting(settingKey, value) })
 	}
 
 	// handle policy.ignore-unreachable array form. Accepts:
@@ -840,7 +847,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 				}
 			}
 
-			return 0, src.AddConfigSetting(settingKey, value)
+			return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 669, func() error { return src.AddConfigSetting(settingKey, value) })
 		}
 
 		// Positional enum values: accept e.g. `composer config policy.ignore-unreachable update install`.
@@ -853,7 +860,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 				}
 			}
 
-			return 0, src.AddConfigSetting(settingKey, stringList(values))
+			return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 684, func() error { return src.AddConfigSetting(settingKey, stringList(values)) })
 		}
 	}
 
@@ -870,7 +877,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		}
 		v, _ := booleanNormalizer(first)
 
-		return 0, src.AddConfigSetting(settingKey, v)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 702, func() error { return src.AddConfigSetting(settingKey, v) })
 	}
 
 	// handle custom policy lists: policy.<name>.block / policy.<name>.audit
@@ -885,14 +892,14 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 				return 0, configErr(ClassRuntime, 717, `"`+first+`" is an invalid value for `+settingKey+", expected a boolean")
 			}
 			v, _ := booleanNormalizer(first)
-			if err := src.AddConfigSetting(settingKey, v); err != nil {
+			if err := configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 719, func() error { return src.AddConfigSetting(settingKey, v) }); err != nil {
 				return 0, err
 			}
 		} else {
 			if ok, _ := auditPair.validate(first); !ok {
 				return 0, configErr(ClassRuntime, 722, `"`+first+`" is an invalid value for `+settingKey+", must be one of: ignore, report, fail")
 			}
-			if err := src.AddConfigSetting(settingKey, first); err != nil {
+			if err := configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 724, func() error { return src.AddConfigSetting(settingKey, first) }); err != nil {
 				return 0, err
 			}
 		}
@@ -921,27 +928,31 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 		}
 
-		return 0, src.RemoveConfigSetting(settingKey)
+		return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 744, func() error { return src.RemoveConfigSetting(settingKey) })
 	}
 	if isUnique {
-		return 0, phperr.Call(c.handleSingleValue(settingKey, uniqueConfigValues[settingKey], values, src.AddConfigSetting), `Composer\Command\ConfigCommand->handleSingleValue`, "ConfigCommand.php", 749)
+		return 0, configCall(`Composer\Command\ConfigCommand->handleSingleValue`, 749, func() error {
+			return c.handleSingleValue(settingKey, uniqueConfigValues[settingKey], values, "addConfigSetting", src.AddConfigSetting)
+		})
 	}
 	if isMulti {
-		return 0, phperr.Call(c.handleMultiValue(settingKey, multiConfigValues[settingKey], values, src.AddConfigSetting), `Composer\Command\ConfigCommand->handleMultiValue`, "ConfigCommand.php", 754)
+		return 0, configCall(`Composer\Command\ConfigCommand->handleMultiValue`, 754, func() error {
+			return c.handleMultiValue(settingKey, multiConfigValues[settingKey], values, "addConfigSetting", src.AddConfigSetting)
+		})
 	}
 	// handle preferred-install per-package config
 	if m, err := preferredInstallPattern.Match(settingKey); err != nil {
 		return 0, err
 	} else if m != nil {
 		if unset {
-			return 0, src.RemoveConfigSetting(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 761, func() error { return src.RemoveConfigSetting(settingKey) })
 		}
 
 		if ok, _ := uniqueConfigValues["preferred-install"].validate(first); !ok {
 			return 0, configErr(ClassRuntime, 768, "Invalid value for "+settingKey+". Should be one of: auto, source, or dist")
 		}
 
-		return 0, src.AddConfigSetting(settingKey, first)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 771, func() error { return src.AddConfigSetting(settingKey, first) })
 	}
 
 	// handle allow-plugins config setting elements true or false to add/remove
@@ -949,7 +960,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil {
 		if unset {
-			return 0, src.RemoveConfigSetting(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 779, func() error { return src.RemoveConfigSetting(settingKey) })
 		}
 
 		if ok, _ := booleanValidator(first); !ok {
@@ -958,7 +969,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 
 		normalizedValue, _ := booleanNormalizer(first)
 
-		return 0, src.AddConfigSetting(settingKey, normalizedValue)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 793, func() error { return src.AddConfigSetting(settingKey, normalizedValue) })
 	}
 
 	// handle properties
@@ -968,13 +979,17 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, configErr(ClassInvalidArgument, 853, "The "+settingKey+" property can not be set in the global config.json file. Use `composer global config` to apply changes to the global composer.json")
 	}
 	if unset && (isUniqueProp || isMultiProp) {
-		return 0, src.RemoveProperty(settingKey)
+		return 0, configCall(`Composer\Config\JsonConfigSource->removeProperty`, 856, func() error { return src.RemoveProperty(settingKey) })
 	}
 	if isUniqueProp {
-		return 0, phperr.Call(c.handleSingleValue(settingKey, uniqueProps[settingKey], values, src.AddProperty), `Composer\Command\ConfigCommand->handleSingleValue`, "ConfigCommand.php", 861)
+		return 0, configCall(`Composer\Command\ConfigCommand->handleSingleValue`, 861, func() error {
+			return c.handleSingleValue(settingKey, uniqueProps[settingKey], values, "addProperty", src.AddProperty)
+		})
 	}
 	if isMultiProp {
-		return 0, phperr.Call(c.handleMultiValue(settingKey, multiProps[settingKey], values, src.AddProperty), `Composer\Command\ConfigCommand->handleMultiValue`, "ConfigCommand.php", 866)
+		return 0, configCall(`Composer\Command\ConfigCommand->handleMultiValue`, 866, func() error {
+			return c.handleMultiValue(settingKey, multiProps[settingKey], values, "addProperty", src.AddProperty)
+		})
 	}
 
 	// handle repositories
@@ -984,18 +999,20 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		name := m.Get(1)
 		appendRepo := console.BoolOption(in, "append")
 		if unset {
-			return 0, src.RemoveRepository(name)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeRepository`, 874, func() error { return src.RemoveRepository(name) })
 		}
 
 		if len(values) == 2 {
-			return 0, src.AddRepository(name, php.ArrayOf("type", values[0], "url", values[1]), appendRepo)
+			return 0, configCall(`Composer\Config\JsonConfigSource->addRepository`, 880, func() error {
+				return src.AddRepository(name, php.ArrayOf("type", values[0], "url", values[1]), appendRepo)
+			})
 		}
 
 		if len(values) == 1 {
 			value := php.Strtolower(values[0])
 			if ok, _ := booleanValidator(value); ok {
 				if v, _ := booleanNormalizer(value); v == false {
-					return 0, src.AddRepository(name, false, appendRepo)
+					return 0, configCall(`Composer\Config\JsonConfigSource->addRepository`, 892, func() error { return src.AddRepository(name, false, appendRepo) })
 				}
 			} else {
 				parsed, err := parseJSON(values[0])
@@ -1003,7 +1020,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 					return 0, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "ConfigCommand.php", 897)
 				}
 
-				return 0, src.AddRepository(name, parsed, appendRepo)
+				return 0, configCall(`Composer\Config\JsonConfigSource->addRepository`, 898, func() error { return src.AddRepository(name, parsed, appendRepo) })
 			}
 		}
 
@@ -1015,7 +1032,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil {
 		if unset {
-			return 0, src.RemoveProperty(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeProperty`, 910, func() error { return src.RemoveProperty(settingKey) })
 		}
 
 		var value any = first
@@ -1043,7 +1060,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 		}
 
-		return 0, src.AddProperty(settingKey, value)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addProperty`, 933, func() error { return src.AddProperty(settingKey, value) })
 	}
 
 	// handle suggest
@@ -1051,15 +1068,15 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil {
 		if unset {
-			return 0, src.RemoveProperty(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeProperty`, 941, func() error { return src.RemoveProperty(settingKey) })
 		}
 
-		return 0, src.AddProperty(settingKey, strings.Join(values, " "))
+		return 0, configCall(`Composer\Config\JsonConfigSource->addProperty`, 946, func() error { return src.AddProperty(settingKey, strings.Join(values, " ")) })
 	}
 
 	// handle unsetting extra/suggest
 	if (settingKey == "suggest" || settingKey == "extra") && unset {
-		return 0, src.RemoveProperty(settingKey)
+		return 0, configCall(`Composer\Config\JsonConfigSource->removeProperty`, 953, func() error { return src.RemoveProperty(settingKey) })
 	}
 
 	// handle platform
@@ -1067,7 +1084,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil {
 		if unset {
-			return 0, src.RemoveConfigSetting(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 961, func() error { return src.RemoveConfigSetting(settingKey) })
 		}
 
 		var v any = first
@@ -1075,18 +1092,18 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			v = false
 		}
 
-		return 0, src.AddConfigSetting(settingKey, v)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 966, func() error { return src.AddConfigSetting(settingKey, v) })
 	}
 
 	// handle unsetting platform
 	if settingKey == "platform" && unset {
-		return 0, src.RemoveConfigSetting(settingKey)
+		return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 973, func() error { return src.RemoveConfigSetting(settingKey) })
 	}
 
 	// handle audit.ignore and audit.ignore-abandoned with --merge support
 	if settingKey == "audit.ignore" || settingKey == "audit.ignore-abandoned" {
 		if unset {
-			return 0, src.RemoveConfigSetting(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeConfigSetting`, 981, func() error { return src.RemoveConfigSetting(settingKey) })
 		}
 
 		value, err := c.jsonListValue(in, settingKey, values, 990)
@@ -1109,7 +1126,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 		}
 
-		return 0, src.AddConfigSetting(settingKey, value)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addConfigSetting`, 1011, func() error { return src.AddConfigSetting(settingKey, value) })
 	}
 
 	// handle auth
@@ -1124,7 +1141,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil {
 		if unset {
-			return 0, src.RemoveProperty(settingKey)
+			return 0, configCall(`Composer\Config\JsonConfigSource->removeProperty`, 1082, func() error { return src.RemoveProperty(settingKey) })
 		}
 
 		var v any = first
@@ -1132,12 +1149,12 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			v = stringList(values)
 		}
 
-		return 0, src.AddProperty(settingKey, v)
+		return 0, configCall(`Composer\Config\JsonConfigSource->addProperty`, 1087, func() error { return src.AddProperty(settingKey, v) })
 	}
 
 	// handle unsetting other top level properties
 	if unset {
-		return 0, src.RemoveProperty(settingKey)
+		return 0, configCall(`Composer\Config\JsonConfigSource->removeProperty`, 1094, func() error { return src.RemoveProperty(settingKey) })
 	}
 
 	return 0, configErr(ClassInvalidArgument, 1099, "Setting "+settingKey+" does not exist or is not supported by this command")
@@ -1244,7 +1261,7 @@ func (c *ConfigCommand) setAuth(kind, key string, values []string, unset bool) e
 }
 
 // handleSingleValue ports handleSingleValue.
-func (c *ConfigCommand) handleSingleValue(key string, callbacks configValidator, values []string, method func(string, any) error) error {
+func (c *ConfigCommand) handleSingleValue(key string, callbacks configValidator, values []string, name string, method func(string, any) error) error {
 	if len(values) != 1 {
 		return configErr(ClassRuntime, 1110, "You can only pass one value. Example: php composer.phar config process-timeout 300")
 	}
@@ -1274,18 +1291,43 @@ func (c *ConfigCommand) handleSingleValue(key string, callbacks configValidator,
 		}
 	}
 
-	return method(key, normalizedValue)
+	return callConfigSource(name, 1130, func() error { return method(key, normalizedValue) })
 }
 
 // handleMultiValue ports handleMultiValue.
-func (*ConfigCommand) handleMultiValue(key string, callbacks multiValidator, values []string, method func(string, any) error) error {
+func (*ConfigCommand) handleMultiValue(key string, callbacks multiValidator, values []string, name string, method func(string, any) error) error {
 	if validation := callbacks.validate(values); validation != "" {
 		encoded, _ := php.JSONEncode(stringList(values), 0)
 
 		return configErr(ClassRuntime, 1141, encoded+" is an invalid value ("+validation+")")
 	}
 
-	return method(key, callbacks.normalize(values))
+	return callConfigSource(name, 1147, func() error { return method(key, callbacks.normalize(values)) })
+}
+
+// configCall runs call as ConfigCommand::execute()'s call of function at
+// line of ConfigCommand.php: on the stack while it runs, in the trace of
+// its error.
+func configCall(function string, line int, call func() error) error {
+	leave := phperr.Enter(function, configCommandFile, line)
+	err := call()
+	leave()
+
+	return phperr.Call(err, function, configCommandFile, line)
+}
+
+// callConfigSource is call_user_func([$this->configSource, $method], ...)
+// at line of ConfigCommand.php: the method of the JsonConfigSource called
+// from call_user_func(), which has no file and line.
+func callConfigSource(method string, line int, call func() error) error {
+	function := `Composer\Config\JsonConfigSource->` + method
+	leaveCall := phperr.Enter("call_user_func", configCommandFile, line)
+	leave := phperr.Enter(function, "", 0)
+	err := call()
+	leave()
+	leaveCall()
+
+	return phperr.Calls(err, phperr.Frame{Function: function}, phperr.Frame{Function: "call_user_func", File: configCommandFile, Line: line})
 }
 
 // listConfiguration ports listConfiguration; k "" with hasK false is null.
