@@ -199,7 +199,9 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 					Raised("array_merge", "Locker.php", 170)
 			}
 		}
-		rawPackages = php.ArrayMerge(rawPackages.(*php.Array), dev.(*php.Array)) //nolint:forcetypeassert // checked above
+		a, _ := rawPackages.(*php.Array) // both checked above
+		b, _ := dev.(*php.Array)
+		rawPackages = php.ArrayMerge(a, b)
 	}
 
 	// empty($lockedPackages)

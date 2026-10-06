@@ -163,7 +163,8 @@ func (b *BaseIO) authenticate(domain php.Key, username, password any, line int) 
 	if s, ok := password.(string); ok {
 		pw = &s
 	}
-	b.checkAndSetAuthentication(domain.String(), username.(string), pw) //nolint:forcetypeassert // checked above
+	user, _ := username.(string) // checked above
+	b.checkAndSetAuthentication(domain.String(), user, pw)
 
 	return nil
 }
