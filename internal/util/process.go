@@ -228,11 +228,31 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 		return &RuntimeError{Class: ClassProcessRuntime, Message: `The provided cwd "` + p.cwd + `" does not exist.`, Site: phperr.At("Process.php", 350)}
 	}
 
-	cmd, err := shellCommand(commandline, &env)
-	if err != nil {
-		return err
+	// An argument list naming a VCS tool starts it without the shell
+	// whose only job is to exec it (deliberate deviation 3); the shell
+	// still runs it when it is not plainly found in PATH, so what a
+	// missing or odd executable gives (exit code 127, the shell's
+	// message) stays as it was.
+	var cmd *exec.Cmd
+	if !p.isShell {
+		cmd = directCommand(p.args, env)
 	}
 
+	direct := cmd != nil
+	if !direct {
+		var err error
+		if cmd, err = shellCommand(commandline, &env); err != nil {
+			return err
+		}
+	}
+
+	return p.startCmd(cmd, commandline, env, direct)
+}
+
+// startCmd starts cmd (env being its environment) and the goroutine
+// waiting for it. A command started without the shell (direct, from
+// directCommand) that cannot start is run through the shell instead.
+func (p *Process) startCmd(cmd *exec.Cmd, commandline string, env []string, direct bool) error {
 	cmd.Dir = p.cwd
 	cmd.Env = env
 
@@ -274,10 +294,19 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 		cmd.WaitDelay = pipeDrainTimeout
 	}
 
-	err = cmd.Start()
+	err := cmd.Start()
 
 	for _, f := range closers {
 		_ = f.Close()
+	}
+
+	if err != nil && direct {
+		shell, serr := shellCommand(commandline, &env)
+		if serr != nil {
+			return serr
+		}
+
+		return p.startCmd(shell, commandline, env, false)
 	}
 
 	if err != nil {

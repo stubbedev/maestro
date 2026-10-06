@@ -310,6 +310,15 @@ func isVirtualBoxGuest() bool {
 		}
 
 		if runtime.GOOS == "linux" {
+			// lsmod prints /proc/modules: reading it gives the same answer
+			// without starting a process (deliberate deviation 3); lsmod
+			// still answers where it cannot be read.
+			if modules, err := os.ReadFile("/proc/modules"); err == nil {
+				isVBox = strings.Contains(string(modules), "vboxguest")
+
+				return
+			}
+
 			var output string
 
 			code, err := NewProcessExecutor(nil).Execute(Cmd("lsmod"), &output, "")
