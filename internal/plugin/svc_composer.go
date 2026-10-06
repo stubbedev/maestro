@@ -553,6 +553,60 @@ func (r *Runtime) registerAutoloadGenerator() {
 		})
 	}
 
+	// The protected methods a subclass calls on itself that are maestro's
+	// (the others are Composer's code in the shim).
+	method("getIO", func(g *autoload.Generator, _ args) (any, error) { return r.value(g.IO()), nil })
+	method("sortPackageMap", func(g *autoload.Generator, a args) (any, error) {
+		entries, err := packageMapParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.packageMapValue(autoload.SortPackageMap(entries)), nil
+	})
+	method("parseAutoloadsType", func(g *autoload.Generator, a args) (any, error) {
+		entries, err := packageMapParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		root, err := packageParam(a, 3)
+		if err != nil {
+			return nil, err
+		}
+		typ := a.str(2)
+		al, err := g.ParseAutoloadsType(entries, typ, root)
+		if err != nil {
+			return nil, err
+		}
+		v, _ := autoloadsValue(al).Get(typ)
+		if v == nil {
+			return php.NewArray(), nil
+		}
+
+		return v, nil
+	})
+	method("getAutoloadFile", func(_ *autoload.Generator, a args) (any, error) {
+		return autoload.AutoloadFile(a.str(1), a.str(2)), nil
+	})
+	method("getAutoloadRealFile", func(g *autoload.Generator, a args) (any, error) {
+		targetDirLoader, _ := a.nullableString(3)
+		// $prependAutoloader is the code Composer writes: 'true' or
+		// 'false'.
+		return g.AutoloadRealFile(a.boolean(2), targetDirLoader, a.boolean(4), a.str(7), a.boolean(8), a.str(9) == "true", a.boolean(10)), nil
+	})
+	method("getPlatformCheck", func(g *autoload.Generator, a args) (any, error) {
+		entries, err := packageMapParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		code, err := g.PlatformCheck(entries, a.at(2), stringList(a.at(3)))
+		if err != nil || code == "" {
+			return nil, err
+		}
+
+		return code, nil
+	})
+
 	// setPlatformRequirementFilter($filter): the filter crosses as its
 	// description (ServiceAdapter::describeFilter()).
 	method("setPlatformRequirementFilter", func(g *autoload.Generator, a args) (any, error) {

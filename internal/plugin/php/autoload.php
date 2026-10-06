@@ -546,6 +546,7 @@ return array(
         'Maestro\\Shim\\Listeners' => 'src/Maestro/Shim/Listeners.php',
         'Maestro\\Shim\\MirrorAdapter' => 'src/Maestro/Shim/MirrorAdapter.php',
         'Maestro\\Shim\\Mirrors' => 'src/Maestro/Shim/Mirrors.php',
+        'Maestro\\Shim\\OutputStream' => 'src/Maestro/Shim/OutputStream.php',
         'Maestro\\Shim\\Plugins' => 'src/Maestro/Shim/Plugins.php',
         'Maestro\\Shim\\PolledMirrorAdapter' => 'src/Maestro/Shim/PolledMirrorAdapter.php',
         'Maestro\\Shim\\Promises' => 'src/Maestro/Shim/Promises.php',

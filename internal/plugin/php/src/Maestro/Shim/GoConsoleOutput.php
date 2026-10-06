@@ -19,6 +19,9 @@ final class GoConsoleOutput extends GoOutput implements ConsoleOutputInterface
     /** @var OutputInterface|null */
     private $stderr;
 
+    /** @var list<ConsoleSectionOutput> ConsoleOutput::$consoleSectionOutputs */
+    private $sections = [];
+
     public function getErrorOutput()
     {
         if ($this->stderr === null) {
@@ -33,8 +36,12 @@ final class GoConsoleOutput extends GoOutput implements ConsoleOutputInterface
         $this->stderr = $error;
     }
 
+    /**
+     * Symfony's ConsoleOutput::section(), on a stream writing to maestro's
+     * output (Maestro\Shim\OutputStream).
+     */
     public function section(): ConsoleSectionOutput
     {
-        throw new UnsupportedApiException('maestro does not support '.ConsoleOutputInterface::class.'::section() on this output in plugins yet');
+        return new ConsoleSectionOutput(OutputStream::open($this), $this->sections, $this->getVerbosity(), $this->isDecorated(), $this->getFormatter());
     }
 }
