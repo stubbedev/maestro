@@ -46,6 +46,12 @@ jobs:
       run:
         shell: bash
     steps:
+      # Defender scans every file the tests write and every process they
+      # start (php, git, cmd), which dominates the job's wall time.
+      - name: Turn off Defender's real-time scanning
+        shell: pwsh
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
