@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -460,10 +461,13 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	defer cancelTransfer(nil)
 
 	// The stream wrapper's timeout is an idle timeout: it restarts with
-	// every read.
+	// every read. It runs from the connection on (GotConn): the connect
+	// and the TLS handshake have their own (connectTimeout).
 	var idle *time.Timer
 	if r.readTimeout > 0 {
-		idle = time.AfterFunc(r.readTimeout, func() { cancelTransfer(context.DeadlineExceeded) })
+		idle = time.AfterFunc(time.Hour, func() { cancelTransfer(context.DeadlineExceeded) })
+		idle.Stop()
+
 		defer idle.Stop()
 	}
 
@@ -532,6 +536,10 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		GotConn: func(info httptrace.GotConnInfo) {
 			connected.Store(true)
 
+			if idle != nil {
+				idle.Reset(r.readTimeout)
+			}
+
 			if hc := asHeadConn(info.Conn); hc != nil {
 				recorder.Store(hc.record(!r.curlStatusLines, method == http.MethodHead))
 			} else if hc, ok := info.Conn.(*h2HeadConn); ok {
@@ -572,7 +580,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 
 		res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0, -1)
 		if !r.curlStatusLines {
-			res.streamWarnings = streamWarnings(err, host)
+			res.streamWarnings = streamWarnings(err, connected.Load())
 		}
 
 		return finish()
@@ -654,6 +662,10 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		default:
 			if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 				res.err = cause
+			} else if !r.curlStatusLines {
+				// PHP's stream wrapper returns what it read before the
+				// connection failed, closed or timed out, without a
+				// warning (RemoteFilesystem then checks Content-Length)
 			} else if chunkFailure != "" {
 				res.errno, res.errMsg = curleRecvError, chunkFailure
 			} else {
@@ -1001,7 +1013,7 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 		return curleUnsupportedProtocol, "Received HTTP/0.9 when not allowed"
 	case errors.Is(err, io.ErrUnexpectedEOF):
 		return curlePartialFile, "transfer closed with outstanding read data remaining"
-	case errors.Is(err, io.EOF):
+	case errors.Is(err, io.EOF), isServerClosedIdle(err):
 		if connected {
 			return curleGotNothing, "Empty reply from server"
 		}
@@ -1135,16 +1147,25 @@ func opensslAlert(err error) (code, reason string, ok bool) {
 	}
 }
 
-// streamWarnings are the warnings PHP's http stream wrapper raises when
-// opening a stream fails as err does, for the failures it words
-// differently from curl: refused connections and TLS verification
-// (OpenSSL's verification, or PHP's own check of the peer name against
-// host); nil for others.
-func streamWarnings(err error, host string) []string {
+// streamWarnings are the warnings PHP 8.4's http stream wrapper raises
+// when opening a stream fails as err does (checked against PHP on the
+// same failures), for the failures it words differently from curl; nil
+// for others. connected tells a failure after the connection was made.
+func streamWarnings(err error, connected bool) []string {
 	const (
 		cryptoFailed = "Failed to enable crypto"
 		openFailed   = "Failed to open stream: operation failed"
 	)
+
+	// php_openssl_handle_ssl_error: OpenSSL's error queue, or the socket
+	// error, then php_openssl_enable_crypto's and the wrapper's failures
+	sslFailure := func(first string) []string {
+		if first == "" {
+			return []string{cryptoFailed, openFailed}
+		}
+
+		return []string{first, cryptoFailed, openFailed}
+	}
 
 	var (
 		unknownAuthority x509.UnknownAuthorityError
@@ -1155,14 +1176,82 @@ func streamWarnings(err error, host string) []string {
 	switch {
 	case errors.As(err, &nameErr) && nameErr.warning != "":
 		// phpCheckPeerName
-		return []string{nameErr.warning, cryptoFailed, openFailed}
+		return sslFailure(nameErr.warning)
 	case errors.Is(err, errChainTooLong), errors.As(err, &unknownAuthority), errors.As(err, &invalidCert):
-		return []string{"SSL operation failed with code 1. OpenSSL Error messages:\nerror:0A000086:SSL routines::certificate verify failed", cryptoFailed, openFailed}
+		return sslFailure("SSL operation failed with code 1. OpenSSL Error messages:\nerror:0A000086:SSL routines::certificate verify failed")
 	case errors.Is(err, syscall.ECONNREFUSED):
 		return []string{"Failed to open stream: Connection refused"}
 	}
 
+	if dnsErr, ok := errors.AsType[*net.DNSError](err); ok {
+		// php_network_getaddresses: getaddrinfo()'s gai_strerror()
+		msg := "php_network_getaddresses: getaddrinfo for " + dnsErr.Name + " failed: " + gaiStrerror(dnsErr)
+
+		return []string{msg, "Failed to open stream: " + msg}
+	}
+
+	if _, ok := errors.AsType[tlsHandshakeTimeoutError](err); ok {
+		return sslFailure("SSL: Handshake timed out")
+	}
+
+	if _, ok := errors.AsType[*tlsHandshakeError](err); ok {
+		switch {
+		case errors.Is(err, syscall.ECONNRESET):
+			return sslFailure("SSL: Connection reset by peer")
+		case errors.Is(err, syscall.EPIPE):
+			return sslFailure("SSL: Broken pipe")
+		case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
+			return sslFailure("")
+		}
+
+		if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
+			return sslFailure("SSL operation failed with code 1. OpenSSL Error messages:\nerror:0A00010B:SSL routines::wrong version number")
+		}
+
+		if code, reason, ok := opensslAlert(err); ok {
+			return sslFailure("SSL operation failed with code 1. OpenSSL Error messages:\nerror:" + code + ":SSL routines::" + reason)
+		}
+
+		return nil
+	}
+
+	if !connected {
+		if opErr := dialError(err); opErr != nil && opErr.Timeout() {
+			return []string{"Failed to open stream: Connection timed out"}
+		}
+
+		return nil
+	}
+
+	// no response head: the server closed, reset or did not answer in time
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || isServerClosedIdle(err) {
+		return []string{"Failed to open stream: HTTP request failed!"}
+	}
+
 	return nil
+}
+
+// isServerClosedIdle is net/http's error for a connection the server
+// closed before the response began (errServerClosedIdle, unexported): to
+// curl and the stream wrapper, a connection closed without a reply.
+func isServerClosedIdle(err error) bool {
+	return strings.Contains(err.Error(), "http: server closed idle connection")
+}
+
+// gaiStrerror is the C library's gai_strerror() for a failed lookup:
+// EAI_NONAME or EAI_AGAIN, worded as glibc does (BSD libc on macOS).
+func gaiStrerror(err *net.DNSError) string {
+	bsd := runtime.GOOS == "darwin" || strings.HasSuffix(runtime.GOOS, "bsd")
+
+	switch {
+	case err.IsTimeout || err.IsTemporary:
+		return "Temporary failure in name resolution"
+	case bsd:
+		return "nodename nor servname provided, or not known"
+	}
+
+	return "Name or service not known"
 }
 
 // dialError is the failed dial in err, also when net/http reports it as

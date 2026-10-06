@@ -877,7 +877,10 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 	}
 
 	if v, ok := path(ctx, "http", "timeout"); ok {
+		// the wrapper's timeout for the connect and each read
+		// (php_stream_url_wrap_http_ex)
 		req.readTimeout = time.Duration(php.ToFloat(v) * float64(time.Second))
+		req.connectTimeout = req.readTimeout
 	}
 
 	isHTTPS := strings.HasPrefix(strings.ToLower(fileURL), "https://")
