@@ -1197,7 +1197,7 @@ func (p *parser) parseCharEscape(inClass bool) (rune, bool) {
 			return 0, false
 		}
 		p.pos += end + 1
-		r = rune(v) //nolint:gosec // range checked below
+		r = codePoint(v)
 	case 'x':
 		if p.peek() == '{' {
 			end := strings.IndexByte(p.src[p.pos:], '}')
@@ -1216,7 +1216,7 @@ func (p *parser) parseCharEscape(inClass bool) (rune, bool) {
 				return 0, false
 			}
 			p.pos += end + 1
-			r = rune(v) //nolint:gosec // range checked below
+			r = codePoint(v)
 			break
 		}
 		n := 0
@@ -1254,7 +1254,7 @@ func (p *parser) parseCharEscape(inClass bool) (rune, bool) {
 			return 0, false
 		}
 		p.pos += end + 1
-		r = rune(v) //nolint:gosec // range checked below
+		r = codePoint(v)
 	case 'u', 'U', 'l', 'L':
 		p.fail("PCRE2 does not support \\F, \\L, \\l, \\N{name}, \\U, or \\u", p.pos)
 		return 0, false
@@ -1282,6 +1282,17 @@ func (p *parser) parseCharEscape(inClass bool) (rune, bool) {
 		return 0, false
 	}
 	return r, true
+}
+
+// codePoint is the code point an escape's value v (at most 32 bits) names.
+// Values beyond unicode.MaxRune are MaxRune+1 rather than wrapping to a
+// negative rune, so the range check rejects them as PCRE2 does.
+func codePoint(v uint64) rune {
+	if v > unicode.MaxRune {
+		return unicode.MaxRune + 1
+	}
+
+	return rune(v)
 }
 
 func isHexDigit(c byte) bool { return isDigit(c) || c|0x20 >= 'a' && c|0x20 <= 'f' }

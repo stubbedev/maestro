@@ -4222,6 +4222,69 @@
             "subjects": [
                 "{\n\t\"homepage\": [\"\\\\\\\\1\", null, null],\n\t\"foo\": \"\\\\\",\n\t\"autoload\": { \"vendor/a\": \"foo/*\", \"branch-alias.dev-main\": \"foo bar/baz\" },\n\t\"a.b\": \"php-64bit\",\n\t\"with space\": null,\n\t\"config\": {\n\t\t\"foo\": {\n\t\t\t\"bar\": \"\"\n\t\t}\n\t}\n}"
             ]
+        },
+        {
+            "pattern": "/\\x{FFFFFFFF}/u",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x{80000000}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\o{37777777777}/u",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\N{U+FFFFFFFF}/u",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x{110000}/u",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x{10FFFF}/u",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x{100}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\o{400}/",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
+        },
+        {
+            "pattern": "/\\x{D800}/u",
+            "origin": "engine",
+            "subjects": [
+                "a"
+            ]
         }
     ]
 }
