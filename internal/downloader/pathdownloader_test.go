@@ -160,7 +160,14 @@ func TestPathDownloader_Mirror(t *testing.T) {
 		t.Errorf("tool lost its executable bits: %v", err)
 	}
 
-	if link, err := os.Readlink(path + "/link.php"); err != nil || link != "lib/A.php" {
+	// ArchivableFilesFinder keeps a symlink only when its realpath() starts
+	// with the slash-normalized source path, which a Windows realpath(),
+	// with backslashes, never does: Composer leaves links out there.
+	if util.IsWindows() {
+		if _, err := os.Lstat(path + "/link.php"); err == nil {
+			t.Error("link.php was mirrored on Windows")
+		}
+	} else if link, err := os.Readlink(path + "/link.php"); err != nil || link != "lib/A.php" {
 		t.Errorf("link.php: %q, %v", link, err)
 	}
 

@@ -239,6 +239,11 @@ func newStore(t *testing.T) *store.Store {
 func (pr *project) install(d Downloader, p pkg.PackageInterface) (string, error) {
 	path := pr.vendor + "/" + p.PrettyName()
 
+	// As DownloadManager::download() does: a junction needs its parent.
+	if err := util.EnsureDirectoryExists(util.Dirname(path)); err != nil {
+		return path, err
+	}
+
 	promise, err := d.Download(p, path, nil)
 	if err != nil {
 		return path, err
