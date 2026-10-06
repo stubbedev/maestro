@@ -136,7 +136,7 @@ What the survey shows:
 | D9 | **Custom installers use a virtual-dispatch table.** At `addInstaller`, the shim reports which `InstallerInterface`/`LibraryInstaller` methods the PHP class overrides. Go calls PHP only for those. Inherited behaviour runs natively in Go, and calls back into PHP for overridden hooks such as `getInstallPath`. | `composer/installers` overrides only `supports`, `getInstallPath` and `uninstall`. Downloads and extraction stay native and parallel (deviations 1 and 3). |
 | D10 | **Plugin commands run in PHP** on the vendored Symfony Console: bind, validate, interact, execute. Go's Application lists, describes and dispatches them through proxy commands built from mirrored definitions. | Exact Symfony semantics for plugin code. `list`/`help`/completion output stays in Go's byte-identical console port. |
 | D11 | **Output path.** `IOInterface` calls are RPC'd to Go's single IO. Symfony `OutputInterface` objects in PHP write straight to the inherited fd 1 or 2. Go flushes its output before every transfer to PHP. | One IO state (verbosity, `--profile` prefix, overwrite tracking, authentications). Symfony output objects get the exact behaviour of the vendored library. |
-| D12 | **Exceptions cross both ways with identity.** A PHP exception that crosses Go and comes back into PHP is rethrown as the *same object*. A Go error becomes the mapped PHP class. | Plugins catch their own exception classes around nested calls. Rendering needs class, code, file, line and previous. |
+| D12 | **Exceptions cross both ways with identity.** A PHP exception that crosses Go and comes back into PHP is rethrown as the *same object*. A Go error becomes the mapped PHP class. | Plugins catch their own exception classes around nested calls. Rendering needs class, code, message and previous (since #13 maestro renders errors itself, without throw sites). |
 | D13 | **`COMPOSER_BINARY` points to a PHP launcher stub** (`<shim>/bin/composer`), which `proc_open`s maestro with inherited stdio and passes its exit code through. | Plugins and `@composer` scripts run `PHP_BINARY $COMPOSER_BINARY …`. Pointing PHP at the Go binary would fail. |
 | D14 | **No opcache or ini changes beyond what `bin/composer` does.** | `ini_get` and `extension_loaded` stay identical to Composer. Startup cost is controlled by lazy class loading instead (§5.16). |
 
@@ -1180,12 +1180,9 @@ the Go error types the ports use (`errors.As` targets):
   exception becomes a `\RuntimeException` whose previous is that very
   object.
 
-Go-raised exceptions carry Composer's throw site: `file` is Composer's file
-as maestro names it (under `phperr.Root`, "phar://<maestro>/src/Composer/
-..."), `line` Composer's line, and `trace` the frames maestro recorded as
-the error went up its ports, which the shim continues with the PHP stack
-the exception is thrown into (§5.12). A PHP exception going back to PHP
-carries its trace the same way.
+Go-raised exceptions carry no throw site or trace (#13): the shim gives
+them the location and the PHP stack they are thrown into (§5.12). A PHP
+exception going back to PHP carries its own trace.
 
 **Exit codes.** These follow Composer's rules, all of which are in Go:
 `ScriptExecutionException` code, Symfony's `code <= 0 → 1`, a 255 cap, and
@@ -1288,49 +1285,22 @@ a command's own helpers such as RequireCommand's `doUpdate()`, Factory's)
 are not there. plugin-internals compares the console's, the
 PluginManager's and the Installer's frames with Composer's.
 
-**Exception traces.** An exception's trace is Composer's call stack, not
-the shim's (`Maestro\Shim\Traces`). An exception PHP code throws goes to
-maestro with its frames down to the boundary, the frame of the shim's call
-into that code, flagged open; maestro completes the trace as the error
-goes up its ports (`*rpc.PHPException` is `phperr.Traced`): the first
-frame added for the boundary's callee (Symfony's `Command::run()` of a PHP
-command, `PluginManager::addPlugin()`) or a `phperr.Locate` (a listener at
-EventDispatcher.php:232, a script at :512, a plugin's constructor, whose
-callee maestro cannot name) sets the boundary's location, and the frames
-of the calls above follow. Thrown back into PHP (a Go error, or a PHP
-exception passing through maestro), an exception's trace is maestro's
-frames, then the PHP stack it is thrown into without the shim's
-machinery. Files are named as Composer's stack names them, under
-`phperr.Root` (sent at boot): the bundled libraries are Composer's vendor/
-files line for line; the shim's Composer classes name Composer's line
-where they call plugin code with an `@line N` comment (`@line path:N` for
-the eval() of an already loaded plugin class, "PluginManager.php(305) :
-eval()'d code"), and keep their own location elsewhere; so does an error
-PHP raises there (ErrorHandler names the `\ErrorException`'s location as
-Composer's). The calls of an installer, repository, downloader or IO
-written in PHP are located at Composer's call site too
-(InstallationManager's, DownloadManager's, RepositoryManager's,
-RepositorySet's and CompositeRepository's calls, AuthHelper's,
-DownloadManager's and PluginManager's questions); where a port records
-the call as a frame naming the object's class (PoolBuilder's
-`loadPackages()`, `util.CallSync`), `phperr.CallTo` locates the boundary
-instead when PHP names the method by the class declaring it. A boundary
-of a call no port locates keeps the shim's location.
-
-**The stack in progress.** The calls that lead into PHP code record
-themselves while in progress, on one stack for the process
-(`phperr.Enter`, `EnterCode`, `Within`; `Live`): `Enter`'s function ends
-the call and adds its frame to the error it returned, as `Call` does, and
-`EnterCode` locates it, as `Locate` does. The console's `CallOn`,
-`Application::run()`'s callers, the EventDispatcher's calls
-(`doDispatch()`, `executeEventPhpScript()`, the listener, script and
-command class calls, an @script's dispatch), RunScriptCommand, the
-Installer and the commands running it, Factory's plugin loading and init
-event and the PluginManager's loading use them; a call PHP code makes
-into maestro is a mark on that stack (`phperr.Callback`, in every
-handler). The stack in progress itself served the "Stack trace:" Composer's
-ErrorHandler lists under a deprecation notice at -v; since #13 nothing
-reads it (step 3 of #13 may drop it).
+**Exception traces.** An exception's trace is the PHP stack, without the
+shim's machinery (`Maestro\Shim\Traces`). An exception PHP code throws
+goes to maestro with its frames down to the shim's call into that code,
+which keeps the shim's location; -v shows that trace (`console.Tracer`).
+Thrown back into PHP (a Go error, or a PHP exception passing through
+maestro), an exception's trace is its own frames, if any, then the PHP
+stack it is thrown into. maestro no longer records Composer's frames or
+throw sites for Go errors (#13: errors render through internal/ui, and
+nothing read them). Files PHP code sees are named as Composer's stack
+names them, under the root maestro sends at boot (`composerRoot`,
+`phperr.Root`): the bundled libraries are Composer's vendor/ files line
+for line; the shim's Composer classes name Composer's line where they call
+plugin code with an `@line N` comment (`@line path:N` for the eval() of an
+already loaded plugin class, "PluginManager.php(305) : eval()'d code"),
+and keep their own location elsewhere; so does an error PHP raises there
+(ErrorHandler names the `\ErrorException`'s location as Composer's).
 
 **Deprecation notices and warnings.** Composer has one ErrorHandler: its
 `$hasShownDeprecationNotice` is a static the sync engine keeps in step
@@ -2165,10 +2135,9 @@ Status: done. What crosses and how:
   creates maestro's (`downloader.new`). An operation subclass created in
   PHP (vaimo's `ResetOperation`) is adopted as the Composer operation it
   extends.
-- Go errors thrown into PHP carry their Composer throw site (Composer's
-  file under `phperr.Root`, and line) and Composer's frames; exceptions
-  PHP code throws reach maestro's -v rendering with Composer's call stack
-  (§5.12, "Exception traces").
+- Go errors thrown into PHP have the PHP stack they are thrown into;
+  exceptions PHP code throws reach maestro's -v rendering with their PHP
+  trace (§5.12, "Exception traces").
 - Maestro's loop drives and counts the processes PHP code started on a
   loop's executor whenever it waits, as Composer's one loop does (§5.12).
 
@@ -2462,7 +2431,7 @@ tier 2 fixtures, once Windows e2e exists.
 | --- | --- | --- | --- |
 | 1 | **Internals-dependent plugins** (flex, discovery, bamarni, vaimo) rely on stack frames, private and protected props, clone and re-construct, and `Closure::bind`. Any upstream refactor on their side or a gap in our emulation breaks them. | High / high (flex is among the most installed plugins) | Phase 6 with explicit per-plugin fixtures; the property parity list (§5.12); unsupported paths throw a named `UnsupportedApiException` instead of misbehaving silently |
 | 2 | **Output interleaving** between two processes: unflushed Go buffers, PHP `ob_*` buffers, `overwrite()` and progress bars spanning both sides | Medium / high (byte-identical output is a hard goal) | Flush before every transfer (D11); IO methods all go through Go; e2e compares exact bytes, including under pty |
-| 3 | **Exception file and line in `-v` and `-vvv` output** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | maestro names Composer's files and lines (phperr) and completes PHP traces with Composer's frames (§5.12), compared by plugin-runtime and plugin-internals; the shim's own throw sites and raised errors name Composer's line; since #13 error rendering and deprecation notices are maestro's own (no locations or stacks shown), so this only matters to plugins reading traces |
+| 3 | **Exception file and line in `-v` and `-vvv` output** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | Since #13 error rendering and deprecation notices are maestro's own (no locations or stacks shown), and maestro no longer records Composer's throw sites or frames for Go errors; this only matters to plugins reading `getFile()`, `getLine()` or `getTrace()`, which see the shim's locations for exceptions maestro raised; the shim's own throw sites and raised errors name Composer's line |
 | 4 | **Promise timing.** `then()` callbacks of PHP installers run immediately instead of at loop wait, and parallel Go ops change completion order | Medium / low | PHP-installer ops run sequentially in op order; fixtures for magento-style and yii2 `->then()` installers |
 | 5 | **stdin sharing** when stdin is a pipe and the run is still interactive (`SHELL_INTERACTIVE`): PHP's STDIN buffer can swallow lines meant for Go | Low / medium | Go reads unbuffered; documented; pty tests; if needed later, a stdin relay that hands stdin to PHP only while PHP runs a prompt |
 | 6 | **Re-entrancy of Go ports.** Nested `Installer::run`, `Factory::create` and Application runs from inside events require every Go port to be free of package-level state | Medium / high | Requirement in §7; e2e for merge-plugin, discovery, ergebnis, laminas |

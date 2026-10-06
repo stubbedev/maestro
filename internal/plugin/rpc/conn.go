@@ -640,22 +640,6 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 		// into the exception in the scope of the class declaring them.
 		x.Set("props", php.ArrayOf("scope", scope, "values", props))
 	}
-	// Composer's throw site (docs/PLUGINS.md §5.10): Symfony renders "In
-	// <file> line <n>:" from it, and -v's "at" line from its path, which
-	// is Composer's file as maestro names it (phperr.AbsPath). The trace
-	// is the frames maestro recorded as the error went up (§5.12), which
-	// PHP continues with the stack it is thrown into.
-	if site, ok := phperr.SiteOf(err); ok {
-		x.Set("file", phperr.AbsPath(site.File))
-		x.Set("line", int64(site.Line))
-	}
-	if frames := phperr.TraceOf(err); len(frames) > 0 {
-		trace := make([]console.TraceFrame, len(frames))
-		for i, f := range frames {
-			trace[i] = traceFrame(f)
-		}
-		x.Set("trace", traceValue(trace))
-	}
 	if previous != nil && depth < maxExceptionDepth {
 		x.Set("previous", c.exceptionValue(previous, depth+1))
 	}
@@ -703,10 +687,6 @@ func (c *Conn) decodeException(v any, depth int) (*PHPException, error) {
 				tf.Line = php.ToNativeInt(line)
 			}
 			e.Trace = append(e.Trace, tf)
-			// the boundary, the shim's call into the code that threw
-			// (docs/PLUGINS.md §5.12), is the last frame
-			open, _ := frame.Get("open")
-			e.open = open == true
 		}
 	}
 	if prev, ok := x.Get("previous"); ok && prev != nil {
