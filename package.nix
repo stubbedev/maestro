@@ -12,9 +12,10 @@ buildGo127Module {
 
   src = lib.cleanSource ./.;
 
-  # Hash of the go.mod/go.sum module set. Changes with every dependency bump:
-  # run `nix build` and put the reported got: hash here.
-  vendorHash = lib.fakeHash;
+  # Hash of the go.mod/go.sum module set. .github/workflows/flake.yml
+  # recomputes it on every dependency change; `just nix-vendor-hash` does it
+  # locally.
+  vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
   subPackages = ["cmd/maestro"];
 
@@ -29,8 +30,13 @@ buildGo127Module {
   # Every test fakes the registry or works on temp dirs; none reach the network.
   doCheck = true;
 
+  # maestro is a drop-in replacement: installing it provides `composer` too.
+  postInstall = ''
+    ln -s maestro $out/bin/composer
+  '';
+
   meta = {
-    description = "Fast Composer-compatible PHP package manager";
+    description = "Composer, natively: a fast drop-in replacement for the composer command";
     homepage = "https://github.com/stubbedev/maestro";
     license = lib.licenses.mit;
     mainProgram = "maestro";

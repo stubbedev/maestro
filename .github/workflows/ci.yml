@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # php drives the plugin shim and script tests (MAESTRO_PHP_TESTS) and
+      # the oracle-backed tests that skip without it.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+
+      - name: Tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        if: matrix.os == 'ubuntu-latest'
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --config=.golangci.yml --timeout=10m
+
+      - name: Test
+        env:
+          CGO_ENABLED: '1'
+          MAESTRO_PHP_TESTS: '1'
+        run: go test -race -failfast ./...
+
+  # Composer runs on Windows, so maestro must at least build and vet there;
+  # the test suite assumes a Unix filesystem and shell.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build every release target
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          for t in linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64; do
+            echo "== $t"
+            GOOS="${t%/*}" GOARCH="${t#*/}" go build -o /dev/null ./cmd/maestro
+          done

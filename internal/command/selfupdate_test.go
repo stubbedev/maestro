@@ -56,7 +56,7 @@ func newReleaseServer(t *testing.T, latest, binary string) *releaseServer {
 	t.Helper()
 	sum := sha256.Sum256([]byte(binary))
 	rs := &releaseServer{binary: binary, checksum: hex.EncodeToString(sum[:]), latest: latest}
-	asset := "maestro-" + runtime.GOOS + "-" + runtime.GOARCH
+	asset := "maestro_" + runtime.GOOS + "_" + runtime.GOARCH
 	if runtime.GOOS == "windows" {
 		asset += ".exe"
 	}

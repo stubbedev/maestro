@@ -1,0 +1,102 @@
+name: Homebrew tap
+
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish to the tap (defaults to the latest release)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap
+
+jobs:
+  update:
+    name: Update stubbedev/homebrew-tap
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          latest="$(gh release list -R stubbedev/maestro --limit 1 --json tagName --jq '.[0].tagName')"
+          if [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          elif [[ "$HEAD_BRANCH" == v* ]]; then
+            tag="$HEAD_BRANCH"
+          else
+            tag="$latest"
+          fi
+          case "$tag" in
+            v*) ;;
+            *) echo "Refusing to publish a non-v tag to the tap: $tag" >&2; exit 1 ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          dir="$(mktemp -d)"
+          # workflow_run fires only after Publish fully succeeds, so the
+          # assets exist; the retries cover a workflow_dispatch racing a
+          # release whose assets are still uploading.
+          for _ in 1 2 3 4 5; do
+            if gh release download "$TAG" -R stubbedev/maestro \
+              -p maestro_darwin_amd64 -p maestro_darwin_arm64 \
+              -p maestro_linux_amd64 -p maestro_linux_arm64 \
+              --dir "$dir"; then
+              break
+            fi
+            echo "Assets for $TAG not ready yet; retrying in 15s..."
+            sleep 15
+          done
+          [ -n "$(ls -A "$dir")" ] || { echo "No assets to download for $TAG" >&2; exit 1; }
+          echo "ASSET_DIR=$dir" >> "$GITHUB_ENV"
+
+      - name: Push formula to the tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          sha() { sha256sum "$ASSET_DIR/$1" | cut -d' ' -f1; }
+          base_url="https://github.com/stubbedev/maestro/releases/download/$TAG"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/stubbedev/homebrew-tap.git"
+
+          git clone --depth 1 "$remote" tap
+          mkdir -p tap/Formula
+          sed \
+            -e "s|@@VERSION@@|$VERSION|g" \
+            -e "s|@@BASE_URL@@|$base_url|g" \
+            -e "s|@@SHA_DARWIN_AMD64@@|$(sha maestro_darwin_amd64)|g" \
+            -e "s|@@SHA_DARWIN_ARM64@@|$(sha maestro_darwin_arm64)|g" \
+            -e "s|@@SHA_LINUX_AMD64@@|$(sha maestro_linux_amd64)|g" \
+            -e "s|@@SHA_LINUX_ARM64@@|$(sha maestro_linux_arm64)|g" \
+            .github/tap-formula.rb > tap/Formula/maestro.rb
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/maestro.rb
+          if git diff --staged --quiet; then
+            echo "Formula already at $TAG; nothing to do."
+            exit 0
+          fi
+          git commit -m "maestro $TAG"
+          git push "$remote" HEAD:main

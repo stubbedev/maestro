@@ -33,7 +33,7 @@ const selfUpdateCommandFile = "SelfUpdateCommand.php"
 
 // The release source of maestro and the names of its assets: every
 // GitHub release of github.com/stubbedev/maestro carries one binary per
-// platform, maestro-<GOOS>-<GOARCH> (".exe" on Windows), and checksums.txt
+// platform, maestro_<GOOS>_<GOARCH> (".exe" on Windows), and checksums.txt
 // in sha256sum format. Tags are "v" + the version.
 const (
 	maestroRepository = "stubbedev/maestro"
@@ -115,7 +115,7 @@ func currentExecutable() (string, error) {
 
 // assetName is the release asset of this platform.
 func assetName() string {
-	name := "maestro-" + runtime.GOOS + "-" + runtime.GOARCH
+	name := "maestro_" + runtime.GOOS + "_" + runtime.GOARCH
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
