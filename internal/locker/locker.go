@@ -38,6 +38,23 @@ type Locker struct {
 	process             vcs.Process
 	lockDataCache       *php.Array
 	virtualFileWritten  bool
+	// lockRead is what the lock file held when LockData decoded it, with
+	// the hashes IsFresh compares; nil when the file cannot tell.
+	lockRead *lockRead
+}
+
+// lockRead is a lock file's content and its hashes ("content-hash",
+// "hash").
+type lockRead struct {
+	content           string
+	contentHash, hash any
+}
+
+// rereadableFile is a lock file that can tell what it last decoded and
+// skip decoding it again (*json.File).
+type rereadableFile interface {
+	Content() (string, bool)
+	ReadIfChanged(content string) (data any, changed bool, err error)
 }
 
 // New ports new Locker($io, $lockFile, $installationManager,
@@ -141,24 +158,49 @@ func (l *Locker) IsLocked() (bool, error) {
 // IsFresh ports Locker::isFresh: whether the lock file matches
 // composer.json, by content hash (or, in old lock files, file hash).
 func (l *Locker) IsFresh() (bool, error) {
-	decoded, err := l.lockFile.Read()
+	contentHash, hash, err := l.lockHashes()
 	if err != nil {
 		return false, phperr.Call(err, `Composer\Json\JsonFile->read`, "Locker.php", 140)
 	}
-	lock, _ := decoded.(*php.Array)
 
-	if v := lockValue(lock, "content-hash"); php.ToBool(v) {
+	if php.ToBool(contentHash) {
 		// There is a content hash key, use that instead of the file hash
-		return v == l.contentHash, nil
+		return contentHash == l.contentHash, nil
 	}
 
 	// BC support for old lock files without content-hash
-	if v := lockValue(lock, "hash"); php.ToBool(v) {
-		return v == l.hash, nil
+	if php.ToBool(hash) {
+		return hash == l.hash, nil
 	}
 
 	// should not be reached unless the lock file is corrupted, so assume it's out of date
 	return false, nil
+}
+
+// lockHashes reads the lock file for IsFresh: its "content-hash" and
+// "hash". The content LockData decoded is not decoded again (deliberate
+// deviation 3): the file is read and compared with it.
+func (l *Locker) lockHashes() (contentHash, hash any, err error) {
+	var decoded any
+
+	if f, ok := l.lockFile.(rereadableFile); ok && l.lockRead != nil {
+		data, changed, err := f.ReadIfChanged(l.lockRead.content)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if !changed {
+			return l.lockRead.contentHash, l.lockRead.hash, nil
+		}
+
+		decoded = data
+	} else if decoded, err = l.lockFile.Read(); err != nil {
+		return nil, nil, err
+	}
+
+	lock, _ := decoded.(*php.Array)
+
+	return lockValue(lock, "content-hash"), lockValue(lock, "hash"), nil
 }
 
 func lockValue(lock *php.Array, key string) any {
@@ -479,6 +521,13 @@ func (l *Locker) LockData() (*php.Array, error) {
 			Raised("", "Locker.php", 341)
 	}
 	l.lockDataCache = data
+
+	l.lockRead = nil
+	if f, ok := l.lockFile.(rereadableFile); ok {
+		if content, ok := f.Content(); ok {
+			l.lockRead = &lockRead{content: content, contentHash: lockValue(data, "content-hash"), hash: lockValue(data, "hash")}
+		}
+	}
 
 	return data, nil
 }
