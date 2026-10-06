@@ -1029,8 +1029,18 @@ PHP), `Factory::create`/`createComposer`/`createGlobal`/`createConfig`:
   `getHelp()` and `getLongVersion()` are Composer's, and `run()`/`doRun()`
   run maestro's Application (`app.run`/`app.doRun`, with the commands PHP
   added through `add()`); with auto-exit PHP exits with the code itself.
-  Running maestro's own commands directly from PHP (`$app->find('install')
-  ->run(...)`) is not supported yet: their classes' `execute()` are stubs.
+  maestro's own commands run directly from PHP (`$app->find('install')
+  ->run($input, $output)`) run Symfony's `Command::run()` in PHP, as in
+  Composer; the hooks it calls on them (`initialize()`, `interact()`,
+  `execute()`, and the classes' own `run()`, `isProxyCommand()` and
+  `complete()` overrides, generated into the stubs by tools/shimgen) are
+  maestro's command's (`builtin.*`), on the input (adopted as it crosses,
+  bound to the same definition) and output PHP passed, so a
+  PRE_COMMAND_RUN listener's change shows in PHP's input object. Creating
+  Composer's command classes in PHP (`new InstallCommand()`, a subclass
+  of one) is not supported: their `configure()` stays a stub (maestro's
+  commands are Go objects; only the instances its Applications hold have
+  one behind them).
 - Script commands: before looking for them, Composer's Application
   registers the root package's class loader (createLoader, with its
   warnings); internal/command calls `RegisterProjectLoader` for that, and

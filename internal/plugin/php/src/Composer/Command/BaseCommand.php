@@ -7,8 +7,8 @@
  * its IO, and initialize() with the PRE_COMMAND_RUN event and the COMPOSER_*
  * option variables. maestro's Application runs plugin commands here
  * (command.run, docs/PLUGINS.md §5.7); maestro's own commands cross as
- * instances of their classes (descriptive only: running one from PHP is
- * not supported yet).
+ * instances of their classes, whose hooks run maestro's command when PHP
+ * runs one (builtin.*).
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -191,6 +191,14 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
     protected function initialize(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): void
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            // One of maestro's commands run from PHP: maestro's
+            // initialize() (the same as below) on its own command.
+            \Maestro\Shim\Console::builtin($this, 'initialize', [$input, $output]);
+
+            return;
+        }
+
         // initialize a plugin-enabled Composer instance, either local or global
         $disablePlugins = $input->hasParameterOption('--no-plugins');
         $disableScripts = $input->hasParameterOption('--no-scripts');

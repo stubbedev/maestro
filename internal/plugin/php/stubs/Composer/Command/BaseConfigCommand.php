@@ -24,6 +24,12 @@ abstract class BaseConfigCommand extends \Composer\Command\BaseCommand
 
     protected function initialize(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): void
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            \Maestro\Shim\Console::builtin($this, 'initialize', [$input, $output]);
+
+            return;
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\BaseConfigCommand::initialize() in plugins yet');
     }
 }

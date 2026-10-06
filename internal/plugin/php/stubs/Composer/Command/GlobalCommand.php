@@ -10,6 +10,12 @@ class GlobalCommand extends \Composer\Command\BaseCommand
 {
     public function complete(\Symfony\Component\Console\Completion\CompletionInput $input, \Symfony\Component\Console\Completion\CompletionSuggestions $suggestions): void
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            \Maestro\Shim\Console::builtin($this, 'complete', [$input, $suggestions]);
+
+            return;
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\GlobalCommand::complete() in plugins yet');
     }
 
@@ -20,11 +26,19 @@ class GlobalCommand extends \Composer\Command\BaseCommand
 
     public function isProxyCommand(): bool
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Console::builtin($this, 'isProxyCommand', []);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\GlobalCommand::isProxyCommand() in plugins yet');
     }
 
     public function run(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Console::builtin($this, 'run', [$input, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\GlobalCommand::run() in plugins yet');
     }
 }

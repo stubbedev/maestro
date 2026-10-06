@@ -192,6 +192,57 @@ final class Console
     }
 
     /**
+     * A method of one of maestro's own commands (an instance of its
+     * Composer class that maestro's Application holds) run from PHP: the
+     * hooks Symfony's Command::run() calls on it ($app->find('install')
+     * ->run($input, $output) in a plugin) and the commands' own run(),
+     * isProxyCommand() and complete(). maestro runs its command's (`builtin.*`,
+     * docs/PLUGINS.md §5.7), on the input and output it is given.
+     *
+     * @param list<mixed> $args
+     * @return mixed
+     */
+    public static function builtin(Command $command, string $method, array $args)
+    {
+        switch ($method) {
+            case 'initialize':
+                return Rpc::call('builtin.initialize', [$command, self::inputValue($args[0]), self::outputValue($args[1])]);
+            case 'interact':
+                return Rpc::call('builtin.interact', [$command, self::inputValue($args[0]), self::outputValue($args[1])]);
+            case 'execute':
+                return Rpc::call('builtin.execute', [$command, self::inputValue($args[0]), self::outputValue($args[1])]);
+            case 'run':
+                return Rpc::call('builtin.run', [$command, self::inputValue($args[0]), self::outputValue($args[1])]);
+            case 'isProxyCommand':
+                return Rpc::call('builtin.isProxyCommand', [$command]);
+            case 'complete':
+                /** @var CompletionInput $input */
+                $input = $args[0];
+                /** @var CompletionSuggestions $suggestions */
+                $suggestions = $args[1];
+                $state = Remote::read($input, CompletionInput::class, ['tokens', 'currentIndex']);
+                $res = Rpc::call('builtin.complete', [$command, array_values($state['tokens']), $state['currentIndex']]);
+                $definition = $command->getDefinition();
+                $options = [];
+                foreach ($res['options'] as $name) {
+                    if ($definition->hasOption($name)) {
+                        $options[] = $definition->getOption($name);
+                    }
+                }
+                if ($options !== []) {
+                    $suggestions->suggestOptions($options);
+                }
+                if ($res['values'] !== []) {
+                    $suggestions->suggestValues($res['values']);
+                }
+
+                return null;
+        }
+
+        throw new ProtocolException('maestro shim: no command method '.$method);
+    }
+
+    /**
      * `autoload.register`: registers a class loader (the project's, which
      * Composer's Application registers before looking for script commands).
      *

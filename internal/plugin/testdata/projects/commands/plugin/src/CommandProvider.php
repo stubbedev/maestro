@@ -15,6 +15,6 @@ class CommandProvider implements CommandProviderCapability
 
     public function getCommands()
     {
-        return [new HelloCommand(), new NestedCommand()];
+        return [new HelloCommand(), new NestedCommand(), new BuiltinCommand()];
     }
 }

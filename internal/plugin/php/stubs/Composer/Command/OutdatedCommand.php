@@ -17,11 +17,19 @@ class OutdatedCommand extends \Composer\Command\BaseCommand
 
     protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Console::builtin($this, 'execute', [$input, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\OutdatedCommand::execute() in plugins yet');
     }
 
     public function isProxyCommand(): bool
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Console::builtin($this, 'isProxyCommand', []);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\OutdatedCommand::isProxyCommand() in plugins yet');
     }
 }

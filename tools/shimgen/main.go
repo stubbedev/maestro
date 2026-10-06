@@ -228,12 +228,28 @@ var transactionMethods = []string{"getOperations"}
 // downloaders (downloader.*, internal/plugin/svc_downloader.go).
 var downloaderMethods = []string{"getInstallationSource", "download", "prepare", "install", "update", "remove", "cleanup", "getLocalChanges", "getUnpushedChanges", "getVcsReference"}
 
+// builtinHooks are the methods of Composer's command classes that maestro
+// serves for its own commands (builtin.*, internal/plugin/svc_builtin.go):
+// the hooks Symfony's Command::run() calls when PHP code runs one of the
+// commands of maestro's Application ($app->find('install')->run(...)), and
+// the commands' own run(), isProxyCommand() and complete() overrides.
+var builtinHooks = []string{"initialize", "interact", "execute", "run", "isProxyCommand", "complete"}
+
 // remoteMethods are the methods of a stub class whose instances may be
-// maestro's (a remote repository or a transaction maestro hands to PHP):
-// name => the RPC method serving them on such an instance.
+// maestro's (a remote repository, a transaction or a command maestro hands
+// to PHP): name => the RPC method serving them on such an instance.
 func remoteMethods(class string, c *shimbuild.Class) map[string]string {
 	out := map[string]string{}
 	if c.Kind != "class" {
+		return out
+	}
+	if strings.HasPrefix(class, `Composer\Command\`) {
+		for _, name := range builtinHooks {
+			if m, ok := c.Methods.Values[name]; ok && !m.Static && !m.Abstract {
+				out[name] = "builtin." + name
+			}
+		}
+
 		return out
 	}
 	if class == `Composer\DependencyResolver\Transaction` {
@@ -327,7 +343,8 @@ func renderMethod(class, name string, m *shimbuild.Method, inInterface bool, rem
 	}
 
 	b.WriteString("\n    {\n")
-	if remote != "" && name == "__construct" {
+	switch {
+	case remote != "" && name == "__construct":
 		params := []string{"$this"}
 		for _, p := range m.Params {
 			params = append(params, "$"+p.Name)
@@ -335,13 +352,23 @@ func renderMethod(class, name string, m *shimbuild.Method, inInterface bool, rem
 		b.WriteString("        \\Maestro\\Shim\\Rpc::call(" + php.VarExport(remote) + ", [" + strings.Join(params, ", ") + "]);\n    }\n")
 
 		return b.String()
-	}
-	if remote != "" {
-		params := []string{"$this"}
-		for _, p := range m.Params {
-			params = append(params, "$"+p.Name)
+	case remote != "":
+		var call string
+		if strings.HasPrefix(remote, "builtin.") {
+			// Maestro\Shim\Console::builtin() makes the input and output
+			// maestro's as they cross (Console::inputValue(), outputValue()).
+			params := make([]string, len(m.Params))
+			for i, p := range m.Params {
+				params[i] = "$" + p.Name
+			}
+			call = "\\Maestro\\Shim\\Console::builtin($this, " + php.VarExport(name) + ", [" + strings.Join(params, ", ") + "])"
+		} else {
+			params := []string{"$this"}
+			for _, p := range m.Params {
+				params = append(params, "$"+p.Name)
+			}
+			call = "\\Maestro\\Shim\\Rpc::call(" + php.VarExport(remote) + ", [" + strings.Join(params, ", ") + "])"
 		}
-		call := "\\Maestro\\Shim\\Rpc::call(" + php.VarExport(remote) + ", [" + strings.Join(params, ", ") + "])"
 		b.WriteString("        if (\\Maestro\\Shim\\Remote::owned($this)) {\n")
 		if m.ReturnType != nil && *m.ReturnType == "void" {
 			b.WriteString("            " + call + ";\n\n            return;\n")

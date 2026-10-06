@@ -20,6 +20,7 @@ func (r *Runtime) registerAPI() {
 	r.registerInstallationManagerInstallers()
 	r.registerPromises()
 	r.registerConsole()
+	r.registerBuiltinCommands()
 	r.registerLoaders()
 	r.registerRunInstaller()
 	r.registerHTTP()

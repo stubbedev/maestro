@@ -15,6 +15,10 @@ class PolicyCommand extends \Composer\Command\BaseConfigCommand
 
     protected function execute(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Console::builtin($this, 'execute', [$input, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\PolicyCommand::execute() in plugins yet');
     }
 }

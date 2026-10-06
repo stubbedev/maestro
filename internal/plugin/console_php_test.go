@@ -108,9 +108,26 @@ func TestPlugins_Commands(t *testing.T) {
 	}
 	contains("maestro:nested", out,
 		"created maestro-test/commands-project false\n",
-		"\"name\": \"maestro-test/commands-project\"",
+		"  License   Number of dependencies  \n",
 		"nested 0\n",
 		"buffered 3: hello nested x1|io maestro-test/commands-project|",
+	)
+
+	// maestro's own commands run from PHP ($app->find()->run()): Symfony's
+	// run() in PHP, maestro's hooks; the PRE_COMMAND_RUN listener's change
+	// reaches the command and shows in PHP's input object.
+	out, code = p.runApp("maestro:builtin")
+	if code != 0 {
+		t.Errorf("maestro:builtin = %d\n%s", code, out)
+	}
+	contains("maestro:builtin", out,
+		"{\n    \"name\": \"maestro-test/commands-project\"",
+		"licenses 0 json\n",
+		"summary 0: ",
+		"greetings them from greet\nrun-script 0\n",
+		`error RuntimeException: Unsupported format "nope".  See help for supported formats.`+"\n",
+		"proxy true false\n",
+		"complete true\n",
 	)
 
 	// The script naming a Symfony command class is that command.

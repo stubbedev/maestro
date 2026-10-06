@@ -40,7 +40,7 @@ class Plugin implements PluginInterface, Capable, EventSubscriberInterface
      */
     public function preCommandRun(PreCommandRunEvent $event)
     {
-        if ($event->getCommand() === 'licenses') {
+        if ($event->getCommand() === 'licenses' && $event->getInput()->getOption('format') === 'text') {
             $event->getInput()->setOption('format', 'json');
         }
     }
