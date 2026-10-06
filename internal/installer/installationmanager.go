@@ -15,7 +15,6 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -126,7 +125,6 @@ func (m *Manager) Installer(typ string) (Installer, error) {
 
 	for _, installer := range m.installers {
 		ok, err := installer.Supports(typ)
-		err = callAt(err, 128) // $installer->supports($type)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +136,7 @@ func (m *Manager) Installer(typ string) (Installer, error) {
 		}
 	}
 
-	return nil, &util.InvalidArgumentError{Site: phperr.At("InstallationManager.php", 133), Message: "Unknown installer type: " + typ}
+	return nil, &util.InvalidArgumentError{Message: "Unknown installer type: " + typ}
 }
 
 // IsPackageInstalled is isPackageInstalled().
@@ -159,7 +157,7 @@ func (m *Manager) IsPackageInstalled(repo repository.InstalledRepositoryInterfac
 
 	ok, err := installer.IsInstalled(repo, p)
 
-	return ok, callAt(err, 148)
+	return ok, err
 }
 
 // EnsureBinariesPresence is ensureBinariesPresence(): it installs the
@@ -178,7 +176,7 @@ func (m *Manager) EnsureBinariesPresence(p pkg.PackageInterface) error {
 
 	// if the given installer support installing binaries
 	if bp, ok := installer.(BinaryPresence); ok {
-		return callAt(bp.EnsureBinariesPresence(p), 168)
+		return bp.EnsureBinariesPresence(p)
 	}
 
 	return nil
@@ -341,7 +339,6 @@ func (m *Manager) executeBatches(repo repository.InstalledRepositoryInterface, o
 
 	for _, b := range batches {
 		if err := m.downloadAndExecuteBatch(repo, b, cl, devMode, runScripts, downloadOnly, allOperations); err != nil {
-			phperr.Call(err, `Composer\Installer\InstallationManager->downloadAndExecuteBatch`, "InstallationManager.php", 221)
 			if isException(err) {
 				if cerr := m.runCleanup(cl); cerr != nil {
 					return cerr
@@ -422,7 +419,7 @@ func (m *Manager) downloadAndExecuteBatch(repo repository.InstalledRepositoryInt
 
 			promise, err := installer.Cleanup(opType, p, initial)
 
-			return promise, callAt(err, 276)
+			return promise, err
 		})
 
 		if opType != operation.TypeUninstall {
@@ -542,7 +539,6 @@ func (m *Manager) executeBatch(repo repository.InstalledRepositoryInterface, ope
 		}
 
 		promise, err := installer.Prepare(opType, p, initial)
-		err = callAt(err, 376)
 		if err != nil {
 			return err
 		}
@@ -622,13 +618,6 @@ type progressIO interface {
 	ProgressBar(maxSteps int) *console.ProgressBar
 }
 
-// callAt locates an error an installer's method threw at its call in
-// InstallationManager.php (phperr.Locate): one written in PHP left its
-// code through that call, which its trace names as Composer's
-// (docs/PLUGINS.md §5.12). maestro's own installers' errors are left
-// alone.
-func callAt(err error, line int) error { return phperr.Locate(err, "InstallationManager.php", line) }
-
 // installerClass is the class declaring the installer's methods, as an
 // exception's trace names it.
 func installerClass(installer Installer) string {
@@ -690,7 +679,7 @@ func (m *Manager) Download(p pkg.PackageInterface) (*Promise, error) {
 
 	promise, err := installer.Cleanup("install", p, nil)
 
-	return promise, callAt(err, 452)
+	return promise, err
 }
 
 // Install is install(): it executes an install operation.
@@ -703,7 +692,6 @@ func (m *Manager) Install(repo repository.InstalledRepositoryInterface, op *oper
 	}
 
 	promise, err := installer.Install(repo, p)
-	err = callAt(err, 468)
 	if err != nil {
 		return nil, err
 	}
@@ -730,7 +718,6 @@ func (m *Manager) Update(repo repository.InstalledRepositoryInterface, op *opera
 		}
 
 		promise, err := installer.Update(repo, initial, target)
-		err = callAt(err, 491)
 		if err != nil {
 			return nil, err
 		}
@@ -746,7 +733,6 @@ func (m *Manager) Update(repo repository.InstalledRepositoryInterface, op *opera
 	}
 
 	promise, err := initialInstaller.Uninstall(repo, initial)
-	err = callAt(err, 494)
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +744,6 @@ func (m *Manager) Update(repo repository.InstalledRepositoryInterface, op *opera
 
 	return Then(promise, func() (*Promise, error) {
 		promise, err := installer.Install(repo, target)
-		err = callAt(err, 501)
 		if err != nil || promise != nil {
 			return promise, err
 		}
@@ -778,7 +763,7 @@ func (m *Manager) Uninstall(repo repository.InstalledRepositoryInterface, op *op
 
 	promise, err := installer.Uninstall(repo, p)
 
-	return promise, callAt(err, 525)
+	return promise, err
 }
 
 // MarkAliasInstalled is markAliasInstalled().
@@ -808,7 +793,7 @@ func (m *Manager) InstallPath(p pkg.PackageInterface) (string, bool, error) {
 
 	path, ok, err := installer.InstallPath(p)
 
-	return path, ok, callAt(err, 565)
+	return path, ok, err
 }
 
 // SetOutputProgress is setOutputProgress().
