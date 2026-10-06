@@ -69,6 +69,12 @@ class Application extends \Symfony\Component\Console\Application
 
     public function doRun(\Symfony\Component\Console\Input\InputInterface $input, \Symfony\Component\Console\Output\OutputInterface $output): int
     {
+        // maestro's doRun(), as a frame of Composer's stack
+        // (docs/PLUGINS.md §5.12)
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return 0;
+        }
+
         return Rpc::call('app.doRun', [$this, Console::inputValue($input), Console::outputValue($output), Console::addedCommands($this)]);
     }
 

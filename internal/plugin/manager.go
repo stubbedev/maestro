@@ -216,6 +216,8 @@ func (m *Manager) SetRunningInGlobalDir(runningInGlobalDir bool) {
 // LoadInstalledPlugins ports loadInstalledPlugins: the plugins of the
 // local repository, then the global ones.
 func (m *Manager) LoadInstalledPlugins() error {
+	defer m.frame("loadInstalledPlugins")()
+
 	if !m.ArePluginsDisabled("local") {
 		repo := m.composer.RepositoryManager().LocalRepository()
 		if err := m.loadRepository(repo, false, m.composer.Package()); err != nil {
@@ -285,6 +287,13 @@ func (m *Manager) globalNote(isGlobalPlugin bool) string {
 // RegisterPackage ports registerPackage: activates a plugin package (or
 // registers a legacy composer-installer).
 func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, isGlobalPlugin bool) error {
+	if failOnMissingClasses && !isGlobalPlugin {
+		// PluginInstaller's registerPackage($package, true)
+		defer m.frame("registerPackage", p, true)()
+	} else {
+		defer m.frame("registerPackage", p, failOnMissingClasses, isGlobalPlugin)()
+	}
+
 	scope := "local"
 	if isGlobalPlugin {
 		scope = "global"
@@ -407,6 +416,20 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 	}
 
 	return pluginLoadCall(err, oldInstallerPlugin)
+}
+
+// frame pushes the frame of Composer's PluginManager method on the stack
+// plugin code sees (docs/PLUGINS.md §5.12): Composer's stack holds
+// loadInstalledPlugins(), loadRepository() and registerPackage() while a
+// plugin is activated. It returns the function popping it.
+func (m *Manager) frame(method string, args ...any) func() {
+	crt := m.r.frameRuntime()
+	if crt == nil {
+		return func() {}
+	}
+	crt.PushFrame(pluginManagerClass+"->"+method, m, args...)
+
+	return crt.PopFrame
 }
 
 // pluginManagerClass names PluginManager in the frames of its calls.
@@ -652,6 +675,12 @@ func (m *Manager) unregister(p pkg.PackageInterface, method string) error {
 // loadRepository ports loadRepository: the plugin packages of repo, in
 // dependency order, composer/installers and install-path plugins first.
 func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRepo bool, rootPackage pkg.RootPackageInterface) error {
+	if isGlobalRepo {
+		defer m.frame("loadRepository", repo, true)() // loadRepository($repo, true)
+	} else {
+		defer m.frame("loadRepository", repo, false, rootPackage)()
+	}
+
 	packages, err := repo.Packages()
 	if err != nil {
 		return err

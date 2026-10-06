@@ -40,6 +40,16 @@ class Plugin implements PluginInterface, Capable, EventSubscriberInterface
      */
     public function preCommandRun(PreCommandRunEvent $event)
     {
+        // The frames of Composer's objects on the stack, as plugins find
+        // them with debug_backtrace() (docs/PLUGINS.md §5.12).
+        $frames = [];
+        foreach (debug_backtrace(\DEBUG_BACKTRACE_PROVIDE_OBJECT) as $trace) {
+            if (isset($trace['object'], $trace['class']) && strpos($trace['class'], 'Composer\\') === 0) {
+                $frames[] = $trace['class'].$trace['type'].$trace['function'].'('.count($trace['args']).') '.get_class($trace['object']);
+            }
+        }
+        $GLOBALS['maestroTestFrames'][$event->getCommand()] = $frames;
+
         if ($event->getCommand() === 'licenses' && $event->getInput()->getOption('format') === 'text') {
             $event->getInput()->setOption('format', 'json');
         }

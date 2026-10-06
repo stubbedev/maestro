@@ -50,12 +50,15 @@ type Runtime struct {
 	installedVersionsSink func(versions *php.Array, repoDir string)
 }
 
-// Frame is an entry of the frame stack: an object Composer would have on
-// its PHP call stack (the Application, the running command, the Installer
-// during run(), the plugin manager during a load) with its arguments.
+// Frame is an entry of the frame stack: a method call Composer would have
+// on its PHP call stack (the Application's doRun(), the running command's
+// methods, the Installer's run(), the plugin manager's loading) with its
+// object and arguments. Function names it as PHP's backtrace does
+// ("Composer\Installer->run").
 type Frame struct {
-	Object any
-	Args   []any
+	Function string
+	Object   any
+	Args     []any
 }
 
 // NewRuntime returns the runtime of a process. clientVersion is maestro's
@@ -342,11 +345,12 @@ func (r *Runtime) SetInstalledVersionsSink(sink func(versions *php.Array, repoDi
 }
 
 // PushFrame pushes a frame on the stack the plugin runtime reports to
-// debug_backtrace(); PopFrame removes it.
-func (r *Runtime) PushFrame(object any, args ...any) {
+// debug_backtrace(): the call of function on object with args; PopFrame
+// removes it.
+func (r *Runtime) PushFrame(function string, object any, args ...any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.frames = append(r.frames, Frame{Object: object, Args: args})
+	r.frames = append(r.frames, Frame{Function: function, Object: object, Args: args})
 }
 
 // PopFrame removes the innermost frame.

@@ -226,7 +226,7 @@ func (i *Installer) configArray(key string) (*php.Array, error) {
 // exit codes.
 func (i *Installer) Run() (int, error) {
 	if i.runtime != nil {
-		i.runtime.PushFrame(i)
+		i.runtime.PushFrame(`Composer\Installer->run`, i)
 		defer i.runtime.PopFrame()
 	}
 
@@ -582,6 +582,10 @@ func (i *Installer) emitGithubActionError(message string) {
 }
 
 func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, doInstall bool) (int, error) {
+	if i.runtime != nil {
+		i.runtime.PushFrame(`Composer\Installer->doUpdate`, i, localRepo, doInstall)
+		defer i.runtime.PopFrame()
+	}
 	platformRepo, err := i.createPlatformRepo(true)
 	if err != nil {
 		return 0, err
@@ -981,6 +985,15 @@ func (i *Installer) extractDevPackages(lockTransaction *resolver.LockTransaction
 }
 
 func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface, alreadySolved bool) (int, error) {
+	if i.runtime != nil {
+		// run() calls doInstall($localRepo), doUpdate() doInstall($localRepo, true)
+		args := []any{localRepo}
+		if alreadySolved {
+			args = append(args, true)
+		}
+		i.runtime.PushFrame(`Composer\Installer->doInstall`, i, args...)
+		defer i.runtime.PopFrame()
+	}
 	lock, err := i.configBool("lock")
 	if err != nil {
 		return 0, err

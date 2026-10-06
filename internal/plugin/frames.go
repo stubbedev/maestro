@@ -2,12 +2,15 @@
 // objects on Composer's PHP call stack with debug_backtrace() (symfony/flex
 // and symfony/thanks for the Application and its ArgvInput, flex and
 // php-http/discovery for the running Composer\Installer, flex for a
-// GlobalCommand). maestro's Application, command runner and Installer
-// push frames on composer.Runtime's stack; every call into PHP code
-// carries the frames pushed since PHP last called maestro, and the shim
-// enters each through a trampoline bound to its object
-// (Maestro\Shim\Frames), so PHP's real stack holds them as Composer's
-// does, nested calls included.
+// GlobalCommand). maestro's console (the Application's and the command's
+// methods), Installer and PluginManager push the method calls Composer's
+// stack holds on composer.Runtime's stack, each named as PHP names it;
+// every call into PHP code carries the frames pushed since PHP last called
+// maestro, and the shim enters each by calling Composer's method itself on
+// its object (Maestro\Shim\Frames), whose implementation resumes the call,
+// so PHP's real stack holds them as Composer's does, class, function,
+// object and arguments, nested calls included. Frames of methods the
+// shim does not implement (Symfony's) are left out.
 
 package plugin
 
@@ -85,7 +88,7 @@ func (r *Runtime) framesValue() *php.Array {
 		for _, a := range f.Args {
 			args.Append(r.frameObject(a))
 		}
-		out.Append(php.ListOf(obj, args))
+		out.Append(php.ListOf(obj, args, f.Function))
 	}
 	if out.Len() == 0 {
 		return nil

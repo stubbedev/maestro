@@ -94,9 +94,9 @@ func TestRuntime_RunningCommandAndOperation(t *testing.T) {
 
 func TestRuntime_Frames(t *testing.T) {
 	rt := testRuntime(t, 0)
-	rt.PushFrame("app", "input")
-	rt.PushFrame("command")
-	if frames := rt.Frames(); len(frames) != 2 || frames[0].Object != "app" || frames[1].Object != "command" {
+	rt.PushFrame(`Composer\Console\Application->doRun`, "app", "input")
+	rt.PushFrame(`Composer\Command\InstallCommand->execute`, "command")
+	if frames := rt.Frames(); len(frames) != 2 || frames[0].Object != "app" || frames[0].Function != `Composer\Console\Application->doRun` || frames[0].Args[0] != "input" || frames[1].Object != "command" {
 		t.Errorf("frames = %v", frames)
 	}
 	rt.PopFrame()

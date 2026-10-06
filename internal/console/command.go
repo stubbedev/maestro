@@ -171,7 +171,7 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 
 	impl := c.impl()
 	if h, ok := impl.(Initializer); ok {
-		if _, err := c.call(methodClass(impl, "initialize")+"->initialize", 264, func() (int, error) { return 0, h.Initialize(in, out) }); err != nil {
+		if _, err := c.call(methodClass(impl, "initialize")+"->initialize", 264, impl, in, out, func() (int, error) { return 0, h.Initialize(in, out) }); err != nil {
 			return 0, err
 		}
 	}
@@ -181,7 +181,7 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 
 	if in.IsInteractive() {
 		if h, ok := impl.(Interactor); ok {
-			if _, err := c.call(methodClass(impl, "interact")+"->interact", 283, func() (int, error) { return 0, h.Interact(in, out) }); err != nil {
+			if _, err := c.call(methodClass(impl, "interact")+"->interact", 283, impl, in, out, func() (int, error) { return 0, h.Interact(in, out) }); err != nil {
 				return 0, err
 			}
 		}
@@ -202,18 +202,19 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 		return c.code(in, out)
 	}
 	if h, ok := impl.(Executor); ok {
-		return c.call(methodClass(impl, "execute")+"->execute", 298, func() (int, error) { return h.Execute(in, out) })
+		return c.call(methodClass(impl, "execute")+"->execute", 298, impl, in, out, func() (int, error) { return h.Execute(in, out) })
 	}
 
 	return 0, newError(KindLogic, "Command.php", 208, "You must override the execute() method in the concrete command class.")
 }
 
-// call runs fn as run()'s call of function at line of Command.php
-// (Application.Call, or phperr.Call for a command without application).
-func (c *Command) call(function string, line int, fn func() (int, error)) (int, error) {
+// call runs fn as run()'s call of function on the command at line of
+// Command.php (Application.CallOn, or phperr.Call for a command without
+// application).
+func (c *Command) call(function string, line int, impl Commander, in Input, out Output, fn func() (int, error)) (int, error) {
 	f := phperr.Frame{Function: function, File: commandPHP, Line: line}
 	if c.application != nil {
-		return c.application.Call(f, fn)
+		return c.application.CallOn(f, impl, []any{in, out}, fn)
 	}
 	code, err := fn()
 

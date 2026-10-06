@@ -175,12 +175,27 @@ class PluginManager
 
     public function loadInstalledPlugins(): void
     {
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return;
+        }
         \Maestro\Shim\Rpc::call('pm.loadInstalledPlugins', [$this]);
     }
 
     public function registerPackage(\Composer\Package\PackageInterface $package, bool $failOnMissingClasses = false, bool $isGlobalPlugin = false): void
     {
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return;
+        }
         \Maestro\Shim\Rpc::call('pm.registerPackage', [$this, $package, $failOnMissingClasses, $isGlobalPlugin]);
+    }
+
+    /**
+     * maestro's loading of a repository's plugins, as a frame of
+     * Composer's stack only (docs/PLUGINS.md §5.12).
+     */
+    private function loadRepository(\Composer\Repository\RepositoryInterface $repo, bool $isGlobalRepo, ?\Composer\Package\RootPackageInterface $rootPackage = null): void
+    {
+        \Maestro\Shim\Frames::resumes($this, __FUNCTION__);
     }
 
     public function removePlugin(\Composer\Plugin\PluginInterface $plugin): void

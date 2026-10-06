@@ -107,6 +107,11 @@ class Installer
 
     public function run(): int
     {
+        // maestro's run, as a frame of Composer's stack (docs/PLUGINS.md
+        // §5.12)
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return 0;
+        }
         if ($this->updateAllowList !== null && $this->updateMirrors) {
             throw new \RuntimeException("The installer options updateMirrors and updateAllowList are mutually exclusive.");
         }
@@ -135,6 +140,9 @@ class Installer
 
     protected function doUpdate(\Composer\Repository\InstalledRepositoryInterface $localRepo, bool $doInstall): int
     {
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return 0;
+        }
         // The update alone, without run()'s steps around it, on a maestro
         // Installer built from these properties, as run() builds one.
         $result = Rpc::call('installer.doUpdate', [$this->maestroSettings(), $localRepo, $doInstall]);
@@ -145,6 +153,9 @@ class Installer
 
     protected function doInstall(\Composer\Repository\InstalledRepositoryInterface $localRepo, bool $alreadySolved = false): int
     {
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return 0;
+        }
         $result = Rpc::call('installer.doInstall', [$this->maestroSettings(), $localRepo, $alreadySolved]);
 
         return $result['code'];

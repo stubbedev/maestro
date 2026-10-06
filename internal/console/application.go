@@ -51,7 +51,8 @@ type (
 
 // Application is a collection of commands.
 type Application struct {
-	self any
+	self     any
+	callHook CallHook
 
 	commands       map[string]Commander
 	commandOrder   []string
@@ -93,6 +94,26 @@ func (a *Application) RunCallers() []phperr.Frame { return a.runCallers }
 // on the application's stack while fn runs (Stack), and is added to the
 // trace of the error fn returns (phperr.Call).
 func (a *Application) Call(f phperr.Frame, fn func() (int, error)) (int, error) {
+	return a.CallOn(f, nil, nil, fn)
+}
+
+// CallHook is told of the calls of methods on objects (CallOn) as they
+// start, and returns what to do as they end (nil for nothing): the plugin
+// runtime has the objects on the PHP call stack while plugin code runs
+// under them (docs/PLUGINS.md §5.12).
+type CallHook func(f phperr.Frame, object any, args []any) (end func())
+
+// SetCallHook sets the hook CallOn tells of its calls.
+func (a *Application) SetCallHook(h CallHook) { a.callHook = h }
+
+// CallOn is Call of a method of object with args, which the CallHook is
+// told of.
+func (a *Application) CallOn(f phperr.Frame, object any, args []any, fn func() (int, error)) (int, error) {
+	if a.callHook != nil && object != nil {
+		if end := a.callHook(f, object, args); end != nil {
+			defer end()
+		}
+	}
 	n := len(a.stack)
 	a.stack = append(a.stack, f)
 	// popped on a panic too (runGuarded recovers Throwable panics)
@@ -215,7 +236,7 @@ func (a *Application) runGuarded(in Input, out Output) (code int, err error) {
 		doRun = d.DoRun
 	}
 
-	return a.Call(phperr.Frame{Function: a.appClass(overrides) + "->doRun", File: applicationPHP, Line: 171}, func() (int, error) {
+	return a.CallOn(phperr.Frame{Function: a.appClass(overrides) + "->doRun", File: applicationPHP, Line: 171}, a.Impl(), []any{in, out}, func() (int, error) {
 		return doRun(in, out)
 	})
 }
@@ -300,7 +321,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	if d, ok := a.self.(AppDoRunCommander); ok {
 		run = d.DoRunCommand
 	}
-	exitCode, err := a.Call(phperr.Frame{Function: `Symfony\Component\Console\Application->doRunCommand`, File: applicationPHP, Line: 301}, func() (int, error) {
+	exitCode, err := a.CallOn(phperr.Frame{Function: `Symfony\Component\Console\Application->doRunCommand`, File: applicationPHP, Line: 301}, a.Impl(), []any{command, in, out}, func() (int, error) {
 		return run(command, in, out)
 	})
 	if err != nil {
@@ -1108,7 +1129,7 @@ func (*Application) ConfigureIO(in Input, out Output) {
 
 // DoRunCommand runs a command.
 func (a *Application) DoRunCommand(command Commander, in Input, out Output) (int, error) {
-	return a.Call(phperr.Frame{Function: methodClass(command, "run") + "->run", File: applicationPHP, Line: 1040}, func() (int, error) {
+	return a.CallOn(phperr.Frame{Function: methodClass(command, "run") + "->run", File: applicationPHP, Line: 1040}, command, []any{in, out}, func() (int, error) {
 		return command.Run(in, out)
 	})
 }

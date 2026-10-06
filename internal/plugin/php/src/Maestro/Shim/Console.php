@@ -207,6 +207,11 @@ final class Console
      */
     public static function builtin(Command $command, string $method, array $args)
     {
+        // maestro's own call of the method, as a frame of Composer's
+        // stack (docs/PLUGINS.md §5.12): run() and execute() return an int
+        if (Frames::resumes($command, $method)) {
+            return 0;
+        }
         switch ($method) {
             case 'initialize':
                 return Rpc::call('builtin.initialize', [$command, self::inputValue($args[0]), self::outputValue($args[1])]);

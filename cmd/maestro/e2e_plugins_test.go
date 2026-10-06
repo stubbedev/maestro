@@ -197,9 +197,12 @@ func pluginScenarios() []scenario {
 		{
 			// What docs/PLUGINS.md §5.12 emulates of Composer's internals
 			// beyond the surveyed plugins' needs (issue #2), through a path
-			// repository plugin: a process it starts asynchronously on
-			// Composer's loop runs, and its callback with it, while
-			// Composer's own install waits; exceptions show Composer's
+			// repository plugin: the frames of Composer's PluginManager and
+			// Installer on the stack (named as Composer's methods, with
+			// their arguments) while it is activated and listens; a process
+			// it starts asynchronously on Composer's loop runs, and its
+			// callback with it, while Composer's own install waits;
+			// exceptions show Composer's
 			// call stack at -v, thrown by the plugin's command, by
 			// Composer's code under it, by a listener and by activate()
 			// (an eval()'d copy of the plugin class, as Composer loads an
@@ -207,10 +210,12 @@ func pluginScenarios() []scenario {
 			name:    "plugin-internals",
 			fixture: "plugin-internals",
 			steps: []step{
-				{args: []string{"install"}},
+				// INTERNALS_FRAMES: the PluginManager and Installer
+				// frames activate() and a listener see.
+				{args: []string{"install"}, env: []string{"INTERNALS_FRAMES=1"}},
 				// The plugin is active from here on (pre-operations-exec).
-				{args: []string{"require", "local/lib-b"}},
-				{args: []string{"install", "-v"}},
+				{args: []string{"require", "local/lib-b"}, env: []string{"INTERNALS_FRAMES=1"}},
+				{args: []string{"install", "-v"}, env: []string{"INTERNALS_FRAMES=1"}},
 				{args: []string{"internals:throw", "-v"}, normalize: normalizeComposerTrace},
 				{args: []string{"internals:throw", "-v"}, env: []string{"INTERNALS_THROW=composer"}, normalize: normalizeComposerTrace},
 				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=listener"}, normalize: normalizeComposerTrace},

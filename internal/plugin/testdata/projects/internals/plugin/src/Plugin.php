@@ -34,6 +34,16 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         $this->composer = $composer;
         $this->io = $io;
+
+        // The PluginManager and Installer frames on the stack, as Composer
+        // has them (docs/PLUGINS.md §5.12).
+        $frames = [];
+        foreach (debug_backtrace(\DEBUG_BACKTRACE_PROVIDE_OBJECT) as $trace) {
+            if (isset($trace['object']) && ($trace['object'] instanceof \Composer\Plugin\PluginManager || $trace['object'] instanceof Installer)) {
+                $frames[] = $trace['class'].$trace['type'].$trace['function'].'('.count($trace['args']).')';
+            }
+        }
+        $io->write('activate frames: '.implode(', ', $frames));
     }
 
     public function deactivate(Composer $composer, IOInterface $io): void

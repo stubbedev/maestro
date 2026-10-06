@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -108,6 +109,51 @@ func TestInternals_Traces(t *testing.T) {
 	}
 	if _, ok := pe.OpenFrame(); !ok {
 		t.Error("the trace does not end at the call maestro made")
+	}
+}
+
+// The frames plugin code finds with debug_backtrace() are Composer's
+// method calls, with their class, function, object and arguments: the
+// Application's doRun() and the running command's initialize(), where
+// PRE_COMMAND_RUN is dispatched.
+func TestInternals_Frames(t *testing.T) {
+	requirePHP(t)
+
+	p := newEvalProject(t, "commands")
+	if code, err := p.install(true); err != nil || code != 0 {
+		t.Fatalf("install = %d, %v\n%s", code, err, p.output())
+	}
+	if out, code := p.runApp("licenses"); code != 0 {
+		t.Fatalf("licenses = %d\n%s", code, out)
+	}
+	got := lines(evalPHP(t, p.rt, `return $GLOBALS['maestroTestFrames']['licenses'];`, nil))
+	want := `Composer\Command\BaseCommand->initialize(2) Composer\Command\LicensesCommand
+Composer\Console\Application->doRun(2) Composer\Console\Application`
+	if got != want {
+		t.Errorf("frames during licenses' PRE_COMMAND_RUN:\n%s\nwant\n%s", got, want)
+	}
+
+}
+
+// The internals project's plugin is activated while the Installer
+// installs it (PluginInstaller's registerPackage($package, true)), and
+// loaded by the PluginManager when the next run starts: the frames of its
+// activate() are Composer's.
+func TestInternals_PluginManagerFrames(t *testing.T) {
+	requirePHP(t)
+
+	p := newProject(t, "internals", console.VerbosityNormal)
+	if code, err := p.install(true); err != nil || code != 0 {
+		t.Fatalf("update = %d, %v\n%s", code, err, p.output())
+	}
+	if !strings.Contains(p.output(), `activate frames: Composer\Plugin\PluginManager->addPlugin(3), Composer\Plugin\PluginManager->registerPackage(2), Composer\Installer->doInstall(2), Composer\Installer->doUpdate(2), Composer\Installer->run(0)`+"\n") {
+		t.Errorf("the frames of activate() during the install:\n%s", p.output())
+	}
+	if code, err := p.install(true); err != nil || code != 0 {
+		t.Fatalf("install = %d, %v\n%s", code, err, p.output())
+	}
+	if !strings.Contains(p.output(), `activate frames: Composer\Plugin\PluginManager->addPlugin(3), Composer\Plugin\PluginManager->registerPackage(3), Composer\Plugin\PluginManager->loadRepository(3), Composer\Plugin\PluginManager->loadInstalledPlugins(0)`+"\n") {
+		t.Errorf("the frames of activate() when Composer loads:\n%s", p.output())
 	}
 }
 

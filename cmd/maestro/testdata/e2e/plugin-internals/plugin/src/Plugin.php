@@ -28,6 +28,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable
         if (getenv('INTERNALS_THROW') === 'activate') {
             self::fail('activate');
         }
+        if (getenv('INTERNALS_FRAMES')) {
+            $io->write('activate: '.self::frames());
+        }
     }
 
     public function deactivate(Composer $composer, IOInterface $io): void
@@ -70,6 +73,26 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable
         if (getenv('INTERNALS_THROW') === 'listener') {
             self::fail('a listener');
         }
+        if (getenv('INTERNALS_FRAMES')) {
+            $this->io->write('post-install-cmd: '.self::frames());
+        }
+    }
+
+    /**
+     * The frames of the PluginManager and the Installer on the stack, as
+     * flex and php-http/discovery look for them: class, function and the
+     * number of arguments.
+     */
+    private static function frames(): string
+    {
+        $found = [];
+        foreach (debug_backtrace(\DEBUG_BACKTRACE_PROVIDE_OBJECT) as $trace) {
+            if (isset($trace['object']) && ($trace['object'] instanceof \Composer\Plugin\PluginManager || $trace['object'] instanceof \Composer\Installer)) {
+                $found[] = $trace['class'].$trace['type'].$trace['function'].'('.count($trace['args']).')';
+            }
+        }
+
+        return implode(', ', $found);
     }
 
     /** A frame of the plugin's own between Composer's and the throw. */

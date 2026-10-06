@@ -116,6 +116,7 @@ func NewNamedApplication(factory *composer.Factory, name, version string) *Appli
 		Stdin:       os.Stdin,
 	}
 	a.SetImpl(a)
+	a.SetCallHook(a.pushCallFrame)
 	a.initialWorkingDirectory, _ = util.GetCwd(true)
 
 	return a
@@ -159,19 +160,26 @@ func (a *Application) RunFrom(file string, line int, in console.Input, out conso
 // ClassName implements console.ClassNamer.
 func (*Application) ClassName() string { return `Composer\Console\Application` }
 
-// DoRunCommand is Symfony's doRunCommand() with the frames Composer's
-// stack holds while a command runs: doRunCommand($command, $input,
-// $output), then the command's run($input, $output) (docs/PLUGINS.md
-// §5.12; symfony/flex looks for a GlobalCommand).
+// DoRunCommand is Symfony's doRunCommand().
 func (a *Application) DoRunCommand(cmd console.Commander, in console.Input, out console.Output) (int, error) {
-	if rt := a.Runtime(); rt != nil {
-		rt.PushFrame(a, cmd, in, out)
-		rt.PushFrame(cmd, in, out)
-		defer rt.PopFrame()
-		defer rt.PopFrame()
-	}
-
 	return a.Application.DoRunCommand(cmd, in, out)
+}
+
+// pushCallFrame is the console's CallHook: the methods Composer's PHP
+// stack holds while they run, with their objects and arguments, go on the
+// frame stack the plugin runtime reports to debug_backtrace()
+// (docs/PLUGINS.md §5.12): the Application's doRun($input, $output) (where
+// symfony/flex and symfony/thanks find the Application and its input),
+// doRunCommand(), the command's run(), initialize(), interact() and
+// execute() (flex looks for a GlobalCommand).
+func (a *Application) pushCallFrame(f phperr.Frame, object any, args []any) func() {
+	rt := a.Runtime()
+	if rt == nil {
+		return nil
+	}
+	rt.PushFrame(f.Function, object, args...)
+
+	return rt.PopFrame
 }
 
 func envTruthy(name string) bool {
@@ -183,12 +191,6 @@ func envTruthy(name string) bool {
 // DoRun ports doRun. An ExitCoder error ends the run with its code and
 // nothing rendered.
 func (a *Application) DoRun(in console.Input, out console.Output) (int, error) {
-	// Composer's stack holds doRun($input, $output) from here on: plugins
-	// look for it (docs/PLUGINS.md §5.12).
-	if rt := a.Runtime(); rt != nil {
-		rt.PushFrame(a, in, out)
-		defer rt.PopFrame()
-	}
 	code, err := a.doRun(in, out)
 	if err == nil {
 		return code, nil
@@ -738,7 +740,7 @@ func (a *Application) runCommand(in console.Input, out console.Output, cio *io.C
 		cio.EnableDebugging(startTime)
 	}
 
-	result, err := a.Call(phperr.Frame{Function: `Symfony\Component\Console\Application->doRun`, File: applicationFile, Line: 457}, func() (int, error) {
+	result, err := a.CallOn(phperr.Frame{Function: `Symfony\Component\Console\Application->doRun`, File: applicationFile, Line: 457}, a, []any{in, out}, func() (int, error) {
 		return a.Application.DoRun(in, out)
 	})
 	if err != nil {
