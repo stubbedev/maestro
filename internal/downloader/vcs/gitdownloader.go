@@ -156,7 +156,7 @@ func (d *GitDownloader) doInstall(p pkg.PackageInterface, path, url string) erro
 		msg = "Cloning " + d.shortHash(ref) + " from cache"
 
 		if d.storeEligible(p, path) {
-			storeID, useStore = d.gitStoreKey(p, url, cachePath)
+			storeID, useStore = d.gitStoreKey(p, url, cachePath, path)
 		}
 
 		if useStore {

@@ -162,7 +162,7 @@ func (h *HttpDownloader) Add(url string, options *php.Array) (*util.Promise[*Res
 // that would not go through curl, or whose URL holds credentials, are not
 // prefetched.
 func (h *HttpDownloader) Prefetch(url string, options *php.Array) {
-	h.prefetch(url, options, false)
+	h.prefetch(url, options, false, false)
 }
 
 // PrefetchResponse is Prefetch for a speculative reader of the response:
@@ -170,7 +170,7 @@ func (h *HttpDownloader) Prefetch(url string, options *php.Array) {
 // gives its status and body (ok false when the request was not prefetched
 // or the transfer failed). The response the later Add takes is the same.
 func (h *HttpDownloader) PrefetchResponse(url string, options *php.Array) func() (status int, body string, ok bool) {
-	t := h.prefetch(url, options, true)
+	t := h.prefetch(url, options, true, false)
 	if t == nil {
 		return func() (int, string, bool) { return 0, "", false }
 	}
@@ -178,8 +178,9 @@ func (h *HttpDownloader) PrefetchResponse(url string, options *php.Array) func()
 	return t.response
 }
 
-// prefetch is Prefetch, returning the prefetched transfer (nil for none).
-func (h *HttpDownloader) prefetch(url string, options *php.Array, urgent bool) *prefetchedTransfer {
+// prefetch is Prefetch, returning the prefetched transfer (nil for none);
+// spool keeps the body in a private file for a later AddCopy.
+func (h *HttpDownloader) prefetch(url string, options *php.Array, urgent, spool bool) *prefetchedTransfer {
 	h.mu.Lock()
 	// nothing is settled here: the lock is released without running the
 	// settlements of others (the caller may be any goroutine)
@@ -201,7 +202,7 @@ func (h *HttpDownloader) prefetch(url string, options *php.Array, urgent bool) *
 		return nil
 	}
 
-	return h.curl.prefetch(job.origin, url, job.options, urgent)
+	return h.curl.prefetch(job.origin, url, job.options, urgent, spool)
 }
 
 // Copy is copy($url, $to, $options): a download into the file to,

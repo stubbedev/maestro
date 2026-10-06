@@ -1,5 +1,39 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## Dist downloads overlap lock verification (issue #20, 2026-10-06)
+
+Machine as below, real Packagist and GitHub network. Projects: laravel
+(laravel/laravel v13.10.1, 109 packages) and symfony (symfony/skeleton
+7.4 plus symfony/webapp-pack), both locked. Cold `install --no-plugins
+--no-scripts -q`: vendor/, COMPOSER_CACHE_DIR and MAESTRO_CACHE_DIR
+removed before every run, the two binaries interleaved run by run, 14
+runs each. Other agents' test suites ran meanwhile (load 14 to 53), so
+the wall times are mostly network and load noise. "before" is 0121f74.
+
+| Project | Composer (1 run) | maestro before (median) | maestro after (median) |
+|---|---:|---:|---:|
+| laravel | 6.60 s | 2.93 s | 3.06 s |
+| symfony | 6.19 s | 2.66 s | 2.55 s |
+
+The overlap is bounded by what precedes the first download in an install
+from a lock: the lock verification, which fetches packages.json and the
+filter list summary (some 90 to 120 ms here). With `-vvv --profile` the
+first dist response arrives at 0.37 to 0.44 s before and 0.32 to 0.37 s
+after (3 runs per project and binary), so the head start is there; the
+total stays within the noise of a 2.5 s network-bound install.
+
+What changed: while the lock is verified, the installer computes the
+transaction it will run and starts, without output, the dist transfer of
+every package it will install or update from a dist URL the files cache
+does not hold (`DownloadManager.Prefetch`). The body goes to an unlinked
+spool file; only the installer's own request for the same exchange (URL,
+headers, options, field for field) takes it and copies it into its
+temporary file, so it still prints "Downloading", fills the files cache
+and fires its events as before. Skipped when a PRE_FILE_DOWNLOAD
+listener might change the request, credentials are stored for the host,
+or on Windows. An update has no such window (the downloads start within
+10 ms of the solver result), so it is unchanged.
+
 ## Store-backed git sources (issue #18, 2026-10-06)
 
 Machine as below, btrfs, git 2.55.0, the user's git configuration (index
@@ -29,7 +63,7 @@ package here, mostly hashing and writing the packfile). The trees are
 identical to git's but for those two files (diff -r, find -printf %M),
 and `git diff-files` and `git status` are clean in every checkout.
 
-Not done: download overlap (Work 2 of #18).
+Download overlap (Work 2 of #18) followed in #20; see its section above.
 
 ## No-op install (issue #14, 2026-10-06)
 
