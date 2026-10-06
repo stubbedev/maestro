@@ -134,7 +134,9 @@ func (f *File) Read() (any, error) {
 	}
 	f.indent = indent
 
-	return ParseJSON(json, f.path)
+	data, err := ParseJSON(json, f.path)
+
+	return data, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "JsonFile.php", 127)
 }
 
 // Write ports JsonFile::write; options are json_encode flags
@@ -190,11 +192,11 @@ func (f *File) ValidateSchema(schema int, schemaFile string) error {
 	data, decodeErr := php.JSONDecode(string(content), false)
 	if data == nil && string(content) != "null" {
 		if err := validateSyntax(string(content), f.path, decodeErr); err != nil {
-			return err
+			return phperr.Call(err, `Composer\Json\JsonFile::validateSyntax`, "JsonFile.php", 211)
 		}
 	}
 
-	return ValidateJSONSchema(f.path, data, schema, schemaFile)
+	return phperr.Call(ValidateJSONSchema(f.path, data, schema, schemaFile), `Composer\Json\JsonFile::validateJsonSchema`, "JsonFile.php", 214)
 }
 
 // ValidateJSONSchema ports JsonFile::validateJsonSchema; schemaFile "" is
@@ -363,7 +365,7 @@ func ParseJSON(json, file string) (any, error) {
 	}
 
 	if err := validateSyntax(json, file, err); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Json\JsonFile::validateSyntax`, "JsonFile.php", 363)
 	}
 
 	return nil, nil

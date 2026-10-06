@@ -13,6 +13,7 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -227,7 +228,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 
 	switch {
 	case console.BoolOption(input, "self") && !console.BoolOption(input, "installed") && !console.BoolOption(input, "locked"):
-		required, err := c.RequireComposer(nil, nil)
+		required, err := c.requireComposerAt("ShowCommand.php", 201)
 		if err != nil {
 			return 0, err
 		}
@@ -344,7 +345,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 	default:
 		// --installed / default case
 		if comp == nil {
-			if comp, err = c.RequireComposer(nil, nil); err != nil {
+			if comp, err = c.requireComposerAt("ShowCommand.php", 251); err != nil {
 				return 0, err
 			}
 		}
@@ -429,7 +430,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		}
 		single, versions, err = c.getPackage(installedRepo, repos, packageFilter, versionArg)
 		if err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\Command\ShowCommand->getPackage`, "ShowCommand.php", 297)
 		}
 
 		if single != nil && console.BoolOption(input, "direct") {
@@ -1195,7 +1196,7 @@ func (c *ShowCommand) getPackage(installedRepo *repository.InstalledRepository, 
 	case string:
 		var err error
 		if constraint, err = c.versionParser.ParseConstraints(v); err != nil {
-			return nil, nil, err
+			return nil, nil, phperr.Call(err, `Composer\Package\Version\VersionParser->parseConstraints`, "ShowCommand.php", 820)
 		}
 	case semver.ConstraintInterface:
 		constraint = v
@@ -1332,7 +1333,7 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 	io.Write("<info>source</info>   : ["+p.SourceType().S+"] <comment>"+p.SourceURL().S+"</comment> "+p.SourceReference().S, true, mio.Normal)
 	io.Write("<info>dist</info>     : ["+p.DistType().S+"] <comment>"+p.DistURL().S+"</comment> "+p.DistReference().S, true, mio.Normal)
 	if isInstalledPackage {
-		comp, err := c.RequireComposer(nil, nil)
+		comp, err := c.requireComposerAt("ShowCommand.php", 919)
 		if err != nil {
 			return err
 		}
@@ -1555,7 +1556,7 @@ func (c *ShowCommand) printPackageInfoAsJSON(p pkg.CompletePackageInterface, ver
 			return err
 		}
 		if has {
-			comp, err := c.RequireComposer(nil, nil)
+			comp, err := c.requireComposerAt("ShowCommand.php", 1078)
 			if err != nil {
 				return err
 			}
@@ -1866,7 +1867,7 @@ func (c *ShowCommand) addTree(name string, link *pkg.Link, installedRepo *reposi
 	}
 	p, _, err := c.getPackage(installedRepo, remoteRepos, name, ver)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Command\ShowCommand->getPackage`, "ShowCommand.php", 1401)
 	}
 	if p != nil {
 		for _, require := range sortedLinks(p.Requires()) {

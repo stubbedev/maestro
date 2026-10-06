@@ -7,6 +7,10 @@ In Factory.php line 231:
                                                                                
 
 Exception trace:
-  at Factory.php:231
+  at @COMPOSER@/src/Composer/Factory.php:231
+ Composer\Factory::getComposerFile() at @COMPOSER@/src/Composer/Console/Application.php:197
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 exit 1

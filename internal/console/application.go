@@ -67,6 +67,63 @@ type Application struct {
 	defaultCommand string
 	singleCommand  bool
 	initialized    bool
+	// runCallers are the frames above run() in the PHP stack, innermost
+	// first (SetRunCallers).
+	runCallers []phperr.Frame
+	// stack holds the frames of the calls in progress (Call), outermost
+	// first.
+	stack []phperr.Frame
+}
+
+// The symfony/console files exceptions' traces name.
+const (
+	applicationPHP = "vendor/symfony/console/Application.php"
+	commandPHP     = "vendor/symfony/console/Command/Command.php"
+)
+
+// SetRunCallers sets the frames of the PHP stack above run(), innermost
+// first, which Run adds to the trace of the exception it renders (a
+// subclass's run() calling parent::run(), and the script calling that).
+func (a *Application) SetRunCallers(frames ...phperr.Frame) { a.runCallers = frames }
+
+// RunCallers returns the frames SetRunCallers set.
+func (a *Application) RunCallers() []phperr.Frame { return a.runCallers }
+
+// Call runs fn as PHP's call of f.Function at f.File:f.Line: the frame is
+// on the application's stack while fn runs (Stack), and is added to the
+// trace of the error fn returns (phperr.Call).
+func (a *Application) Call(f phperr.Frame, fn func() (int, error)) (int, error) {
+	n := len(a.stack)
+	a.stack = append(a.stack, f)
+	// popped on a panic too (runGuarded recovers Throwable panics)
+	defer func() { a.stack = a.stack[:n] }()
+	code, err := fn()
+
+	return code, phperr.Call(err, f.Function, f.File, f.Line)
+}
+
+// Stack returns the frames of the PHP stack from the innermost call in
+// progress (Call) up to the script: what the trace of an exception
+// constructed now holds above the caller of the innermost Call. A command
+// running the application again (OutdatedCommand) has its run() render
+// the exceptions with the frames of the outer run.
+func (a *Application) Stack() []phperr.Frame {
+	frames := make([]phperr.Frame, 0, len(a.stack)+len(a.runCallers))
+	for i := len(a.stack) - 1; i >= 0; i-- {
+		frames = append(frames, a.stack[i])
+	}
+
+	return append(frames, a.runCallers...)
+}
+
+// appClass is the class declaring the application's method: the
+// subclass's (ClassNamer) when it overrides it, Symfony's otherwise.
+func (a *Application) appClass(overrides bool) string {
+	if n, ok := a.self.(ClassNamer); ok && overrides {
+		return n.ClassName()
+	}
+
+	return `Symfony\Component\Console\Application`
 }
 
 // NewApplication mirrors new Application($name, $version).
@@ -109,6 +166,9 @@ func (a *Application) Run(in Input, out Output) (exitCode int, err error) {
 
 	exitCode, err = a.runGuarded(in, out)
 	if err != nil {
+		// the frames above run() in the exception's trace
+		phperr.Calls(err, a.runCallers...)
+
 		if !a.catchErrors {
 			return exitCode, err
 		}
@@ -148,11 +208,16 @@ func (a *Application) runGuarded(in Input, out Output) (code int, err error) {
 		a.ConfigureIO(in, out)
 	}
 
-	if d, ok := a.self.(AppDoRunner); ok {
-		return d.DoRun(in, out)
+	// $this->doRun() at line 171
+	doRun := a.DoRun
+	d, overrides := a.self.(AppDoRunner)
+	if overrides {
+		doRun = d.DoRun
 	}
 
-	return a.DoRun(in, out)
+	return a.Call(phperr.Frame{Function: a.appClass(overrides) + "->doRun", File: applicationPHP, Line: 171}, func() (int, error) {
+		return doRun(in, out)
+	})
 }
 
 // DoRun runs the current application.
@@ -203,6 +268,8 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	// the command name MUST be the first element of the input
 	command, err := a.Find(name)
 	if err != nil {
+		phperr.Call(err, `Symfony\Component\Console\Application->find`, applicationPHP, 259)
+
 		var cnf *Error
 		if !errors.As(err, &cnf) || cnf.Kind != KindCommandNotFound || len(cnf.Alternatives) != 1 || !in.IsInteractive() {
 			return 0, err
@@ -224,7 +291,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 
 		command, err = a.Find(alternative)
 		if err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Symfony\Component\Console\Application->find`, applicationPHP, 293)
 		}
 	}
 
@@ -233,7 +300,9 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	if d, ok := a.self.(AppDoRunCommander); ok {
 		run = d.DoRunCommand
 	}
-	exitCode, err := run(command, in, out)
+	exitCode, err := a.Call(phperr.Frame{Function: `Symfony\Component\Console\Application->doRunCommand`, File: applicationPHP, Line: 301}, func() (int, error) {
+		return run(command, in, out)
+	})
 	if err != nil {
 		// PHP leaves runningCommand set when the command throws, so the
 		// rendered exception is followed by the command synopsis.
@@ -828,10 +897,26 @@ func throwableInfo(err error) (class, file string, line, code int, prev error) {
 		return t.ThrowableClass(), t.ThrowableFile(), t.ThrowableLine(), t.ThrowableCode(), t.ThrowablePrevious()
 	}
 	if site, ok := phperr.SiteOf(err); ok {
-		return "Exception", site.File, site.Line, 0, phperr.PreviousOf(err)
+		return "Exception", phperr.AbsPath(site.File), site.Line, 0, phperr.PreviousOf(err)
 	}
 
 	return "Exception", "", 0, 0, nil
+}
+
+// throwableTrace is $e->getTrace(): the frames of a Tracer (a PHP
+// exception of the plugin runtime), or those maestro recorded for the error
+// as it went up the ports of the PHP calls (phperr.Call).
+func throwableTrace(err error) []TraceFrame {
+	if tr, ok := err.(Tracer); ok { //nolint:errorlint // getTrace() of the object itself.
+		return tr.ThrowableTrace()
+	}
+	frames := phperr.TraceOf(err)
+	trace := make([]TraceFrame, len(frames))
+	for i, f := range frames {
+		trace[i] = TraceFrame{Function: f.Function, File: phperr.AbsPath(f.File), Line: f.Line}
+	}
+
+	return trace
 }
 
 // isConsoleExceptionValue is "$e instanceof ExceptionInterface", for the
@@ -853,9 +938,9 @@ func isConsoleExceptionValue(err error) bool {
 // exception. Errors that do not implement it render as a plain "Exception"
 // with code 0 and file/line "n/a"; their wrapped errors are not followed
 // (PHP only follows getPrevious()). In verbose mode the "Exception trace:"
-// block lists the throw site ("  at FILE:LINE") followed by the frames of an
-// optional Tracer; PHP lists its own call stack there, with absolute paths,
-// so those lines are the only part of the rendering that cannot match.
+// block lists the throw site ("  at FILE:LINE") followed by the frames of
+// the trace (throwableTrace). maestro's errors name Composer's files by
+// their absolute paths there, as PHP does (phperr.AbsPath).
 func (a *Application) DoRenderThrowable(err error, out Output) {
 	for e := err; e != nil; {
 		class, file, line, code, prev := throwableInfo(e)
@@ -924,34 +1009,32 @@ func (a *Application) DoRenderThrowable(err error, out Output) {
 			out.Write("<comment>Exception trace:</comment>", true, VerbosityQuiet)
 
 			// exception related properties
-			fileStr := file
-			if fileStr == "" {
-				fileStr = "n/a"
-			}
 			lineStr := "n/a"
 			if line != 0 {
 				lineStr = strconv.Itoa(line)
 			}
 			// The first frame is the throw site, with an empty class and
 			// function: sprintf(' %s%s at ...', '', '').
+			fileStr := file
+			if fileStr == "" {
+				fileStr = "n/a"
+			}
 			out.Write("  at <info>"+fileStr+":"+lineStr+"</info>", true, VerbosityQuiet)
 
-			if tr, ok := e.(Tracer); ok {
-				for _, f := range tr.ThrowableTrace() {
-					fn := ""
-					if f.Function != "" {
-						fn = f.Type + f.Function + "()"
-					}
-					fl := f.File
-					if fl == "" {
-						fl = "n/a"
-					}
-					ln := "n/a"
-					if f.Line != 0 {
-						ln = strconv.Itoa(f.Line)
-					}
-					out.Write(" "+f.Class+fn+" at <info>"+fl+":"+ln+"</info>", true, VerbosityQuiet)
+			for _, f := range throwableTrace(e) {
+				fn := ""
+				if f.Function != "" {
+					fn = f.Type + f.Function + "()"
 				}
+				ln := "n/a"
+				if f.Line != 0 {
+					ln = strconv.Itoa(f.Line)
+				}
+				fl := f.File
+				if fl == "" {
+					fl = "n/a"
+				}
+				out.Write(" "+f.Class+fn+" at <info>"+fl+":"+ln+"</info>", true, VerbosityQuiet)
 			}
 
 			out.Write("", true, VerbosityQuiet)
@@ -1025,7 +1108,9 @@ func (*Application) ConfigureIO(in Input, out Output) {
 
 // DoRunCommand runs a command.
 func (a *Application) DoRunCommand(command Commander, in Input, out Output) (int, error) {
-	return command.Run(in, out)
+	return a.Call(phperr.Frame{Function: methodClass(command, "run") + "->run", File: applicationPHP, Line: 1040}, func() (int, error) {
+		return command.Run(in, out)
+	})
 }
 
 // RunningCommand returns the command being run, if any.

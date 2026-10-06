@@ -90,7 +90,7 @@ func (*ScriptAliasCommand) ClassName() string { return `Composer\Command\ScriptA
 
 // Execute ports execute().
 func (c *ScriptAliasCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	cmp, err := c.RequireComposer(nil, nil)
+	cmp, err := c.requireComposerAt("ScriptAliasCommand.php", 79)
 	if err != nil {
 		return 0, err
 	}

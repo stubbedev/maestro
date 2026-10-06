@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -161,7 +162,7 @@ func (c *CreateProjectCommand) Execute(in console.Input, _ console.Output) (int,
 		return 0, err
 	}
 
-	return c.InstallProject(cio, cfg, in, InstallProjectOptions{
+	return c.installProjectAt(cio, cfg, in, InstallProjectOptions{
 		PackageName:               nullableString(in.Argument("package")),
 		Directory:                 nullableString(in.Argument("directory")),
 		PackageVersion:            nullableString(in.Argument("version")),
@@ -225,6 +226,13 @@ const pluginBlockedClass = `Composer\Plugin\PluginBlockedException`
 // vcsNames are the VCS metadata directories create-project removes.
 var vcsNames = []string{".svn", "_svn", "CVS", "_darcs", ".arch-params", ".monotone", ".bzr", ".git", ".hg", ".fslckout", "_FOSSIL_"}
 
+// installProjectAt is execute()'s call of installProject (line 155).
+func (c *CreateProjectCommand) installProjectAt(cio io.IO, cfg *config.Config, in console.Input, o InstallProjectOptions) (int, error) {
+	code, err := c.InstallProject(cio, cfg, in, o)
+
+	return code, phperr.Call(err, `Composer\Command\CreateProjectCommand->installProject`, "CreateProjectCommand.php", 155)
+}
+
 // InstallProject ports installProject.
 func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in console.Input, o InstallProjectOptions) (int, error) {
 	oldCwd, err := util.GetCwd(false)
@@ -245,7 +253,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 	installedFromVcs := false
 	if o.PackageName != nil {
 		if installedFromVcs, err = c.installRootPackage(in, cio, cfg, *o.PackageName, platformRequirementFilter, o); err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\Command\CreateProjectCommand->installRootPackage`, "CreateProjectCommand.php", 200)
 		}
 	}
 
@@ -360,7 +368,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 		}
 		policyConfig, err := c.CreatePolicyConfig(cfg, in)
 		if err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "CreateProjectCommand.php", 276)
 		}
 		auditConfig, err := c.CreateAuditConfig(in)
 		if err != nil {
@@ -393,6 +401,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 		status, err := inst.Run()
 		if err != nil {
+			phperr.Call(err, `Composer\Installer->run`, "CreateProjectCommand.php", 288)
 			if phpClass(err) == pluginBlockedClass {
 				cwd, _ := util.GetCwd(true)
 				cio.WriteError("<error>Hint: To allow running the config command recommended below before dependencies are installed, run create-project with --no-install.</error>", true, io.Normal)

@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/res"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -517,7 +518,7 @@ func (c *ConfigCommand) Execute(in console.Input, out console.Output) (int, erro
 	if in.Option("list") == true {
 		all, err := c.Config.All(0)
 		if err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\Config->all`, "ConfigCommand.php", 217)
 		}
 		if err := c.listConfiguration(all, c.Config.Raw(), "", false, console.BoolOption(in, "source")); err != nil {
 			return 0, err
@@ -607,7 +608,7 @@ func (c *ConfigCommand) showValue(in console.Input, settingKey string) (int, err
 	}
 	data, err := c.Config.All(0)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Config->all`, "ConfigCommand.php", 247)
 	}
 	source, err := c.Config.SourceOfValue(settingKey)
 	if err != nil {
@@ -827,7 +828,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		if console.BoolOption(in, "json") {
 			value, err := parseJSON(first)
 			if err != nil {
-				return 0, err
+				return 0, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "ConfigCommand.php", 659)
 			}
 			a, ok := value.(*php.Array)
 			if !ok {
@@ -923,10 +924,10 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, src.RemoveConfigSetting(settingKey)
 	}
 	if isUnique {
-		return 0, c.handleSingleValue(settingKey, uniqueConfigValues[settingKey], values, src.AddConfigSetting)
+		return 0, phperr.Call(c.handleSingleValue(settingKey, uniqueConfigValues[settingKey], values, src.AddConfigSetting), `Composer\Command\ConfigCommand->handleSingleValue`, "ConfigCommand.php", 749)
 	}
 	if isMulti {
-		return 0, c.handleMultiValue(settingKey, multiConfigValues[settingKey], values, src.AddConfigSetting)
+		return 0, phperr.Call(c.handleMultiValue(settingKey, multiConfigValues[settingKey], values, src.AddConfigSetting), `Composer\Command\ConfigCommand->handleMultiValue`, "ConfigCommand.php", 754)
 	}
 	// handle preferred-install per-package config
 	if m, err := preferredInstallPattern.Match(settingKey); err != nil {
@@ -970,10 +971,10 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, src.RemoveProperty(settingKey)
 	}
 	if isUniqueProp {
-		return 0, c.handleSingleValue(settingKey, uniqueProps[settingKey], values, src.AddProperty)
+		return 0, phperr.Call(c.handleSingleValue(settingKey, uniqueProps[settingKey], values, src.AddProperty), `Composer\Command\ConfigCommand->handleSingleValue`, "ConfigCommand.php", 861)
 	}
 	if isMultiProp {
-		return 0, c.handleMultiValue(settingKey, multiProps[settingKey], values, src.AddProperty)
+		return 0, phperr.Call(c.handleMultiValue(settingKey, multiProps[settingKey], values, src.AddProperty), `Composer\Command\ConfigCommand->handleMultiValue`, "ConfigCommand.php", 866)
 	}
 
 	// handle repositories
@@ -999,7 +1000,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			} else {
 				parsed, err := parseJSON(values[0])
 				if err != nil {
-					return 0, err
+					return 0, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "ConfigCommand.php", 897)
 				}
 
 				return 0, src.AddRepository(name, parsed, appendRepo)
@@ -1020,7 +1021,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		var value any = first
 		if console.BoolOption(in, "json") {
 			if value, err = parseJSON(first); err != nil {
-				return 0, err
+				return 0, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "ConfigCommand.php", 917)
 			}
 			if console.BoolOption(in, "merge") {
 				currentValue, err := c.ConfigFile.Read()
@@ -1154,7 +1155,8 @@ func (*ConfigCommand) jsonListValue(in console.Input, settingKey string, values 
 	}
 	value, err := parseJSON(first)
 	if err != nil {
-		return nil, err
+		// two lines above the throw
+		return nil, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "ConfigCommand.php", line-2)
 	}
 	if _, ok := value.(*php.Array); !ok {
 		return nil, configErr(ClassRuntime, line, "Expected an array or object for "+settingKey)

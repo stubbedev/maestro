@@ -100,5 +100,5 @@ func (c *OutdatedCommand) Execute(in console.Input, out console.Output) (int, er
 		return 0, err
 	}
 
-	return app.Run(sub, out)
+	return app.RunFrom("OutdatedCommand.php", 125, sub, out)
 }

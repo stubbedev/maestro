@@ -5,6 +5,7 @@ import (
 	"github.com/stubbedev/maestro/internal/installer"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -32,7 +33,8 @@ func defaultInstallers(im InstallationManager, c *PartialComposer, full *Compose
 	get := func(key string) (string, error) {
 		v, err := cfg.Get(key, 0)
 
-		return php.ToString(v), err
+		// $composer->getConfig()->get(...) at Factory.php:587
+		return php.ToString(v), phperr.Call(err, `Composer\Config->get`, "Factory.php", 587)
 	}
 	binDir, err := get("bin-dir")
 	if err != nil {

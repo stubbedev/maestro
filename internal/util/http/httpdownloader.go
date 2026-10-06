@@ -191,7 +191,26 @@ func (h *HttpDownloader) syncRequest(url string, options *php.Array, copyTo stri
 
 	h.waitJob(job.id)
 
-	return h.response(job.id)
+	response, err := h.response(job.id)
+	if err != nil {
+		// get() (copy()) calls addJob() at line 110 (156), whose promise
+		// runs a RemoteFilesystem request at once; a curl request fails in
+		// the tick of wait() at line 114 (159)
+		addJobLine, waitLine := 110, 114
+		if copyTo != "" {
+			addJobLine, waitLine = 156, 159
+		}
+		if h.canUseCurl(job) {
+			phperr.Calls(err,
+				phperr.Frame{Function: `Composer\Util\Http\CurlDownloader->tick`, File: "HttpDownloader.php", Line: 395},
+				phperr.Frame{Function: `Composer\Util\HttpDownloader->countActiveJobs`, File: "HttpDownloader.php", Line: 366},
+				phperr.Frame{Function: `Composer\Util\HttpDownloader->wait`, File: "HttpDownloader.php", Line: waitLine})
+		} else {
+			phperr.Call(err, `Composer\Util\HttpDownloader->addJob`, "HttpDownloader.php", addJobLine)
+		}
+	}
+
+	return response, err
 }
 
 func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo string) (*util.Promise[*Response], error) {
@@ -200,12 +219,22 @@ func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo str
 	}
 
 	h.mu.Lock()
-	defer h.unlock()
-
 	_, promise, err := h.addJob(url, options, copyTo, false)
+	// the settlements decided by addJob (a RemoteFilesystem request run at
+	// once) take place here
+	h.unlock()
 
-	return promise, err
+	// add() (addCopy()) calls addJob() at line 136 (181)
+	line := 136
+	if copyTo != "" {
+		line = 181
+	}
+
+	return util.CallSync(promise, err, `Composer\Util\HttpDownloader->addJob`, "HttpDownloader.php", line)
 }
+
+// promisePHP is react/promise's Promise class.
+const promisePHP = "vendor/react/promise/src/Promise.php"
 
 // unlock releases h.mu and runs the settlements decided meanwhile.
 func (h *HttpDownloader) unlock() {
@@ -311,9 +340,19 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 
 // runRemoteFilesystem performs a job through RemoteFilesystem.
 func (h *HttpDownloader) runRemoteFilesystem(job *httpJob) {
+	// the frames of the promise's resolver, run by its constructor at line
+	// 283 of addJob()
+	resolver := func(err error, call string, line int) error {
+		return phperr.Calls(err,
+			phperr.Frame{Function: `Composer\Util\RemoteFilesystem->` + call, File: "HttpDownloader.php", Line: line},
+			phperr.Frame{Function: `Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}`, File: promisePHP, Line: 284},
+			phperr.Frame{Function: `React\Promise\Promise->call`, File: promisePHP, Line: 41},
+			phperr.Frame{Function: `React\Promise\Promise->__construct`, File: "HttpDownloader.php", Line: 283})
+	}
+
 	if job.copyTo != "" {
 		if _, err := h.rfs.Copy(job.origin, job.url, job.copyTo, false, job.options); err != nil {
-			job.reject(err)
+			job.reject(resolver(err, "copy", 251))
 
 			return
 		}
@@ -327,7 +366,7 @@ func (h *HttpDownloader) runRemoteFilesystem(job *httpJob) {
 
 	body, err := h.rfs.GetContents(job.origin, job.url, false, job.options)
 	if err != nil {
-		job.reject(err)
+		job.reject(resolver(err, "getContents", 258))
 
 		return
 	}

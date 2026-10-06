@@ -7,6 +7,11 @@ In Application.php line 720:
                                                                   
 
 Exception trace:
-  at Application.php:720
+  at @COMPOSER@/vendor/symfony/console/Application.php:720
+ Symfony\Component\Console\Application->find() at @COMPOSER@/vendor/symfony/console/Application.php:259
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 exit 1

@@ -163,7 +163,7 @@ func (r *ComposerRepository) fetchFileAttempt(filename *string, cacheKey, sha256
 
 	response, err := r.httpDownloader.Get(*filename, options)
 	if err != nil {
-		return nil, false, err
+		return nil, false, phperr.Call(err, `Composer\Util\HttpDownloader->get`, "ComposerRepository.php", 1761)
 	}
 	body := response.Body()
 	if sha256 != "" && sha256 != sha256Hex(body) {

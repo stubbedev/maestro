@@ -22,6 +22,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -35,7 +36,7 @@ const logo = `   ______
 `
 
 // The PHP source file the Application's own exceptions come from.
-const applicationFile = "Application.php"
+const applicationFile = "src/Composer/Console/Application.php"
 
 // PluginCommandProvider is implemented by a composer.PluginManager that
 // loads plugins (the plugin runtime): the commands of every
@@ -127,14 +128,36 @@ func (a *Application) Factory() *composer.Factory { return a.factory }
 // Runtime returns the process runtime (Composer's statics).
 func (a *Application) Runtime() *composer.Runtime { return a.factory.Runtime }
 
-// Run ports run(): a nil output is Factory::createOutput().
+// Run ports run(): a nil output is Factory::createOutput(). It is
+// bin/composer's call (line 113) as far as exception traces go.
 func (a *Application) Run(in console.Input, out console.Output) (int, error) {
+	return a.RunFrom("bin/composer", 113, in, out)
+}
+
+// RunFrom is Run called from file:line of Composer's sources (the frame
+// above run() in an exception's trace): OutdatedCommand and GlobalCommand
+// run the application again.
+func (a *Application) RunFrom(file string, line int, in console.Input, out console.Output) (int, error) {
 	if out == nil {
 		out = composer.CreateOutput()
 	}
 
+	// the frames of parent::run() (line 141) and of this run(), above
+	// those of a run in progress (a command running the application again)
+	outer := a.Stack()
+	stack := append([]phperr.Frame{
+		{Function: `Symfony\Component\Console\Application->run`, File: applicationFile, Line: 141},
+		{Function: `Composer\Console\Application->run`, File: file, Line: line},
+	}, outer...)
+	callers := a.RunCallers()
+	a.SetRunCallers(stack...)
+	defer a.SetRunCallers(callers...)
+
 	return a.Application.Run(in, out)
 }
+
+// ClassName implements console.ClassNamer.
+func (*Application) ClassName() string { return `Composer\Console\Application` }
 
 // DoRunCommand is Symfony's doRunCommand() with the frames Composer's
 // stack holds while a command runs: doRunCommand($command, $input,
@@ -359,7 +382,7 @@ func phpTruthyString(s string) bool { return s != "" && s != "0" }
 func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, commandName string) (string, error) {
 	composerFile, err := composer.GetComposerFile()
 	if err != nil {
-		return "", err
+		return "", phperr.Call(err, `Composer\Factory::getComposerFile`, applicationFile, 197)
 	}
 	if fileExists(composerFile) {
 		return "", nil
@@ -715,7 +738,9 @@ func (a *Application) runCommand(in console.Input, out console.Output, cio *io.C
 		cio.EnableDebugging(startTime)
 	}
 
-	result, err := a.Application.DoRun(in, out)
+	result, err := a.Call(phperr.Frame{Function: `Symfony\Component\Console\Application->doRun`, File: applicationFile, Line: 457}, func() (int, error) {
+		return a.Application.DoRun(in, out)
+	})
 	if err != nil {
 		return a.handleRunError(err, out, cio)
 	}
@@ -894,6 +919,7 @@ func (a *Application) GetComposer(required bool, disablePlugins, disableScripts 
 		}
 		c, err := a.factory.Create(out, nil, disable, ds)
 		if err != nil {
+			phperr.Call(err, `Composer\Factory::create`, applicationFile, 629)
 			switch {
 			case isInvalidArgument(err):
 				if required {

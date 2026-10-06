@@ -124,7 +124,7 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 		}
 	}
 
-	c2, err := c.RequireComposer(nil, nil)
+	c2, err := c.requireComposerAt("RunScriptCommand.php", 120)
 	if err != nil {
 		return 0, err
 	}
@@ -203,7 +203,7 @@ type scriptInfo struct {
 
 // scripts ports getScripts.
 func (c *RunScriptCommand) scripts() ([]scriptInfo, error) {
-	cmp, err := c.RequireComposer(nil, nil)
+	cmp, err := c.requireComposerAt("RunScriptCommand.php", 167)
 	if err != nil {
 		return nil, err
 	}

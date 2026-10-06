@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/util"
@@ -451,7 +452,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 
 	staticFile, err := d.staticFile(suffix)
 	if err != nil {
-		return err
+		return phperr.Call(err, `Composer\Autoload\AutoloadGenerator->getStaticFile`, "AutoloadGenerator.php", 455)
 	}
 	if err := putIfModified(d.targetDir+"/autoload_static.php", staticFile); err != nil {
 		return err

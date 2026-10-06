@@ -742,7 +742,7 @@ func (r *ComposerRepository) LoadPackages(packageNameMap *repository.ConstraintM
 	// this call initializes loadRootServerFile which is needed for the rest below to work
 	hasProviders, err := r.hasProvidersCheck()
 	if err != nil {
-		return repository.LoadResult{}, err
+		return repository.LoadResult{}, phperr.Call(err, `Composer\Repository\ComposerRepository->hasProviders`, "ComposerRepository.php", 549)
 	}
 	hasPartial, err := r.hasPartialPackagesCheck()
 	if err != nil {

@@ -90,11 +90,11 @@ func assertCustomListNameAllowed(listName string) error {
 func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 	policyRaw, err := config.Get("policy", 0)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Config->get`, "PolicyConfig.php", 156)
 	}
 	auditRaw, err := config.Get("audit", 0)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Config->get`, "PolicyConfig.php", 157)
 	}
 
 	if policyRaw == false {

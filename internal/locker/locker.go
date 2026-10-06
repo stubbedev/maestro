@@ -128,7 +128,7 @@ func (l *Locker) IsLocked() (bool, error) {
 		return false, nil
 	}
 
-	data, err := l.LockData()
+	data, err := l.lockData(130)
 	if err != nil {
 		return false, err
 	}
@@ -142,7 +142,7 @@ func (l *Locker) IsLocked() (bool, error) {
 func (l *Locker) IsFresh() (bool, error) {
 	decoded, err := l.lockFile.Read()
 	if err != nil {
-		return false, err
+		return false, phperr.Call(err, `Composer\Json\JsonFile->read`, "Locker.php", 140)
 	}
 	lock, _ := decoded.(*php.Array)
 
@@ -172,7 +172,7 @@ func lockValue(lock *php.Array, key string) any {
 // LockedRepository ports Locker::getLockedRepository: the locked
 // packages, with the dev ones when withDevReqs is set.
 func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayRepository, error) {
-	lockData, err := l.LockData()
+	lockData, err := l.lockData(164)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 // DevPackageNames ports Locker::getDevPackageNames: the names of the
 // packages installed through require-dev.
 func (l *Locker) DevPackageNames() ([]string, error) {
-	lockData, err := l.LockData()
+	lockData, err := l.lockData(214)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (l *Locker) DevPackageNames() ([]string, error) {
 // platform requirements recorded in the lock file, with require-dev's
 // when withDevReqs is set.
 func (l *Locker) PlatformRequirements(withDevReqs bool) (pkg.Links, error) {
-	lockData, err := l.LockData()
+	lockData, err := l.lockData(232)
 	if err != nil {
 		return pkg.Links{}, err
 	}
@@ -291,7 +291,7 @@ func (l *Locker) PlatformRequirements(withDevReqs bool) (pkg.Links, error) {
 
 // MinimumStability ports Locker::getMinimumStability.
 func (l *Locker) MinimumStability() (string, error) {
-	lockData, err := l.LockData()
+	lockData, err := l.lockData(263)
 	if err != nil {
 		return "", err
 	}
@@ -303,25 +303,31 @@ func (l *Locker) MinimumStability() (string, error) {
 }
 
 // StabilityFlags ports Locker::getStabilityFlags.
-func (l *Locker) StabilityFlags() (*php.Array, error) { return l.arrayOrEmpty("stability-flags") }
+func (l *Locker) StabilityFlags() (*php.Array, error) { return l.arrayOrEmpty("stability-flags", 273) }
 
 // PreferStable ports Locker::getPreferStable; ok false is null (old lock
 // files lack the key).
-func (l *Locker) PreferStable() (value, ok bool, err error) { return l.optionalBool("prefer-stable") }
+func (l *Locker) PreferStable() (value, ok bool, err error) {
+	return l.optionalBool("prefer-stable", 280)
+}
 
 // PreferLowest ports Locker::getPreferLowest; ok false is null.
-func (l *Locker) PreferLowest() (value, ok bool, err error) { return l.optionalBool("prefer-lowest") }
+func (l *Locker) PreferLowest() (value, ok bool, err error) {
+	return l.optionalBool("prefer-lowest", 289)
+}
 
 // PlatformOverrides ports Locker::getPlatformOverrides.
-func (l *Locker) PlatformOverrides() (*php.Array, error) { return l.arrayOrEmpty("platform-overrides") }
+func (l *Locker) PlatformOverrides() (*php.Array, error) {
+	return l.arrayOrEmpty("platform-overrides", 301)
+}
 
 // Aliases ports Locker::getAliases: a list of ['package' => ...,
 // 'version' => ..., 'alias' => ..., 'alias_normalized' => ...].
-func (l *Locker) Aliases() (*php.Array, error) { return l.arrayOrEmpty("aliases") }
+func (l *Locker) Aliases() (*php.Array, error) { return l.arrayOrEmpty("aliases", 313) }
 
 // PluginAPI ports Locker::getPluginApi.
 func (l *Locker) PluginAPI() (string, error) {
-	lockData, err := l.LockData()
+	lockData, err := l.lockData(323)
 	if err != nil {
 		return "", err
 	}
@@ -332,8 +338,8 @@ func (l *Locker) PluginAPI() (string, error) {
 	return "1.1.0", nil
 }
 
-func (l *Locker) arrayOrEmpty(key string) (*php.Array, error) {
-	lockData, err := l.LockData()
+func (l *Locker) arrayOrEmpty(key string, line int) (*php.Array, error) {
+	lockData, err := l.lockData(line)
 	if err != nil {
 		return nil, err
 	}
@@ -344,8 +350,8 @@ func (l *Locker) arrayOrEmpty(key string) (*php.Array, error) {
 	return php.NewArray(), nil
 }
 
-func (l *Locker) optionalBool(key string) (value, ok bool, err error) {
-	lockData, err := l.LockData()
+func (l *Locker) optionalBool(key string, line int) (value, ok bool, err error) {
+	lockData, err := l.lockData(line)
 	if err != nil {
 		return false, false, err
 	}
@@ -355,6 +361,14 @@ func (l *Locker) optionalBool(key string) (value, ok bool, err error) {
 	}
 
 	return php.ToBool(v), true, nil
+}
+
+// lockData is LockData called at line of Locker.php (the frame of its
+// exceptions' traces).
+func (l *Locker) lockData(line int) (*php.Array, error) {
+	data, err := l.LockData()
+
+	return data, phperr.Call(err, `Composer\Package\Locker->getLockData`, "Locker.php", line)
 }
 
 // LockData ports Locker::getLockData: the decoded lock file, cached.
@@ -369,11 +383,12 @@ func (l *Locker) LockData() (*php.Array, error) {
 
 	decoded, err := l.lockFile.Read()
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Json\JsonFile->read`, "Locker.php", 341)
 	}
 	data, ok := decoded.(*php.Array)
 	if !ok {
-		return nil, &pkg.TypeError{Message: `Composer\Package\Locker::getLockData(): Return value must be of type array, ` + php.TypeName(decoded) + " returned"}
+		// a return type error is raised at the return statement
+		return nil, &pkg.TypeError{Message: `Composer\Package\Locker::getLockData(): Return value must be of type array, ` + php.TypeName(decoded) + " returned", Site: phperr.At("Locker.php", 341)}
 	}
 	l.lockDataCache = data
 

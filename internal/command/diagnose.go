@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/platform"
@@ -787,7 +788,7 @@ func (c *DiagnoseCommand) runComposerAudit(cfg *config.Config, packages []pkg.Pa
 	}
 	policyConfig, err := c.CreatePolicyConfig(cfg, nil)
 	if err != nil {
-		return 0, "", err
+		return 0, "", phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "DiagnoseCommand.php", 593)
 	}
 	// $policyConfig->withAudit(ListPolicyConfig::AUDIT_IGNORE)
 	withAudit := *policyConfig

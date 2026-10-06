@@ -33,6 +33,7 @@ type Error struct {
 	Line    int
 	Code    int
 	Prev    error
+	phperr.Frames
 }
 
 // NewError returns an Error.
@@ -65,14 +66,18 @@ func (e *Error) Unwrap() []error {
 // ThrowableClass implements console.Throwable.
 func (e *Error) ThrowableClass() string { return e.Class }
 
-// ThrowableFile implements console.Throwable.
-func (e *Error) ThrowableFile() string { return e.File }
+// ThrowableFile implements console.Throwable: getFile(), the absolute path
+// of Composer's file (phperr.AbsPath).
+func (e *Error) ThrowableFile() string { return phperr.AbsPath(e.File) }
 
 // ThrowableLine implements console.Throwable.
 func (e *Error) ThrowableLine() int { return e.Line }
 
 // ThrowableCode implements console.Throwable.
 func (e *Error) ThrowableCode() int { return e.Code }
+
+// PHPPrevious implements phperr.Chained.
+func (e *Error) PHPPrevious() error { return e.Prev }
 
 // ThrowablePrevious implements console.Throwable.
 func (e *Error) ThrowablePrevious() error {
@@ -139,7 +144,7 @@ func asThrowable(err error, code int) error {
 	}
 	t := &throwable{err: err, class: class, code: c}
 	if site, ok := phperr.SiteOf(err); ok {
-		t.file, t.line = site.File, site.Line
+		t.file, t.line = phperr.AbsPath(site.File), site.Line
 	}
 	if prev := phperr.PreviousOf(err); prev != nil {
 		t.prev = asThrowable(prev, -1)

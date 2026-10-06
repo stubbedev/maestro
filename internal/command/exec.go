@@ -89,7 +89,7 @@ func (c *ExecCommand) Interact(in console.Input, _ console.Output) error {
 
 // Execute ports execute().
 func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	cmp, err := c.RequireComposer(nil, nil)
+	cmp, err := c.requireComposerAt("ExecCommand.php", 77)
 	if err != nil {
 		return 0, err
 	}
@@ -158,7 +158,7 @@ func chdirWarning(err error) string {
 
 // binaries ports getBinaries.
 func (c *ExecCommand) binaries(forDisplay bool) ([]string, error) {
-	cmp, err := c.RequireComposer(nil, nil)
+	cmp, err := c.requireComposerAt("ExecCommand.php", 127)
 	if err != nil {
 		return nil, err
 	}

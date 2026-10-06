@@ -84,7 +84,9 @@ func (i *PluginInstaller) Download(p, prev pkg.PackageInterface) (*Promise, erro
 		return nil, &util.UnexpectedValueError{Site: phperr.At("PluginInstaller.php", 71), Message: "Error while installing " + p.PrettyName() + ", composer-plugin packages should have a class defined in their extra key to be usable."}
 	}
 
-	return i.LibraryInstaller.Download(p, prev)
+	promise, err := i.LibraryInstaller.Download(p, prev)
+
+	return util.CallSync(promise, err, `Composer\Installer\LibraryInstaller->download`, "PluginInstaller.php", 74)
 }
 
 // Install is install(): the package is registered once installed.

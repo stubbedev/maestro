@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -53,7 +54,7 @@ func (*AuditCommand) ClassName() string { return `Composer\Command\AuditCommand`
 
 // Execute ports execute().
 func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("AuditCommand.php", 59)
 	if err != nil {
 		return 0, err
 	}
@@ -93,7 +94,7 @@ func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) 
 
 	policyConfig, err := c.CreatePolicyConfig(comp.Config(), in)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "AuditCommand.php", 86)
 	}
 	if hasAbandoned {
 		policyConfig = policyConfig.WithAudit(abandoned)

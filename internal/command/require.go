@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -215,7 +216,7 @@ func (c *RequireCommand) execute(in console.Input, out console.Output, cio io.IO
 		}
 	}()
 
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("RequireCommand.php", 193)
 	if err != nil {
 		return 0, err
 	}
@@ -256,6 +257,7 @@ func (c *RequireCommand) execute(in console.Input, out console.Output, cio io.IO
 		console.BoolOption(in, "fixed"),
 	)
 	if err != nil {
+		phperr.Call(err, `Composer\Command\RequireCommand->determineRequirements`, "RequireCommand.php", 210)
 		if c.newlyCreated {
 			if rerr := c.revertComposerFile(); rerr != nil {
 				return 0, rerr
@@ -310,7 +312,7 @@ func (c *RequireCommand) execute(in console.Input, out console.Output, cio io.IO
 			continue
 		}
 		if _, err := versionParser.ParseConstraints(constraint); err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\Package\Version\VersionParser->parseConstraints`, "RequireCommand.php", 287)
 		}
 	}
 
@@ -573,7 +575,7 @@ func (c *RequireCommand) doUpdate(in console.Input, out console.Output, cio io.I
 	if err := c.ResetComposer(); err != nil {
 		return 0, err
 	}
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("RequireCommand.php", 410)
 	if err != nil {
 		return 0, err
 	}
@@ -681,7 +683,7 @@ func (c *RequireCommand) doUpdate(in console.Input, out console.Output, cio io.I
 	}
 	policyConfig, err := c.CreatePolicyConfig(cfg, in)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "RequireCommand.php", 485)
 	}
 	auditConfig, err := c.CreateAuditConfig(in)
 	if err != nil {
@@ -724,7 +726,7 @@ func (c *RequireCommand) doUpdate(in console.Input, out console.Output, cio io.I
 
 	status, err := install.Run()
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Installer->run`, "RequireCommand.php", 496)
 	}
 	if status != 0 && status != composer.ErrorAuditFailed {
 		if status == composer.ErrorDependencyResolutionFailed {
@@ -750,7 +752,7 @@ var devBranchRegexp = php.MustCompile(`{^dev-(?!main$|master$|trunk$|latest$)}`)
 
 // updateRequirementsAfterResolution ports updateRequirementsAfterResolution.
 func (c *RequireCommand) updateRequirementsAfterResolution(requirementsToUpdate []string, requireKey, removeKey string, sortPackages, dryRun, fixed bool) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("RequireCommand.php", 517)
 	if err != nil {
 		return 0, err
 	}

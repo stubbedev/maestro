@@ -46,7 +46,7 @@ func (*SuggestsCommand) ClassName() string { return `Composer\Command\SuggestsCo
 
 // Execute ports execute().
 func (c *SuggestsCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("SuggestsCommand.php", 54)
 	if err != nil {
 		return 0, err
 	}

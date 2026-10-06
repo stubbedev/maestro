@@ -115,6 +115,11 @@ func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name
 
 	repository, err := constructor(config, m.deps)
 	if err != nil {
+		if class, ok := repositoryClasses[typ]; ok {
+			// new $class(...) at RepositoryManager.php:141
+			phperr.Call(err, class+"->__construct", "RepositoryManager.php", 141)
+		}
+
 		return nil, err
 	}
 
@@ -123,6 +128,21 @@ func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name
 	}
 
 	return repository, nil
+}
+
+// repositoryClasses are the classes RepositoryFactory::manager() registers
+// for the repository types (the classes their constructors' frames name).
+var repositoryClasses = map[string]string{
+	"composer": `Composer\Repository\ComposerRepository`,
+	"vcs":      `Composer\Repository\VcsRepository`, "git": `Composer\Repository\VcsRepository`,
+	"bitbucket": `Composer\Repository\VcsRepository`, "git-bitbucket": `Composer\Repository\VcsRepository`,
+	"github": `Composer\Repository\VcsRepository`, "gitlab": `Composer\Repository\VcsRepository`,
+	"svn": `Composer\Repository\VcsRepository`, "fossil": `Composer\Repository\VcsRepository`,
+	"perforce": `Composer\Repository\VcsRepository`, "hg": `Composer\Repository\VcsRepository`,
+	"package":  `Composer\Repository\PackageRepository`,
+	"pear":     `Composer\Repository\PearRepository`,
+	"artifact": `Composer\Repository\ArtifactRepository`,
+	"path":     `Composer\Repository\PathRepository`,
 }
 
 func isset(a *php.Array, key string) bool {

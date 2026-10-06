@@ -1,8 +1,9 @@
 // Package errorstest compares maestro's output for the scenarios of
 // internal/command/testdata/errors with the reference Composer's, recorded
 // by tools/oracle/errors/errors.sh -w: exception boxes (throw site, class,
-// previous exceptions), verbose and debug lines, exit codes, at default,
-// -v, -vv and -vvv verbosity.
+// previous exceptions), the "Exception trace:" call stacks (Composer's
+// files read @COMPOSER@ for both), verbose and debug lines, exit codes, at
+// default, -v, -vv and -vvv verbosity.
 //
 // Each run is a child process (the test binary itself, which TestMain
 // turns into cmd/maestro's main when ERRORSTEST_CHILD is set): Composer's
@@ -31,6 +32,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 const dataDir = "../testdata/errors"
@@ -40,7 +42,12 @@ var verbosities = []struct{ name, flag string }{
 	{"default", ""}, {"v", "-v"}, {"vv", "-vv"}, {"vvv", "-vvv"},
 }
 
-const childEnv = "ERRORSTEST_CHILD"
+const (
+	childEnv = "ERRORSTEST_CHILD"
+	// rootEnv is the child's phperr.Root: errors.sh's maestro is
+	// $work/maestro, so it names Composer's files under phar://$work/maestro.
+	rootEnv = "ERRORSTEST_ROOT"
+)
 
 func TestMain(m *testing.M) {
 	if os.Getenv(childEnv) == "1" {
@@ -52,6 +59,7 @@ func TestMain(m *testing.M) {
 // childMain is cmd/maestro's main without the plugin runtime: the
 // Application on a new Runtime, run on the process arguments.
 func childMain() int {
+	phperr.SetRoot(os.Getenv(rootEnv))
 	app := command.NewApplication(&composer.Factory{Runtime: composer.NewRuntime("", nil)})
 	app.SetAutoExit(false)
 	code, err := app.Run(nil, nil)
@@ -110,7 +118,9 @@ func TestErrorRendering(t *testing.T) {
 // normalised output followed by "exit N".
 func runScenario(t *testing.T, dir, flag, serverURL string) string {
 	t.Helper()
-	run := filepath.Join(workDir(t), "run")
+	work := workDir(t)
+	run := filepath.Join(work, "run")
+	root := "phar://" + filepath.Join(work, "maestro")
 	for _, d := range []string{"home", "cache"} {
 		if err := os.MkdirAll(filepath.Join(run, d), 0o755); err != nil {
 			t.Fatal(err)
@@ -129,6 +139,7 @@ func runScenario(t *testing.T, dir, flag, serverURL string) string {
 
 	env := []string{
 		childEnv + "=1",
+		rootEnv + "=" + root,
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + filepath.Join(run, "home"),
 		"COMPOSER_HOME=" + filepath.Join(run, "home"),
@@ -164,7 +175,7 @@ func runScenario(t *testing.T, dir, flag, serverURL string) string {
 
 	host := strings.TrimPrefix(serverURL, "http://")
 
-	return normalize(buf.String(), run, host) + "exit " + strconv.Itoa(code) + "\n"
+	return normalize(buf.String(), run, root, host) + "exit " + strconv.Itoa(code) + "\n"
 }
 
 // workDir creates the scenario's directory with the shape of the oracle's
@@ -199,8 +210,6 @@ var normalizers = []struct {
 	re   *regexp.Regexp
 	repl string
 }{
-	{regexp.MustCompile(`(?m)^(  at )(/|phar://)[^ \n]*/([^/ \n]+:([0-9]+|n/a))$`), "${1}${3}"},
-	{regexp.MustCompile(`(?m)^ [^ \n]+ at (/|phar://)[^ \n]*:[0-9]+\n`), ""},
 	{regexp.MustCompile(`(?m)^Running cache garbage collection\n`), ""},
 	{regexp.MustCompile(`(?m)^(Running [^ \n]+ \([^)\n]*\) with PHP ).* on .*$`), "${1}@PHP@ on @OS@"},
 	{regexp.MustCompile(`/tmp/composer_archive[0-9a-f]+`), "/tmp/composer_archive@RAND@"},
@@ -210,9 +219,11 @@ var normalizers = []struct {
 	{regexp.MustCompile(`(but your php version \()[^)\n]*(\) does not satisfy)`), "${1}@PHPVERSION@${2}"},
 }
 
-// normalize applies errors.sh's normalisation.
-func normalize(s, run, host string) string {
+// normalize applies errors.sh's normalisation; root is maestro's
+// phperr.Root, under which it names Composer's files.
+func normalize(s, run, root, host string) string {
 	s = strings.ReplaceAll(s, run, "@DIR@")
+	s = strings.ReplaceAll(s, root+"/", "@COMPOSER@/")
 	s = strings.ReplaceAll(s, host, "@SERVER@")
 	for _, n := range normalizers {
 		s = n.re.ReplaceAllString(s, n.repl)
@@ -334,7 +345,7 @@ func TestNormalizeConnectTime(t *testing.T) {
 		"  connect to h:1 after 12 ms: Could not connect  \n": "  connect to h:1 after 0 ms: Could not connect   \n",
 		"  connect to h:1 after 105 ms: Could not connect \n": "  connect to h:1 after 0 ms: Could not connect   \n",
 	} {
-		if got := normalize(in, "/nowhere", "nohost"); got != want {
+		if got := normalize(in, "/nowhere", "phar:///nowhere", "nohost"); got != want {
 			t.Errorf("normalize(%q) = %q, want %q", in, got, want)
 		}
 	}

@@ -143,7 +143,9 @@ func (f *Factory) Create(out io.IO, cfg any, disablePlugins DisablePlugins, disa
 		}
 	}
 
-	return f.CreateComposer(out, cfg, disablePlugins, "", disableScripts)
+	full, err := f.CreateComposer(out, cfg, disablePlugins, "", disableScripts)
+
+	return full, phperr.Call(err, `Composer\Factory->createComposer`, "Factory.php", 631)
 }
 
 // CreateGlobal ports Factory::createGlobal: the global Composer (fully
@@ -151,7 +153,7 @@ func (f *Factory) Create(out io.IO, cfg any, disablePlugins DisablePlugins, disa
 func (f *Factory) CreateGlobal(out io.IO, disablePlugins, disableScripts bool) (*Composer, error) {
 	cfg, err := f.CreateConfig(out, "")
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Factory::createConfig`, "Factory.php", 471)
 	}
 	disable := PluginsEnabled
 	if disablePlugins {
@@ -224,7 +226,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 			if err := file.ValidateSchema(json.LaxSchema, ""); err != nil {
 				var ve *json.ValidationError
 				if !errors.As(err, &ve) {
-					return nil, nil, err
+					return nil, nil, phperr.Call(err, `Composer\Json\JsonFile->validateSchema`, "Factory.php", 313)
 				}
 
 				errs := " - " + strings.Join(ve.Errors, "\n - ")
@@ -252,7 +254,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	// Load config and override with local config/auth config
 	cfg, err := f.CreateConfig(out, cwd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, phperr.Call(err, `Composer\Factory::createConfig`, "Factory.php", 326)
 	}
 	isGlobal := false
 	if localConfigSource != config.SourceUnknown {
@@ -281,7 +283,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		if localAuthFile.Exists() {
 			out.WriteError("Loading config file "+localAuthFile.Path(), true, io.Debug)
 			if err := config.ValidateJSONSchema(out, localAuthFile, json.AuthSchema, ""); err != nil {
-				return nil, nil, err
+				return nil, nil, phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 337)
 			}
 			auth, err := localAuthFile.Read()
 			if err != nil {
@@ -296,7 +298,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 	// make sure we load the auth env again over the local auth.json + composer.json config
 	if err := config.LoadComposerAuthEnv(cfg, out); err != nil {
-		return nil, nil, err
+		return nil, nil, phperr.Call(err, `Composer\Factory::loadComposerAuthEnv`, "Factory.php", 344)
 	}
 
 	vendorDirValue, err := cfg.Get("vendor-dir", 0)
@@ -383,7 +385,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	rootLoader := f.loadRootPackage(rm, cfg, parser, guesser, out)
 	loaded, err := rootLoader.LoadIn(localConfigArray, pkg.ClassRootPackage, cwd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, phperr.Call(err, `Composer\Package\Loader\RootPackageLoader->load`, "Factory.php", 394)
 	}
 	root, ok := loaded.(pkg.RootPackageInterface)
 	if !ok {
@@ -433,7 +435,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 	// add installers to the manager (must happen after download manager is created since they read it out of $composer)
 	if err := f.createDefaultInstallers(im, partial, full, out, process); err != nil {
-		return nil, nil, err
+		return nil, nil, phperr.Call(err, `Composer\Factory->createDefaultInstallers`, "Factory.php", 419)
 	}
 
 	// init locker if possible
@@ -449,7 +451,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 		pm, err := f.createPluginManager(out, full, globalComposer, disablePlugins)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, phperr.Call(err, `Composer\Factory->createPluginManager`, "Factory.php", 441)
 		}
 		full.SetPluginManager(pm)
 
@@ -576,7 +578,7 @@ type rootRepositoryManager struct {
 func (m rootRepositoryManager) AddDefaultRepositories() error {
 	repos, err := repository.DefaultRepos(nil, m.cfg, m.rm)
 	if err != nil {
-		return err
+		return phperr.Call(err, `Composer\Repository\RepositoryFactory::defaultRepos`, "RootPackageLoader.php", 197)
 	}
 	for _, repo := range repos.All() {
 		m.rm.AddRepository(repo)
@@ -741,7 +743,7 @@ func (f *Factory) CreateArchiveManager(_ *config.Config, dm *downloader.Download
 
 func (f *Factory) createPluginManager(out io.IO, c *Composer, globalComposer *PartialComposer, disablePlugins DisablePlugins) (PluginManager, error) {
 	if err := readLockForAllowPlugins(c); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Plugin\PluginManager->__construct`, "Factory.php", 576)
 	}
 	if f.CreatePluginManagerFunc != nil {
 		return f.CreatePluginManagerFunc(out, c, globalComposer, disablePlugins)
@@ -764,13 +766,22 @@ func readLockForAllowPlugins(c *Composer) error {
 	if a, ok := allow.(*php.Array); !ok || a.Len() != 0 || c.Locker() == nil {
 		return nil
 	}
+	// $locker->isLocked() and getPluginApi() at PluginManager.php:692, in
+	// parseAllowedPlugins() called at line 90
 	locked, err := c.Locker().IsLocked()
-	if err != nil || !locked {
-		return err
+	if err != nil {
+		return phperr.Calls(err,
+			phperr.Frame{Function: `Composer\Package\Locker->isLocked`, File: "PluginManager.php", Line: 692},
+			phperr.Frame{Function: `Composer\Plugin\PluginManager->parseAllowedPlugins`, File: "PluginManager.php", Line: 90})
+	}
+	if !locked {
+		return nil
 	}
 	_, err = c.Locker().PluginAPI()
 
-	return err
+	return phperr.Calls(err,
+		phperr.Frame{Function: `Composer\Package\Locker->getPluginApi`, File: "PluginManager.php", Line: 692},
+		phperr.Frame{Function: `Composer\Plugin\PluginManager->parseAllowedPlugins`, File: "PluginManager.php", Line: 90})
 }
 
 func (f *Factory) createInstallationManager(loop *http.Loop, out io.IO, dispatcher *eventdispatcher.EventDispatcher) (InstallationManager, error) {

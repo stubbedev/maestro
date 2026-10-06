@@ -26,7 +26,17 @@ In ClassLoader.php line 305:
                                                                  
 
 Exception trace:
-  at ClassLoader.php:305
+  at @COMPOSER@/vendor/composer/ClassLoader.php:305
+ Composer\Autoload\ClassLoader->setPsr4() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:1175
+ Composer\Autoload\AutoloadGenerator->getStaticFile() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:455
+ Composer\Autoload\AutoloadGenerator->dump() at @COMPOSER@/src/Composer/Command/DumpAutoloadCommand.php:115
+ Composer\Command\DumpAutoloadCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 dump-autoload [-o|--optimize] [-a|--classmap-authoritative] [--apcu] [--apcu-prefix APCU-PREFIX] [--dry-run] [--dev] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--strict-psr] [--strict-ambiguous]
 

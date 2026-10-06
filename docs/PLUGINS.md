@@ -2042,7 +2042,9 @@ pushed (no surveyed plugin looks for it); a frame's function name is the
 trampoline closure's, not Composer's method (no surveyed plugin checks
 it), and PHP exception traces at -v show the trampolines; a Go error's
 file in PHP is the basename of Composer's file (the "In X line N:"
-heading matches, the -v trace's full path does not); `Pool`s from maestro
+heading matches; maestro's own -v traces name Composer's files under
+phperr.Root, but an exception PHP code inspects only knows the basename);
+`Pool`s from maestro
 leave out security and filter-list removals; processes PHP code started
 asynchronously progress only while PHP waits for them (`Loop::wait()` in
 PHP), not while maestro's own loop waits. vaimo/composer-patches passes

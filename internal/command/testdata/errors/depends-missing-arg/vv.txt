@@ -7,7 +7,14 @@ In Input.php line 76:
                                                           
 
 Exception trace:
-  at Input.php:76
+  at @COMPOSER@/vendor/symfony/console/Input/Input.php:76
+ Symfony\Component\Console\Input\Input->validate() at @COMPOSER@/vendor/symfony/console/Command/Command.php:293
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 depends [-r|--recursive] [-t|--tree] [--locked] [--] <package>
 

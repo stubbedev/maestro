@@ -38,7 +38,7 @@ type ArrayInput struct {
 // NewArrayInput mirrors new ArrayInput($parameters, $definition).
 func NewArrayInput(parameters []Param, definition *InputDefinition) (*ArrayInput, error) {
 	in := &ArrayInput{parameters: normalizeParams(parameters)}
-	if err := in.init(definition, in.parseParams); err != nil {
+	if err := in.init(definition, in.parseParams, `Symfony\Component\Console\Input\ArrayInput`); err != nil {
 		return in, err
 	}
 

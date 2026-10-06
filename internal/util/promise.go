@@ -429,3 +429,23 @@ func AwaitAll(promises []Waitable) error {
 
 	return rejection()
 }
+
+// CallSync adds the frame of a call returning (p, err) to the trace of the
+// exception the call raised: err, or p's rejection when p was rejected by
+// the time the call returned. PHP constructed such an exception within the
+// call (a RemoteFilesystem download runs in its promise's resolver; a
+// RejectedPromise runs then()'s callback at once), so its trace holds the
+// call's frame. A promise rejected later is rejected from the event loop,
+// whose stack maestro does not reproduce: its exception gets no frame here.
+func CallSync[T any](p *Promise[T], err error, function, file string, line int) (*Promise[T], error) {
+	if err != nil {
+		return p, phperr.Call(err, function, file, line)
+	}
+	if p != nil {
+		if settled, rejection := p.Result(); settled && rejection != nil {
+			phperr.Call(rejection, function, file, line)
+		}
+	}
+
+	return p, nil
+}

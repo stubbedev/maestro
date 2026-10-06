@@ -338,6 +338,7 @@ func (m *Manager) executeBatches(repo repository.InstalledRepositoryInterface, o
 
 	for _, b := range batches {
 		if err := m.downloadAndExecuteBatch(repo, b, cl, devMode, runScripts, downloadOnly, allOperations); err != nil {
+			phperr.Call(err, `Composer\Installer\InstallationManager->downloadAndExecuteBatch`, "InstallationManager.php", 221)
 			if isException(err) {
 				if cerr := m.runCleanup(cl); cerr != nil {
 					return cerr
@@ -421,7 +422,7 @@ func (m *Manager) downloadAndExecuteBatch(repo repository.InstalledRepositoryInt
 
 		if opType != operation.TypeUninstall {
 			promise, err := installer.Download(p, initial)
-			if err != nil {
+			if promise, err = util.CallSync(promise, err, installerClass(installer)+"->download", "InstallationManager.php", 280); err != nil {
 				return err
 			}
 
@@ -613,6 +614,28 @@ func (m *Manager) executeOperation(repo repository.InstalledRepositoryInterface,
 // the progress bar.
 type progressIO interface {
 	ProgressBar(maxSteps int) *console.ProgressBar
+}
+
+// installerClass is the class declaring the installer's methods, as an
+// exception's trace names it.
+func installerClass(installer Installer) string {
+	switch installer.(type) {
+	case *LibraryInstaller:
+		return `Composer\Installer\LibraryInstaller`
+	case *PluginInstaller:
+		return `Composer\Installer\PluginInstaller`
+	case *ProjectInstaller:
+		return `Composer\Installer\ProjectInstaller`
+	case *MetapackageInstaller:
+		return `Composer\Installer\MetapackageInstaller`
+	case *NoopInstaller:
+		return `Composer\Installer\NoopInstaller`
+	}
+	if c, ok := installer.(interface{ Class() string }); ok {
+		return c.Class()
+	}
+
+	return `Composer\Installer\InstallerInterface`
 }
 
 // waitOnPromises is waitOnPromises(): it waits for the promises with a

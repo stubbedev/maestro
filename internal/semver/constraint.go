@@ -102,7 +102,7 @@ func SupportedOperators() []string {
 // invalidOperatorError is the InvalidArgumentException Constraint.php throws
 // at line (100: the constructor, 203: versionCompare).
 func invalidOperatorError(operator string, line int) error {
-	return &InvalidArgumentError{Site: phperr.At("Constraint.php", line), Message: "Invalid operator \"" + operator + "\" given, expected one of: " +
+	return &InvalidArgumentError{Site: phperr.At("vendor/composer/semver/src/Constraint/Constraint.php", line), Message: "Invalid operator \"" + operator + "\" given, expected one of: " +
 		strings.Join(supportedOperators[:], ", ")}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -543,7 +544,7 @@ func (d *dump) staticFile(suffix string) (string, error) {
 	}
 	for _, entry := range d.psr4 {
 		if err := loader.SetPsr4(entry.namespace, d.values(entry.paths)); err != nil {
-			return "", err
+			return "", phperr.Call(err, `Composer\Autoload\ClassLoader->setPsr4`, "AutoloadGenerator.php", 1175)
 		}
 	}
 	classMap := php.NewArrayCap(len(d.classes))

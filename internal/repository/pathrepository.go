@@ -140,7 +140,7 @@ func (r *PathRepository) initialize() error {
 		jsonContent := string(content)
 		decoded, err := json.ParseJSON(jsonContent, composerFilePath)
 		if err != nil {
-			return err
+			return phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "PathRepository.php", 175)
 		}
 		packageData, ok := decoded.(*php.Array)
 		if !ok {

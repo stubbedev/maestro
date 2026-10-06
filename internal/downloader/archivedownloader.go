@@ -88,13 +88,19 @@ func (a *ArchiveDownloader) download(c call, p pkg.PackageInterface, path string
 		return nil, err
 	}
 
-	return then(promise, func(file string) (*Promise, string, error) {
+	result := then(promise, func(file string) (*Promise, string, error) {
 		if !st.stagedFromStore {
 			return a.stageAsync(p, st.fileName), "", nil
 		}
 
 		return nil, file, nil
-	}, nil), nil
+	}, nil)
+	if a.format == archive.Zip {
+		// ZipDownloader::download() calls parent::download() at line 100
+		return util.CallSync(result, nil, `Composer\Downloader\FileDownloader->download`, "ZipDownloader.php", 100)
+	}
+
+	return result, nil
 }
 
 func (a *ArchiveDownloader) installOperationAppendix(pkg.PackageInterface, string) (string, error) {

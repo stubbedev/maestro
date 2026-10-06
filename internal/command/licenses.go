@@ -58,7 +58,7 @@ func licensesOf(p pkg.PackageInterface) *php.Array {
 
 // Execute ports execute().
 func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("LicensesCommand.php", 60)
 	if err != nil {
 		return 0, err
 	}

@@ -25,7 +25,18 @@ In VersionParser.php line 526:
                                                                         
 
 Exception trace:
-  at VersionParser.php:526
+  at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:526
+ Composer\Semver\VersionParser->parseConstraint() at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:281
+ Composer\Semver\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Package/Version/VersionParser.php:34
+ Composer\Package\Version\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Command/ShowCommand.php:820
+ Composer\Command\ShowCommand->getPackage() at @COMPOSER@/src/Composer/Command/ShowCommand.php:297
+ Composer\Command\ShowCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 show [--all] [--locked] [-i|--installed] [-p|--platform] [-a|--available] [-s|--self] [-N|--name-only] [-P|--path] [-t|--tree] [-l|--latest] [-o|--outdated] [--ignore IGNORE] [-M|--major-only] [-m|--minor-only] [--patch-only] [-A|--sort-by-age] [-D|--direct] [--strict] [-f|--format FORMAT] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<package> [<version>]]
 

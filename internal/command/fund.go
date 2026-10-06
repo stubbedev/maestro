@@ -39,7 +39,7 @@ func (*FundCommand) ClassName() string { return `Composer\Command\FundCommand` }
 
 // Execute ports execute().
 func (c *FundCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("FundCommand.php", 45)
 	if err != nil {
 		return 0, err
 	}

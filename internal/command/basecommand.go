@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/util"
@@ -97,6 +98,43 @@ func (c *BaseCommand) Impl() console.Commander {
 	return c
 }
 
+// MethodClass implements console.MethodClasser: the class declaring the
+// method of Composer's command class (src/Composer/Command of Composer
+// 2.10.3), as an exception's trace frames name it. initialize() is
+// BaseCommand's, except where BaseConfigCommand, ConfigCommand and
+// InitCommand override it; interact() is Symfony's no-op except in
+// ExecCommand, InitCommand, RequireCommand and RunScriptCommand; run() is
+// Symfony's except in GlobalCommand; execute() is every command's own.
+func (*BaseCommand) MethodClass(class, method string) string {
+	const ns = `Composer\Command\`
+	switch method {
+	case "initialize":
+		switch class {
+		case ns + "ConfigCommand", ns + "InitCommand":
+			return class
+		case ns + "RepositoryCommand", ns + "PolicyCommand":
+			return ns + "BaseConfigCommand"
+		}
+
+		return ns + "BaseCommand"
+	case "interact":
+		switch class {
+		case ns + "ExecCommand", ns + "InitCommand", ns + "RequireCommand", ns + "RunScriptCommand":
+			return class
+		}
+
+		return `Symfony\Component\Console\Command\Command`
+	case "run":
+		if class == ns+"GlobalCommand" {
+			return class
+		}
+
+		return `Symfony\Component\Console\Command\Command`
+	}
+
+	return class
+}
+
 // App ports getApplication(): the Composer Application, or the
 // RuntimeException PHP throws when the command is not attached to one.
 func (c *BaseCommand) App() (*Application, error) {
@@ -138,12 +176,29 @@ func (c *BaseCommand) RequireComposer(disablePlugins, disableScripts *bool) (*co
 		}
 		composer, err := app.GetComposer(true, disablePlugins, disableScripts)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Console\Application->getComposer`, baseCommandFile, 103)
 		}
 		c.composer = composer
 	}
 
 	return c.composer, nil
+}
+
+// commandClass is get_class($this): the class trait methods' frames name.
+func (c *BaseCommand) commandClass() string {
+	if n, ok := c.impl.(console.ClassNamer); ok {
+		return n.ClassName()
+	}
+
+	return `Composer\Command\BaseCommand`
+}
+
+// requireComposerAt is $this->requireComposer() called at file:line of
+// Composer's sources (the frame it adds to an exception's trace).
+func (c *BaseCommand) requireComposerAt(file string, line int) (*composer.Composer, error) {
+	comp, err := c.RequireComposer(nil, nil)
+
+	return comp, phperr.Call(err, `Composer\Command\BaseCommand->requireComposer`, file, line)
 }
 
 // TryComposer ports tryComposer: nil when there is no composer.json (or
@@ -153,7 +208,7 @@ func (c *BaseCommand) TryComposer(disablePlugins, disableScripts *bool) (*compos
 		if app := c.application(); app != nil {
 			composer, err := app.GetComposer(false, disablePlugins, disableScripts)
 			if err != nil {
-				return nil, err
+				return nil, phperr.Call(err, `Composer\Console\Application->getComposer`, baseCommandFile, 129)
 			}
 			c.composer = composer
 		}
@@ -260,19 +315,19 @@ func (c *BaseCommand) Initialize(in console.Input, _ console.Output) error {
 
 	composer, err := c.TryComposer(&disablePlugins, &disableScripts)
 	if err != nil {
-		return err
+		return phperr.Call(err, `Composer\Command\BaseCommand->tryComposer`, baseCommandFile, 240)
 	}
 	out := c.IO()
 
 	if composer == nil && app != nil {
 		if composer, err = app.Factory().CreateGlobal(c.IO(), disablePlugins, disableScripts); err != nil {
-			return err
+			return phperr.Call(err, `Composer\Factory::createGlobal`, baseCommandFile, 244)
 		}
 	}
 	if composer != nil {
 		event := eventdispatcher.NewPreCommandRunEvent(eventdispatcher.PreCommandRun, in, c.Name())
 		if _, err := composer.EventDispatcher().Dispatch(event.Name(), event); err != nil {
-			return err
+			return phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatch`, baseCommandFile, 248)
 		}
 	}
 
@@ -474,7 +529,7 @@ func joinFormats() string { return strings.Join(advisory.Formats[:], ", ") }
 func (*BaseCommand) CreatePolicyConfig(cfg *config.Config, in console.Input) (*policy.PolicyConfig, error) {
 	policyConfig, err := policy.FromConfig(cfg)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Policy\PolicyConfig::fromConfig`, baseCommandFile, 480)
 	}
 
 	// --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + custom)

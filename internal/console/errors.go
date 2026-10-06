@@ -5,6 +5,8 @@ package console
 import (
 	"errors"
 	"fmt"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Kind identifies the PHP exception class of an Error.
@@ -63,12 +65,18 @@ type Error struct {
 	Kind         Kind
 	Message      string
 	Alternatives []string // CommandNotFoundException::getAlternatives()
-	File         string   // basename of the PHP file that throws
+	File         string   // the PHP file that throws (as phperr.At takes it)
 	Line         int
 	Prev         error
+	phperr.Frames
 }
 
+// newError returns the console exception thrown at file:line, a file of
+// symfony/console (Application.php is its own, not Composer's).
 func newError(kind Kind, file string, line int, format string, args ...any) *Error {
+	if file == "Application.php" {
+		file = "vendor/symfony/console/Application.php"
+	}
 	msg := format
 	if len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)
@@ -109,8 +117,9 @@ func (e *Error) Unwrap() error { return e.Prev }
 // ThrowableClass implements Throwable.
 func (e *Error) ThrowableClass() string { return kindClass[e.Kind] }
 
-// ThrowableFile implements Throwable.
-func (e *Error) ThrowableFile() string { return e.File }
+// ThrowableFile implements Throwable: getFile(), the absolute path of
+// symfony/console's file (phperr.AbsPath).
+func (e *Error) ThrowableFile() string { return phperr.AbsPath(e.File) }
 
 // ThrowableLine implements Throwable.
 func (e *Error) ThrowableLine() int { return e.Line }
@@ -120,6 +129,9 @@ func (e *Error) ThrowableCode() int { return 0 }
 
 // ThrowablePrevious implements Throwable.
 func (e *Error) ThrowablePrevious() error { return e.Prev }
+
+// PHPPrevious implements phperr.Chained.
+func (e *Error) PHPPrevious() error { return e.Prev }
 
 // IsConsoleException reports whether err (or anything it wraps) implements
 // Symfony's ExceptionInterface.

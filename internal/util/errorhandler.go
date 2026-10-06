@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -70,7 +71,7 @@ func TriggerDeprecation(message string, site phperr.Site) {
 
 	errorHandler.shown = 1
 
-	where := site.File + ":" + strconv.Itoa(site.Line)
+	where := php.Basename(site.File, "") + ":" + strconv.Itoa(site.Line)
 
 	// outputWarning
 	out.WriteError("<warning>Deprecation Notice: "+message+" in "+where+"</warning>", true, io.Normal)

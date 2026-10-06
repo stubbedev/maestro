@@ -57,7 +57,20 @@ In Config.php line 472:
                                                                       
 
 Exception trace:
-  at Config.php:472
+  at @COMPOSER@/src/Composer/Config.php:472
+ Composer\Config->get() at @COMPOSER@/src/Composer/Factory.php:587
+ Composer\Factory->createDefaultInstallers() at @COMPOSER@/src/Composer/Factory.php:419
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:629
+ Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:103
+ Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/InstallCommand.php:105
+ Composer\Command\InstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 install [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--download-only] [--dev] [--no-suggest] [--no-dev] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-progress] [--no-install] [--audit] [--audit-format AUDIT-FORMAT] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<packages>...]
 

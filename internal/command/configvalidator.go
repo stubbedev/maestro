@@ -233,7 +233,9 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		}
 		v, _ := m.Get(key)
 
-		return nil, nil, nil, &pkg.TypeError{Site: phperr.At("ConfigValidator.php", 177), Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + zvalValueName(v) + " given"}
+		// an internal function's TypeError: at the call, whose frame
+		// heads the trace
+		return nil, nil, nil, phperr.Call(&pkg.TypeError{Site: phperr.At("ConfigValidator.php", 177), Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + zvalValueName(v) + " given"}, "array_merge", "ConfigValidator.php", 177)
 	}
 	for name, version := range php.ArrayMerge(require, requireDev).All() {
 		s, ok := version.(string)

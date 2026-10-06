@@ -42,7 +42,7 @@ func NewBaseDependencyCommand(name string) *BaseDependencyCommand {
 // DoExecute ports doExecute: inverted is why-not behaviour.
 func (c *BaseDependencyCommand) DoExecute(in console.Input, out console.Output, inverted bool) (int, error) {
 	// Emit command event on startup
-	composer, err := c.RequireComposer(nil, nil)
+	composer, err := c.requireComposerAt("BaseDependencyCommand.php", 60)
 	if err != nil {
 		return 0, err
 	}

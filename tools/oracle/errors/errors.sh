@@ -30,9 +30,13 @@
 # directory names,
 # what depends on the machine's php (its version, and the pool and rule
 # counts, which include one platform package per loaded extension), the
-# resolution time, and the PHP call stack lines of "Exception trace:" (Composer
-# prints its own PHP frames with absolute paths there; maestro prints the
-# throw site only), whose "at" line is reduced to the file's basename.
+# resolution time, and where Composer's sources are: the "Exception trace:"
+# frames and TypeErrors' "called in" name Composer's files by their absolute
+# paths, which maestro gives as those of a phar at its executable
+# (phar://$work/maestro/src/Composer/...). Composer runs from a copy of
+# .ref/composer whose path is exactly as long as that root, so exception
+# boxes holding such a path are as wide in both; both roots read
+# @COMPOSER@.
 set -uo pipefail
 root=$(pwd)
 data=$root/internal/command/testdata/errors
@@ -50,11 +54,21 @@ work=$(mktemp -d /tmp/maestro-errors.XXXXXX)
 cleanup() { [ -n "${srvpid:-}" ] && kill "$srvpid" 2>/dev/null; [ $keep = 1 ] && echo "work: $work" || rm -rf "$work"; }
 trap cleanup EXIT
 
-maestro=${MAESTRO:-}
-if [ -z "$maestro" ]; then
-	maestro=$work/maestro
+# maestro is always $work/maestro: its executable's path is the root of the
+# Composer files it names (phperr.Root).
+maestro=$work/maestro
+if [ -n "${MAESTRO:-}" ]; then
+	cp "$MAESTRO" "$maestro" || exit 1
+else
 	go build -o "$maestro" ./cmd/maestro || exit 1
 fi
+mroot=phar://$maestro
+croot=$work/composer
+while [ ${#croot} -lt ${#mroot} ]; do croot=${croot}_; done
+mkdir -p "$croot"
+for f in bin src vendor res composer.json composer.lock LICENSE; do
+	cp -a "$root/.ref/composer/$f" "$croot/" || exit 1
+done
 
 port=$(php -r '$s=stream_socket_server("tcp://127.0.0.1:0");echo explode(":",stream_socket_get_name($s,false))[1];')
 php -S 127.0.0.1:"$port" -t "$data/_server" "$root/tools/oracle/errors/router.php" >/dev/null 2>&1 &
@@ -70,8 +84,8 @@ normalize() {
 	sed -E \
 		-e "s#$work/run#@DIR@#g" \
 		-e "s#127\.0\.0\.1:$port#@SERVER@#g" \
-		-e 's#^(  at )(/|phar://)[^ ]*/([^/ ]+:([0-9]+|n/a))$#\1\3#' \
-		-e '/^ [^ ]+ at (\/|phar:\/\/)[^ ]*:[0-9]+$/d' \
+		-e "s#$croot/#@COMPOSER@/#g" \
+		-e "s#$mroot/#@COMPOSER@/#g" \
 		-e '/^Running cache garbage collection$/d' \
 		-e 's/^(Running [^ ]+ \([^)]*\) with PHP ).* on .*$/\1@PHP@ on @OS@/' \
 		-e 's#/tmp/composer_archive[0-9a-f]+#/tmp/composer_archive@RAND@#g' \
@@ -109,7 +123,7 @@ total=0
 for name in "$@"; do
 	for v in "" -v -vv -vvv; do
 		total=$((total + 1))
-		run "$name" "php $root/.ref/composer/bin/composer" "$work/c.out" "$v"
+		run "$name" "php $croot/bin/composer" "$work/c.out" "$v"
 		if [ $write = 1 ]; then
 			cp "$work/c.out.n" "$data/$name/${v#-}.txt"
 			[ -z "$v" ] && mv "$data/$name/.txt" "$data/$name/default.txt"

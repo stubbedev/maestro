@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Exit codes (Command constants).
@@ -17,6 +18,30 @@ const (
 	Failure = 1
 	Invalid = 2
 )
+
+// MethodClasser is optionally implemented by commands whose PHP methods
+// (initialize, interact, execute, run) may be declared by a parent class:
+// MethodClass returns the class declaring method for a command of class
+// class, as PHP's trace frames name it ("Composer\Command\BaseCommand"
+// for an initialize() the command inherits).
+type MethodClasser interface {
+	MethodClass(class, method string) string
+}
+
+// methodClass is the class declaring the PHP method of cmd: the
+// MethodClasser's answer, else the command's class for the hooks it
+// implements and Symfony's Command for run().
+func methodClass(cmd Commander, method string) string {
+	class := commandClass(cmd)
+	if m, ok := cmd.(MethodClasser); ok {
+		return m.MethodClass(class, method)
+	}
+	if method == "run" {
+		return `Symfony\Component\Console\Command\Command`
+	}
+
+	return class
+}
 
 // Commander is implemented by every command: *Command itself, and types
 // embedding *Command, which may override Run and Complete.
@@ -140,13 +165,13 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 	// bind the input against the command specific arguments/options
 	if err := in.Bind(c.Definition()); err != nil {
 		if !IsConsoleException(err) || !c.ignoreValidationErrors {
-			return 0, err
+			return 0, phperr.Call(err, `Symfony\Component\Console\Input\Input->bind`, commandPHP, 257)
 		}
 	}
 
 	impl := c.impl()
 	if h, ok := impl.(Initializer); ok {
-		if err := h.Initialize(in, out); err != nil {
+		if _, err := c.call(methodClass(impl, "initialize")+"->initialize", 264, func() (int, error) { return 0, h.Initialize(in, out) }); err != nil {
 			return 0, err
 		}
 	}
@@ -156,7 +181,7 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 
 	if in.IsInteractive() {
 		if h, ok := impl.(Interactor); ok {
-			if err := h.Interact(in, out); err != nil {
+			if _, err := c.call(methodClass(impl, "interact")+"->interact", 283, func() (int, error) { return 0, h.Interact(in, out) }); err != nil {
 				return 0, err
 			}
 		}
@@ -170,17 +195,29 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 	}
 
 	if err := in.Validate(); err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Symfony\Component\Console\Input\Input->validate`, commandPHP, 293)
 	}
 
 	if c.code != nil {
 		return c.code(in, out)
 	}
 	if h, ok := impl.(Executor); ok {
-		return h.Execute(in, out)
+		return c.call(methodClass(impl, "execute")+"->execute", 298, func() (int, error) { return h.Execute(in, out) })
 	}
 
 	return 0, newError(KindLogic, "Command.php", 208, "You must override the execute() method in the concrete command class.")
+}
+
+// call runs fn as run()'s call of function at line of Command.php
+// (Application.Call, or phperr.Call for a command without application).
+func (c *Command) call(function string, line int, fn func() (int, error)) (int, error) {
+	f := phperr.Frame{Function: function, File: commandPHP, Line: line}
+	if c.application != nil {
+		return c.application.Call(f, fn)
+	}
+	code, err := fn()
+
+	return code, phperr.Call(err, f.Function, f.File, f.Line)
 }
 
 // Complete implements Commander; the base command suggests nothing.

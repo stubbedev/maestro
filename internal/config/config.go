@@ -820,7 +820,7 @@ func (c *Config) All(flags int) (*php.Array, error) {
 		}
 		v, err := c.Get(k.String(), flags)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Config->get`, "Config.php", 580)
 		}
 		cfg.SetKey(k, v)
 	}

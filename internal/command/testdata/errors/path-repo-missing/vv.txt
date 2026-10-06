@@ -8,7 +8,22 @@ In PathRepository.php line 163:
                                                                     
 
 Exception trace:
-  at PathRepository.php:163
+  at @COMPOSER@/src/Composer/Repository/PathRepository.php:163
+ Composer\Repository\PathRepository->initialize() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:308
+ Composer\Repository\ArrayRepository->getPackages() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:62
+ Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:452
+ Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:289
+ Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:351
+ Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:534
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:306
+ Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
 

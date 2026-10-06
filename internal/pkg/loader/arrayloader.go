@@ -44,7 +44,7 @@ func (l *ArrayLoader) VersionParser() *pkg.VersionParser { return l.versionParse
 func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterface, error) {
 	p, err := l.createObject(config, class)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createObject`, "ArrayLoader.php", 55)
 	}
 
 	pp, _ := pkg.AsPackage(p)
@@ -57,13 +57,15 @@ func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterfac
 
 		parsed, err := l.ParseLinks(p.Name(), p.PrettyVersion(), t.Method, links)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->parseLinks`, "ArrayLoader.php", 63)
 		}
 
 		setLinks(pp, t.Method, parsed)
 	}
 
-	return l.configureObject(p, config)
+	configured, err := l.configureObject(p, config)
+
+	return configured, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 72)
 }
 
 // LoadPackages ports ArrayLoader::loadPackages: complete packages for many
@@ -76,16 +78,16 @@ func (l *ArrayLoader) LoadPackages(versions []*php.Array) ([]pkg.PackageInterfac
 	for _, version := range versions {
 		p, err := l.createObject(version, pkg.ClassCompletePackage)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createObject`, "ArrayLoader.php", 88)
 		}
 
 		if err := l.configureCachedLinks(cache, p, version); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureCachedLinks`, "ArrayLoader.php", 90)
 		}
 
 		configured, err := l.configureObject(p, version)
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 91)
 		}
 
 		packages = append(packages, configured)
@@ -796,7 +798,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 				if constraint == "self.version" {
 					link, err := l.createLink(name, prettyVersion, t.Method, target, constraint)
 					if err != nil {
-						return err
+						return phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 350)
 					}
 
 					add(target, link)
@@ -812,7 +814,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 				if !ok {
 					var err error
 					if link, err = l.createLink(name, prettyVersion, t.Method, target, constraint); err != nil {
-						return err
+						return phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 353)
 					}
 
 					byName[key] = link
@@ -857,7 +859,7 @@ func (l *ArrayLoader) ParseLinks(source, sourceVersion, description string, link
 
 		link, err := l.createLink(source, sourceVersion, description, target, constraint)
 		if err != nil {
-			return pkg.Links{}, err
+			return pkg.Links{}, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 384)
 		}
 
 		add(target, link)
@@ -874,6 +876,7 @@ func (l *ArrayLoader) createLink(source, sourceVersion, description, target, pre
 
 	parsed, err := l.versionParser.ParseConstraints(constraint)
 	if err != nil {
+		phperr.Call(err, `Composer\Package\Version\VersionParser->parseConstraints`, "ArrayLoader.php", 410)
 		if uv := (*semver.UnexpectedValueError)(nil); errors.As(err, &uv) {
 			return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 412), Message: "Link constraint in " + source + " " + description + " > " + target +
 				" should be a valid version constraint, got \"" + constraint + "\"", Prev: err}

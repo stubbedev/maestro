@@ -22,7 +22,7 @@ const noMaxAge = -1
 // hasProvidersCheck ports hasProviders.
 func (r *ComposerRepository) hasProvidersCheck() (bool, error) {
 	if _, _, err := r.loadRootServerFile(noMaxAge); err != nil {
-		return false, err
+		return false, phperr.Call(err, `Composer\Repository\ComposerRepository->loadRootServerFile`, "ComposerRepository.php", 1095)
 	}
 
 	return r.hasProviders, nil
@@ -107,7 +107,7 @@ func (r *ComposerRepository) loadRootServerFile(rootMaxAge int64) (*php.Array, b
 	if !hasSet {
 		data, err = r.fetchFile(r.packagesJSONURL(), "packages.json", "", true)
 		if err != nil {
-			return nil, false, err
+			return nil, false, phperr.Call(err, `Composer\Repository\ComposerRepository->fetchFile`, "ComposerRepository.php", 1467)
 		}
 	}
 	if data == nil {

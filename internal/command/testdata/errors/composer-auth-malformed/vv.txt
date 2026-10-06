@@ -7,7 +7,17 @@ In Factory.php line 692:
                                                                                
 
 Exception trace:
-  at Factory.php:692
+  at @COMPOSER@/src/Composer/Factory.php:692
+ Composer\Factory::loadComposerAuthEnv() at @COMPOSER@/src/Composer/Factory.php:219
+ Composer\Factory::createConfig() at @COMPOSER@/src/Composer/Factory.php:471
+ Composer\Factory::createGlobal() at @COMPOSER@/src/Composer/Command/BaseCommand.php:244
+ Composer\Command\BaseCommand->initialize() at @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 install [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--download-only] [--dev] [--no-suggest] [--no-dev] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-progress] [--no-install] [--audit] [--audit-format AUDIT-FORMAT] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<packages>...]
 

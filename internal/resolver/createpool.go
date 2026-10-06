@@ -49,7 +49,9 @@ func CreatePool(set *repository.RepositorySet, request *Request, out io.IO, opts
 		return nil, err
 	}
 
-	return poolBuilder.BuildPool(set.Repositories(), request)
+	pool, err := poolBuilder.BuildPool(set.Repositories(), request)
+
+	return pool, phperr.Call(err, `Composer\DependencyResolver\PoolBuilder->buildPool`, "RepositorySet.php", 351)
 }
 
 // CreatePoolWithAllPackages ports RepositorySet::createPoolWithAllPackages:

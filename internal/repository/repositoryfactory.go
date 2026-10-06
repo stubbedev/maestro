@@ -174,7 +174,9 @@ func DefaultRepos(out io.IO, cfg *config.Config, rm *RepositoryManager) (*NameMa
 		out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
 	}
 
-	return createRepos(rm, cfg.Repositories())
+	repos, err := createRepos(rm, cfg.Repositories())
+
+	return repos, phperr.Call(err, `Composer\Repository\RepositoryFactory::createRepos`, "RepositoryFactory.php", 100)
 }
 
 // createRepos ports RepositoryFactory::createRepos.
@@ -219,7 +221,7 @@ func createRepos(rm *RepositoryManager, repoConfigs *php.Array) (*NameMap[Reposi
 		}
 		created, err := rm.CreateRepository(typ, repo, index.String())
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Repository\RepositoryManager->createRepository`, "RepositoryFactory.php", 168)
 		}
 		repos.Set(name, created)
 	}

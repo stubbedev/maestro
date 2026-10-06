@@ -53,7 +53,7 @@ func (*StatusCommand) ClassName() string { return `Composer\Command\StatusComman
 
 // Execute ports execute().
 func (c *StatusCommand) Execute(in console.Input, out console.Output) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("StatusCommand.php", 63)
 	if err != nil {
 		return 0, err
 	}
@@ -99,7 +99,7 @@ func indentStatusChanges(changes string) string {
 
 func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 	// init repos
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("StatusCommand.php", 82)
 	if err != nil {
 		return 0, err
 	}

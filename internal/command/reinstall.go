@@ -63,7 +63,7 @@ func (*ReinstallCommand) ClassName() string { return `Composer\Command\Reinstall
 func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, error) {
 	cio := c.IO()
 
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("ReinstallCommand.php", 76)
 	if err != nil {
 		return 0, err
 	}

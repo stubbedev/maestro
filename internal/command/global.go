@@ -130,7 +130,7 @@ func (c *GlobalCommand) Run(in console.Input, out console.Output) (int, error) {
 		return 0, err
 	}
 
-	return app.Run(sub, out)
+	return app.RunFrom("GlobalCommand.php", 120, sub, out)
 }
 
 // prepareSubcommandInput ports prepareSubcommandInput: it changes to the

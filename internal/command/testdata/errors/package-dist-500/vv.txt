@@ -24,7 +24,41 @@ In RemoteFilesystem.php line 481:
                                                                                
 
 Exception trace:
-  at RemoteFilesystem.php:481
+  at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:481
+ Composer\Util\RemoteFilesystem->get() at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:107
+ Composer\Util\RemoteFilesystem->copy() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:251
+ Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}() at @COMPOSER@/vendor/react/promise/src/Promise.php:284
+ React\Promise\Promise->call() at @COMPOSER@/vendor/react/promise/src/Promise.php:41
+ React\Promise\Promise->__construct() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:283
+ Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:181
+ Composer\Util\HttpDownloader->addCopy() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:196
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
+ React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
+ React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
+ React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:302
+ Composer\Downloader\FileDownloader->download() at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:100
+ Composer\Downloader\ZipDownloader->download() at @COMPOSER@/src/Composer/Downloader/DownloadManager.php:252
+ Composer\Downloader\DownloadManager->{closure:Composer\Downloader\DownloadManager::download():206}() at @COMPOSER@/src/Composer/Downloader/DownloadManager.php:264
+ Composer\Downloader\DownloadManager->download() at @COMPOSER@/src/Composer/Installer/LibraryInstaller.php:111
+ Composer\Installer\LibraryInstaller->download() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:280
+ Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:221
+ Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:876
+ Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:686
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:306
+ Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
 

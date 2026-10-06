@@ -265,7 +265,14 @@ func (p VersionParser) ParseConstraints(constraints string) (ConstraintInterface
 		for _, andConstraint := range andConstraints {
 			parsed, n, err := p.parseConstraint(andConstraint)
 			if err != nil {
-				return nil, err
+				// $this->parseConstraint() at line 276 for each of several
+				// AND constraints, at line 281 for a single one
+				line := 281
+				if len(andConstraints) > 1 {
+					line = 276
+				}
+
+				return nil, phperr.Call(err, `Composer\Semver\VersionParser->parseConstraint`, "VersionParser.php", line)
 			}
 			constraintObjects = append(constraintObjects, parsed[:n]...)
 		}

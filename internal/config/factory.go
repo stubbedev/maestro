@@ -209,25 +209,25 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 			out.WriteError("Loading config file "+file.Path(), true, io.Debug)
 		}
 		if err := ValidateJSONSchema(out, file, json.LaxSchema, ""); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 187)
 		}
 		data, err := file.Read()
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Json\JsonFile->read`, "Factory.php", 188)
 		}
 		a, ok := data.(*php.Array)
 		if !ok {
 			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + zvalName(data) + " given"}
 		}
 		if err := config.Merge(a, file.Path()); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Config->merge`, "Factory.php", 188)
 		}
 	}
 	config.SetConfigSource(NewJSONConfigSource(file, false))
 
 	htaccessProtect, err := config.Get("htaccess-protect", 0)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Config->get`, "Factory.php", 192)
 	}
 	if php.ToBool(htaccessProtect) {
 		// Protect directory against web access. Since HOME could be
@@ -261,20 +261,20 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 			out.WriteError("Loading config file "+file.Path(), true, io.Debug)
 		}
 		if err := ValidateJSONSchema(out, file, json.AuthSchema, ""); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 214)
 		}
 		data, err := file.Read()
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Json\JsonFile->read`, "Factory.php", 215)
 		}
 		if err := config.Merge(php.ArrayOf("config", data), file.Path()); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Config->merge`, "Factory.php", 215)
 		}
 	}
 	config.SetAuthConfigSource(NewJSONConfigSource(file, true))
 
 	if err := LoadComposerAuthEnv(config, out); err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Factory::loadComposerAuthEnv`, "Factory.php", 219)
 	}
 
 	return config, nil
@@ -334,10 +334,10 @@ func LoadComposerAuthEnv(config *Config, out io.IO) error {
 		out.WriteError("Loading auth config from COMPOSER_AUTH", true, io.Debug)
 	}
 	if err := ValidateJSONSchema(out, authData, json.AuthSchema, "COMPOSER_AUTH"); err != nil {
-		return err
+		return phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 698)
 	}
 	if authData, _ = php.JSONDecode(composerAuthEnv, true); authData != nil {
-		return config.Merge(php.ArrayOf("config", authData), "COMPOSER_AUTH")
+		return phperr.Call(config.Merge(php.ArrayOf("config", authData), "COMPOSER_AUTH"), `Composer\Config->merge`, "Factory.php", 701)
 	}
 
 	return nil
@@ -376,12 +376,12 @@ func ValidateJSONSchema(out io.IO, fileOrData any, schema int, source string) er
 
 	var err error
 	if file, ok := fileOrData.(*json.File); ok {
-		err = file.ValidateSchema(schema, "")
+		err = phperr.Call(file.ValidateSchema(schema, ""), `Composer\Json\JsonFile->validateSchema`, "Factory.php", 745)
 	} else {
 		if source == "" {
 			return &util.InvalidArgumentError{Site: phperr.At("Factory.php", 748), Message: "$source is required to be provided if $fileOrData is arbitrary data"}
 		}
-		err = json.ValidateJSONSchema(source, fileOrData, schema, "")
+		err = phperr.Call(json.ValidateJSONSchema(source, fileOrData, schema, ""), `Composer\Json\JsonFile::validateJsonSchema`, "Factory.php", 750)
 	}
 
 	var ve *json.ValidationError

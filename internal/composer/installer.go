@@ -338,8 +338,10 @@ func (i *Installer) Run() (int, error) {
 	var res int
 	if i.update {
 		res, err = i.doUpdate(localRepo, i.install)
+		phperr.Call(err, `Composer\Installer->doUpdate`, "Installer.php", 325)
 	} else {
 		res, err = i.doInstall(localRepo, false)
+		phperr.Call(err, `Composer\Installer->doInstall`, "Installer.php", 327)
 	}
 	if err != nil {
 		if nerr := notifyOnInstall(); nerr != nil {
@@ -666,7 +668,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 		FilterListPoolFilter:       filterListFilter,
 	})
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Repository\RepositorySet->createPool`, "Installer.php", 534)
 	}
 
 	i.io.WriteError("<info>Updating dependencies</info>", true, io.Normal)
@@ -807,7 +809,9 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 
 	if doInstall {
 		// TODO ensure lock is used from locker as-is, since it may not have been written to disk in case of executeOperations == false
-		return i.doInstall(localRepo, true)
+		res, err := i.doInstall(localRepo, true)
+
+		return res, phperr.Call(err, `Composer\Installer->doInstall`, "Installer.php", 686)
 	}
 
 	return 0, nil
@@ -991,7 +995,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 
 	lockedRepository, err := i.locker.LockedRepository(i.devMode)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Package\Locker->getLockedRepository`, "Installer.php", 757)
 	}
 
 	// verify that the lock file works with the current platform repository
@@ -1064,7 +1068,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	}
 	localRepo.SetDevPackageNames(devPackageNames)
 	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Installer\InstallationManager->execute`, "Installer.php", 876)
 	}
 
 	// see https://github.com/composer/composer/issues/2764

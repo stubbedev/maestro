@@ -286,7 +286,7 @@ func (o *InputOption) Equals(other *InputOption) bool {
 // It fails like Composer when the option accepts no value.
 func (o *InputOption) WithSuggestedValues(values ...string) (*InputOption, error) {
 	if len(values) > 0 && !o.AcceptValue() {
-		return nil, newError(KindLogic, "InputOption.php", 57, "Cannot set suggested values if the option does not accept a value.")
+		return nil, newError(KindLogic, "src/Composer/Console/Input/InputOption.php", 53, "Cannot set suggested values if the option does not accept a value.")
 	}
 	o.suggestedValues = values
 
@@ -296,7 +296,7 @@ func (o *InputOption) WithSuggestedValues(values ...string) (*InputOption, error
 // WithSuggestFunc sets a completion callback (Composer's backport).
 func (o *InputOption) WithSuggestFunc(fn SuggestFunc) (*InputOption, error) {
 	if fn != nil && !o.AcceptValue() {
-		return nil, newError(KindLogic, "InputOption.php", 57, "Cannot set suggested values if the option does not accept a value.")
+		return nil, newError(KindLogic, "src/Composer/Console/Input/InputOption.php", 53, "Cannot set suggested values if the option does not accept a value.")
 	}
 	o.suggestFunc = fn
 

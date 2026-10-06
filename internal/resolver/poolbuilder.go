@@ -240,7 +240,7 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 
 	for b.packagesToLoad.Len() > 0 {
 		if err := b.loadPackagesMarkedForLoading(request, repositories); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading`, "PoolBuilder.php", 289)
 		}
 	}
 
@@ -490,7 +490,7 @@ func (b *PoolBuilder) loadPackagesMarkedForLoading(request *Request, repositorie
 		for _, packageBatch := range packageBatches {
 			result, err := repo.LoadPackages(packageBatch, b.acceptableStabilities, b.stabilityFlags, b.loadedPerRepo[repoIndex])
 			if err != nil {
-				return err
+				return phperr.Call(err, repository.LoadPackagesClass(repo)+"->loadPackages", "PoolBuilder.php", 452)
 			}
 
 			for _, name := range result.NamesFound {

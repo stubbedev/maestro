@@ -131,7 +131,7 @@ func (r *RemoteFilesystem) Copy(originURL, fileURL, fileName string, progress bo
 
 	_, ok, err := r.get(originURL, fileURL, options, fileName, true, progress)
 
-	return ok, err
+	return ok, phperr.Call(err, `Composer\Util\RemoteFilesystem->get`, "RemoteFilesystem.php", 107)
 }
 
 // GetContents is getContents($originUrl, $fileUrl, $progress, $options).
@@ -141,7 +141,7 @@ func (r *RemoteFilesystem) GetContents(originURL, fileURL string, progress bool,
 
 	result, _, err := r.get(originURL, fileURL, options, "", false, progress)
 
-	return result, err
+	return result, phperr.Call(err, `Composer\Util\RemoteFilesystem->get`, "RemoteFilesystem.php", 122)
 }
 
 // Get is the protected get($originUrl, $fileUrl, $additionalOptions,

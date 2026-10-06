@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/locker"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 )
@@ -55,7 +56,7 @@ func (*DumpAutoloadCommand) ClassName() string { return `Composer\Command\DumpAu
 
 // Execute ports execute().
 func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int, error) {
-	comp, err := c.RequireComposer(nil, nil)
+	comp, err := c.requireComposerAt("DumpAutoloadCommand.php", 57)
 	if err != nil {
 		return 0, err
 	}
@@ -184,7 +185,7 @@ func dumpAutoloader(generator *autoload.Generator, cfg autoload.Config, localRep
 	}
 	classMap, err := generator.Dump(cfg, repo, root, im, "composer", optimize, "", al, strictAmbiguous)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->dump`, "DumpAutoloadCommand.php", 115)
 	}
 	if repo.err != nil {
 		return nil, repo.err

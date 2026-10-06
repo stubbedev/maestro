@@ -864,7 +864,7 @@ func (e *PluginBlockedError) Error() string { return e.Message }
 func (*PluginBlockedError) ThrowableClass() string { return `Composer\Plugin\PluginBlockedException` }
 
 // ThrowableFile implements console.Throwable.
-func (*PluginBlockedError) ThrowableFile() string { return pluginManagerFile }
+func (*PluginBlockedError) ThrowableFile() string { return phperr.AbsPath(pluginManagerFile) }
 
 // ThrowableLine implements console.Throwable.
 func (*PluginBlockedError) ThrowableLine() int { return 821 }

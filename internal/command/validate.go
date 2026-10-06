@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -102,7 +103,7 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 	isStrict := console.BoolOption(in, "strict")
 	errs, publishErrors, warnings, err := validator.Validate(file, checkAll, checkVersion)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
 	}
 
 	var lockErrors []string
@@ -163,7 +164,7 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 				if _, err := os.Stat(file); err == nil {
 					errs, publishErrors, warnings, err := validator.Validate(file, checkAll, checkVersion)
 					if err != nil {
-						return 0, err
+						return 0, phperr.Call(err, `Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 118)
 					}
 
 					errs, warnings = c.outputResult(cio, p.PrettyName(), errs, warnings, checkPublish, publishErrors, false, nil, false)

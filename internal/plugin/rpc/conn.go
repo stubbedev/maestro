@@ -570,7 +570,7 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 	// Composer's throw site (docs/PLUGINS.md §5.10): Symfony renders "In
 	// <file> line <n>:" from it.
 	if site, ok := phperr.SiteOf(err); ok {
-		x.Set("file", site.File)
+		x.Set("file", php.Basename(site.File, ""))
 		x.Set("line", int64(site.Line))
 	}
 	if previous != nil && depth < maxExceptionDepth {
