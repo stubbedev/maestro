@@ -56,7 +56,14 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 	sub := func(a *php.Array, k string) *php.Array { v, _ := a.GetArray(k); return v }
 	val := func(a *php.Array, k string) any { v, _ := a.Get(k); return v }
 
-	for path, content := range sub(s, "files").All() {
+	files := sub(s, "files")
+	if foldCollision(files) && caseInsensitive(t, root) {
+		// Two fixture paths differ only in case (s234: Legacy/ and legacy/),
+		// so they share one directory here and Composer would scan both
+		// there too: the golden holds a case-sensitive file system's result.
+		t.Skip("fixture paths collide on this case-insensitive file system")
+	}
+	for path, content := range files.All() {
 		writeFile(t, root+"/"+path.String(), php.ToString(content))
 	}
 	for link, target := range sub(s, "symlinks").All() {
@@ -167,6 +174,41 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 			t.Errorf("%s:\n%s\nwant:\n%s", name, replace(string(got)), want)
 		}
 	}
+}
+
+// foldCollision reports whether two of the paths (keys) of files differ only
+// in case in some directory or file name.
+func foldCollision(files *php.Array) bool {
+	seen := map[string]string{}
+	for path := range files.All() {
+		p := path.String()
+		for {
+			folded := strings.ToLower(p)
+			if prev, ok := seen[folded]; ok && prev != p {
+				return true
+			}
+			seen[folded] = p
+			i := strings.LastIndexByte(p, '/')
+			if i < 0 {
+				break
+			}
+			p = p[:i]
+		}
+	}
+
+	return false
+}
+
+// caseInsensitive reports whether the file system holding dir ignores case
+// in names (the default on macOS and Windows).
+func caseInsensitive(t *testing.T, dir string) bool {
+	t.Helper()
+	probe := filepath.Join(dir, "case-probe")
+	writeFile(t, probe, "")
+	defer func() { _ = os.Remove(probe) }()
+	_, err := os.Stat(filepath.Join(dir, "CASE-PROBE"))
+
+	return err == nil
 }
 
 func oracleFiles(targetDir string) []string {
