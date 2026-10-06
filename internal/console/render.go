@@ -17,13 +17,16 @@ import (
 
 // RenderThrowable shows err, an error that ended the run, on out (the
 // error output): an empty line, then the Diagnostic of ErrorDiagnostic
-// (with what the application adds, AppErrorPresenter), written as it is
-// at every verbosity, as Symfony writes its rendering.
+// (with what the application adds, AppErrorPresenter) and, last of the
+// debugging details, the exit code, written as it is at every verbosity,
+// as Symfony writes its rendering.
 func (a *Application) RenderThrowable(err error, out Output) {
 	d := a.ErrorDiagnostic(err)
 	if p, ok := a.self.(AppErrorPresenter); ok {
 		p.PresentError(err, &d)
 	}
+	_, code, _ := throwableInfo(err)
+	d.Details = append(d.Details, "exit code "+strconv.Itoa(exitCodeOf(code)))
 
 	out.Write("", true, VerbosityQuiet)
 	for _, l := range d.Lines(ui.Options{Decorated: out.IsDecorated(), Verbose: out.Verbosity() >= VerbosityVerbose}) {
@@ -36,7 +39,7 @@ func (a *Application) RenderThrowable(err error, out Output) {
 // Symfony follows getPrevious()), the running command's usage when the
 // input was wrong (a console exception), and, for debugging, the Go types
 // and PHP classes of the errors, the trace of an exception PHP code threw
-// (a Tracer: plugin code) and the exit code.
+// (a Tracer: plugin code).
 func (a *Application) ErrorDiagnostic(err error) ui.Diagnostic {
 	d := ui.Diagnostic{Kind: ui.Error}
 	for i, e := 0, err; e != nil; i++ {
@@ -68,9 +71,6 @@ func (a *Application) ErrorDiagnostic(err error) ui.Diagnostic {
 
 		e = prev
 	}
-
-	_, code, _ := throwableInfo(err)
-	d.Details = append(d.Details, "exit code "+strconv.Itoa(exitCodeOf(code)))
 
 	if a.runningCommand != nil && isConsoleExceptionValue(err) {
 		d.Usage = phpSprintf(a.runningCommand.Base().Synopsis(false), a.Name())
