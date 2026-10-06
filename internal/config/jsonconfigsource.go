@@ -322,16 +322,16 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 		for _, bit := range bits {
 			v, _ := holder.Get(hkey)
 			// if (!isset($arr[$bit])) { $arr[$bit] = []; }
-			if a, ok := v.(*php.Array); !ok || getIn(a, bit) == nil {
-				arr, err := child(holder, hkey, 325)
-				if err != nil {
+			a, ok := v.(*php.Array)
+			if !ok || getIn(a, bit) == nil {
+				var err error
+				if a, err = child(holder, hkey, 325); err != nil {
 					return err
 				}
-				arr.Set(bit, php.NewArray())
-				v = arr
+				a.Set(bit, php.NewArray())
 			}
 			// $arr = &$arr[$bit]
-			holder, hkey = v.(*php.Array), bit
+			holder, hkey = a, bit
 		}
 		arr, err := child(holder, hkey, 329)
 		if err != nil {

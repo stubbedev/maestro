@@ -24,14 +24,20 @@ func TestAdvisoryConstraintNotString(t *testing.T) {
 		value            any
 		advisory, filter result
 	}{
-		{nil, result{err: "$subject must be a string, NULL given.", site: "vendor/composer/pcre/src/Preg.php:157"},
-			result{err: `Could not parse version constraint : Invalid version string ""`}},
+		{
+			nil,
+			result{err: "$subject must be a string, NULL given.", site: "vendor/composer/pcre/src/Preg.php:157"},
+			result{err: `Could not parse version constraint : Invalid version string ""`},
+		},
 		{int64(1), result{constraint: "1"}, result{constraint: "1"}},
 		{true, result{constraint: "1"}, result{constraint: "1"}},
 		{false, result{constraint: "== 0.0.0-invalid-version"}, result{err: `Could not parse version constraint : Invalid version string ""`}},
 		{1.5, result{constraint: "1.5"}, result{constraint: "1.5"}},
-		{php.ListOf("x"), result{err: "Cannot access offset of type array in isset or empty", site: "src/Composer/Package/Version/VersionParser.php:33"},
-			result{err: "Cannot access offset of type array in isset or empty", site: "src/Composer/Package/Version/VersionParser.php:33"}},
+		{
+			php.ListOf("x"),
+			result{err: "Cannot access offset of type array in isset or empty", site: "src/Composer/Package/Version/VersionParser.php:33"},
+			result{err: "Cannot access offset of type array in isset or empty", site: "src/Composer/Package/Version/VersionParser.php:33"},
+		},
 	} {
 		check := func(kind string, want result, constraint string, err error) {
 			t.Helper()
@@ -75,14 +81,22 @@ func TestSecurityAdvisoryArgumentOrder(t *testing.T) {
 		want string
 		site string
 	}{
-		{php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", "t", "sources", php.NewArray(), "reportedAt", "garbage"),
-			"Failed to parse time string (garbage) at position 0 (g): The timezone could not be found in the database", "PartialSecurityAdvisory.php:60"},
-		{php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", "t", "sources", php.NewArray(), "reportedAt", int64(7)),
-			"DateTimeImmutable::__construct(): Argument #1 ($datetime) must be of type string, int given", "PartialSecurityAdvisory.php:60"},
-		{php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", int64(1), "sources", php.NewArray(), "reportedAt", "2020-01-01"),
-			`Composer\Advisory\SecurityAdvisory::__construct(): Argument #2 ($advisoryId) must be of type string, int given` + phperr.CalledIn("PartialSecurityAdvisory.php", 60), "SecurityAdvisory.php:59"},
-		{php.ArrayOf("affectedVersions", "1", "title", int64(1), "sources", php.NewArray(), "reportedAt", "garbage"),
-			`Undefined array key "advisoryId"`, "PartialSecurityAdvisory.php:60"},
+		{
+			php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", "t", "sources", php.NewArray(), "reportedAt", "garbage"),
+			"Failed to parse time string (garbage) at position 0 (g): The timezone could not be found in the database", "PartialSecurityAdvisory.php:60",
+		},
+		{
+			php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", "t", "sources", php.NewArray(), "reportedAt", int64(7)),
+			"DateTimeImmutable::__construct(): Argument #1 ($datetime) must be of type string, int given", "PartialSecurityAdvisory.php:60",
+		},
+		{
+			php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", int64(1), "sources", php.NewArray(), "reportedAt", "2020-01-01"),
+			`Composer\Advisory\SecurityAdvisory::__construct(): Argument #2 ($advisoryId) must be of type string, int given` + phperr.CalledIn("PartialSecurityAdvisory.php", 60), "SecurityAdvisory.php:59",
+		},
+		{
+			php.ArrayOf("affectedVersions", "1", "title", int64(1), "sources", php.NewArray(), "reportedAt", "garbage"),
+			`Undefined array key "advisoryId"`, "PartialSecurityAdvisory.php:60",
+		},
 	} {
 		_, err := CreatePartialSecurityAdvisory("a/b", c.data, pkg.NewVersionParser())
 		site, _ := phperr.SiteOf(err)

@@ -1,6 +1,9 @@
 package phperr
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 // The PHP calls in progress, for what reads the call stack while nothing
 // is thrown: ErrorHandler's deprecation notices list debug_backtrace()
@@ -30,9 +33,9 @@ func Enter(function, file string, line int) (leave func()) {
 	return func() {
 		calls.Lock()
 		defer calls.Unlock()
-		for i := len(calls.frames) - 1; i >= 0; i-- {
-			if calls.frames[i] == fr {
-				calls.frames = append(calls.frames[:i], calls.frames[i+1:]...)
+		for i, f := range slices.Backward(calls.frames) {
+			if f == fr {
+				calls.frames = slices.Delete(calls.frames, i, i+1)
 
 				return
 			}
@@ -45,8 +48,8 @@ func Stack() []Frame {
 	calls.Lock()
 	defer calls.Unlock()
 	frames := make([]Frame, 0, len(calls.frames))
-	for i := len(calls.frames) - 1; i >= 0; i-- {
-		frames = append(frames, *calls.frames[i])
+	for _, f := range slices.Backward(calls.frames) {
+		frames = append(frames, *f)
 	}
 
 	return frames

@@ -93,14 +93,14 @@ func (e *ErrorException) Error() string { return e.Message }
 // site adds nothing.
 func (e *ErrorException) PHPTrace() []phperr.Frame {
 	frames := e.Site.PHPTrace()
-	if !e.Site.Known() {
+	if !e.Known() {
 		return frames
 	}
-	handle := phperr.Frame{Function: `Composer\Util\ErrorHandler::handle`, File: e.Site.File, Line: e.Site.Line}
+	handle := phperr.Frame{Function: `Composer\Util\ErrorHandler::handle`, File: e.File, Line: e.Line}
 	if fn := warningFunction(e.Message); fn != "" {
 		return append([]phperr.Frame{
 			{Function: handle.Function},
-			{Function: fn, File: e.Site.File, Line: e.Site.Line},
+			{Function: fn, File: e.File, Line: e.Line},
 		}, frames...)
 	}
 
