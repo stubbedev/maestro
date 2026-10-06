@@ -53,7 +53,7 @@ jobs:
         env:
           CGO_ENABLED: '1'
           MAESTRO_PHP_TESTS: '1'
-        run: go test -race -failfast ./...
+        run: go test -race ./...
 
   # Composer runs on Windows, so maestro must at least build and vet there;
   # the test suite assumes a Unix filesystem and shell.
