@@ -93,6 +93,7 @@ jobs:
       # php drives the plugin shim and script tests (MAESTRO_PHP_TESTS) and
       # the oracle-backed tests that skip without it.
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        if: runner.os == 'Linux'
         with:
           php-version: '8.4'
           tools: none
@@ -100,10 +101,18 @@ jobs:
       # The archive differential tests compare against the extractors
       # maestro reproduces: Info-ZIP UnZip 6.00 with UNICODE_SUPPORT (macOS's
       # /usr/bin/unzip has none) and GNU tar (macOS's tar is bsdtar).
-      - name: Reference extractors (macOS)
+      # setup-php takes ~90 s on macOS (it updates Homebrew and its tap);
+      # Homebrew's own php@8.4 bottle installs in a fraction of that.
+      - name: php and reference extractors (macOS)
         if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
         run: |
-          brew install unzip gnu-tar
+          brew install php@8.4 unzip gnu-tar
+          echo "$(brew --prefix php@8.4)/bin" >> "$GITHUB_PATH"
+          "$(brew --prefix php@8.4)/bin/php" -v
           echo "MAESTRO_TEST_UNZIP=$(brew --prefix unzip)/bin/unzip" >> "$GITHUB_ENV"
           echo "MAESTRO_TEST_TAR=$(brew --prefix gnu-tar)/bin/gtar" >> "$GITHUB_ENV"
           "$(brew --prefix unzip)/bin/unzip" -v | grep -E 'UnZip 6|UNICODE_SUPPORT'
