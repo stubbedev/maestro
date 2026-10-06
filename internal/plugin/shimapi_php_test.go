@@ -335,6 +335,7 @@ func TestShimAPI_IO(t *testing.T) {
 // RootAliasPackage has set its own links by then (Composer 2.10.3).
 func TestShimAPI_ListShapedLinks(t *testing.T) {
 	requirePHP(t)
+	withComposerRoot(t)
 
 	rt, _, _ := newTestRuntime(t)
 	start(t, rt)
@@ -350,13 +351,16 @@ func TestShimAPI_ListShapedLinks(t *testing.T) {
 				$out[] = 'no exception';
 			} catch (\ErrorException $e) {
 				$out[] = get_class($e).': '.$e->getMessage();
+				$out[] = substr($e->getFile(), strpos($e->getFile(), '/src/')).':'.$e->getLine();
 			}
 		}
 
 		return implode("\n", $out);
 	`, php.ArrayOf("p", rt.packageObject(root), "a", rt.packageObject(alias)))
 
-	msg := "ErrorException: Package::setRequires must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage."
+	// thrown where Composer's Package.php raises the notice
+	msg := "ErrorException: Package::setRequires must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage.\n" +
+		"/src/Composer/Package/Package.php:716"
 	if got != msg+"\n"+msg {
 		t.Errorf("got %v", got)
 	}
@@ -365,5 +369,38 @@ func TestShimAPI_ListShapedLinks(t *testing.T) {
 	}
 	if keys := linkKeys(alias.Requires()); len(keys) != 1 || keys[0] != "0" {
 		t.Errorf("alias requires %v", keys)
+	}
+}
+
+// Composer has one ErrorHandler: a deprecation notice plugin code raises
+// after one maestro's code raised is hidden below -v (the static
+// $hasShownDeprecationNotice is shared).
+func TestShimAPI_ErrorHandler(t *testing.T) {
+	requirePHP(t)
+	withComposerRoot(t)
+
+	rt, _, _ := newTestRuntime(t)
+	start(t, rt)
+	t.Cleanup(util.ResetErrorHandler)
+
+	trigger := `
+		$io = new \Composer\IO\BufferIO('', $vars['verbosity']);
+		\Composer\Util\ErrorHandler::register($io);
+		trigger_error('an old API', E_USER_DEPRECATED);
+		trigger_error('another old API', E_USER_DEPRECATED);
+		\Composer\Util\ErrorHandler::register(null);
+
+		return $io->getOutput();
+	`
+
+	// maestro's code showed a notice: plugin code's are hidden
+	util.ResetErrorHandler()
+	util.SetDeprecationNoticeShown(1)
+	got := evalPHP(t, rt, trigger, php.ArrayOf("verbosity", int64(32)))
+	if got != "<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n" {
+		t.Errorf("after maestro's notice: %q", got)
+	}
+	if n := util.DeprecationNoticeShown(); n != 2 {
+		t.Errorf("hasShownDeprecationNotice = %d, want 2", n)
 	}
 }

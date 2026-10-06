@@ -24,12 +24,12 @@ final class Sync
 
     /**
      * Composer's process-wide statics: Composer::$runningCommand,
-     * Composer::$runningOperation and ProcessExecutor::$timeout, with
-     * PHP's initial values.
+     * Composer::$runningOperation, ProcessExecutor::$timeout and
+     * ErrorHandler::$hasShownDeprecationNotice, with PHP's initial values.
      *
      * @var array<string, mixed>
      */
-    private static $statics = ['runningCommand' => null, 'runningOperation' => null, 'processTimeout' => 300];
+    private static $statics = ['runningCommand' => null, 'runningOperation' => null, 'processTimeout' => 300, 'hasShownDeprecationNotice' => 0];
 
     /** @var array<string, mixed> the statics both sides last agreed on */
     private static $sentStatics = [];

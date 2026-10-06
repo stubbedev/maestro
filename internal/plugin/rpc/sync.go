@@ -40,6 +40,8 @@ var PHPStatics = map[string]any{
 	"runningCommand":   nil,
 	"runningOperation": nil,
 	"processTimeout":   int64(300),
+	// ErrorHandler::$hasShownDeprecationNotice
+	"hasShownDeprecationNotice": int64(0),
 }
 
 // registration is a PHP-born object Go adopted, announced in the next

@@ -32,8 +32,7 @@ import (
 func TestInternals_Traces(t *testing.T) {
 	requirePHP(t)
 
-	phperr.SetRoot("phar:///maestro")
-	t.Cleanup(func() { phperr.SetRoot("") })
+	withComposerRoot(t)
 	rt, _, _ := newTestRuntime(t)
 	rt.Handle("test.goFail", func(any) (any, error) {
 		err := &util.RuntimeError{Message: "nope", Site: phperr.At("Factory.php", 317)}

@@ -3,12 +3,18 @@
 /*
  * maestro's plugin shim: Composer\Util\ErrorHandler, reimplemented with
  * Composer 2.10.3's behaviour and messages (docs/PLUGINS.md §5.2 step 8).
+ * Composer has one ErrorHandler for its code and plugin code alike: its
+ * $hasShownDeprecationNotice is the process's (a static maestro keeps in
+ * step with its own, internal/util's TriggerDeprecation). Locations in
+ * the shim's Composer classes are Composer's (Traces::composerLocation()).
  * Written for PHP 7.2.5 to 8.5.
  */
 
 namespace Composer\Util;
 
 use Composer\IO\IOInterface;
+use Maestro\Shim\Sync;
+use Maestro\Shim\Traces;
 
 /**
  * Turns PHP errors into \ErrorException, and reports deprecation notices
@@ -18,9 +24,6 @@ class ErrorHandler
 {
     /** @var ?IOInterface */
     private static $io;
-
-    /** @var int<0, 2> */
-    private static $hasShownDeprecationNotice = 0;
 
     /**
      * @throws \ErrorException
@@ -39,6 +42,8 @@ class ErrorHandler
             "\na legitimately suppressed error that you were not supposed to see.";
         }
 
+        list($file, $line) = Traces::composerLocation($file, $line);
+
         if (!$isDeprecationNotice) {
             // ignore some newly introduced warnings in new php versions until dependencies
             // can be fixed as we do not want to abort execution for those
@@ -52,15 +57,16 @@ class ErrorHandler
         }
 
         if (self::$io !== null) {
-            if (self::$hasShownDeprecationNotice > 0 && !self::$io->isVerbose()) {
-                if (self::$hasShownDeprecationNotice === 1) {
+            $shown = Sync::getStatic('hasShownDeprecationNotice');
+            if ($shown > 0 && !self::$io->isVerbose()) {
+                if ($shown === 1) {
                     self::$io->writeError('<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>');
-                    self::$hasShownDeprecationNotice = 2;
+                    Sync::setStatic('hasShownDeprecationNotice', 2);
                 }
 
                 return true;
             }
-            self::$hasShownDeprecationNotice = 1;
+            Sync::setStatic('hasShownDeprecationNotice', 1);
             self::outputWarning('Deprecation Notice: '.$message.' in '.$file.':'.$line);
         }
 

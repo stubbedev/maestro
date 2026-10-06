@@ -18,8 +18,11 @@ var errorHandler struct {
 	mu sync.Mutex
 	io io.IO
 	// shown is $hasShownDeprecationNotice: 0, 1 once a notice was
-	// printed, 2 once the "hidden" hint was printed.
-	shown int
+	// printed, 2 once the "hidden" hint was printed. Composer has one
+	// ErrorHandler, whose static the plugin runtime keeps PHP's in step
+	// with (DeprecationNoticeShown): below -v, a notice plugin code
+	// raises after one Composer raised is hidden, and the other way round.
+	shown atomic.Int32
 }
 
 // The warnings internal/io raises are ErrorHandler's ErrorExceptions,
@@ -47,6 +50,13 @@ func SilencerSuppress() { silenced.Add(1) }
 // SilencerRestore ports Silencer::restore().
 func SilencerRestore() { silenced.Add(-1) }
 
+// DeprecationNoticeShown is ErrorHandler::$hasShownDeprecationNotice.
+func DeprecationNoticeShown() int { return int(errorHandler.shown.Load()) }
+
+// SetDeprecationNoticeShown sets ErrorHandler::$hasShownDeprecationNotice
+// (the plugin runtime, as PHP's ErrorHandler changed it).
+func SetDeprecationNoticeShown(n int) { errorHandler.shown.Store(int32(min(max(n, 0), 2))) } //nolint:gosec // clamped to 0..2
+
 // RegisterErrorHandler ports ErrorHandler::register($io): the IO
 // deprecation notices are written to (Application::doRun registers its
 // ConsoleIO; before that, as after bin/composer's register(), notices
@@ -64,7 +74,8 @@ func ResetErrorHandler() {
 	errorHandler.mu.Lock()
 	defer errorHandler.mu.Unlock()
 
-	errorHandler.io, errorHandler.shown = nil, 0
+	errorHandler.io = nil
+	errorHandler.shown.Store(0)
 }
 
 // TriggerDeprecation ports trigger_error($message, E_USER_DEPRECATED) as
@@ -78,6 +89,9 @@ func ResetErrorHandler() {
 // (debug_backtrace): the site, then the calls in progress the ports
 // recorded with phperr.Enter (a path whose ports do not record theirs
 // lists fewer frames).
+//
+// The IO is called without a lock held: it may be one created in PHP,
+// whose calls read the state (DeprecationNoticeShown) as they sync it.
 func TriggerDeprecation(message string, site phperr.Site) {
 	deprecation(message, site, true)
 }
@@ -93,23 +107,23 @@ func RaiseDeprecation(message string, site phperr.Site) {
 
 func deprecation(message string, site phperr.Site, triggered bool) {
 	errorHandler.mu.Lock()
-	defer errorHandler.mu.Unlock()
-
 	out := errorHandler.io
+	errorHandler.mu.Unlock()
+
 	if out == nil {
 		return
 	}
 
-	if errorHandler.shown > 0 && !out.IsVerbose() {
-		if errorHandler.shown == 1 {
+	if shown := errorHandler.shown.Load(); shown > 0 && !out.IsVerbose() {
+		if shown == 1 {
 			out.WriteError("<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>", true, io.Normal)
-			errorHandler.shown = 2
+			errorHandler.shown.Store(2)
 		}
 
 		return
 	}
 
-	errorHandler.shown = 1
+	errorHandler.shown.Store(1)
 
 	where := phperr.AbsPath(site.File) + ":" + strconv.Itoa(site.Line)
 

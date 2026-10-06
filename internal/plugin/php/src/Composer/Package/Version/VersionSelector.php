@@ -30,7 +30,7 @@ class VersionSelector
         }
 
         if ($platformRequirementFilter !== null && !$platformRequirementFilter instanceof \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterInterface) {
-            trigger_error('VersionSelector::findBestCandidate with ignored platform reqs as bool|array is deprecated since Composer 2.2, use an instance of PlatformRequirementFilterInterface instead.', E_USER_DEPRECATED);
+            trigger_error('VersionSelector::findBestCandidate with ignored platform reqs as bool|array is deprecated since Composer 2.2, use an instance of PlatformRequirementFilterInterface instead.', E_USER_DEPRECATED); // @line 81
             $platformRequirementFilter = \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory::fromBoolOrList($platformRequirementFilter);
         }
         if ($platformRequirementFilter instanceof \Composer\Filter\PlatformRequirementFilter\IgnoreAllPlatformRequirementFilter) {

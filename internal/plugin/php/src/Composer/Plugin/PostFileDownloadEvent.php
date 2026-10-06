@@ -24,7 +24,7 @@ class PostFileDownloadEvent extends Event
         if ($context === null && $type instanceof PackageInterface) {
             $context = $type;
             $type = 'package';
-            trigger_error('PostFileDownloadEvent::__construct should receive a $type=package and the package object in $context since Composer 2.1.', E_USER_DEPRECATED);
+            trigger_error('PostFileDownloadEvent::__construct should receive a $type=package and the package object in $context since Composer 2.1.', E_USER_DEPRECATED); // @line 66
         }
 
         parent::__construct($name);
@@ -57,7 +57,7 @@ class PostFileDownloadEvent extends Event
 
     public function getPackage(): ?PackageInterface
     {
-        trigger_error('PostFileDownloadEvent::getPackage is deprecated since Composer 2.1, use getContext instead.', E_USER_DEPRECATED);
+        trigger_error('PostFileDownloadEvent::getPackage is deprecated since Composer 2.1, use getContext instead.', E_USER_DEPRECATED); // @line 126
         $context = $this->getContext();
 
         return $context instanceof PackageInterface ? $context : null;

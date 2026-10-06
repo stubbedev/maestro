@@ -389,7 +389,7 @@ INITIALIZER;
 
     public function setIgnorePlatformRequirements($ignorePlatformReqs)
     {
-        trigger_error('AutoloadGenerator::setIgnorePlatformRequirements is deprecated since Composer 2.2, use setPlatformRequirementFilter instead.', E_USER_DEPRECATED);
+        trigger_error('AutoloadGenerator::setIgnorePlatformRequirements is deprecated since Composer 2.2, use setPlatformRequirementFilter instead.', E_USER_DEPRECATED); // @line 159
 
         $this->setPlatformRequirementFilter(\Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterFactory::fromBoolOrList($ignorePlatformReqs));
     }

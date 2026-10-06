@@ -223,6 +223,13 @@ func DefaultStatics() map[string]rpc.Static {
 			Get: func() any { return int64(util.GetProcessTimeout()) },
 			Set: func(v any) { util.SetProcessTimeout(php.ToNativeInt(v)) },
 		},
+		// ErrorHandler::$hasShownDeprecationNotice: Composer has one
+		// ErrorHandler, whose notices maestro's code and plugin code raise
+		// alike (util.TriggerDeprecation).
+		"hasShownDeprecationNotice": {
+			Get: func() any { return int64(util.DeprecationNoticeShown()) },
+			Set: func(v any) { util.SetDeprecationNoticeShown(php.ToNativeInt(v)) },
+		},
 	}
 }
 

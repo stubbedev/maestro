@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // requirePHP skips a test that runs the real shim unless
@@ -16,6 +17,16 @@ func requirePHP(t *testing.T) {
 	if os.Getenv("MAESTRO_PHP_TESTS") != "1" {
 		t.Skip("set MAESTRO_PHP_TESTS=1 to run the shim with php")
 	}
+}
+
+// withComposerRoot names Composer's files under phar:///maestro
+// (phperr.Root) for the test, as maestro's executable names them.
+func withComposerRoot(t *testing.T) {
+	t.Helper()
+
+	old := phperr.Root()
+	phperr.SetRoot("phar:///maestro")
+	t.Cleanup(func() { phperr.SetRoot(old) })
 }
 
 // handlersPHP is the PHP side of the tests.

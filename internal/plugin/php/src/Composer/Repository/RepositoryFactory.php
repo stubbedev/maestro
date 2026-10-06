@@ -43,7 +43,7 @@ class RepositoryFactory
     public static function createRepo(IOInterface $io, Config $config, array $repoConfig, ?RepositoryManager $rm = null): RepositoryInterface
     {
         if (!$rm) {
-            @trigger_error('Not passing a repository manager when calling createRepo is deprecated since Composer 2.3.6', E_USER_DEPRECATED);
+            @trigger_error('Not passing a repository manager when calling createRepo is deprecated since Composer 2.3.6', E_USER_DEPRECATED); // @line 70
             $rm = static::manager($io, $config);
         }
         $repos = self::createRepos($rm, [$repoConfig]);
@@ -54,7 +54,7 @@ class RepositoryFactory
     public static function defaultRepos(?IOInterface $io = null, ?Config $config = null, ?RepositoryManager $rm = null): array
     {
         if (null === $rm) {
-            @trigger_error('Not passing a repository manager when calling defaultRepos is deprecated since Composer 2.3.6, use defaultReposWithDefaultManager() instead if you cannot get a manager.', E_USER_DEPRECATED);
+            @trigger_error('Not passing a repository manager when calling defaultRepos is deprecated since Composer 2.3.6, use defaultReposWithDefaultManager() instead if you cannot get a manager.', E_USER_DEPRECATED); // @line 84
         }
 
         if (null === $config) {

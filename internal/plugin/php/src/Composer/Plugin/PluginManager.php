@@ -47,7 +47,7 @@ class PluginManager
         }
 
         if ($sourcePackage === null) {
-            trigger_error('Calling PluginManager::addPlugin without $sourcePackage is deprecated, if you are using this please get in touch with us to explain the use case', E_USER_DEPRECATED);
+            trigger_error('Calling PluginManager::addPlugin without $sourcePackage is deprecated, if you are using this please get in touch with us to explain the use case', E_USER_DEPRECATED); // @line 419
         } elseif (!$this->isPluginAllowed($sourcePackage->getName(), $isGlobalPlugin, true === ($sourcePackage->getExtra()['plugin-optional'] ?? false))) {
             $this->io->writeError('Skipped loading "'.get_class($plugin).' from '.$sourcePackage->getName() . '" '.($isGlobalPlugin || $this->isRunningInGlobalDir() ? '(installed globally) ' : '').' as it is not in config.allow-plugins', true, \Composer\IO\IOInterface::DEBUG);
 
