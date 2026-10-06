@@ -391,17 +391,18 @@ func (g *Generator) filterByNamespace(classes []string, filePath, baseNamespace 
 
 				continue
 			}
+			// DIRECTORY_SEPARATOR, which the Finder's paths use too.
 			if nsLen := strings.LastIndexByte(class, '\\'); nsLen >= 0 {
-				subPath = strings.ReplaceAll(class[:nsLen+1], `\`, "/") + strings.ReplaceAll(class[nsLen+1:], "_", "/")
+				subPath = strings.ReplaceAll(class[:nsLen+1], `\`, finderSep) + strings.ReplaceAll(class[nsLen+1:], "_", finderSep)
 			} else {
-				subPath = strings.ReplaceAll(class, "_", "/")
+				subPath = strings.ReplaceAll(class, "_", finderSep)
 			}
 		} else {
 			subNamespace := class
 			if baseNamespace != "" {
 				subNamespace = php.Substr(class, len(baseNamespace))
 			}
-			subPath = strings.ReplaceAll(subNamespace, `\`, "/")
+			subPath = strings.ReplaceAll(subNamespace, `\`, finderSep)
 		}
 		if subPath == realSubPath {
 			validClasses = append(validClasses, class)

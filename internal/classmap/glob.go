@@ -3,16 +3,37 @@
 //	glob($dir, GLOB_BRACE | GLOB_ONLYDIR | GLOB_NOSORT) followed by sort()
 //
 // that is PHP's glob() (ext/standard/dir.c) over glibc's glob(3) and
-// fnmatch(3) in the C locale.
+// fnmatch(3) in the C locale. On Windows PHP brings its own BSD glob
+// (win32/glob.c), where a backslash separates directories, as the slash
+// also does, and never quotes the character after it.
 
 package classmap
 
 import (
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
 )
+
+// globEscape tells whether a backslash quotes the next character of a
+// pattern rather than separating directories (Windows).
+var globEscape = runtime.GOOS != "windows"
+
+// isGlobQuote reports whether c quotes the next character of a pattern.
+func isGlobQuote(c byte) bool {
+	return c == '\\' && globEscape
+}
+
+// lastGlobSep is the index of the last directory separator of pattern.
+func lastGlobSep(pattern string) int {
+	if globEscape {
+		return strings.LastIndexByte(pattern, '/')
+	}
+
+	return strings.LastIndexAny(pattern, `/\`)
+}
 
 // phpGlobDirs returns the directories pattern matches, sorted as sort()
 // sorts strings.
@@ -38,7 +59,7 @@ func phpGlobDirs(pattern string) []string {
 func braceExpand(pattern string) []string {
 	open := -1
 	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '\\' {
+		if isGlobQuote(pattern[i]) {
 			i++
 		} else if pattern[i] == '{' {
 			open = i
@@ -54,19 +75,19 @@ func braceExpand(pattern string) []string {
 	depth, start := 0, open+1
 	closing := -1
 	for i := open + 1; i < len(pattern) && closing < 0; i++ {
-		switch pattern[i] {
-		case '\\':
+		switch {
+		case isGlobQuote(pattern[i]):
 			i++
-		case '{':
+		case pattern[i] == '{':
 			depth++
-		case '}':
+		case pattern[i] == '}':
 			if depth > 0 {
 				depth--
 			} else {
 				alts = append(alts, pattern[start:i])
 				closing = i
 			}
-		case ',':
+		case pattern[i] == ',':
 			if depth == 0 {
 				alts = append(alts, pattern[start:i])
 				start = i + 1
@@ -89,26 +110,26 @@ func globPattern(dst []string, pattern string) []string {
 	if pattern == "" {
 		return dst
 	}
-	slash := strings.LastIndexByte(pattern, '/')
+	slash := lastGlobSep(pattern)
 	if slash < 0 {
-		return globInDir(dst, ".", "", pattern)
+		return globInDir(dst, ".", "", "", pattern)
 	}
-	dirPattern, filePattern := pattern[:slash], pattern[slash+1:]
+	dirPattern, sep, filePattern := pattern[:slash], pattern[slash:slash+1], pattern[slash+1:]
 	if dirPattern == "" {
-		dirPattern = "/"
+		dirPattern = sep
 	}
 	if filePattern == "" {
 		// "dir/" matches the directory itself, with the slash.
 		if !hasGlobMagic(dirPattern) {
 			if isDirectory(unescapeGlob(dirPattern)) {
-				return append(dst, unescapeGlob(dirPattern)+"/")
+				return append(dst, unescapeGlob(dirPattern)+sep)
 			}
 
 			return dst
 		}
 		for _, d := range globPattern(nil, dirPattern) {
 			if isDirectory(d) {
-				dst = append(dst, d+"/")
+				dst = append(dst, d+sep)
 			}
 		}
 
@@ -117,11 +138,11 @@ func globPattern(dst []string, pattern string) []string {
 	if !hasGlobMagic(dirPattern) {
 		dir := unescapeGlob(dirPattern)
 
-		return globInDir(dst, dir, dir, filePattern)
+		return globInDir(dst, dir, dir, sep, filePattern)
 	}
 	for _, dir := range globPattern(nil, dirPattern) {
 		if isDirectory(dir) {
-			dst = globInDir(dst, dir, dir, filePattern)
+			dst = globInDir(dst, dir, dir, sep, filePattern)
 		}
 	}
 
@@ -129,17 +150,17 @@ func globPattern(dst []string, pattern string) []string {
 }
 
 // globInDir appends the entries of dir matching the file name pattern,
-// prefixed with prefix and a slash (none when prefix is "").
-func globInDir(dst []string, dir, prefix, pattern string) []string {
+// prefixed with prefix and the separator sep (none when prefix is "").
+func globInDir(dst []string, dir, prefix, sep, pattern string) []string {
 	join := func(name string) string {
 		switch prefix {
 		case "":
 			return name
-		case "/":
-			return "/" + name
+		case sep:
+			return sep + name
 		}
 
-		return prefix + "/" + name
+		return prefix + sep + name
 	}
 	if !hasGlobMagic(pattern) {
 		name := unescapeGlob(pattern)
@@ -173,7 +194,9 @@ func hasGlobMagic(pattern string) bool {
 		case '?', '*':
 			return true
 		case '\\':
-			i++
+			if globEscape {
+				i++
+			}
 		case '[':
 			if strings.IndexByte(pattern[i+1:], ']') >= 0 {
 				return true
@@ -187,7 +210,7 @@ func hasGlobMagic(pattern string) bool {
 // unescapeGlob removes the backslashes quoting characters of a pattern
 // without wildcards.
 func unescapeGlob(pattern string) string {
-	if !strings.Contains(pattern, `\`) {
+	if !globEscape || !strings.Contains(pattern, `\`) {
 		return pattern
 	}
 	b := make([]byte, 0, len(pattern))

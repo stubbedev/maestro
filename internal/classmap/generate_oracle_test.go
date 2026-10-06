@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -121,6 +122,9 @@ func checkGenerate(t *testing.T, golden string, exact bool) {
 				if os.Getuid() == 0 {
 					t.Skip("permissions do not apply to root")
 				}
+				if runtime.GOOS == "windows" && treeHasModes(s.Tree) {
+					t.Skip("file modes do not take read access away on Windows")
+				}
 				dir = buildTree(t, s.Tree)
 			}
 			cwd, err := filepath.EvalSymlinks(dir)
@@ -159,7 +163,13 @@ func checkGenerate(t *testing.T, golden string, exact bool) {
 
 func runScenario(t *testing.T, s generateScenario, cwd string) generateResult {
 	t.Helper()
-	strip := func(p string) string { return strings.ReplaceAll(p, cwd, "<cwd>") }
+	// The golden ran on Linux. On Windows the working directory shows up
+	// with backslashes and, normalized, with slashes, and the Finder joins
+	// the paths it finds with backslashes, which pathOf turns into slashes.
+	strip := func(p string) string {
+		return strings.ReplaceAll(strings.ReplaceAll(p, cwd, "<cwd>"), filepath.ToSlash(cwd), "<cwd>")
+	}
+	pathOf := func(p string) string { return strip(filepath.ToSlash(p)) }
 	g := NewGenerator([]string{"php", "inc", "hh"})
 	if s.Dedupe {
 		g.AvoidDuplicateScans(nil)
@@ -191,14 +201,14 @@ func runScenario(t *testing.T, s generateScenario, cwd string) generateResult {
 	}
 	cm := g.ClassMap()
 	for class, path := range cm.Map() {
-		res.Map = append(res.Map, [2]string{class, strip(path)})
+		res.Map = append(res.Map, [2]string{class, pathOf(path)})
 	}
 	stripAll := func(list []AmbiguousClass) []classList {
 		var out []classList
 		for _, a := range list {
 			paths := make([]string, len(a.Paths))
 			for i, p := range a.Paths {
-				paths[i] = strip(p)
+				paths[i] = pathOf(p)
 			}
 			out = append(out, classList{a.Class, paths})
 		}
@@ -328,6 +338,19 @@ func compareResults(t *testing.T, got, want generateResult) {
 			t.Errorf("%s differs\n got %s\nwant %s", f.name, g, w)
 		}
 	}
+}
+
+// treeHasModes reports whether a tree of buildTree changes file modes.
+func treeHasModes(tree [][3]json.RawMessage) bool {
+	for _, e := range tree {
+		var kind string
+		_ = json.Unmarshal(e[1], &kind)
+		if kind != "file" && kind != "link" {
+			return true
+		}
+	}
+
+	return false
 }
 
 // buildTree is buildTree() of generate.php, in a temporary directory.

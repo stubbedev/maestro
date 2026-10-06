@@ -218,7 +218,8 @@ func TestClassMapGenerator_AmbiguousReference(t *testing.T) {
 	tempDir := uniqueTmpDirectory(t)
 	writeFile(t, tempDir+"/A.php", "<?php\nclass A {}")
 	writeFile(t, tempDir+"/other/A.php", "<?php\nclass A {}")
-	possibleAmbiguousPaths := []string{tempDir + "/A.php", tempDir + "/other/A.php"}
+	// The Finder joins with DIRECTORY_SEPARATOR.
+	possibleAmbiguousPaths := []string{filepath.Join(tempDir, "A.php"), filepath.Join(tempDir, "other", "A.php")}
 
 	g := NewGenerator([]string{"php", "inc", "hh"})
 	if err := g.ScanFiles(finderFilesIn(t, tempDir), nil); err != nil {
@@ -276,7 +277,7 @@ func TestClassMapGenerator_UnambiguousReference(t *testing.T) {
 	cm = g.ClassMap()
 	// when retrieving with filtering, only the one from src is seen as ambiguous
 	filtered := ambiguousOf(t, cm, DefaultDuplicatesFilter)
-	if len(filtered) != 1 || filtered[0].Class != "A" || !slices.Equal(filtered[0].Paths, []string{tempDir + "/src/A.php"}) {
+	if len(filtered) != 1 || filtered[0].Class != "A" || !slices.Equal(filtered[0].Paths, []string{tempDir + "/src" + string(filepath.Separator) + "A.php"}) {
 		t.Errorf("filtered ambiguous classes: %v", filtered)
 	}
 	// when retrieving without filtering, all the ambiguous classes are there
@@ -350,7 +351,7 @@ func TestClassMapGenerator_GetRawPSR4Violations(t *testing.T) {
 		{"ClassWithIncorrectSubNamespace", `ExpectedNamespace\UnexpectedSubNamespace\ClassWithIncorrectSubNamespace`},
 		{"ClassWithNameSpaceOutsideConfiguredScope", `UnexpectedNamespace\ClassWithNameSpaceOutsideConfiguredScope`},
 	} {
-		path := tests + "/Fixtures/psrViolations/" + c.file + ".php"
+		path := filepath.ToSlash(tests) + "/Fixtures/psrViolations/" + c.file + ".php"
 		v, ok := raw[path]
 		if !ok || len(v) != 1 {
 			t.Fatalf("%s: %v", path, v)

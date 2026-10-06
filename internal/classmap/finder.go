@@ -12,6 +12,7 @@ package classmap
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -38,13 +39,27 @@ func finderIn(dir string) ([]string, error) {
 	return dirs, nil
 }
 
-// finderNormalizeDir is Finder::normalizeDir(): it removes trailing slashes,
-// except from "/" and (s)ftp:// URLs.
+// finderSep is the directory separator of the Finder's
+// RecursiveDirectoryIterator: DIRECTORY_SEPARATOR, a backslash on Windows.
+var finderSep = string(filepath.Separator)
+
+// toSlash is the str_replace('\\', '/', ...) the Finder's filter iterators
+// apply to relative paths on Windows before matching them.
+func toSlash(path string) string {
+	if finderSep == "/" {
+		return path
+	}
+
+	return strings.ReplaceAll(path, `\`, "/")
+}
+
+// finderNormalizeDir is Finder::normalizeDir(): it removes trailing slashes
+// (and DIRECTORY_SEPARATORs), except from "/" and (s)ftp:// URLs.
 func finderNormalizeDir(dir string) string {
 	if dir == "/" {
 		return dir
 	}
-	dir = strings.TrimRight(dir, "/")
+	dir = strings.TrimRight(dir, "/"+finderSep)
 	rest := strings.TrimPrefix(dir, "ssh2.")
 	rest = strings.TrimPrefix(rest, "s")
 	if strings.HasPrefix(rest, "ftp://") {
@@ -124,7 +139,7 @@ func finderFiles(dirs, excludedDirs []string) ([]foundFile, error) {
 		}
 		w.base = dir
 		if dir != "/" && !strings.HasSuffix(dir, "/") {
-			w.base += "/"
+			w.base += finderSep
 		}
 		if err := w.walk(dir, w.base, classUnexpectedValue); err != nil {
 			return w.files, err
@@ -167,8 +182,8 @@ func (w *finderWalk) walk(dir, prefix, errClass string) error {
 	for _, entry := range entries {
 		name := entry.Name()
 		pathname := prefix + name
-		subPathname := pathname[len(w.base):]
-		subPath := prefix[len(w.base):max(len(w.base), len(prefix)-1)]
+		subPathname := toSlash(pathname[len(w.base):])
+		subPath := toSlash(prefix[len(w.base):max(len(w.base), len(prefix)-1)])
 
 		// SplFileInfo::isDir() follows symlinks.
 		isLink := entry.Type()&os.ModeSymlink != 0
@@ -202,7 +217,7 @@ func (w *finderWalk) walk(dir, prefix, errClass string) error {
 		}
 
 		// hasChildren() is isDir() with FOLLOW_SYMLINKS.
-		if err := w.walk(pathname, pathname+"/", classAccessDenied); err != nil {
+		if err := w.walk(pathname, pathname+finderSep, classAccessDenied); err != nil {
 			return err
 		}
 	}
@@ -284,6 +299,12 @@ type realDirCache struct {
 // realpath is realpath(path) for an absolute path. notLink tells that path
 // is known not to be a symlink.
 func (c *realDirCache) realpath(path string, notLink bool) (string, bool) {
+	// The cache builds realpaths from slash-separated Unix paths; PHP's
+	// realpath() on Windows starts at a drive and answers with
+	// backslashes, so each file is resolved in full there.
+	if runtime.GOOS == "windows" {
+		return realpath(path)
+	}
 	if !notLink {
 		info, err := os.Lstat(path)
 		if err != nil {

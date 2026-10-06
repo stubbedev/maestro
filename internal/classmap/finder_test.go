@@ -3,6 +3,7 @@ package classmap
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -107,6 +108,11 @@ func TestPhpGlobDirs(t *testing.T) {
 		"./b":           {"./b"},
 		"*/../b":        {"a1/../b", "a10/../b", "a9/../b", "b/../b", "c[x]/../b", "d,e/../b", "e{f}/../b"},
 	} {
+		// PHP's own glob on Windows has no backslash quoting, and "/C:\..."
+		// names no file there.
+		if runtime.GOOS == "windows" && (strings.Contains(pattern, `\`) || strings.HasPrefix(pattern, "/<dir>")) {
+			continue
+		}
 		pattern = strings.ReplaceAll(pattern, "<dir>", dir)
 		for i := range want {
 			want[i] = strings.ReplaceAll(want[i], "<dir>", dir)
