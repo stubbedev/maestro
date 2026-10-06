@@ -1,5 +1,75 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## After a class map record hit (issue #27, 2026-10-07)
+
+Machine, projects and method as in the #21 section below (btrfs,
+laravel and symfony, `--no-plugins --no-scripts -q`, warm caches, store
+and class map records). hyperfine, 30 runs (no-op install 25) after 2
+warm-ups, the two maestro binaries and Composer in one run; other
+agents' builds and test suites shared the machine (load 3 to 11).
+"before" is 0ce4604, "after" this change.
+
+| Project | Command | Composer | maestro before | | maestro after | |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | dump-autoload -o | 1.02 s | 68.4 ms | 14.9x | 63.5 ms | 16.0x |
+| symfony | dump-autoload -o | 1.43 s | 74.2 ms | 19.3x | 69.4 ms | 20.6x |
+| laravel | no-op install | 1.56 s | 150 ms | 10.4x | 142 ms | 11.0x |
+| symfony | no-op install | 0.88 s | 136 ms | 6.5x | 134 ms | 6.6x |
+
+What changed:
+
+- **autoload_classmap.php and autoload_static.php's class map are built
+  in parallel chunks** of 512 classes (each chunk's paths, its lines of
+  autoload_classmap.php and its lines of the static class map), then
+  joined. The static class map's var_export, strtr and re-indent all
+  work line by line and each entry is one line, so the chunks joined are
+  the whole's bytes; when a replaced dir holds a newline (a strtr match
+  could span entries) it is exported whole as before
+  (`TestClassmapChunks`). The entries are written without building a
+  PHP array first. Timing marks on laravel: building both took about
+  10 ms on the critical path (5 ms in `classmap`, then 5 ms waiting for
+  the background static export), now about 3 to 4.5 ms; garbage
+  collection during the chunks takes 1 to 2 ms of that.
+- **git's version is kept across runs** (`vcs.UseVersionCache`, in
+  maestro's cache dir under `git-version`): one of the four git
+  processes a dump-autoload starts for the root version guess, about
+  2 ms ahead of the others. The entry is keyed on the git binary the
+  process executor would start (path found, file it resolves to, its
+  device, inode, mode, size, modification and change times), used for a
+  day at most, and only when that file is named git and is not a script;
+  Linux only (macOS's /usr/bin/git and Windows' shims pick the git they
+  run). Only a real `util.ProcessExecutor` uses it, never a test's mock,
+  and not at -vvv, where the log shows `git --version` run.
+- **Store-imported files no longer make records miss when another
+  project links them.** A hard-link import changes the shared inode's
+  change time, so every other project's record missed once (rescan
+  ~130 ms on tmpfs). A file the scan took for a release file by its
+  stamp (size and the hash-derived modification time, what the scan
+  itself trusts for its content) is now recorded without its change
+  time; its device, inode, size and stamp must still match. Two laravel
+  projects on tmpfs with `MAESTRO_PACKAGE_IMPORT_METHOD=hardlink`: after
+  reinstalling the second, the first's dump-autoload -o missed (132 ms)
+  before and hits (41 ms) after, with the same files as a fresh scan.
+
+Checks: dumps from a record are byte for byte (files and output) a fresh
+scan's by the "before" binary with the records removed, on laravel and
+symfony (`dump-autoload -o`, plain, `-a --no-dev`, `install`) and on the
+autoload e2e fixture (all six dump variants of #21, warnings included).
+
+Looked at and not changed:
+
+- Glob classmap paths are still never recorded. Recording them exactly
+  needs the identity of every directory the glob expansion read or
+  checked a name in, including the targets of symlinked components,
+  whose changes do not show in the parent's times; a slip there gives a
+  wrong class map, while not recording only costs the scan. The only
+  exclusion matcher of the dump's scans without a pattern text is the
+  one standing for an exclude-from-classmap pattern that fails to
+  compile, which is left to the scan and its error.
+- Preparing the files during the no-op install's network wait: after
+  the chunking the files take 3 to 4 ms, and the dump runs after the
+  wait.
+
 ## Git mirrors read in Go (issue #23, 2026-10-06)
 
 Machine as below, git 2.55.0, the project of #18 (psr/log, psr/container
