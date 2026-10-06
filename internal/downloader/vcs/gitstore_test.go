@@ -104,10 +104,23 @@ func TestGitIntegration_StoreBackedInstall(t *testing.T) {
 	first := filepath.Join(work, "vendor1", "pkg")
 	noError(t, run(installSteps(d, p, first)...))
 
-	id, ok := d.gitStoreKey(p, "upstream.git", filepath.Join(cacheDir, "upstream.git")+"/")
+	mirror := filepath.Join(cacheDir, "upstream.git") + "/"
+
+	id, ok := d.gitStoreKey(p, "upstream.git", mirror, first)
 	if !ok {
 		t.Fatal("store bypassed")
 	}
+
+	// the key covers the target filesystem's traits (a checkout cloned
+	// onto vfat holds core.filemode=false, core.symlinks=false, ...)
+	probe := probeFSTraits
+	probeFSTraits = func(string) (string, error) { return "false false true false", nil }
+
+	if other, ok := d.gitStoreKey(p, "upstream.git", mirror, first); !ok || other == id {
+		t.Errorf("key ignores the filesystem traits: %v %x", ok, other)
+	}
+
+	probeFSTraits = probe
 
 	if _, err := st.LookupNamed(id); err != nil {
 		t.Fatalf("checkout not stored: %v", err)
@@ -184,6 +197,34 @@ func TestGitIntegration_StoreBackedInstall(t *testing.T) {
 		if ts, err := strconv.ParseInt(fields[len(fields)-2], 10, 64); err != nil || ts < before {
 			t.Errorf("reflog time %s before %d", fields[len(fields)-2], before)
 		}
+	}
+}
+
+func TestProbeFSTraits(t *testing.T) {
+	gitEnv(t)
+
+	dir := t.TempDir()
+
+	traits, err := probeFSTraits(dir)
+	noError(t, err)
+
+	// what git init writes into .git/config on the same directory
+	git(t, dir, "init", "-q", "repo")
+
+	want := []string{"true", "true", "false", "false"}
+	for i, key := range []string{"core.filemode", "core.symlinks", "core.ignorecase", "core.precomposeunicode"} {
+		if out, _ := exec.Command("git", "-C", filepath.Join(dir, "repo"), "config", "--bool", key).Output(); len(out) > 0 { //nolint:noctx // test
+			want[i] = strings.TrimSpace(string(out))
+		}
+	}
+
+	if got := strings.Join(want, " "); traits != got {
+		t.Errorf("traits %q, git init says %q", traits, got)
+	}
+
+	// the scratch directory is gone
+	if entries, err := os.ReadDir(dir); err != nil || len(entries) != 1 {
+		t.Errorf("probe left %v %v", entries, err)
 	}
 }
 

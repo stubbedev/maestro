@@ -171,10 +171,16 @@ func (d *GitDownloader) storeEligible(p pkg.PackageInterface, path string) bool 
 }
 
 // gitStoreKey is the store id of p's checkout cloned from the mirror at
-// cachePath for url; ok is false when the store must not be used.
-func (d *GitDownloader) gitStoreKey(p pkg.PackageInterface, url, cachePath string) (id [32]byte, ok bool) {
+// cachePath for url into path, an existing directory; ok is false when
+// the store must not be used.
+func (d *GitDownloader) gitStoreKey(p pkg.PackageInterface, url, cachePath, path string) (id [32]byte, ok bool) {
 	h := d.host(cachePath)
 	if h.bypass {
+		return id, false
+	}
+
+	traits, err := probeFSTraits(path)
+	if err != nil {
 		return id, false
 	}
 
@@ -198,9 +204,65 @@ func (d *GitDownloader) gitStoreKey(p pkg.PackageInterface, url, cachePath strin
 		url, strconv.FormatBool(sourceURL.Valid), sourceURL.S,
 		p.SourceReference().S, p.PrettyVersion(),
 		strings.Join(protocols, "\x00"), vcsutil.GetGitHubDomainsRegex(d.config),
+		traits,
 	}
 
 	return sha256.Sum256(keyParts(parts)), true
+}
+
+// probeFSTraits returns what git's clone detects about the filesystem of
+// dir and writes into the checkout's .git/config (core.filemode,
+// core.symlinks, core.ignorecase, core.precomposeunicode), probed as git
+// init probes them, in a scratch directory under dir: a checkout stored
+// from one filesystem must not be imported onto one where git would have
+// written other values, or other files (a case-insensitive filesystem
+// folds colliding paths).
+var probeFSTraits = func(dir string) (string, error) {
+	scratch, err := os.MkdirTemp(dir, ".maestro-fs-")
+	if err != nil {
+		return "", err
+	}
+
+	defer func() { _ = os.RemoveAll(scratch) }()
+
+	file := filepath.Join(scratch, "config")
+	if err := os.WriteFile(file, nil, 0o644); err != nil {
+		return "", err
+	}
+
+	// core.filemode: the executable bit can be toggled
+	fileMode := false
+
+	if st1, err := os.Lstat(file); err == nil && os.Chmod(file, st1.Mode()^0o100) == nil {
+		if st2, err := os.Lstat(file); err == nil && st2.Mode() != st1.Mode() {
+			fileMode = os.Chmod(file, st1.Mode()) == nil
+		}
+	}
+
+	// core.symlinks: a symlink can be created
+	symlinks := false
+
+	if os.Symlink("testing", filepath.Join(scratch, "tXXXXXX")) == nil {
+		st, err := os.Lstat(filepath.Join(scratch, "tXXXXXX"))
+		symlinks = err == nil && st.Mode()&fs.ModeSymlink != 0
+	}
+
+	// core.ignorecase: "CoNfIg" names "config"
+	_, err = os.Lstat(filepath.Join(scratch, "CoNfIg"))
+	ignoreCase := err == nil
+
+	// core.precomposeunicode: the decomposed name finds the precomposed one
+	precompose := false
+
+	if os.WriteFile(filepath.Join(scratch, "\u00e4"), nil, 0o644) == nil {
+		_, err = os.Lstat(filepath.Join(scratch, "a\u0308"))
+		precompose = err == nil
+	}
+
+	return strings.Join([]string{
+		strconv.FormatBool(fileMode), strconv.FormatBool(symlinks),
+		strconv.FormatBool(ignoreCase), strconv.FormatBool(precompose),
+	}, " "), nil
 }
 
 // mirrorState is what a clone takes from the mirror besides its objects,
