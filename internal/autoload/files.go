@@ -57,7 +57,7 @@ type namespacePaths struct {
 // newDump creates vendor-dir and vendor-dir/targetDir and works out the
 // paths of a dump.
 func newDump(config Config, targetDir string) (*dump, error) {
-	vendorDir, err := configString(config, "vendor-dir")
+	vendorDir, err := vendorDirConfig(config)
 	if err != nil {
 		return nil, err
 	}

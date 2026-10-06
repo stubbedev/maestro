@@ -43,6 +43,15 @@ func (g GeneratorAdapter) WarmAutoloads(config ConfigReader, localRepo repositor
 	g.Warm(config, &autoloadRepository{repo: localRepo}, root, im, scanPsrPackages)
 }
 
+// SpeculateAutoloads starts, in the background, the class map scan of a
+// later DumpAutoloads (autoload.Generator.Speculate).
+func (g GeneratorAdapter) SpeculateAutoloads(config ConfigReader, localRepo repository.InstalledRepositoryInterface, root pkg.RootPackageInterface, im InstallationManager, scanPsrPackages bool) {
+	g.Speculate(config, &autoloadRepository{repo: localRepo}, root, im, scanPsrPackages)
+}
+
+// DiscardAutoloadSpeculation drops the scan SpeculateAutoloads started.
+func (g GeneratorAdapter) DiscardAutoloadSpeculation() { g.DiscardSpeculation() }
+
 // autoloadRepository adapts the local repository to
 // autoload.InstalledRepository, whose CanonicalPackages cannot fail: the
 // error is kept and returned after the dump.
