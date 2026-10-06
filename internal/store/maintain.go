@@ -359,6 +359,9 @@ func Unshare(path string) error {
 		err = cerr
 	}
 
+	// Windows replaces no file that is open without FILE_SHARE_DELETE.
+	_ = in.Close()
+
 	if err == nil {
 		err = os.Rename(tmp, path)
 	}
@@ -385,7 +388,7 @@ func Chmod(path string, mode fs.FileMode) error {
 		return err
 	}
 
-	if unixMode(st.mode) == mode {
+	if unixMode(st.mode) == statPerm(mode) {
 		return nil
 	}
 

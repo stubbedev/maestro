@@ -75,7 +75,7 @@ func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 		return err
 	}
 
-	if err := os.Rename(tmp, dst); err != nil {
+	if err := renameDir(tmp, dst); err != nil {
 		_ = removeTree(tmp)
 		return err
 	}
@@ -332,7 +332,7 @@ func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error 
 	}
 
 	_, err = io.Copy(out, in)
-	if err == nil && perm&s.umask != 0 {
+	if err == nil && chmodAfterCreate(perm, s.umask) {
 		err = out.Chmod(perm)
 	}
 

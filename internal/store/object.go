@@ -72,7 +72,7 @@ func stampOf(size int64, perm fs.FileMode, sum *[32]byte) stamp {
 
 // check fails with errStale unless st is the object as the store wrote it.
 func (w stamp) check(st fileStat) error {
-	if !st.regular || st.size != w.size || st.mode != w.perm || st.mtime != w.mtime || st.mtimeNs != 0 {
+	if !st.regular || st.size != w.size || st.mode != statPerm(w.perm) || st.mtime != w.mtime || st.mtimeNs != 0 {
 		return errStale
 	}
 
@@ -102,7 +102,7 @@ func (s *Store) createObjectTemp(perm fs.FileMode) (*os.File, error) {
 // success.
 func (s *Store) publishObject(f *os.File, sum *[32]byte, perm fs.FileMode, path string, replace bool) error {
 	err := setMtime(f, stampTime(sum))
-	if err == nil && perm&s.umask != 0 {
+	if err == nil && chmodAfterCreate(perm, s.umask) {
 		err = f.Chmod(perm)
 	}
 

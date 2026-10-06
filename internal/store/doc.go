@@ -43,6 +43,11 @@
 // give the wrong mode (one its owner may not read) and a file at the
 // filesystem's hardlink limit are copied instead.
 //
+// On Windows there is no umask and no reflink: auto hardlinks on NTFS,
+// a file's mode is only its read-only attribute (which hardlinks share, so
+// a Chmod that changes it unshares the file first), stamps compare that
+// attribute instead of the permission bits, and the lock is LockFileEx's.
+//
 // Packages that rewrite their own files in place are imported unshared
 // (ImportOptions.Unshared), by clone or copy, never by hardlink, whatever
 // the method: internal/downloader asks for it for Composer plugins

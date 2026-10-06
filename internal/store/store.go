@@ -376,20 +376,6 @@ func (s *Store) writeAtomic(path string, data []byte) error {
 	return nil
 }
 
-// linkThenRemove renames without replacing where rename cannot: link(2)
-// fails if newpath exists.
-func linkThenRemove(oldpath, newpath string) error {
-	if err := os.Link(oldpath, newpath); err != nil {
-		if errors.Is(err, fs.ErrExist) {
-			return &fs.PathError{Op: "rename", Path: newpath, Err: fs.ErrExist}
-		}
-
-		return err
-	}
-
-	return os.Remove(oldpath)
-}
-
 // fileStat is what the store needs of a stat(2) result.
 type fileStat struct {
 	size    int64
