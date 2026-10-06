@@ -771,7 +771,7 @@ func (a *Application) runCommand(in console.Input, out console.Output, cio *io.C
 
 	if in.HasParameterOption([]string{"--version", "-V"}, true) {
 		if snap, _, verr := a.Runtime().ComposerView(); verr == nil {
-			cio.WriteError("<info>PHP</info> version <comment>"+snap.Version+"</comment> ("+snap.Binary+")", true, io.Normal)
+			cio.WriteError("<info>PHP</info> version <comment>"+snap.Version+"</comment> ("+snap.PHPBinary()+")", true, io.Normal)
 		}
 		cio.WriteError(`Run the "diagnose" command to get more detailed diagnostics output.`, true, io.Normal)
 		if v := a.Runtime().ClientVersion(); v != "" {

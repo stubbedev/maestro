@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/platform"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // ScriptStatus is the outcome of a call into the ScriptRuntime.
@@ -107,8 +108,35 @@ func NewPlatformPHP() *PlatformPHP {
 	})}
 }
 
-// Binary implements PHP.
-func (*PlatformPHP) Binary() (string, bool) { return platform.FindPHP() }
+// Binary implements PHP: PhpExecutableFinder::find() gives the PHP_BINARY
+// environment variable when it names an executable, else PHP_BINARY of
+// the CLI php, php on the PATH when it cannot be probed.
+func (p *PlatformPHP) Binary() (string, bool) {
+	if env, ok := os.LookupEnv("PHP_BINARY"); ok && env != "" {
+		if !util.IsExecutable(env) {
+			found, ok := util.NewExecutableFinder().Find(env)
+			if !ok {
+				return "", false
+			}
+			env = found
+		}
+		if fi, err := os.Stat(env); err == nil && fi.IsDir() {
+			return "", false
+		}
+
+		return env, true
+	}
+
+	if p.View != nil {
+		if view, err := p.View(); err == nil && view != nil {
+			if b := view.PHPBinary(); b != "" {
+				return b, true
+			}
+		}
+	}
+
+	return platform.FindPHP()
+}
 
 // IniGet implements PHP.
 func (p *PlatformPHP) IniGet(name string) (string, error) {

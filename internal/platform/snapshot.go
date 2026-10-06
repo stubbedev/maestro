@@ -111,6 +111,22 @@ func (e *ProbeError) Error() string {
 	return msg
 }
 
+// PHPBinary is PHP_BINARY of the probed php, the path Composer prints and
+// runs @php scripts with (PhpExecutableFinder): as the system names the
+// executable, where Binary is how it was found (on Windows with the
+// PATHEXT extension's case, "php.EXE"). Binary when php reports none.
+func (s *Snapshot) PHPBinary() string {
+	if s == nil {
+		return ""
+	}
+
+	if b, _ := s.constants["PHP_BINARY"].(string); b != "" {
+		return b
+	}
+
+	return s.Binary
+}
+
 // ParseSnapshot parses the output of probe.php run by binary.
 func ParseSnapshot(binary string, output []byte) (*Snapshot, error) {
 	i := bytes.LastIndex(output, []byte(probeMarker))
