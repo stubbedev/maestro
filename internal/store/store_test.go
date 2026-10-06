@@ -848,7 +848,13 @@ func TestConcurrentInserts(t *testing.T) {
 	}
 
 	// And separate processes, through the test binary's helper mode, each
-	// in a directory linking the shared store and its archive.
+	// in a directory linking the shared store and its archive. The link's
+	// target must exist: MkdirAll (like mkdir -p) refuses a dangling
+	// symlink, and the goroutines above may not have created the root yet.
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
 	procs := make([]*exec.Cmd, 4)
 
 	for p := range procs {
