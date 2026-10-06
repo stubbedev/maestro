@@ -126,7 +126,12 @@ func TestGitDownloader_CleanChangesNonInteractive(t *testing.T) {
 			}
 
 			if c.err != "" {
-				wantError[*util.RuntimeError](t, err, strings.Replace(c.err, "%s", dir, 1))
+				// normalizePath() realpath()s the directory on Windows.
+				shown := dir
+				if util.IsWindows() {
+					shown = util.Realpath(dir)
+				}
+				wantError[*util.RuntimeError](t, err, strings.Replace(c.err, "%s", shown, 1))
 
 				return
 			}
@@ -186,7 +191,7 @@ func TestGitDownloader_UpdateToCommitGone(t *testing.T) {
 	p := sourcePackage("1.0.0.0", "1.0.0", ref, "https://example.com/a/b")
 
 	g.process.Expects([]processmock.Expectation{
-		processmock.Cmd("git", "clone", "--no-checkout", "--", "https://example.com/a/b", "composerPath"),
+		processmock.Cmd("git", "clone", "--no-checkout", "--", "https://example.com/a/b", composerPath(t)),
 		processmock.Cmd("git", "remote", "add", "composer", "--", "https://example.com/a/b"),
 		processmock.Cmd("git", "fetch", "composer"),
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "https://example.com/a/b"),

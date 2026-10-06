@@ -188,6 +188,23 @@ func removeSteps(d downloader.Downloader, p pkg.PackageInterface, path string) [
 }
 
 // gitDir is a temporary working directory holding a .git directory.
+// composerPath is what GitDownloader::normalizePath() makes of the
+// relative "composerPath": itself, or on Windows the realpath() of its
+// closest existing parent (the working directory) joined with a slash, as
+// Composer's GitDownloaderTest expects.
+func composerPath(t *testing.T) string {
+	t.Helper()
+
+	if !util.IsWindows() {
+		return "composerPath"
+	}
+
+	cwd, err := util.GetCwd(false)
+	noError(t, err)
+
+	return util.Realpath(cwd) + "/composerPath"
+}
+
 func gitDir(t *testing.T, marker string) string {
 	t.Helper()
 

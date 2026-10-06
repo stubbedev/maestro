@@ -64,7 +64,7 @@ func TestGitDownloader_Download(t *testing.T) {
 	p := sourcePackage("dev-master", "dev-master", sha, "https://example.com/composer/composer")
 
 	g.process.Expects([]processmock.Expectation{
-		processmock.Cmd("git", "clone", "--no-checkout", "--", "https://example.com/composer/composer", "composerPath"),
+		processmock.Cmd("git", "clone", "--no-checkout", "--", "https://example.com/composer/composer", composerPath(t)),
 		processmock.Cmd("git", "remote", "add", "composer", "--", "https://example.com/composer/composer"),
 		processmock.Cmd("git", "fetch", "composer"),
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "https://example.com/composer/composer"),
@@ -95,7 +95,7 @@ func TestGitDownloader_DownloadWithCache(t *testing.T) {
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "https://example.com/composer/composer"),
 		{Cmd: util.Cmd("git", "rev-parse", "--git-dir"), Stdout: "."},
 		processmock.Cmd("git", "rev-parse", "--quiet", "--verify", sha+"^{commit}"),
-		processmock.Cmd("git", "clone", "--no-checkout", cachePath, "composerPath", "--dissociate", "--reference", cachePath),
+		processmock.Cmd("git", "clone", "--no-checkout", cachePath, composerPath(t), "--dissociate", "--reference", cachePath),
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "https://example.com/composer/composer"),
 		processmock.Cmd("git", "remote", "add", "composer", "--", "https://example.com/composer/composer"),
 		processmock.Cmd("git", "branch", "-r"),
@@ -113,9 +113,9 @@ func TestGitDownloader_DownloadUsesVariousProtocolsAndSetsPushUrlForGithub(t *te
 	p := sourcePackage("1.0.0.0", "1.0.0", "ref", "https://github.com/mirrors/composer", "https://github.com/composer/composer")
 
 	g.process.Expects([]processmock.Expectation{
-		{Cmd: util.Cmd("git", "clone", "--no-checkout", "--", "https://github.com/mirrors/composer", "composerPath"), Return: 1, Stderr: "Error1"},
+		{Cmd: util.Cmd("git", "clone", "--no-checkout", "--", "https://github.com/mirrors/composer", composerPath(t)), Return: 1, Stderr: "Error1"},
 
-		processmock.Cmd("git", "clone", "--no-checkout", "--", "git@github.com:mirrors/composer", "composerPath"),
+		processmock.Cmd("git", "clone", "--no-checkout", "--", "git@github.com:mirrors/composer", composerPath(t)),
 		processmock.Cmd("git", "remote", "add", "composer", "--", "git@github.com:mirrors/composer"),
 		processmock.Cmd("git", "fetch", "composer"),
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "git@github.com:mirrors/composer"),
@@ -151,7 +151,7 @@ func TestGitDownloader_DownloadAndSetPushUrlUseCustomVariousProtocolsForGithub(t
 			p := sourcePackage("1.0.0.0", "1.0.0", "ref", "https://github.com/composer/composer")
 
 			g.process.Expects([]processmock.Expectation{
-				processmock.Cmd("git", "clone", "--no-checkout", "--", c.url, "composerPath"),
+				processmock.Cmd("git", "clone", "--no-checkout", "--", c.url, composerPath(t)),
 				processmock.Cmd("git", "remote", "add", "composer", "--", c.url),
 				processmock.Cmd("git", "fetch", "composer"),
 				processmock.Cmd("git", "remote", "set-url", "origin", "--", c.url),
@@ -176,11 +176,11 @@ func TestGitDownloader_DownloadThrowsRuntimeExceptionIfGitCommandFails(t *testin
 	p := sourcePackage("1.0.0.0", "1.0.0", "ref", "https://example.com/composer/composer")
 
 	g.process.Expects([]processmock.Expectation{
-		{Cmd: util.Cmd("git", "clone", "--no-checkout", "--", "https://example.com/composer/composer", "composerPath"), Return: 1},
+		{Cmd: util.Cmd("git", "clone", "--no-checkout", "--", "https://example.com/composer/composer", composerPath(t)), Return: 1},
 	}, false, nil)
 
 	err := run(installSteps(g.downloader(t), p, "composerPath")...)
-	wantError[*util.RuntimeError](t, err, "Failed to execute git clone --no-checkout -- https://example.com/composer/composer composerPath")
+	wantError[*util.RuntimeError](t, err, "Failed to execute git clone --no-checkout -- https://example.com/composer/composer "+composerPath(t))
 }
 
 func TestGitDownloader_UpdateforPackageWithoutSourceReference(t *testing.T) {
@@ -290,7 +290,12 @@ func TestGitDownloader_UpdateThrowsRuntimeExceptionIfGitCommandFails(t *testing.
 
 func TestGitDownloader_UpdateDoesntThrowsRuntimeExceptionIfGitCommandFailsAtFirstButIsAbleToRecover(t *testing.T) {
 	g := newGitTest(t)
-	p := sourcePackage("1.0.0.0", "1.0.0", "ref", "/", "https://github.com/composer/composer")
+	// A local first URL: the filesystem root, C:\ on Windows.
+	root := "/"
+	if util.IsWindows() {
+		root = `C:\`
+	}
+	p := sourcePackage("1.0.0.0", "1.0.0", "ref", root, "https://github.com/composer/composer")
 
 	g.process.Expects([]processmock.Expectation{
 		processmock.Cmd("git", "show-ref", "--head", "-d"),
@@ -301,7 +306,7 @@ func TestGitDownloader_UpdateDoesntThrowsRuntimeExceptionIfGitCommandFailsAtFirs
 
 		// fail first source URL
 		processmock.Cmd("git", "remote", "-v"),
-		processmock.Cmd("git", "remote", "set-url", "composer", "--", "/"),
+		processmock.Cmd("git", "remote", "set-url", "composer", "--", root),
 		{Cmd: util.Cmd("git", "fetch", "composer"), Return: 1},
 		processmock.Cmd("git", "--version"),
 
