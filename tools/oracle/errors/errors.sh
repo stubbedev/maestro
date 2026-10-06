@@ -24,8 +24,13 @@
 #
 # Normalised before comparing: the scenario's temporary paths and the
 # server port, the machine in the -vvv "Running ... with PHP" line, the
-# random cache garbage collection and temporary archive directory names,
-# and the PHP call stack lines of "Exception trace:" (Composer
+# random cache garbage collection (COMPOSER_TEST_SUITE=1 also keeps it from
+# running: Cache::gcIsNecessary, one run in 51 otherwise, creates the files
+# cache directory, which changes clear-cache's output) and temporary archive
+# directory names,
+# what depends on the machine's php (its version, and the pool and rule
+# counts, which include one platform package per loaded extension), the
+# resolution time, and the PHP call stack lines of "Exception trace:" (Composer
 # prints its own PHP frames with absolute paths there; maestro prints the
 # throw site only), whose "at" line is reduced to the file's basename.
 set -uo pipefail
@@ -70,7 +75,10 @@ normalize() {
 		-e '/^Running cache garbage collection$/d' \
 		-e 's/^(Running [^ ]+ \([^)]*\) with PHP ).* on .*$/\1@PHP@ on @OS@/' \
 		-e 's#/tmp/composer_archive[0-9a-f]+#/tmp/composer_archive@RAND@#g' \
-		-e 's/^(Memory usage: )[0-9.]+MiB \(peak: [0-9.]+MiB\), time: [0-9.]+s$/\1@PROFILE@/'
+		-e 's/^(Memory usage: )[0-9.]+MiB \(peak: [0-9.]+MiB\), time: [0-9.]+s$/\1@PROFILE@/' \
+		-e 's/^(Analyzed )[0-9]+( (packages|rules) to resolve dependencies)$/\1@N@\2/' \
+		-e 's/^(Dependency resolution completed in )[0-9.]+( seconds)$/\1@TIME@\2/' \
+		-e 's/(but your php version \()[^)]*(\) does not satisfy)/\1@PHPVERSION@\2/'
 }
 
 run() { # name bin out verbosity
@@ -89,6 +97,7 @@ run() { # name bin out verbosity
 		cd "$work/run/p" &&
 			env -i PATH="$PATH" HOME="$work/run/home" COMPOSER_HOME="$work/run/home" \
 				COMPOSER_CACHE_DIR="$work/run/cache" COMPOSER_NO_INTERACTION=1 NO_COLOR=1 COLUMNS=80 \
+				COMPOSER_TEST_SUITE=1 \
 				"${envs[@]}" $bin "${args[@]}" --no-ansi > "$out" 2>&1
 		echo "exit $?" >> "$out"
 	)

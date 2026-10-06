@@ -4,6 +4,6 @@ Updating dependencies
 Your requirements could not be resolved to an installable set of packages.
 
   Problem 1
-    - Root composer.json requires php ^99 but your php version (8.4.25) does not satisfy that requirement.
+    - Root composer.json requires php ^99 but your php version (@PHPVERSION@) does not satisfy that requirement.
 
 exit 2

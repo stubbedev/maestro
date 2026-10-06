@@ -27,10 +27,10 @@ Generating rules
 Resolving dependencies through SAT
 Looking at all rules.
 
-Dependency resolution completed in 0.000 seconds
+Dependency resolution completed in @TIME@ seconds
 Your requirements could not be resolved to an installable set of packages.
 
   Problem 1
-    - Root composer.json requires php ^99 but your php version (8.4.25) does not satisfy that requirement.
+    - Root composer.json requires php ^99 but your php version (@PHPVERSION@) does not satisfy that requirement.
 
 exit 2

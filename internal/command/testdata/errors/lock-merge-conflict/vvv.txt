@@ -28,7 +28,7 @@ Generating rules
 Resolving dependencies through SAT
 Looking at all rules.
 
-Dependency resolution completed in 0.000 seconds
+Dependency resolution completed in @TIME@ seconds
 Nothing to install, update or remove
 Generating autoload files
 exit 0

@@ -41,9 +41,9 @@ Generating rules
 Resolving dependencies through SAT
 Looking at all rules.
 
-Dependency resolution completed in 0.000 seconds
-Analyzed 87 packages to resolve dependencies
-Analyzed 87 rules to resolve dependencies
+Dependency resolution completed in @TIME@ seconds
+Analyzed @N@ packages to resolve dependencies
+Analyzed @N@ rules to resolve dependencies
 Lock file operations: 1 install, 0 updates, 0 removals
 Installs: x/foo:1.0.0
   - Locking x/foo (1.0.0) from path repo (pkg/foo)

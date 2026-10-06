@@ -42,9 +42,9 @@ Generating rules
 Resolving dependencies through SAT
 Looking at all rules.
 
-Dependency resolution completed in 0.000 seconds
-Analyzed 86 packages to resolve dependencies
-Analyzed 86 rules to resolve dependencies
+Dependency resolution completed in @TIME@ seconds
+Analyzed @N@ packages to resolve dependencies
+Analyzed @N@ rules to resolve dependencies
 Nothing to modify in lock file
 Writing lock file
 Installing dependencies from lock file (including require-dev)

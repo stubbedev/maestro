@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -67,6 +68,11 @@ func TestErrorRendering(t *testing.T) {
 	}
 	if _, err := exec.LookPath("php"); err != nil {
 		t.Skip("needs php on the PATH (Composer's startup probes it)")
+	}
+	if runtime.GOOS != "linux" {
+		// Composer's output depends on the system: the CA bundle locations
+		// it probes, /tmp being a symlink (macOS), the shell's messages.
+		t.Skip("the goldens record Composer on Linux (tools/oracle/errors/errors.sh)")
 	}
 
 	server := httptest.NewServer(routerHandler(filepath.Join(dataDir, "_server")))
@@ -127,6 +133,10 @@ func runScenario(t *testing.T, dir, flag, serverURL string) string {
 		"COMPOSER_NO_INTERACTION=1",
 		"NO_COLOR=1",
 		"COLUMNS=80",
+		// Composer's only use of it: Cache::gcIsNecessary never collects,
+		// where it otherwise does in one run of 51 and creates the files
+		// cache directory on the way (see errors.sh).
+		"COMPOSER_TEST_SUITE=1",
 	}
 	if _, err := os.Stat(filepath.Join(dir, "env")); err == nil {
 		for _, l := range readLines(t, filepath.Join(dir, "env")) {
@@ -192,6 +202,9 @@ var normalizers = []struct {
 	{regexp.MustCompile(`(?m)^(Running [^ \n]+ \([^)\n]*\) with PHP ).* on .*$`), "${1}@PHP@ on @OS@"},
 	{regexp.MustCompile(`/tmp/composer_archive[0-9a-f]+`), "/tmp/composer_archive@RAND@"},
 	{regexp.MustCompile(`(?m)^(Memory usage: )[0-9.]+MiB \(peak: [0-9.]+MiB\), time: [0-9.]+s$`), "${1}@PROFILE@"},
+	{regexp.MustCompile(`(?m)^(Analyzed )[0-9]+( (packages|rules) to resolve dependencies)$`), "${1}@N@${2}"},
+	{regexp.MustCompile(`(?m)^(Dependency resolution completed in )[0-9.]+( seconds)$`), "${1}@TIME@${2}"},
+	{regexp.MustCompile(`(but your php version \()[^)\n]*(\) does not satisfy)`), "${1}@PHPVERSION@${2}"},
 }
 
 // normalize applies errors.sh's normalisation.
