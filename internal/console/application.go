@@ -4,6 +4,7 @@ package console
 
 import (
 	"errors"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -868,7 +869,7 @@ func (a *Application) DoRenderThrowable(err error, out Output) {
 		if width != 0 {
 			width--
 		} else {
-			width = 1<<63 - 1
+			width = math.MaxInt // PHP_INT_MAX
 		}
 		type lineInfo struct {
 			text string

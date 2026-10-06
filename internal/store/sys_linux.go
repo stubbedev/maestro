@@ -39,10 +39,10 @@ func fstat(f *os.File) (fileStat, error) {
 func statOf(st *unix.Stat_t) fileStat {
 	return fileStat{
 		size:    st.Size,
-		mtime:   st.Mtim.Sec,
-		mtimeNs: st.Mtim.Nsec,
-		ctime:   st.Ctim.Sec,
-		nlink:   st.Nlink,
+		mtime:   widen(st.Mtim.Sec),
+		mtimeNs: widen(st.Mtim.Nsec),
+		ctime:   widen(st.Ctim.Sec),
+		nlink:   uint64(widen(st.Nlink)), //nolint:gosec // a link count is never negative
 		dev:     st.Dev,
 		mode:    fs.FileMode(st.Mode) & (fs.ModePerm | 0o7000),
 		regular: st.Mode&unix.S_IFMT == unix.S_IFREG,
@@ -134,4 +134,10 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 	}
 
 	return err
+}
+
+// widen converts a stat field to int64; the fields are int32 or uint32 on
+// some platforms and 64-bit on others.
+func widen[T ~int32 | ~int64 | ~uint32 | ~uint64](v T) int64 {
+	return int64(v)
 }

@@ -5,6 +5,7 @@
 package console
 
 import (
+	"math"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -464,7 +465,7 @@ func (d *InputDefinition) Arguments() []*InputArgument { return d.arguments }
 // an array argument).
 func (d *InputDefinition) ArgumentCount() int {
 	if d.lastArrayArgument != nil {
-		return 1<<63 - 1
+		return math.MaxInt // PHP_INT_MAX
 	}
 
 	return len(d.arguments)
