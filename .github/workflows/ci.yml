@@ -35,7 +35,8 @@ jobs:
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - id: cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ steps.go.outputs.build }}
@@ -60,6 +61,16 @@ jobs:
           args: --config=.golangci.yml --timeout=10m
 
   # The whole suite, oracle replays and differential tests included.
+
+      # saved even when the tests fail: a red job must not leave the next
+      # run to compile everything again
+      - if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
   test:
     strategy:
       fail-fast: false
@@ -80,7 +91,8 @@ jobs:
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - id: cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ steps.go.outputs.build }}
@@ -125,6 +137,16 @@ jobs:
   # The race detector multiplies the cost of the single-threaded oracle
   # replays and differential tests without finding anything in them; -short
   # skips those (the test job runs them) and keeps every concurrent path.
+
+      # saved even when the tests fail: a red job must not leave the next
+      # run to compile everything again
+      - if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
   race:
     runs-on: ubuntu-latest
     steps:
@@ -141,7 +163,8 @@ jobs:
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - id: cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ steps.go.outputs.build }}
@@ -164,6 +187,16 @@ jobs:
 
   # The PHP shim runs on the project's php, which can be as old as Composer
   # 2.10.3's minimum (7.2.5); the test job covers 8.4.
+
+      # saved even when the tests fail: a red job must not leave the next
+      # run to compile everything again
+      - if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
   php-7_2:
     runs-on: ubuntu-latest
     steps:
@@ -180,7 +213,8 @@ jobs:
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - id: cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ steps.go.outputs.build }}
@@ -205,7 +239,24 @@ jobs:
   # plugin runtime's loopback TCP transport. The comparisons with the Unix
   # reference extractors skip themselves (Composer does not use them on
   # Windows).
+
+      # saved even when the tests fail: a red job must not leave the next
+      # run to compile everything again
+      - if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+  # Sharded: internal/command and internal/plugin alone take minutes on
+  # Windows (process and php startup), so each gets a runner of its own.
   windows:
+    name: windows (${{ matrix.shard }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [command, plugin, rest]
     runs-on: windows-latest
     defaults:
       run:
@@ -224,15 +275,16 @@ jobs:
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - id: cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ steps.go.outputs.build }}
             ${{ steps.go.outputs.mod }}
-          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.shard }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
           restore-keys: |
-            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
-            go-${{ runner.os }}-${{ github.job }}-
+            go-${{ runner.os }}-${{ github.job }}-${{ matrix.shard }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-${{ matrix.shard }}-
 
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
@@ -244,7 +296,24 @@ jobs:
       - name: Test
         env:
           MAESTRO_PHP_TESTS: '1'
-        run: go test -short ./...
+        run: |
+          case "${{ matrix.shard }}" in
+            command) pkgs=./internal/command/... ;;
+            plugin) pkgs=./internal/plugin/... ;;
+            *) pkgs=$(go list ./... | grep -v -e '/internal/command' -e '/internal/plugin') ;;
+          esac
+          # shellcheck disable=SC2086 # one word per package
+          go test -short $pkgs
+
+      # saved even when the tests fail: a red job must not leave the next
+      # run to compile everything again
+      - if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
   cross:
     runs-on: ubuntu-latest
@@ -262,7 +331,8 @@ jobs:
           echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
           echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - id: cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ steps.go.outputs.build }}
@@ -279,3 +349,13 @@ jobs:
           go mod download
           printf '%s\n' linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64 |
             xargs -P "$(nproc)" -I{} sh -c 't={}; GOOS="${t%/*}" GOARCH="${t#*/}" go build -o /dev/null ./cmd/maestro && echo "ok $t"'
+
+      # saved even when the tests fail: a red job must not leave the next
+      # run to compile everything again
+      - if: always() && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
