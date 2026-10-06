@@ -19,6 +19,10 @@ import (
 // A call PHP code makes into maestro (the plugin runtime serving it) is a
 // mark on the stack (Callback): what is above it ran for that call, what is
 // below it called the PHP code making it.
+//
+// Since #13 deprecation notices are maestro's own, without a stack, and
+// nothing reads Live any more; the stack stays until the error path is
+// simplified (#13 step 3).
 
 // liveFrame is an entry of the stack: a frame (Call's), a call into code
 // whose callee maestro cannot name (Locate's, Function ""), or a mark.

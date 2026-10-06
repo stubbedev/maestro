@@ -33,7 +33,7 @@ func (r *Runtime) registerAPI() {
 	r.registerSelectors()
 	r.registerInternals()
 	r.registerDownloaders()
-	r.registerTraces()
+	r.registerDiagnostics()
 	r.Handle("repo.getPlatformPhpVersion", func(any) (any, error) { return r.platformPHPVersion(), nil })
 }
 

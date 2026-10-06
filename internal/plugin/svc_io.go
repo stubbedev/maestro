@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -302,3 +303,30 @@ func joinMessages(messages []string, newline bool) string {
 
 // ioClass is the PHP class maestro's IO crosses as.
 func ioClass(out io.IO) string { return (&ioMirror{io: out}).PHPClass() }
+
+// diagnosticKinds are the kinds of `ui.diagnostic`.
+var diagnosticKinds = map[string]ui.Kind{"deprecation": ui.Deprecation, "note": ui.Note, "warning": ui.Warning}
+
+// registerDiagnostics registers `ui.diagnostic` [io, kind, message]: a
+// deprecation notice, note or warning the shim's ErrorHandler reports
+// (raised by plugin code), written to the IO's error output as
+// internal/ui renders maestro's own (util.TriggerDeprecation), whether the
+// IO is maestro's or one created in PHP.
+func (r *Runtime) registerDiagnostics() {
+	r.Handle("ui.diagnostic", func(v any) (any, error) {
+		a := argsOf("ui.diagnostic", v)
+		out, ok, err := r.ioParam(a, 0)
+		if err != nil {
+			return nil, err
+		}
+		kind, known := diagnosticKinds[a.str(1)]
+		if !known {
+			return nil, a.errorf("unknown kind %q", a.str(1))
+		}
+		if ok {
+			io.WriteDiagnostic(out, ui.Diagnostic{Kind: kind, Message: a.str(2)}, io.Normal)
+		}
+
+		return nil, nil
+	})
+}

@@ -6,4 +6,6 @@ Two gaps the command ports found (HANDOFF.md group B/C sections):
 
 Verification: an oracle (tools/oracle/errors) running the real Composer (.ref/composer/bin/composer with the devenv php) and maestro over many failing invocations (malformed composer.json, schema errors, missing lock, bad constraints, unknown packages, network errors against a local server, archive without dist, invalid config values, ...) at default, -v, -vv and -vvv; outputs must match byte for byte (except --profile timings).
 
+Superseded by #13 (docs/PORTING.md "The contract"): error rendering, throw sites, traces and deprecation notices are maestro's own now (internal/ui). The oracle keeps its scenarios but compares exit codes and stdout byte for byte and only checks that stderr reports the messages of Composer's exceptions (internal/command/errorstest, testutil.ErrorRendering); part 2's startup lines are free -vvv output.
+
 Scope: across packages (error constructors), internal/console (rendering), internal/composer/command (startup lines). Plugin phase 2 is concurrently editing internal/plugin and small wiring in internal/composer/eventdispatcher — avoid conflicting edits there; coordinate via HANDOFF.md.
