@@ -81,15 +81,20 @@ func (c *ParseCache) UseFile(path string) {
 
 // diskHeader is the first line of the file: format and binary.
 func diskHeader() string {
-	h := "maestro classmap cache 3"
+	return "maestro classmap cache 3" + binaryID() + "\n"
+}
+
+// binaryID identifies the running maestro binary (its size and
+// modification time), for headers: " <size> <mtime>", or "" when unknown.
+var binaryID = sync.OnceValue(func() string {
 	if exe, err := os.Executable(); err == nil {
 		if info, err := os.Stat(exe); err == nil {
-			h += " " + strconv.FormatInt(info.Size(), 10) + " " + strconv.FormatInt(info.ModTime().UnixNano(), 10)
+			return " " + strconv.FormatInt(info.Size(), 10) + " " + strconv.FormatInt(info.ModTime().UnixNano(), 10)
 		}
 	}
 
-	return h + "\n"
-}
+	return ""
+})
 
 // load reads the file: the header, the identity index (a count, then per
 // entry the fileKey's fields as varints and the content's SHA-256), then
@@ -140,37 +145,12 @@ func (d *diskCache) load() (map[contentKey][]string, map[fileKey][32]byte, time.
 		stats[key] = sum
 	}
 	for {
-		var key contentKey
-		if _, err := io.ReadFull(r, key.sum[:]); err != nil {
-			if !errors.Is(err, io.EOF) {
-				return empty()
-			}
-
+		key, classes, err := readResult(r)
+		if errors.Is(err, io.EOF) {
 			return entries, stats, info.ModTime()
 		}
-		var parser [3]byte // short_open_tag, PHP version (big-endian)
-		if _, err := io.ReadFull(r, parser[:]); err != nil {
+		if err != nil {
 			return empty()
-		}
-		key.parser = parserKey{parser[0] == 1, phpVersion(binary.BigEndian.Uint16(parser[1:]))}
-		n, err := binary.ReadUvarint(r)
-		if err != nil || n > 1<<20 {
-			return empty()
-		}
-		classes := make([]string, 0, n)
-		for range n {
-			l, err := binary.ReadUvarint(r)
-			if err != nil || l > 1<<16 {
-				return empty()
-			}
-			b := make([]byte, l)
-			if _, err := io.ReadFull(r, b); err != nil {
-				return empty()
-			}
-			classes = append(classes, string(b))
-		}
-		if n == 0 {
-			classes = nil
 		}
 		entries[key] = classes
 	}
@@ -230,11 +210,17 @@ func (d *diskCache) put(key contentKey, classes []string) {
 	d.used[key] = struct{}{}
 }
 
-// Save writes the results of this run (and, while the file stays small
-// enough, the earlier ones) to the cache file, if the run found new ones.
+// Save keeps the results of this run: those of release files with their
+// releases (AddReleases), the others (and, while the file stays small
+// enough, the earlier ones) in the cache file, if the run found new ones.
 // The file is replaced atomically; failures only lose the cache.
 func (c *ParseCache) Save() {
-	if c == nil || c.disk == nil {
+	if c == nil {
+		return
+	}
+	c.releasesPending.Wait()
+	c.releases.save()
+	if c.disk == nil {
 		return
 	}
 	d := c.disk
@@ -276,20 +262,8 @@ func (c *ParseCache) Save() {
 		_, _ = w.Write(sum[:])
 	}
 	for key, classes := range d.entries {
-		if !keep(key) {
-			continue
-		}
-		_, _ = w.Write(key.sum[:])
-		parser := [3]byte{}
-		if key.parser.shortOpenTag {
-			parser[0] = 1
-		}
-		binary.BigEndian.PutUint16(parser[1:], uint16(key.parser.php))
-		_, _ = w.Write(parser[:])
-		_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(classes)))])
-		for _, class := range classes {
-			_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(class)))])
-			_, _ = w.WriteString(class)
+		if keep(key) {
+			writeResult(w, key, classes)
 		}
 	}
 	if w.Flush() != nil || tmp.Close() != nil || os.Rename(tmp.Name(), d.path) != nil {

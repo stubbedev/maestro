@@ -46,69 +46,72 @@ type ParseCache struct {
 	warmed atomic.Bool
 	// disk is the persistent part (UseFile), nil without one.
 	disk *diskCache
-	// known maps the identities of files whose contents maestro knows
-	// without reading them (KnowContent) to their SHA-256.
-	known    sync.Map // fileKey -> [32]byte
-	knownAny atomic.Bool
-}
-
-// KnowContent records that the regular file at path holds contents whose
-// SHA-256 is sum: for files maestro itself just created from contents it
-// knows (the package store's imports, by their object hashes). The file
-// is identified now (one stat), so the record survives renames and holds
-// for this run while the file keeps that identity; a parse looks the
-// contents' result up by the hash instead of reading the file.
-func (c *ParseCache) KnowContent(path string, sum [32]byte) {
-	if c == nil {
-		return
-	}
-	if key, ok := statKey(path); ok {
-		c.known.Store(key, sum)
-		c.knownAny.Store(true)
-	}
+	// releases are the package trees maestro installed from its store
+	// (AddReleases); stampedAny is set once they have files.
+	releases   releaseSet
+	stampedAny atomic.Bool
+	// releasesPending runs AddReleasesAsync.
+	releasesPending sync.WaitGroup
 }
 
 // NewParseCache returns an empty cache.
 func NewParseCache() *ParseCache { return &ParseCache{} }
 
 // lookupByIdentity finds the file's result by its identity (one stat):
-// in memory, or through the content hash an earlier run recorded for it,
-// when that file was not changed since.
-func (c *ParseCache) lookupByIdentity(p Parser, path string) ([]string, bool) {
-	inMemory, disk := c.inMemory(), c != nil && c.disk != nil
-	if !inMemory && !disk {
-		return nil, false
+// in memory, by the content of the release file its stamp shows it to
+// be, or through the content hash an earlier run recorded for it, when
+// that file was not changed since. A release file whose result is not
+// kept yet comes back as stamped, for the parse to keep it.
+func (c *ParseCache) lookupByIdentity(p Parser, path string) (classes []string, ok bool, stamped *stampCandidate) {
+	if c != nil {
+		c.releasesPending.Wait()
 	}
-	key, ok := statKey(path)
-	if !ok {
-		return nil, false
+	inMemory, disk, releases := c.inMemory(), c != nil && c.disk != nil, c != nil && c.stampedAny.Load()
+	if !inMemory && !disk && !releases {
+		return nil, false, nil
+	}
+	key, keyed := statKey(path)
+	if !keyed {
+		if releases {
+			if size, mtime, ok := statStamp(path); ok {
+				if cand, ok := c.releases.stamped(path, size, mtime); ok {
+					classes, ok := c.releases.result(cand, contentKey{sum: cand.sum, parser: p.key()})
+
+					return classes, ok, cand
+				}
+			}
+		}
+
+		return nil, false, nil
 	}
 	if inMemory {
 		if classes, ok := c.lookupKey(p, key); ok {
-			return classes, true
+			return classes, true, nil
+		}
+	}
+	if releases && key.mtimeNsec == 0 {
+		if cand, ok := c.releases.stamped(path, key.size, key.mtimeSec); ok {
+			classes, ok := c.releases.result(cand, contentKey{sum: cand.sum, parser: p.key()})
+			if ok {
+				c.store(p, key, classes)
+			}
+
+			return classes, ok, cand
 		}
 	}
 	if !disk {
-		return nil, false
+		return nil, false, nil
 	}
 	sum, ok := c.disk.statSum(key)
-	if !ok && c.knownAny.Load() {
-		if v, known := c.known.Load(key); known {
-			sum, ok = v.([32]byte)
-			if ok {
-				c.disk.putStat(key, sum)
-			}
-		}
-	}
 	if !ok {
-		return nil, false
+		return nil, false, nil
 	}
-	classes, ok := c.disk.get(contentKey{sum: sum, parser: p.key()})
+	classes, ok = c.disk.get(contentKey{sum: sum, parser: p.key()})
 	if ok {
 		c.store(p, key, classes)
 	}
 
-	return classes, ok
+	return classes, ok, nil
 }
 
 // inMemory reports whether lookups by file identity can find anything.
@@ -128,7 +131,8 @@ func (c *ParseCache) lookupKey(p Parser, key fileKey) ([]string, bool) {
 }
 
 func (c *ParseCache) store(p Parser, key fileKey, classes []string) {
-	if c == nil {
+	// only a warm-up's results are ever looked up by identity in memory
+	if c == nil || !c.warmed.Load() {
 		return
 	}
 	if _, loaded := c.m.LoadOrStore(cacheKey{key, p.key()}, classes); !loaded {
@@ -157,7 +161,8 @@ func (c *ParseCache) Warm(p Parser, extensions []string, requests []ScanRequest)
 
 // cachedFindClasses is findClasses() through the cache.
 func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCache) ([]string, error) {
-	if classes, ok := cache.lookupByIdentity(p, path); ok {
+	classes, ok, stamped := cache.lookupByIdentity(p, path)
+	if ok {
 		return classes, nil
 	}
 	disk := cache != nil && cache.disk != nil
@@ -166,8 +171,13 @@ func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCach
 		return nil, readError(path, err)
 	}
 	var content contentKey
-	if disk {
+	if disk || stamped != nil {
 		content = contentKeyOf(p, b.src[:n])
+	}
+	// a release file read as its release has it: its result is kept with
+	// the release, not in the cache file
+	release := stamped != nil && content.sum == stamped.sum
+	if disk && !release {
 		if keyed {
 			cache.disk.putStat(key, content.sum)
 		}
@@ -179,12 +189,15 @@ func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCach
 			return classes, nil
 		}
 	}
-	classes, err := p.classesIn(b, n, path)
+	classes, err = p.classesIn(b, n, path)
 	if err == nil {
 		if keyed {
 			cache.store(p, key, classes)
 		}
-		if disk {
+		switch {
+		case release:
+			cache.releases.put(stamped, content, classes)
+		case disk:
 			cache.disk.put(content, classes)
 		}
 	}

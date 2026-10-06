@@ -609,7 +609,7 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 func (d *FileDownloader) importOptions(p pkg.PackageInterface) store.ImportOptions {
 	t := p.Type()
 
-	return store.ImportOptions{Unshared: t == "composer-plugin" || t == "composer-installer", Created: d.contentKnown}
+	return store.ImportOptions{Unshared: t == "composer-plugin" || t == "composer-installer"}
 }
 
 // isCwd is realpath($path) === Platform::getCwd().
