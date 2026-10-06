@@ -60,3 +60,23 @@ func TestTriggerDeprecation(t *testing.T) {
 		}
 	}
 }
+
+// Notices are rendered by internal/ui, without Composer's source paths or
+// PHP stacks.
+func TestTriggerDeprecationRendering(t *testing.T) {
+	t.Cleanup(ResetErrorHandler)
+	ResetErrorHandler()
+
+	out, err := io.NewBufferIO("", console.VerbosityNormal, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	RegisterErrorHandler(out)
+	TriggerDeprecation("an old API", phperr.At("eh.php", 21))
+	RaiseDeprecation("another old API", phperr.At("eh.php", 22))
+
+	want := "Deprecated: an old API\nNote: More deprecation notices were hidden, run again with `-v` to show them.\n"
+	if got := php.NormalizeEOL(out.Output()); got != want {
+		t.Errorf("output %q, want %q", got, want)
+	}
+}

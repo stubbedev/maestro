@@ -1,7 +1,8 @@
 // Package phperr records where Composer throws an exception and the PHP
-// call stack it was constructed in, so the console can render a maestro
-// error exactly as Symfony renders the PHP exception ("In Factory.php line
-// 317:", and at -v the "Exception trace:" frames).
+// call stack it was constructed in, which the plugin runtime gives plugin
+// code as the exception's getFile(), getLine() and getTrace(). The console
+// no longer renders them: how errors look is maestro's own (internal/ui,
+// docs/PORTING.md, #13), and what only served that rendering is going away.
 //
 // An error type standing for a PHP exception embeds Site, and each
 // construction site fills it with the PHP file that constructs the
@@ -19,7 +20,7 @@
 // the error type exposes through Chained (not Unwrap: PHP's catch never
 // looks at the previous exception, so errors.As must not either).
 //
-// A zero Site is an unknown throw site and renders as "n/a".
+// A zero Site is an unknown throw site.
 //
 // # Call stacks
 //
@@ -118,7 +119,7 @@ type Traced interface {
 }
 
 // Chained is implemented by errors carrying PHP's $previous exception
-// ($e->getPrevious()), which Symfony renders below the exception.
+// ($e->getPrevious()), which errors show as their causes.
 type Chained interface {
 	PHPPrevious() error
 }

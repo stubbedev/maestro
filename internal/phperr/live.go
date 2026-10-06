@@ -131,8 +131,8 @@ func Live() [][]Frame {
 
 // Push records that the PHP call of function at file:line is in progress
 // until the returned function is called, for ports that record the call
-// in errors' traces themselves (or have none to record), as deprecation
-// notices list the calls in progress:
+// in errors' traces themselves (or have none to record), as the stacks
+// plugin code asks for list the calls in progress (Live):
 //
 //	leave := phperr.Push(`Composer\Factory->createComposer`, "Factory.php", 631)
 //	full, err := f.CreateComposer(...)
@@ -159,20 +159,4 @@ func Push(function, file string, line int) (leave func()) {
 			}
 		}
 	}
-}
-
-// Stack returns the calls in progress, innermost first, across the marks
-// of calls PHP code made into maestro, leaving out the locations of calls
-// into PHP code whose callee is unnamed (EnterCode).
-func Stack() []Frame {
-	var frames []Frame
-	for _, segment := range Live() {
-		for _, f := range segment {
-			if f.Function != "" {
-				frames = append(frames, f)
-			}
-		}
-	}
-
-	return frames
 }
