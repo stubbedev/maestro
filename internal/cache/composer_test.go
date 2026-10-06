@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -201,6 +202,9 @@ func TestCache_IsUsable(t *testing.T) {
 func TestCache_NotWritable(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("root can write anywhere")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("a directory's mode does not stop writes into it on Windows")
 	}
 
 	b, _ := io.NewBufferIO("", 0, nil)

@@ -7,6 +7,7 @@ package console
 import (
 	"bytes"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -226,6 +227,10 @@ func TestSymfonyStyle_InteractiveOutputs(t *testing.T) {
 }
 
 func TestSymfonyStyle_OutputProgressIterate(t *testing.T) {
+	// The shade characters are the bar's outside Windows, and in Hyper.
+	if runtime.GOOS == "windows" {
+		t.Setenv("TERM_PROGRAM", "Hyper")
+	}
 	want, err := os.ReadFile("testdata/Fixtures/Style/SymfonyStyle/progress/output_progress_iterate_shade.txt")
 	if err != nil {
 		t.Fatal(err)
