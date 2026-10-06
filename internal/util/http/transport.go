@@ -29,7 +29,6 @@ import (
 
 	"golang.org/x/net/http2/hpack"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -557,7 +556,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				primaryIP.Store(&ip)
 
 				if r.preventIP != nil && r.preventIP(ip) {
-					cancelTransfer(transportError(phperr.At("CurlDownloader.php", 536), `IP "`+ip+`" is blocked for "`+r.safeURL+`".`, 400))
+					cancelTransfer(util.NewTransportError(`IP "`+ip+`" is blocked for "`+r.safeURL+`".`, 400))
 				}
 			}
 		},
@@ -597,7 +596,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	res.headers, headText = headerLines(resp, r.curlStatusLines, recorder.Load(), connectHead.Load(), h2Heads, h2OK)
 
 	if r.maxFileSize > 0 && resp.ContentLength > r.maxFileSize {
-		res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 521), "Maximum allowed download size reached. Content-length header indicates "+strconv.FormatInt(resp.ContentLength, 10)+" bytes. Allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
+		res.err = util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Content-length header indicates " + strconv.FormatInt(resp.ContentLength, 10) + " bytes. Allowed " + strconv.FormatInt(r.maxFileSize, 10) + " bytes for " + r.safeURL)
 
 		return finish()
 	}
@@ -658,7 +657,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		case errors.As(err, &encErr):
 			res.errno, res.errMsg = encErr.errno, encErr.msg
 		case errors.Is(err, errMaxSize):
-			res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 526), "Maximum allowed download size reached. Downloaded "+strconv.FormatInt(counter.n, 10)+" of allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
+			res.err = util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Downloaded " + strconv.FormatInt(counter.n, 10) + " of allowed " + strconv.FormatInt(r.maxFileSize, 10) + " bytes for " + r.safeURL)
 		case errors.As(err, &wErr):
 			res.errno, res.errMsg = curleWriteError, "Failure writing output to destination"
 		default:

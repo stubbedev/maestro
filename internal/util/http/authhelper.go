@@ -105,14 +105,13 @@ func (h *AuthHelper) StoreAuth(origin string, storeAuth StoreAuth) error {
 					return input, nil
 				}
 
-				return nil, &util.RuntimeError{Message: "Please answer (y)es or (n)o", Site: phperr.At("AuthHelper.php", 57)}
+				return nil, &util.RuntimeError{Message: "Please answer (y)es or (n)o"}
 			},
 			0,
 			"y",
 		)
 		if err != nil {
-			// an IO written in PHP left its code through the call
-			return phperr.Locate(err, "AuthHelper.php", 50)
+			return err
 		}
 
 		if answer == "y" {
@@ -153,10 +152,10 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 			h.io.WriteError(message, true, io.Normal)
 
 			if !h.io.IsInteractive() {
-				return AuthResult{}, transportError(phperr.At("AuthHelper.php", 107), "Could not authenticate against "+origin, 403)
+				return AuthResult{}, util.NewTransportError("Could not authenticate against "+origin, 403)
 			}
 
-			if _, err := h.io.Ask("After authorizing your token, confirm that you would like to retry the request", nil); phperr.Locate(err, "AuthHelper.php", 109) != nil {
+			if _, err := h.io.Ask("After authorizing your token, confirm that you would like to retry the request", nil); err != nil {
 				return AuthResult{}, err
 			}
 
@@ -206,7 +205,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 			}
 
 			if !ok {
-				return AuthResult{}, transportError(phperr.At("AuthHelper.php", 152), "Could not authenticate against "+origin, 401)
+				return AuthResult{}, util.NewTransportError("Could not authenticate against "+origin, 401)
 			}
 		}
 
@@ -228,7 +227,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 			switch authString(a.Password) {
 			case "gitlab-ci-token", "private-token", "oauth2":
 				if a.Password != nil {
-					return AuthResult{}, transportError(phperr.At("AuthHelper.php", 162), "Invalid credentials for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
+					return AuthResult{}, util.NewTransportError("Invalid credentials for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
 				}
 			}
 		}
@@ -243,12 +242,12 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 			}
 
 			if !ok {
-				return AuthResult{}, transportError(phperr.At("AuthHelper.php", 169), "Could not authenticate against "+origin, 401)
+				return AuthResult{}, util.NewTransportError("Could not authenticate against "+origin, 401)
 			}
 		}
 
 		if auth != nil && h.io.HasAuthentication(origin) && sameAuthentication(*auth, h.io.Authentication(origin)) {
-			return AuthResult{}, transportError(phperr.At("AuthHelper.php", 174), "Invalid credentials for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
+			return AuthResult{}, util.NewTransportError("Invalid credentials for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
 		}
 
 	case origin == "bitbucket.org" || origin == "api.bitbucket.org":
@@ -275,7 +274,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 				// this path and retry once instead of failing
 				askForOAuthToken = false
 			default:
-				return AuthResult{}, transportError(phperr.At("AuthHelper.php", 196), "Could not authenticate against "+origin, 401)
+				return AuthResult{}, util.NewTransportError("Could not authenticate against "+origin, 401)
 			}
 		}
 
@@ -298,7 +297,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 				}
 
 				if !ok {
-					return AuthResult{}, transportError(phperr.At("AuthHelper.php", 206), "Could not authenticate against "+origin, 401)
+					return AuthResult{}, util.NewTransportError("Could not authenticate against "+origin, 401)
 				}
 			}
 		}
@@ -322,7 +321,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 				message = "Unknown error code '" + strconv.Itoa(statusCode) + "', reason: " + reason
 			}
 
-			return AuthResult{}, transportError(phperr.At("AuthHelper.php", 225), message, statusCode)
+			return AuthResult{}, util.NewTransportError(message, statusCode)
 		}
 
 		// fail if we already have auth
@@ -334,19 +333,17 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 				return AuthResult{Retry: true}, nil
 			}
 
-			return AuthResult{}, transportError(phperr.At("AuthHelper.php", 236), "Invalid credentials (HTTP "+strconv.Itoa(statusCode)+") for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
+			return AuthResult{}, util.NewTransportError("Invalid credentials (HTTP "+strconv.Itoa(statusCode)+") for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
 		}
 
 		h.io.WriteError("    Authentication required (<info>"+origin+"</info>):", true, io.Normal)
 
 		username, err := h.io.Ask("      Username: ", nil)
-		err = phperr.Locate(err, "AuthHelper.php", 240) // an IO written in PHP
 		if err != nil {
 			return AuthResult{}, err
 		}
 
 		password, err := h.io.AskAndHideAnswer("      Password: ")
-		err = phperr.Locate(err, "AuthHelper.php", 241)
 		if err != nil {
 			return AuthResult{}, err
 		}
