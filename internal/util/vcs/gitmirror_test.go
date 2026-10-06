@@ -158,6 +158,10 @@ func packName(t *testing.T, dir string) string {
 }
 
 func TestMirrorReader_LooseOnly(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the reader always runs git on Windows")
+	}
+
 	gitEnv(t)
 
 	up, head := newUpstream(t)

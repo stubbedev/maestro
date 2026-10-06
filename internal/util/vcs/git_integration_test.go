@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -104,7 +105,24 @@ func newUpstream(t *testing.T) (dir, head string) {
 	return dir, git(t, dir, "rev-parse", "HEAD")
 }
 
+// The mirror cache with the Go reader answering where it can, and with
+// git asked everything, as on Windows, where the reader is off.
 func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
+	t.Run("reader", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("the reader always runs git on Windows")
+		}
+
+		testSyncMirrorAndFetchRef(t, true)
+	})
+	t.Run("git", func(t *testing.T) {
+		// any GIT_TEST_ variable turns the reader off
+		t.Setenv("GIT_TEST_MAESTRO_NO_READER", "1")
+		testSyncMirrorAndFetchRef(t, false)
+	})
+}
+
+func testSyncMirrorAndFetchRef(t *testing.T, reader bool) {
 	gitEnv(t)
 
 	upstream, first := newUpstream(t)
@@ -156,12 +174,16 @@ func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
 		t.Fatalf("FetchRefOrSyncMirror: %v %v", ok, err)
 	}
 
-	if got, want := process.take(), []string{
-		"git config --list --show-origin -z @" + cache,
-		"git rev-parse --git-dir @" + cache,
-		"git rev-parse --quiet --verify " + first + "^{commit} @" + cache,
-	}; !slices.Equal(got, want) {
-		t.Fatalf("commands:\n%s", strings.Join(got, "\n"))
+	gitDir := "git rev-parse --git-dir @" + cache
+	verify := func(ref string) string { return "git rev-parse --quiet --verify " + ref + "^{commit} @" + cache }
+
+	want := []string{gitDir, verify(first)}
+	if reader {
+		want = append([]string{"git config --list --show-origin -z @" + cache}, want...)
+	}
+
+	if got := process.take(); !slices.Equal(got, want) {
+		t.Fatalf("commands:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
 	// a new commit upstream: the mirror is updated
@@ -180,16 +202,22 @@ func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
 
 	// from now on the reader answers: git only verifies what it does not
 	// hold, and syncs
-	if got, want := process.take(), []string{
-		"git rev-parse --quiet --verify " + second + "^{commit} @" + cache,
+	syncCmds := []string{
 		"git remote -v @" + cache,
 		"git remote set-url origin -- " + upstream + " @" + cache,
 		"git remote update --prune origin @" + cache,
 		"git gc --auto @" + cache,
 		"git remote -v @" + cache,
 		"git remote set-url origin -- " + upstream + " @" + cache,
-	}; !slices.Equal(got, want) {
-		t.Fatalf("commands:\n%s", strings.Join(got, "\n"))
+	}
+	if reader {
+		want = append([]string{verify(second)}, syncCmds...)
+	} else {
+		want = slices.Concat([]string{gitDir, verify(second), gitDir}, syncCmds, []string{gitDir, verify(second)})
+	}
+
+	if got := process.take(); !slices.Equal(got, want) {
+		t.Fatalf("commands:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
 	// a tag created after the ref was cached: the sha is in the mirror
@@ -226,8 +254,13 @@ func TestGitIntegration_SyncMirrorAndFetchRef(t *testing.T) {
 		t.Fatalf("FetchRefOrSyncMirror: %v %v", ok, err)
 	}
 
-	if log := process.take(); len(log) != 0 {
-		t.Fatalf("commands:\n%s", strings.Join(log, "\n"))
+	want = nil
+	if !reader {
+		want = []string{gitDir, verify(second), "git branch @" + cache, "git tag @" + cache}
+	}
+
+	if got := process.take(); !slices.Equal(got, want) {
+		t.Fatalf("commands:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
 	// a ref that does not exist anywhere
