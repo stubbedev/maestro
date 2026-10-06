@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -180,7 +179,7 @@ func parseLegacySingleIgnore(k php.Key, value any) (legacyIgnore, error) {
 				shown = php.TypeName(apply)
 			}
 
-			return parsed, &util.InvalidArgumentError{Site: phperr.At("ListPolicyConfig.php", 274), Message: fmt.Sprintf(
+			return parsed, &util.InvalidArgumentError{Message: fmt.Sprintf(
 				"Invalid 'apply' value for '%s': %s. Expected 'audit', 'block', or 'all'.", k.String(), shown)}
 		}
 		parsed.onBlock = applyStr == "block" || applyStr == "all"
