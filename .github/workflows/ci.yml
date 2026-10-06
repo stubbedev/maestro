@@ -262,6 +262,13 @@ jobs:
       run:
         shell: bash
     steps:
+      # Defender scans every object and test binary the toolchain writes,
+      # which made the Go build several times slower than on Linux; the
+      # runner is thrown away after the job.
+      - name: Disable real-time scanning
+        shell: pwsh
+        run: Set-MpPreference -DisableRealtimeMonitoring $true
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
@@ -303,7 +310,9 @@ jobs:
             *) pkgs=$(go list ./... | grep -v -e '/internal/command' -e '/internal/plugin') ;;
           esac
           # shellcheck disable=SC2086 # one word per package
-          go test -short $pkgs
+          time go test -short -run '^$' $pkgs
+          # shellcheck disable=SC2086
+          time go test -short $pkgs
 
       # saved even when the tests fail: a red job must not leave the next
       # run to compile everything again
