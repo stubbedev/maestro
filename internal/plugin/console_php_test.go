@@ -9,6 +9,7 @@ package plugin
 
 import (
 	"bytes"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -48,6 +49,14 @@ func TestPlugins_Commands(t *testing.T) {
 		t.Fatalf("install = %d, %v\n%s", code, err, p.output())
 	}
 
+	// On Windows PHP's outputs end lines with PHP_EOL, "\r\n", and
+	// BaseCommand::getTerminalWidth() takes one column off the 80 a
+	// console-less Terminal reports.
+	cr, wide := "", "true"
+	if runtime.GOOS == "windows" {
+		cr, wide = "\r", "false"
+	}
+
 	contains := func(name, output string, want ...string) {
 		t.Helper()
 		for _, w := range want {
@@ -80,8 +89,8 @@ func TestPlugins_Commands(t *testing.T) {
 		"io maestro-test/commands-project\n",
 		`app Composer\Console\Application true Composer\Command\InstallCommand true`+"\n",
 		"install args: packages\n",
-		`helpers {"acme\/lib":"^1.0","acme\/other":"2.0"} [false,true] true`+"\n",
-		"buffered output|and errors|\n",
+		`helpers {"acme\/lib":"^1.0","acme\/other":"2.0"} [false,true] `+wide+"\n",
+		"buffered output"+cr+"|and errors"+cr+"|\n",
 	)
 
 	// Completion of the plugin command's option values (its
@@ -110,7 +119,7 @@ func TestPlugins_Commands(t *testing.T) {
 		"created maestro-test/commands-project false\n",
 		"  License   Number of dependencies  \n",
 		"nested 0\n",
-		"buffered 3: hello nested x1|io maestro-test/commands-project|",
+		"buffered 3: hello nested x1"+cr+"|io maestro-test/commands-project"+cr+"|",
 	)
 
 	// maestro's own commands run from PHP ($app->find()->run()): Symfony's

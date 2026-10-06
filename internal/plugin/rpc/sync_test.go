@@ -3,6 +3,7 @@ package rpc
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -37,10 +38,16 @@ func TestSync_Env(t *testing.T) {
 
 	// Go's change goes to PHP with the next message.
 	t.Setenv("MAESTRO_SYNC_A", "2")
-	t.Setenv("MAESTRO_SYNC_B", "\xff")
+	// A value that is no UTF-8 goes as bytes; Windows keeps its environment
+	// in UTF-16, which holds none.
+	value, encoded := "\xff", `{"\u0000b":"/w=="}`
+	if runtime.GOOS == "windows" {
+		value, encoded = "b", `"b"`
+	}
+	t.Setenv("MAESTRO_SYNC_B", value)
 	wait := call(t, c, "x", nil)
 	m := f.recvRaw()
-	if !strings.Contains(m, `"env":{"set":{"MAESTRO_SYNC_A":"2","MAESTRO_SYNC_B":{"\u0000b":"/w=="}}}`) {
+	if !strings.Contains(m, `"env":{"set":{"MAESTRO_SYNC_A":"2","MAESTRO_SYNC_B":`+encoded+`}}`) {
 		t.Errorf("first message %s", m)
 	}
 
@@ -88,6 +95,8 @@ func TestSync_Cwd(t *testing.T) {
 	// Resolved, as getcwd() reports them on both sides (macOS's temporary
 	// directory is under the /var symlink).
 	a, b := testutil.RealTempDir(t), testutil.RealTempDir(t)
+	// Out of b before it is removed: Windows removes no working directory.
+	t.Cleanup(func() { _ = os.Chdir(start) })
 	c, f, _ := newFake(t, Options{})
 
 	if err := os.Chdir(a); err != nil {

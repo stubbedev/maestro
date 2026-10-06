@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -32,6 +33,12 @@ func TestPlugins_ResolverAPIs(t *testing.T) {
 	if err != nil || code != 0 {
 		t.Fatalf("update = %d, %v\n%s\nchild:\n%s", code, err, output, p.childOutput())
 	}
+	// Symfony's Process runs ['echo', 'async hello'] through cmd.exe on
+	// Windows, whose echo keeps the quotes the argument was escaped with.
+	asyncHello := "async hello"
+	if runtime.GOOS == "windows" {
+		asyncHello = `"async hello"`
+	}
 	for _, want := range []string{
 		"loaded: Composer\\Package\\CompletePackage Vendor/Loaded 1.2.0 requires php",
 		`dumped: {"name":"Vendor\/Loaded","version":"1.2.0","version_normalized":"1.2.0.0","require":{"php":">=7.2"},"type":"library",`,
@@ -52,7 +59,7 @@ func TestPlugins_ResolverAPIs(t *testing.T) {
 		"cache: 'v' true",
 		"suggestions: 1",
 		"second dispatcher listener",
-		"async process: async hello Symfony\\Component\\Process\\Process",
+		"async process: " + asyncHello + " Symfony\\Component\\Process\\Process",
 		"http downloader: Composer\\Util\\HttpDownloader same loop downloader: true",
 		"rfs tls disabled: false status: 200",
 		"zip downloader: Composer\\Downloader\\ZipDownloader",

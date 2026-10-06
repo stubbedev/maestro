@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,9 @@ func TestRuntime_Reentrancy(t *testing.T) {
 
 	for _, transport := range []Transport{TransportPipes, TransportTCP} {
 		t.Run(fmt.Sprint(transport), func(t *testing.T) {
+			if transport == TransportPipes && runtime.GOOS == "windows" {
+				t.Skip("Windows passes a child no file descriptors beyond stdio")
+			}
 			rt, _, _ := newTestRuntime(t, func(o *Options) { o.Transport = transport })
 			maxDepth := 0
 			var bottomHandle rpc.Handle
@@ -446,12 +450,18 @@ func TestRuntime_EnvSync(t *testing.T) {
 	}
 
 	// Go's changes reach PHP's getenv() and $_SERVER.
-	t.Setenv("MAESTRO_T_GO", "from go \xff")
+	// Bytes that are no UTF-8, except on Windows, whose environment is
+	// UTF-16.
+	value := "from go \xff"
+	if runtime.GOOS == "windows" {
+		value = "from go é"
+	}
+	t.Setenv("MAESTRO_T_GO", value)
 	v, err := rt.Call("test.getenv", php.ListOf("MAESTRO_T_GO", "MAESTRO_T_GONE"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := get(t, v, "MAESTRO_T_GO").(*php.Array).Values(); got[0] != "from go \xff" || got[1] != "from go \xff" {
+	if got := get(t, v, "MAESTRO_T_GO").(*php.Array).Values(); got[0] != value || got[1] != value {
 		t.Errorf("PHP sees %v", got)
 	}
 	if got := get(t, v, "MAESTRO_T_GONE").(*php.Array).Values(); got[0] != false {
@@ -468,10 +478,14 @@ func TestRuntime_CwdSync(t *testing.T) {
 	}
 	t.Chdir(wd)
 
+	// Created first, so removed last: after php has stopped and Go has
+	// left them, as Windows removes no process's working directory.
+	a, b := t.TempDir(), t.TempDir()
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+
 	rt, _, _ := newTestRuntime(t)
 	start(t, rt)
 
-	a, b := t.TempDir(), t.TempDir()
 	if _, err := rt.Call("test.chdir", a); err != nil {
 		t.Fatal(err)
 	}

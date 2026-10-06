@@ -247,7 +247,9 @@ func TestPlugins_Installers(t *testing.T) {
 		"PearInstaller exists: false",
 		"classmap: MaestroTest\\Installers\\CustomInstaller,MaestroTest\\Installers\\FailedException,MaestroTest\\Installers\\FailingInstaller,MaestroTest\\Installers\\IfaceInstaller,MaestroTest\\Installers\\PackInstaller,MaestroTest\\Installers\\Plugin",
 		"binary caller: php",
-		"custom install path: " + filepath.Join(p.dir, "vendor", "maestro-test", "installers-plugin"),
+		// LibraryInstaller::getInstallPath() appends to the realpath() of
+		// the vendor dir with a slash.
+		"custom install path: " + filepath.Join(p.dir, "vendor") + "/maestro-test/installers-plugin",
 		"Loading \"maestro-test/legacy-installer\" which is a legacy composer-installer built for Composer 1.x, it is likely to cause issues as you are running Composer 2.x.",
 		"installCode local/custom-a at custom/custom-a",
 		"parent::install() gave a promise: true",

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -96,7 +97,9 @@ func TestShim_Extract(t *testing.T) {
 			t.Errorf("%s is writable: %v", rel, info.Mode())
 		}
 	}
-	if info, err := os.Stat(ComposerBinary(cache)); err != nil || info.Mode().Perm()&0o111 == 0 {
+	// Windows keeps no execute or group and other permission bits.
+	unix := runtime.GOOS != "windows"
+	if info, err := os.Stat(ComposerBinary(cache)); err != nil || unix && info.Mode().Perm()&0o111 == 0 {
 		t.Errorf("launcher %v, %v", info, err)
 	}
 	for rel, content := range shimbuild.VirtualFiles() {
@@ -105,7 +108,7 @@ func TestShim_Extract(t *testing.T) {
 			t.Errorf("%s differs from internal/autoload's", rel)
 		}
 	}
-	if info, err := os.Stat(filepath.Dir(dir)); err != nil || info.Mode().Perm() != 0o700 {
+	if info, err := os.Stat(filepath.Dir(dir)); err != nil || unix && info.Mode().Perm() != 0o700 {
 		t.Errorf("shim parent %v, %v", info, err)
 	}
 
@@ -215,6 +218,9 @@ func TestRuntime_NoPHP(t *testing.T) {
 // TestRuntime_EarlyExit: a php that ends before the handshake (one below
 // 7.2.5 prints Composer's message and exits 1) gives its exit status.
 func TestRuntime_EarlyExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake php is a shell script, which Windows cannot run as a program")
+	}
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("no sh")
 	}
@@ -255,6 +261,9 @@ func TestRuntime_EarlyExit(t *testing.T) {
 // exit code comes back (docs/PLUGINS.md D13).
 func TestShim_Launcher(t *testing.T) {
 	requirePHP(t)
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake maestro is a shell script, which Windows cannot run as a program")
+	}
 
 	phpBinary, ok := platform.FindPHP()
 	if !ok {
