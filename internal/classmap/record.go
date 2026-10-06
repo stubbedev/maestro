@@ -184,11 +184,15 @@ func (g *Generator) SaveRecord(rec *Record) {
 		add(f)
 	}
 	slices.Sort(paths)
+	// a record holding an identity too recent to trust would never be
+	// used (Load): it is not written (after an install, the next dump
+	// writes one)
 	keys := make([]fileKey, len(paths))
+	limit := time.Now().Add(-statTrustMargin)
 	var failed atomic.Bool
 	parallel(len(paths), func(i int) {
 		k, ok := statAnyKey(paths[i])
-		if !ok {
+		if !ok || !time.Unix(k.mtimeSec, k.mtimeNsec).Before(limit) || !time.Unix(k.ctimeSec, k.ctimeNsec).Before(limit) {
 			failed.Store(true)
 		}
 		keys[i] = k
