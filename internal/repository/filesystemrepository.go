@@ -30,6 +30,18 @@ type FilesystemRepository struct {
 	// FilesystemRepository's own private $devMode, read from the file.
 	fsDevMode, fsDevModeKnown bool
 	installedVersionsSink     func(versions *php.Array)
+	// deferWrites and pending: see DeferWrites.
+	deferWrites bool
+	pending     *pendingWrite
+}
+
+// pendingWrite is a deferred Write: its arguments and the repository's
+// packages when it was asked for.
+type pendingWrite struct {
+	devMode   bool
+	im        InstallationManager
+	canonical []pkg.PackageInterface
+	packages  []pkg.PackageInterface
 }
 
 var _ WritableRepository = (*FilesystemRepository)(nil)
@@ -155,6 +167,50 @@ func (r *FilesystemRepository) Reload() error {
 // Write ports FilesystemRepository::write: installed.json, and with
 // dumpVersions installed.php and InstalledVersions.php next to it.
 func (r *FilesystemRepository) Write(devMode bool, im InstallationManager) error {
+	canonical, err := r.CanonicalPackages()
+	if err != nil {
+		return err
+	}
+	packages, err := r.Packages()
+	if err != nil {
+		return err
+	}
+	if r.deferWrites {
+		r.pending = &pendingWrite{devMode, im, slices.Clone(canonical), slices.Clone(packages)}
+
+		return nil
+	}
+
+	return r.write(devMode, im, canonical, packages)
+}
+
+// DeferWrites makes Write only record what it would write, until
+// FlushWrites writes the last of it (deliberate deviation 3, speed).
+// InstallationManager::executeBatch writes the repository after every
+// operation, so installing n packages writes installed.json and
+// installed.php n times, each with every package: O(n²) work whose
+// intermediate states only code running between two of those writes can
+// see. The installation manager defers them while it waits for a batch
+// whose installers are all maestro's own (no plugin code runs until it
+// flushes) and flushes when the wait ends, before anything else can look:
+// the files end up exactly as the last write would have left them, as
+// that write's packages are kept.
+func (r *FilesystemRepository) DeferWrites() { r.deferWrites = true }
+
+// FlushWrites ends DeferWrites, performing the last deferred Write.
+func (r *FilesystemRepository) FlushWrites() error {
+	r.deferWrites = false
+	p := r.pending
+	if p == nil {
+		return nil
+	}
+	r.pending = nil
+
+	return r.write(p.devMode, p.im, p.canonical, p.packages)
+}
+
+// write is Write with the repository's packages given.
+func (r *FilesystemRepository) write(devMode bool, im InstallationManager, canonical, repoPackages []pkg.PackageInterface) error {
 	// make sure the directory is created so we can realpath it
 	// as realpath() does some additional normalizations with network paths that normalizePath does not
 	// and we need to find shortest path correctly
@@ -164,10 +220,6 @@ func (r *FilesystemRepository) Write(devMode bool, im InstallationManager) error
 	}
 	repoDir = util.NormalizePath(util.Realpath(repoDir))
 
-	canonical, err := r.CanonicalPackages()
-	if err != nil {
-		return err
-	}
 	pkgArrays := make([]*php.Array, 0, len(canonical))
 	devNames := php.NewArray()
 	installPaths := make(map[string]pkg.NullString, len(canonical))
@@ -214,7 +266,7 @@ func (r *FilesystemRepository) Write(devMode bool, im InstallationManager) error
 		return nil
 	}
 
-	versions, err := r.generateInstalledVersions(installPaths, devMode, repoDir)
+	versions, err := r.generateInstalledVersions(repoPackages, installPaths, devMode, repoDir)
 	if err != nil {
 		return err
 	}
@@ -323,14 +375,10 @@ func appendPhpCode(b *strings.Builder, array *php.Array, level int) error {
 
 // generateInstalledVersions ports FilesystemRepository::generateInstalledVersions:
 // the data of installed.php.
-func (r *FilesystemRepository) generateInstalledVersions(installPaths map[string]pkg.NullString, devMode bool, repoDir string) (*php.Array, error) {
+func (r *FilesystemRepository) generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths map[string]pkg.NullString, devMode bool, repoDir string) (*php.Array, error) {
 	devPackages := make(map[string]struct{}, len(r.devPackageNames))
 	for _, name := range r.devPackageNames {
 		devPackages[name] = struct{}{}
-	}
-	repoPackages, err := r.Packages()
-	if err != nil {
-		return nil, err
 	}
 	if r.rootPackage == nil {
 		return nil, &util.LogicError{Site: phperr.At("FilesystemRepository.php", 274), Message: "It should not be possible to dump packages if no root package is given"}

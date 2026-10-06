@@ -420,6 +420,8 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		if view, _, err := rt.ComposerView(); err == nil && view != nil {
 			generator.Parser.ShortOpenTag = view.ShortOpenTag()
 		}
+		// classes found in files seen before (deliberate deviation 3)
+		generator.UseParseCacheFile(cache.Dir() + "/classmap/v1.bin")
 		full.SetAutoloadGenerator(generator)
 
 		// initialize archive manager

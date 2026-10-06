@@ -33,6 +33,7 @@ type Generator struct {
 
 	eventDispatcher           EventDispatcher
 	io                        io.IO
+	parseCache                *classmap.ParseCache
 	devMode                   bool
 	devModeSet                bool
 	classMapAuthoritative     bool
@@ -54,6 +55,7 @@ func NewGenerator(eventDispatcher EventDispatcher, ioi io.IO) *Generator {
 		Parser:                    classmap.DefaultParser,
 		eventDispatcher:           eventDispatcher,
 		io:                        ioi,
+		parseCache:                classmap.NewParseCache(),
 		platformRequirementFilter: ignoreNothing{},
 	}
 }
@@ -91,7 +93,7 @@ func (g *Generator) SetPlatformRequirementFilter(filter version.PlatformRequirem
 var classMapExtensions = []string{"php", "inc", "hh"}
 
 func (g *Generator) newClassMapGenerator() *classmap.Generator {
-	gen := classmap.NewGenerator(classMapExtensions).AvoidDuplicateScans(nil)
+	gen := classmap.NewGenerator(classMapExtensions).AvoidDuplicateScans(nil).SetParseCache(g.parseCache)
 	gen.Parser = g.Parser
 
 	return gen
@@ -105,6 +107,9 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		// Force scanPsrPackages when classmap is authoritative
 		scanPsrPackages = true
 	}
+
+	// a warm-up (Warm) ends before anything else happens, scripts included
+	g.parseCache.Wait()
 
 	// auto-set devMode based on whether dev dependencies are installed or not
 	if !g.devModeSet {
@@ -165,6 +170,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return nil, err
 	}
+	g.parseCache.Save()
 	if err := d.classmap(classMap); err != nil {
 		return nil, err
 	}
@@ -188,6 +194,60 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	}
 
 	return classMap, nil
+}
+
+// UseParseCacheFile makes the generator keep the classes it finds in files
+// in the file at path, by file contents, and use the classes kept there by
+// earlier runs instead of parsing the same contents again (deliberate
+// deviation 3, speed). The file is written after each scan.
+func (g *Generator) UseParseCacheFile(path string) { g.parseCache.UseFile(path) }
+
+// Warm starts parsing, in the background, the files a Dump with these
+// arguments would scan (every package's, dev or not), so that the Dump that
+// follows finds most of them parsed (deliberate deviation 3, speed: the
+// installer calls it before it waits on the network). It changes nothing a
+// Dump does or prints: the Dump parses again whatever changed since, and
+// any problem here only means less is parsed ahead.
+func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPackage pkg.RootPackageInterface, im InstallationManager, scanPsrPackages bool) {
+	if g.classMapAuthoritative {
+		scanPsrPackages = true
+	}
+	vendorDir, err := configString(config, "vendor-dir")
+	if err != nil {
+		return
+	}
+	cwd, err := util.GetCwd(false)
+	if err != nil {
+		return
+	}
+	d := &dump{}
+	if d.basePath, err = realpath(cwd); err != nil {
+		return
+	}
+	d.basePath = util.NormalizePath(d.basePath)
+	if d.vendorPath, err = realpath(vendorDir); err != nil {
+		return
+	}
+	d.vendorPath = util.NormalizePath(d.vendorPath)
+
+	packageMap, err := g.BuildPackageMap(im, rootPackage, localRepo.CanonicalPackages())
+	if err != nil {
+		return
+	}
+	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, NoDevFilter)
+	if err != nil {
+		return
+	}
+	requests := make([]classmap.ScanRequest, 0, len(autoloads.Classmap))
+	for _, dir := range autoloads.Classmap {
+		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: buildExclusionRegex(dir, autoloads.ExcludeFromClassmap)})
+	}
+	if scanPsrPackages {
+		for _, s := range d.psrScans(autoloads, autoloads.ExcludeFromClassmap) {
+			requests = append(requests, classmap.ScanRequest{Path: s.dir, Excluded: s.excluded})
+		}
+	}
+	g.parseCache.Warm(g.Parser, classMapExtensions, requests)
 }
 
 // detectDevMode sets devMode from vendor/composer/installed.json; it is
@@ -230,14 +290,23 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 	excluded := autoloads.ExcludeFromClassmap
 	gen := g.newClassMapGenerator()
 
+	// every scan, planned first so that their files are walked and parsed
+	// together (classmap.Generator.Prefetch), then run in order
+	scans := make([]psrScan, 0, len(autoloads.Classmap))
 	for _, dir := range autoloads.Classmap {
-		if err := gen.ScanPaths(dir, buildExclusionRegex(dir, excluded), classmap.Classmap, "", nil); err != nil {
-			return nil, err
-		}
+		scans = append(scans, psrScan{dir, buildExclusionRegex(dir, excluded), classmap.Classmap, ""})
 	}
-
 	if scanPsrPackages {
-		if err := d.scanPsr(gen, autoloads, excluded); err != nil {
+		scans = append(scans, d.psrScans(autoloads, excluded)...)
+	}
+	requests := make([]classmap.ScanRequest, len(scans))
+	for i, s := range scans {
+		requests[i] = classmap.ScanRequest{Path: s.dir, Excluded: s.excluded}
+	}
+	gen.Prefetch(requests)
+
+	for _, s := range scans {
+		if err := gen.ScanPaths(s.dir, s.excluded, s.typ, s.namespace, nil); err != nil {
 			return nil, err
 		}
 	}

@@ -37,6 +37,12 @@ func (g GeneratorAdapter) DumpAutoloads(config ConfigReader, localRepo repositor
 	return classMap, repo.err
 }
 
+// WarmAutoloads starts parsing, in the background, the files a later
+// DumpAutoloads will scan (autoload.Generator.Warm).
+func (g GeneratorAdapter) WarmAutoloads(config ConfigReader, localRepo repository.InstalledRepositoryInterface, root pkg.RootPackageInterface, im InstallationManager, scanPsrPackages bool) {
+	g.Warm(config, &autoloadRepository{repo: localRepo}, root, im, scanPsrPackages)
+}
+
 // autoloadRepository adapts the local repository to
 // autoload.InstalledRepository, whose CanonicalPackages cannot fail: the
 // error is kept and returned after the dump.

@@ -29,8 +29,16 @@ import (
 var version = "dev"
 
 func main() {
-	os.Exit(run())
+	stop := startProfiling()
+	code := run()
+	stop()
+	os.Exit(code)
 }
+
+// startProfiling starts the profiles the maestro_profile build asks for
+// (profile.go) and returns what stops them; a release build profiles
+// nothing.
+var startProfiling = func() func() { return func() {} }
 
 func run() int {
 	rt := composer.NewRuntime(version, nil)

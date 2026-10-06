@@ -233,8 +233,17 @@ func (d *dump) targetDirLoader(rootPackage pkg.RootPackageInterface) (string, er
 `, nil
 }
 
-// scanPsr adds the classes of the PSR-0/4 directories to the class map.
-func (d *dump) scanPsr(gen *classmap.Generator, autoloads *Autoloads, excluded []string) error {
+// psrScan is one ScanPaths call of the PSR-0/4 scan.
+type psrScan struct {
+	dir       string
+	excluded  classmap.Matcher
+	typ       classmap.AutoloadType
+	namespace string
+}
+
+// psrScans lists the scans that add the classes of the PSR-0/4
+// directories to the class map, in order.
+func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 	type group struct {
 		paths *php.Array
 		typ   classmap.AutoloadType
@@ -261,6 +270,7 @@ func (d *dump) scanPsr(gen *classmap.Generator, autoloads *Autoloads, excluded [
 
 	php.Krsort(namespacesToScan, 0)
 
+	var scans []psrScan
 	for namespace, v := range namespacesToScan.All() {
 		i, _ := v.(int64)
 		for _, group := range groups[i] {
@@ -281,14 +291,12 @@ func (d *dump) scanPsr(gen *classmap.Generator, autoloads *Autoloads, excluded [
 					dirExcluded = append(slices.Clip(excluded), d.vendorPath+"/")
 				}
 
-				if err := gen.ScanPaths(dir, buildExclusionRegex(dir, dirExcluded), group.typ, namespace.String(), nil); err != nil {
-					return err
-				}
+				scans = append(scans, psrScan{dir, buildExclusionRegex(dir, dirExcluded), group.typ, namespace.String()})
 			}
 		}
 	}
 
-	return nil
+	return scans
 }
 
 // includePathsFile ports getIncludePathsFile ("" for null).

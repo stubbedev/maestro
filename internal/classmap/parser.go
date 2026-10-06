@@ -83,20 +83,29 @@ func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error)
 // readFile reads the file into b.src, followed by the zero padding the
 // scanner expects, and returns the content length.
 func (b *parseBuffers) readFile(path string) (int, error) {
+	n, _, _, err := b.readFileKey(path)
+
+	return n, err
+}
+
+// readFileKey is readFile, also returning the identity of the file read
+// (keyed false when it has none).
+func (b *parseBuffers) readFileKey(path string) (n int, key fileKey, keyed bool, err error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return 0, err
+		return 0, fileKey{}, false, err
 	}
 	defer f.Close()
 	size := 0
-	if info, err := f.Stat(); err == nil && info.Mode().IsRegular() {
+	if key, keyed = fstatKey(f); keyed {
+		size = int(key.size)
+	} else if info, err := f.Stat(); err == nil && info.Mode().IsRegular() {
 		size = int(info.Size())
 	}
 	if cap(b.src) < size+stripPadding+1 {
 		b.src = make([]byte, 0, size+stripPadding+512)
 	}
 	src := b.src[:cap(b.src)]
-	n := 0
 	for {
 		if len(src)-n < stripPadding+1 {
 			src = append(src, make([]byte, len(src))...)
@@ -107,19 +116,24 @@ func (b *parseBuffers) readFile(path string) (int, error) {
 		if errors.Is(err, io.EOF) {
 			break
 		}
+		// a regular file read up to its size is complete (saves the read
+		// returning end of file)
+		if err == nil && size > 0 && n == size {
+			break
+		}
 		if err != nil {
 			if errors.Is(err, syscall.EISDIR) {
 				// A directory opens but reads nothing.
-				return 0, nil
+				return 0, fileKey{}, false, nil
 			}
 
-			return 0, err
+			return 0, fileKey{}, false, err
 		}
 	}
 	clear(src[n : n+stripPadding])
 	b.src = src
 
-	return n, nil
+	return n, key, keyed, nil
 }
 
 // parseSite is where findClasses() throws when the file cannot be read.
@@ -224,21 +238,30 @@ func typeKeyword(c []byte, i int) string {
 // stopping at 2 as only "none" and "exactly one" matter to the caller.
 func countTypeKeywords(c []byte) int {
 	n := 0
-	for i := 0; i < len(c); i++ {
-		if !typeStart[c[i]] || i > 0 && isWordChar[c[i-1]] {
+	// \b before a word character is the start of a word: only word
+	// starts are tried, then the rest of the word is skipped.
+	for i := 0; i < len(c); {
+		if !isWordChar[c[i]] {
+			i++
+
 			continue
 		}
-		kw := typeKeyword(c, i)
-		if kw == "" || kw == "namespace" {
-			continue
-		}
-		end := i + len(kw)
-		if end < len(c) && isPcreSpace[c[end]] {
-			n++
-			if n == 2 {
-				return n
+		if c[i]|0x20 != 'n' && typeStart[c[i]] {
+			if kw := typeKeyword(c, i); kw != "" {
+				end := i + len(kw)
+				if end < len(c) && isPcreSpace[c[end]] {
+					n++
+					if n == 2 {
+						return n
+					}
+					i = end
+
+					continue
+				}
 			}
-			i = end
+		}
+		for i < len(c) && isWordChar[c[i]] {
+			i++
 		}
 	}
 

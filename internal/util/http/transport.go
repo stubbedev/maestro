@@ -125,6 +125,8 @@ type transferResult struct {
 type transportPool struct {
 	mu         sync.Mutex
 	transports map[transportKey]*http.Client
+	// pre are the connections opened ahead (Preconnect).
+	pre map[preKey]*preconn
 }
 
 func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (*http.Client, *transferResult) {
@@ -140,16 +142,8 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 		return nil, failure
 	}
 
-	network := "tcp"
-
-	switch key.ipResolve {
-	case 4:
-		network = "tcp4"
-	case 6:
-		network = "tcp6"
-	}
-
-	dialer := &net.Dialer{Timeout: connectTimeout, KeepAlive: 60 * time.Second}
+	network := dialNetwork(key)
+	dialer := newDialer(connectTimeout)
 
 	t := &http.Transport{
 		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
@@ -167,6 +161,18 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 
 	if key.http1 {
 		t.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+	}
+
+	if key.proxy == "" {
+		// direct https: net/http's own TLS dial (dialTLS), unless a
+		// connection was opened ahead (Preconnect)
+		t.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+			if c := p.takePreconnected(ctx, key, addr); c != nil {
+				return c, nil
+			}
+
+			return dialTLS(ctx, dialer, network, addr, t.TLSClientConfig, t.TLSHandshakeTimeout)
+		}
 	}
 
 	if key.proxy != "" {

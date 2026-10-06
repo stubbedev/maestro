@@ -55,6 +55,11 @@ type Generator struct {
 	extensions   []string
 	scannedFiles *FileList
 	classMap     ClassMap
+	// pre holds what Prefetch found and parsed ahead of the scans (nil:
+	// nothing).
+	pre *prefetched
+	// cache keeps parse results across scans and generators (nil: none).
+	cache *ParseCache
 }
 
 // NewGenerator returns a generator scanning files with the given extensions
@@ -65,6 +70,14 @@ func NewGenerator(extensions []string) *Generator {
 	}
 
 	return &Generator{Parser: DefaultParser, extensions: extensions}
+}
+
+// SetParseCache makes the generator take parse results from the cache and
+// keep its own there.
+func (g *Generator) SetParseCache(cache *ParseCache) *Generator {
+	g.cache = cache
+
+	return g
 }
 
 // AvoidDuplicateScans makes sure that, when ScanPaths is called repeatedly
@@ -118,7 +131,7 @@ func (g *Generator) ScanPaths(path string, excluded Matcher, autoloadType Autolo
 		return newException(phperr.At("ClassMapGenerator.php", 136), classRuntime, `Could not scan for classes inside "`+path+`" which does not appear to be a file nor a folder`)
 	}
 
-	cwd, err := realCwd()
+	cwd, err := g.realCwd()
 	if err != nil {
 		return err
 	}
@@ -127,7 +140,11 @@ func (g *Generator) ScanPaths(path string, excluded Matcher, autoloadType Autolo
 	// files it yielded before them have been processed.
 	files, walkErr := []foundFile{{path: path}}, error(nil)
 	if dirs != nil {
-		files, walkErr = finderFiles(dirs, excludedDirs)
+		if w, ok := g.pre.walk(path, excludedDirs); ok {
+			files, walkErr = w.files, w.err
+		} else {
+			files, walkErr = finderFiles(dirs, excludedDirs)
+		}
 	}
 
 	return g.scan(files, walkErr, cwd, excluded, autoloadType, namespace, path)
@@ -165,24 +182,7 @@ type scanItem struct {
 // The files are resolved and parsed in parallel; the class map is then
 // built sequentially in file order.
 func (g *Generator) scan(files []foundFile, walkErr error, cwd string, excluded Matcher, typ AutoloadType, namespace, basePath string) error {
-	items := make([]scanItem, 0, len(files))
-	for _, f := range files {
-		if !g.hasExtension(f.path) {
-			continue
-		}
-		it := scanItem{}
-		if !isAbsolutePath(f.path) && !isStreamWrapperPath(f.path) {
-			joined := cwd + "/" + f.path
-			it.filePath = normalizePath(joined)
-			// The Finder's knowledge applies if the path still names the
-			// directory entry it read.
-			it.notLink = f.notLink && cwd != "" && it.filePath == joined
-		} else {
-			it.filePath = collapseSeparators(f.path)
-			it.notLink = f.notLink && it.filePath == f.path
-		}
-		items = append(items, it)
-	}
+	items := g.scanItems(files, cwd)
 
 	g.prepare(items, excluded)
 
@@ -242,8 +242,36 @@ func (g *Generator) scan(files []foundFile, walkErr error, cwd string, excluded 
 // and parses the files the sequential pass will need, in parallel. Files
 // already in the scanned list are not parsed: the list only grows, so the
 // sequential pass skips them too.
+// scanItems are the items of the files that have a scanned extension, with
+// their paths as scanPaths() builds them.
+func (g *Generator) scanItems(files []foundFile, cwd string) []scanItem {
+	items := make([]scanItem, 0, len(files))
+	for _, f := range files {
+		if !g.hasExtension(f.path) {
+			continue
+		}
+		it := scanItem{}
+		if !isAbsolutePath(f.path) && !isStreamWrapperPath(f.path) {
+			joined := cwd + "/" + f.path
+			it.filePath = normalizePath(joined)
+			// The Finder's knowledge applies if the path still names the
+			// directory entry it read.
+			it.notLink = f.notLink && cwd != "" && it.filePath == joined
+		} else {
+			it.filePath = collapseSeparators(f.path)
+			it.notLink = f.notLink && it.filePath == f.path
+		}
+		items = append(items, it)
+	}
+
+	return items
+}
+
 func (g *Generator) prepare(items []scanItem, excluded Matcher) {
-	var dirs realDirCache
+	dirs := &realDirCache{}
+	if g.pre != nil {
+		dirs = &g.pre.dirs
+	}
 	work := func(b *parseBuffers, it *scanItem) {
 		if isStreamWrapperPath(it.filePath) {
 			it.realPath = it.filePath
@@ -277,7 +305,12 @@ func (g *Generator) prepare(items []scanItem, excluded Matcher) {
 				}
 			}
 		}
-		it.classes, it.parseErr = g.Parser.findClasses(b, it.filePath)
+		if r, ok := g.pre.parsed(it.filePath); ok {
+			it.classes, it.parseErr = r.classes, r.err
+
+			return
+		}
+		it.classes, it.parseErr = g.Parser.cachedFindClasses(b, it.filePath, g.cache)
 	}
 
 	workers := min(runtime.GOMAXPROCS(0), len(items))
@@ -375,14 +408,10 @@ func (g *Generator) filterByNamespace(classes []string, filePath, baseNamespace 
 	if len(validClasses) > 0 {
 		return validClasses, nil
 	}
-	cwd, err := getCwd()
+	cwd, err := g.violationCwd()
 	if err != nil {
 		return nil, err
 	}
-	if real, ok := realpath(cwd); ok {
-		cwd = real
-	}
-	cwd = normalizePath(cwd)
 	shortPath := replaceCwd(normalizePath(filePath), cwd)
 	shortBasePath := replaceCwd(normalizePath(basePath), cwd)
 	for _, class := range rejectedClasses {
@@ -391,6 +420,38 @@ func (g *Generator) filterByNamespace(classes []string, filePath, baseNamespace 
 	}
 
 	return nil, nil
+}
+
+// realCwd is realCwd(), computed once after Prefetch (the working
+// directory does not change during the scans).
+func (g *Generator) realCwd() (string, error) {
+	if g.pre != nil && g.pre.realCwdOK {
+		return g.pre.realCwd, nil
+	}
+
+	return realCwd()
+}
+
+// violationCwd is the normalized realpath of the working directory that
+// PSR violation messages are relative to (computed once after Prefetch:
+// the working directory does not change during the scans).
+func (g *Generator) violationCwd() (string, error) {
+	if g.pre != nil && g.pre.cwd != "" {
+		return g.pre.cwd, nil
+	}
+	cwd, err := getCwd()
+	if err != nil {
+		return "", err
+	}
+	if real, ok := realpath(cwd); ok {
+		cwd = real
+	}
+	cwd = normalizePath(cwd)
+	if g.pre != nil {
+		g.pre.cwd = cwd
+	}
+
+	return cwd, nil
 }
 
 // replaceCwd is Preg::replace('{^'.preg_quote($cwd).'}', '.', $path, 1).

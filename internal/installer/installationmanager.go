@@ -42,6 +42,9 @@ type Manager struct {
 	eventDispatcher EventDispatcher
 	outputProgress  bool
 	metadata        *downloader.Metadata
+	// flushWrites flushes the repository writes deferred while a batch is
+	// waited on (deferWrites), nil outside that time.
+	flushWrites func() error
 }
 
 var _ repository.InstallationManager = (*Manager)(nil)
@@ -262,6 +265,9 @@ func (m *Manager) handleSignals(cl *cleanups) func() {
 
 	handle := func(sig os.Signal) {
 		m.io.WriteError("Received "+util.SignalName(sig)+", aborting", true, mio.Debug)
+		if m.flushWrites != nil {
+			_ = m.flushWrites()
+		}
 		_ = m.runCleanup(cl)
 		util.ExitWithSignal(sig)
 	}
@@ -564,7 +570,12 @@ func (m *Manager) executeBatch(repo repository.InstalledRepositoryInterface, ope
 
 	// execute all prepare => installs/updates/removes => cleanup steps
 	if len(promises) > 0 {
-		if err := m.waitOnPromises(promises); err != nil {
+		flush := m.deferWrites(repo, operations)
+		err := m.waitOnPromises(promises)
+		if ferr := flush(); err == nil {
+			err = ferr
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -762,18 +773,67 @@ func (m *Manager) SetOutputProgress(outputProgress bool) {
 // NotifyInstalls is notifyInstalls(): it reports the installed packages to
 // their repositories' notification URLs. Failures are ignored.
 func (m *Manager) NotifyInstalls(mio.IO) {
-	_ = m.notifyInstalls()
+	if m.loop != nil {
+		var promises []*Promise
+		err := m.sendNotifications(func(url string, opts *php.Array) error {
+			promise, err := m.loop.HttpDownloader().Add(url, opts)
+			if err == nil {
+				promises = append(promises, Of(promise))
+			}
+
+			return err
+		})
+		if err == nil {
+			_ = wait(m.loop, promises, nil)
+		}
+	}
 
 	m.Reset()
 }
 
-func (m *Manager) notifyInstalls() error {
+// NotifyInstallsAsync is NotifyInstalls returning before the requests
+// complete, with the function waiting for them (deliberate deviation 3,
+// speed): Composer waits for its install notifications right away, but
+// their responses are ignored and, below -vvv, nothing about them is
+// printed, so the caller can go on and wait at its end. The requests run
+// as synchronous requests on their own goroutine, so that waiting for them
+// runs nothing else of the loop.
+func (m *Manager) NotifyInstallsAsync(mio.IO) (waitFor func()) {
 	if m.loop == nil {
-		return nil
+		m.Reset()
+
+		return func() {}
 	}
 
-	var promises []*Promise
+	// Loop::wait() also finishes all the other work in progress, which
+	// must be done here as in Composer
+	_ = wait(m.loop, nil, nil)
 
+	type request struct {
+		url  string
+		opts *php.Array
+	}
+	var requests []request
+	_ = m.sendNotifications(func(url string, opts *php.Array) error {
+		requests = append(requests, request{url, opts})
+
+		return nil
+	})
+
+	m.Reset()
+
+	var done sync.WaitGroup
+	downloader := m.loop.HttpDownloader()
+	for _, r := range requests {
+		done.Go(func() { _, _ = downloader.Get(r.url, r.opts) })
+	}
+
+	return done.Wait
+}
+
+// sendNotifications builds notifyInstalls()' requests and hands each to
+// send, stopping at the first error, as Composer's add() throwing does.
+func (m *Manager) sendNotifications(send func(url string, opts *php.Array) error) error {
 	for _, group := range m.notifiable {
 		repoURL := group.url
 		packages := group.packages
@@ -796,12 +856,9 @@ func (m *Manager) notifyInstalls() error {
 				opts.Set("retry-auth-failure", false)
 				opts.Set("http", httpOpts)
 
-				promise, err := m.loop.HttpDownloader().Add(url, opts)
-				if err != nil {
+				if err := send(url, opts); err != nil {
 					return err
 				}
-
-				promises = append(promises, Of(promise))
 			}
 
 			continue
@@ -850,15 +907,12 @@ func (m *Manager) notifyInstalls() error {
 		opts.Set("retry-auth-failure", false)
 		opts.Set("http", httpOpts)
 
-		promise, err := m.loop.HttpDownloader().Add(repoURL, opts)
-		if err != nil {
+		if err := send(repoURL, opts); err != nil {
 			return err
 		}
-
-		promises = append(promises, Of(promise))
 	}
 
-	return wait(m.loop, promises, nil)
+	return nil
 }
 
 // notifyGroup is one entry of $notifiablePackages: the packages to
@@ -880,6 +934,11 @@ func (m *Manager) markForNotification(p pkg.PackageInterface) {
 	if i < 0 {
 		m.notifiable = append(m.notifiable, &notifyGroup{url: url.S})
 		i = len(m.notifiable) - 1
+		// notifyInstalls will post to it: the connection is opened while
+		// the installation goes on (deliberate deviation 3)
+		if m.loop != nil {
+			m.loop.HttpDownloader().Preconnect(url.S, nil)
+		}
 	}
 
 	group := m.notifiable[i]

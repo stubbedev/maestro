@@ -74,11 +74,14 @@ type HttpDownloader struct {
 	options     *php.Array
 	runningJobs int
 	maxJobs     int
-	curl        *CurlDownloader
-	rfs         *RemoteFilesystem
-	idGen       int
-	disabled    bool
-	allowAsync  bool
+	// burstJobs (0: none) is how many https requests may run at once when
+	// nothing shows when requests start (see canStart).
+	burstJobs  int
+	curl       *CurlDownloader
+	rfs        *RemoteFilesystem
+	idGen      int
+	disabled   bool
+	allowAsync bool
 	// sched runs the completions of asynchronous requests.
 	sched *util.Scheduler
 	// settles are the promise settlements decided with mu held, run once
@@ -134,6 +137,8 @@ func NewHttpDownloader(ioi io.IO, config Config, options *php.Array, disableTLS 
 
 	if v, ok := util.GetEnv("COMPOSER_MAX_PARALLEL_HTTP"); ok && php.IsNumeric(v) {
 		h.maxJobs = int(max(1, min(50, php.ToInt(v))))
+	} else if !ioi.IsDebug() {
+		h.burstJobs = defaultBurstJobs
 	}
 
 	return h, nil
@@ -297,7 +302,7 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 	h.jobs = append(h.jobs, job)
 	h.byID[job.id] = job
 
-	if sync || h.runningJobs < h.maxJobs {
+	if sync || h.canStart(job) {
 		h.startJob(job)
 	}
 
@@ -430,14 +435,34 @@ func (h *HttpDownloader) countQueued() int {
 // startQueued starts queued jobs while slots are free; h.mu is held.
 func (h *HttpDownloader) startQueued() {
 	for _, job := range h.jobs {
-		if h.runningJobs >= h.maxJobs {
+		if h.runningJobs >= max(h.maxJobs, h.burstJobs) {
 			return
 		}
 
-		if job.status == statusQueued {
+		if job.status == statusQueued && h.canStart(job) {
 			h.startJob(job)
 		}
 	}
+}
+
+// defaultBurstJobs is how many https requests maestro runs at once by
+// default where nothing shows the difference.
+const defaultBurstJobs = 48
+
+// canStart reports whether a queued job may start now. Composer runs at
+// most COMPOSER_MAX_PARALLEL_HTTP (12) requests at once, a limit of its
+// curl set-up rather than of anything it shows (deliberate deviation 3,
+// speed): unless that variable is set, maestro lets up to 48 https
+// requests run at once, the queue only mattering for what is printed when
+// a request starts: the -vvv "Downloading" lines (so not at -vvv) and the
+// insecure-protocol warning of plain http URLs, which keep Composer's
+// limit. h.mu is held.
+func (h *HttpDownloader) canStart(job *httpJob) bool {
+	if h.runningJobs < h.maxJobs {
+		return true
+	}
+
+	return h.runningJobs < h.burstJobs && strings.HasPrefix(job.url, "https://")
 }
 
 // markJobDone is markJobDone(): the job frees its slot; h.mu is held.

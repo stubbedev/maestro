@@ -280,9 +280,29 @@ func StrtrPairs(s string, pairs map[string]string) string {
 	}
 	// Longest keys first, so the first hit at a position is the longest.
 	sort.Slice(keys, func(i, j int) bool { return len(keys[i]) > len(keys[j]) })
+	// Every key starts with the keys' common prefix: only positions where
+	// it occurs can match, so the scan jumps from one to the next.
+	common := keys[0]
+	for _, k := range keys[1:] {
+		n := 0
+		for n < len(common) && n < len(k) && common[n] == k[n] {
+			n++
+		}
+		common = common[:n]
+	}
 	var b strings.Builder
 	last := 0
 	for i := 0; i+minLen <= len(s); {
+		if common != "" {
+			j := strings.Index(s[i:], common)
+			if j < 0 {
+				break
+			}
+			i += j
+			if i+minLen > len(s) {
+				break
+			}
+		}
 		found := false
 		for _, k := range keys {
 			if strings.HasPrefix(s[i:], k) {

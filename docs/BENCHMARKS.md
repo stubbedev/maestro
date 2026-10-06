@@ -1,5 +1,84 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## Per command, real-world projects (perf task, 2026-10-06)
+
+Machine: Linux 7.0 x86-64, 8 cores, 30 GB RAM, /tmp on tmpfs (so the
+store imports by hardlink), php 8.4.25 of the dev shell (58 extensions),
+real Packagist/GitHub network (~24 ms round trip). Other agents' test
+suites were running on the same machine, so absolute times are noisy; each
+row ran the three tools back to back under the same conditions.
+
+Method (scripts kept out of the repo): the laravel, symfony and kontainer
+projects of the e2e suite (composer.json + composer.lock after its
+create-project/require steps), each command with `--no-plugins
+--no-scripts` (kontainer also `--ignore-platform-reqs`), per tool its own
+COMPOSER_HOME/COMPOSER_CACHE_DIR/MAESTRO_CACHE_DIR and
+COMPOSER_TEST_SUITE=1. *cold*: empty caches and store, `install` (one
+run). *warm install*: caches and store warm, a fresh copy of the project
+(no vendor/), `install`; that is also the "new worktree" case.
+*no-op install*: `install` with vendor/ in place. *dump -o*:
+`dump-autoload -o`. *update --dry-run*: warm metadata cache. Warm rows are
+the median of 5 hyperfine runs after a warm-up. "before" is f33729d (the tree
+the perf task started from), "after" is the perf task's tree.
+
+| Project | Command | Composer | maestro before | | maestro after | |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | cold install | 7.01s | 4.28s | 1.6x | 2.52s | 2.8x |
+| laravel | warm install | 3.12s | 0.58s | 5.3x | 0.27s | 11.4x |
+| laravel | no-op install | 1.71s | 0.27s | 6.4x | 0.22s | 7.8x |
+| laravel | dump-autoload -o | 0.58s | 0.18s | 3.3x | 0.12s | 5.0x |
+| laravel | update --dry-run | 2.46s | 0.89s | 2.8x | 0.71s | 3.4x |
+| symfony | cold install | 7.52s | 3.50s | 2.1x | 2.74s | 2.7x |
+| symfony | warm install | 2.83s | 0.60s | 4.7x | 0.29s | 9.8x |
+| symfony | no-op install | 1.30s | 0.18s | 7.2x | 0.18s | 7.2x |
+| symfony | dump-autoload -o | 0.66s | 0.17s | 3.9x | 0.12s | 5.7x |
+| symfony | update --dry-run | 5.41s | 1.58s | 3.4x | 1.35s | 4.0x |
+| kontainer | cold install | 18.15s | 13.54s | 1.3x | 8.88s | 2.0x |
+| kontainer | warm install | 8.69s | 2.86s | 3.0x | 1.16s | 7.5x |
+| kontainer | no-op install | 5.18s | 0.97s | 5.4x | 0.72s | 7.2x |
+| kontainer | dump-autoload -o | 3.91s | 0.86s | 4.6x | 0.65s | 6.0x |
+| kontainer | update --dry-run | 5.62s | 2.09s | 2.7x | 1.61s | 3.5x |
+| basic (e2e fixture) | warm-worktree `install`, offline | 0.34s | 0.19s | 1.8x | 0.14s | 2.4x |
+
+What the profiles (`go build -tags maestro_profile`: MAESTRO_CPUPROFILE,
+MAESTRO_TRACE, MAESTRO_MEMPROFILE) showed, and what changed:
+
+- Warm install was dominated by InstallationManager writing installed.json
+  and installed.php after every operation, each with every package
+  (O(n²): 1.8 s of kontainer's 5 s). Batches handled only by maestro's own
+  installers now write once, as the last write would have.
+- The autoload dump scanned each autoload rule separately (parallel only
+  within one rule, ~3 cores busy): all files are now walked and parsed in
+  one parallel pass first, then the rules are applied in Composer's order.
+  Parse results are kept by content hash in maestro's cache dir, so
+  unchanged files are read and hashed, not tokenized (-40% CPU); strtr()
+  of autoload_static.php and the class-keyword pre-scan got faster.
+- Cold installs waited on the 12-request limit (completions are taken in
+  start order, so a slow download held its slot's successors): below -vvv
+  up to 48 https requests now run at once.
+- The install notification (a POST to packagist.org) is no longer waited
+  for before the autoload dump (below -vvv, where nothing about it is
+  printed), and its TLS connection is opened while packages install.
+
+Targets not met, and why:
+
+- Warm install ≥5x: met (7.5–11x). Cold: bound by the network (GitHub
+  zipball generation and redirects); 2–2.8x.
+- Warm worktree ≥10x: laravel 11x, symfony ~10x, kontainer 7.5x. In
+  kontainer, ~0.3 s is one package installed from source (git clone,
+  checkout and reset, which Composer runs as well) and ~0.2 s the
+  conditional requests every install makes (packages.json and the filter
+  list); the rest is the autoload dump of 75k files. The e2e warm-worktree
+  fixture (offline, 52 packages) is 2.4x: its floor is processes Composer
+  runs too: the php probe (~20 ms, needed before anything prints), the
+  root version guessing (git/hg/fossil/svn, ~15 ms) and two `@php`
+  scripts (~55 ms), against Composer's 0.34 s.
+- update/require: the metadata loads in waves (one round trip per level of
+  the dependency graph), as Composer's; 3.4–4x here (the 5–6x of the
+  resolver alone is unchanged).
+
+## e2e suite (before the perf task)
+
 Wall time of the end-to-end suite (`cmd/maestro`, `MAESTRO_E2E=1 go test -run TestE2E`),
 summed over each scenario's steps. Every scenario runs with the official
 composer.phar 2.10.3 and with maestro, from cold caches (empty

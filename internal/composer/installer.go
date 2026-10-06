@@ -306,6 +306,13 @@ func (i *Installer) Run() (int, error) {
 
 	localRepo := i.repositoryManager.LocalRepository()
 
+	var notified func()
+	defer func() {
+		if notified != nil {
+			notified()
+		}
+	}()
+
 	notifyOnInstall := func() error {
 		if !i.executeOperations || !i.install {
 			return nil
@@ -313,6 +320,14 @@ func (i *Installer) Run() (int, error) {
 		notify, err := i.configBool("notify-on-install")
 		if err != nil || !notify {
 			return err
+		}
+
+		// below -vvv nothing shows when the notifications complete:
+		// they are waited for when the run ends (deliberate deviation 3)
+		if a, ok := i.installationManager.(asyncNotifier); ok && !i.io.IsDebug() {
+			notified = a.NotifyInstallsAsync(i.io)
+
+			return nil
 		}
 
 		i.installationManager.NotifyInstalls(i.io)
@@ -335,6 +350,12 @@ func (i *Installer) Run() (int, error) {
 	}
 	if res != 0 {
 		return res, nil
+	}
+	// the autoload dump below scans the installed files: they are parsed
+	// while the install notifications are sent, when they are waited for
+	// (deliberate deviation 3)
+	if w, ok := i.autoloadGenerator.(autoloadWarmer); ok && i.dumpAutoloader && i.io.IsDebug() {
+		w.WarmAutoloads(i.config, localRepo, i.pkg, i.installationManager, i.optimizeAutoloader || i.classMapAuthoritative)
 	}
 	if err := notifyOnInstall(); err != nil {
 		return 0, err
@@ -1626,4 +1647,16 @@ func (i *Installer) createFilterListPoolFilter(blockScope string) (*resolver.Fil
 	}
 
 	return resolver.NewFilterListPoolFilter(policyConfig, filterlist.FilterListAuditor{}, getter(i.repositoryManager), blockScope, i.repositoryManager.Repositories(), i.io), nil
+}
+
+// autoloadWarmer is an AutoloadGenerator that can parse ahead
+// (GeneratorAdapter).
+type autoloadWarmer interface {
+	WarmAutoloads(config ConfigReader, localRepo repository.InstalledRepositoryInterface, root pkg.RootPackageInterface, im InstallationManager, scanPsrPackages bool)
+}
+
+// asyncNotifier is an InstallationManager that can send the install
+// notifications without waiting for them (installer.Manager).
+type asyncNotifier interface {
+	NotifyInstallsAsync(out io.IO) (waitFor func())
 }
