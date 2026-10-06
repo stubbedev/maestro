@@ -160,11 +160,6 @@ func (a *Application) RunFrom(file string, line int, in console.Input, out conso
 // ClassName implements console.ClassNamer.
 func (*Application) ClassName() string { return `Composer\Console\Application` }
 
-// DoRunCommand is Symfony's doRunCommand().
-func (a *Application) DoRunCommand(cmd console.Commander, in console.Input, out console.Output) (int, error) {
-	return a.Application.DoRunCommand(cmd, in, out)
-}
-
 // pushCallFrame is the console's CallHook: the methods Composer's PHP
 // stack holds while they run, with their objects and arguments, go on the
 // frame stack the plugin runtime reports to debug_backtrace()

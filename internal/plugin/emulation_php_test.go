@@ -186,11 +186,11 @@ func TestInternals_AsyncProcessesOnMaestrosLoop(t *testing.T) {
 		t.Errorf("CountActiveJobs = %d, %v; want PHP's 2 processes", n, err)
 	}
 	// maestro's own wait (an Installer's, a download's) runs them to
-	// the end, and their callbacks
+	// the end, and their callbacks (in the order the processes finish)
 	if err := l.Wait(nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := lines(evalPHP(t, p.rt, `return $GLOBALS['maestroAsync'];`, nil)); got != "one\ntwo" {
+	if got := lines(evalPHP(t, p.rt, `$seen = $GLOBALS['maestroAsync']; sort($seen); return $seen;`, nil)); got != "one\ntwo" {
 		t.Errorf("the callbacks saw %q", got)
 	}
 	if n, err := l.CountActiveJobs(); err != nil || n != 0 {
