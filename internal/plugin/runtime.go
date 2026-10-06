@@ -141,6 +141,8 @@ type Runtime struct {
 	// phpRunInstallers are the Installers maestro runs for a PHP
 	// Installer's run(), whose frame is PHP's own (frames.go).
 	phpRunInstallers map[*composer.Installer]bool
+	// removeWaitHook removes the started channel's wait hook (Start).
+	removeWaitHook func()
 }
 
 // New returns a Runtime; it starts nothing.
@@ -306,8 +308,25 @@ func (r *Runtime) Start(purpose string) error {
 	defer r.mu.Unlock()
 
 	r.conn, r.startErr = conn, err
+	if conn != nil {
+		// the calls parallel work posts for the goroutine holding the
+		// baton run while it waits for that work (rpc.Conn.Run)
+		r.removeWaitHook = util.AddWaitHook(conn.ServePosted)
+	}
 
 	return err
+}
+
+// dropWaitHook removes the wait hook of the started channel.
+func (r *Runtime) dropWaitHook() {
+	r.mu.Lock()
+	remove := r.removeWaitHook
+	r.removeWaitHook = nil
+	r.mu.Unlock()
+
+	if remove != nil {
+		remove()
+	}
 }
 
 func (r *Runtime) start(purpose string) (*rpc.Conn, error) {
@@ -543,6 +562,7 @@ func (r *Runtime) Shutdown(code int) (int, error) {
 		return code, nil
 	}
 	defer r.removeTmpIni()
+	defer r.dropWaitHook()
 
 	return conn.Shutdown(code)
 }
@@ -558,6 +578,7 @@ func (r *Runtime) Close() {
 		c.Kill()
 		c.Wait()
 	}
+	r.dropWaitHook()
 	r.removeTmpIni()
 }
 

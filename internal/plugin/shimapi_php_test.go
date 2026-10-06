@@ -438,3 +438,50 @@ func TestShimAPI_ErrorHandler(t *testing.T) {
 		}
 	}
 }
+
+// An IO created in PHP gets the calls maestro's parallel work makes, in
+// their order, as Composer's one thread makes them: a process's output
+// (ProcessExecutor's outputHandler), and calls from other goroutines while
+// the goroutine holding the PHP baton waits for them.
+func TestShimAPI_IOFromParallelWork(t *testing.T) {
+	requirePHP(t)
+
+	rt, _, _ := newTestRuntime(t)
+	rt.Handle("test.parallelIO", func(v any) (any, error) {
+		a := argsOf("test.parallelIO", v)
+		out, _, err := rt.ioParam(a, 0)
+		if err != nil {
+			return nil, err
+		}
+		work := make(chan struct{})
+		go func() {
+			defer close(work)
+			out.WriteError("from a goroutine", true, io.Normal)
+			if out.IsVerbose() {
+				out.WriteError("verbose", true, io.Normal)
+			}
+			out.WriteError("its last line", true, io.Normal)
+		}()
+		util.WaitServing(work)
+		out.WriteError("after the work", true, io.Normal)
+
+		return nil, nil
+	})
+	start(t, rt)
+
+	got := evalPHP(t, rt, `
+		$io = new \Composer\IO\BufferIO('', \Symfony\Component\Console\Output\OutputInterface::VERBOSITY_VERBOSE);
+		$out = [];
+		(new \Composer\Util\ProcessExecutor($io))->execute('printf "one\n"; sleep 0.1; printf "two\n" >&2; sleep 0.1; printf "three\n"');
+		$out[] = $io->getOutput();
+
+		$io = new \Composer\IO\BufferIO('', \Symfony\Component\Console\Output\OutputInterface::VERBOSITY_VERBOSE);
+		\Maestro\Shim\Rpc::call('test.parallelIO', [$io]);
+		$out[] = $io->getOutput();
+
+		return implode('|', $out);
+	`, nil)
+	if want := "one\ntwo\nthree\n|from a goroutine\nverbose\nits last line\nafter the work\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

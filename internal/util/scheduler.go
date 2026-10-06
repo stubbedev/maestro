@@ -218,8 +218,14 @@ func (s *Scheduler) WaitReady(timeout time.Duration, stop <-chan struct{}) {
 			return
 		}
 
+		// what parallel work posted to the driving goroutine runs while it
+		// waits (wait hooks)
+		hook := waitHookWake()
+		RunWaitHooks()
+
 		select {
 		case <-s.wake:
+		case <-hook:
 		case <-stop:
 			return
 		case <-expired:
@@ -261,9 +267,13 @@ func (s *Scheduler) step(done <-chan struct{}) {
 	timer := time.NewTimer(10 * time.Millisecond)
 	defer timer.Stop()
 
+	hook := waitHookWake()
+	RunWaitHooks()
+
 	select {
 	case <-done:
 	case <-s.wake:
+	case <-hook:
 	case <-timer.C:
 	}
 }

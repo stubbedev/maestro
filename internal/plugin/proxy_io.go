@@ -15,10 +15,12 @@ import (
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 )
 
-// phpIO is an IO created in PHP as maestro uses it. Failures of the calls
-// that cannot return one (writes; PHP ending, or maestro's parallel work
-// calling it off the PHP baton, docs/PLUGINS.md §5.14) are dropped; the
-// flags then read false.
+// phpIO is an IO created in PHP as maestro uses it. maestro's parallel
+// work (a process's output, a download's) calls it too: Composer makes
+// those calls on its one thread, in the order the work makes them, so
+// they reach PHP in that order through the goroutine driving the flow
+// (callAnywhere). Failures of the calls that cannot return one (writes;
+// PHP ending) are dropped; the flags then read false.
 type phpIO struct {
 	r   *Runtime
 	obj *rpc.PHPObject
@@ -26,8 +28,11 @@ type phpIO struct {
 
 func (p *phpIO) phpObject() *rpc.PHPObject { return p.obj }
 
+// ForeignIO implements io.Foreign.
+func (*phpIO) ForeignIO() {}
+
 func (p *phpIO) call(method string, params ...any) (any, error) {
-	return p.r.callObject(p.obj, method, params...)
+	return p.r.callAnywhere(true, p.obj, method, params...)
 }
 
 func (p *phpIO) flag(method string) bool {
@@ -36,7 +41,41 @@ func (p *phpIO) flag(method string) bool {
 	return err == nil && php.ToBool(v)
 }
 
-func (p *phpIO) do(method string, params ...any) { _, _ = p.call(method, params...) }
+// do is a call whose result does not matter: from parallel work, it is
+// posted without waiting for it.
+func (p *phpIO) do(method string, params ...any) {
+	_, _ = p.r.callAnywhere(false, p.obj, method, params...)
+}
+
+// callAnywhere is callObject from any goroutine (rpc.Conn.Run): at once
+// on the goroutine holding the PHP baton (or taking it, when free);
+// from other goroutines posted to the holder, which makes the call when
+// it next calls PHP or waits for parallel work (docs/PLUGINS.md §5.14),
+// waiting for the result unless wait is false.
+func (r *Runtime) callAnywhere(wait bool, obj *rpc.PHPObject, method string, params ...any) (any, error) {
+	conn, err := r.started()
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		v    any
+		cerr error
+	)
+	done := make(chan struct{})
+	if conn.Run(func() {
+		v, cerr = r.callObject(obj, method, params...)
+		close(done)
+	}) {
+		return v, cerr
+	}
+	if !wait {
+		return nil, nil
+	}
+	<-done
+
+	return v, cerr
+}
 
 // IsInteractive implements io.IO.
 func (p *phpIO) IsInteractive() bool { return p.flag("isInteractive") }

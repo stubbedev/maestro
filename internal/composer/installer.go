@@ -325,8 +325,10 @@ func (i *Installer) Run() (int, error) {
 		}
 
 		// below -vvv nothing shows when the notifications complete:
-		// they are waited for when the run ends (deliberate deviation 3)
-		if a, ok := i.installationManager.(asyncNotifier); ok && !i.io.IsDebug() {
+		// they are waited for when the run ends (deliberate deviation 3);
+		// an IO created in PHP sees every call, so it gets Composer's
+		// (and no isDebug() of maestro's)
+		if a, ok := i.installationManager.(asyncNotifier); ok && !io.IsForeign(i.io) && !i.io.IsDebug() {
 			notified = a.NotifyInstallsAsync(i.io)
 
 			return nil

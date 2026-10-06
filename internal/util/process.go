@@ -86,10 +86,21 @@ type Process struct {
 	timedOut     bool
 	timer        *time.Timer
 
-	outMu  sync.Mutex // guards the buffers
+	outMu  sync.Mutex // guards the buffers and the chunks
 	stdout bytes.Buffer
 	stderr bytes.Buffer
-	cbMu   sync.Mutex // serialises callbacks
+	// callback is start()'s; it gets the chunks of output on the goroutine
+	// waiting for the process (Wait), as Symfony's wait() calls it from
+	// readPipes() on PHP's one thread
+	callback func(typ, buffer string)
+	chunks   []processChunk // the output the callback has not had yet
+	arrived  chan struct{}  // signalled when a chunk arrives
+	cbMu     sync.Mutex     // serialises deliveries
+}
+
+// processChunk is a chunk of a process's output.
+type processChunk struct {
+	typ, buffer string
 }
 
 // NewProcess ports `new Process($command, $cwd, $env, null, $timeout)`. An
@@ -168,7 +179,7 @@ func joinEscaped(args []string, windows bool) string {
 }
 
 // Run ports Process::run: starts the process and waits for it. callback
-// receives output chunks as they arrive.
+// receives output chunks as they arrive, on the calling goroutine (Wait).
 func (p *Process) Run(callback func(typ, buffer string)) (int, error) {
 	if err := p.Start(callback); err != nil {
 		return 0, err
@@ -189,6 +200,7 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	p.outMu.Lock()
 	p.stdout.Reset()
 	p.stderr.Reset()
+	p.callback, p.chunks, p.arrived = callback, nil, make(chan struct{}, 1)
 	p.outMu.Unlock()
 
 	p.exitCode, p.termSig, p.latestSignal, p.timedOut, p.exited = 0, 0, 0, false, false
@@ -257,8 +269,8 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 			closers = append(closers, r)
 		}
 
-		cmd.Stdout = &processWriter{p: p, typ: ProcessOut, callback: callback}
-		cmd.Stderr = &processWriter{p: p, typ: ProcessErr, callback: callback}
+		cmd.Stdout = &processWriter{p: p, typ: ProcessOut}
+		cmd.Stderr = &processWriter{p: p, typ: ProcessErr}
 		cmd.WaitDelay = pipeDrainTimeout
 	}
 
@@ -294,30 +306,77 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	return nil
 }
 
-// processWriter receives a stream's output, buffering it and handing it to
-// the callback; callbacks for both streams are serialised.
+// processWriter receives a stream's output, buffering it and queueing it
+// for the callback, which the goroutine waiting for the process runs
+// (deliver); both streams' chunks queue in the order they arrive.
 type processWriter struct {
-	p        *Process
-	typ      string
-	callback func(typ, buffer string)
+	p   *Process
+	typ string
 }
 
 func (w *processWriter) Write(b []byte) (int, error) {
-	w.p.outMu.Lock()
+	p := w.p
+	p.outMu.Lock()
 	if w.typ == ProcessOut {
-		w.p.stdout.Write(b)
+		p.stdout.Write(b)
 	} else {
-		w.p.stderr.Write(b)
+		p.stderr.Write(b)
 	}
-	w.p.outMu.Unlock()
-
-	if w.callback != nil {
-		w.p.cbMu.Lock()
-		w.callback(w.typ, string(b))
-		w.p.cbMu.Unlock()
+	if p.callback != nil {
+		p.chunks = append(p.chunks, processChunk{typ: w.typ, buffer: string(b)})
+		select {
+		case p.arrived <- struct{}{}:
+		default:
+		}
 	}
+	p.outMu.Unlock()
 
 	return len(b), nil
+}
+
+// deliver runs the callback with the chunks that arrived, in order, on the
+// calling goroutine.
+func (p *Process) deliver() {
+	p.cbMu.Lock()
+	defer p.cbMu.Unlock()
+
+	for {
+		p.outMu.Lock()
+		if len(p.chunks) == 0 {
+			p.outMu.Unlock()
+
+			return
+		}
+		c, callback := p.chunks[0], p.callback
+		p.chunks = p.chunks[1:]
+		p.outMu.Unlock()
+
+		callback(c.typ, c.buffer)
+	}
+}
+
+// awaitDelivering blocks until done is closed, running the callback with
+// the output as it arrives (Symfony's wait() reading the pipes) and the
+// wait hooks (what parallel work posted to the waiting goroutine).
+func (p *Process) awaitDelivering(done <-chan struct{}) {
+	p.outMu.Lock()
+	arrived := p.arrived
+	p.outMu.Unlock()
+
+	for {
+		p.deliver()
+		hook := waitHookWake()
+		RunWaitHooks()
+		select {
+		case <-done:
+			// the pipes are drained once the process is done
+			p.deliver()
+
+			return
+		case <-arrived:
+		case <-hook:
+		}
+	}
 }
 
 func (p *Process) wait(cmd *exec.Cmd, done chan struct{}) {
@@ -336,7 +395,9 @@ func (p *Process) wait(cmd *exec.Cmd, done chan struct{}) {
 }
 
 // Wait ports Process::wait: blocks until the process terminated and returns
-// its exit code (128+signal when killed by a signal).
+// its exit code (128+signal when killed by a signal). Meanwhile the
+// callback start() was given gets the output as it arrives, on the
+// calling goroutine, as Symfony's wait() runs it on PHP's one thread.
 func (p *Process) Wait() (int, error) {
 	p.mu.Lock()
 	if !p.started {
@@ -348,7 +409,7 @@ func (p *Process) Wait() (int, error) {
 	done := p.done
 	p.mu.Unlock()
 
-	<-done
+	p.awaitDelivering(done)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()

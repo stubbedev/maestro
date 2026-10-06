@@ -281,6 +281,9 @@ func (h *HttpDownloader) unlock() {
 // asynchronous requests (the Loop's).
 func (h *HttpDownloader) Scheduler() *util.Scheduler { return h.sched }
 
+// IO returns the IO the downloader writes to.
+func (h *HttpDownloader) IO() io.IO { return h.io }
+
 // Options is getOptions().
 func (h *HttpDownloader) Options() *php.Array {
 	h.mu.Lock()

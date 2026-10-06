@@ -64,6 +64,8 @@ type Conn struct {
 	tags      map[string]TagDecoder
 
 	baton baton
+	// draining is set while the holder runs posted calls (drain)
+	draining bool
 
 	lastID    int64   // the last call id Go allocated
 	pending   []int64 // Go's outstanding calls, innermost last
@@ -150,14 +152,82 @@ func (c *Conn) Depth() int { return len(c.pending) + len(c.serving) }
 // explicitly). The caller must hold the baton or no goroutine may.
 func (c *Conn) Delegate(fn func() error) error { return c.baton.lend(fn) }
 
+// Run runs fn, which calls PHP, where maestro may call PHP from
+// (docs/PLUGINS.md §5.14), for parallel work that must reach PHP code (a
+// download's or a process's output written to an IO created in PHP):
+//
+//   - on the goroutine holding the baton, at once;
+//   - when the baton is free, on the calling goroutine, which holds it
+//     for fn as a guest (other goroutines' calls wait for fn to end);
+//   - otherwise fn is posted to the goroutine holding it, which runs the
+//     posted calls in the order they were posted before its next call to
+//     PHP, before it gives the baton up, and while it waits for parallel
+//     work (ServePosted, util's wait hooks); Run returns false at once.
+//
+// Composer runs on one thread, where such calls happen in the order the
+// work makes them, between the statements of the code waiting for it.
+func (c *Conn) Run(fn func()) bool {
+	holds, guest := c.baton.run(fn)
+	if !holds {
+		util.NotifyWaitHooks()
+
+		return false
+	}
+	if guest {
+		defer c.exit()
+		// what was posted before runs first
+		c.drain()
+	}
+	fn()
+
+	return true
+}
+
+// ServePosted runs the calls posted for the holder (Run) when the calling
+// goroutine holds the baton: a wait hook of the goroutine driving the
+// flow.
+func (c *Conn) ServePosted() { c.drain() }
+
+// drain runs the calls posted for the holder, if the calling goroutine is
+// it, oldest first. Posted calls made by the calls it runs wait for it.
+func (c *Conn) drain() {
+	// only the holder goes on (draining is the holder's)
+	if !c.baton.postedForCaller() || c.draining {
+		return
+	}
+	c.draining = true
+	defer func() { c.draining = false }()
+
+	for {
+		fn, ok := c.baton.takePosted()
+		if !ok {
+			return
+		}
+		fn()
+	}
+}
+
+// exit leaves the baton entered last, running the calls posted for its
+// holder before giving it up.
+func (c *Conn) exit() {
+	// (a call drain() runs gives the baton up after it, whatever is
+	// posted: drain() goes on with it)
+	for !c.baton.exitUnlessPosted(c.draining) {
+		c.drain()
+	}
+}
+
 // Call calls method in PHP and returns its result, serving PHP's calls
-// meanwhile. An exception PHP throws is a *PHPException.
+// meanwhile. An exception PHP throws is a *PHPException. The calls
+// parallel work posted for the holder (Run) are made first, and before
+// the holder gives the baton up.
 func (c *Conn) Call(method string, args any) (any, error) {
-	leave, err := c.baton.enter()
-	if err != nil {
+	if err := c.baton.enter(); err != nil {
 		return nil, err
 	}
-	defer leave()
+	defer c.exit()
+
+	c.drain()
 
 	if c.dead != nil {
 		return nil, c.dead
@@ -178,11 +248,10 @@ func (c *Conn) Call(method string, args any) (any, error) {
 // Accept serves the next message, which must be a call to method (the
 // handshake: PHP's first message is `hello`).
 func (c *Conn) Accept(method string) error {
-	leave, err := c.baton.enter()
-	if err != nil {
+	if err := c.baton.enter(); err != nil {
 		return err
 	}
-	defer leave()
+	defer c.exit()
 
 	if c.dead != nil {
 		return c.dead
@@ -204,11 +273,13 @@ func (c *Conn) Accept(method string) error {
 // returns the process's exit status, which a shutdown function calling
 // exit() changes. It must be called with no call outstanding.
 func (c *Conn) Shutdown(code int) (int, error) {
-	leave, err := c.baton.enter()
-	if err != nil {
+	if err := c.baton.enter(); err != nil {
 		return 0, err
 	}
-	defer leave()
+	defer c.exit()
+
+	// what parallel work posted runs before PHP ends
+	c.drain()
 
 	if c.Depth() > 0 {
 		return 0, errors.New("rpc: shutdown with calls outstanding")

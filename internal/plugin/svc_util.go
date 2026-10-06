@@ -255,35 +255,21 @@ var _ rpc.Object = (*service)(nil)
 
 // executeWithCallback is ProcessExecutor::execute($command, $callable):
 // the PHP callable gets each chunk of output with its type, in order, on
-// the goroutine holding the PHP baton (the process's output arrives on
-// others).
+// the goroutine waiting for the process, which holds the PHP baton (as
+// Symfony's wait() calls it). What the callable throws ends the call once
+// the process is done.
 func (r *Runtime) executeWithCallback(pe *util.ProcessExecutor, command util.Command, cwd string, callable any) (int, error) {
-	type chunk struct{ typ, buf string }
-	chunks := make(chan chunk, 64)
-	type result struct {
-		code int
-		err  error
-	}
-	done := make(chan result, 1)
-	go func() {
-		code, err := pe.ExecuteFunc(command, func(typ, buf string) { chunks <- chunk{typ, buf} }, cwd)
-		close(chunks)
-		done <- result{code, err}
-	}()
-
 	var callErr error
-	for c := range chunks {
-		if callErr != nil {
-			continue
+	code, err := pe.ExecuteFunc(command, func(typ, buf string) {
+		if callErr == nil {
+			_, callErr = r.Call("callable.invoke", php.ArrayOf("callable", callable, "args", php.ListOf(typ, buf)))
 		}
-		_, callErr = r.Call("callable.invoke", php.ArrayOf("callable", callable, "args", php.ListOf(c.typ, c.buf)))
-	}
-	res := <-done
+	}, cwd)
 	if callErr != nil {
 		return 0, callErr
 	}
 
-	return res.code, res.err
+	return code, err
 }
 
 // registerManipulator registers JsonManipulator's methods: each PHP

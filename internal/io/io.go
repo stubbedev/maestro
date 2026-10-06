@@ -128,3 +128,20 @@ type IO interface {
 	Debug(message string, context *php.Array)
 	Log(level, message string, context *php.Array)
 }
+
+// Foreign is implemented by IOs whose methods are code maestro does not
+// know (an IO created in PHP by plugin code, docs/PLUGINS.md §5.9): every
+// call is observable there, so maestro makes exactly the calls Composer
+// makes, in its order, where it would otherwise take shortcuts that skip
+// or reorder calls nothing would see on its own IOs.
+type Foreign interface {
+	IO
+	ForeignIO()
+}
+
+// IsForeign reports whether out is a Foreign IO.
+func IsForeign(out IO) bool {
+	_, ok := out.(Foreign)
+
+	return ok
+}
