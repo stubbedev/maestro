@@ -132,7 +132,6 @@ Composer\Console\Application->doRun(2) Composer\Console\Application`
 	if got != want {
 		t.Errorf("frames during licenses' PRE_COMMAND_RUN:\n%s\nwant\n%s", got, want)
 	}
-
 }
 
 // The internals project's plugin is activated while the Installer

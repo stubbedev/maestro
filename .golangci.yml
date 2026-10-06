@@ -33,6 +33,7 @@ linters:
         # result is the same error, returned for chaining.
         - github.com/stubbedev/maestro/internal/phperr.Call
         - github.com/stubbedev/maestro/internal/phperr.Calls
+        - github.com/stubbedev/maestro/internal/phperr.Locate
         - (*github.com/stubbedev/maestro/internal/platform.PHPError).Called
         - (*github.com/stubbedev/maestro/internal/php.EngineError).Called
         - (*github.com/stubbedev/maestro/internal/pkg.TypeError).Called
