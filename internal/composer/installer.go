@@ -20,7 +20,6 @@ import (
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -231,7 +230,7 @@ func (i *Installer) Run() (int, error) {
 	}
 
 	if i.updateAllowList != nil && i.updateMirrors {
-		return 0, &util.RuntimeError{Site: phperr.At("Installer.php", 271), Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
+		return 0, &util.RuntimeError{Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
 	}
 	i.prefetchFilterSummaries()
 
@@ -295,8 +294,7 @@ func (i *Installer) Run() (int, error) {
 		if i.update {
 			eventName = script.PreUpdateCmd
 		}
-		done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 315)
-		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); done(err) != nil {
+		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); err != nil {
 			return 0, err
 		}
 	}
@@ -341,13 +339,9 @@ func (i *Installer) Run() (int, error) {
 
 	var res int
 	if i.update {
-		done := phperr.Enter(`Composer\Installer->doUpdate`, "Installer.php", 325)
 		res, err = i.doUpdate(localRepo, i.install)
-		err = done(err)
 	} else {
-		done := phperr.Enter(`Composer\Installer->doInstall`, "Installer.php", 327)
 		res, err = i.doInstall(localRepo, false)
-		err = done(err)
 	}
 	if err != nil {
 		if nerr := notifyOnInstall(); nerr != nil {
@@ -431,7 +425,7 @@ func (i *Installer) Run() (int, error) {
 		i.autoloadGenerator.SetPlatformRequirementFilter(i.platformRequirementFilter)
 		classMap, err := i.autoloadGenerator.DumpAutoloads(i.config, localRepo, i.pkg, i.installationManager, "composer", i.optimizeAutoloader, "", i.locker)
 		if err != nil {
-			return 0, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->dump`, "Installer.php", 389)
+			return 0, err
 		}
 
 		if i.strictPsrAutoloader && classMap != nil && len(classMap.PsrViolations()) > 0 {
@@ -489,8 +483,7 @@ func (i *Installer) Run() (int, error) {
 		if i.update {
 			eventName = script.PostUpdateCmd
 		}
-		done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 441)
-		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); done(err) != nil {
+		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); err != nil {
 			return 0, err
 		}
 	}
@@ -680,7 +673,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 		FilterListPoolFilter:       filterListFilter,
 	})
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Repository\RepositorySet->createPool`, "Installer.php", 534)
+		return 0, err
 	}
 
 	i.io.WriteError("<info>Updating dependencies</info>", true, io.Normal)
@@ -821,10 +814,9 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 
 	if doInstall {
 		// TODO ensure lock is used from locker as-is, since it may not have been written to disk in case of executeOperations == false
-		done := phperr.Enter(`Composer\Installer->doInstall`, "Installer.php", 686)
 		res, err := i.doInstall(localRepo, true)
 
-		return res, done(err)
+		return res, err
 	}
 
 	return 0, nil
@@ -1017,7 +1009,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 
 	lockedRepository, err := i.locker.LockedRepository(i.devMode)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Package\Locker->getLockedRepository`, "Installer.php", 757)
+		return 0, err
 	}
 
 	// verify that the lock file works with the current platform repository
@@ -1033,8 +1025,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	if err != nil {
 		return 0, err
 	}
-	done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchInstallerEvent`, "Installer.php", 838)
-	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); done(err) != nil {
+	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); err != nil {
 		return 0, err
 	}
 
@@ -1087,11 +1078,10 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 
 	devPackageNames, err := i.locker.DevPackageNames()
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Package\Locker->getDevPackageNames`, "Installer.php", 875)
+		return 0, err
 	}
 	localRepo.SetDevPackageNames(devPackageNames)
-	done = phperr.Enter(`Composer\Installer\InstallationManager->execute`, "Installer.php", 876)
-	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); done(err) != nil {
+	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); err != nil {
 		return 0, err
 	}
 
@@ -1120,17 +1110,17 @@ func (i *Installer) verifyLock(lockedRepository *repository.LockArrayRepository)
 
 	platformRepo, err := i.createPlatformRepo(false)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Installer->createPlatformRepo`, "Installer.php", 764)
+		return 0, err
 	}
 	// creating repository set
 	policy, err := i.createPolicy(false, nil)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Installer->createPolicy`, "Installer.php", 766)
+		return 0, err
 	}
 	// use aliases from lock file only, so empty root aliases here
 	repositorySet, err := i.createRepositorySet(false, platformRepo, nil, lockedRepository)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Installer->createRepositorySet`, "Installer.php", 768)
+		return 0, err
 	}
 	if err := repositorySet.AddRepository(lockedRepository); err != nil {
 		return 0, err
@@ -1259,7 +1249,6 @@ func (i *Installer) createPlatformRepo(forUpdate bool) (*repository.PlatformRepo
 		platformOverrides, err = i.configArray("platform")
 	} else {
 		platformOverrides, err = i.locker.PlatformOverrides()
-		err = phperr.Call(err, `Composer\Package\Locker->getPlatformOverrides`, "Installer.php", 904)
 	}
 	if err != nil {
 		return nil, err
@@ -1299,10 +1288,10 @@ func (i *Installer) createRepositorySet(forUpdate bool, platformRepo *repository
 	} else {
 		var err error
 		if minimumStability, err = i.locker.MinimumStability(); err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Locker->getMinimumStability`, "Installer.php", 923)
+			return nil, err
 		}
 		if stabilityFlags, err = i.locker.StabilityFlags(); err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Locker->getStabilityFlags`, "Installer.php", 924)
+			return nil, err
 		}
 
 		packages, err := lockedRepository.Packages()
@@ -1397,10 +1386,10 @@ func (i *Installer) createPolicy(forUpdate bool, lockedRepo *repository.LockArra
 	if !forUpdate {
 		var err error
 		if preferStable, stableOK, err = i.locker.PreferStable(); err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Locker->getPreferStable`, "Installer.php", 984)
+			return nil, err
 		}
 		if preferLowest, lowestOK, err = i.locker.PreferLowest(); err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Locker->getPreferLowest`, "Installer.php", 985)
+			return nil, err
 		}
 	}
 	// old lock file without prefer stable/lowest will return null

@@ -238,7 +238,7 @@ func (i *Installer) SetUpdateAllowTransitiveDependencies(updateAllowTransitiveDe
 	switch updateAllowTransitiveDependencies {
 	case resolver.UpdateOnlyListed, resolver.UpdateListedWithTransitiveDepsNoRootRequire, resolver.UpdateListedWithTransitiveDeps:
 	default:
-		return nil, &util.RuntimeError{Site: phperr.At("Installer.php", 1509), Message: "Invalid value for updateAllowTransitiveDependencies supplied"}
+		return nil, &util.RuntimeError{Message: "Invalid value for updateAllowTransitiveDependencies supplied"}
 	}
 
 	i.updateAllowTransitiveDependencies = updateAllowTransitiveDependencies
