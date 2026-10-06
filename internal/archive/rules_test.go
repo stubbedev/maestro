@@ -247,7 +247,7 @@ func unicodePathZip(t *testing.T, name string) string {
 	unicode := "pkg/" + name
 
 	extra := binary.LittleEndian.AppendUint16(nil, 0x7075)
-	extra = binary.LittleEndian.AppendUint16(extra, uint16(5+len(unicode))) //nolint:gosec // a short name.
+	extra = binary.LittleEndian.AppendUint16(extra, uint16(5+len(unicode)))
 	extra = append(extra, 1)
 	extra = binary.LittleEndian.AppendUint32(extra, crc32.ChecksumIEEE([]byte(stored)))
 	extra = append(extra, unicode...)
