@@ -512,7 +512,10 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		if ok {
 			library := php.Strtolower(m["library"])
 			if library == "openssl" {
-				parsedVersion, isFips, ok := platform.ParseOpenssl(m["version"])
+				parsedVersion, isFips, ok, err := platform.ParseOpenssl(m["version"])
+				if err != nil {
+					return err
+				}
 				libName, provides := name+"-openssl", []string(nil)
 				if isFips {
 					libName, provides = name+"-openssl-fips", []string{"curl-openssl"}
@@ -611,7 +614,10 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 		if ok {
-			libjpeg, ok := platform.ParseLibjpeg(m["version"])
+			libjpeg, ok, err := platform.ParseLibjpeg(m["version"])
+			if err != nil {
+				return err
+			}
 			if err := r.addLibrary(libraries, name+"-libjpeg", pkg.NullString{S: libjpeg, Valid: ok}, "libjpeg version for gd", nil, nil); err != nil {
 				return err
 			}
@@ -758,7 +764,10 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 		if ok {
-			parsedVersion, isFips, ok := platform.ParseOpenssl(m["version"])
+			parsedVersion, isFips, ok, err := platform.ParseOpenssl(m["version"])
+			if err != nil {
+				return err
+			}
 			libName, provides := name, []string(nil)
 			if isFips {
 				libName, provides = name+"-fips", []string{name}
@@ -956,7 +965,9 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 		return err
 	}
 	if ok {
-		if version, ok := platform.ParseZoneinfoVersion(m["version"]); ok {
+		if version, ok, err := platform.ParseZoneinfoVersion(m["version"]); err != nil {
+			return err
+		} else if ok {
 			if err := r.addLibrary(libraries, "icu-zoneinfo", pkg.Str(version), `zoneinfo ("Olson") database for icu`, nil, nil); err != nil {
 				return err
 			}

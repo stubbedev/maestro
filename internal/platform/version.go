@@ -18,11 +18,11 @@ var (
 
 // ParseOpenssl ports Version::parseOpenssl: the normalizable version of an
 // OpenSSL version string, and whether it is a FIPS build. ok is false for
-// null.
-func ParseOpenssl(opensslVersion string) (version string, isFips, ok bool) {
+// null; err is the PcreError Preg::isMatchStrictGroups throws.
+func ParseOpenssl(opensslVersion string) (version string, isFips, ok bool, err error) {
 	m, err := opensslVersionRe.MatchStrictGroups(opensslVersion)
 	if err != nil || m == nil {
-		return "", false, false
+		return "", false, false, err
 	}
 
 	ver, _ := m.Named("version")
@@ -38,34 +38,35 @@ func ParseOpenssl(opensslVersion string) (version string, isFips, ok bool) {
 	isFips = strings.Contains(suffix, "fips")
 	suffix = php.StrtrPairs("-"+php.LtrimSet(suffix, "-"), map[string]string{"-fips": "", "-pre": "-alpha"})
 
-	return php.RtrimSet(ver+patch+suffix, "-"), isFips, true
+	return php.RtrimSet(ver+patch+suffix, "-"), isFips, true, nil
 }
 
-// ParseLibjpeg ports Version::parseLibjpeg; ok is false for null.
-func ParseLibjpeg(libjpegVersion string) (string, bool) {
+// ParseLibjpeg ports Version::parseLibjpeg; ok is false for null, err is
+// the PcreError Preg::isMatchStrictGroups throws.
+func ParseLibjpeg(libjpegVersion string) (string, bool, error) {
 	m, err := libjpegVersionRe.MatchStrictGroups(libjpegVersion)
 	if err != nil || m == nil {
-		return "", false
+		return "", false, err
 	}
 
 	major, _ := m.Named("major")
 	minor, _ := m.Named("minor")
 
-	return major + "." + strconv.Itoa(convertAlphaVersionToIntVersion(minor)), true
+	return major + "." + strconv.Itoa(convertAlphaVersionToIntVersion(minor)), true, nil
 }
 
 // ParseZoneinfoVersion ports Version::parseZoneinfoVersion; ok is false
-// for null.
-func ParseZoneinfoVersion(zoneinfoVersion string) (string, bool) {
+// for null, err is the PcreError Preg::isMatchStrictGroups throws.
+func ParseZoneinfoVersion(zoneinfoVersion string) (string, bool, error) {
 	m, err := zoneinfoRe.MatchStrictGroups(zoneinfoVersion)
 	if err != nil || m == nil {
-		return "", false
+		return "", false, err
 	}
 
 	year, _ := m.Named("year")
 	revision, _ := m.Named("revision")
 
-	return year + "." + strconv.Itoa(convertAlphaVersionToIntVersion(revision)), true
+	return year + "." + strconv.Itoa(convertAlphaVersionToIntVersion(revision)), true, nil
 }
 
 // convertAlphaVersionToIntVersion ports Version's private helper:

@@ -62,8 +62,8 @@ func TestVersion_ParseOpensslVersions(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		parsed, isFips, ok := ParseOpenssl(c.input)
-		if !ok || parsed != c.parsed || isFips != c.fips {
+		parsed, isFips, ok, err := ParseOpenssl(c.input)
+		if err != nil || !ok || parsed != c.parsed || isFips != c.fips {
 			t.Errorf("ParseOpenssl(%q) = %q, %v, %v; want %q, %v", c.input, parsed, isFips, ok, c.parsed, c.fips)
 
 			continue
@@ -79,8 +79,8 @@ func TestVersion_ParseOpensslVersions(t *testing.T) {
 		}
 	}
 
-	if v, fips, ok := ParseOpenssl("not a version"); ok || fips || v != "" {
-		t.Errorf("ParseOpenssl(invalid) = %q, %v, %v", v, fips, ok)
+	if v, fips, ok, err := ParseOpenssl("not a version"); err != nil || ok || fips || v != "" {
+		t.Errorf("ParseOpenssl(invalid) = %q, %v, %v, %v", v, fips, ok, err)
 	}
 }
 
@@ -92,12 +92,12 @@ func TestVersion_ParseLibjpegVersion(t *testing.T) {
 		// Never seen in the wild, just for overflow correctness
 		{"9za", "9.27"},
 	} {
-		if got, ok := ParseLibjpeg(c[0]); !ok || got != c[1] {
-			t.Errorf("ParseLibjpeg(%q) = %q, %v; want %q", c[0], got, ok, c[1])
+		if got, ok, err := ParseLibjpeg(c[0]); err != nil || !ok || got != c[1] {
+			t.Errorf("ParseLibjpeg(%q) = %q, %v, %v; want %q", c[0], got, ok, err, c[1])
 		}
 	}
 
-	if _, ok := ParseLibjpeg("9.0"); ok {
+	if _, ok, err := ParseLibjpeg("9.0"); err != nil || ok {
 		t.Error("ParseLibjpeg(9.0) should be null")
 	}
 }
@@ -109,12 +109,12 @@ func TestVersion_ParseZoneinfoVersion(t *testing.T) {
 		// Never happened so far but fixate overflow behavior
 		{"2020za", "2020.27"},
 	} {
-		if got, ok := ParseZoneinfoVersion(c[0]); !ok || got != c[1] {
-			t.Errorf("ParseZoneinfoVersion(%q) = %q, %v; want %q", c[0], got, ok, c[1])
+		if got, ok, err := ParseZoneinfoVersion(c[0]); err != nil || !ok || got != c[1] {
+			t.Errorf("ParseZoneinfoVersion(%q) = %q, %v, %v; want %q", c[0], got, ok, err, c[1])
 		}
 	}
 
-	if _, ok := ParseZoneinfoVersion("20a"); ok {
+	if _, ok, err := ParseZoneinfoVersion("20a"); err != nil || ok {
 		t.Error("ParseZoneinfoVersion(20a) should be null")
 	}
 }
