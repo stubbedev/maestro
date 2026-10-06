@@ -309,10 +309,11 @@ jobs:
             plugin) pkgs=./internal/plugin/... ;;
             *) pkgs=$(go list ./... | grep -v -e '/internal/command' -e '/internal/plugin') ;;
           esac
+          # -count=1: caching a test result makes go test stat every file
+          # and directory the tests touched, which on Windows took minutes
+          # after internal/command's tests had passed
           # shellcheck disable=SC2086 # one word per package
-          time go test -short -run '^$' $pkgs
-          # shellcheck disable=SC2086
-          time go test -short $pkgs
+          go test -count=1 -short $pkgs
 
       # saved even when the tests fail: a red job must not leave the next
       # run to compile everything again
