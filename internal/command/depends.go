@@ -4,7 +4,6 @@ package command
 
 import (
 	"github.com/stubbedev/maestro/internal/console"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 func init() {
@@ -43,5 +42,5 @@ func (*DependsCommand) ClassName() string { return `Composer\Command\DependsComm
 func (c *DependsCommand) Execute(in console.Input, out console.Output) (int, error) {
 	code, err := c.DoExecute(in, out, false)
 
-	return code, phperr.Call(err, `Composer\Command\BaseDependencyCommand->doExecute`, "DependsCommand.php", 56)
+	return code, err
 }

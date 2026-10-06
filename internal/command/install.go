@@ -10,7 +10,6 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 func init() {
@@ -91,7 +90,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 		return 1, nil
 	}
 
-	c2, err := c.requireComposerAt("InstallCommand.php", 105)
+	c2, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -140,7 +139,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 	}
 	policyConfig, err := c.CreatePolicyConfig(c2.Config(), in)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "InstallCommand.php", 143)
+		return 0, err
 	}
 	auditConfig, err := c.CreateAuditConfig(in)
 	if err != nil {
@@ -170,8 +169,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 		}
 	}
 
-	done := phperr.Enter(`Composer\Installer->run`, "InstallCommand.php", 152)
 	code, err := install.Run()
 
-	return code, done(err)
+	return code, err
 }

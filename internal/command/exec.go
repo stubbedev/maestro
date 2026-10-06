@@ -12,7 +12,6 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -87,7 +86,7 @@ func (c *ExecCommand) Interact(in console.Input, _ console.Output) error {
 
 // Execute ports execute().
 func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	cmp, err := c.requireComposerAt("ExecCommand.php", 77)
+	cmp, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -130,7 +129,7 @@ func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
 	if cwd, _ := util.GetCwd(false); cwd != initial && initial != "" {
 		if err := os.Chdir(initial); err != nil {
 			e := NewError(ClassRuntime, execCommandFile, 115, `Could not switch back to working directory "`+initial+`"`)
-			e.Prev = &util.ErrorException{Site: phperr.At(execCommandFile, 113), Message: "chdir(): " + chdirWarning(err)}
+			e.Prev = &util.ErrorException{Message: "chdir(): " + chdirWarning(err)}
 
 			return 0, e
 		}
@@ -152,7 +151,7 @@ func chdirWarning(err error) string {
 
 // binaries ports getBinaries.
 func (c *ExecCommand) binaries(forDisplay bool) ([]string, error) {
-	cmp, err := c.requireComposerAt("ExecCommand.php", 127)
+	cmp, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return nil, err
 	}

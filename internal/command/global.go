@@ -8,7 +8,6 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -168,7 +167,7 @@ func (c *GlobalCommand) prepareSubcommandInput(in console.Input, quiet bool) (*c
 
 	if err := os.Chdir(home); err != nil {
 		e := NewError(ClassRuntime, globalCommandFile, 150, `Could not switch to home directory "`+home+`"`)
-		e.Prev = &util.ErrorException{Site: phperr.At(globalCommandFile, 148), Message: "chdir(): " + chdirWarning(err)}
+		e.Prev = &util.ErrorException{Message: "chdir(): " + chdirWarning(err)}
 
 		return nil, e
 	}

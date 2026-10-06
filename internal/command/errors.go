@@ -32,7 +32,6 @@ type Error struct {
 	Line    int
 	Code    int
 	Prev    error
-	phperr.Frames
 }
 
 // NewError returns an Error.

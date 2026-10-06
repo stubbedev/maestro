@@ -60,7 +60,7 @@ type platformReqResult struct {
 
 // Execute ports execute().
 func (c *CheckPlatformReqsCommand) Execute(in console.Input, out console.Output) (int, error) {
-	comp, err := c.requireComposerAt("CheckPlatformReqsCommand.php", 50)
+	comp, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}

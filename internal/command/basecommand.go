@@ -13,7 +13,6 @@ import (
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/util"
@@ -174,11 +173,9 @@ func (c *BaseCommand) RequireComposer(disablePlugins, disableScripts *bool) (*co
 		if app == nil {
 			return nil, NewError(ClassRuntime, baseCommandFile, 106, `Could not create a Composer\Composer instance, you must inject one if this command is not used with a Composer\Console\Application instance`)
 		}
-		leave := phperr.Push(`Composer\Console\Application->getComposer`, baseCommandFile, 103)
 		composer, err := app.GetComposer(true, disablePlugins, disableScripts)
-		leave()
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Console\Application->getComposer`, baseCommandFile, 103)
+			return nil, err
 		}
 		c.composer = composer
 	}
@@ -186,35 +183,14 @@ func (c *BaseCommand) RequireComposer(disablePlugins, disableScripts *bool) (*co
 	return c.composer, nil
 }
 
-// commandClass is get_class($this): the class trait methods' frames name.
-func (c *BaseCommand) commandClass() string {
-	if n, ok := c.impl.(console.ClassNamer); ok {
-		return n.ClassName()
-	}
-
-	return `Composer\Command\BaseCommand`
-}
-
-// requireComposerAt is $this->requireComposer() called at file:line of
-// Composer's sources (the frame it adds to an exception's trace).
-func (c *BaseCommand) requireComposerAt(file string, line int) (*composer.Composer, error) {
-	leave := phperr.Push(`Composer\Command\BaseCommand->requireComposer`, file, line)
-	comp, err := c.RequireComposer(nil, nil)
-	leave()
-
-	return comp, phperr.Call(err, `Composer\Command\BaseCommand->requireComposer`, file, line)
-}
-
 // TryComposer ports tryComposer: nil when there is no composer.json (or
 // it is invalid in a way getComposer(false) tolerates).
 func (c *BaseCommand) TryComposer(disablePlugins, disableScripts *bool) (*composer.Composer, error) {
 	if c.composer == nil {
 		if app := c.application(); app != nil {
-			leave := phperr.Push(`Composer\Console\Application->getComposer`, baseCommandFile, 129)
 			composer, err := app.GetComposer(false, disablePlugins, disableScripts)
-			leave()
 			if err != nil {
-				return nil, phperr.Call(err, `Composer\Console\Application->getComposer`, baseCommandFile, 129)
+				return nil, err
 			}
 			c.composer = composer
 		}
@@ -319,23 +295,21 @@ func (c *BaseCommand) Initialize(in console.Input, _ console.Output) error {
 		disableScripts = true
 	}
 
-	leave := phperr.Push(`Composer\Command\BaseCommand->tryComposer`, baseCommandFile, 240)
 	composer, err := c.TryComposer(&disablePlugins, &disableScripts)
-	leave()
 	if err != nil {
-		return phperr.Call(err, `Composer\Command\BaseCommand->tryComposer`, baseCommandFile, 240)
+		return err
 	}
 	out := c.IO()
 
 	if composer == nil && app != nil {
 		if composer, err = app.Factory().CreateGlobal(c.IO(), disablePlugins, disableScripts); err != nil {
-			return phperr.Call(err, `Composer\Factory::createGlobal`, baseCommandFile, 244)
+			return err
 		}
 	}
 	if composer != nil {
 		event := eventdispatcher.NewPreCommandRunEvent(eventdispatcher.PreCommandRun, in, c.Name())
 		if _, err := composer.EventDispatcher().Dispatch(event.Name(), event); err != nil {
-			return phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatch`, baseCommandFile, 248)
+			return err
 		}
 	}
 
@@ -401,11 +375,9 @@ func (c *BaseCommand) CreateComposerInstance(in console.Input, out io.IO, cfg an
 		disable = composer.PluginsDisabled
 	}
 
-	leave := phperr.Push(`Composer\Factory::create`, baseCommandFile, 315)
 	comp, err := factory.Create(out, cfg, disable, disableScripts)
-	leave()
 
-	return comp, phperr.Call(err, `Composer\Factory::create`, baseCommandFile, 315)
+	return comp, err
 }
 
 // PreferredInstallOptions ports getPreferredInstallOptions.
@@ -541,7 +513,7 @@ func joinFormats() string { return strings.Join(advisory.Formats[:], ", ") }
 func (*BaseCommand) CreatePolicyConfig(cfg *config.Config, in console.Input) (*policy.PolicyConfig, error) {
 	policyConfig, err := policy.FromConfig(cfg)
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Policy\PolicyConfig::fromConfig`, baseCommandFile, 480)
+		return nil, err
 	}
 
 	// --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + custom)

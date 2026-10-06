@@ -56,7 +56,7 @@ func (c *HomeCommand) Execute(in console.Input, _ console.Output) (int, error) {
 	packages := console.StringsArgument(in, "packages")
 	if len(packages) == 0 {
 		cio.WriteError("No package specified, opening homepage for the root package", true, io.Normal)
-		comp, err := c.requireComposerAt("HomeCommand.php", 69)
+		comp, err := c.RequireComposer(nil, nil)
 		if err != nil {
 			return 0, err
 		}

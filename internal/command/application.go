@@ -175,7 +175,6 @@ func (a *Application) RunFrom(file string, line int, in console.Input, out conso
 	}, outer...)
 	// the run's own two calls are in progress (phperr.Live); the outer
 	// ones are already
-	defer phperr.Within(stack[:2]...)()
 	callers := a.RunCallers()
 	a.SetRunCallers(stack...)
 	defer a.SetRunCallers(callers...)
@@ -415,7 +414,7 @@ func phpTruthyString(s string) bool { return s != "" && s != "0" }
 func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, commandName string) (string, error) {
 	composerFile, err := composer.GetComposerFile()
 	if err != nil {
-		return "", phperr.Call(err, `Composer\Factory::getComposerFile`, applicationFile, 197)
+		return "", err
 	}
 	if fileExists(composerFile) {
 		return "", nil
@@ -999,11 +998,8 @@ func (a *Application) getComposer(argc int, required bool, disablePlugins, disab
 		if dp {
 			disable = composer.PluginsDisabled
 		}
-		leave := phperr.Push(`Composer\Factory::create`, applicationFile, 629)
 		c, err := a.factory.Create(out, nil, disable, ds)
-		leave()
 		if err != nil {
-			phperr.Call(err, `Composer\Factory::create`, applicationFile, 629)
 			switch {
 			case isInvalidArgument(err):
 				if required {

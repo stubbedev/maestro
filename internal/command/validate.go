@@ -11,7 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -101,19 +100,15 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 		checkVersion = 0
 	}
 	isStrict := console.BoolOption(in, "strict")
-	leave := phperr.Push(`Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
 	errs, publishErrors, warnings, err := validator.Validate(file, checkAll, checkVersion)
-	leave()
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
+		return 0, err
 	}
 
 	var lockErrors []string
-	leave = phperr.Push(`Composer\Command\BaseCommand->createComposerInstance`, "ValidateCommand.php", 92)
 	comp, err := c.CreateComposerInstance(in, cio, file, false, false)
-	leave()
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createComposerInstance`, "ValidateCommand.php", 92)
+		return 0, err
 	}
 	// config.lock = false ~= implicit --no-check-lock; --check-lock overrides
 	lockConfig, err := comp.Config().Get("lock", 0)
@@ -168,7 +163,7 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 				if _, err := os.Stat(file); err == nil {
 					errs, publishErrors, warnings, err := validator.Validate(file, checkAll, checkVersion)
 					if err != nil {
-						return 0, phperr.Call(err, `Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 118)
+						return 0, err
 					}
 
 					errs, warnings = c.outputResult(cio, p.PrettyName(), errs, warnings, checkPublish, publishErrors, false, nil, false)

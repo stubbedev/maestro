@@ -106,7 +106,7 @@ func (c *BumpCommand) DoBump(out io.IO, devOnly, noDevOnly, dryRun bool, package
 		return bumpErrorGeneric, nil
 	}
 
-	c2, err := c.requireComposerAt("BumpCommand.php", 123)
+	c2, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}

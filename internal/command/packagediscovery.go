@@ -14,7 +14,6 @@ import (
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -174,7 +173,7 @@ func (d *PackageDiscovery) DetermineRequirements(in console.Input, _ console.Out
 				// determine the best version automatically
 				name, ver, err := d.FindBestVersionAndNameForPackage(d.cmd.IO(), in, requirement.Name, platformRepo, preferredStability, fixed)
 				if err != nil {
-					return nil, phperr.Call(err, d.cmd.commandClass()+"->findBestVersionAndNameForPackage", "PackageDiscoveryTrait.php", 120)
+					return nil, err
 				}
 
 				// replace package name from packagist.org
@@ -346,7 +345,7 @@ func (d *PackageDiscovery) DetermineRequirements(in console.Input, _ console.Out
 			if constraint == false {
 				_, ver, err := d.FindBestVersionAndNameForPackage(d.cmd.IO(), in, s, platformRepo, preferredStability, false)
 				if err != nil {
-					return nil, phperr.Call(err, d.cmd.commandClass()+"->findBestVersionAndNameForPackage", "PackageDiscoveryTrait.php", 263)
+					return nil, err
 				}
 				constraint = ver
 
@@ -551,7 +550,7 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 					if i := php.ToInt(result); i >= 0 && i < int64(len(similar)) {
 						name, ver, err := d.FindBestVersionAndNameForPackage(out, in, similar[i], platformRepo, preferredStability, fixed)
 
-						return name, ver, phperr.Call(err, d.cmd.commandClass()+"->findBestVersionAndNameForPackage", "PackageDiscoveryTrait.php", 381)
+						return name, ver, err
 					}
 				}
 			}
@@ -603,7 +602,7 @@ func (d *PackageDiscovery) findSimilar(name string) ([]string, error) {
 		return nil, nil //nolint:nilerr // as Composer
 	}
 
-	composer, err := d.cmd.requireComposerAt("PackageDiscoveryTrait.php", 425)
+	composer, err := d.cmd.RequireComposer(nil, nil)
 	if err != nil {
 		return nil, err
 	}
