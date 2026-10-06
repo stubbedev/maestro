@@ -1722,8 +1722,8 @@ none of them imports `internal/plugin`.
 ## 8. Phased implementation plan
 
 Each phase ends green on its e2e fixtures (§9). Phases 1–3 cover the
-plugins in most real projects, including the Kontainer project's pest,
-stubbedev and Laravel scripts.
+plugins in most real projects, including a typical Laravel application's
+pest, stubbedev and Laravel scripts.
 
 **Phase 1: runtime and protocol (no Composer API yet).**
 - Shim extraction and embed. `bootstrap.php` with the full `bin/composer`
@@ -2136,7 +2136,7 @@ Plugin-specific scenarios:
 
 | Fixture | Extra scenarios |
 | --- | --- |
-| stubbedev-mcp (all 5 together, as in Kontainer) | the offline and online binary paths; `.mcp.json` content; `InstalledVersions` version in output |
+| stubbedev-mcp (all 5 together) | the offline and online binary paths; `.mcp.json` content; `InstalledVersions` version in output |
 | laravel-scripts | Laravel's `post-autoload-dump` with `@php artisan package:discover` against a minimal Laravel skeleton; `Composer\Config::disableProcessTimeout` script |
 | pest-plugin 4 and 5 | `pest:dump-plugins`; `list` shows it; `help pest:dump-plugins` |
 | phpstan / infection extension-installer | GeneratedConfig contents with 2 extensions |
@@ -2157,7 +2157,7 @@ Plugin-specific scenarios:
 | bamarni-bin | `bin tools require x`, `bin all install`, forward on install |
 | php-http-discovery | missing implementation auto-install (POST_UPDATE_CMD re-run) |
 | symfony/flex | `req orm` alias, recipe install, `symfony.lock`, `recipes`, `symfony:dump-env`, `extra.symfony.require` pool filtering |
-| kontainer-shape | A reduced copy of `/home/stubbe/git/work/kontainer/composer.json` (read-only source, copied into the fixture): pest, stubbedev, Laravel scripts and php-http/discovery set to `false`. This is the user's real-world gate. |
+| private-app-shape | A reduced copy of a private Laravel application's composer.json (read-only source, copied into the fixture): pest, stubbedev, Laravel scripts and php-http/discovery set to `false`. This is the user's real-world gate. |
 
 **Exit criterion per phase:** all its fixtures green in CI on Linux.
 macOS runs nightly. Windows starts with the phase 1 runtime tests and the
@@ -2207,4 +2207,4 @@ generated stubs, both produced by tools.
 
 Effort split by phase: 1 = 15%, 2 = 25%, 3 = 12%, 4 = 15%, 5 = 18%,
 6 = 15%. Phases 1–3 (about half) make maestro usable for the large majority
-of real projects, including Kontainer's.
+of real projects.

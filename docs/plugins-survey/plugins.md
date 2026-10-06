@@ -307,6 +307,6 @@ Composer's classes ends up in the project autoloader.
 
 ## Not plugins
 
-**stubbedev/laravel-stoli 0.2.4** (required as `dev-master` by the Kontainer
+**stubbedev/laravel-stoli 0.2.4** (required as `dev-master` by a private
 project) is a `library` with only `extra.laravel`. It touches no Composer API
 and needs nothing from the shim.

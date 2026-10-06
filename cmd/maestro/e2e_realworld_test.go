@@ -46,11 +46,13 @@ func realWorldScenarios() []scenario {
 			},
 		},
 		{
-			name:  "kontainer",
-			setup: kontainerProject,
+			name:  "private-app",
+			setup: privateAppProject,
 			skip: func() string {
-				if _, err := os.Stat(filepath.Join(kontainerDir(), "composer.lock")); err != nil {
-					return "no kontainer checkout at " + kontainerDir() + " (MAESTRO_E2E_KONTAINER)"
+				if dir := privateAppDir(); dir == "" {
+					return "no private application checkout (MAESTRO_E2E_PRIVATE_APP)"
+				} else if _, err := os.Stat(filepath.Join(dir, "composer.lock")); err != nil {
+					return "no private application checkout at " + dir + " (MAESTRO_E2E_PRIVATE_APP)"
 				}
 
 				return ""
@@ -78,37 +80,35 @@ func removeDir(rel string) func(*testing.T, string) {
 	}
 }
 
-func kontainerDir() string {
-	if dir := os.Getenv("MAESTRO_E2E_KONTAINER"); dir != "" {
-		return dir
-	}
-
-	return "/home/stubbe/git/work/kontainer"
+// privateAppDir is the checkout of a private Laravel application, a
+// project with private repositories and many plugins.
+func privateAppDir() string {
+	return os.Getenv("MAESTRO_E2E_PRIVATE_APP")
 }
 
-// kontainerPrivate are the kontainer project's packages that come from
+// privateAppPrivate are the private application's packages that come from
 // private repositories (a private fork, the developer's own tools); they
 // are dropped, as the resolver oracle dropped them.
-func kontainerPrivate(name string) bool {
+func privateAppPrivate(name string) bool {
 	return name == "spiritix/lada-cache" || strings.HasPrefix(name, "stubbedev/")
 }
 
-// kontainerProject copies the kontainer project's composer.json and
+// privateAppProject copies the private application's composer.json and
 // composer.lock (read-only) into the project, without the private
 // packages and repositories, and with the lock's content-hash recomputed,
 // plus the committed sources its autoload configuration scans.
-func kontainerProject(t *testing.T, root string) {
+func privateAppProject(t *testing.T, root string) {
 	t.Helper()
 
 	project := filepath.Join(root, "project")
 
-	archive := exec.Command("sh", "-c", `git -C "$1" archive HEAD app database template/providers tests tools/lint | tar -x -C "$2"`, "sh", kontainerDir(), project)
+	archive := exec.Command("sh", "-c", `git -C "$1" archive HEAD app database template/providers tests tools/lint | tar -x -C "$2"`, "sh", privateAppDir(), project)
 	if out, err := archive.CombinedOutput(); err != nil {
-		t.Fatalf("copying the kontainer sources: %v\n%s", err, out)
+		t.Fatalf("copying the private application's sources: %v\n%s", err, out)
 	}
 
 	decode := func(name string) *php.Array {
-		data, err := os.ReadFile(filepath.Join(kontainerDir(), name))
+		data, err := os.ReadFile(filepath.Join(privateAppDir(), name))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -140,7 +140,7 @@ func kontainerProject(t *testing.T, root string) {
 	for _, section := range []string{"require", "require-dev"} {
 		if reqs, ok := cj.GetArray(section); ok {
 			for _, k := range reqs.Keys() {
-				if kontainerPrivate(k.String()) {
+				if privateAppPrivate(k.String()) {
 					reqs.DeleteKey(k)
 				}
 			}
@@ -162,7 +162,7 @@ func kontainerProject(t *testing.T, root string) {
 
 			for _, p := range packages.All() {
 				name, _ := p.(*php.Array).GetString("name")
-				if !kontainerPrivate(name) {
+				if !privateAppPrivate(name) {
 					kept.Append(p)
 				}
 			}
@@ -176,7 +176,7 @@ func kontainerProject(t *testing.T, root string) {
 
 		for _, a := range aliases.All() {
 			name, _ := a.(*php.Array).GetString("package")
-			if !kontainerPrivate(name) {
+			if !privateAppPrivate(name) {
 				kept.Append(a)
 			}
 		}
@@ -186,7 +186,7 @@ func kontainerProject(t *testing.T, root string) {
 
 	if flags, ok := lock.GetArray("stability-flags"); ok {
 		for _, k := range flags.Keys() {
-			if kontainerPrivate(k.String()) {
+			if privateAppPrivate(k.String()) {
 				flags.DeleteKey(k)
 			}
 		}

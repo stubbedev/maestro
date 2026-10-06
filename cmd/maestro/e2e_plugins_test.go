@@ -173,7 +173,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// The kontainer project's stubbedev/*-mcp plugins: four skip
+			// The stubbedev/*-mcp plugins: four skip
 			// their binary download (their *_SKIP_DOWNLOAD switch), one
 			// downloads it from GitHub and writes .mcp.json.
 			name:    "plugin-stubbedev",

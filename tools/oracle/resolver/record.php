@@ -7,9 +7,10 @@
 // tests can rebuild the same pool without the network.
 //
 // Projects:
-//   kontainer        /home/stubbe/git/work/kontainer/composer.json (read
-//                    only); its private repositories are dropped, and so
-//                    are the requirements only they provide
+//   private-app      the composer.json of a private application, at
+//                    $MAESTRO_PRIVATE_APP/composer.json (read only); its
+//                    private repositories are dropped, and so are the
+//                    requirements only they provide
 //   laravel          laravel/laravel, latest stable release on Packagist
 //   symfony-demo     symfony/symfony-demo, latest stable release on Packagist
 //
@@ -54,8 +55,12 @@ function packagistComposerJson(string $name): array
 function projectComposerJson(string $project): array
 {
     switch ($project) {
-        case 'kontainer':
-            $json = json_decode(file_get_contents('/home/stubbe/git/work/kontainer/composer.json'), true);
+        case 'private-app':
+            $dir = getenv('MAESTRO_PRIVATE_APP');
+            if (!is_string($dir) || $dir === '') {
+                throw new \RuntimeException('set MAESTRO_PRIVATE_APP to the private application\'s checkout');
+            }
+            $json = json_decode(file_get_contents($dir.'/composer.json'), true);
             $json = array_intersect_key($json, array_flip(['name', 'require', 'require-dev', 'conflict', 'provide', 'replace', 'minimum-stability', 'prefer-stable', 'repositories']));
             // only the inline package repositories are reproducible
             $json['repositories'] = array_values(array_filter($json['repositories'], static function ($repo) {
@@ -133,6 +138,6 @@ function record(string $project): void
     fwrite(STDERR, $project.': '.count($packages).' packages recorded in '.$path."\n");
 }
 
-foreach (array_slice($argv, 1) ?: ['kontainer', 'laravel', 'symfony-demo'] as $project) {
+foreach (array_slice($argv, 1) ?: ['private-app', 'laravel', 'symfony-demo'] as $project) {
     record($project);
 }

@@ -20,7 +20,7 @@ import (
 // variants. The Go resolver must build the same pools and reach the same
 // lock files, operations and problem messages.
 
-var oracleProjects = []string{"kontainer", "laravel", "symfony-demo"}
+var oracleProjects = []string{"private-app", "laravel", "symfony-demo"}
 
 var (
 	recordingsOnce sync.Once

@@ -1,6 +1,6 @@
 {
     "name": "maestro-test/stubbedev",
-    "description": "The kontainer project's stubbedev/*-mcp plugins.",
+    "description": "The stubbedev/*-mcp plugins.",
     "require": {
         "stubbedev/atlassian-mcp": "0.5.24",
         "stubbedev/ds-mcp": "0.3.15",

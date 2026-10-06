@@ -56,8 +56,8 @@
 // MAESTRO_E2E=1. Knobs: MAESTRO_E2E_BIN (a prebuilt maestro instead of
 // building this package), MAESTRO_E2E_KEEP=<dir> (keep each scenario's
 // directories there), MAESTRO_E2E_REPORT=<file> (write the speed table as
-// Markdown), MAESTRO_E2E_KONTAINER (the kontainer project checkout, default
-// /home/stubbe/git/work/kontainer; skipped when missing), MAESTRO_E2E_WARM=0
+// Markdown), MAESTRO_E2E_PRIVATE_APP (a private application's checkout;
+// its scenario is skipped when unset), MAESTRO_E2E_WARM=0
 // (skip the warm runs). COMPOSER_AUTH, when set, is passed to both tools
 // (GitHub tokens for the real-world projects' rate limits).
 package main

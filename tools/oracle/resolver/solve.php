@@ -21,7 +21,7 @@ use Composer\Repository\ArrayRepository;
 
 ini_set('memory_limit', '-1');
 
-const PROJECTS = ['kontainer', 'laravel', 'symfony-demo'];
+const PROJECTS = ['private-app', 'laravel', 'symfony-demo'];
 
 /** The variants each project is resolved in; the Go test applies the same. */
 function variants(): array

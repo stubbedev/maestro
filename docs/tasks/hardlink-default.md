@@ -9,4 +9,4 @@ The user chose pnpm semantics: maximum on-disk dedup on ext4, accepting that an 
 - Also fix the clock-dependent `TestShowCommand_Show/outdated_deps_sorting_by_age` (internal/command): compute release age the way Composer does (PHP's default timezone semantics) and make the test independent of the time of day.
 
 Scope: internal/store, internal/downloader, internal/installer (BinaryInstaller chmod), internal/command (show age), docs. A plugin phase-5 agent works concurrently in internal/plugin; coordinate via HANDOFF.md. Commit nothing.
-Report: design, guarantees, test and e2e results, disk usage saved on a sample (e.g. kontainer installed in 3 worktrees).
+Report: design, guarantees, test and e2e results, disk usage saved on a sample (e.g. a large application installed in 3 worktrees).

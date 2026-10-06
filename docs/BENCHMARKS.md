@@ -8,10 +8,10 @@ real Packagist/GitHub network (~24 ms round trip). Other agents' test
 suites were running on the same machine, so absolute times are noisy; each
 row ran the three tools back to back under the same conditions.
 
-Method (scripts kept out of the repo): the laravel, symfony and kontainer
-projects of the e2e suite (composer.json + composer.lock after its
+Method (scripts kept out of the repo): the laravel, symfony and private-app
+(a large private Laravel application) projects of the e2e suite (composer.json + composer.lock after its
 create-project/require steps), each command with `--no-plugins
---no-scripts` (kontainer also `--ignore-platform-reqs`), per tool its own
+--no-scripts` (private-app also `--ignore-platform-reqs`), per tool its own
 COMPOSER_HOME/COMPOSER_CACHE_DIR/MAESTRO_CACHE_DIR and
 COMPOSER_TEST_SUITE=1. *cold*: empty caches and store, `install` (one
 run). *warm install*: caches and store warm, a fresh copy of the project
@@ -33,11 +33,11 @@ the perf task started from), "after" is the perf task's tree.
 | symfony | no-op install | 1.30s | 0.18s | 7.2x | 0.18s | 7.2x |
 | symfony | dump-autoload -o | 0.66s | 0.17s | 3.9x | 0.12s | 5.7x |
 | symfony | update --dry-run | 5.41s | 1.58s | 3.4x | 1.35s | 4.0x |
-| kontainer | cold install | 18.15s | 13.54s | 1.3x | 8.88s | 2.0x |
-| kontainer | warm install | 8.69s | 2.86s | 3.0x | 1.16s | 7.5x |
-| kontainer | no-op install | 5.18s | 0.97s | 5.4x | 0.72s | 7.2x |
-| kontainer | dump-autoload -o | 3.91s | 0.86s | 4.6x | 0.65s | 6.0x |
-| kontainer | update --dry-run | 5.62s | 2.09s | 2.7x | 1.61s | 3.5x |
+| private-app | cold install | 18.15s | 13.54s | 1.3x | 8.88s | 2.0x |
+| private-app | warm install | 8.69s | 2.86s | 3.0x | 1.16s | 7.5x |
+| private-app | no-op install | 5.18s | 0.97s | 5.4x | 0.72s | 7.2x |
+| private-app | dump-autoload -o | 3.91s | 0.86s | 4.6x | 0.65s | 6.0x |
+| private-app | update --dry-run | 5.62s | 2.09s | 2.7x | 1.61s | 3.5x |
 | basic (e2e fixture) | warm-worktree `install`, offline | 0.34s | 0.19s | 1.8x | 0.14s | 2.4x |
 
 What the profiles (`go build -tags maestro_profile`: MAESTRO_CPUPROFILE,
@@ -45,7 +45,7 @@ MAESTRO_TRACE, MAESTRO_MEMPROFILE) showed, and what changed:
 
 - Warm install was dominated by InstallationManager writing installed.json
   and installed.php after every operation, each with every package
-  (O(n²): 1.8 s of kontainer's 5 s). Batches handled only by maestro's own
+  (O(n²): 1.8 s of private-app's 5 s). Batches handled only by maestro's own
   installers now write once, as the last write would have.
 - The autoload dump scanned each autoload rule separately (parallel only
   within one rule, ~3 cores busy): all files are now walked and parsed in
@@ -64,8 +64,8 @@ Targets not met, and why:
 
 - Warm install ≥5x: met (7.5–11x). Cold: bound by the network (GitHub
   zipball generation and redirects); 2–2.8x.
-- Warm worktree ≥10x: laravel 11x, symfony ~10x, kontainer 7.5x. In
-  kontainer, ~0.3 s is one package installed from source (git clone,
+- Warm worktree ≥10x: laravel 11x, symfony ~10x, private-app 7.5x. In
+  private-app, ~0.3 s is one package installed from source (git clone,
   checkout and reset, which Composer runs as well) and ~0.2 s the
   conditional requests every install makes (packages.json and the filter
   list); the rest is the autoload dump of 75k files. The e2e warm-worktree
@@ -120,12 +120,12 @@ Packagist/GitHub network. `MAESTRO_E2E_REPORT=<file>` writes this table.
 | install-lock-to-lock | 7.45s | 2.19s | 3.4x | 1.50s | 0.55s | 2.7x |
 | laravel | 16.72s | 12.72s | 1.3x | 7.33s | 3.35s | 2.2x |
 | symfony | 21.22s | 11.49s | 1.8x | 9.30s | 4.11s | 2.3x |
-| kontainer | 29.00s | 24.18s | 1.2x | 12.84s | 5.29s | 2.4x |
+| private-app | 29.00s | 24.18s | 1.2x | 12.84s | 5.29s | 2.4x |
 | **total** | 288.64s | 134.00s | 2.2x | 143.73s | 66.40s | 2.2x |
 
 Notes:
 
-- Cold runs of real projects (laravel, symfony, kontainer) are bound by
+- Cold runs of real projects (laravel, symfony, private-app) are bound by
   downloading the dists: both tools use at most 12 parallel HTTP transfers
   (COMPOSER_MAX_PARALLEL_HTTP), so the gain is mostly in resolution,
   extraction (native, into the store, while other downloads run) and
@@ -135,5 +135,5 @@ Notes:
 - Commands that mostly wait on Packagist metadata (`commands`, `verbosity`:
   show/outdated/audit/search) gain the least.
 - The real-world scenarios run with `--no-plugins --no-scripts` until the
-  plugin phases land (see e2e_realworld_test.go); kontainer installs from its
+  plugin phases land (see e2e_realworld_test.go); private-app installs from its
   lock without its private packages.
