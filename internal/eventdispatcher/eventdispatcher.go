@@ -120,10 +120,10 @@ func (d *EventDispatcher) Dispatch(eventName string, event Event) (int, error) {
 
 // fullComposer is the `assert($this->composer instanceof Composer)` of the
 // typed dispatch methods.
-func (d *EventDispatcher) fullComposer(line int) (Composer, error) {
+func (d *EventDispatcher) fullComposer() (Composer, error) {
 	c, ok := d.composer.(Composer)
 	if !ok {
-		return nil, &Error{Class: "LogicException", Message: "This should only be reached with a fully loaded Composer", Line: line}
+		return nil, &Error{Class: "LogicException", Message: "This should only be reached with a fully loaded Composer"}
 	}
 
 	return c, nil
@@ -133,7 +133,7 @@ func (d *EventDispatcher) fullComposer(line int) (Composer, error) {
 // additionalArgs are the arguments passed by the user, flags (nil for [])
 // data passed not as arguments.
 func (d *EventDispatcher) DispatchScript(eventName string, devMode bool, additionalArgs []string, flags *php.Array) (int, error) {
-	c, err := d.fullComposer(140)
+	c, err := d.fullComposer()
 	if err != nil {
 		return 0, err
 	}
@@ -145,7 +145,7 @@ func (d *EventDispatcher) DispatchScript(eventName string, devMode bool, additio
 
 // DispatchPackageEvent is dispatchPackageEvent().
 func (d *EventDispatcher) DispatchPackageEvent(eventName string, devMode bool, localRepo pkg.Repository, operations []Operation, operation Operation) (int, error) {
-	c, err := d.fullComposer(159)
+	c, err := d.fullComposer()
 	if err != nil {
 		return 0, err
 	}
@@ -158,7 +158,7 @@ func (d *EventDispatcher) DispatchPackageEvent(eventName string, devMode bool, l
 // DispatchInstallerEvent is dispatchInstallerEvent(); executeOperations
 // is false in --dry-run.
 func (d *EventDispatcher) DispatchInstallerEvent(eventName string, devMode, executeOperations bool, transaction Transaction) (int, error) {
-	c, err := d.fullComposer(177)
+	c, err := d.fullComposer()
 	if err != nil {
 		return 0, err
 	}
@@ -297,7 +297,7 @@ func (d *EventDispatcher) callPHPListener(event Event, l PHPCallable, formatted 
 		}
 	})
 	if status == StatusNotCallable && err == nil {
-		return 0, false, runtimeError(227, "Subscriber "+l.Class+"::"+l.Method+" for event "+event.Name()+" is not callable, make sure the function is defined and public")
+		return 0, false, runtimeError("Subscriber " + l.Class + "::" + l.Method + " for event " + event.Name() + " is not callable, make sure the function is defined and public")
 	}
 	if err != nil {
 		return 0, false, err
@@ -341,7 +341,7 @@ func (d *EventDispatcher) runComposerScript(event Event, callable, formatted str
 		binary, _ := util.GetEnv("COMPOSER_BINARY")
 		exec := phpCmd + " " + util.Escape(binary) + " " + strings.Join(args, " ")
 
-		return 0, false, d.executeScript(event, callable, exec, 257)
+		return 0, false, d.executeScript(event, callable, exec)
 	}
 
 	if len(d.getListeners(NewEvent(scriptName, nil, nil))) == 0 {
@@ -350,7 +350,7 @@ func (d *EventDispatcher) runComposerScript(event Event, callable, formatted str
 
 	ctx, ok := composerContext(event)
 	if !ok {
-		return 0, false, &Error{Class: "Error", Message: "Call to undefined method " + event.Class() + "::getComposer()", Line: 266}
+		return 0, false, &Error{Class: "Error", Message: "Call to undefined method " + event.Class() + "::getComposer()"}
 	}
 
 	scriptEvent := NewScriptEvent(scriptName, ctx.Composer, ctx.IO, ctx.DevMode, args, flags)
@@ -560,7 +560,7 @@ func (d *EventDispatcher) runShellScript(event Event, callable string, additiona
 		exec = phpCmd + " " + util.Escape(binary) + " " + rest
 	}
 
-	return 0, false, d.executeScript(event, callable, exec, 437)
+	return 0, false, d.executeScript(event, callable, exec)
 }
 
 // replaceLocalBinary runs a script naming one of the root package's
@@ -655,8 +655,8 @@ func backslashFirstWord(s string) (string, error) {
 }
 
 // executeScript runs exec for the script callable, turning a non-zero exit
-// code into a ScriptExecutionError thrown at line.
-func (d *EventDispatcher) executeScript(event Event, callable, exec string, line int) error {
+// code into a ScriptExecutionError.
+func (d *EventDispatcher) executeScript(event Event, callable, exec string) error {
 	if d.ensureComposerBinary != nil {
 		if err := d.ensureComposerBinary(); err != nil {
 			return err
@@ -670,7 +670,7 @@ func (d *EventDispatcher) executeScript(event Event, callable, exec string, line
 	if exitCode != 0 {
 		d.io.WriteError("<error>Script "+callable+" handling the "+event.Name()+" event returned with error code "+strconv.Itoa(exitCode)+"</error>", true, io.Quiet)
 
-		return &ScriptExecutionError{Message: "Error Output: " + d.process.GetErrorOutput(), Code: exitCode, File: dispatcherFile, Line: line}
+		return &ScriptExecutionError{Message: "Error Output: " + d.process.GetErrorOutput(), Code: exitCode}
 	}
 
 	return nil
@@ -690,7 +690,7 @@ func (d *EventDispatcher) executeTty(exec string) (int, error) {
 func (d *EventDispatcher) getPhpExecCommand() (string, error) {
 	phpPath, ok := d.php.Binary()
 	if !ok {
-		return "", runtimeError(488, "Failed to locate PHP binary to execute ")
+		return "", runtimeError("Failed to locate PHP binary to execute ")
 	}
 
 	var cmd strings.Builder
@@ -857,7 +857,7 @@ func (d *EventDispatcher) pushEvent(event Event) error {
 	name := event.Name()
 	for _, active := range d.eventStack {
 		if php.StringsLooseEqual(active, name) {
-			return runtimeError(665, "Circular call to script handler '"+name+"' detected")
+			return runtimeError("Circular call to script handler '" + name + "' detected")
 		}
 	}
 
@@ -962,7 +962,7 @@ func (d *EventDispatcher) makeAutoloader(event Event, callableKey string) error 
 // it opens the dispatch bracket and installs a pending class loader.
 func (d *EventDispatcher) enterRuntime(st *dispatchState, callable string) (ScriptRuntime, error) {
 	if d.runtime == nil {
-		return nil, runtimeError(0, "maestro: script "+callable+" requires PHP but no PHP runtime is available")
+		return nil, runtimeError("maestro: script " + callable + " requires PHP but no PHP runtime is available")
 	}
 
 	if !st.began {

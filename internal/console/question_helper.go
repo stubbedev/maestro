@@ -120,8 +120,8 @@ func (h *QuestionHelper) Ask(in Input, out Output, q Questioner) (any, error) {
 	return answer, err
 }
 
-func missingInput(line int) error {
-	return newError(KindMissingInput, "QuestionHelper.php", line, "Aborted.")
+func missingInput() error {
+	return newError(KindMissingInput, "Aborted.")
 }
 
 func (h *QuestionHelper) doAsk(out Output, q Questioner) (any, error) {
@@ -157,7 +157,7 @@ func (h *QuestionHelper) doAsk(out Output, q Questioner) (any, error) {
 				return nil, err
 			}
 			if !ok {
-				return nil, missingInput(144)
+				return nil, missingInput()
 			}
 			ret = line
 			if question.IsTrimmable() {
@@ -455,7 +455,7 @@ func (h *QuestionHelper) autocomplete(out Output, q Questioner, inputStream io.R
 		case ret == "" && c == "" && question.Default() == nil:
 			restore()
 
-			return "", missingInput(287)
+			return "", missingInput()
 		case c == "\177": // Backspace Character
 			if numMatches == 0 && i != 0 {
 				i--
@@ -634,7 +634,7 @@ func (h *QuestionHelper) hiddenResponse(out Output, inputStream io.Reader, trimm
 		sttyMode = runStty("-g")
 		runStty("-echo")
 	} else if isInteractiveInput(inputStream) {
-		return "", newError(KindRuntime, "QuestionHelper.php", 446, "Unable to hide the response.")
+		return "", newError(KindRuntime, "Unable to hide the response.")
 	}
 
 	value, ok := fgets(inputStream)
@@ -644,7 +644,7 @@ func (h *QuestionHelper) hiddenResponse(out Output, inputStream io.Reader, trimm
 	}
 
 	if !ok {
-		return "", missingInput(456)
+		return "", missingInput()
 	}
 	if trimmable {
 		value = php.Trim(value)

@@ -15,8 +15,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const runScriptCommandFile = "RunScriptCommand.php"
-
 func init() {
 	registerCommand(OrderRunScript, func() console.Commander { return NewRunScriptCommand() })
 }
@@ -114,13 +112,13 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 
 	scriptArg := in.Argument("script")
 	if scriptArg == nil {
-		return 0, NewError(ClassRuntime, runScriptCommandFile, 111, `Missing required argument "script"`)
+		return 0, NewError(ClassRuntime, `Missing required argument "script"`)
 	}
 	scriptName := php.ToString(scriptArg)
 
 	if !slices.Contains(runScriptEvents, scriptName) {
 		if scriptEventConstants[strings.ReplaceAll(strings.ToUpper(scriptName), "-", "_")] {
-			return 0, NewError(ClassInvalidArgument, runScriptCommandFile, 116, `Script "`+scriptName+`" cannot be run with this command`)
+			return 0, NewError(ClassInvalidArgument, `Script "`+scriptName+`" cannot be run with this command`)
 		}
 	}
 
@@ -131,7 +129,7 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 	devMode := console.BoolOption(in, "dev") || !console.BoolOption(in, "no-dev")
 	event := eventdispatcher.NewScriptEvent(scriptName, c2, c.IO(), devMode, nil, nil)
 	if !c2.EventDispatcher().HasEventListeners(event) {
-		return 0, NewError(ClassInvalidArgument, runScriptCommandFile, 125, `Script "`+scriptName+`" is not defined in this package`)
+		return 0, NewError(ClassInvalidArgument, `Script "`+scriptName+`" is not defined in this package`)
 	}
 
 	args := console.StringsArgument(in, "args")
@@ -139,7 +137,7 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 	if timeout := in.Option("timeout"); timeout != nil {
 		t := php.ToString(timeout)
 		if !ctypeDigit(t) {
-			return 0, NewError(ClassRuntime, runScriptCommandFile, 132, "Timeout value must be numeric and positive if defined, or 0 for forever")
+			return 0, NewError(ClassRuntime, "Timeout value must be numeric and positive if defined, or 0 for forever")
 		}
 		// Override global timeout set before in Composer by environment or config
 		util.SetProcessTimeout(php.ToNativeInt(t))

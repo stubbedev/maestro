@@ -221,7 +221,7 @@ func (in *ArrayInput) parseParams() error {
 func (in *ArrayInput) addShortOption(shortcut string, value any) error {
 	n, ok := in.definition.shortcuts[shortcut]
 	if !ok {
-		return newError(KindInvalidOption, "ArrayInput.php", 154, `The "-%s" option does not exist.`, shortcut)
+		return newError(KindInvalidOption, `The "-%s" option does not exist.`, shortcut)
 	}
 
 	return in.addLongOption(n, value)
@@ -232,7 +232,7 @@ func (in *ArrayInput) addLongOption(name string, value any) error {
 	if o == nil {
 		optionName, ok := in.definition.negations[name]
 		if !ok {
-			return newError(KindInvalidOption, "ArrayInput.php", 170, `The "--%s" option does not exist.`, name)
+			return newError(KindInvalidOption, `The "--%s" option does not exist.`, name)
 		}
 		in.options[optionName] = false
 
@@ -241,7 +241,7 @@ func (in *ArrayInput) addLongOption(name string, value any) error {
 
 	if value == nil {
 		if o.IsValueRequired() {
-			return newError(KindInvalidOption, "ArrayInput.php", 183, `The "--%s" option requires a value.`, name)
+			return newError(KindInvalidOption, `The "--%s" option requires a value.`, name)
 		}
 
 		if !o.IsValueOptional() {
@@ -256,7 +256,7 @@ func (in *ArrayInput) addLongOption(name string, value any) error {
 
 func (in *ArrayInput) addArgument(name string, value any) error {
 	if !in.definition.HasArgument(name) {
-		return newError(KindInvalidArgument, "ArrayInput.php", 205, `The "%s" argument does not exist.`, name)
+		return newError(KindInvalidArgument, `The "%s" argument does not exist.`, name)
 	}
 	in.arguments[name] = value
 
@@ -267,7 +267,7 @@ func (in *ArrayInput) addArgument(name string, value any) error {
 // argument up by position, but the value is stored under the integer key.
 func (in *ArrayInput) addPositionalArgument(index int, value any) error {
 	if !in.definition.HasArgumentAt(index) {
-		return newError(KindInvalidArgument, "ArrayInput.php", 205, `The "%d" argument does not exist.`, index)
+		return newError(KindInvalidArgument, `The "%d" argument does not exist.`, index)
 	}
 	key := strconv.Itoa(index)
 	if _, ok := in.arguments[key]; !ok && !in.definition.HasArgument(key) {

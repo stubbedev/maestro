@@ -25,8 +25,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-const initFile = "InitCommand.php"
-
 func init() {
 	registerCommand(OrderInit, func() console.Commander { return NewInitCommand() })
 }
@@ -76,8 +74,8 @@ func (*InitCommand) ClassName() string { return `Composer\Command\InitCommand` }
 // packageNameRegexp is the package name check of execute() and interact().
 var packageNameRegexp = php.MustCompile(`{^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$}D`)
 
-func invalidPackageNameError(line int, name string) error {
-	return NewError(ClassInvalidArgument, initFile, line, "The package name "+name+" is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+")
+func invalidPackageNameError(name string) error {
+	return NewError(ClassInvalidArgument, "The package name "+name+" is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+")
 }
 
 // initAllowlist are the options execute() turns into composer.json keys.
@@ -107,7 +105,7 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 			return 0, err
 		}
 		if !matched {
-			return 0, invalidPackageNameError(90, php.ToString(name))
+			return 0, invalidPackageNameError(php.ToString(name))
 		}
 	}
 
@@ -367,7 +365,7 @@ func (c *InitCommand) Interact(in console.Input, out console.Output) error {
 				return nil, err
 			}
 			if !matched {
-				return nil, invalidPackageNameError(285, php.ToString(value))
+				return nil, invalidPackageNameError(php.ToString(value))
 			}
 
 			return value, nil
@@ -440,7 +438,7 @@ func (c *InitCommand) Interact(in console.Input, out console.Output) error {
 			}
 
 			if _, ok := pkg.StabilityValue(php.ToString(value)); !ok {
-				return nil, NewError(ClassInvalidArgument, initFile, 335, `Invalid minimum stability "`+php.ToString(value)+`". Must be empty or one of: `+strings.Join(pkg.StabilityNames(), ", "))
+				return nil, NewError(ClassInvalidArgument, `Invalid minimum stability "`+php.ToString(value)+`". Must be empty or one of: `+strings.Join(pkg.StabilityNames(), ", "))
 			}
 
 			return value, nil
@@ -472,7 +470,7 @@ func (c *InitCommand) Interact(in console.Input, out console.Output) error {
 		return err
 	}
 	if license != nil && !spdx.New().Validate(php.ToString(license)) && license != "proprietary" {
-		return NewError(ClassInvalidArgument, initFile, 370, "Invalid license provided: "+php.ToString(license)+`. Only SPDX license identifiers (https://spdx.org/licenses/) or "proprietary" are accepted.`)
+		return NewError(ClassInvalidArgument, "Invalid license provided: "+php.ToString(license)+`. Only SPDX license identifiers (https://spdx.org/licenses/) or "proprietary" are accepted.`)
 	}
 	in.SetOption("license", license)
 
@@ -554,7 +552,7 @@ func (c *InitCommand) Interact(in console.Input, out console.Output) error {
 				return nil, err
 			}
 			if !matched {
-				return nil, NewError(ClassInvalidArgument, initFile, 422, `The src folder name "`+php.ToString(value)+`" is invalid. Please add a relative path with tailing forward slash. [A-Za-z0-9_-/]+/`)
+				return nil, NewError(ClassInvalidArgument, `The src folder name "`+php.ToString(value)+`" is invalid. Please add a relative path with tailing forward slash. [A-Za-z0-9_-/]+/`)
 			}
 
 			return value, nil
@@ -687,13 +685,13 @@ func (c *InitCommand) parseAuthorString(author string) (authorString, error) {
 			email = &e
 		}
 		if email != nil && !isValidEmail(*email) {
-			return authorString{}, NewError(ClassInvalidArgument, initFile, 443, `Invalid email "`+*email+`"`)
+			return authorString{}, NewError(ClassInvalidArgument, `Invalid email "`+*email+`"`)
 		}
 
 		return authorString{name: strings.TrimSpace(m.Get(1)), email: email}, nil
 	}
 
-	return authorString{}, NewError(ClassInvalidArgument, initFile, 452, "Invalid author string.  Must be in the formats: Jane Doe or John Smith <john@example.com>")
+	return authorString{}, NewError(ClassInvalidArgument, "Invalid author string.  Must be in the formats: Jane Doe or John Smith <john@example.com>")
 }
 
 // formatAuthors ports formatAuthors.

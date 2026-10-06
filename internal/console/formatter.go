@@ -140,7 +140,7 @@ func (f *OutputFormatter) HasStyle(name string) bool {
 func (f *OutputFormatter) Style(name string) (Style, error) {
 	s, ok := f.styles[php.Strtolower(name)]
 	if !ok {
-		return nil, newError(KindInvalidArgument, "OutputFormatter.php", 126, `Undefined style: "%s".`, name)
+		return nil, newError(KindInvalidArgument, `Undefined style: "%s".`, name)
 	}
 
 	return s, nil
@@ -409,7 +409,7 @@ func addLineBreaks(text string, width int) string {
 		return ""
 	}
 	if !utf8.ValidString(text) {
-		panic(newError(KindStringInvalidArgument, "ByteString.php", 463, `Invalid "UTF-8" string.`))
+		panic(newError(KindStringInvalidArgument, `Invalid "UTF-8" string.`))
 	}
 
 	// One mask byte per code point: '#' for the existing "\n" breaks, ' '

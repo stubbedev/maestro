@@ -77,7 +77,7 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 	}
 	if types := console.StringsOption(in, "type"); len(types) > 0 {
 		if len(console.StringsArgument(in, "packages")) > 0 {
-			return 0, NewError(ClassInvalidArgument, "ReinstallCommand.php", 83, "You cannot specify package names and filter by type at the same time.")
+			return 0, NewError(ClassInvalidArgument, "You cannot specify package names and filter by type at the same time.")
 		}
 		for _, p := range canonical {
 			if slices.Contains(types, p.Type()) {
@@ -88,7 +88,7 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 	} else {
 		patterns := console.StringsArgument(in, "packages")
 		if len(patterns) == 0 {
-			return 0, NewError(ClassInvalidArgument, "ReinstallCommand.php", 93, "You must pass one or more package names to be reinstalled.")
+			return 0, NewError(ClassInvalidArgument, "You must pass one or more package names to be reinstalled.")
 		}
 		for _, pattern := range patterns {
 			patternRegexp := pkg.PackageNameToRegexp(pattern, "{^%s$}i")

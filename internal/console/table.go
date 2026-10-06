@@ -108,7 +108,7 @@ func (t *Table) ColumnStyle(columnIndex int) *TableStyle {
 func resolveTableStyle(name string) (*TableStyle, error) {
 	style, err := TableStyleDefinition(name)
 	if err != nil {
-		return nil, newError(KindInvalidArgument, "Table.php", 915, `Style "%s" is not defined.`, name)
+		return nil, newError(KindInvalidArgument, `Style "%s" is not defined.`, name)
 	}
 
 	return style, nil
@@ -138,7 +138,7 @@ func (t *Table) SetColumnWidths(widths []int) *Table {
 // wrapped. The output formatter must be a WrappableFormatter.
 func (t *Table) SetColumnMaxWidth(columnIndex, width int) error {
 	if f := t.output.Formatter(); !isWrappable(f) {
-		return newError(KindSPLLogic, "Table.php", 224, `Setting a maximum column width is only supported when using a "Symfony\Component\Console\Formatter\WrappableOutputFormatterInterface" formatter, got "%s".`, formatterClass(f))
+		return newError(KindSPLLogic, `Setting a maximum column width is only supported when using a "Symfony\Component\Console\Formatter\WrappableOutputFormatterInterface" formatter, got "%s".`, formatterClass(f))
 	}
 	if t.columnMaxWidths == nil {
 		t.columnMaxWidths = map[int]int{}
@@ -215,7 +215,7 @@ func (t *Table) AddRow(row any) error {
 
 	cells, ok := tableRowCells(row)
 	if !ok {
-		return newError(KindInvalidArgument, "Table.php", 278, "A row must be an array or a TableSeparator instance.")
+		return newError(KindInvalidArgument, "A row must be an array or a TableSeparator instance.")
 	}
 	t.rows = append(t.rows, cells)
 
@@ -704,7 +704,7 @@ func (t *Table) fillNextRows(rows []any, line int) ([]any, error) {
 	var unmergedRows []tableUnmergedRow // index j is row line+1+j
 	for column, cell := range cells {
 		if typ, ok := validTableCell(cell); !ok {
-			return nil, newError(KindInvalidArgument, "Table.php", 683, `A cell must be a TableCell, a scalar or an object implementing "__toString()", "%s" given.`, typ)
+			return nil, newError(KindInvalidArgument, `A cell must be a TableCell, a scalar or an object implementing "__toString()", "%s" given.`, typ)
 		}
 		c := tableCellOf(cell)
 		if c == nil || c.rowspan <= 1 {

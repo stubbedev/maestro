@@ -18,8 +18,6 @@ import (
 	"github.com/stubbedev/maestro/internal/resolver"
 )
 
-const removeCommandFile = "RemoveCommand.php"
-
 func init() {
 	registerCommand(OrderRemove, func() console.Commander { return NewRemoveCommand() })
 }
@@ -76,7 +74,7 @@ Read more at https://getcomposer.org/doc/03-cli.md#remove-rm`)
 func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, error) {
 	packages := console.StringsArgument(in, "packages")
 	if len(packages) == 0 && !console.BoolOption(in, "unused") {
-		return 0, &console.Error{Kind: console.KindInvalidArgument, Message: `Not enough arguments (missing: "packages").`, File: removeCommandFile, Line: 89}
+		return 0, &console.Error{Kind: console.KindInvalidArgument, Message: `Not enough arguments (missing: "packages").`}
 	}
 
 	for i, p := range packages {
@@ -94,7 +92,7 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 			return 0, err
 		}
 		if !locked {
-			return 0, NewError(ClassUnexpectedValue, removeCommandFile, 99, "A valid composer.lock file is required to run this command with --unused")
+			return 0, NewError(ClassUnexpectedValue, "A valid composer.lock file is required to run this command with --unused")
 		}
 
 		lockedRepo, err := locker.LockedRepository(false)

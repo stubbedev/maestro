@@ -268,7 +268,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 			return 0, err
 		}
 		if !locked {
-			return 0, NewError(ClassInvalidArgument, "UpdateCommand.php", 201, "patch-only can only be used with a lock file present")
+			return 0, NewError(ClassInvalidArgument, "patch-only can only be used with a lock file present")
 		}
 		lockedRepo, err := comp.Locker().LockedRepository(true)
 		if err != nil {
@@ -384,7 +384,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 	}
 
 	if console.BoolOption(in, "strict-psr-autoloader") && !optimize && !authoritative {
-		return 0, NewError(ClassInvalidArgument, "UpdateCommand.php", 267, "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.")
+		return 0, NewError(ClassInvalidArgument, "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.")
 	}
 
 	updateAllowTransitiveDependencies := resolver.UpdateOnlyListed
@@ -491,7 +491,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 // packagesInteractively ports getPackagesInteractively.
 func (c *UpdateCommand) packagesInteractively(cio io.IO, in console.Input, out console.Output, comp *composer.Composer, packages []string) ([]string, error) {
 	if !in.IsInteractive() {
-		return nil, NewError(ClassInvalidArgument, "UpdateCommand.php", 353, "--interactive cannot be used in non-interactive terminals.")
+		return nil, NewError(ClassInvalidArgument, "--interactive cannot be used in non-interactive terminals.")
 	}
 
 	platformReqFilter, err := c.PlatformRequirementFilter(in)
@@ -580,7 +580,7 @@ func (c *UpdateCommand) packagesInteractively(cio io.IO, in console.Input, out c
 	}
 
 	if autocompleterValues.Len() == 0 {
-		return nil, NewError(ClassRuntime, "UpdateCommand.php", 391, "Could not find any package with new versions available")
+		return nil, NewError(ClassRuntime, "Could not find any package with new versions available")
 	}
 
 	selected, err := cio.Select(
@@ -619,7 +619,7 @@ func (c *UpdateCommand) packagesInteractively(cio io.IO, in console.Input, out c
 		return packages, nil
 	}
 
-	return nil, NewError(ClassRuntime, "UpdateCommand.php", 417, "Installation aborted.")
+	return nil, NewError(ClassRuntime, "Installation aborted.")
 }
 
 // selectedStrings converts IOInterface::select's multiselect result to a

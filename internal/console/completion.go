@@ -300,7 +300,7 @@ func (in *CompletionInput) relevantToken() string {
 
 func (in *CompletionInput) isCursorFree() bool {
 	if in.currentIndex > len(in.tokens) {
-		panic(newError(KindSPLLogic, "CompletionInput.php", 231, "Current index is invalid, it must be the number of input tokens or one more."))
+		panic(newError(KindSPLLogic, "Current index is invalid, it must be the number of input tokens or one more."))
 	}
 
 	return in.currentIndex >= len(in.tokens)

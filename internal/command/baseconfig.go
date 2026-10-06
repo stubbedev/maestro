@@ -12,8 +12,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const baseConfigCommandFile = "BaseConfigCommand.php"
-
 // BaseConfigCommand is Composer\Command\BaseConfigCommand, the base of
 // config, repository and policy. Its commands define --global and --file.
 type BaseConfigCommand struct {
@@ -39,7 +37,7 @@ func (c *BaseConfigCommand) Initialize(in console.Input, out console.Output) err
 
 	global := console.BoolOption(in, "global")
 	if global && in.Option("file") != nil {
-		return NewError(ClassRuntime, baseConfigCommandFile, 46, "--file and --global can not be combined")
+		return NewError(ClassRuntime, "--file and --global can not be combined")
 	}
 
 	io := c.IO()
@@ -103,7 +101,7 @@ func (c *BaseConfigCommand) Initialize(in console.Input, out console.Output) err
 	}
 
 	if !c.ConfigFile.Exists() {
-		return NewError(ClassRuntime, baseConfigCommandFile, 79, `File "`+configFile+`" cannot be found in the current directory`)
+		return NewError(ClassRuntime, `File "`+configFile+`" cannot be found in the current directory`)
 	}
 
 	return nil

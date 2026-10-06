@@ -367,7 +367,7 @@ func (s *SymfonyStyle) DefinitionList(list ...any) error {
 			headers = append(headers, key)
 			row = append(row, current)
 		default:
-			return newError(KindInvalidArgument, "SymfonyStyle.php", 241, "Value should be an array, string, or an instance of TableSeparator.")
+			return newError(KindInvalidArgument, "Value should be an array, string, or an instance of TableSeparator.")
 		}
 	}
 
@@ -427,7 +427,7 @@ func (s *SymfonyStyle) ProgressFinish() error {
 }
 
 func errProgressNotStarted() *Error {
-	return newError(KindRuntime, "SymfonyStyle.php", 432, "The ProgressBar is not started.")
+	return newError(KindRuntime, "The ProgressBar is not started.")
 }
 
 // SymfonyStyleProgressIterate iterates over seq while showing a progress bar

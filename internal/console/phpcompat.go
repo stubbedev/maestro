@@ -93,7 +93,7 @@ func StripTags(s string) string { return php.StripTags(s) }
 func escapeShellArg(s string) string {
 	quoted, err := php.Escapeshellarg(s)
 	if err != nil {
-		panic(newError(KindValueError, "Input.php", 195, "%s", err.Error()))
+		panic(newError(KindValueError, "%s", err.Error()))
 	}
 
 	return quoted

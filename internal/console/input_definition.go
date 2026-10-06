@@ -49,7 +49,7 @@ func NewInputArgument(name string, mode int, description string, def any) (*Inpu
 	if mode == 0 {
 		mode = ArgumentOptional
 	} else if mode > 7 || mode < 1 {
-		return nil, newError(KindInvalidArgument, "InputArgument.php", 46, `Argument mode "%d" is not valid.`, mode)
+		return nil, newError(KindInvalidArgument, `Argument mode "%d" is not valid.`, mode)
 	}
 
 	a := &InputArgument{name: name, mode: mode, description: description}
@@ -83,14 +83,14 @@ func (a *InputArgument) IsArray() bool { return a.mode&ArgumentIsArray != 0 }
 // SetDefault sets the default value.
 func (a *InputArgument) SetDefault(def any) error {
 	if a.IsRequired() && def != nil {
-		return newError(KindLogic, "InputArgument.php", 96, "Cannot set a default value except for InputArgument::OPTIONAL mode.")
+		return newError(KindLogic, "Cannot set a default value except for InputArgument::OPTIONAL mode.")
 	}
 
 	if a.IsArray() {
 		if def == nil {
 			def = []string{}
 		} else if !isArrayValue(def) {
-			return newError(KindLogic, "InputArgument.php", 103, "A default value for an array argument must be an array.")
+			return newError(KindLogic, "A default value for an array argument must be an array.")
 		}
 	}
 
@@ -162,7 +162,7 @@ func NewInputOption(name, shortcut string, mode int, description string, def any
 	name = strings.TrimPrefix(name, "--")
 
 	if name == "" || name == "0" {
-		return nil, newError(KindInvalidArgument, "InputOption.php", 69, "An option name cannot be empty.")
+		return nil, newError(KindInvalidArgument, "An option name cannot be empty.")
 	}
 
 	if shortcut != "" {
@@ -180,23 +180,23 @@ func NewInputOption(name, shortcut string, mode int, description string, def any
 		}
 		shortcut = strings.Join(kept, "|")
 		if shortcut == "" {
-			return nil, newError(KindInvalidArgument, "InputOption.php", 85, "An option shortcut cannot be empty.")
+			return nil, newError(KindInvalidArgument, "An option shortcut cannot be empty.")
 		}
 	}
 
 	if mode == 0 {
 		mode = OptionValueNone
 	} else if mode >= OptionValueNegatable<<1 || mode < 1 {
-		return nil, newError(KindInvalidArgument, "InputOption.php", 92, `Option mode "%d" is not valid.`, mode)
+		return nil, newError(KindInvalidArgument, `Option mode "%d" is not valid.`, mode)
 	}
 
 	o := &InputOption{name: name, shortcut: shortcut, mode: mode, description: description}
 
 	if o.IsArray() && !o.AcceptValue() {
-		return nil, newError(KindInvalidArgument, "InputOption.php", 101, "Impossible to have an option mode VALUE_IS_ARRAY if the option does not accept a value.")
+		return nil, newError(KindInvalidArgument, "Impossible to have an option mode VALUE_IS_ARRAY if the option does not accept a value.")
 	}
 	if o.IsNegatable() && o.AcceptValue() {
-		return nil, newError(KindInvalidArgument, "InputOption.php", 104, "Impossible to have an option mode VALUE_NEGATABLE if the option also accepts a value.")
+		return nil, newError(KindInvalidArgument, "Impossible to have an option mode VALUE_NEGATABLE if the option also accepts a value.")
 	}
 
 	if err := o.SetDefault(def); err != nil {
@@ -245,14 +245,14 @@ func (o *InputOption) IsNegatable() bool { return o.mode&OptionValueNegatable !=
 // SetDefault sets the default value.
 func (o *InputOption) SetDefault(def any) error {
 	if o.mode&OptionValueNone != 0 && def != nil {
-		return newError(KindLogic, "InputOption.php", 181, "Cannot set a default value when using InputOption::VALUE_NONE mode.")
+		return newError(KindLogic, "Cannot set a default value when using InputOption::VALUE_NONE mode.")
 	}
 
 	if o.IsArray() {
 		if def == nil {
 			def = []string{}
 		} else if !isArrayValue(def) {
-			return newError(KindLogic, "InputOption.php", 188, "A default value for an array option must be an array.")
+			return newError(KindLogic, "A default value for an array option must be an array.")
 		}
 	}
 
@@ -286,7 +286,7 @@ func (o *InputOption) Equals(other *InputOption) bool {
 // It fails like Composer when the option accepts no value.
 func (o *InputOption) WithSuggestedValues(values ...string) (*InputOption, error) {
 	if len(values) > 0 && !o.AcceptValue() {
-		return nil, newError(KindLogic, "src/Composer/Console/Input/InputOption.php", 53, "Cannot set suggested values if the option does not accept a value.")
+		return nil, newError(KindLogic, "Cannot set suggested values if the option does not accept a value.")
 	}
 	o.suggestedValues = values
 
@@ -296,7 +296,7 @@ func (o *InputOption) WithSuggestedValues(values ...string) (*InputOption, error
 // WithSuggestFunc sets a completion callback (Composer's backport).
 func (o *InputOption) WithSuggestFunc(fn SuggestFunc) (*InputOption, error) {
 	if fn != nil && !o.AcceptValue() {
-		return nil, newError(KindLogic, "src/Composer/Console/Input/InputOption.php", 53, "Cannot set suggested values if the option does not accept a value.")
+		return nil, newError(KindLogic, "Cannot set suggested values if the option does not accept a value.")
 	}
 	o.suggestFunc = fn
 
@@ -395,15 +395,15 @@ func (d *InputDefinition) AddArgument(argument *InputArgument) error {
 		d.argIndex = map[string]int{}
 	}
 	if _, ok := d.argIndex[argument.Name()]; ok {
-		return newError(KindLogic, "InputDefinition.php", 100, `An argument with name "%s" already exists.`, argument.Name())
+		return newError(KindLogic, `An argument with name "%s" already exists.`, argument.Name())
 	}
 
 	if d.lastArrayArgument != nil {
-		return newError(KindLogic, "InputDefinition.php", 104, `Cannot add a required argument "%s" after an array argument "%s".`, argument.Name(), d.lastArrayArgument.Name())
+		return newError(KindLogic, `Cannot add a required argument "%s" after an array argument "%s".`, argument.Name(), d.lastArrayArgument.Name())
 	}
 
 	if argument.IsRequired() && d.lastOptionalArgument != nil {
-		return newError(KindLogic, "InputDefinition.php", 108, `Cannot add a required argument "%s" after an optional one "%s".`, argument.Name(), d.lastOptionalArgument.Name())
+		return newError(KindLogic, `Cannot add a required argument "%s" after an optional one "%s".`, argument.Name(), d.lastOptionalArgument.Name())
 	}
 
 	if argument.IsArray() {
@@ -428,7 +428,7 @@ func (d *InputDefinition) Argument(name string) (*InputArgument, error) {
 		return a, nil
 	}
 
-	return nil, newError(KindInvalidArgument, "InputDefinition.php", 136, `The "%s" argument does not exist.`, name)
+	return nil, newError(KindInvalidArgument, `The "%s" argument does not exist.`, name)
 }
 
 // ArgumentAt returns the argument at position i.
@@ -437,7 +437,7 @@ func (d *InputDefinition) ArgumentAt(i int) (*InputArgument, error) {
 		return d.arguments[i], nil
 	}
 
-	return nil, newError(KindInvalidArgument, "InputDefinition.php", 136, `The "%d" argument does not exist.`, i)
+	return nil, newError(KindInvalidArgument, `The "%d" argument does not exist.`, i)
 }
 
 func (d *InputDefinition) arg(name string) *InputArgument {
@@ -513,16 +513,16 @@ func (d *InputDefinition) AddOption(option *InputOption) error {
 		d.negations = map[string]string{}
 	}
 	if i, ok := d.optIndex[option.Name()]; ok && !option.Equals(d.options[i]) {
-		return newError(KindLogic, "InputDefinition.php", 232, `An option named "%s" already exists.`, option.Name())
+		return newError(KindLogic, `An option named "%s" already exists.`, option.Name())
 	}
 	if _, ok := d.negations[option.Name()]; ok {
-		return newError(KindLogic, "InputDefinition.php", 235, `An option named "%s" already exists.`, option.Name())
+		return newError(KindLogic, `An option named "%s" already exists.`, option.Name())
 	}
 
 	if option.shortcutIsTruthy() {
 		for s := range strings.SplitSeq(option.Shortcut(), "|") {
 			if n, ok := d.shortcuts[s]; ok && !option.Equals(d.options[d.optIndex[n]]) {
-				return newError(KindLogic, "InputDefinition.php", 241, `An option with shortcut "%s" already exists.`, s)
+				return newError(KindLogic, `An option with shortcut "%s" already exists.`, s)
 			}
 		}
 	}
@@ -543,7 +543,7 @@ func (d *InputDefinition) AddOption(option *InputOption) error {
 	if option.IsNegatable() {
 		negatedName := "no-" + option.Name()
 		if _, ok := d.optIndex[negatedName]; ok {
-			return newError(KindLogic, "InputDefinition.php", 256, `An option named "%s" already exists.`, negatedName)
+			return newError(KindLogic, `An option named "%s" already exists.`, negatedName)
 		}
 		d.negations[negatedName] = option.Name()
 	}
@@ -557,7 +557,7 @@ func (d *InputDefinition) Option(name string) (*InputOption, error) {
 		return o, nil
 	}
 
-	return nil, newError(KindInvalidArgument, "InputDefinition.php", 272, `The "--%s" option does not exist.`, name)
+	return nil, newError(KindInvalidArgument, `The "--%s" option does not exist.`, name)
 }
 
 func (d *InputDefinition) opt(name string) *InputOption {
@@ -616,7 +616,7 @@ func (d *InputDefinition) OptionDefaults() []NamedValue {
 func (d *InputDefinition) ShortcutToName(shortcut string) (string, error) {
 	n, ok := d.shortcuts[shortcut]
 	if !ok {
-		return "", newError(KindInvalidArgument, "InputDefinition.php", 352, `The "-%s" option does not exist.`, shortcut)
+		return "", newError(KindInvalidArgument, `The "-%s" option does not exist.`, shortcut)
 	}
 
 	return n, nil
@@ -626,7 +626,7 @@ func (d *InputDefinition) ShortcutToName(shortcut string) (string, error) {
 func (d *InputDefinition) NegationToName(negation string) (string, error) {
 	n, ok := d.negations[negation]
 	if !ok {
-		return "", newError(KindInvalidArgument, "InputDefinition.php", 368, `The "--%s" option does not exist.`, negation)
+		return "", newError(KindInvalidArgument, `The "--%s" option does not exist.`, negation)
 	}
 
 	return n, nil

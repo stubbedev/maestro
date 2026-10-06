@@ -9,8 +9,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const scriptAliasCommandFile = "ScriptAliasCommand.php"
-
 func init() {
 	registerScriptAliasCommand(func(script string, description, aliases any) (console.Commander, error) {
 		return NewScriptAliasCommand(script, description, aliases)
@@ -47,7 +45,7 @@ func NewScriptAliasCommand(script string, description, aliases any) (cmd *Script
 	for _, alias := range aliasArray.Values() {
 		s, ok := alias.(string)
 		if !ok {
-			return nil, NewError(ClassInvalidArgument, scriptAliasCommandFile, 45, `"scripts-aliases" element array values should contain only strings`)
+			return nil, NewError(ClassInvalidArgument, `"scripts-aliases" element array values should contain only strings`)
 		}
 		aliasList = append(aliasList, s)
 	}

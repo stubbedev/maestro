@@ -25,8 +25,6 @@ func init() {
 	registerCommand(OrderConfig, func() console.Commander { return NewConfigCommand() })
 }
 
-const configCommandFile = "ConfigCommand.php"
-
 // configurablePackageProperties is CONFIGURABLE_PACKAGE_PROPERTIES.
 var configurablePackageProperties = []string{
 	"name",
@@ -179,8 +177,8 @@ func (c *ConfigCommand) Initialize(in console.Input, out console.Output) error {
 	return nil
 }
 
-func configErr(class string, line int, message string) error {
-	return NewError(class, configCommandFile, line, message)
+func configErr(class, message string) error {
+	return NewError(class, message)
 }
 
 // readArray is JsonFile::read() where the caller needs an array.
@@ -474,12 +472,12 @@ var multiProps = map[string]multiValidator{
 	"license":  {func([]string) string { return "" }, listOf},
 }
 
-// normalizeStability is VersionParser::normalizeStability, its
-// InvalidArgumentException carrying the throw site.
+// normalizeStability is VersionParser::normalizeStability, its error an
+// InvalidArgumentException.
 func normalizeStability(val string) (string, error) {
 	s, err := semver.NormalizeStability(val)
 	if err != nil {
-		return "", NewError(ClassInvalidArgument, "VersionParser.php", 92, err.Error())
+		return "", NewError(ClassInvalidArgument, err.Error())
 	}
 
 	return s, nil
@@ -544,7 +542,7 @@ func (c *ConfigCommand) Execute(in console.Input, out console.Output) (int, erro
 
 	// If the user enters in a config variable, parse it and save to file
 	if len(values) != 0 && unset {
-		return 0, configErr(ClassRuntime, 229, "You can not combine a setting value with --unset")
+		return 0, configErr(ClassRuntime, "You can not combine a setting value with --unset")
 	}
 
 	// show the value if no value is provided
@@ -640,7 +638,7 @@ func (c *ConfigCommand) showValue(in console.Input, settingKey string) (int, err
 		} else {
 			v, ok := issetDim(repos, repoName)
 			if repos == nil || !ok {
-				return 0, configErr(ClassInvalidArgument, 255, "There is no "+repoName+" repository defined")
+				return 0, configErr(ClassInvalidArgument, "There is no "+repoName+" repository defined")
 			}
 			value = v
 		}
@@ -670,7 +668,7 @@ func (c *ConfigCommand) showValue(in console.Input, settingKey string) (int, err
 		}
 
 		if !match {
-			return 0, configErr(ClassRuntime, 279, settingKey+" is not defined.")
+			return 0, configErr(ClassRuntime, settingKey+" is not defined.")
 		}
 
 		value = cur
@@ -696,7 +694,7 @@ func (c *ConfigCommand) showValue(in console.Input, settingKey string) (int, err
 			value = v
 			source = "defaults"
 		} else {
-			return 0, configErr(ClassRuntime, 302, settingKey+" is not defined")
+			return 0, configErr(ClassRuntime, settingKey+" is not defined")
 		}
 	}
 
@@ -787,11 +785,11 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 	if slices.Contains(policyJSONMergeKeys, settingKey) || customMatch != nil {
 		if customMatch != nil {
 			if reservedError := policy.FutureReservedListNameError(customMatch.Get(1)); reservedError != "" {
-				return 0, configErr(ClassRuntime, 614, "Invalid dependency policy name: "+reservedError)
+				return 0, configErr(ClassRuntime, "Invalid dependency policy name: "+reservedError)
 			}
 		}
 
-		value, err := c.jsonListValue(in, settingKey, values, 622)
+		value, err := c.jsonListValue(in, settingKey, values)
 		if err != nil {
 			return 0, err
 		}
@@ -818,7 +816,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 				currentValue = v
 			}
 
-			if value, err = mergeJSONValue(currentValue, value, settingKey, 643); err != nil {
+			if value, err = mergeJSONValue(currentValue, value, settingKey); err != nil {
 				return 0, err
 			}
 		}
@@ -839,11 +837,11 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 			a, ok := value.(*php.Array)
 			if !ok {
-				return 0, configErr(ClassRuntime, 661, "Expected a boolean or array for "+settingKey)
+				return 0, configErr(ClassRuntime, "Expected a boolean or array for "+settingKey)
 			}
 			for _, v := range a.All() {
 				if s, ok := v.(string); !ok || !slices.Contains(policy.IgnoreUnreachableScopes[:], s) {
-					return 0, configErr(ClassRuntime, 665, scopesMessage)
+					return 0, configErr(ClassRuntime, scopesMessage)
 				}
 			}
 
@@ -856,7 +854,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		if len(values) > 0 && slices.Contains(policy.IgnoreUnreachableScopes[:], values[0]) {
 			for _, v := range values {
 				if !slices.Contains(policy.IgnoreUnreachableScopes[:], v) {
-					return 0, configErr(ClassRuntime, 680, scopesMessage)
+					return 0, configErr(ClassRuntime, scopesMessage)
 				}
 			}
 
@@ -870,10 +868,10 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil && !slices.Contains(policy.NonListKeys[:], m.Get(1)) {
 		if reservedError := policy.FutureReservedListNameError(m.Get(1)); reservedError != "" {
-			return 0, configErr(ClassRuntime, 697, "Invalid dependency policy name: "+reservedError)
+			return 0, configErr(ClassRuntime, "Invalid dependency policy name: "+reservedError)
 		}
 		if ok, _ := booleanValidator(first); !ok {
-			return 0, configErr(ClassRuntime, 700, `"`+first+`" is an invalid value for `+settingKey+", expected a boolean")
+			return 0, configErr(ClassRuntime, `"`+first+`" is an invalid value for `+settingKey+", expected a boolean")
 		}
 		v, _ := booleanNormalizer(first)
 
@@ -885,11 +883,11 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, err
 	} else if m != nil && !slices.Contains(nonCustomPolicyKeys, m.Get(1)) {
 		if reservedError := policy.FutureReservedListNameError(m.Get(1)); reservedError != "" {
-			return 0, configErr(ClassRuntime, 713, "Invalid dependency policy name: "+reservedError)
+			return 0, configErr(ClassRuntime, "Invalid dependency policy name: "+reservedError)
 		}
 		if m.Get(2) == "block" {
 			if ok, _ := booleanValidator(first); !ok {
-				return 0, configErr(ClassRuntime, 717, `"`+first+`" is an invalid value for `+settingKey+", expected a boolean")
+				return 0, configErr(ClassRuntime, `"`+first+`" is an invalid value for `+settingKey+", expected a boolean")
 			}
 			v, _ := booleanNormalizer(first)
 			if err := src.AddConfigSetting(settingKey, v); err != nil {
@@ -897,7 +895,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 		} else {
 			if ok, _ := auditPair.validate(first); !ok {
-				return 0, configErr(ClassRuntime, 722, `"`+first+`" is an invalid value for `+settingKey+", must be one of: ignore, report, fail")
+				return 0, configErr(ClassRuntime, `"`+first+`" is an invalid value for `+settingKey+", must be one of: ignore, report, fail")
 			}
 			if err := src.AddConfigSetting(settingKey, first); err != nil {
 				return 0, err
@@ -912,7 +910,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 	if m, err := policySourcesPattern.Match(settingKey); err != nil {
 		return 0, err
 	} else if m != nil {
-		return 0, configErr(ClassRuntime, 733, "Setting dependency policy sources is not supported by `composer config`. Use `composer policy add-source "+m.Get(1)+" url <https-url>` instead.")
+		return 0, configErr(ClassRuntime, "Setting dependency policy sources is not supported by `composer config`. Use `composer policy add-source "+m.Get(1)+" url <https-url>` instead.")
 	}
 
 	_, isUnique := uniqueConfigValues[settingKey]
@@ -945,7 +943,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		}
 
 		if ok, _ := uniqueConfigValues["preferred-install"].validate(first); !ok {
-			return 0, configErr(ClassRuntime, 768, "Invalid value for "+settingKey+". Should be one of: auto, source, or dist")
+			return 0, configErr(ClassRuntime, "Invalid value for "+settingKey+". Should be one of: auto, source, or dist")
 		}
 
 		return 0, src.AddConfigSetting(settingKey, first)
@@ -960,7 +958,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		}
 
 		if ok, _ := booleanValidator(first); !ok {
-			return 0, configErr(ClassRuntime, 785, `"`+first+`" is an invalid value`)
+			return 0, configErr(ClassRuntime, `"`+first+`" is an invalid value`)
 		}
 
 		normalizedValue, _ := booleanNormalizer(first)
@@ -972,7 +970,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 	_, isUniqueProp := uniqueProps[settingKey]
 	_, isMultiProp := multiProps[settingKey]
 	if console.BoolOption(in, "global") && (isUniqueProp || isMultiProp || strings.HasPrefix(settingKey, "extra.")) {
-		return 0, configErr(ClassInvalidArgument, 853, "The "+settingKey+" property can not be set in the global config.json file. Use `composer global config` to apply changes to the global composer.json")
+		return 0, configErr(ClassInvalidArgument, "The "+settingKey+" property can not be set in the global config.json file. Use `composer global config` to apply changes to the global composer.json")
 	}
 	if unset && (isUniqueProp || isMultiProp) {
 		return 0, src.RemoveProperty(settingKey)
@@ -1014,7 +1012,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 		}
 
-		return 0, configErr(ClassRuntime, 904, "You must pass the type and a url. Example: php composer.phar config repositories.foo vcs https://bar.com")
+		return 0, configErr(ClassRuntime, "You must pass the type and a url. Example: php composer.phar config repositories.foo vcs https://bar.com")
 	}
 
 	// handle extra
@@ -1096,7 +1094,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			return 0, src.RemoveConfigSetting(settingKey)
 		}
 
-		value, err := c.jsonListValue(in, settingKey, values, 990)
+		value, err := c.jsonListValue(in, settingKey, values)
 		if err != nil {
 			return 0, err
 		}
@@ -1111,7 +1109,7 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 				currentValue, _ = issetDim(currentValue, bit)
 			}
 
-			if value, err = mergeJSONValue(currentValue, value, settingKey, 1006); err != nil {
+			if value, err = mergeJSONValue(currentValue, value, settingKey); err != nil {
 				return 0, err
 			}
 		}
@@ -1147,12 +1145,12 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 		return 0, src.RemoveProperty(settingKey)
 	}
 
-	return 0, configErr(ClassInvalidArgument, 1099, "Setting "+settingKey+" does not exist or is not supported by this command")
+	return 0, configErr(ClassInvalidArgument, "Setting "+settingKey+" does not exist or is not supported by this command")
 }
 
 // jsonListValue is `$value = $values;` with --json decoding values[0]
 // into an array.
-func (*ConfigCommand) jsonListValue(in console.Input, settingKey string, values []string, line int) (any, error) {
+func (*ConfigCommand) jsonListValue(in console.Input, settingKey string, values []string) (any, error) {
 	if !console.BoolOption(in, "json") {
 		return stringList(values), nil
 	}
@@ -1166,14 +1164,14 @@ func (*ConfigCommand) jsonListValue(in console.Input, settingKey string, values 
 		return nil, err
 	}
 	if _, ok := value.(*php.Array); !ok {
-		return nil, configErr(ClassRuntime, line, "Expected an array or object for "+settingKey)
+		return nil, configErr(ClassRuntime, "Expected an array or object for "+settingKey)
 	}
 
 	return value, nil
 }
 
 // mergeJSONValue is the --merge of the audit/policy ignore lists.
-func mergeJSONValue(currentValue, value any, settingKey string, line int) (any, error) {
+func mergeJSONValue(currentValue, value any, settingKey string) (any, error) {
 	cur, ok1 := currentValue.(*php.Array)
 	val, ok2 := value.(*php.Array)
 	if !ok1 || !ok2 {
@@ -1186,7 +1184,7 @@ func mergeJSONValue(currentValue, value any, settingKey string, line int) (any, 
 		return arrayUnion(val, cur), nil
 	}
 
-	return nil, configErr(ClassRuntime, line, "Cannot merge array and object for "+settingKey)
+	return nil, configErr(ClassRuntime, "Cannot merge array and object for "+settingKey)
 }
 
 func (c *ConfigCommand) setAuth(kind, key string, values []string, unset bool) error {
@@ -1202,24 +1200,24 @@ func (c *ConfigCommand) setAuth(kind, key string, values []string, unset bool) e
 	switch {
 	case kind == "bitbucket-oauth":
 		if len(values) != 2 {
-			return configErr(ClassRuntime, 1027, "Expected two arguments (consumer-key, consumer-secret), got "+strconv.Itoa(len(values)))
+			return configErr(ClassRuntime, "Expected two arguments (consumer-key, consumer-secret), got "+strconv.Itoa(len(values)))
 		}
 		value = php.ArrayOf("consumer-key", values[0], "consumer-secret", values[1])
 	case kind == "gitlab-token" && len(values) == 2:
 		value = php.ArrayOf("username", values[0], "token", values[1])
 	case kind == "github-oauth" || kind == "gitlab-oauth" || kind == "gitlab-token" || kind == "bearer":
 		if len(values) != 1 {
-			return configErr(ClassRuntime, 1036, "Too many arguments, expected only one token")
+			return configErr(ClassRuntime, "Too many arguments, expected only one token")
 		}
 		value = values[0]
 	case kind == "http-basic":
 		if len(values) != 2 {
-			return configErr(ClassRuntime, 1042, "Expected two arguments (username, password), got "+strconv.Itoa(len(values)))
+			return configErr(ClassRuntime, "Expected two arguments (username, password), got "+strconv.Itoa(len(values)))
 		}
 		value = php.ArrayOf("username", values[0], "password", values[1])
 	case kind == "custom-headers":
 		if len(values) == 0 {
-			return configErr(ClassRuntime, 1048, "Expected at least one argument (header), got none")
+			return configErr(ClassRuntime, "Expected at least one argument (header), got none")
 		}
 
 		// Validate headers format
@@ -1230,13 +1228,13 @@ func (c *ConfigCommand) setAuth(kind, key string, values []string, unset bool) e
 				return err
 			}
 			if !ok {
-				return configErr(ClassRuntime, 1060, `Header "`+header+`" is not in "Header-Name: Header-Value" format`)
+				return configErr(ClassRuntime, `Header "`+header+`" is not in "Header-Name: Header-Value" format`)
 			}
 		}
 		value = stringList(values)
 	case kind == "forgejo-token":
 		if len(values) != 2 {
-			return configErr(ClassRuntime, 1070, "Expected two arguments (username, access token), got "+strconv.Itoa(len(values)))
+			return configErr(ClassRuntime, "Expected two arguments (username, access token), got "+strconv.Itoa(len(values)))
 		}
 		value = php.ArrayOf("username", values[0], "token", values[1])
 	default:
@@ -1253,7 +1251,7 @@ func (c *ConfigCommand) setAuth(kind, key string, values []string, unset bool) e
 // handleSingleValue ports handleSingleValue.
 func (c *ConfigCommand) handleSingleValue(key string, callbacks configValidator, values []string, method func(string, any) error) error {
 	if len(values) != 1 {
-		return configErr(ClassRuntime, 1110, "You can only pass one value. Example: php composer.phar config process-timeout 300")
+		return configErr(ClassRuntime, "You can only pass one value. Example: php composer.phar config process-timeout 300")
 	}
 
 	ok, err := callbacks.validate(values[0])
@@ -1261,7 +1259,7 @@ func (c *ConfigCommand) handleSingleValue(key string, callbacks configValidator,
 		return err
 	}
 	if !ok {
-		return configErr(ClassRuntime, 1114, `"`+values[0]+`" is an invalid value`)
+		return configErr(ClassRuntime, `"`+values[0]+`" is an invalid value`)
 	}
 
 	normalizedValue, err := callbacks.normalize(values[0])
@@ -1289,7 +1287,7 @@ func (*ConfigCommand) handleMultiValue(key string, callbacks multiValidator, val
 	if validation := callbacks.validate(values); validation != "" {
 		encoded, _ := php.JSONEncode(stringList(values), 0)
 
-		return configErr(ClassRuntime, 1141, encoded+" is an invalid value ("+validation+")")
+		return configErr(ClassRuntime, encoded+" is an invalid value ("+validation+")")
 	}
 
 	return method(key, callbacks.normalize(values))

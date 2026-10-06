@@ -77,7 +77,7 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 			return 0, err
 		}
 		if !locked {
-			return 0, NewError(ClassUnexpectedValue, "LicensesCommand.php", 69, "Valid composer.json and composer.lock files are required to run this command with --locked")
+			return 0, NewError(ClassUnexpectedValue, "Valid composer.json and composer.lock files are required to run this command with --locked")
 		}
 		repo, err := comp.Locker().LockedRepository(!console.BoolOption(in, "no-dev"))
 		if err != nil {
@@ -191,7 +191,7 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 		}
 
 	default:
-		return 0, NewError(ClassRuntime, "LicensesCommand.php", 162, `Unsupported format "`+php.ToString(format)+`".  See help for supported formats.`)
+		return 0, NewError(ClassRuntime, `Unsupported format "`+php.ToString(format)+`".  See help for supported formats.`)
 	}
 
 	return 0, nil

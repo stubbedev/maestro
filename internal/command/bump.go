@@ -17,8 +17,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const bumpCommandFile = "BumpCommand.php"
-
 // The BumpCommand exit codes.
 const (
 	bumpErrorGeneric      = 1
@@ -334,7 +332,7 @@ func arraySetNested(a *php.Array, k1, k2 string, v any) {
 func bumpUpdateFileCleanly(file *json.File, updates []bumpUpdate) (bool, error) {
 	contents, err := os.ReadFile(file.Path())
 	if err != nil {
-		return false, NewError(ClassRuntime, bumpCommandFile, 245, "Unable to read "+file.Path()+" contents.")
+		return false, NewError(ClassRuntime, "Unable to read "+file.Path()+" contents.")
 	}
 
 	manipulator, err := json.NewManipulator(string(contents))
@@ -353,7 +351,7 @@ func bumpUpdateFileCleanly(file *json.File, updates []bumpUpdate) (bool, error) 
 	}
 
 	if err := os.WriteFile(file.Path(), []byte(manipulator.Contents()), 0o666); err != nil {
-		return false, NewError(ClassRuntime, bumpCommandFile, 259, "Unable to write new "+file.Path()+" contents.")
+		return false, NewError(ClassRuntime, "Unable to write new "+file.Path()+" contents.")
 	}
 
 	return true, nil

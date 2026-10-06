@@ -98,7 +98,7 @@ func TestOracle_ApplicationRenderThrowable(t *testing.T) {
 			prev = exceptions[*e.Previous]
 		}
 		if kind, ok := consoleExceptionKinds[e.Class]; ok {
-			exceptions[i] = &Error{Kind: kind, Message: string(e.Message), File: e.File, Line: e.Line, Prev: prev}
+			exceptions[i] = &Error{Kind: kind, Message: string(e.Message), Prev: prev}
 
 			continue
 		}

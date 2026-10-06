@@ -18,8 +18,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const baseCommandFile = "BaseCommand.php"
-
 // ProxyCommander is isProxyCommand(): a command meant to call another
 // command (no duplicated warnings).
 type ProxyCommander interface {
@@ -141,7 +139,7 @@ func (c *BaseCommand) App() (*Application, error) {
 		return app, nil
 	}
 
-	return nil, NewError(ClassRuntime, baseCommandFile, 66, `Composer commands can only work with an Composer\Console\Application instance set`)
+	return nil, NewError(ClassRuntime, `Composer commands can only work with an Composer\Console\Application instance set`)
 }
 
 // application is parent::getApplication() when it is a Composer
@@ -171,7 +169,7 @@ func (c *BaseCommand) RequireComposer(disablePlugins, disableScripts *bool) (*co
 	if c.composer == nil {
 		app := c.application()
 		if app == nil {
-			return nil, NewError(ClassRuntime, baseCommandFile, 106, `Could not create a Composer\Composer instance, you must inject one if this command is not used with a Composer\Console\Application instance`)
+			return nil, NewError(ClassRuntime, `Could not create a Composer\Composer instance, you must inject one if this command is not used with a Composer\Console\Application instance`)
 		}
 		composer, err := app.GetComposer(true, disablePlugins, disableScripts)
 		if err != nil {
@@ -400,10 +398,10 @@ func (*BaseCommand) PreferredInstallOptions(cfg *config.Config, in console.Input
 	if in.HasOption("prefer-install") {
 		if pi, ok := in.Option("prefer-install").(string); ok {
 			if console.BoolOption(in, "prefer-source") {
-				return false, false, NewError(ClassInvalidArgument, baseCommandFile, 347, "--prefer-source can not be used together with --prefer-install")
+				return false, false, NewError(ClassInvalidArgument, "--prefer-source can not be used together with --prefer-install")
 			}
 			if console.BoolOption(in, "prefer-dist") {
-				return false, false, NewError(ClassInvalidArgument, baseCommandFile, 350, "--prefer-dist can not be used together with --prefer-install")
+				return false, false, NewError(ClassInvalidArgument, "--prefer-dist can not be used together with --prefer-install")
 			}
 			switch pi {
 			case "dist":
@@ -414,7 +412,7 @@ func (*BaseCommand) PreferredInstallOptions(cfg *config.Config, in console.Input
 				preferDist = false
 				preferSource = false
 			default:
-				return false, false, NewError(ClassUnexpectedValue, baseCommandFile, 364, `--prefer-install accepts one of "dist", "source" or "auto", got `+pi)
+				return false, false, NewError(ClassUnexpectedValue, `--prefer-install accepts one of "dist", "source" or "auto", got `+pi)
 			}
 		}
 	}
@@ -431,7 +429,7 @@ func (*BaseCommand) PreferredInstallOptions(cfg *config.Config, in console.Input
 // PlatformRequirementFilter ports getPlatformRequirementFilter.
 func (*BaseCommand) PlatformRequirementFilter(in console.Input) (filter.PlatformRequirementFilter, error) {
 	if !in.HasOption("ignore-platform-reqs") || !in.HasOption("ignore-platform-req") {
-		return nil, NewError(ClassLogic, baseCommandFile, 379, "Calling getPlatformRequirementFilter from a command which does not define the --ignore-platform-req[s] flags is not permitted.")
+		return nil, NewError(ClassLogic, "Calling getPlatformRequirementFilter from a command which does not define the --ignore-platform-req[s] flags is not permitted.")
 	}
 
 	if in.Option("ignore-platform-reqs") == true {
@@ -451,7 +449,7 @@ func (c *BaseCommand) FormatRequirements(requirements []string) (*php.Array, err
 	requires := php.NewArray()
 	for _, requirement := range c.NormalizeRequirements(requirements) {
 		if !requirement.Version.Valid {
-			return nil, NewError(ClassUnexpectedValue, baseCommandFile, 405, "Option "+requirement.Name+" is missing a version constraint, use e.g. "+requirement.Name+":^1.0")
+			return nil, NewError(ClassUnexpectedValue, "Option "+requirement.Name+" is missing a version constraint, use e.g. "+requirement.Name+":^1.0")
 		}
 		requires.Set(requirement.Name, requirement.Version.S)
 	}
@@ -494,7 +492,7 @@ func (*BaseCommand) TerminalWidth() int {
 // AuditFormat ports getAuditFormat; optName is "format" or "audit-format".
 func (*BaseCommand) AuditFormat(in console.Input, optName string) (string, error) {
 	if !in.HasOption(optName) {
-		return "", NewError(ClassLogic, baseCommandFile, 462, "This should not be called on a Command which has no "+optName+" option defined.")
+		return "", NewError(ClassLogic, "This should not be called on a Command which has no "+optName+" option defined.")
 	}
 
 	val, _ := in.Option(optName).(string)
@@ -504,7 +502,7 @@ func (*BaseCommand) AuditFormat(in console.Input, optName string) (string, error
 		}
 	}
 
-	return "", NewError(ClassInvalidArgument, baseCommandFile, 467, "--"+optName+" must be one of "+joinFormats()+".")
+	return "", NewError(ClassInvalidArgument, "--"+optName+" must be one of "+joinFormats()+".")
 }
 
 func joinFormats() string { return strings.Join(advisory.Formats[:], ", ") }

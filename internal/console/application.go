@@ -441,7 +441,7 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	if base == nil {
 		// A type embedding a nil *Command: the parent constructor was never
 		// called.
-		return nil, newError(KindLogic, "Command.php", 420, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
+		return nil, newError(KindLogic, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
 	}
 	if base.self == nil {
 		base.self = command
@@ -455,11 +455,11 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	}
 
 	if base.definition == nil {
-		return nil, newError(KindLogic, "Command.php", 420, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
+		return nil, newError(KindLogic, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
 	}
 
 	if !base.hasName || base.Name() == "" || base.Name() == "0" {
-		return nil, newError(KindLogic, "Application.php", 541, `The command defined in "%s" cannot have an empty name.`, commandClass(command))
+		return nil, newError(KindLogic, `The command defined in "%s" cannot have an empty name.`, commandClass(command))
 	}
 
 	a.setCommand(base.Name(), command)
@@ -514,7 +514,7 @@ func (a *Application) Get(name string) (Commander, error) {
 
 	command, ok := a.commands[name]
 	if !ok {
-		return nil, newError(KindCommandNotFound, "Application.php", 565, `The command "%s" does not exist.`, name)
+		return nil, newError(KindCommandNotFound, `The command "%s" does not exist.`, name)
 	}
 
 	if a.wantHelps {
@@ -661,7 +661,7 @@ func (a *Application) FindNamespace(namespace string) (string, error) {
 			message += strings.Join(alternatives, "\n    ")
 		}
 
-		e := newError(KindNamespaceNotFound, "Application.php", 650, "%s", message)
+		e := newError(KindNamespaceNotFound, "%s", message)
 		e.Alternatives = alternatives
 
 		return "", e
@@ -669,7 +669,7 @@ func (a *Application) FindNamespace(namespace string) (string, error) {
 
 	exact := slices.Contains(namespaces, namespace)
 	if len(namespaces) > 1 && !exact {
-		e := newError(KindNamespaceNotFound, "Application.php", 655, "The namespace \"%s\" is ambiguous.\nDid you mean one of these?\n%s.", namespace, abbreviationSuggestions(namespaces))
+		e := newError(KindNamespaceNotFound, "The namespace \"%s\" is ambiguous.\nDid you mean one of these?\n%s.", namespace, abbreviationSuggestions(namespaces))
 		e.Alternatives = namespaces
 
 		return "", e
@@ -739,7 +739,7 @@ func (a *Application) Find(name string) (Commander, error) {
 			message += strings.Join(alternatives, "\n    ")
 		}
 
-		e := newError(KindCommandNotFound, "Application.php", 720, "%s", message)
+		e := newError(KindCommandNotFound, "%s", message)
 		e.Alternatives = alternatives
 
 		return nil, e
@@ -785,7 +785,7 @@ func (a *Application) Find(name string) (Commander, error) {
 		if len(commands) > 1 {
 			suggestions := abbreviationSuggestions(abbrevs)
 
-			e := newError(KindCommandNotFound, "Application.php", 761, "Command \"%s\" is ambiguous.\nDid you mean one of these?\n%s.", name, suggestions)
+			e := newError(KindCommandNotFound, "Command \"%s\" is ambiguous.\nDid you mean one of these?\n%s.", name, suggestions)
 			e.Alternatives = commands
 
 			return nil, e
@@ -795,7 +795,7 @@ func (a *Application) Find(name string) (Commander, error) {
 	if len(commands) == 0 {
 		// Every candidate was hidden: reset($commands) is false, which
 		// get() receives as "".
-		return nil, newError(KindCommandNotFound, "Application.php", 565, `The command "%s" does not exist.`, "")
+		return nil, newError(KindCommandNotFound, `The command "%s" does not exist.`, "")
 	}
 
 	command, err := a.Get(commands[0])
@@ -804,7 +804,7 @@ func (a *Application) Find(name string) (Commander, error) {
 	}
 
 	if command.Base().IsHidden() {
-		return nil, newError(KindCommandNotFound, "Application.php", 768, `The command "%s" does not exist.`, name)
+		return nil, newError(KindCommandNotFound, `The command "%s" does not exist.`, name)
 	}
 
 	return command, nil

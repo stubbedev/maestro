@@ -29,8 +29,6 @@ func init() {
 	registerCommand(OrderSelfUpdate, func() console.Commander { return NewSelfUpdateCommand() })
 }
 
-const selfUpdateCommandFile = "SelfUpdateCommand.php"
-
 // The release source of maestro and the names of its assets: every
 // GitHub release of github.com/stubbedev/maestro carries one binary per
 // platform, maestro_<GOOS>_<GOARCH> (".exe" on Windows), and checksums.txt
@@ -188,7 +186,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 
 	// ensure the maestro binary location is accessible
 	if !fileExists(localFilename) {
-		return 0, NewError(`Composer\Downloader\FilesystemException`, selfUpdateCommandFile, 149, `Composer update failed: the "`+localFilename+`" is not accessible`)
+		return 0, NewError(`Composer\Downloader\FilesystemException`, `Composer update failed: the "`+localFilename+`" is not accessible`)
 	}
 
 	// check if current dir is writable and if not try the cache dir from settings
@@ -199,7 +197,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 
 	// check for permissions in local filesystem before start connection process
 	if !util.IsWritable(tmpDir) {
-		return 0, NewError(`Composer\Downloader\FilesystemException`, selfUpdateCommandFile, 157, `Composer update failed: the "`+tmpDir+`" directory used to download the temp file could not be written`)
+		return 0, NewError(`Composer\Downloader\FilesystemException`, `Composer update failed: the "`+tmpDir+`" directory used to download the temp file could not be written`)
 	}
 
 	if console.BoolOption(in, "rollback") {
@@ -222,7 +220,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 		target, err = releaseSource(c.APIBase).fetch(httpDownloader, "/releases/tags/v"+requested)
 		if err != nil {
 			if te, ok := errors.AsType[*util.TransportError](err); ok && te.StatusCode == nethttp.StatusNotFound {
-				return 0, &Error{Class: ClassInvalidArgument, Message: `Version "` + requested + `" could not be found.`, File: selfUpdateCommandFile, Line: 286, Prev: err}
+				return 0, &Error{Class: ClassInvalidArgument, Message: `Version "` + requested + `" could not be found.`, Prev: err}
 			}
 
 			return 0, err
@@ -254,7 +252,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 
 	asset, ok := target.assets[assetName()]
 	if !ok {
-		return 0, NewError(ClassRuntime, selfUpdateCommandFile, 268, `Version "`+updateVersion+`" has no build for `+runtime.GOOS+"/"+runtime.GOARCH+".")
+		return 0, NewError(ClassRuntime, `Version "`+updateVersion+`" has no build for `+runtime.GOOS+"/"+runtime.GOARCH+".")
 	}
 
 	tempFilename := tmpDir + "/" + filepath.Base(localFilename) + "-temp" + strconv.Itoa(int(time.Now().UnixNano()%10000000))
@@ -428,7 +426,7 @@ func (r releaseSource) latest(d *http.HttpDownloader, channel string) (*release,
 		}
 	}
 	if best == nil {
-		return nil, NewError(ClassUnexpectedValue, "Versions.php", 82, "No release found for the "+channel+" channel")
+		return nil, NewError(ClassUnexpectedValue, "No release found for the "+channel+" channel")
 	}
 
 	return best, nil
@@ -465,7 +463,7 @@ func verifyChecksum(file, checksums, name string) error {
 	}
 	sum := sha256.Sum256(data)
 	if want == "" || hex.EncodeToString(sum[:]) != want {
-		return NewError(ClassUnexpectedValue, selfUpdateCommandFile, 591, "The phar signature did not match the file you downloaded, this means your public keys are outdated or that the phar file is corrupt/has been modified")
+		return NewError(ClassUnexpectedValue, "The phar signature did not match the file you downloaded, this means your public keys are outdated or that the phar file is corrupt/has been modified")
 	}
 
 	return nil
@@ -520,16 +518,16 @@ func replaceFile(src, dst string) error {
 func (c *SelfUpdateCommand) rollback(rollbackDir, localFilename string) (int, error) {
 	rollbackVersion := lastBackupVersion(rollbackDir)
 	if rollbackVersion == "" {
-		return 0, NewError(ClassUnexpectedValue, selfUpdateCommandFile, 386, `Composer rollback failed: no installation to roll back to in "`+rollbackDir+`"`)
+		return 0, NewError(ClassUnexpectedValue, `Composer rollback failed: no installation to roll back to in "`+rollbackDir+`"`)
 	}
 
 	oldFile := rollbackDir + "/" + rollbackVersion + oldInstallSuffix
 
 	if st, err := os.Stat(oldFile); err != nil || !st.Mode().IsRegular() {
-		return 0, NewError(`Composer\Downloader\FilesystemException`, selfUpdateCommandFile, 392, `Composer rollback failed: "`+oldFile+`" could not be found`)
+		return 0, NewError(`Composer\Downloader\FilesystemException`, `Composer rollback failed: "`+oldFile+`" could not be found`)
 	}
 	if !util.IsReadable(oldFile) {
-		return 0, NewError(`Composer\Downloader\FilesystemException`, selfUpdateCommandFile, 395, `Composer rollback failed: "`+oldFile+`" could not be read`)
+		return 0, NewError(`Composer\Downloader\FilesystemException`, `Composer rollback failed: "`+oldFile+`" could not be read`)
 	}
 
 	ioi := c.IO()

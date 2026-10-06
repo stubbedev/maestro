@@ -17,8 +17,6 @@ func init() {
 	registerCommand(OrderRepository, func() console.Commander { return NewRepositoryCommand() })
 }
 
-const repositoryCommandFile = "RepositoryCommand.php"
-
 // RepositoryCommand is Composer\Command\RepositoryCommand.
 type RepositoryCommand struct{ *BaseConfigCommand }
 
@@ -96,8 +94,8 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 	}
 	repos := c.Config.Repositories()
 
-	runtimeErr := func(line int, msg string) (int, error) {
-		return 0, NewError(ClassRuntime, repositoryCommandFile, line, msg)
+	runtimeErr := func(msg string) (int, error) {
+		return 0, NewError(ClassRuntime, msg)
 	}
 
 	switch action {
@@ -108,10 +106,10 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 
 	case "add":
 		if name == nil {
-			return runtimeErr(98, "You must pass a repository name. Example: composer repo add foo vcs https://example.org")
+			return runtimeErr("You must pass a repository name. Example: composer repo add foo vcs https://example.org")
 		}
 		if arg1 == nil {
-			return runtimeErr(101, "You must pass the type and a url, or a JSON string.")
+			return runtimeErr("You must pass the type and a url, or a JSON string.")
 		}
 		var repoConfig any
 		s, isString := arg1.(string)
@@ -128,7 +126,7 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 			}
 		} else {
 			if arg2 == nil {
-				return runtimeErr(108, "You must pass the type and a url. Example: composer repo add foo vcs https://example.org")
+				return runtimeErr("You must pass the type and a url. Example: composer repo add foo vcs https://example.org")
 			}
 			repoConfig = php.ArrayOf("type", php.ToString(arg1), "url", php.ToString(arg2))
 		}
@@ -137,12 +135,12 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 		before := in.Option("before")
 		after := in.Option("after")
 		if before != nil && after != nil {
-			return runtimeErr(117, "You can not combine --before and --after")
+			return runtimeErr("You can not combine --before and --after")
 		}
 
 		if before != nil || after != nil {
 			if repoConfig == false {
-				return runtimeErr(122, "Cannot use --before/--after with boolean repository values")
+				return runtimeErr("Cannot use --before/--after with boolean repository values")
 			}
 			ref, offset := before, 0
 			if after != nil {
@@ -163,7 +161,7 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 
 	case "remove", "rm", "delete":
 		if name == nil {
-			return runtimeErr(138, "You must pass the repository name to remove.")
+			return runtimeErr("You must pass the repository name to remove.")
 		}
 		if err := c.ConfigSource.RemoveRepository(php.ToString(name)); err != nil {
 			return 0, err
@@ -178,7 +176,7 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 
 	case "set-url", "seturl":
 		if name == nil || arg1 == nil {
-			return runtimeErr(150, "Usage: composer repo set-url <name> <new-url>")
+			return runtimeErr("Usage: composer repo set-url <name> <new-url>")
 		}
 
 		if err := c.ConfigSource.SetRepositoryURL(php.ToString(name), php.ToString(arg1)); err != nil {
@@ -189,13 +187,13 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 
 	case "get-url", "geturl":
 		if name == nil {
-			return runtimeErr(160, "Usage: composer repo get-url <name>")
+			return runtimeErr("Usage: composer repo get-url <name>")
 		}
 		nameStr := php.ToString(name)
 		if repo, ok := repos.GetArray(nameStr); ok {
 			url, ok := repo.GetString("url")
 			if !ok {
-				return 0, NewError(ClassInvalidArgument, repositoryCommandFile, 165, "The "+nameStr+" repository does not have a URL")
+				return 0, NewError(ClassInvalidArgument, "The "+nameStr+" repository does not have a URL")
 			}
 			c.IO().Write(url, true, io.Normal)
 
@@ -207,7 +205,7 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 				if n, ok := repo.Get("name"); ok && n == name {
 					url, ok := repo.GetString("url")
 					if !ok {
-						return 0, NewError(ClassInvalidArgument, repositoryCommandFile, 177, "The "+nameStr+" repository does not have a URL")
+						return 0, NewError(ClassInvalidArgument, "The "+nameStr+" repository does not have a URL")
 					}
 					c.IO().Write(url, true, io.Normal)
 
@@ -216,11 +214,11 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 			}
 		}
 
-		return 0, NewError(ClassInvalidArgument, repositoryCommandFile, 186, "There is no "+nameStr+" repository defined")
+		return 0, NewError(ClassInvalidArgument, "There is no "+nameStr+" repository defined")
 
 	case "disable":
 		if name == nil {
-			return runtimeErr(190, "Usage: composer repo disable packagist.org")
+			return runtimeErr("Usage: composer repo disable packagist.org")
 		}
 		if isPackagist(name) {
 			// special handling mirrors ConfigCommand behavior
@@ -231,11 +229,11 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 			return 0, nil
 		}
 
-		return runtimeErr(198, "Only packagist.org can be enabled/disabled using this command. Use add/remove for other repositories.")
+		return runtimeErr("Only packagist.org can be enabled/disabled using this command. Use add/remove for other repositories.")
 
 	case "enable":
 		if name == nil {
-			return runtimeErr(202, "Usage: composer repo enable packagist.org")
+			return runtimeErr("Usage: composer repo enable packagist.org")
 		}
 		if isPackagist(name) {
 			// Remove a false flag by setting packagist.org to true via removing the key
@@ -247,10 +245,10 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 			return 0, nil
 		}
 
-		return runtimeErr(211, "Only packagist.org can be enabled/disabled using this command.")
+		return runtimeErr("Only packagist.org can be enabled/disabled using this command.")
 	}
 
-	return 0, NewError(ClassInvalidArgument, repositoryCommandFile, 214, `Unknown action "`+action+`". Use list, add, remove, set-url, get-url, enable, disable`)
+	return 0, NewError(ClassInvalidArgument, `Unknown action "`+action+`". Use list, add, remove, set-url, get-url, enable, disable`)
 }
 
 // listRepositories ports listRepositories.

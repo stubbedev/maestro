@@ -204,7 +204,7 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 		return c.call(methodClass(impl, "execute")+"->execute", impl, in, out, func() (int, error) { return h.Execute(in, out) })
 	}
 
-	return 0, newError(KindLogic, "Command.php", 208, "You must override the execute() method in the concrete command class.")
+	return 0, newError(KindLogic, "You must override the execute() method in the concrete command class.")
 }
 
 // call runs fn as run()'s call of function on the command
@@ -478,7 +478,7 @@ func (c *Command) Usages() []string { return c.usages }
 // Helper returns a helper from the helper set.
 func (c *Command) Helper(name string) (Helper, error) {
 	if c.helperSet == nil {
-		return nil, newError(KindLogic, "Command.php", 691, `Cannot retrieve helper "%s" because there is no HelperSet defined. Did you forget to add your command to the application or to set the application on the command using the setApplication() method? You can also set the HelperSet directly using the setHelperSet() method.`, name)
+		return nil, newError(KindLogic, `Cannot retrieve helper "%s" because there is no HelperSet defined. Did you forget to add your command to the application or to set the application on the command using the setApplication() method? You can also set the HelperSet directly using the setHelperSet() method.`, name)
 	}
 
 	return c.helperSet.Get(name)
@@ -496,7 +496,7 @@ func validateCommandName(name string) error {
 		}
 	}
 	if !valid {
-		return newError(KindInvalidArgument, "Command.php", 707, `Command name "%s" is invalid.`, name)
+		return newError(KindInvalidArgument, `Command name "%s" is invalid.`, name)
 	}
 
 	return nil

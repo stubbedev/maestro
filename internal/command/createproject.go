@@ -27,8 +27,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-const createProjectFile = "CreateProjectCommand.php"
-
 func init() {
 	registerCommand(OrderCreateProject, func() console.Commander { return NewCreateProjectCommand() })
 }
@@ -139,7 +137,7 @@ func (c *CreateProjectCommand) Execute(in console.Input, _ console.Output) (int,
 	if in.IsInteractive() && console.BoolOption(in, "ask") {
 		packageName := nullableString(in.Argument("package"))
 		if packageName == nil {
-			return 0, NewError(ClassRuntime, createProjectFile, 149, `Not enough arguments (missing: "package").`)
+			return 0, NewError(ClassRuntime, `Not enough arguments (missing: "package").`)
 		}
 		parts := strings.SplitN(strings.ToLower(*packageName), "/", 2)
 		answer, err := cio.Ask("New project directory [<comment>"+parts[len(parts)-1]+"</comment>]: ", nil)
@@ -486,7 +484,7 @@ func removeVcsDirectories(fs *util.Filesystem) error {
 			return err
 		}
 		if !ok {
-			return NewError(ClassRuntime, createProjectFile, 320, "Could not remove "+dir)
+			return NewError(ClassRuntime, "Could not remove "+dir)
 		}
 	}
 
@@ -555,7 +553,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 		directory = cwd + string(filepath.Separator) + directory
 	}
 	if directory == "" {
-		return false, NewError(ClassUnexpectedValue, createProjectFile, 378, "Got an empty target directory, something went wrong")
+		return false, NewError(ClassUnexpectedValue, "Got an empty target directory, something went wrong")
 	}
 
 	// set the base dir to ensure $config->all() below resolves the correct absolute paths to vendor-dir etc
@@ -574,14 +572,14 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 
 	if st, err := os.Stat(directory); err == nil {
 		if !st.IsDir() {
-			return false, NewError(ClassInvalidArgument, createProjectFile, 391, `Cannot create project directory at "`+directory+`", it exists as a file.`)
+			return false, NewError(ClassInvalidArgument, `Cannot create project directory at "`+directory+`", it exists as a file.`)
 		}
 		empty, err := util.IsDirEmpty(directory)
 		if err != nil {
 			return false, err
 		}
 		if !empty {
-			return false, NewError(ClassInvalidArgument, createProjectFile, 394, `Project directory "`+directory+`" is not empty.`)
+			return false, NewError(ClassInvalidArgument, `Project directory "`+directory+`" is not empty.`)
 		}
 	}
 
@@ -607,11 +605,11 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 
 	if stability, err = semver.NormalizeStability(stability); err != nil {
 		// thrown by composer/semver's VersionParser::normalizeStability
-		return false, NewError(ClassInvalidArgument, "VersionParser.php", 92, err.Error())
+		return false, NewError(ClassInvalidArgument, err.Error())
 	}
 
 	if _, ok := pkg.StabilityValue(stability); !ok {
-		return false, NewError(ClassInvalidArgument, createProjectFile, 411, "Invalid stability provided ("+stability+"), must be one of: "+strings.Join(pkg.StabilityNames(), ", "))
+		return false, NewError(ClassInvalidArgument, "Invalid stability provided ("+stability+"), must be one of: "+strings.Join(pkg.StabilityNames(), ", "))
 	}
 
 	all, err := cfg.All(0)
@@ -735,11 +733,11 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 				return false, err
 			}
 			if candidate != nil {
-				return false, NewError(ClassInvalidArgument, createProjectFile, 452, errorMessage+" in a version installable using your PHP version, PHP extensions and Composer version.")
+				return false, NewError(ClassInvalidArgument, errorMessage+" in a version installable using your PHP version, PHP extensions and Composer version.")
 			}
 		}
 
-		return false, NewError(ClassInvalidArgument, createProjectFile, 455, errorMessage+".")
+		return false, NewError(ClassInvalidArgument, errorMessage+".")
 	}
 
 	// handler Ctrl+C aborts gracefully
