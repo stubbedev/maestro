@@ -110,13 +110,30 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 	s := php.NewArray()
 	var commits []func()
 
+	var updates []*php.Array
 	if len(c.pendingReg) > 0 {
 		list := php.NewArrayCap(len(c.pendingReg))
 		for _, r := range c.pendingReg {
 			list.Append(php.ArrayOf("tmp", int64(r.tmp), "h", int64(r.h)))
 			e.sent[r.h] = true
 			if m, ok := r.m.(Mirror); ok {
-				e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: m, rev: r.rev})
+				rev := m.Rev()
+				if rev != r.rev {
+					// A PHP-born mirror the call that adopted it changed
+					// (an input bound by the hook it was passed to): the
+					// change goes with its registration, before PHP
+					// changes it again from what it had.
+					fields, err := m.MirrorSnapshot()
+					if err != nil {
+						return nil, nil, err
+					}
+					encoded, _, err := e.array(fields)
+					if err != nil {
+						return nil, nil, err
+					}
+					updates = append(updates, php.ArrayOf("h", int64(r.h), "r", int64(rev), "full", encoded)) //nolint:gosec // revisions stay far below 2^63.
+				}
+				e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: m, rev: rev})
 			}
 		}
 		s.Set("reg", list)
@@ -182,7 +199,6 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 		commits = append(commits, func() { maps.Copy(c.sync.sentStatics, changed) })
 	}
 
-	var updates []*php.Array
 	for _, ms := range c.h.mirrors {
 		rev := ms.m.Rev()
 		if rev == ms.rev {

@@ -30,7 +30,7 @@ class BuiltinCommand extends BaseCommand
         // object passed here.
         $licensesInput = new ArrayInput(['--format' => 'text']);
         $code = $app->find('licenses')->run($licensesInput, $output);
-        $output->writeln('licenses '.$code.' '.$licensesInput->getOption('format'));
+        $output->writeln('licenses '.$code.' '.$licensesInput->getOption('format').' '.var_export($licensesInput->getArgument('command'), true));
 
         // On a PHP output, from a string input.
         $buffer = new BufferedOutput();

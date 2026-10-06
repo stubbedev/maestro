@@ -122,7 +122,7 @@ func TestPlugins_Commands(t *testing.T) {
 	}
 	contains("maestro:builtin", out,
 		"{\n    \"name\": \"maestro-test/commands-project\"",
-		"licenses 0 json\n",
+		"licenses 0 json 'licenses'\n",
 		"summary 0: ",
 		"greetings them from greet\nrun-script 0\n",
 		`error RuntimeException: Unsupported format "nope".  See help for supported formats.`+"\n",
