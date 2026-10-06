@@ -345,6 +345,10 @@ func TestInstallationManager_NotifyInstalls(t *testing.T) {
 // throws the rejection, so waitOnPromises never clears the progress bar or
 // writes the line break ending it (the exception's rendering does).
 func TestInstallationManager_ExecuteFailureLeavesProgressLine(t *testing.T) {
+	// waitOnPromises shows no progress bar when CI is set, as CI services
+	// (GitHub Actions among them) do.
+	t.Setenv("CI", "")
+
 	rec := &recorder{}
 	installer := newMockInstaller(rec, func(string) bool { return true })
 	installer.result = func(method string, p pkg.PackageInterface) (*Promise, error) {
