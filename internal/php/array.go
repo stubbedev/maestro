@@ -5,6 +5,7 @@ package php
 
 import (
 	"iter"
+	"maps"
 	"math"
 	"sync/atomic"
 )
@@ -216,6 +217,18 @@ func (a *Array) indexAdd(k Key, pos int) {
 	}
 }
 
+// indexLike indexes a, a copy of src's live entries in their order:
+// copying src's index, when it has one that holds the same positions
+// (src has no holes), costs much less than building one.
+func (a *Array) indexLike(src *Array) {
+	if !src.indexed || src.packed || len(src.entries) != src.live {
+		a.buildIndex()
+		return
+	}
+	a.indexed = true
+	a.strIdx, a.intIdx = maps.Clone(src.strIdx), maps.Clone(src.intIdx)
+}
+
 func (a *Array) buildIndex() {
 	a.indexed = true
 	a.strIdx, a.intIdx = nil, nil
@@ -405,7 +418,7 @@ func (a *Array) Clone() *Array {
 		c.entries = append(c.entries, e)
 	}
 	if !c.packed && len(c.entries) > linearMax {
-		c.buildIndex()
+		c.indexLike(a)
 	}
 	return c
 }
@@ -439,7 +452,7 @@ func (a *Array) ShallowClone() *Array {
 		c.entries = append(c.entries, e)
 	}
 	if !c.packed && len(c.entries) > linearMax {
-		c.buildIndex()
+		c.indexLike(a)
 	}
 	return c
 }

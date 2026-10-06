@@ -5,6 +5,7 @@
 package composerrepo
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"sync"
@@ -373,6 +374,16 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSource, realName string, constraint semver.ConstraintInterface, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, error) {
 	items := asArray(raw).Values()
 	if minified {
+		if versions := pre.versionsFor(realName, len(items), acceptableStabilities, stabilityFlags); versions != nil {
+			if packages, ok, err := r.buildFromVersions(items, versions, packagesSource, realName, constraint, alreadyLoaded, pre); ok {
+				if onVersionsShared != nil {
+					onVersionsShared()
+				}
+
+				return packages, err
+			}
+		}
+
 		// the versions loaded are copied out of the expansion, the others
 		// only looked at; the packages a speculation built from them
 		// already (pre) are taken instead, in their place
@@ -424,19 +435,7 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 			return nil, err
 		}
 		if ok {
-			created, err := r.createPackages(versionsToLoad, packagesSource)
-			if err != nil || len(created) == len(loaded) {
-				return created, err
-			}
-			for i, p := range loaded {
-				if p == nil {
-					loaded[i], created = created[0], created[1:]
-				} else {
-					r.configureLoaded(p)
-				}
-			}
-
-			return loaded, nil
+			return r.createAround(versionsToLoad, loaded, packagesSource)
 		}
 
 		if items, err = expandVersions(items); err != nil {
@@ -477,6 +476,90 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 
 	return r.createPackages(versionsToLoad, packagesSource)
 }
+
+// buildFromVersions is buildPackages for a minified list of which a
+// speculation read every version exactly (versions, see versionsOf): the
+// versions' stabilities, version_normalized and branch aliases decide
+// which are loaded, as isVersionAcceptable decides, without expanding
+// the list; it is expanded only up to the last version loaded that the
+// speculation did not build already (pre). ok is false, and nothing
+// created, if the list does not expand as versionsOf read it.
+func (r *ComposerRepository) buildFromVersions(items []any, versions []*speculatedVersion, packagesSource, realName string, constraint semver.ConstraintInterface, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, bool, error) {
+	matches := func(string) bool { return true }
+	if constraint != nil {
+		matches = semver.CompilingMatcher.Matcher(constraint, semver.OpEQ)
+	}
+
+	var (
+		loaded []pkg.PackageInterface // nil where the version is to be loaded
+		load   = map[int]bool{}       // the indexes of those
+		last   = -1
+	)
+	for _, v := range versions {
+		// avoid loading packages which have already been loaded
+		if alreadyLoaded[realName][v.normalized] != nil {
+			continue
+		}
+		if accepted := (v.stable && matches(v.normalized)) || (v.aliasStable && matches(v.alias)); !accepted {
+			continue
+		}
+		built := pre.take(realName, r.notifyURL, v.index)
+		if built == nil {
+			load[v.index] = true
+			last = v.index
+		}
+		loaded = append(loaded, built)
+	}
+
+	var versionsToLoad []*php.Array
+	if last >= 0 {
+		index := -1
+		ok, err := expandEach(items, func(_ *php.Array, keep func() *php.Array) error {
+			index++
+			if index > last {
+				return errStopExpanding
+			}
+			if load[index] {
+				versionsToLoad = append(versionsToLoad, keep())
+			}
+
+			return nil
+		})
+		if !ok || (err != nil && !errors.Is(err, errStopExpanding)) || len(versionsToLoad) != len(load) {
+			return nil, false, nil
+		}
+	}
+	packages, err := r.createAround(versionsToLoad, loaded, packagesSource)
+
+	return packages, true, err
+}
+
+// createAround creates the packages of versionsToLoad and returns them in
+// the places loaded leaves for them (nil entries), between the packages
+// it holds, which are configured as createPackages configures the
+// packages it creates.
+func (r *ComposerRepository) createAround(versionsToLoad []*php.Array, loaded []pkg.PackageInterface, packagesSource string) ([]pkg.PackageInterface, error) {
+	created, err := r.createPackages(versionsToLoad, packagesSource)
+	if err != nil || len(created) == len(loaded) {
+		return created, err
+	}
+	for i, p := range loaded {
+		if p == nil {
+			loaded[i], created = created[0], created[1:]
+		} else {
+			r.configureLoaded(p)
+		}
+	}
+
+	return loaded, nil
+}
+
+// onVersionsShared, when set (by tests), is called for each list
+// buildFromVersions builds.
+var onVersionsShared func()
+
+// errStopExpanding stops expandEach where the versions needed end.
+var errStopExpanding = errors.New("stop expanding")
 
 // shallowClone copies an array without copying the arrays it holds.
 func shallowClone(a *php.Array) *php.Array {

@@ -3,8 +3,10 @@
 package command_test
 
 import (
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/util"
@@ -56,5 +58,46 @@ func TestClearCacheCommand_WithOptionNoCache(t *testing.T) {
 	output := runCommandSuccessfully(t, clearCacheTester(t), "command", "clear-cache", "--no-cache", true)
 	if !strings.Contains(output, "Cache is not enabled") {
 		t.Errorf("output %q", output)
+	}
+}
+
+// clear-cache removes maestro's decoded repository metadata with the
+// repository cache, and --gc ages it with cache-ttl, without output of its
+// own.
+func TestClearCacheCommand_DecodedMetadata(t *testing.T) {
+	for _, gc := range []bool{false, true} {
+		appTester := clearCacheTester(t)
+		home, _ := util.GetEnv("COMPOSER_HOME")
+		if err := os.MkdirAll(home+"/cache/repo", 0o777); err != nil {
+			t.Fatal(err)
+		}
+		slots := home + "/maestro/p2/v1"
+		if err := os.MkdirAll(slots, 0o777); err != nil {
+			t.Fatal(err)
+		}
+		past := time.Now().AddDate(-1, 0, 0)
+		for _, name := range []string{"old.bin", "new.bin"} {
+			if err := os.WriteFile(slots+"/"+name, []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.Chtimes(slots+"/old.bin", past, past); err != nil {
+			t.Fatal(err)
+		}
+
+		var output string
+		if gc {
+			output = runCommandSuccessfully(t, appTester, "command", "clear-cache", "--gc", true)
+		} else {
+			output = runCommandSuccessfully(t, appTester, "command", "clear-cache")
+		}
+		if strings.Contains(output, "p2") || strings.Contains(output, home+"/maestro") {
+			t.Errorf("gc=%v: output %q", gc, output)
+		}
+		_, errOld := os.Stat(slots + "/old.bin")
+		_, errNew := os.Stat(slots + "/new.bin")
+		if !os.IsNotExist(errOld) || gc == os.IsNotExist(errNew) {
+			t.Errorf("gc=%v: old %v, new %v", gc, errOld, errNew)
+		}
 	}
 }

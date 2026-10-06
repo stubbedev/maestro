@@ -9,9 +9,12 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync/atomic"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
 )
@@ -21,16 +24,27 @@ import (
 // goroutines, and a later factory call may set it again.
 var decodedCacheDir atomic.Pointer[string]
 
-// UseDecodedCache keeps, in dir, the decoded form of the cached metadata
-// files the repositories decode, for later runs; "" keeps none (the
-// default). Call it before repositories load metadata.
+// UseDecodedCache keeps, under root (cache.DecodedMetadata), the decoded
+// form of the cached metadata files the repositories decode, for later
+// runs; "" keeps none (the default). Call it before repositories load
+// metadata. ClearDecodedCache and GcDecodedCache clean root up.
 //
 // The decoded form of a file (php.AppendBinary) is stored after a copy of
 // the JSON it was decoded from, and only read back for that exact JSON, so
 // what it gives is what decoding the JSON gives. (Comparing the copy costs
 // far less than hashing the JSON.) Each cached file has one slot,
 // overwritten when its JSON changes.
-func UseDecodedCache(dir string) { decodedCacheDir.Store(&dir) }
+func UseDecodedCache(root string) {
+	dir := root
+	if root != "" {
+		dir = filepath.Join(root, decodedVersion)
+	}
+	decodedCacheDir.Store(&dir)
+}
+
+// decodedVersion is the directory, under the root, of the slots of the
+// current form; it changes with decodedMagic.
+const decodedVersion = "v1"
 
 // decodedMagic starts a decoded file; its version changes with the
 // binary form.
@@ -103,4 +117,41 @@ func writeDecoded(dir, path string, data []byte) {
 	if err != nil {
 		_ = os.Remove(f.Name())
 	}
+}
+
+// ClearDecodedCache removes the decoded cache under root, every version
+// of it: clear-cache does it when it clears the repository cache the
+// slots were decoded from.
+func ClearDecodedCache(root string) error {
+	return os.RemoveAll(root)
+}
+
+// GcDecodedCache removes the files under root not written for ttl
+// seconds: clear-cache --gc does it when it collects the repository
+// cache, whose files Cache.Gc ages from their last write too. A slot is
+// written when its file is first decoded after a change, so it ages with
+// that file; slots of another version are aged the same way.
+func GcDecodedCache(root string, ttl int) error {
+	dir, err := os.OpenRoot(root)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	defer func() { _ = dir.Close() }()
+
+	expire := time.Now().Add(-time.Duration(ttl) * time.Second)
+
+	return fs.WalkDir(dir.FS(), ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		if fi, err := d.Info(); err == nil && fi.ModTime().Before(expire) {
+			if err := dir.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
