@@ -30,6 +30,7 @@ type prefetched struct {
 
 type walkResult struct {
 	files []foundFile
+	dirs  []string // the directories listed
 	err   error
 }
 
@@ -85,6 +86,7 @@ func (g *Generator) prefetch(requests []ScanRequest) {
 	type found struct {
 		req    ScanRequest
 		files  []foundFile
+		dirs   []string
 		items  []scanItem
 		walked bool
 	}
@@ -101,8 +103,8 @@ func (g *Generator) prefetch(requests []ScanRequest) {
 				return
 			}
 			// a failed walk is left to its scan, which throws it
-			if files, walkErr := finderFiles(dirs, nil); walkErr == nil {
-				results[i].files, results[i].walked = files, true
+			if files, listed, walkErr := finderFilesDirs(dirs, nil); walkErr == nil {
+				results[i].files, results[i].dirs, results[i].walked = files, listed, true
 			}
 		}
 		results[i].items = g.scanItems(results[i].files, cwd)
@@ -124,7 +126,7 @@ func (g *Generator) prefetch(requests []ScanRequest) {
 	)
 	for _, r := range results {
 		if r.walked {
-			pre.walks[r.req.Path] = walkResult{files: r.files}
+			pre.walks[r.req.Path] = walkResult{files: r.files, dirs: r.dirs}
 		}
 		for _, it := range r.items {
 			if !seen[it.filePath] {

@@ -133,27 +133,36 @@ type foundFile struct {
 // finderFiles iterates the Finder over dirs and returns the files it
 // yields, in order, and the exception that stopped the iteration, if any.
 func finderFiles(dirs, excludedDirs []string) ([]foundFile, error) {
+	files, _, err := finderFilesDirs(dirs, excludedDirs)
+
+	return files, err
+}
+
+// finderFilesDirs is finderFiles, also returning the directories the
+// Finder listed, in order.
+func finderFilesDirs(dirs, excludedDirs []string) ([]foundFile, []string, error) {
 	w := finderWalk{excl: newFinderExclusions(excludedDirs)}
 	for _, dir := range dirs {
 		if dir == "" {
-			return w.files, newException(phperr.At("RecursiveDirectoryIterator.php", 48), "ValueError", "RecursiveDirectoryIterator::__construct(): Argument #1 ($directory) cannot be empty")
+			return w.files, w.dirs, newException(phperr.At("RecursiveDirectoryIterator.php", 48), "ValueError", "RecursiveDirectoryIterator::__construct(): Argument #1 ($directory) cannot be empty")
 		}
 		w.base = dir
 		if dir != "/" && !strings.HasSuffix(dir, "/") {
 			w.base += finderSep
 		}
 		if err := w.walk(dir, w.base, classUnexpectedValue); err != nil {
-			return w.files, err
+			return w.files, w.dirs, err
 		}
 	}
 
-	return w.files, nil
+	return w.files, w.dirs, nil
 }
 
 type finderWalk struct {
 	excl  finderExclusions
 	base  string // root path with a trailing separator
 	files []foundFile
+	dirs  []string // the directories listed
 }
 
 // walk is the SELF_FIRST RecursiveIteratorIterator over the directory dir.
@@ -179,6 +188,7 @@ func (w *finderWalk) walk(dir, prefix, errClass string) error {
 	// iteration like the end of the directory.
 	entries, _ := f.ReadDir(-1)
 	_ = f.Close()
+	w.dirs = append(w.dirs, dir)
 
 	for _, entry := range entries {
 		name := entry.Name()

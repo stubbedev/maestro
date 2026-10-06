@@ -66,6 +66,9 @@ type Generator struct {
 	pre *prefetched
 	// cache keeps parse results across scans and generators (nil: none).
 	cache *ParseCache
+	// rec collects what the scans depended on, for SaveRecord (nil: not
+	// recording).
+	rec *recording
 }
 
 // NewGenerator returns a generator scanning files with the given extensions
@@ -145,13 +148,15 @@ func (g *Generator) ScanPaths(path string, excluded Matcher, autoloadType Autolo
 	// The Finder is iterated after getcwd(); its errors surface after the
 	// files it yielded before them have been processed.
 	files, walkErr := []foundFile{{path: path}}, error(nil)
+	var listed []string
 	if dirs != nil {
 		if w, ok := g.pre.walk(path, excludedDirs); ok {
-			files, walkErr = w.files, w.err
+			files, listed, walkErr = w.files, w.dirs, w.err
 		} else {
-			files, walkErr = finderFiles(dirs, excludedDirs)
+			files, listed, walkErr = finderFilesDirs(dirs, excludedDirs)
 		}
 	}
+	g.recordScan(path, files, listed)
 
 	return g.scan(files, walkErr, cwd, excluded, autoloadType, namespace, path)
 }
@@ -159,6 +164,9 @@ func (g *Generator) ScanPaths(path string, excluded Matcher, autoloadType Autolo
 // ScanFiles scans the given files for classes, keeping them all
 // (scanPaths() with an array of SplFileInfo, whose pathnames these are).
 func (g *Generator) ScanFiles(files []string, excluded Matcher) error {
+	if g.rec != nil {
+		g.rec.broken = true
+	}
 	cwd, err := realCwd()
 	if err != nil {
 		return err

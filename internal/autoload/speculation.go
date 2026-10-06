@@ -73,7 +73,6 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 	if err != nil {
 		return
 	}
-	g.addReleases(packageMap)
 
 	s := &speculation{
 		parser:          g.Parser,
@@ -86,7 +85,7 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 	g.speculation = s
 	go func() {
 		defer close(s.done)
-		s.classMap, s.err = g.scanClassMap(d, autoloads, scanPsrPackages)
+		s.classMap, s.err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages)
 	}()
 }
 

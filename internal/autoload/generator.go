@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/classmap"
@@ -55,6 +56,9 @@ type Generator struct {
 	// speculation is the class map scan Speculate started, nil without
 	// one.
 	speculation *speculation
+	// recordDir keeps the class maps of the scans (UseScanRecords), ""
+	// for none.
+	recordDir string
 }
 
 // NewGenerator ports new AutoloadGenerator($eventDispatcher, $io); a nil
@@ -164,7 +168,6 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloads`, "AutoloadGenerator.php", 264)
 	}
-	g.addReleases(packageMap)
 
 	if err := d.namespaces(autoloads); err != nil {
 		return nil, err
@@ -176,7 +179,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		return nil, err
 	}
 
-	classMap, err := g.scan(d, autoloads, scanPsrPackages, strictAmbiguous, g.takeSpeculation(d, autoloads, scanPsrPackages))
+	classMap, err := g.scan(d, autoloads, packageMap, scanPsrPackages, strictAmbiguous, g.takeSpeculation(d, autoloads, scanPsrPackages))
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +218,14 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 // earlier runs instead of parsing the same contents again (deliberate
 // deviation 3, speed). The file is written after each scan.
 func (g *Generator) UseParseCacheFile(path string) { g.parseCache.UseFile(path) }
+
+// UseScanRecords makes the generator keep the class map of its scans in
+// dir, one record per project, and take it from there instead of scanning
+// when the scans are the same and none of the files and directories they
+// depend on changed since (deliberate deviation 3, speed;
+// classmap.Record). The ambiguous classes and PSR violations are kept
+// with it and reported as after a scan.
+func (g *Generator) UseScanRecords(dir string) { g.recordDir = dir }
 
 // Warm starts parsing, in the background, the files a Dump with these
 // arguments would scan (every package's, dev or not), so that the Dump that
@@ -337,11 +348,11 @@ func (g *Generator) devModeArg(line int) error {
 // with scanPsrPackages, reporting ambiguous classes and PSR violations.
 // scanned is the class map of these scans when a speculation found it
 // already, nil to scan now.
-func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool, scanned *classmap.ClassMap) (*classmap.ClassMap, error) {
+func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapEntry, scanPsrPackages, strictAmbiguous bool, scanned *classmap.ClassMap) (*classmap.ClassMap, error) {
 	classMap := scanned
 	if classMap == nil {
 		var err error
-		if classMap, err = g.scanClassMap(d, autoloads, scanPsrPackages); err != nil {
+		if classMap, err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages); err != nil {
 			return nil, err
 		}
 	}
@@ -384,10 +395,11 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 }
 
 // scanClassMap is the part of scan that scans: it prints nothing, and
-// reads only d's basePath and vendorPath.
-func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, scanPsrPackages bool) (*classmap.ClassMap, error) {
+// reads only d's basePath and vendorPath. The class map comes from the
+// scans' record when it is still valid (UseScanRecords); packageMap's
+// store releases are looked up only for a scan.
+func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, packageMap []PackageMapEntry, scanPsrPackages bool) (*classmap.ClassMap, error) {
 	excluded := autoloads.ExcludeFromClassmap
-	gen := g.newClassMapGenerator()
 
 	// every scan, planned first so that their files are walked and parsed
 	// together (classmap.Generator.Prefetch), then run in order
@@ -402,6 +414,18 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, scanPsrPackages 
 	if scanPsrPackages {
 		scans = append(scans, d.psrScans(autoloads, excluded)...)
 	}
+	record, recorded := g.scanRecord(d, scans, scanPsrPackages)
+	if recorded {
+		if classMap, ok := record.Load(); ok {
+			return classMap, nil
+		}
+	}
+	g.addReleases(packageMap)
+	gen := g.newClassMapGenerator()
+	if recorded {
+		gen.StartRecording()
+	}
+
 	requests := make([]classmap.ScanRequest, len(scans))
 	for i, s := range scans {
 		requests[i] = classmap.ScanRequest{Path: s.dir, Excluded: s.excluded}
@@ -418,8 +442,26 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, scanPsrPackages 
 			return nil, phperr.Call(err, `Composer\ClassMapGenerator\ClassMapGenerator->scanPaths`, "AutoloadGenerator.php", line)
 		}
 	}
+	if recorded {
+		gen.SaveRecord(record)
+	}
 
 	return gen.ClassMap(), nil
+}
+
+// scanRecord is the record of these scans (UseScanRecords), ok false
+// without one.
+func (g *Generator) scanRecord(d *dump, scans []psrScan, scanPsrPackages bool) (*classmap.Record, bool) {
+	if g.recordDir == "" {
+		return nil, false
+	}
+	recordScans := make([]classmap.RecordScan, len(scans))
+	for i, s := range scans {
+		recordScans[i] = classmap.RecordScan{Path: s.dir, Excluded: s.excluded, Type: s.typ, Namespace: s.namespace}
+	}
+	id := d.basePath + "\x00" + strconv.FormatBool(scanPsrPackages)
+
+	return classmap.NewRecord(g.recordDir, id, []string{d.basePath, d.vendorPath}, g.Parser, classMapExtensions, recordScans)
 }
 
 var (
