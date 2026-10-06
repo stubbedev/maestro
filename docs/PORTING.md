@@ -1,31 +1,133 @@
 # Porting Composer to Go
 
-maestro is a 1:1 port of Composer 2.10.3 to Go. It is a drop-in replacement:
-same commands, options, output, exit codes, files written (composer.lock,
-vendor/composer/*, vendor/bin proxies), byte for byte. It never runs or
-embeds composer.phar. `php` is only used where Composer itself executes PHP
-code on the project's behalf: scripts, plugins (through maestro's own PHP
-shim), platform detection and `exec`.
+maestro is a port of Composer 2.10.3 to Go and a drop-in replacement for it:
+anything that drives Composer (people, CI, scripts, plugins, other tools)
+must work unchanged against maestro. It never runs or embeds composer.phar.
+`php` is only used where Composer itself executes PHP code on the project's
+behalf: scripts, plugins (through maestro's own PHP shim), platform
+detection and `exec`.
+
+Compatibility is defined by a contract, not by byte-for-byte output
+everywhere: what tools and people depend on is frozen and must match
+Composer exactly; how errors and diagnostics are presented is maestro's own
+(issue #13). "The contract" below says which is which.
+
+## The contract
+
+### Frozen: identical to Composer, byte for byte
+
+- **CLI surface.** Commands and their aliases, arguments, options, short
+  options, defaults, validation (what is accepted and what is refused),
+  `list`/`help` contents and option suggestions/completion.
+- **Exit codes**, for every outcome, including partial ones
+  (`outdated --strict`, `audit` with advisories or abandoned packages,
+  `validate` with warnings, `check-platform-reqs` failures, script failures
+  passing their code through).
+- **Files written.** composer.json and composer.lock (key order,
+  indentation, escaping, trailing newline, content-hash), everything in
+  vendor/composer/* (autoloaders, installed.json, installed.php,
+  platform_check.php), vendor/bin proxies, the installed package trees
+  (deviation 1 states the exact guarantee), `archive` output, and the
+  caches Composer shares with maestro (repository metadata, dist archives,
+  VCS mirrors) in Composer's layout.
+- **Inputs read.** composer.json schema and semantics, config keys,
+  auth.json, `COMPOSER*` environment variables, repository protocols and
+  their metadata formats, version and constraint semantics, resolution
+  results (same lock for the same inputs and repositories).
+- **Machine-readable output.** Every `--format=json`, `--format=summary`
+  and other non-table format (`show`, `outdated`, `audit`, `licenses`,
+  `fund`, `search`, `check-platform-reqs`), `show --name-only`/`-N`,
+  `show --path`/`-P`, `config <key>` reads and `config --list`,
+  `status`, `depends`/`why` and `prohibits`/`why-not`, `--version`'s first
+  line, and anything else tools or CI are known to parse. Which stream a
+  line goes to (stdout or stderr) is frozen for all output, since scripts
+  redirect them separately. Undecorated output (`--no-ansi`, no tty)
+  carries no escape sequences.
+- **Interaction.** Which questions are asked, in which order, their
+  defaults, and what `--no-interaction` answers.
+- **Scripts and events.** Which run, in which order, with which arguments,
+  working directory, environment (`COMPOSER_*`, `PATH` with vendor/bin,
+  `COMPOSER_DEV_MODE`, ...) and stdio, and how their exit codes propagate.
+- **Plugin API.** What docs/PLUGINS.md specifies: plugins see Composer's
+  classes, methods, events and exception classes, and keep working.
+
+### Free: maestro's own
+
+- **Error rendering.** No need to imitate PHP's exception boxes, PHP class
+  names, "In File.php line N:" headings, "Exception trace:" call stacks at
+  `-v`, TypeError sites or `phar://` source paths. The information (what
+  failed, on which input, what to do) and the exit code stay.
+- **Warnings and deprecation notices.** Same information, maestro's
+  wording and format.
+- **Transport errors.** Clear messages instead of curl's or PHP's stream
+  wrapper's exact strings.
+- **`-v`/`-vv`/`-vvv` debug output.** For debugging maestro, not a mirror
+  of Composer's internals.
+- **Human progress output of successful runs** ("Loading composer
+  repositories with package information", "Installing x/y (1.0.0)", the
+  update summary, ...). Users and documentation expect it, so it keeps
+  Composer's text unless there is a reason to change it, but it is not
+  frozen.
+
+Until maestro's own error and diagnostic format exists (#13 step 4), free
+output keeps Composer's text; what changes is that it no longer has to
+match exactly, and nothing new is built only to reproduce PHP's
+presentation.
+
+### Presentation of free output
+
+maestro's own presentation (error rendering, warnings, progress, prompts)
+may be built with charm.sh components (lipgloss for styling and layout,
+bubbles/huh for progress and prompts, ...), under these rules:
+
+- Only on the free surface. Machine-readable output, files and anything
+  else frozen are written as Composer writes them, never through a
+  renderer.
+- Styling only when decorated: with `--no-ansi`, `NO_COLOR`, a non-tty
+  stream or Composer's own decoration rules saying no, output is plain
+  text with no escape sequences, as Composer's is. Verbosity flags
+  (`-q`, `-v`...) keep their meaning.
+- Interactive components only where Composer asks a question on a tty and
+  interaction is on; the question asked, its default and the
+  `--no-interaction` answer stay frozen, and a non-tty or
+  `--no-interaction` run never starts a TUI.
+- Streams stay frozen: what Composer writes to stderr, maestro writes to
+  stderr, whatever renders it.
+- Windows consoles and `"\r\n"` endings (see "Line endings") keep working.
+- Rendering lives in one place (a maestro-owned package over
+  `internal/console`/`internal/io`), not scattered through the ports, so
+  ported code keeps reporting information and the renderer decides how it
+  looks.
 
 ## Reference sources
 
 `.ref/` (gitignored) holds the exact sources being ported, with their tests;
-`ref-sync` (in the devenv shell) recreates it:
+`ref-sync` (in the devenv shell, also `just ref`) recreates it:
 
 | Path | What |
 | --- | --- |
-| `.ref/composer` | composer/composer at tag 2.10.3, with `vendor/` installed |
+| `.ref/composer` | composer/composer at tag 2.10.3, with `vendor/` installed (`--no-dev`) |
 | `.ref/semver` | composer/semver 3.4.4 |
 | `.ref/class-map-generator` | composer/class-map-generator 1.7.3 |
 | `.ref/spdx-licenses` | composer/spdx-licenses 1.6.0 |
 | `.ref/metadata-minifier` | composer/metadata-minifier 1.0.1 |
+| `.ref/jsonlint` | seld/jsonlint 1.12.1 |
 
-The PHP source is the specification. When the Go and PHP disagree, the Go is
-wrong. Port logic faithfully, including its quirks, ordering, error messages
-and edge cases. Do not "improve" behaviour unless it is one of the deliberate
-deviations listed below.
+Other libraries Composer ships are ported from `.ref/composer/vendor/`, at
+the version Composer 2.10.3's lock file pins: symfony/console 5.4 (the
+subset in `internal/console`), justinrainbow/json-schema 6.10.0 (the parts
+in `internal/json/jsonschema`) and composer/ca-bundle (`internal/util/http`).
 
-## Deliberate deviations (the only ones)
+The PHP source is the specification of behaviour. For the frozen surface,
+when the Go and PHP disagree, the Go is wrong: port logic faithfully,
+including its quirks, ordering, messages and edge cases, and do not
+"improve" it unless it is one of the deliberate deviations below. For the
+free surface, the PHP decides what information is reported and when, not
+its exact presentation.
+
+## Deliberate deviations
+
+These change frozen behaviour on purpose; nothing else may.
 
 1. **Package store, pnpm style.** Dist archives are extracted once into a
    per-file content-addressed store (`internal/store`) shared by every project
@@ -44,14 +146,16 @@ deviations listed below.
    vs "Downloading" and heals the store. File contents, modes, symlinks and
    directory layout match what Composer + `unzip` would produce; file
    mtimes are not preserved. internal/store's documentation states the
-   exact guarantees.
-2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go,
-   reproducing exactly what Composer's preferred path (system `unzip -qq`,
-   `tar`) produces on Unix. In macOS's C locale, unzip writes U+0080 to
-   U+00FF as Latin-1 bytes APFS refuses and Composer falls back to
-   ZipArchive; maestro refuses such names there rather than escaping them
-   as glibc's unzip does. On Windows, where Composer extracts zips with
-   ZipArchive or 7-Zip, maestro extracts as unzip would on Unix.
+   exact guarantees. The store lives in maestro's own cache directory
+   (`MAESTRO_CACHE_DIR`, else `$XDG_CACHE_HOME/maestro`, else the platform
+   cache directory; `internal/cache.Dir`).
+2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go
+   (`internal/archive`), reproducing exactly what Composer's preferred path
+   (system `unzip -qq`, `tar`) produces on Unix. In macOS's C locale, unzip
+   writes U+0080 to U+00FF as Latin-1 bytes APFS refuses and Composer falls
+   back to ZipArchive; maestro refuses such names there rather than
+   escaping them as glibc's unzip does. On Windows, where Composer extracts
+   zips with ZipArchive or 7-Zip, maestro extracts as unzip would on Unix.
 3. **Speed.** Parallelism and caching wherever results stay identical.
 4. **self-update** updates maestro from its GitHub releases.
 5. **Plugins** run in maestro's own PHP shim (`internal/plugin/php`), which
@@ -74,28 +178,52 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | Go package | Ports |
 | --- | --- |
 | `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, `basename`, ...), and its own PCRE2 10.48-compatible regex engine (internal/php/doc.go says why) |
+| `internal/phperr` | throw sites and PHP call stacks of errors, for rendering them as Symfony does and for the stacks plugin code asks for (see "Errors") |
 | `internal/semver` | composer/semver |
 | `internal/classmap` | composer/class-map-generator |
 | `internal/spdx` | composer/spdx-licenses (+ its JSON data) |
+| `internal/metadataminifier` | composer/metadata-minifier |
 | `internal/console` | the Symfony Console subset Composer uses: input parsing, output formatting/styles/verbosity, tables, progress bar, questions, application help/list |
 | `internal/io` | Composer\IO |
-| `internal/util` (+ subpackages) | Composer\Util |
+| `internal/util` | Composer\Util (filesystem, ProcessExecutor, Platform, Url, Zip/Tar, Loop, ...) |
+| `internal/util/http` | Composer\Util\{HttpDownloader, RemoteFilesystem, AuthHelper, GitHub, GitLab, Bitbucket, Forgejo, StreamContextFactory, ProxyManager, Http\*}, composer/ca-bundle |
+| `internal/util/vcs` | Composer\Util\{Git, Hg, Svn, Perforce} |
 | `internal/json` | Composer\Json + res/*.json schemas |
+| `internal/json/jsonlint` | seld/jsonlint |
+| `internal/json/jsonschema` | the justinrainbow/json-schema format validators Composer's schema uses |
 | `internal/pkg` (+ `loader`, `dumper`, `version`, `archiver`, `comparer`) | Composer\Package |
+| `internal/locker` | Composer\Package\Locker |
 | `internal/config` | Composer\Config, Composer\Config\* |
+| `internal/cache` | Composer\Cache, and where maestro keeps its own files |
 | `internal/platform` | Composer\Platform (php/extension detection runs `php` once, cached) |
-| `internal/repository` (+ `vcs`) | Composer\Repository |
+| `internal/filter` | Composer\Filter\PlatformRequirementFilter |
+| `internal/repository` | Composer\Repository: interfaces, generic repositories, RepositoryManager, RepositorySet |
+| `internal/repository/composerrepo` | Composer\Repository\ComposerRepository |
+| `internal/repository/vcs` | Composer\Repository\VcsRepository and Vcs\* drivers |
 | `internal/resolver` | Composer\DependencyResolver |
+| `internal/resolver/operation` | Composer\DependencyResolver\Operation |
 | `internal/store` | the per-file content-addressed store (deviation 1) |
-| `internal/downloader` | Composer\Downloader |
+| `internal/archive` | native archive extraction (deviation 2) and ArchiveDownloader's choice of package directory |
+| `internal/downloader` | Composer\Downloader: DownloadManager, file/archive/path downloaders |
+| `internal/downloader/vcs` | Composer\Downloader\{Git, Hg, Svn, Fossil, Perforce}Downloader |
 | `internal/installer` | Composer\Installer\* (namespace) |
 | `internal/autoload` | Composer\Autoload |
 | `internal/eventdispatcher`, `internal/script` | Composer\EventDispatcher, Composer\Script |
-| `internal/plugin` (+ `php/` shim) | Composer\Plugin |
-| `internal/advisory`, `internal/policy`, `internal/filterlist` | the namespaces of those names |
-| `internal/composer` | Composer\Composer, Factory, Installer (the top-level classes), Cache, Locker glue |
+| `internal/plugin` | Composer\Plugin, and the Go side of the plugin runtime |
+| `internal/plugin/php` | the PHP shim plugins run in (deviation 5, docs/PLUGINS.md) |
+| `internal/plugin/rpc` | maestro's half of the IPC channel to the shim (docs/PLUGINS.md §5.3, §6) |
+| `internal/plugin/shimbuild` | what the shim's build tools share: Compiler.php's choice of vendored files |
+| `internal/advisory`, `internal/policy`, `internal/filterlist` (+ `source`) | the namespaces of those names |
+| `internal/composer` | Composer\Composer, Factory, Installer (the top-level classes) |
 | `internal/command` | Composer\Command\*, Composer\Console\Application |
 | `cmd/maestro` | entry point; also runs as `composer` |
+
+Test-only packages, imported only from `_test.go` files: `internal/testutil`
+(shared helpers), `internal/util/processmock` (ProcessExecutorMock),
+`internal/util/http/httpmock`, `internal/platform/platformmock`,
+`internal/archive/archivetest` (archive corpora, runners for the real
+extractors), `internal/command/commandtest` (Composer's TestCase and
+ApplicationTester) and `internal/command/errorstest` (the errors oracle).
 
 Lower packages never import higher ones. Where PHP has a circular
 reference, break it with an interface in the lower package.
@@ -106,11 +234,9 @@ Cycle-breaking decisions already made:
   Factory does with `setRepositoryClass` / `setDownloader`:
   `internal/repository` defines the interfaces, the generic repositories and
   RepositoryManager with a type registry; `internal/repository/composerrepo`
-  (ComposerRepository) and `internal/repository/vcs` (VcsRepository and its
-  drivers) import it; `internal/composer`'s Factory wires them together. The
-  same for `internal/downloader` (DownloadManager, file/archive/path
-  downloaders) and `internal/downloader/vcs` (Git/Hg/Svn/Fossil/Perforce
-  downloaders).
+  and `internal/repository/vcs` import it; `internal/composer`'s Factory
+  wires them together. The same for `internal/downloader` and
+  `internal/downloader/vcs`.
 - `RepositorySet` lives in `internal/repository` without its createPool*
   methods; those are functions in `internal/resolver` taking the set.
 - `Composer\Package\Locker` is `internal/locker` (it needs repositories).
@@ -122,19 +248,10 @@ Cycle-breaking decisions already made:
   `// Ports src/Composer/Semver/VersionParser.php.`
 - Keep PHP names recognisable (`NormalizeVersion` for `normalize`,
   `ParseConstraints`, ...) so the two can be read side by side.
-- Exceptions become Go errors carrying the same message text. Where Composer
-  distinguishes exception classes (callers catch specific ones), use
-  distinct error types and `errors.As`.
-- Every exception that can reach the console also carries its throw site,
-  which Symfony prints ("In Factory.php line 317:"): error types embed
-  `phperr.Site` (internal/phperr) and each construction sets
-  `Site: phperr.At("<PHP file basename>", <line of the new expression>)`;
-  a `$previous` exception goes in the type's previous field
-  (`phperr.Chained`, never Unwrap); a class `util.PHPClassOf` cannot know
-  is given by a `PHPClass()` method. tools/oracle/errors checks the
-  rendering against Composer.
-- Any user-visible string (messages, warnings, help text, JSON output)
-  must be copied exactly, including punctuation, spacing and `<info>` tags.
+- User-visible strings on the frozen surface (machine-readable output,
+  help text, option descriptions, questions, files) are copied exactly,
+  including punctuation, spacing and `<info>` tags. On the free surface,
+  Composer's text is the default (see "The contract").
 - Data that Composer keeps as free-form PHP arrays (extra, scripts,
   autoload, config, raw composer.json) is a `*php.Array`, so key order,
   int/string key coercion and list/object encoding behave as in PHP.
@@ -148,6 +265,24 @@ Cycle-breaking decisions already made:
   `php.NormalizeEOL` (Symfony's `getDisplay(true)`); tests about a
   `PHP_EOL` site force Windows' with `php.SetEOLForTest(t, "\r\n")`.
 
+### Errors
+
+- Exceptions become Go errors carrying the same information, with
+  Composer's message text by default. Where Composer distinguishes
+  exception classes (callers catch specific ones), use distinct error
+  types and `errors.As`.
+- Errors that can reach a plugin keep their PHP class: plugins catch
+  Composer's exception classes, and docs/PLUGINS.md (D12) maps Go errors
+  to them both ways. A class `util.PHPClassOf` cannot know is given by a
+  `PHPClass()` method; a `$previous` exception goes in the type's previous
+  field (`phperr.Chained`, never Unwrap).
+- Throw sites and PHP call stacks (`phperr.Site`, `phperr.At(...)`, frame
+  recording) only serve rendering errors as PHP does, which is now free
+  (#13). New code does not need to add them. Existing ones stay until the
+  errors oracle is re-scoped and the error path simplified (#13 steps 2
+  and 3); the plugin runtime keeps what it needs for the stacks PHP code
+  asks for (`internal/plugin/frames.go`).
+
 ## Tests
 
 1. **Port Composer's own tests.** Every PHPUnit test in the reference repos
@@ -156,26 +291,55 @@ Cycle-breaking decisions already made:
    `VersionParserTest::testNormalizeSucceeds`), with every data provider
    case. Fixtures (`*.test`, `*.json`, autoload goldens, ...) are copied
    verbatim into the package's `testdata/`, preserving their paths. They are
-   MIT licensed; `testdata/LICENSE-composer` carries the notice.
+   MIT licensed; `testdata/LICENSE-composer` carries the notice. A test
+   that only asserts free output (an error's exact text or rendering)
+   asserts the information it carries instead.
 2. **Differential oracle tests.** For pure logic, also generate goldens by
    running the real PHP implementation from `.ref/` with `php` (in the dev
    shell). Generator scripts live in `tools/oracle/<package>/` and write into
    the package's `testdata/`. Goldens are committed, so `go test` needs
    neither php nor the network. A golden over 1 MB is committed gzipped
    (`*.json.gz`, written by the oracle script, read with compress/gzip).
+   Oracles compare the frozen surface exactly. The errors oracle
+   (`tools/oracle/errors`, `internal/command/errorstest`) is to compare exit
+   codes and essential message content rather than exact rendering (#13
+   step 2).
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
    2.10.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare
-   output, lock files and vendor trees. They run on Linux and on Windows
-   (`.github/workflows/e2e.yml`, weekly and on demand), where both tools
-   run natively: junctions are compared by target, modes are what the
-   read-only attribute gives, and `"\r\n"` endings are compared as they
-   are.
+   exit codes, frozen output, lock files and vendor trees. They run on
+   Linux and on Windows (`.github/workflows/e2e.yml`, weekly and on
+   demand), where both tools run natively: junctions are compared by
+   target, modes are what the read-only attribute gives, and `"\r\n"`
+   endings are compared as they are.
+
+Opt-in test switches:
+
+| Variable | Turns on |
+| --- | --- |
+| `MAESTRO_PHP_TESTS=1` | tests that run `php` (scripts, plugins, platform detection) |
+| `MAESTRO_E2E=1` | the end-to-end comparison with Composer (network, slow) |
+| `MAESTRO_ORACLE_LIVE=1` | classmap oracles run against the PHP implementation live instead of the goldens |
+| `MAESTRO_TEST_DISTS=<dir>` | the store's differential test over real dists fetched by `go run ./tools/fetchdists` |
+| `MAESTRO_TEST_UNZIP`, `MAESTRO_TEST_TAR` | which reference `unzip`/`tar` the archive tests compare with |
 
 Run everything inside the devenv shell (`devenv shell -- bash -c '...'` from
-the repo root; it has Go, golangci-lint, php, unzip, gh, just). A port
-is done when `go vet`, `golangci-lint run` and `go test -race` pass for its
-packages (`CGO_ENABLED=1` for `-race`).
+the repo root; it has Go, golangci-lint, php, unzip, gh, just). The justfile
+wraps the usual runs: `just check` (vet, lint, test, build), `just
+test-race` (`-race` with `MAESTRO_PHP_TESTS=1`) and `just e2e`. A port is
+done when `go vet`, `golangci-lint run` and `go test -race` with
+`MAESTRO_PHP_TESTS=1` pass for its packages (`CGO_ENABLED=1` for `-race`).
+CI (`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
+Windows in shards.
+
+## Tools
+
+| Tool | Does |
+| --- | --- |
+| `tools/oracle/<package>` | generates the goldens of differential tests from `.ref/` |
+| `tools/shimvendor` | vendors the PHP libraries Composer's phar ships into the shim (`internal/plugin/php/lib`) |
+| `tools/shimgen` | generates the shim's API-parity stubs and golden from Composer's `src/` |
+| `tools/fetchdists` | downloads real dist archives for the store's differential test |
 
 ## Tooling hazard: `\u` escapes
 
@@ -189,7 +353,8 @@ must contain a literal `\u` with `grep -n '\\u'` after writing it.
 Use `internal/php`'s `Compile`/`MustCompile` and the `Preg*` functions with
 Composer's patterns pasted verbatim. It is a PCRE2-compatible engine
 (recursion, subroutines and all); don't use `regexp` or regexp2 for ported
-patterns.
+patterns. regexp2 is a dependency only for a test that cross-checks
+semver's hand-written matchers (`internal/semver/regex_test.go`).
 
 ## Working alongside other ports
 
