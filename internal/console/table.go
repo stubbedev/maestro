@@ -938,3 +938,13 @@ func (t *Table) cleanup() {
 	t.effectiveColumnWidths = nil
 	t.numberOfColumns = 0
 }
+
+// mbCharWidth is mb_strwidth() for one character: 2 for East Asian wide
+// and fullwidth characters, 1 otherwise.
+func mbCharWidth(r rune) int {
+	if inRuneTable(wcwidthWide[:], r) {
+		return 2
+	}
+
+	return 1
+}

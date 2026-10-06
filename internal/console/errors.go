@@ -59,8 +59,8 @@ var (
 	ErrMissingInput     = errors.New("missing input")
 )
 
-// Error is a console exception. File and Line point at the PHP throw site so
-// verbose rendering ("In ArgvInput.php line 220:") matches.
+// Error is a console exception. File and Line point at the PHP throw site
+// (getFile(), getLine()).
 type Error struct {
 	Kind         Kind
 	Message      string
@@ -137,10 +137,10 @@ func (e *Error) PHPPrevious() error { return e.Prev }
 // Symfony's ExceptionInterface.
 func IsConsoleException(err error) bool { return errors.Is(err, ErrConsole) }
 
-// Throwable is implemented by errors that carry the PHP exception details the
-// console renders: the class name (get_debug_type), file and line of the throw
-// site, the exception code and the previous exception. Plain Go errors render
-// as a class-less exception with code 0 and file "n/a".
+// Throwable is implemented by errors that carry PHP exception details: the
+// class name (get_debug_type), file and line of the throw site, the
+// exception code (the exit code of an uncaught one) and the previous
+// exception. Plain Go errors are an "Exception" with code 0.
 type Throwable interface {
 	error
 	ThrowableClass() string
@@ -156,8 +156,8 @@ type TraceFrame struct {
 	Line                        int
 }
 
-// Tracer is optionally implemented by Throwables that can render the frames
-// of "Exception trace:" beyond the throw site.
+// Tracer is optionally implemented by Throwables PHP code threw (a
+// plugin's), whose trace RenderThrowable shows at -v.
 type Tracer interface {
 	ThrowableTrace() []TraceFrame
 }

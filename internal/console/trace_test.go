@@ -2,22 +2,26 @@ package console
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
-// The "Exception trace:" block names the throw site and the frames
-// recorded with phperr.Call by their absolute paths under phperr.Root, as
-// PHP's getFile() and getTrace() give them; Application.Call adds the
-// frames of the console's own calls.
-func TestRenderThrowableTrace(t *testing.T) {
-	phperr.SetRoot("phar:///opt/maestro")
-	t.Cleanup(func() { phperr.SetRoot("") })
-	t.Setenv("COLUMNS", "80")
+// tracedException is an exception PHP code threw (a plugin's): it knows
+// its trace.
+type tracedException struct {
+	testException
+	trace []TraceFrame
+}
 
+func (e *tracedException) ThrowableTrace() []TraceFrame { return e.trace }
+
+// At -v an error's debugging details are the Go types and PHP classes of
+// its chain and the exit code, and, for an exception PHP code threw, its
+// trace; the PHP call stack of maestro's ports (phperr.Call's frames, the
+// throw site) is not shown.
+func TestRenderThrowableDetails(t *testing.T) {
 	app := newTestApp()
 	_, err := app.Call(phperr.Frame{Function: `Symfony\Component\Console\Application->doRunCommand`, File: applicationPHP, Line: 301}, func() (int, error) {
 		e := newError(KindRuntime, "ArgvInput.php", 220, `The "--nope" option does not exist.`)
@@ -28,16 +32,35 @@ func TestRenderThrowableTrace(t *testing.T) {
 		t.Errorf("Stack() after Call = %v, want none", app.Stack())
 	}
 
-	var buf bytes.Buffer
-	decorated := false
-	app.RenderThrowable(err, NewStreamOutput(&buf, VerbosityVerbose, &decorated, nil))
+	render := func(err error) string {
+		var buf bytes.Buffer
+		decorated := false
+		app.RenderThrowable(err, NewStreamOutput(&buf, VerbosityVerbose, &decorated, nil))
 
-	want := "Exception trace:\n" +
-		"  at phar:///opt/maestro/vendor/symfony/console/Input/ArgvInput.php:220\n" +
-		" Symfony\\Component\\Console\\Input\\ArgvInput->addLongOption() at phar:///opt/maestro/vendor/symfony/console/Input/ArgvInput.php:149\n" +
-		" Symfony\\Component\\Console\\Application->doRunCommand() at phar:///opt/maestro/vendor/symfony/console/Application.php:301\n"
-	if !strings.Contains(php.NormalizeEOL(buf.String()), want) {
-		t.Errorf("rendered\n%s\nwant it to contain\n%s", buf.String(), want)
+		return php.NormalizeEOL(buf.String())
+	}
+
+	want := "\nError: The \"--nope\" option does not exist.\n" +
+		"  Debug: *console.Error [Symfony\\Component\\Console\\Exception\\RuntimeException]\n" +
+		"         exit code 1\n"
+	if got := render(err); got != want {
+		t.Errorf("rendered\n%s\nwant\n%s", got, want)
+	}
+
+	plugin := &tracedException{
+		class: `Acme\PluginException`, message: "the plugin failed", code: 3,
+		trace: []TraceFrame{
+			{Class: `Acme\Plugin`, Type: "->", Function: "onInstall", File: "/p/vendor/acme/plugin/src/Plugin.php", Line: 42},
+			{Function: "{closure}"},
+		},
+	}
+	want = "\nError: the plugin failed\n" +
+		"  Debug: *console.tracedException [Acme\\PluginException, code 3]\n" +
+		"           Acme\\Plugin->onInstall() at /p/vendor/acme/plugin/src/Plugin.php:42\n" +
+		"           {closure}()\n" +
+		"         exit code 3\n"
+	if got := render(plugin); got != want {
+		t.Errorf("rendered\n%s\nwant\n%s", got, want)
 	}
 }
 

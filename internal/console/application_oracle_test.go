@@ -7,12 +7,14 @@ import (
 	"errors"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // ostr is an oracle string: a JSON string, or {"b64": ...} for bytes that
@@ -103,37 +105,42 @@ func TestOracle_ApplicationRenderThrowable(t *testing.T) {
 		exceptions[i] = &testException{class: e.Class, message: string(e.Message), file: e.File, line: e.Line, code: e.Code, prev: prev}
 	}
 
+	// How errors are rendered is maestro's own (internal/ui, #13): the
+	// rendering reports the messages of the exception and its previous
+	// ones that Symfony's does, has escape sequences only when decorated,
+	// and debugging details at -v. Symfony's errors about the terminal
+	// width (c.Error) have no counterpart: maestro does not wrap.
 	app := newTestApp()
 	for _, c := range o.Render {
 		t.Setenv("COLUMNS", strconv.Itoa(c.Columns))
 		var buf bytes.Buffer
 		out := NewStreamOutput(&buf, c.Verbosity, &c.Decorated, nil)
-		var panicMsg string
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					err, ok := r.(error)
-					if !ok {
-						panic(r)
-					}
-					panicMsg = err.Error()
-				}
-			}()
-			app.RenderThrowable(exceptions[c.Exception], out)
-		}()
+		app.RenderThrowable(exceptions[c.Exception], out)
 		name := strconv.Itoa(c.Exception) + "/" + strconv.Itoa(c.Columns) + "/" + strconv.Itoa(c.Verbosity) + "/" + strconv.FormatBool(c.Decorated)
-		if c.Error != nil {
-			if panicMsg != *c.Error {
-				t.Errorf("%s: want error %q, got %q", name, *c.Error, panicMsg)
-			}
-		} else if panicMsg != "" {
-			t.Errorf("%s: unexpected panic %q", name, panicMsg)
+		got := php.NormalizeEOL(buf.String())
+		if strings.Contains(got, "\x1b") != c.Decorated {
+			t.Errorf("%s: escape sequences in %q, decorated %v", name, got, c.Decorated)
 		}
-		if got := php.NormalizeEOL(buf.String()); got != string(c.Output) {
-			t.Errorf("%s:\nwant %q\ngot  %q", name, c.Output, got)
+		if strings.Contains(got, "Debug:") != (c.Verbosity >= VerbosityVerbose) {
+			t.Errorf("%s: debugging details in %q at verbosity %d", name, got, c.Verbosity)
+		}
+		compact := testutil.CompactMessage(ansiEscape.ReplaceAllString(got, ""))
+		for e := exceptions[c.Exception]; e != nil; {
+			class, _, prev := throwableInfo(e)
+			want := testutil.CompactMessage(e.Error())
+			if want == "" {
+				want = testutil.CompactMessage(class)
+			}
+			if !strings.Contains(compact, want) {
+				t.Errorf("%s: %q does not report %q", name, got, e.Error())
+			}
+			e = prev
 		}
 	}
 }
+
+// ansiEscape matches an SGR escape sequence.
+var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
 func oracleSetFromPHP(t *testing.T) map[string][][4]any {
 	t.Helper()
@@ -384,34 +391,39 @@ func TestOracle_ApplicationRun(t *testing.T) {
 		if got := php.NormalizeEOL(stdout.String()); got != string(c.Stdout) {
 			t.Errorf("%s: stdout\nwant %q\ngot  %q", name, c.Stdout, got)
 		}
-		if got := php.NormalizeEOL(stderr.String()); stripTraceFrames(got) != stripTraceFrames(string(c.Stderr)) {
-			t.Errorf("%s: stderr\nwant %q\ngot  %q", name, c.Stderr, got)
-		}
+		compareStderr(t, name, string(c.Stderr), php.NormalizeEOL(stderr.String()))
 		if got := os.Getenv("SHELL_VERBOSITY"); got != c.ShellVerbosity {
 			t.Errorf("%s: SHELL_VERBOSITY=%q, want %q", name, got, c.ShellVerbosity)
 		}
 	}
 }
 
-// stripTraceFrames drops the frames of "Exception trace:" blocks: PHP lists
-// the throw site with its full path and the PHP call stack, which the Go
-// port does not reproduce (see DoRenderThrowable).
-func stripTraceFrames(s string) string {
-	lines := strings.Split(s, "\n")
-	out := lines[:0]
-	inTrace := false
-	for _, l := range lines {
-		switch {
-		case strings.HasSuffix(l, "Exception trace:"):
-			inTrace = true
-			out = append(out, l)
-		case inTrace && l == "":
-			inTrace = false
-			out = append(out, l)
-		case !inTrace:
-			out = append(out, l)
+// compareStderr compares stderr with PHP's: exactly, except that where PHP
+// rendered an exception what it wrote before must start got as it is, and
+// the rest must report the messages of the exception and its previous
+// ones (testutil.ErrorRendering): their rendering is maestro's (#13).
+func compareStderr(t *testing.T, name, want, got string) {
+	t.Helper()
+	messages, _ := testutil.ErrorRendering(ansiEscape.ReplaceAllString(want, ""))
+	if len(messages) == 0 {
+		if got != want {
+			t.Errorf("%s: stderr\nwant %q\ngot  %q", name, want, got)
+		}
+
+		return
+	}
+	// escape sequences aside: decorated, the rendering is maestro's too
+	want, got = ansiEscape.ReplaceAllString(want, ""), ansiEscape.ReplaceAllString(got, "")
+	_, start := testutil.ErrorRendering(want)
+	if !strings.HasPrefix(got, want[:start]) {
+		t.Errorf("%s: stderr before the error\nwant %q\ngot  %q", name, want[:start], got)
+
+		return
+	}
+	rest := testutil.CompactMessage(got[start:])
+	for _, m := range messages {
+		if !strings.Contains(rest, m) {
+			t.Errorf("%s: stderr %q does not report %q", name, got, m)
 		}
 	}
-
-	return strings.Join(out, "\n")
 }

@@ -21,6 +21,12 @@
 // (testSignal*, testSetSignalsToDispatchEvent, testSignalable*) and PHP
 // anonymous classes (testRenderAnonymousException,
 // testRenderExceptionStackTraceContainsRootException).
+//
+// How errors are rendered is maestro's own (internal/ui, #13): the
+// renderException tests check the new rendering, with the information
+// Symfony's fixtures show, and those about Symfony's box layout
+// (testRenderExceptionEscapesLines, the double-width box padding) are
+// gone.
 
 package console
 
@@ -28,10 +34,11 @@ import (
 	"bytes"
 	"errors"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 func newTestApp() *Application { return NewApplication("UNKNOWN", "UNKNOWN") }
@@ -469,7 +476,7 @@ func TestApplication_DontRunAlternativeNamespaceName(t *testing.T) {
 	app.SetAutoExit(false)
 	tester := newApplicationTester(app)
 	tester.Run([]Param{P("command", "foos:bar1")}, testerOptions{decorated: new(false)})
-	assertEqualsFile(t, "application.dont_run_alternative_namespace_name.txt", tester.Display())
+	assertRendered(t, "\nError: There are no commands defined in the \"foos\" namespace.\n\n       Did you mean this?\n           foo\n", tester.Display())
 }
 
 func TestApplication_CanRunAlternativeCommandName(t *testing.T) {
@@ -626,6 +633,15 @@ func TestApplication_FindAmbiguousCommandsIfAllAlternativesAreHidden(t *testing.
 	}
 }
 
+// assertRendered checks an error's rendering by internal/ui (Symfony's
+// exception boxes are not ported, #13).
+func assertRendered(t *testing.T, want, got string) {
+	t.Helper()
+	if got = php.NormalizeEOL(got); got != want {
+		t.Errorf("rendered\n%s\nwant\n%s", got, want)
+	}
+}
+
 func TestApplication_SetCatchExceptions(t *testing.T) {
 	app := newTestApp()
 	app.SetAutoExit(false)
@@ -637,11 +653,12 @@ func TestApplication_SetCatchExceptions(t *testing.T) {
 		t.Error("AreExceptionsCaught()")
 	}
 
+	const want = "\nError: Command \"foo\" is not defined.\n"
 	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false)})
-	assertEqualsFile(t, "application_renderexception1.txt", tester.Display())
+	assertRendered(t, want, tester.Display())
 
 	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertEqualsFile(t, "application_renderexception1.txt", tester.ErrorOutput())
+	assertRendered(t, want, tester.ErrorOutput())
 	if tester.Display() != "" {
 		t.Error(tester.Display())
 	}
@@ -664,6 +681,9 @@ func TestApplication_AutoExitSetting(t *testing.T) {
 	}
 }
 
+// An uncaught error is its message, the messages of its previous errors,
+// the command's usage when the input was wrong, and, at -v, the errors'
+// types and the exit code; styled only when the output is decorated.
 func TestApplication_RenderException(t *testing.T) {
 	app := newTestApp()
 	app.SetAutoExit(false)
@@ -671,78 +691,50 @@ func TestApplication_RenderException(t *testing.T) {
 	tester := newApplicationTester(app)
 
 	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertEqualsFile(t, "application_renderexception1.txt", tester.ErrorOutput())
+	assertRendered(t, "\nError: Command \"foo\" is not defined.\n", tester.ErrorOutput())
 
 	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), verbosity: VerbosityVerbose, captureStderrSeparately: true})
-	if !strings.Contains(tester.ErrorOutput(), "Exception trace") {
-		t.Error(tester.ErrorOutput())
-	}
+	assertRendered(t, "\nError: Command \"foo\" is not defined.\n"+
+		"  Debug: *console.Error [Symfony\\Component\\Console\\Exception\\CommandNotFoundException]\n"+
+		"         exit code 1\n", tester.ErrorOutput())
 
 	tester.Run([]Param{P("command", "list"), P("--foo", true)}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertEqualsFile(t, "application_renderexception2.txt", tester.ErrorOutput())
+	assertRendered(t, "\nError: The \"--foo\" option does not exist.\n"+
+		"  Usage: list [--raw] [--format FORMAT] [--short] [--] [<namespace>]\n", tester.ErrorOutput())
 
 	mustAdd(t, app, newFoo3Command())
 	tester = newApplicationTester(app)
+	// Messages are shown as they are: console tags in them are text.
+	const chain = "\nError: Third exception <fg=blue;bg=red>comment</>\n" +
+		"  Caused by: Second exception <comment>comment</comment>\n" +
+		"  Caused by: First exception <p>this is html</p>\n"
 	tester.Run([]Param{P("command", "foo3:bar")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertEqualsFile(t, "application_renderexception3.txt", tester.ErrorOutput())
+	assertRendered(t, chain, tester.ErrorOutput())
 
 	tester.Run([]Param{P("command", "foo3:bar")}, testerOptions{decorated: new(false), verbosity: VerbosityVerbose})
-	for _, want := range []string{`\[Exception\]\s*First exception`, `\[Exception\]\s*Second exception`, `\[Exception \(404\)\]\s*Third exception`} {
-		if !matchesRegexp(want, tester.Display()) {
-			t.Errorf("display does not match %s:\n%s", want, tester.Display())
-		}
-	}
-
-	tester.Run([]Param{P("command", "foo3:bar")}, testerOptions{decorated: new(true)})
-	assertEqualsFile(t, "application_renderexception3decorated.txt", tester.Display())
+	assertRendered(t, chain+
+		"  Debug: *console.testException [Exception, code 404]\n"+
+		"         caused by *console.testException [Exception]\n"+
+		"         caused by *console.testException [Exception]\n"+
+		"         exit code 255\n", tester.Display())
 
 	tester.Run([]Param{P("command", "foo3:bar")}, testerOptions{decorated: new(true), captureStderrSeparately: true})
-	assertEqualsFile(t, "application_renderexception3decorated.txt", tester.ErrorOutput())
-
-	app = newTestApp()
-	app.SetAutoExit(false)
-	setColumns(t, "32")
-	tester = newApplicationTester(app)
-	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertEqualsFile(t, "application_renderexception4.txt", tester.ErrorOutput())
+	assertRendered(t, "\n\x1b[1;31mError:\x1b[0m \x1b[1mThird exception <fg=blue;bg=red>comment</>\x1b[0m\n"+
+		"  \x1b[33mCaused by:\x1b[0m Second exception <comment>comment</comment>\n"+
+		"  \x1b[33mCaused by:\x1b[0m First exception <p>this is html</p>\n", tester.ErrorOutput())
 }
 
 func TestApplication_RenderExceptionWithDoubleWidthCharacters(t *testing.T) {
 	app := newTestApp()
 	app.SetAutoExit(false)
-	setColumns(t, "120")
-	register(t, app, "foo").SetCode(func(Input, Output) (int, error) {
-		return 0, newTestException("エラーメッセージ", 0, nil)
-	})
-	tester := newApplicationTester(app)
-
-	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertMatchesFormatFile(t, "application_renderexception_doublewidth1.txt", tester.ErrorOutput())
-
-	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(true), captureStderrSeparately: true})
-	assertMatchesFormatFile(t, "application_renderexception_doublewidth1decorated.txt", tester.ErrorOutput())
-
-	app = newTestApp()
-	app.SetAutoExit(false)
+	// Long messages are not wrapped: the terminal does.
 	setColumns(t, "32")
 	register(t, app, "foo").SetCode(func(Input, Output) (int, error) {
 		return 0, newTestException("コマンドの実行中にエラーが発生しました。", 0, nil)
 	})
-	tester = newApplicationTester(app)
-	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
-	assertMatchesFormatFile(t, "application_renderexception_doublewidth2.txt", tester.ErrorOutput())
-}
-
-func TestApplication_RenderExceptionEscapesLines(t *testing.T) {
-	app := newTestApp()
-	app.SetAutoExit(false)
-	setColumns(t, "22")
-	register(t, app, "foo").SetCode(func(Input, Output) (int, error) {
-		return 0, newTestException("dont break here <info>!</info>", 0, nil)
-	})
 	tester := newApplicationTester(app)
-	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false)})
-	assertMatchesFormatFile(t, "application_renderexception_escapeslines.txt", tester.Display())
+	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false), captureStderrSeparately: true})
+	assertRendered(t, "\nError: コマンドの実行中にエラーが発生しました。\n", tester.ErrorOutput())
 }
 
 func TestApplication_RenderExceptionLineBreaks(t *testing.T) {
@@ -757,9 +749,22 @@ func TestApplication_RenderExceptionLineBreaks(t *testing.T) {
 	})
 	tester := newApplicationTester(app)
 	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false)})
-	assertMatchesFormatFile(t, "application_renderexception_linebreaks.txt", tester.Display())
+	assertRendered(t, "\nError: line 1 with extra spaces\n       line 2\n\n       line 4\n", tester.Display())
 }
 
+// An error without a message names its class.
+func TestApplication_RenderExceptionWithoutMessage(t *testing.T) {
+	app := newTestApp()
+	app.SetAutoExit(false)
+	register(t, app, "foo").SetCode(func(Input, Output) (int, error) {
+		return 0, newTestException("", 0, nil)
+	})
+	tester := newApplicationTester(app)
+	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false)})
+	assertRendered(t, "\nError: Exception (no message)\n", tester.Display())
+}
+
+// The usage escapes nothing: the synopsis is text.
 func TestApplication_RenderExceptionEscapesLinesOfSynopsis(t *testing.T) {
 	app := newTestApp()
 	app.SetAutoExit(false)
@@ -768,12 +773,12 @@ func TestApplication_RenderExceptionEscapesLinesOfSynopsis(t *testing.T) {
 		return 0, newTestException("some exception", 0, nil)
 	}).AddArgument("info", 0, "", nil)
 	tester := newApplicationTester(app)
-	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false)})
-	assertMatchesFormatFile(t, "application_rendersynopsis_escapesline.txt", tester.Display())
-}
+	tester.Run([]Param{P("command", "foo"), P("--nope", true)}, testerOptions{decorated: new(false)})
+	assertRendered(t, "\nError: The \"--nope\" option does not exist.\n  Usage: foo [<info>]\n", tester.Display())
 
-func matchesRegexp(expr, s string) bool {
-	return regexp.MustCompile(expr).MatchString(s)
+	// an error that is not about the input shows no usage
+	tester.Run([]Param{P("command", "foo")}, testerOptions{decorated: new(false)})
+	assertRendered(t, "\nError: some exception\n", tester.Display())
 }
 
 func TestApplication_Run(t *testing.T) {

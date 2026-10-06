@@ -1,13 +1,11 @@
 // Ports the command fixtures of Tests/Fixtures/*.php (symfony/console) used
 // by ApplicationTest, CommandTest, ListCommandTest and HelpCommandTest, plus
-// test helpers (a PHP-like exception and assertStringMatchesFormat).
+// test helpers (a PHP-like exception and fixture assertions).
 
 package console
 
 import (
 	"os"
-	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -39,45 +37,6 @@ func fixture(t *testing.T, name string) string {
 	}
 
 	return string(b)
-}
-
-// matchesFormat ports PHPUnit's assertStringMatchesFormat for the
-// placeholders the fixtures use (%d, %s, %a, %%).
-func matchesFormat(format, s string) bool {
-	var b strings.Builder
-	b.WriteString(`(?s)\A`)
-	for i := 0; i < len(format); i++ {
-		if format[i] == '%' && i+1 < len(format) {
-			i++
-			switch format[i] {
-			case 'd':
-				b.WriteString(`[+-]?\d+`)
-			case 's':
-				b.WriteString(`[^\r\n]+`)
-			case 'a':
-				b.WriteString(`.+`)
-			case '%':
-				b.WriteString(`%`)
-			default:
-				b.WriteString(regexp.QuoteMeta(format[i-1 : i+1]))
-			}
-
-			continue
-		}
-		b.WriteString(regexp.QuoteMeta(format[i : i+1]))
-	}
-	// PCRE's "$" (PHPUnit anchors the pattern with /^...$/s) also matches
-	// before a final newline.
-	b.WriteString(`\n?\z`)
-
-	return regexp.MustCompile(b.String()).MatchString(s)
-}
-
-func assertMatchesFormatFile(t *testing.T, name, got string) {
-	t.Helper()
-	if want := fixture(t, name); !matchesFormat(want, got) {
-		t.Errorf("output does not match %s:\nwant %q\ngot  %q", name, want, got)
-	}
 }
 
 func assertEqualsFile(t *testing.T, name, got string) {

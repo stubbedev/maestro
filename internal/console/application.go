@@ -4,15 +4,14 @@ package console
 
 import (
 	"errors"
-	"math"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // Application overrides. A type embedding *Application implements any of
@@ -39,9 +38,12 @@ type (
 	AppConfigurer interface {
 		ConfigureIO(in Input, out Output)
 	}
-	// AppRenderer overrides doRenderThrowable().
-	AppRenderer interface {
-		DoRenderThrowable(err error, out Output)
+	// AppErrorPresenter adds what the application knows about an error
+	// to the Diagnostic RenderThrowable shows for it (hints, clearer
+	// wording), as Composer's Application writes its hints along with
+	// the exception Symfony renders.
+	AppErrorPresenter interface {
+		PresentError(err error, d *ui.Diagnostic)
 	}
 	// AppDoRunCommander overrides doRunCommand().
 	AppDoRunCommander interface {
@@ -83,8 +85,8 @@ const (
 )
 
 // SetRunCallers sets the frames of the PHP stack above run(), innermost
-// first, which Run adds to the trace of the exception it renders (a
-// subclass's run() calling parent::run(), and the script calling that).
+// first, which Stack lists below the calls in progress (a subclass's run()
+// calling parent::run(), and the script calling that).
 func (a *Application) SetRunCallers(frames ...phperr.Frame) { a.runCallers = frames }
 
 // RunCallers returns the frames SetRunCallers set.
@@ -129,8 +131,8 @@ func (a *Application) CallOn(f phperr.Frame, object any, args []any, fn func() (
 // Stack returns the frames of the PHP stack from the innermost call in
 // progress (Call) up to the script: what the trace of an exception
 // constructed now holds above the caller of the innermost Call. A command
-// running the application again (OutdatedCommand) has its run() render
-// the exceptions with the frames of the outer run.
+// running the application again (OutdatedCommand) has the frames of the
+// outer run below those of its run().
 func (a *Application) Stack() []phperr.Frame {
 	frames := make([]phperr.Frame, 0, len(a.stack)+len(a.runCallers))
 	for _, f := range slices.Backward(a.stack) {
@@ -184,24 +186,17 @@ func (a *Application) Run(in Input, out Output) (exitCode int, err error) {
 		out = NewConsoleOutput(VerbosityNormal, nil, nil)
 	}
 
-	renderException := func(e error) {
-		a.RenderThrowable(e, ErrorOutputOf(out))
-	}
-
 	exitCode, err = a.runGuarded(in, out)
 	if err != nil {
-		// the frames above run() in the exception's trace
-		phperr.Calls(err, a.runCallers...)
-
 		if !a.catchErrors {
 			return exitCode, err
 		}
 
-		renderException(err)
+		a.RenderThrowable(err, ErrorOutputOf(out))
 
 		// $e->getCode() of the exception itself, 1 unless positive.
 		exitCode = 1
-		if _, _, _, code, _ := throwableInfo(err); code > 0 {
+		if _, code, _ := throwableInfo(err); code > 0 {
 			exitCode = code
 		}
 	}
@@ -329,7 +324,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	})
 	if err != nil {
 		// PHP leaves runningCommand set when the command throws, so the
-		// rendered exception is followed by the command synopsis.
+		// rendered error can show the command's usage.
 		return exitCode, err
 	}
 	a.runningCommand = nil
@@ -897,187 +892,6 @@ func Abbreviations(names []string) map[string][]string {
 	return abbrevs
 }
 
-// RenderThrowable renders an error like PHP renders an uncaught exception.
-func (a *Application) RenderThrowable(err error, out Output) {
-	out.Write("", true, VerbosityQuiet)
-
-	if r, ok := a.self.(AppRenderer); ok {
-		r.DoRenderThrowable(err, out)
-	} else {
-		a.DoRenderThrowable(err, out)
-	}
-
-	if a.runningCommand != nil {
-		synopsis := phpSprintf(a.runningCommand.Base().Synopsis(false), a.Name())
-		out.Write("<info>"+Escape(synopsis)+"</info>", true, VerbosityQuiet)
-		out.Write("", true, VerbosityQuiet)
-	}
-}
-
-// throwableInfo extracts the PHP exception details of err itself (not of
-// errors it wraps, as PHP only looks at the object it holds).
-func throwableInfo(err error) (class, file string, line, code int, prev error) {
-	if t, ok := err.(Throwable); ok { //nolint:errorlint // PHP inspects the exception object itself, not what it wraps.
-		return t.ThrowableClass(), t.ThrowableFile(), t.ThrowableLine(), t.ThrowableCode(), t.ThrowablePrevious()
-	}
-	if site, ok := phperr.SiteOf(err); ok {
-		return "Exception", phperr.AbsPath(site.File), site.Line, 0, phperr.PreviousOf(err)
-	}
-
-	return "Exception", "", 0, 0, nil
-}
-
-// throwableTrace is $e->getTrace(): the frames of a Tracer (a PHP
-// exception of the plugin runtime), or those maestro recorded for the error
-// as it went up the ports of the PHP calls (phperr.Call).
-func throwableTrace(err error) []TraceFrame {
-	if tr, ok := err.(Tracer); ok { // getTrace() of the object itself.
-		return tr.ThrowableTrace()
-	}
-	frames := phperr.TraceOf(err)
-	trace := make([]TraceFrame, len(frames))
-	for i, f := range frames {
-		trace[i] = TraceFrame{Function: f.Function, File: phperr.AbsPath(f.File), Line: f.Line}
-	}
-
-	return trace
-}
-
-// isConsoleExceptionValue is "$e instanceof ExceptionInterface", for the
-// console's own errors and for exceptions that know their PHP classes (the
-// plugin runtime's).
-func isConsoleExceptionValue(err error) bool {
-	if i, ok := err.(interface{ InstanceOf(class string) bool }); ok {
-		return i.InstanceOf(`Symfony\Component\Console\Exception\ExceptionInterface`)
-	}
-	e, ok := err.(*Error) //nolint:errorlint // instanceof applies to the object itself.
-
-	return ok && e.Is(ErrConsole)
-}
-
-// DoRenderThrowable renders err and its previous errors.
-//
-// The PHP exception details come from the Throwable interface: class
-// (get_debug_type), code, file and line of the throw site, and the previous
-// exception. Errors that do not implement it render as a plain "Exception"
-// with code 0 and file/line "n/a"; their wrapped errors are not followed
-// (PHP only follows getPrevious()). In verbose mode the "Exception trace:"
-// block lists the throw site ("  at FILE:LINE") followed by the frames of
-// the trace (throwableTrace). maestro's errors name Composer's files by
-// their absolute paths there, as PHP does (phperr.AbsPath).
-func (a *Application) DoRenderThrowable(err error, out Output) {
-	for e := err; e != nil; {
-		class, file, line, code, prev := throwableInfo(e)
-		message := php.Trim(e.Error())
-		verbose := out.Verbosity() >= VerbosityVerbose
-
-		var title string
-		var length int
-		if message == "" || verbose {
-			if code != 0 {
-				title = "  [" + class + " (" + strconv.Itoa(code) + ")]  "
-			} else {
-				title = "  [" + class + "]  "
-			}
-			length = Width(title)
-		}
-
-		width := a.terminal.Width()
-		if width != 0 {
-			width--
-		} else {
-			width = math.MaxInt // PHP_INT_MAX
-		}
-		type lineInfo struct {
-			text string
-			len  int
-		}
-		var lines []lineInfo
-		if message != "" {
-			for _, l := range splitCRLF(message) {
-				for _, part := range splitStringByWidth(l, width-4) {
-					// pre-format lines to get the right string length
-					lineLength := Width(part) + 4
-					lines = append(lines, lineInfo{part, lineLength})
-
-					length = max(lineLength, length)
-				}
-			}
-		}
-
-		messages := make([]string, 0, len(lines)+5)
-		if !isConsoleExceptionValue(e) || verbose {
-			fileName := "n/a"
-			if b := php.Basename(file, ""); b != "" && b != "0" {
-				fileName = b
-			}
-			lineStr := "n/a"
-			if line != 0 {
-				lineStr = strconv.Itoa(line)
-			}
-			messages = append(messages, "<comment>"+Escape("In "+fileName+" line "+lineStr+":")+"</comment>")
-		}
-		emptyLine := "<error>" + strings.Repeat(" ", length) + "</error>"
-		messages = append(messages, emptyLine)
-		if message == "" || verbose {
-			messages = append(messages, "<error>"+title+strings.Repeat(" ", max(0, length-Width(title)))+"</error>")
-		}
-		for _, l := range lines {
-			messages = append(messages, "<error>  "+Escape(l.text)+"  "+strings.Repeat(" ", max(0, length-l.len))+"</error>")
-		}
-		messages = append(messages, emptyLine, "")
-
-		WriteMessages(out, messages, true, VerbosityQuiet)
-
-		if verbose {
-			out.Write("<comment>Exception trace:</comment>", true, VerbosityQuiet)
-
-			// exception related properties
-			lineStr := "n/a"
-			if line != 0 {
-				lineStr = strconv.Itoa(line)
-			}
-			// The first frame is the throw site, with an empty class and
-			// function: sprintf(' %s%s at ...', '', '').
-			fileStr := file
-			if fileStr == "" {
-				fileStr = "n/a"
-			}
-			out.Write("  at <info>"+fileStr+":"+lineStr+"</info>", true, VerbosityQuiet)
-
-			for _, f := range throwableTrace(e) {
-				fn := ""
-				if f.Function != "" {
-					fn = f.Type + f.Function + "()"
-				}
-				ln := "n/a"
-				if f.Line != 0 {
-					ln = strconv.Itoa(f.Line)
-				}
-				fl := f.File
-				if fl == "" {
-					fl = "n/a"
-				}
-				out.Write(" "+f.Class+fn+" at <info>"+fl+":"+ln+"</info>", true, VerbosityQuiet)
-			}
-
-			out.Write("", true, VerbosityQuiet)
-		}
-
-		e = prev
-	}
-}
-
-// splitCRLF is preg_split('/\r?\n/', $s).
-func splitCRLF(s string) []string {
-	parts := strings.Split(s, "\n")
-	for i, p := range parts[:len(parts)-1] {
-		parts[i] = strings.TrimSuffix(p, "\r")
-	}
-
-	return parts
-}
-
 // ConfigureIO configures input and output from the global options.
 func (*Application) ConfigureIO(in Input, out Output) {
 	if in.HasParameterOption([]string{"--ansi"}, true) {
@@ -1272,84 +1086,6 @@ func (a *Application) SetDefaultCommand(commandName string, isSingleCommand bool
 
 // IsSingleCommand reports whether the application runs a single command.
 func (a *Application) IsSingleCommand() bool { return a.singleCommand }
-
-// splitStringByWidth ports Application::splitStringByWidth().
-func splitStringByWidth(s string, width int) []string {
-	// str_split is not suitable for multi-byte characters, we should use preg_split to get char array properly.
-	// additionally, array_slice() is not enough as some character has doubled width.
-	// we need a function to split string not by character count but by string width
-	if !utf8.ValidString(s) {
-		// str_split($string, $width)
-		if width < 1 {
-			panic(errors.New("str_split(): Argument #2 ($length) must be greater than 0"))
-		}
-		var out []string
-		for len(s) > width {
-			out = append(out, s[:width])
-			s = s[width:]
-		}
-
-		return append(out, s)
-	}
-
-	var lines []string
-	var line strings.Builder
-	lineWidth := 0
-	// add tests whether a character of width w fits on the current line,
-	// otherwise it starts a new one.
-	add := func(r rune, w int) {
-		// test if $char could be appended to current line
-		if lineWidth+w <= width {
-			if r >= 0 {
-				line.WriteRune(r)
-			}
-			lineWidth += w
-
-			return
-		}
-		// if not, push current line to array and make new line
-		lines = append(lines, strPadRight(line.String(), width))
-		line.Reset()
-		if r >= 0 {
-			line.WriteRune(r)
-		}
-		lineWidth = w
-	}
-	// PHP walks chunks of up to 10000 characters (preg_match('/.{1,10000}/u'))
-	// and splits each with preg_split('//u'), which yields an empty string
-	// before and after the characters; those count as zero-width characters
-	// and matter when not even one character fits.
-	n := 0
-	for _, r := range s {
-		if n%10000 == 0 {
-			if n > 0 {
-				add(-1, 0)
-			}
-			add(-1, 0)
-		}
-		add(r, mbCharWidth(r))
-		n++
-	}
-	if n > 0 {
-		add(-1, 0)
-	}
-
-	if len(lines) > 0 {
-		return append(lines, strPadRight(line.String(), width))
-	}
-
-	return append(lines, line.String())
-}
-
-// mbCharWidth is mb_strwidth() for one character: 2 for East Asian wide
-// and fullwidth characters, 1 otherwise.
-func mbCharWidth(r rune) int {
-	if inRuneTable(wcwidthWide[:], r) {
-		return 2
-	}
-
-	return 1
-}
 
 // extractAllNamespaces returns all namespaces of a command name.
 func extractAllNamespaces(name string) []string {

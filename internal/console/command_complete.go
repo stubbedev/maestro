@@ -145,7 +145,7 @@ func (c *CompleteCommand) Execute(in Input, out Output) (code int, err error) {
 
 // throwableString approximates (string) $e for the debug log.
 func throwableString(err error) string {
-	class, _, _, _, _ := throwableInfo(err)
+	class, _, _ := throwableInfo(err)
 
 	return class + ": " + err.Error()
 }
