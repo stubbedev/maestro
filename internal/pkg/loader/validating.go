@@ -293,7 +293,7 @@ func (l *ValidatingArrayLoader) validateTime() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
-	date, err := parseDateTime(s)
+	date, err := parseDateTimeAt(s, l.Now())
 	if err != nil {
 		l.errorf("time : invalid value (", s, "): ", err.Error())
 		l.config.Delete("time")

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -183,8 +182,6 @@ func TestOracle_ValidatingArrayLoader(t *testing.T) {
 		_, err := l.Load(config, pkg.ClassCompletePackage)
 
 		switch {
-		case relativeTime(timeValue, true):
-			// not supported: see parseDateTime
 		case c.Passed != nil:
 			if err != nil {
 				t.Errorf("%s: %v", what, err)
@@ -201,7 +198,7 @@ func TestOracle_ValidatingArrayLoader(t *testing.T) {
 			checkException(t, what, err, c.E[0], c.E[1])
 		}
 
-		if c.E == nil && !relativeTime(timeValue, true) {
+		if c.E == nil {
 			if !slices.Equal(l.Errors(), c.Errors) {
 				t.Errorf("%s: errors\n got %q\nwant %q", what, l.Errors(), c.Errors)
 			}
@@ -232,12 +229,13 @@ func TestOracle_ValidatingArrayLoader(t *testing.T) {
 				continue
 			}
 
-			want := string(run.want)
-			if relativeTime(timeValue, false) {
-				want = withoutTime(t, want)
+			want, got := string(run.want), enc(t, describe(t, p))
+			if nowDependent(timeValue, true) {
+				// the release date is when each side ran
+				want, got = withoutTime(t, want), withoutTime(t, got)
 			}
 
-			if got := enc(t, describe(t, p)); got != want {
+			if got != want {
 				t.Errorf("%s %s:\n got %s\nwant %s", what, run.name, got, want)
 			}
 		}
@@ -260,7 +258,7 @@ func TestOracle_Formats(t *testing.T) {
 		if _, message, ok := asException(c[1]); ok {
 			if err == nil {
 				t.Errorf("DateTime(%q): got %s, want %q", s, got.Format(time.RFC3339), message)
-			} else if supportedTimeError(s) && err.Error() != message {
+			} else if err.Error() != message {
 				t.Errorf("DateTime(%q): got %q, want %q", s, err, message)
 			}
 
@@ -271,11 +269,13 @@ func TestOracle_Formats(t *testing.T) {
 		_ = json.Unmarshal(c[1], &want)
 
 		if err != nil {
-			if supportedTime(s) {
-				t.Errorf("DateTime(%q): %v, want %v", s, err, want)
-			}
+			t.Errorf("DateTime(%q): %v, want %v", s, err, want)
 
 			continue
+		}
+
+		if nowDependent(s, false) {
+			continue // the golden has no clock; testdata/oracle/datetime.json covers these
 		}
 
 		if formatted := got.Format("2006-01-02T15:04:05-07:00"); formatted != want[0] || float64(got.Unix()) != want[1] || float64(got.Nanosecond()/1000) != want[2] {
@@ -325,28 +325,6 @@ func TestOracle_Formats(t *testing.T) {
 			t.Errorf("filterUrl(%q, irc) = %v, want %v", s, got, irc)
 		}
 	}
-}
-
-// supportedTime reports whether s is in the subset of PHP's date formats
-// parseDateTime implements (relative formats are not).
-func supportedTime(s string) bool {
-	switch strings.TrimSpace(s) {
-	case "x2012", "1.5", "tomorrow", "2012-01-01 x", "2012-01-01T":
-		return false
-	}
-
-	return !relativeTime(s, true)
-}
-
-// supportedTimeError reports whether the error message for s is expected
-// to match timelib's exactly.
-func supportedTimeError(s string) bool {
-	switch s {
-	case "foo", "abc def", "2012-13-01", "2012-01-01garbage", "2012-01-32", "2012-01-01T10:00:61":
-		return true
-	}
-
-	return false
 }
 
 type rootLoaderCase struct {

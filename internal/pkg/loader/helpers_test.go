@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -248,27 +249,24 @@ func describe(t *testing.T, p pkg.PackageInterface) *php.Array {
 	return d
 }
 
-// relativeTime reports whether new \DateTime() reads the time value as
+// nowDependent reports whether new \DateTime() reads the time value
 // relative to now (blank, a military zone letter or, without the "@"
-// ArrayLoader adds, digits), which parseDateTime does not support.
-func relativeTime(v any, validating bool) bool {
+// ArrayLoader adds to digits, digits read as a time of today...), so that
+// the release date in a golden depends on when the oracle ran.
+func nowDependent(v any, arrayLoader bool) bool {
 	s, ok := v.(string)
 	if !ok {
 		return false
 	}
 
-	s = strings.TrimSpace(s)
-
-	switch {
-	case s == "":
-		return true
-	case len(s) == 1 && (s[0]|0x20 >= 'a' && s[0]|0x20 <= 'z'):
-		return true
-	case validating && strings.Trim(s, "0123456789") == "":
-		return true
+	if arrayLoader && s != "" && strings.Trim(s, "0123456789") == "" {
+		s = "@" + s
 	}
 
-	return false
+	a, errA := loader.ParseDateTimeAt(s, time.Unix(0, 0))
+	b, errB := loader.ParseDateTimeAt(s, time.Unix(1e9, 5000))
+
+	return errA == nil && errB == nil && !a.Equal(b)
 }
 
 // withoutTime removes the dumped "time" from a describe() golden (and its
