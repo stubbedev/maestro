@@ -995,10 +995,20 @@ func (g *Git) throwException(message, url string) error {
 }
 
 // GetVersion ports Git::getVersion: the git version, false when git is
-// not found. It runs `git --version` once per process.
+// not found. It runs `git --version` once per process, or takes the
+// version an earlier run kept (UseVersionCache).
 func GetVersion(process Process) (string, bool, error) {
 	return gitVersion.get(func() (string, bool, error) {
-		return versionMatch(process, util.Cmd("git", "--version"), `/^git version (\d+(?:\.\d+)+)/m`)
+		cached := versionCachePath(process)
+		if version, ok := loadVersion(cached); ok {
+			return version, true, nil
+		}
+		version, ok, err := versionMatch(process, util.Cmd("git", "--version"), `/^git version (\d+(?:\.\d+)+)/m`)
+		if err == nil && ok {
+			storeVersion(cached, version)
+		}
+
+		return version, ok, err
 	}, false)
 }
 

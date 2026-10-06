@@ -569,6 +569,18 @@ func (p *Process) GetErrorOutput() string {
 	return p.stderr.String()
 }
 
+// DirectToolPath is the file a ProcessExecutor runs, in the current
+// environment and with no cwd, for an argument list naming the VCS tool
+// name (it starts those without a shell, see directCommand); "" when the
+// shell would run it.
+func DirectToolPath(name string) string {
+	if cmd := directCommand([]string{name}, os.Environ()); cmd != nil {
+		return cmd.Path
+	}
+
+	return ""
+}
+
 // mergeEnv ports the environment Process::start builds: the overrides, then
 // the inherited variables not overridden (case-insensitively on Windows).
 func mergeEnv(overrides, inherited []string, windows bool) []string {

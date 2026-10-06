@@ -768,6 +768,17 @@ func (p vcsProcess) Execute(command util.Command, output *string, cwd string) (i
 	return p.ProcessExecutor.Execute(command.Args(), output, cwd)
 }
 
+// Executor is the *util.ProcessExecutor the commands run with, nil for
+// another ProcessExecutor (a test's mock): vcs.GetVersion uses the version
+// earlier runs kept only for a real one.
+func (p vcsProcess) Executor() *util.ProcessExecutor {
+	if e, ok := p.ProcessExecutor.(processExecutor); ok {
+		return e.ProcessExecutor
+	}
+
+	return nil
+}
+
 func (p vcsProcess) ExecuteFunc(command util.Command, _ func(typ, buffer string), _ string) (int, error) {
 	return 0, &util.RuntimeError{Message: "VersionGuesser cannot stream the output of " + command.String()}
 }
