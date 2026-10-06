@@ -6,6 +6,7 @@ package util
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
@@ -81,6 +82,52 @@ type ErrorException struct {
 }
 
 func (e *ErrorException) Error() string { return e.Message }
+
+// PHPTrace implements phperr.Traced. ErrorHandler::handle() throws the
+// exception from the handler PHP calls for the warning, so its trace
+// starts with handle()'s frame: called at the warning's site for one the
+// engine raises ("Undefined array key", "foreach() argument must be ..."),
+// or from the internal function raising it, which has no file or line,
+// followed by that function's call at the site ("copy(a): Failed to open
+// stream" is handle() at n/a:n/a, then copy() at the site). An unknown
+// site adds nothing.
+func (e *ErrorException) PHPTrace() []phperr.Frame {
+	frames := e.Site.PHPTrace()
+	if !e.Site.Known() {
+		return frames
+	}
+	handle := phperr.Frame{Function: `Composer\Util\ErrorHandler::handle`, File: e.Site.File, Line: e.Site.Line}
+	if fn := warningFunction(e.Message); fn != "" {
+		return append([]phperr.Frame{
+			{Function: handle.Function},
+			{Function: fn, File: e.Site.File, Line: e.Site.Line},
+		}, frames...)
+	}
+
+	return append([]phperr.Frame{handle}, frames...)
+}
+
+// warningFunction is the internal function or method a warning message
+// names before "(...): " as PHP prefixes the warnings of internal
+// functions ("copy(a): ...", "ZipArchive::close(): ..."), as a trace
+// names its call ("copy", "ZipArchive->close"); "" for the engine's own.
+func warningFunction(message string) string {
+	i := 0
+	for i < len(message) && (message[i] == '_' || message[i] == ':' || message[i] == '\\' ||
+		'a' <= message[i] && message[i] <= 'z' || 'A' <= message[i] && message[i] <= 'Z' || i > 0 && '0' <= message[i] && message[i] <= '9') {
+		i++
+	}
+	name := message[:i]
+	if name == "" || i == len(message) || message[i] != '(' || !strings.Contains(message[i:], "): ") {
+		return ""
+	}
+	switch name {
+	case "foreach", "array", "list", "isset", "empty", "unset":
+		return "" // language constructs
+	}
+
+	return strings.Replace(name, "::", "->", 1)
+}
 
 // IOError is symfony/filesystem's IOException, carrying the path involved,
 // or its subclass FileNotFoundException (Class).
