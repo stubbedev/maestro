@@ -460,16 +460,35 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 // removeVcsDirectories is the Finder loop over the VCS metadata
 // directories of the working directory (depth 0, dot files and VCS
-// directories included). Symfony's Finder walks in readdir() order;
-// this walks in name order (only the error message can tell).
+// directories included), in readdir() order as Symfony's Finder walks.
 func removeVcsDirectories(fs *util.Filesystem) error {
 	cwd, err := util.GetCwd(false)
 	if err != nil {
 		return err
 	}
-	entries, err := os.ReadDir(cwd)
+	dirs, err := vcsDirectories(cwd)
 	if err != nil {
-		return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + cwd + "): Failed to open directory: " + err.Error()}
+		return err
+	}
+	for _, dir := range dirs {
+		ok, err := fs.RemoveDirectory(dir)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return NewError(ClassRuntime, createProjectFile, 320, "Could not remove "+dir)
+		}
+	}
+
+	return nil
+}
+
+// vcsDirectories is iterator_to_array($finder): the VCS metadata
+// directories of cwd in readdir() order.
+func vcsDirectories(cwd string) ([]string, error) {
+	entries, err := util.ReadDirOrder(cwd)
+	if err != nil {
+		return nil, &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + cwd + "): Failed to open directory: " + err.Error()}
 	}
 	var dirs []string
 	for _, entry := range entries {
@@ -486,17 +505,8 @@ func removeVcsDirectories(fs *util.Filesystem) error {
 			}
 		}
 	}
-	for _, dir := range dirs {
-		ok, err := fs.RemoveDirectory(dir)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return NewError(ClassRuntime, createProjectFile, 320, "Could not remove "+dir)
-		}
-	}
 
-	return nil
+	return dirs, nil
 }
 
 // stabilitySuffix is the `{^[^,\s]*?@(stable|RC|beta|alpha|dev)$}i` check.

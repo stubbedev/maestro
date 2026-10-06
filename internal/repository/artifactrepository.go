@@ -23,9 +23,9 @@ import (
 // ArtifactRepository ports Composer\Repository\ArtifactRepository: the
 // packages of the zip and tar archives found below a directory.
 //
-// PHP walks the directory in readdir() order, which the file system
-// decides; the walk here is in byte order of the names, so the package
-// order is the same on every machine.
+// The directory is walked in readdir() order, as PHP's
+// RecursiveDirectoryIterator does: the package order is the file
+// system's.
 type ArtifactRepository struct {
 	ArrayRepository
 	loader     *loader.ArrayLoader
@@ -81,7 +81,7 @@ func (r *ArtifactRepository) scanDirectory(path string) error {
 	if len(path) > 1 && strings.HasSuffix(path, "/") {
 		path = path[:len(path)-1]
 	}
-	entries, err := os.ReadDir(path)
+	entries, err := util.ReadDirOrder(path)
 	if err != nil {
 		return &util.UnexpectedValueError{Site: phperr.At("ArtifactRepository.php", 76), Message: "RecursiveDirectoryIterator::__construct(" + path + "): Failed to open directory: " + util.Strerror(err)}
 	}
@@ -105,7 +105,7 @@ func (r *ArtifactRepository) scanEntries(dir string, entries []os.DirEntry, acti
 			continue
 		}
 		if info.IsDir() {
-			children, err := os.ReadDir(pathname)
+			children, err := util.ReadDirOrder(pathname)
 			if err != nil {
 				return &util.UnexpectedValueError{Site: phperr.At("ArtifactRepository.php", 79), Message: "RecursiveDirectoryIterator::__construct(" + pathname + "): Failed to open directory: " + util.Strerror(err)}
 			}

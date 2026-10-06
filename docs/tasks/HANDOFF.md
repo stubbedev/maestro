@@ -158,7 +158,7 @@ semver, console, classmap, io and util's pcre.go now use internal/php (Sprintf, 
 - `InstallationManager` here is `InstallPath(p) (path string, ok bool, err error)` (same as autoload's).
 - PathRepository and the Locker run git through `vcs.*` with a `repository.Process` (`vcs.Process` + ExecuteAsync; `*util.ProcessExecutor` and `*processmock.Mock` qualify); `repository.NewGuesserProcess` adapts one to `version.ProcessExecutor`.
 - Locker: `locker.New(io, lockFile JSONFile, im, composerJSONContents, process)`; `SetLockData(LockDataInput{...}, write)` (DevPackages nil = PHP null; Aliases/StabilityFlags/Platform* are `*php.Array`); getters return errors (the lock file is read lazily). Lock files are oracle-checked byte for byte, including the always-true `setLockData` result when the data holds empty objects (PHP compares stdClass with arrays).
-- ArtifactRepository walks directories in byte order of names; PHP's RecursiveDirectoryIterator uses readdir() order (file-system dependent).
+- ArtifactRepository and create-project's VCS-directory removal walk directories in readdir() order (`util.ReadDirOrder`), as PHP's RecursiveDirectoryIterator and Symfony's Finder do, so the order is the file system's.
 
 ## Cleanup (DRY), from internal/repository
 - Done: internal/pkg/version's Git helpers use internal/util/vcs.

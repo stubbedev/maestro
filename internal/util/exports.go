@@ -68,3 +68,15 @@ func RealpathOK(path string) (string, bool) { return phpRealpath(path) }
 
 // IsExecutable is PHP's is_executable().
 func IsExecutable(path string) bool { return isExecutable(path) }
+
+// ReadDirOrder lists dir in readdir() order, the order PHP's directory
+// iterators (and Symfony's Finder) see, where os.ReadDir sorts by name.
+func ReadDirOrder(dir string) ([]os.DirEntry, error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return f.ReadDir(-1)
+}
