@@ -82,6 +82,19 @@ func TestPoolOptimizer_KeepingAnAliasRecordsRemovedVersionsForAliasOfAndSiblingA
 }
 
 func TestPoolOptimizer_PoolOptimizer(t *testing.T) {
+	testPoolOptimizerFixtures(t)
+}
+
+// TestPoolOptimizer_PoolOptimizerParallel runs the fixtures with the
+// package hashes computed on several goroutines whatever the pool size.
+func TestPoolOptimizer_PoolOptimizerParallel(t *testing.T) {
+	defer func(n int) { minParallelPackages = n }(minParallelPackages)
+	minParallelPackages = 1
+
+	testPoolOptimizerFixtures(t)
+}
+
+func testPoolOptimizerFixtures(t *testing.T) {
 	files := fixtureFiles(t, "testdata/Fixtures/pooloptimizer")
 	if len(files) == 0 {
 		t.Fatal("no fixtures")

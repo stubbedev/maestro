@@ -70,6 +70,16 @@ func NewDefaultPolicy(preferStable, preferLowest bool, preferredVersions map[str
 	}
 }
 
+// Fork returns a policy of the same configuration with caches of its own,
+// for use on another goroutine. Its results are the policy's: the caches
+// only remember them.
+func (p *DefaultPolicy) Fork() Policy {
+	fork := *p
+	fork.caches = map[*Pool]*policyCache{}
+
+	return &fork
+}
+
 // VersionCompare implements Policy.
 func (p *DefaultPolicy) VersionCompare(a, b pkg.PackageInterface, operator string) bool {
 	if p.preferStable {
