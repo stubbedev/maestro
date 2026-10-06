@@ -132,10 +132,7 @@ func makeOracleTree(t *testing.T, tree []oracleEntry) string {
 	// The oracle's work directory had no symlink in its path; the
 	// temporary directory may (/var -> /private/var on macOS), which
 	// realpath() would resolve in some messages and not in others.
-	work, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
+	work := testutil.RealTempDir(t)
 	for _, dir := range []string{"pkg", "outside", "pkg2"} {
 		if err := os.Mkdir(work+"/"+dir, 0o777); err != nil {
 			t.Fatal(err)
@@ -434,6 +431,8 @@ func compareLibzip(t *testing.T, label string, want, got []byte, links map[strin
 		return
 	}
 
+	matchAliasOrder(wr.File, gr.File)
+
 	for i, w := range wr.File {
 		g := gr.File[i]
 		wh, gh := w.FileHeader, g.FileHeader
@@ -533,8 +532,9 @@ func TestOracle_Archivers(t *testing.T) {
 				got = append(got, json.RawMessage(mustJSON(t, []any{f.RelativePathname, f.IsDir})))
 			}
 
-			if mustJSON(t, got) != mustJSON(t, c.Finder.OK) {
-				t.Errorf("%s: finder\n got %s\nwant %s", label, mustJSON(t, got), mustJSON(t, c.Finder.OK))
+			got, want := sortAliases(t, work, got), sortAliases(t, work, c.Finder.OK)
+			if mustJSON(t, got) != mustJSON(t, want) {
+				t.Errorf("%s: finder\n got %s\nwant %s", label, mustJSON(t, got), mustJSON(t, want))
 			}
 		}
 
@@ -699,6 +699,75 @@ func firstDiff(want, got []byte) string {
 
 	return "at " + strconv.Itoa(i) + " (lengths " + strconv.Itoa(len(got)) + ", want " + strconv.Itoa(len(want)) + ")\n got " +
 		strconv.Quote(string(got[start:min(i+48, len(got))])) + "\nwant " + strconv.Quote(string(want[start:min(i+48, len(want))]))
+}
+
+// sortAliases orders the finder's [path, isDir] entries that resolve to
+// the same file (a symbolic link and its target) by path. The finder sorts
+// by real path with a stable sort (SortableIterator's uasort), so such
+// aliases keep the readdir order of the file system the tree is on (hash
+// order on ext4, name order on APFS, creation order on tmpfs), which maestro
+// follows as Composer does but which no golden can fix.
+func sortAliases(t *testing.T, work string, entries []json.RawMessage) []json.RawMessage {
+	t.Helper()
+
+	type entry struct {
+		raw       json.RawMessage
+		real, rel string
+	}
+
+	list := make([]entry, len(entries))
+	for i, raw := range entries {
+		var pair []any
+		if err := json.Unmarshal(raw, &pair); err != nil {
+			t.Fatal(err)
+		}
+
+		rel, _ := pair[0].(string)
+		path := work + "/pkg/" + rel
+		real, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			real = path
+		}
+
+		list[i] = entry{raw, real, rel}
+	}
+
+	// The list is in real path order: sort each run of one real path.
+	for i := 0; i < len(list); {
+		j := i + 1
+		for j < len(list) && list[j].real == list[i].real {
+			j++
+		}
+
+		slices.SortFunc(list[i:j], func(a, b entry) int { return strings.Compare(a.rel, b.rel) })
+		i = j
+	}
+
+	out := make([]json.RawMessage, len(list))
+	for i, e := range list {
+		out[i] = e.raw
+	}
+
+	return out
+}
+
+// matchAliasOrder reorders got to want's order where the two differ only
+// by entries of the same content (CRC and size): the files a symbolic link
+// and its target add, whose order is the readdir order (see sortAliases).
+func matchAliasOrder(want, got []*zip.File) {
+	for i := range min(len(want), len(got)) {
+		if got[i].Name == want[i].Name {
+			continue
+		}
+
+		for j := i + 1; j < len(got); j++ {
+			if got[j].Name == want[i].Name && got[j].CRC32 == got[i].CRC32 && got[j].UncompressedSize64 == got[i].UncompressedSize64 {
+				got[i], got[j] = got[j], got[i]
+
+				break
+			}
+		}
+	}
 }
 
 // linkNames returns the paths of a tree's symbolic links.
