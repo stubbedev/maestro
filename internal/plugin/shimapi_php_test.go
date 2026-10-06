@@ -400,7 +400,7 @@ func TestShimAPI_ErrorHandler(t *testing.T) {
 	util.ResetErrorHandler()
 	util.SetDeprecationNoticeShown(1)
 	got := evalPHP(t, rt, trigger, php.ArrayOf("verbosity", int64(32)))
-	if got != "<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n" {
+	if php.NormalizeEOL(php.ToString(got)) != "<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n" {
 		t.Errorf("after maestro's notice: %q", got)
 	}
 	if n := util.DeprecationNoticeShown(); n != 2 {
@@ -418,6 +418,7 @@ func TestShimAPI_ErrorHandler(t *testing.T) {
 		t.Errorf("hasShownDeprecationNotice = %d, want 1", n)
 	}
 	out, _ := got.(string)
+	out = php.NormalizeEOL(out) // the BufferIO's PHP_EOL
 	out = strings.NewReplacer("<warning>", "", "</warning>", "").Replace(out)
 	root := phperr.Root()
 	for _, notice := range []string{"an old API", "another old API"} {
@@ -430,7 +431,7 @@ func TestShimAPI_ErrorHandler(t *testing.T) {
 		// test handler, the handler (called where Composer calls the
 		// listener), the dispatch, and nothing of the shim's below
 		if len(lines) < 7 || lines[1] != "Stack trace:" || !strings.Contains(lines[2], "eval()'d code:") ||
-			!strings.HasSuffix(lines[3], "/handlers.php:467") ||
+			!strings.HasSuffix(filepath.ToSlash(lines[3]), "/handlers.php:467") ||
 			lines[4] != " "+root+"/src/Composer/EventDispatcher/EventDispatcher.php:232" ||
 			lines[5] != " "+root+"/src/Composer/EventDispatcher/EventDispatcher.php:126" ||
 			(lines[6] != "" && !strings.HasPrefix(lines[6], "Deprecation Notice")) {
@@ -472,7 +473,8 @@ func TestShimAPI_IOFromParallelWork(t *testing.T) {
 	got := evalPHP(t, rt, `
 		$io = new \Composer\IO\BufferIO('', \Symfony\Component\Console\Output\OutputInterface::VERBOSITY_VERBOSE);
 		$out = [];
-		(new \Composer\Util\ProcessExecutor($io))->execute('printf "one\n"; sleep 0.1; printf "two\n" >&2; sleep 0.1; printf "three\n"');
+		// php rather than sh's printf and sleep: cmd.exe runs it on Windows
+		(new \Composer\Util\ProcessExecutor($io))->execute(escapeshellarg(PHP_BINARY).' -r '.escapeshellarg("echo 'one', chr(10); usleep(100000); fwrite(STDERR, 'two'.chr(10)); usleep(100000); echo 'three', chr(10);"));
 		$out[] = $io->getOutput();
 
 		$io = new \Composer\IO\BufferIO('', \Symfony\Component\Console\Output\OutputInterface::VERBOSITY_VERBOSE);
@@ -481,7 +483,8 @@ func TestShimAPI_IOFromParallelWork(t *testing.T) {
 
 		return implode('|', $out);
 	`, nil)
-	if want := "one\ntwo\nthree\n|from a goroutine\nverbose\nits last line\nafter the work\n"; got != want {
+	// the BufferIOs end lines with PHP's PHP_EOL
+	if want := "one\ntwo\nthree\n|from a goroutine\nverbose\nits last line\nafter the work\n"; php.NormalizeEOL(php.ToString(got)) != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
