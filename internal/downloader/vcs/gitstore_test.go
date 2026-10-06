@@ -272,6 +272,11 @@ func TestRefreshIndexMatchesGit(t *testing.T) {
 		"v2":          nil,
 		"v4":          {{"update-index", "--index-version", "4"}},
 		"v4 skipHash": {{"config", "index.skipHash", "true"}, {"update-index", "--index-version", "4"}},
+		// what clone and reset write under a global feature.manyFiles (#24):
+		// v4, skipHash and an empty untracked cache whose ident names the
+		// original work tree, not the copy
+		"manyFiles":      {{"config", "feature.manyFiles", "true"}, {"reset", "-q", "--hard"}},
+		"untrackedCache": {{"config", "core.untrackedCache", "true"}, {"reset", "-q", "--hard"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			tree := staleWorkTree(t, configure...)
@@ -281,6 +286,10 @@ func TestRefreshIndexMatchesGit(t *testing.T) {
 
 			if git(t, tree, "diff-files", "--name-only") == "" {
 				t.Fatal("the index is not stale")
+			}
+
+			if want := len(configure) == 2 && configure[1][0] == "reset"; bytes.Contains(stale, []byte("UNTR")) != want {
+				t.Fatalf("untracked cache in the index: %v", !want)
 			}
 
 			noError(t, refreshIndex(tree))
@@ -308,10 +317,16 @@ func TestRefreshIndexMatchesGit(t *testing.T) {
 func TestRefreshIndexFallsBack(t *testing.T) {
 	gitEnv(t)
 
-	tree := staleWorkTree(t, []string{"update-index", "--skip-worktree", "a.txt"})
+	for name, configure := range map[string][][]string{
+		"skip-worktree": {{"update-index", "--skip-worktree", "a.txt"}},
+		// git status fills the untracked cache
+		"populated untracked cache": {{"config", "core.untrackedCache", "true"}, {"status", "--porcelain"}},
+	} {
+		tree := staleWorkTree(t, configure...)
 
-	if err := refreshIndex(tree); !errors.Is(err, errIndexFallback) {
-		t.Fatalf("skip-worktree: %v", err)
+		if err := refreshIndex(tree); !errors.Is(err, errIndexFallback) {
+			t.Fatalf("%s: %v", name, err)
+		}
 	}
 }
 
