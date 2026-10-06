@@ -79,8 +79,7 @@ func ResetErrorHandler() {
 
 // TriggerDeprecation ports trigger_error($message, E_USER_DEPRECATED) as
 // ErrorHandler::handle reports it: the first notice, then later ones only
-// in verbose mode (otherwise a single note that more were hidden). site is
-// the trigger_error call in Composer.
+// in verbose mode (otherwise a single note that more were hidden).
 //
 // How a notice looks is maestro's (internal/ui, #13): Composer adds the
 // path of its own source file and, in verbose mode, PHP's call stack,
