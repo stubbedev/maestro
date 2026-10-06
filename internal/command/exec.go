@@ -3,12 +3,10 @@
 package command
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
@@ -144,16 +142,12 @@ func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
 // chdirWarning is the text of PHP's chdir() warning for err after
 // "chdir(): ": "Message (errno N)".
 func chdirWarning(err error) string {
-	errno, ok := errors.AsType[syscall.Errno](err)
+	errno, ok := php.Errno(err)
 	if !ok {
 		return err.Error()
 	}
-	msg := errno.Error()
-	if msg != "" {
-		msg = strings.ToUpper(msg[:1]) + msg[1:]
-	}
 
-	return msg + " (errno " + strconv.Itoa(int(errno)) + ")"
+	return php.Strerror(err) + " (errno " + strconv.Itoa(errno) + ")"
 }
 
 // binaries ports getBinaries.

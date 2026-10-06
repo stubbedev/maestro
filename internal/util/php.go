@@ -4,11 +4,10 @@
 package util
 
 import (
-	"errors"
-	"syscall"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -100,10 +99,11 @@ func isPCRESpace(c byte) bool {
 }
 
 // strerror renders an OS error the way PHP's warnings do, from the C
-// library's strerror: Go's errno texts are the glibc ones, lowercased.
+// library's strerror (php.Strerror); other errors get their first letter
+// raised.
 func strerror(err error) string {
-	if errno, ok := errors.AsType[syscall.Errno](err); ok {
-		err = errno
+	if _, ok := php.Errno(err); ok {
+		return php.Strerror(err)
 	}
 
 	msg := err.Error()

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -175,19 +176,9 @@ func helpful(fn, path string, err error) string {
 	return "\nThe following message may be helpful:\n" + fn + "(" + path + "): Failed to open stream: " + strerror(err)
 }
 
-// strerror returns the C library's message for the errno behind err: Go's
-// messages are glibc's with the first letter lowered.
+// strerror returns the C library's message for the errno behind err.
 func strerror(err error) string {
-	if errno, ok := errors.AsType[syscall.Errno](err); ok {
-		msg := errno.Error()
-		if msg != "" && msg[0] >= 'a' && msg[0] <= 'z' {
-			return string(msg[0]-'a'+'A') + msg[1:]
-		}
-
-		return msg
-	}
-
-	return err.Error()
+	return php.Strerror(err)
 }
 
 // Character classes of the PCRE patterns (non-UTF mode, C locale tables).

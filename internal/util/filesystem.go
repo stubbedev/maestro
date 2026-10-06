@@ -1084,12 +1084,12 @@ func RelativeSymlink(target, link string) (bool, error) {
 
 	dir := phpDirname(link, IsWindows())
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		errno := syscall.ENOTDIR
-		if err != nil {
-			errno, _ = errors.AsType[syscall.Errno](err)
+		if err == nil {
+			err = php.ENOTDIR
 		}
+		errno, _ := php.Errno(err)
 
-		return false, &ErrorException{Message: "chdir(): " + strerror(errno) + " (errno " + strconv.Itoa(int(errno)) + ")", Site: phperr.At("Filesystem.php", 778)}
+		return false, &ErrorException{Message: "chdir(): " + php.Strerror(err) + " (errno " + strconv.Itoa(errno) + ")", Site: phperr.At("Filesystem.php", 778)}
 	}
 
 	return os.Symlink(relativePath, link) == nil, nil
