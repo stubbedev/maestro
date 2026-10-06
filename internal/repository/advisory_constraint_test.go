@@ -120,7 +120,7 @@ func TestAdvisoryConstraintFloatDeprecation(t *testing.T) {
 	}
 	want := "<warning>Deprecation Notice: Implicit conversion from float 1.5 to int loses precision in " + phperr.AbsPath("src/Composer/Package/Version/VersionParser.php") + ":33</warning>\n" +
 		"<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n"
-	if got := out.Output(); got != want {
+	if got := php.NormalizeEOL(out.Output()); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
 }
