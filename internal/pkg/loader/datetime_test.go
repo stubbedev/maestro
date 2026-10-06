@@ -172,3 +172,17 @@ func TestParseDateTime_RelativeForms(t *testing.T) {
 		}
 	}
 }
+
+// BenchmarkParseDateTime parses release dates as package metadata carries
+// them.
+func BenchmarkParseDateTime(b *testing.B) {
+	for _, s := range []string{"2023-06-01T12:34:56+00:00", "2012-01-01 10:00:00", "@1700000000"} {
+		b.Run(s, func(b *testing.B) {
+			for b.Loop() {
+				if _, err := loader.ParseDateTime(s); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}

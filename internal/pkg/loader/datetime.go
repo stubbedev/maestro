@@ -73,12 +73,152 @@ func parseDateTime(s string) (time.Time, error) { return parseDateTimeAt(s, time
 // zone, and bare digits are read as timelib reads them ("1234" is 12:34
 // today, "2460" the year 2460, "123456" 12:34:56, "20120101" a date).
 func parseDateTimeAt(s string, now time.Time) (time.Time, error) {
+	if p, ok := quickStrToTime(s); ok {
+		return p.resolve(now), nil
+	}
+
 	p, err := strToTime(s)
 	if err != nil {
 		return time.Time{}, err
 	}
 
 	return p.resolve(now), nil
+}
+
+// quickStrToTime is strToTime for the shapes nearly every release date
+// has, without the scanner's regexps: "YYYY-MM-DD", "YYYY-MM-DD
+// HH:MM:SS[.frac]", "YYYY-MM-DDTHH:MM:SS[.frac]" optionally followed by
+// "Z" or "±HH:MM", and "@[-]digits". It only accepts strings whose fields are in
+// the ranges timelib's rules match, so that the scanner would read them
+// as the same tokens (wddx or iso8601date4 and timelong24, then tz or
+// tzcorrection; timestamp) with the same result; ok is false otherwise.
+func quickStrToTime(s string) (dtParsed, bool) {
+	p := dtParsed{y: dtUnset, m: dtUnset, d: dtUnset, h: dtUnset, i: dtUnset, s: dtUnset, us: dtUnset, z: dtUnset, dst: dtUnset}
+
+	if len(s) > 1 && s[0] == '@' {
+		digits := s[1:]
+		if digits[0] == '-' {
+			digits = digits[1:]
+		}
+
+		if len(digits) == 0 || len(digits) > 18 || !allDigits(digits) {
+			return dtParsed{}, false
+		}
+
+		n, _ := strconv.ParseInt(s[1:], 10, 64)
+		p.haveRelative, p.haveZone = true, 1
+		p.y, p.m, p.d, p.h, p.i, p.s, p.us = 1970, 1, 1, 0, 0, 0, 0
+		p.relS, p.zoneType, p.z, p.dst = n, zoneOffset, 0, 0
+
+		return p, true
+	}
+
+	// two digits at s[i:] no larger than maxValue
+	num2 := func(i int, maxValue int64) (int64, bool) {
+		if !isDigit(s[i]) || !isDigit(s[i+1]) {
+			return 0, false
+		}
+
+		n := int64(s[i]-'0')*10 + int64(s[i+1]-'0')
+
+		return n, n <= maxValue
+	}
+
+	if len(s) < 10 || !allDigits(s[:4]) || s[4] != '-' || s[7] != '-' {
+		return dtParsed{}, false
+	}
+
+	m, okM := num2(5, 12)
+	d, okD := num2(8, 31)
+
+	if !okM || !okD {
+		return dtParsed{}, false
+	}
+
+	y, _ := strconv.ParseInt(s[:4], 10, 64)
+	p.y, p.m, p.d, p.haveDate = y, m, d, 1
+
+	if len(s) == 10 {
+		return p, true
+	}
+
+	if len(s) < 19 || (s[10] != ' ' && s[10] != 'T') || s[13] != ':' || s[16] != ':' {
+		return dtParsed{}, false
+	}
+
+	h, okH := num2(11, 24)
+	i, okI := num2(14, 59)
+	sec, okS := num2(17, 60)
+
+	if !okH || !okI || !okS {
+		return dtParsed{}, false
+	}
+
+	p.h, p.i, p.s, p.us, p.haveTime = h, i, sec, 0, 1
+
+	// a fraction of up to 6 digits (getFracNr's float arithmetic is
+	// exact there): the T form is then soap, whose token includes a
+	// "±HH:MM" (parsed without TIMELIB_HAVE_TZ), the space form
+	// iso8601long
+	zone := s[19:]
+	inToken := false
+
+	if zone != "" && zone[0] == '.' {
+		k := 1
+		for k < len(zone) && isDigit(zone[k]) {
+			k++
+		}
+
+		if k == 1 || k > 7 {
+			return dtParsed{}, false
+		}
+
+		frac, _ := strconv.ParseInt(zone[1:k], 10, 64)
+		for range 7 - k {
+			frac *= 10
+		}
+
+		p.us, zone, inToken = frac, zone[k:], true
+	}
+
+	switch {
+	case zone == "":
+	case s[10] != 'T':
+		return dtParsed{}, false
+	case zone == "Z":
+		p.haveZone, p.zoneType, p.z, p.dst = 1, zoneAbbr, 0, 0
+	case len(zone) == 6 && (zone[0] == '+' || zone[0] == '-') && zone[3] == ':':
+		at := len(s) - 6
+		zh, okZH := num2(at+1, 24)
+		zm, okZM := num2(at+4, 59)
+
+		if !okZH || !okZM {
+			return dtParsed{}, false
+		}
+
+		p.zoneType, p.z, p.dst = zoneOffset, zh*3600+zm*60, 0
+		if zone[0] == '-' {
+			p.z = -p.z
+		}
+
+		if !inToken {
+			p.haveZone = 1
+		}
+	default:
+		return dtParsed{}, false
+	}
+
+	return p, true
+}
+
+func allDigits(s string) bool {
+	for i := range len(s) {
+		if !isDigit(s[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // dtUnset is TIMELIB_UNSET; timelib also reads a parsed -9999999 as unset.
