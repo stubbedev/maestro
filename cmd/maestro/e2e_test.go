@@ -442,7 +442,11 @@ func e2eEnv(root string) []string {
 		case name == "COMPOSER_AUTH":
 		case strings.HasPrefix(name, "COMPOSER"), strings.HasPrefix(name, "MAESTRO"),
 			strings.HasPrefix(name, "XDG_"), name == "HOME", name == "COLUMNS", name == "LINES",
-			strings.HasPrefix(name, "GIT_"), name == "SHELL_VERBOSITY":
+			strings.HasPrefix(name, "GIT_"), name == "SHELL_VERBOSITY",
+			// Git for Windows' bash sets MSYSTEM=MINGW64, which makes
+			// StreamOutput::hasColorSupport() decorate pipes; the steps
+			// compare plain output as on Unix (and --ansi where they ask).
+			strings.EqualFold(name, "MSYSTEM"):
 			continue
 		}
 
