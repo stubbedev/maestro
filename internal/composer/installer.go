@@ -1022,8 +1022,14 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 
 	// verify that the lock file works with the current platform repository
 	// we can skip this part if we're doing this as the second step after an update
+	var speculation autoloadSpeculator
 	if !alreadySolved {
+		speculation = i.speculateAutoloads(lockedRepository, localRepo)
 		if code, err := i.verifyLock(lockedRepository); err != nil || code != 0 {
+			if speculation != nil {
+				speculation.DiscardAutoloadSpeculation()
+			}
+
 			return code, err
 		}
 	}
@@ -1032,6 +1038,9 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	localRepoTransaction, err := resolver.NewLocalRepoTransaction(lockedRepository, localRepo)
 	if err != nil {
 		return 0, err
+	}
+	if speculation != nil && len(localRepoTransaction.Operations()) != 0 {
+		speculation.DiscardAutoloadSpeculation()
 	}
 	done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchInstallerEvent`, "Installer.php", 838)
 	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); done(err) != nil {

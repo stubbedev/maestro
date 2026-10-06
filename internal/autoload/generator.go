@@ -52,6 +52,9 @@ type Generator struct {
 	dryRun                    bool
 	runScripts                bool
 	platformRequirementFilter version.PlatformRequirementFilter
+	// speculation is the class map scan Speculate started, nil without
+	// one.
+	speculation *speculation
 }
 
 // NewGenerator ports new AutoloadGenerator($eventDispatcher, $io); a nil
@@ -157,16 +160,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return nil, err
 	}
-	filter := NoDevFilter // dev mode: nothing is filtered out
-	if !g.devMode {
-		// if the list of dev package names is available we use that
-		// straight, otherwise use the legacy algo to figure them out
-		filter = LegacyDevFilter
-		if len(devPackageNames) > 0 {
-			filter = DevPackageNames(devPackageNames)
-		}
-	}
-	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, filter)
+	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, devFilter(g.devMode, devPackageNames))
 	if err != nil {
 		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloads`, "AutoloadGenerator.php", 264)
 	}
@@ -182,7 +176,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		return nil, err
 	}
 
-	classMap, err := g.scan(d, autoloads, scanPsrPackages, strictAmbiguous)
+	classMap, err := g.scan(d, autoloads, scanPsrPackages, strictAmbiguous, g.takeSpeculation(d, autoloads, scanPsrPackages))
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +226,7 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	if g.classMapAuthoritative {
 		scanPsrPackages = true
 	}
-	vendorDir, err := configString(config, "vendor-dir")
+	vendorDir, err := vendorDirConfig(config)
 	if err != nil {
 		return
 	}
@@ -275,35 +269,55 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 // false if no vendor dir is present or it is too old to contain dev
 // information.
 func (g *Generator) detectDevMode(config Config) error {
-	g.devMode, g.devModeSet = false, true
+	g.devModeSet = true
+	var err error
+	g.devMode, g.devModeValue, err = installedDevMode(config)
 
-	vendorDir, err := configString(config, "vendor-dir")
+	return err
+}
+
+// installedDevMode is the devMode and devModeValue detectDevMode reads.
+func installedDevMode(config Config) (devMode bool, value any, err error) {
+	vendorDir, err := vendorDirConfig(config)
 	if err != nil {
-		return err
+		return false, nil, err
 	}
 
 	installedJSON, err := json.NewFile(vendorDir+"/composer/installed.json", nil, nil)
 	if err != nil || !installedJSON.Exists() {
-		return err
+		return false, nil, err
 	}
 	data, err := installedJSON.Read()
 	if err != nil {
-		return err
+		return false, nil, err
 	}
 	a, ok := data.(*php.Array)
 	if !ok {
-		return nil
+		return false, nil, nil
 	}
 	// if (isset($installedJson['dev'])) $this->devMode = $installedJson['dev'];
 	switch dev, _ := a.Get("dev"); dev := dev.(type) {
 	case nil:
+		return false, nil, nil
 	case bool:
-		g.devMode = dev
+		return dev, nil, nil
 	default:
-		g.devMode, g.devModeValue = php.ToBool(dev), dev
+		return php.ToBool(dev), dev, nil
+	}
+}
+
+// devFilter is the dev packages a dump leaves out: none in dev mode,
+// else the list of dev package names when it is available, otherwise
+// the legacy algo's.
+func devFilter(devMode bool, devPackageNames []string) DevFilter {
+	if devMode {
+		return NoDevFilter
+	}
+	if len(devPackageNames) > 0 {
+		return DevPackageNames(devPackageNames)
 	}
 
-	return nil
+	return LegacyDevFilter
 }
 
 // devModeArg checks $this->devMode passed to EventDispatcher::dispatchScript
@@ -321,41 +335,16 @@ func (g *Generator) devModeArg(line int) error {
 
 // scan builds the class map: the classmap rules, plus the PSR-0/4 dirs
 // with scanPsrPackages, reporting ambiguous classes and PSR violations.
-func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool) (*classmap.ClassMap, error) {
-	excluded := autoloads.ExcludeFromClassmap
-	gen := g.newClassMapGenerator()
-
-	// every scan, planned first so that their files are walked and parsed
-	// together (classmap.Generator.Prefetch), then run in order
-	scans := make([]psrScan, 0, len(autoloads.Classmap))
-	for i, dir := range autoloads.Classmap {
-		if autoloads.classmapValue != nil && i == autoloads.classmapIndex {
-			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue).
-				Called(`Composer\Autoload\AutoloadGenerator->buildExclusionRegex`, phperr.At("AutoloadGenerator.php", 488), "AutoloadGenerator.php", 329)
-		}
-		scans = append(scans, psrScan{dir, d.exclusions.build(dir, excluded), classmap.Classmap, ""})
-	}
-	if scanPsrPackages {
-		scans = append(scans, d.psrScans(autoloads, excluded)...)
-	}
-	requests := make([]classmap.ScanRequest, len(scans))
-	for i, s := range scans {
-		requests[i] = classmap.ScanRequest{Path: s.dir, Excluded: s.excluded}
-	}
-	gen.Prefetch(requests)
-
-	for _, s := range scans {
-		if err := gen.ScanPaths(s.dir, s.excluded, s.typ, s.namespace, nil); err != nil {
-			line := 359 // the PSR directories
-			if s.typ == classmap.Classmap {
-				line = 329
-			}
-
-			return nil, phperr.Call(err, `Composer\ClassMapGenerator\ClassMapGenerator->scanPaths`, "AutoloadGenerator.php", line)
+// scanned is the class map of these scans when a speculation found it
+// already, nil to scan now.
+func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool, scanned *classmap.ClassMap) (*classmap.ClassMap, error) {
+	classMap := scanned
+	if classMap == nil {
+		var err error
+		if classMap, err = g.scanClassMap(d, autoloads, scanPsrPackages); err != nil {
+			return nil, err
 		}
 	}
-
-	classMap := gen.ClassMap()
 	filter := classmap.DefaultDuplicatesFilter
 	if strictAmbiguous {
 		filter = nil
@@ -392,6 +381,45 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 	classMap.Sort()
 
 	return classMap, nil
+}
+
+// scanClassMap is the part of scan that scans: it prints nothing, and
+// reads only d's basePath and vendorPath.
+func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, scanPsrPackages bool) (*classmap.ClassMap, error) {
+	excluded := autoloads.ExcludeFromClassmap
+	gen := g.newClassMapGenerator()
+
+	// every scan, planned first so that their files are walked and parsed
+	// together (classmap.Generator.Prefetch), then run in order
+	scans := make([]psrScan, 0, len(autoloads.Classmap))
+	for i, dir := range autoloads.Classmap {
+		if autoloads.classmapValue != nil && i == autoloads.classmapIndex {
+			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue).
+				Called(`Composer\Autoload\AutoloadGenerator->buildExclusionRegex`, phperr.At("AutoloadGenerator.php", 488), "AutoloadGenerator.php", 329)
+		}
+		scans = append(scans, psrScan{dir, d.exclusions.build(dir, excluded), classmap.Classmap, ""})
+	}
+	if scanPsrPackages {
+		scans = append(scans, d.psrScans(autoloads, excluded)...)
+	}
+	requests := make([]classmap.ScanRequest, len(scans))
+	for i, s := range scans {
+		requests[i] = classmap.ScanRequest{Path: s.dir, Excluded: s.excluded}
+	}
+	gen.Prefetch(requests)
+
+	for _, s := range scans {
+		if err := gen.ScanPaths(s.dir, s.excluded, s.typ, s.namespace, nil); err != nil {
+			line := 359 // the PSR directories
+			if s.typ == classmap.Classmap {
+				line = 329
+			}
+
+			return nil, phperr.Call(err, `Composer\ClassMapGenerator\ClassMapGenerator->scanPaths`, "AutoloadGenerator.php", line)
+		}
+	}
+
+	return gen.ClassMap(), nil
 }
 
 var (
@@ -577,9 +605,9 @@ func putOrRemove(path, content string) error {
 	return nil
 }
 
-// configString returns a config value as a string.
-func configString(config Config, key string) (string, error) {
-	v, err := config.Get(key, 0)
+// vendorDirConfig returns the vendor-dir config value as a string.
+func vendorDirConfig(config Config) (string, error) {
+	v, err := config.Get("vendor-dir", 0)
 	if err != nil {
 		return "", err
 	}
