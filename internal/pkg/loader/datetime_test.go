@@ -3,8 +3,6 @@ package loader_test
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"regexp"
 	"testing"
 	"time"
 
@@ -34,18 +32,11 @@ func hexOrString(t *testing.T, raw json.RawMessage) string {
 	return string(b)
 }
 
-// unsupportedRelative matches the words of the timelib rules whose
-// actions parseDateTime does not port (relative offsets, weekdays,
-// "first/last day of", "back/front of").
-var unsupportedRelative = regexp.MustCompile(`(?i)sec|min|hour|day|week|fortnight|forthnight|month|year|ms|µs|sun|mon|tue|wed|thu|fri|sat|first|last|next|previous|this|back of|front of`)
-
 func TestOracle_DateTime(t *testing.T) {
 	var cases [][2]json.RawMessage
 	if err := json.Unmarshal(readFile(t, "oracle/datetime.json"), &cases); err != nil {
 		t.Fatal(err)
 	}
-
-	unsupported := 0
 
 	for _, c := range cases {
 		s := hexOrString(t, c[0])
@@ -79,17 +70,6 @@ func TestOracle_DateTime(t *testing.T) {
 
 		got, err := loader.ParseDateTimeAt(s, now)
 
-		var de *loader.DateTimeError
-		if errors.As(err, &de) && de.Unsupported {
-			if !unsupportedRelative.MatchString(s) {
-				t.Errorf("DateTime(%q): unsupported, but it uses no relative format: %v", s, err)
-			}
-
-			unsupported++
-
-			continue
-		}
-
 		if want.E != nil {
 			message := hexOrString(t, want.E)
 			if err == nil {
@@ -117,16 +97,27 @@ func TestOracle_DateTime(t *testing.T) {
 		_ = json.Unmarshal(want.R[2], &us)
 
 		gotUS := int64(got.Nanosecond() / 1000)
-		// microseconds read from the clock lie between the reads around
-		// PHP's call; ParseDateTimeAt got the first one
-		usOK := gotUS == us || (gotUS == usBefore && us >= usBefore && us <= usAfter)
 
-		if f := got.Format("2006-01-02T15:04:05-07:00"); f != formatted || got.Unix() != unix || !usOK {
+		// microseconds read from the clock lie between the reads around
+		// PHP's call, and ParseDateTimeAt got the first one: when the
+		// result is off by less than that window, parse again at the
+		// clock reading PHP must have seen (a relative "+1 µs" shifts
+		// the result, it does not replace now's microseconds)
+		if delta := ((us-gotUS)%1000000 + 1000000) % 1000000; want.Now != nil && delta != 0 && delta <= usAfter-usBefore {
+			got, err = loader.ParseDateTimeAt(s, now.Add(time.Duration(delta)*time.Microsecond))
+			if err != nil {
+				t.Errorf("DateTime(%q): %v", s, err)
+
+				continue
+			}
+
+			gotUS = int64(got.Nanosecond() / 1000)
+		}
+
+		if f := got.Format("2006-01-02T15:04:05-07:00"); f != formatted || got.Unix() != unix || gotUS != us {
 			t.Errorf("DateTime(%q) = %s %d %d, want %s %d %d", s, f, got.Unix(), gotUS, formatted, unix, us)
 		}
 	}
-
-	t.Logf("%d of %d cases use an unsupported relative format", unsupported, len(cases))
 }
 
 // TestParseDateTime_RelativeForms pins the forms new \DateTime() reads

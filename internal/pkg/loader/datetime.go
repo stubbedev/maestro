@@ -5,14 +5,11 @@
 // The scanner is timelib's: at each position the longest match among its
 // re2c rules wins (the earlier rule on a tie), so strings split into the
 // same tokens and errors are reported at the same positions with the same
-// messages. Every rule is matched; the actions of the rules that set
-// absolute dates, times and zones, "now", "noon", "midnight", "today",
-// "tomorrow", "yesterday", "@timestamp", ISO weeks and "ago" are ported.
-// The relative rules that need timelib's weekday and special arithmetic
-// (relative offsets such as "+1 day", "next month", "first day of",
-// weekday names, "back of"/"front of") are not: a string using one yields
-// a *DateTimeError with Unsupported set, unless an earlier token already
-// failed (that error is PHP's, as only the first error is reported).
+// messages. Every rule and its action is ported, the relative ones
+// ("+1 day", "next month", "first day of", weekday names, "back of",
+// "ago", ...) included; the parsed time is then resolved as
+// php_date_initialize does (timelib_fill_holes, timelib_update_ts:
+// datetime_relative.go).
 
 package loader
 
@@ -26,8 +23,7 @@ import (
 )
 
 // DateTimeError is the exception new \DateTime() throws for a string it
-// cannot parse (DateMalformedStringException), or, with Unsupported, a
-// string using a relative format this port does not implement.
+// cannot parse (DateMalformedStringException).
 type DateTimeError struct {
 	Time     string
 	Position int
@@ -35,9 +31,6 @@ type DateTimeError struct {
 	// scans (0 for Time[Position]).
 	Character byte
 	Message   string
-	// Unsupported marks a valid PHP relative format maestro cannot
-	// evaluate (see parseDateTime).
-	Unsupported bool
 }
 
 func (e *DateTimeError) Error() string {
@@ -108,7 +101,7 @@ func quickStrToTime(s string) (dtParsed, bool) {
 		n, _ := strconv.ParseInt(s[1:], 10, 64)
 		p.haveRelative, p.haveZone = true, 1
 		p.y, p.m, p.d, p.h, p.i, p.s, p.us = 1970, 1, 1, 0, 0, 0, 0
-		p.relS, p.zoneType, p.z, p.dst = n, zoneOffset, 0, 0
+		p.rel.s, p.zoneType, p.z, p.dst = n, zoneOffset, 0, 0
 
 		return p, true
 	}
@@ -241,8 +234,23 @@ type dtParsed struct {
 	zoneType             int
 	z, dst               int64
 	loc                  *time.Location
-	// the relative fields the ported rules set
-	relD, relS, relUS int64
+	rel                  dtRelative
+}
+
+// dtRelative is timelib_rel_time as the scanner fills it.
+type dtRelative struct {
+	y, m, d, h, i, s, us int64
+	// weekday is 0 (Sunday) to 6, negated by "ago" (-7 for Sunday);
+	// weekdayBehavior is the "behavior" of timelib_set_relative (0
+	// "next"/"last", 1 a plain weekday or "this", 2 "... week")
+	weekday, weekdayBehavior int64
+	haveWeekdayRelative      bool
+	haveSpecialRelative      bool
+	// special is TIMELIB_SPECIAL_WEEKDAY, _DAY_OF_WEEK_IN_MONTH or
+	// _LAST_DAY_OF_WEEK_IN_MONTH, with its amount
+	specialType, specialAmount int64
+	// firstLastDayOf is TIMELIB_SPECIAL_FIRST/LAST_DAY_OF_MONTH
+	firstLastDayOf int
 }
 
 // dtScanner is timelib's Scanner: str is the trimmed string followed by
@@ -293,9 +301,7 @@ func strToTime(input string) (*dtParsed, error) {
 		}
 
 		cur += length
-		if sc.apply(rule, sc.str[sc.tok:cur]) {
-			sc.err = &DateTimeError{Position: sc.tok, Character: sc.str[sc.tok], Message: "maestro does not support this relative time format", Unsupported: true}
-		}
+		sc.apply(rule, sc.str[sc.tok:cur])
 
 		if sc.err != nil {
 			sc.err.Time = input
@@ -1001,9 +1007,8 @@ func processYear(y int64, length int) int64 {
 	return y + 1900
 }
 
-// apply runs the action of a rule on its token; true means the rule's
-// action is not ported.
-func (sc *dtScanner) apply(rule int, token []byte) bool {
+// apply runs the action of a rule on its token.
+func (sc *dtScanner) apply(rule int, token []byte) {
 	t := &dtToken{b: token}
 	p := &sc.t
 
@@ -1012,9 +1017,9 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.haveRelative = true
 		sc.unhaveTime()
 
-		p.relD = 1
+		p.rel.d = 1
 		if rule == dtRuleYesterday {
-			p.relD = -1
+			p.rel.d = -1
 		}
 	case dtRuleNow, dtRuleDotComma, dtRuleSpace, dtRuleNul:
 	case dtRuleNoon:
@@ -1030,7 +1035,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		sc.unhaveTime()
 
 		if !sc.haveTZ() {
-			return false
+			return
 		}
 
 		neg := t.at(1) == '-'
@@ -1045,15 +1050,15 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 				us = -us
 			}
 
-			p.relUS = us
+			p.rel.us = us
 		}
 
 		p.y, p.m, p.d, p.h, p.i, p.s, p.us = 1970, 1, 1, 0, 0, 0, 0
-		p.relS += i
+		p.rel.s += i
 		p.zoneType, p.z, p.dst = zoneOffset, 0, 0
 	case dtRuleTime12:
 		if !sc.haveTime() {
-			return false
+			return
 		}
 
 		p.h = t.nr(2)
@@ -1068,7 +1073,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.h += t.meridian(p.h)
 	case dtRuleMssqlTime:
 		if !sc.haveTime() {
-			return false
+			return
 		}
 
 		p.h = t.nr(2)
@@ -1085,7 +1090,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.h += t.meridian(p.h)
 	case dtRuleTime24:
 		if !sc.haveTime() {
-			return false
+			return
 		}
 
 		p.h = t.nr(2)
@@ -1113,13 +1118,13 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		default:
 			sc.addError("Double time specification")
 
-			return false
+			return
 		}
 
 		p.haveTime++
 	case dtRuleISO8601NoColon:
 		if !sc.haveTime() {
-			return false
+			return
 		}
 
 		p.h = t.nr(2)
@@ -1131,7 +1136,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		}
 	case dtRuleAmerican:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.m = t.nr(2)
@@ -1142,7 +1147,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		}
 	case dtRuleISO8601Date4:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.y = sc.getSignedNr(t, 4)
@@ -1150,7 +1155,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.d = t.nr(2)
 	case dtRuleISO8601Date2, dtRuleGnuDateShort:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		y, length := t.getNr(4)
@@ -1159,7 +1164,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(y, length)
 	case dtRuleISO8601DateX:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.y = sc.getSignedNr(t, 19)
@@ -1167,7 +1172,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.d = t.nr(2)
 	case dtRuleGnuDateShorter:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		y, length := t.getNr(4)
@@ -1176,7 +1181,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(y, length)
 	case dtRuleDateFull:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.d = t.nr(2)
@@ -1185,7 +1190,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(t.getNr(4))
 	case dtRulePointedDate4:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.d = t.nr(2)
@@ -1193,7 +1198,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = t.nr(4)
 	case dtRulePointedDate2:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.d = t.nr(2)
@@ -1201,7 +1206,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(t.getNr(2))
 	case dtRuleDateNoDay:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.m = t.getMonth()
@@ -1209,7 +1214,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.d = 1
 	case dtRuleDateNoDayRev:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		y, length := t.getNr(4)
@@ -1218,7 +1223,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(y, length)
 	case dtRuleDateTextual, dtRulePgTextShort:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.m = t.getMonth()
@@ -1226,7 +1231,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(t.getNr(4))
 	case dtRuleDateNoYearRev:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.d = t.nr(2)
@@ -1234,7 +1239,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.m = t.getMonth()
 	case dtRuleDateNoColon:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.y = t.nr(4)
@@ -1242,7 +1247,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.d = t.nr(2)
 	case dtRuleXMLRPC:
 		if !sc.haveTime() || !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.y = t.nr(4)
@@ -1260,7 +1265,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		}
 	case dtRulePgYDotD:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		y, length := t.getNr(4)
@@ -1269,7 +1274,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(y, length)
 	case dtRuleISOWeekDay, dtRuleISOWeek:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.haveRelative = true
@@ -1283,10 +1288,10 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		}
 
 		p.m, p.d = 1, 1
-		p.relD = dayNrFromWeekNr(p.y, w, d)
+		p.rel.d = dayNrFromWeekNr(p.y, w, d)
 	case dtRulePgTextReverse:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		y, length := t.getNr(4)
@@ -1295,7 +1300,7 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		p.y = processYear(y, length)
 	case dtRuleCLF:
 		if !sc.haveTime() || !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.d = t.nr(2)
@@ -1309,33 +1314,29 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 		sc.zone(t)
 	case dtRuleYear4:
 		p.y = t.nr(4)
-	case dtRuleAgo:
-		// of the relative fields ported, "ago" negates days and seconds
-		// (not microseconds); weekday relatives are not ported.
-		p.relD, p.relS = -p.relD, -p.relS
 	case dtRuleMonthText:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.m = t.lookupMonth()
 	case dtRuleTimezone:
 		if !sc.haveTZ() {
-			return false
+			return
 		}
 
 		t.eatSpaces()
 		sc.zone(t)
 	case dtRuleDateShortWithTime12, dtRuleDateShortWithTime24:
 		if !sc.haveDate() {
-			return false
+			return
 		}
 
 		p.m = t.getMonth()
 		p.d = t.nr(2)
 
 		if !sc.haveTime() {
-			return false
+			return
 		}
 
 		p.h = t.nr(2)
@@ -1357,10 +1358,8 @@ func (sc *dtScanner) apply(rule int, token []byte) bool {
 	case dtRuleAny:
 		sc.addError("Unexpected character")
 	default:
-		return true
+		sc.applyRelative(rule, t)
 	}
-
-	return false
 }
 
 // dayNrFromWeekNr is timelib_daynr_from_weeknr: the day of the year (from
@@ -1374,60 +1373,6 @@ func dayNrFromWeekNr(y, w, d int64) int64 {
 	}
 
 	return day + (w-1)*7 + d
-}
-
-// resolve ports what php_date_initialize does with the parsed time:
-// timelib_fill_holes from now (in UTC, the constructor's zone), then
-// timelib_update_ts (relative fields, then the zone).
-func (p *dtParsed) resolve(now time.Time) time.Time {
-	now = now.UTC()
-
-	y, m, d, h, i, s, us := p.y, p.m, p.d, p.h, p.i, p.s, p.us
-
-	if p.haveDate != 0 && p.haveTime == 0 {
-		h, i, s, us = 0, 0, 0, 0
-	}
-
-	if us == dtUnset {
-		us = 0
-		if y == dtUnset && m == dtUnset && d == dtUnset && h == dtUnset && i == dtUnset && s == dtUnset {
-			us = int64(now.Nanosecond() / 1000)
-		}
-	}
-
-	fill := func(v *int64, from int) {
-		if *v == dtUnset {
-			*v = int64(from)
-		}
-	}
-
-	fill(&y, now.Year())
-	fill(&m, int(now.Month()))
-	fill(&d, now.Day())
-	fill(&h, now.Hour())
-	fill(&i, now.Minute())
-	fill(&s, now.Second())
-
-	// the wall clock read as UTC (timelib's sse before do_adjust_timezone);
-	// relS is only set by "@timestamp", whose zone is +00:00, so adding it
-	// afterwards equals timelib's adding it to the wall clock
-	sse := time.Date(int(y), time.Month(m), int(d+p.relD), int(h), int(i), int(s), 0, time.UTC).Unix()
-
-	loc := time.UTC
-
-	switch p.zoneType {
-	case zoneOffset:
-		loc = fixedZone(int(p.z))
-		sse -= p.z
-	case zoneAbbr:
-		loc = fixedZone(int(p.z + p.dst*3600))
-		sse -= p.z + p.dst*3600
-	case zoneID:
-		loc = p.loc
-		sse += p.idAdjustment(sse)
-	}
-
-	return time.Unix(sse+p.relS, (us+p.relUS)*1000).In(loc)
 }
 
 // zoneOffsetInfo is timelib_get_time_zone_offset_info: the offset in

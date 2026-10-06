@@ -2,8 +2,10 @@
 // Generates internal/pkg/loader/testdata/oracle/datetime.json: new
 // \DateTime($s, new \DateTimeZone('UTC')) on hand-picked strings (the
 // relative forms package metadata hits: blank strings, military zone
-// letters, bare digits) and on random concatenations of date fragments,
-// for TestOracle_DateTime.
+// letters, bare digits), on timelib's relative formats ("+1 day", "next
+// month", weekdays, "first/last day of", "back/front of", "ago", ...)
+// after fixed dates and around DST changes, and on random concatenations
+// of date fragments, for TestOracle_DateTime.
 //
 // Each case is [string, result]: {"e": message} for the exception, else
 // {"r": [Y-m-d\TH:i:sP, timestamp, microseconds], "now": [Y-m-d H:i:s,
@@ -45,10 +47,73 @@ $cases = ['', ' ', '  ', "\t", "\n", "\v", "\x00", " \x00", "a\x00b", "2012-01-0
     '2012-01-01,10:00', '2012-01-01.', ',', '.', '..', ';', '2012-01-01;',
     '2012-03-25 02:30:00 Europe/Paris', '2012-10-28 02:30:00 Europe/Paris', '2012-03-11 02:30 America/New_York',
     '2012-11-04 01:30 America/New_York', '2012-11-04 01:30 EST', '2012-11-04 01:30 EDT',
-    // relative formats maestro does not evaluate; an earlier error is still PHP's
+    // relative formats; an earlier error is PHP's
     '+1 day', '2012-01-01 +1 day', 'next monday', 'first day of next month', 'monday', 'last year', 'back of 7pm', '3 weeks ago',
     'garbage +1 day', '2012-01-01garbage next month', '1 2 day', 'j monday', '10:00 10:00 +1 day',
+    'last day of feb 2024', 'first day of january 2025', 'last day of next month noon', 'first monday of january 2025',
+    'last friday of next month', 'monday next week', 'sunday this week', 'saturday last week', 'next week', 'this week',
+    'noon tomorrow', 'tomorrow noon', 'midnight +1 day', 'yesterday 14:00', '+1 day +1 day', '1 day 1 day ago', '+1 days ago ago',
+    "next\xc2\xa0month", "+1\xc2\xa0day", "+1\xe2\x80\xafday", "first\xc2\xa0monday\xc2\xa0of", 'NEXT MONTH', 'Next Monday', 'LAST DAY OF',
+    '+1 Day', 'FRONT OF 7', '+ 1 day', '+-1 day', '--1 day', '- - 2 days', "+\t1 day", '+1day', '+1 µs', '+1 µsec', '+1 µS', '2 MS',
+    'back of 24', 'front of 0', 'back of 0am', 'front of 12pm', 'back of 7 p.m.', 'back of 7pm 10:00', '10:00 back of 7',
+    'this', 'next', 'last', 'first', 'twelfth', 'eight', 'next day', 'this day', 'previous year', 'last week ago', 'this week ago',
+    'first day of ago', 'weekday ago', '+3 weekdays ago', 'monday ago', 'sunday ago', '1 monday ago', '-1 monday', '0 monday', '+0 weekday',
+    'weekdays', 'next weekday', 'last weekday', 'this weekday', '+1 weekdays', '2 weekday', '-7 weekdays', '+15 weekdays',
+    '+9999999999999 days', '-9999999999999 days', '+9999999999999 years', '+9999999999999 seconds', '+9999999999999 ms',
+    str_repeat('+9999999999999 msec ', 923), '@0 +1 day', '@0 -1 sec', '@1.5 +1 sec', '@1.5 -2 usec', '@1 ago', '+1 day @0',
+    '2024-02-29 +1 year', '2024-02-29 -1 year', '2024-01-31 +1 month', '2024-03-31 -1 month', '2024-W01 +1 day', '2024W017 monday',
+    'tuesday 2024-01-01', '2024-01-01 tuesday', '2024-01-01 10:00 tuesday', 'tuesday 10:00 2024-01-01', '+1 tuesday 2024-01-01 10:00',
+    '2024-01-01 Europe/Copenhagen +1 day', '+1 day 2024-01-01 Europe/Copenhagen', '2024-01-01 CEST +1 day', '2024-01-01 -05:00 next month',
 ];
+
+// relative formats after fixed dates (weekdays, month ends, leap days,
+// the Epoch shortcut)
+$bases = ['2024-01-31 10:20:30', '2024-02-29', '2023-12-31 23:59:59', '2026-10-04 12:00', '2026-10-10', '2026-10-06 10:00',
+    '1970-01-01', '2000-03-01 00:00:00.5', '1969-12-31 23:59:59.999999', '0000-01-01', '-0001-12-31 12:00'];
+$relatives = ['+1 day', '-1 day', '+1 month', '-1 month', 'next month', 'last month', '+1 year', 'next year', '+1 week', '+2 weeks',
+    'next week', 'last week', 'this week', 'previous week', 'monday', 'sunday', 'saturday', 'next monday', 'last monday', 'this monday',
+    'this sunday', 'previous friday', 'next sunday', 'last sunday', 'sat', 'tue', 'mondays', 'monday next week', 'sunday this week',
+    'sunday last week', 'monday this week', 'friday next week', 'first day of', 'last day of', 'first day of next month',
+    'last day of previous month', 'first day of this month', 'last day of +1 year', 'first monday of', 'last friday of',
+    'first monday of next month', 'third wednesday of', 'last sunday of next month', 'second sunday of', 'twelfth friday of',
+    'next sunday of', 'this monday of', 'last monday of this month', 'back of 7', 'front of 7', 'back of 7pm', 'front of 13', 'Back of 7',
+    'back of 19 am', 'front of 0', '+1 weekday', '+5 weekdays', '-3 weekdays', '+0 weekdays', '-0 weekday', '-5 weekdays',
+    '+6 weekdays', '-6 weekdays', '+4 weekdays', '-4 weekdays', 'weekday', 'next weekday', 'last weekday', '2 days ago', '1 month ago',
+    '+1 week 2 days 4 hours 2 seconds', '+1 week 2 days 4 hours 2 seconds ago', 'monday ago', '1 monday ago', '2 mondays',
+    '-2 fridays', '3 tuesdays', '+1 hour', '-90 minutes', '+3600 sec', '+1500 ms', '+1500000 usec', '-1 µs', '+1 fortnight',
+    '+13 months', '-25 hours', '-1 year -1 month -1 day', '+1 day noon', 'midnight', 'tomorrow', 'yesterday', '+1 days ago',
+    '1 sec ago', '-1 week ago', 'next month ago', 'first day of next month ago', 'last day of last month midnight', '+1 sat',
+    '+30 days', '-366 days', '+1000000 hours', '-100000 minutes', '+59 seconds', '+1 msec', 'last year', 'this year', 'next fortnight'];
+foreach ($bases as $base) {
+    foreach ($relatives as $rel) {
+        $cases[] = $base.' '.$rel;
+    }
+}
+foreach (['first day of', 'last day of', 'next monday', 'monday', '+1 day', 'first monday of', 'back of 7'] as $rel) {
+    foreach ($bases as $base) {
+        $cases[] = $rel.' '.$base;
+    }
+}
+
+// relative formats across DST changes: wall clock arithmetic for days,
+// months and weekdays, and for hours, minutes and seconds too (timelib
+// 2022 adds them to the wall clock before do_adjust_timezone)
+$dstRelatives = ['+1 day', '+24 hours', '+1 hour', '-1 hour', '+30 minutes', '+3600 seconds', '-1 day', '-24 hours', 'tomorrow',
+    'next sunday', 'first day of next month', '+1 weekday', '+2 hours ago', '+90 minutes', 'back of 2', 'front of 3'];
+foreach (['Europe/Copenhagen', 'America/New_York', 'Australia/Lord_Howe'] as $zone) {
+    $tz = new \DateTimeZone($zone);
+    foreach ($tz->getTransitions(1704067200, 1735689600) as $i => $tr) {
+        if ($i === 0) {
+            continue;
+        }
+        for ($d = -10800; $d <= 10800; $d += 1800) {
+            $local = (new \DateTime('@'.($tr['ts'] + $d)))->setTimezone($tz)->format('Y-m-d H:i:s');
+            foreach ($dstRelatives as $rel) {
+                $cases[] = $local.' '.$zone.' '.$rel;
+            }
+        }
+    }
+}
 
 // wall clock times around DST changes (gaps and overlaps)
 foreach (['Europe/Paris', 'America/New_York', 'Australia/Sydney', 'Australia/Lord_Howe', 'America/Sao_Paulo', 'Europe/London'] as $zone) {
@@ -64,7 +129,9 @@ foreach (['Europe/Paris', 'America/New_York', 'Australia/Sydney', 'Australia/Lor
 
 $fragments = ['2012', '-', '01', '/', ':', 'T', 't', ' ', '  ', '1', '12', '123', '1234', '20120101', '+', '-05:00', '+0100', 'Z', 'a',
     'j', 'x', 'UTC', 'CEST', 'Europe/Paris', 'am', 'pm', '.', ',', '@', '0', '99', '60', '24', 'Jan', 'march', 'IV', 'garbage', "\t",
-    '2012-01-01', '10:00', '10:00:00', '.5', 'noon', 'today', 'tomorrow', 'ago', '(', ')', 'GMT', 'W01', '2', '366', 'st', 'th'];
+    '2012-01-01', '10:00', '10:00:00', '.5', 'noon', 'today', 'tomorrow', 'ago', '(', ')', 'GMT', 'W01', '2', '366', 'st', 'th',
+    '+1', '-2', 'day', 'days', 'week', 'month', 'year', 'hour', 'sec', 'ms', 'µs', 'fortnight', 'next', 'last', 'this', 'first',
+    'third', 'first day of', 'last day of', 'monday', 'sat', 'sundays', 'weekday', 'weekdays', 'of', 'back of 7', 'front of 7', 'pm'];
 for ($n = 0; $n < 3000; $n++) {
     $s = '';
     $k = mt_rand(1, 5);
