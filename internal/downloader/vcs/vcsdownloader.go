@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
+	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
@@ -36,14 +37,18 @@ type Filesystem interface {
 }
 
 // Deps are the constructor arguments of the VCS downloaders ($io, $config,
-// $process, $fs). IO and Config are required (adapt *config.Config with
-// ForHTTP); a nil Process is a new ProcessExecutor on IO, a nil Filesystem
-// one running commands through Process.
+// $process, $fs), plus maestro's package store. IO and Config are required
+// (adapt *config.Config with ForHTTP); a nil Process is a new
+// ProcessExecutor on IO, a nil Filesystem one running commands through
+// Process.
 type Deps struct {
 	IO         mio.IO
 	Config     http.Config
 	Process    Process
 	Filesystem Filesystem
+	// Store keeps the checkouts the git downloader clones from the mirror
+	// cache, to import them again instead of cloning (nil: never).
+	Store *store.Store
 }
 
 // Register adds the VCS downloaders to dm under their types, in the order

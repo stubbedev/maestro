@@ -734,8 +734,6 @@ func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownl
 		dm.SetSourceFallback(true)
 	}
 
-	dvcs.Register(dm, dvcs.Deps{IO: out, Config: cfg.ForHTTP(), Process: process, Filesystem: fs})
-
 	method, err := store.ParseMethod(os.Getenv(store.MethodEnv))
 	if err != nil {
 		return nil, err
@@ -744,6 +742,8 @@ func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownl
 	if err != nil {
 		return nil, err
 	}
+
+	dvcs.Register(dm, dvcs.Deps{IO: out, Config: cfg.ForHTTP(), Process: process, Filesystem: fs, Store: st})
 	deps := downloader.Deps{
 		IO:             out,
 		Config:         cfg.ForHTTP(),

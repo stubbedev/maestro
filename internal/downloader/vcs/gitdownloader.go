@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -23,12 +24,17 @@ import (
 type GitDownloader struct {
 	vcsDownloader
 	gitUtil *vcsutil.Git
+	// store keeps checkouts cloned from the mirror cache (gitstore.go);
+	// nil disables it.
+	store *store.Store
 
 	// hasStashedChanges, hasDiscardedChanges (by path) and cachedPackages
 	// (package id => reference) are guarded by vcsDownloader.mu.
 	hasStashedChanges   map[string]bool
 	hasDiscardedChanges map[string]bool
 	cachedPackages      map[int]map[string]bool
+	// gitHost is the key part of git and its environment, once computed.
+	gitHost *gitHost
 }
 
 // NewGitDownloader is new GitDownloader($io, $config, $process, $fs).
@@ -40,6 +46,7 @@ func NewGitDownloader(deps Deps) *GitDownloader {
 	}
 	d.vcsDownloader = newVcsDownloader(deps, d, `Composer\Downloader\GitDownloader`)
 	d.gitUtil = vcsutil.NewGit(d.io, d.config, d.process, d.filesystem)
+	d.store = deps.Store
 
 	return d
 }
@@ -141,10 +148,31 @@ func (d *GitDownloader) doInstall(p pkg.PackageInterface, path, url string) erro
 	var (
 		msg      string
 		commands [][]string
+		storeID  [32]byte
+		useStore bool
 	)
 
 	if d.isCached(p, ref) {
 		msg = "Cloning " + d.shortHash(ref) + " from cache"
+
+		if d.storeEligible(p, path) {
+			storeID, useStore = d.gitStoreKey(p, url, cachePath)
+		}
+
+		if useStore {
+			d.io.WriteError(msg, true, mio.Normal)
+
+			// what RunCommands checks first
+			if err := d.config.ProhibitURLByConfig(url, d.io, nil); err != nil {
+				return err
+			}
+
+			if d.installFromStore(storeID, path) {
+				return nil
+			}
+
+			msg = ""
+		}
 
 		cloneFlags := []string{"--dissociate", "--reference", cachePath}
 		if php.ToBool(arrayPath(p.TransportOptions(), "git", "single_use_clone")) {
@@ -171,7 +199,9 @@ func (d *GitDownloader) doInstall(p pkg.PackageInterface, path, url string) erro
 		}
 	}
 
-	d.io.WriteError(msg, true, mio.Normal)
+	if msg != "" {
+		d.io.WriteError(msg, true, mio.Normal)
+	}
 
 	if err := d.gitUtil.RunCommands(commands, url, path, true, nil); err != nil {
 		return err
@@ -187,7 +217,16 @@ func (d *GitDownloader) doInstall(p pkg.PackageInterface, path, url string) erro
 
 	// updateToCommit never falls back to another commit (it returns null
 	// or throws), so Composer's update of the package references is dead code
-	return d.updateToCommit(p, path, ref, p.PrettyVersion())
+	if err := d.updateToCommit(p, path, ref, p.PrettyVersion()); err != nil {
+		return err
+	}
+
+	if useStore {
+		// best effort: the checkout is in place either way
+		_, _ = d.store.InsertDir(storeID, path)
+	}
+
+	return nil
 }
 
 func networkDisabled() bool {

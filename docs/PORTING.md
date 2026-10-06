@@ -149,7 +149,12 @@ These change frozen behaviour on purpose; nothing else may.
    vs "Downloading" and heals the store. File contents, modes, symlinks and
    directory layout match what Composer + `unzip` would produce; file
    mtimes are not preserved. internal/store's documentation states the
-   exact guarantees. The store lives in maestro's own cache directory
+   exact guarantees. Source installs cloned from the mirror cache are kept
+   in the store too, `.git` included, and imported unshared instead of
+   cloned again when the mirror, the reference, git and its configuration
+   are unchanged; their reflog times and index stat data are rewritten to
+   what a fresh clone would hold (`internal/downloader/vcs/gitstore.go`).
+   The store lives in maestro's own cache directory
    (`MAESTRO_CACHE_DIR`, else `$XDG_CACHE_HOME/maestro`, else the platform
    cache directory; `internal/cache.Dir`).
 2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go

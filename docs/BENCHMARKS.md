@@ -1,5 +1,36 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## Store-backed git sources (issue #18, 2026-10-06)
+
+Machine as below, btrfs, git 2.55.0, the user's git configuration (index
+v4 with index.skipHash). Project of #18: psr/log 1.1.4, psr/container
+1.1.2 and symfony/console v7.3.4 (10 packages), locked, warm mirror cache
+and files cache. `install --no-plugins --no-scripts -q` with vendor/
+removed before each run, hyperfine, median of 7 after 2 warm-ups. Other
+agents' builds ran meanwhile (load 5 to 6): two rounds each, "before" is
+06657e5.
+
+| Command | maestro before | maestro after |
+|---|---:|---:|
+| `install --prefer-source` | 1025 / 913 ms | 311 / 440 ms |
+| `install --prefer-dist` | 254 / 265 ms | 238 / 249 ms |
+| `install --prefer-source`, empty store (every checkout a miss) | 895 ms | 1244 ms |
+
+A checkout cloned from the mirror cache is now stored in the package
+store, `.git` included, under a key over the mirror's refs, the package's
+URLs, reference and version, the push-URL settings, git's version and
+binary, its configuration and environment. The next install of the same
+key imports it unshared (clone or copy, never hardlink) and rewrites only
+what differs between two clones: the reflog times, and the stat data in
+`.git/index` (in Go for index v2 to v4 with SHA-1, else `git update-index
+--refresh`). No git process runs on a hit, except `git config --list`
+once per process. A miss pays for storing the checkout once (some 35 ms a
+package here, mostly hashing and writing the packfile). The trees are
+identical to git's but for those two files (diff -r, find -printf %M),
+and `git diff-files` and `git status` are clean in every checkout.
+
+Not done: download overlap (Work 2 of #18).
+
 ## Warm install and dump-autoload (issue #12, 2026-10-06)
 
 Machine: Linux 6.18 x86-64, 12 cores, php 8.4.25 of the dev shell, real
