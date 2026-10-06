@@ -271,8 +271,9 @@ func (c *CurlDownloader) buildTransfer(origin, url string, options *php.Array, a
 // same request takes its result instead of waiting for the network
 // (transportPool.doOrTake). Requests whose preparation could print or
 // prompt (stored credentials, an insecure URL) or that a callback vets are
-// left alone. c.mu is held.
-func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent bool) *prefetchedTransfer {
+// left alone. spool writes the body to an unlinked temporary file, for a
+// download into a file (prefetchcopy.go). c.mu is held.
+func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent, spool bool) *prefetchedTransfer {
 	if _, found := FindAuthOrigin(c.io, origin); found {
 		return nil
 	}
@@ -300,12 +301,27 @@ func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent
 		options.Delete("retry-auth-failure")
 	}
 
-	req, _, _, err := c.buildTransfer(origin, url, options, attributes, nil)
+	var spoolFile *os.File
+	if spool {
+		if spoolFile = newSpool(); spoolFile == nil {
+			return nil
+		}
+	}
+
+	req, _, _, err := c.buildTransfer(origin, url, options, attributes, spoolFile)
 	if err != nil {
+		closeFile(spoolFile)
+
 		return nil
 	}
 
-	return c.pool.prefetch(req, urgent)
+	t := c.pool.prefetch(req, urgent)
+	if t == nil || t.r != req {
+		// an identical transfer was waiting already
+		closeFile(spoolFile)
+	}
+
+	return t
 }
 
 // buildRequest maps the request options onto the transfer the way

@@ -398,6 +398,16 @@ func (c *Cache) Clear() (bool, error) {
 	return true, nil
 }
 
+// Holds reports whether file is in the cache, silently: no output, no
+// access time update, and the cache directory is neither created nor
+// checked (maestro's, for work started ahead of the request that reads
+// the file).
+func (c *Cache) Holds(file string) bool {
+	fi, err := os.Stat(c.root + c.key(file))
+
+	return err == nil && fi.Mode().IsRegular()
+}
+
 // Age is getAge($file): seconds since the file was written; false when
 // missing.
 func (c *Cache) Age(file string) (int64, bool) {

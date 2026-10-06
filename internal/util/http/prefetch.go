@@ -23,12 +23,14 @@ type prefetchKey struct {
 	key                                  transportKey
 	decode, curlStatusLines              bool
 	limit, maxFileSize                   int64
+	// file: the body goes to a file (prefetchcopy.go)
+	file bool
 }
 
 // prefetchKeyOf is r's key, if r may be prefetched: a plain GET whose
-// response is kept in memory and whose connections no callback vets.
+// connections no callback vets.
 func prefetchKeyOf(r *transferRequest) (prefetchKey, bool) {
-	if r.body != nil || r.content != nil || r.preventIP != nil || (r.method != "" && r.method != "GET") {
+	if r.content != nil || r.preventIP != nil || (r.method != "" && r.method != "GET") {
 		return prefetchKey{}, false
 	}
 
@@ -36,7 +38,7 @@ func prefetchKeyOf(r *transferRequest) (prefetchKey, bool) {
 		url: r.url, method: r.method, headers: strings.Join(r.headers, "\n"),
 		timeout: r.timeout, readTimeout: r.readTimeout, connectTimeout: r.connectTimeout,
 		key: r.key, decode: r.decode, curlStatusLines: r.curlStatusLines,
-		limit: r.limit, maxFileSize: r.maxFileSize,
+		limit: r.limit, maxFileSize: r.maxFileSize, file: r.body != nil,
 	}, true
 }
 
@@ -184,11 +186,11 @@ func (p *transportPool) take(r *transferRequest) *prefetchedTransfer {
 func (p *transportPool) doOrTake(ctx context.Context, r *transferRequest) *transferResult {
 	if t := p.take(r); t != nil {
 		if t.run(ctx, p) {
-			return t.res
+			return t.handTo(ctx, p, r)
 		}
 		select {
 		case <-t.done:
-			return t.res
+			return t.handTo(ctx, p, r)
 		case <-ctx.Done():
 		}
 	}

@@ -1023,6 +1023,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	// verify that the lock file works with the current platform repository
 	// we can skip this part if we're doing this as the second step after an update
 	if !alreadySolved {
+		i.prefetchDists(lockedRepository, localRepo)
 		if code, err := i.verifyLock(lockedRepository); err != nil || code != 0 {
 			return code, err
 		}
