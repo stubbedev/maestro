@@ -1,5 +1,81 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## update --dry-run: one Packagist connection, parallel cache reads (#17, 2026-10-06)
+
+Same machine and projects as "update --dry-run: metadata loading" below
+(`update --dry-run --no-plugins --no-scripts -q`, per tool its own
+COMPOSER_HOME/COMPOSER_CACHE_DIR/MAESTRO_CACHE_DIR, COMPOSER_TEST_SUITE=1),
+the tools run interleaved round by round, medians. Other agents' test
+suites kept the load at 4-18, so the times are noisy. "before" is 14eb58f,
+"after" this change. *offline*: warm caches with COMPOSER_DISABLE_NETWORK=1,
+which shows the CPU floor.
+
+| Project | Cache | Composer | maestro before | | maestro after | |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | warm (25 rounds, load 3-6) | 2.89s | 376 ms | 7.7x | 379 ms | 7.6x |
+| laravel | cold (12 rounds, load 6-13) | 2.99s | 805 ms | 3.7x | 769 ms | 3.9x |
+| laravel | offline (15 rounds) | | 306 ms | | 282 ms | |
+| symfony | warm (15 rounds, load 8-17) | 6.77s | 758 ms | 8.9x | 745 ms | 9.1x |
+| symfony | cold (8 rounds, load 6-12) | | 1007 ms | | 1043 ms | |
+
+CPU time (user + system, medians) goes down a little: 3066 → 2933 ms on
+symfony warm, 1184 → 1172 ms on laravel warm (an earlier set of runs
+measured 1261 → 1202 ms). The wall times change by less than the noise.
+
+What changed (deliberate deviation 3; frozen output unchanged, -vvv prints
+the same lines in the same order):
+
+- **One connection per host.** A trace showed 8 TLS connections to
+  repo.packagist.org per run: the speculation's prefetches start about
+  20 ms in, before the connection opened ahead (Preconnect) finished,
+  and net/http dials one connection per waiting request, up to
+  MaxConnsPerHost (8). Each costs TCP and TLS handshakes, and the root
+  file's conditional request could end up on one of them and wait for its
+  handshake. Now the transfers to an https address wait while the first
+  transfer to it is still connecting, as curl's CURLOPT_PIPEWAIT does, and
+  then share its HTTP/2 connection, sending their requests in the order
+  they were made, so packages.json goes out ahead of the prefetches
+  (`internal/util/http/firstconn.go`). Over HTTP/1, or when the first
+  transfer fails, they go ahead together as before.
+- **Advisory and filter cache files read in parallel.** The advisory and
+  filter list loads read ~136 cached p2 files one after the other on the
+  main goroutine, then took their slim copies. The reads, slim copies and
+  decoding now run on all cores (`Cache.ReadAll`), and the "Reading … from
+  cache" lines are still printed in the order of the files, before any
+  error. The advisory load's file reading went from 6-7 ms to ~2 ms on
+  laravel; the filter list load reads the same files.
+
+Decided against: opening the Packagist connection at process start.
+6c60af1 already opens it when the project's Composer is created, which is
+9-12 ms after start. The handshake then takes 50-65 ms (Go's TLS 1.3 here:
+DNS ~1 ms from the cache, TCP ~24 ms, TLS 26-37 ms), so starting at 0 would
+save at most ~10 ms. It would also need the TLS settings, proxy and
+repositories before the configuration is read.
+
+Why laravel is still under 8x (2.9 s / 8 = 360 ms): the run is CPU-bound,
+not network-bound. Offline, with every request skipped, a warm run still
+takes ~280 ms, and the pool is built only ~170 ms in (with -vvv). The CPU
+profile of a warm online run (about 1.2 s of CPU over 0.38 s of wall time)
+breaks down like this:
+
+- the speculation's decoding of p2 JSON into php.Arrays, ~250 ms;
+- building the packages ahead (prebuild, expanding minified versions),
+  ~200 ms;
+- GC mark work, ~260 ms;
+- the loads decoding files the speculation had not offered yet,
+  ~70 ms.
+
+The speculation finds the deeper levels of the graph only after decoding
+the large files. laravel/framework.json is 1 MB and phpunit/phpunit.json
+0.7 MB. Prefetches for names such as phpunit/php-invoker therefore start
+150-220 ms in and complete ~50 ms later, and the pool builder waits for
+them. GOGC 200, 400 and off made no difference offline. Raising the
+prefetch limit from 64 to 192 gave about 5-10 ms. The next step for laravel
+is less CPU per p2 file. One option is a decoded or prebuilt form kept
+across runs, keyed by the cached file's content, so that a warm run does
+not decode the same megabytes again. Typed p2 decoding (the option set
+aside in #12) is another.
+
 ## Warm install and dump-autoload (issue #12, 2026-10-06)
 
 Machine: Linux 6.18 x86-64, 12 cores, php 8.4.25 of the dev shell, real
