@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -176,6 +178,86 @@ func TestCache_ReadWrite(t *testing.T) {
 
 	if ok, _ := c.Write("x", "y"); ok || !c.IsReadOnly() {
 		t.Fatal("expected read-only writes to be skipped")
+	}
+}
+
+// TestCache_ReadAll: ReadAll returns and prints what a loop of Reads
+// would, an unreadable file failing after the lines of the files before
+// it.
+func TestCache_ReadAll(t *testing.T) {
+	root := t.TempDir()
+	keys := []string{"a/b.json", "missing", "c.json", "dir", "d.json"}
+
+	for _, name := range []string{"a-b.json", "c.json", "d.json"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("data of "+name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	open := func() (*Cache, *io.BufferIO) {
+		b, err := io.NewBufferIO("", console.VerbosityDebug, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c, err := New(b, root, "", nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return c, b
+	}
+
+	for _, withDir := range []bool{false, true} {
+		files := keys
+		if !withDir {
+			files = []string{keys[0], keys[1], keys[2], keys[4]}
+		} else if err := os.MkdirAll(filepath.Join(root, "dir"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+
+		loop, loopOut := open()
+
+		var (
+			wantContents []string
+			wantFound    []bool
+			wantErr      error
+		)
+
+		for _, f := range files {
+			data, ok, err := loop.Read(f)
+			if err != nil {
+				wantErr = err
+
+				break
+			}
+
+			wantContents, wantFound = append(wantContents, data), append(wantFound, ok)
+		}
+
+		all, allOut := open()
+
+		var called atomic.Int32
+
+		contents, found, err := all.ReadAll(files, func(i int, data string) {
+			called.Add(1)
+
+			if data != "data of "+all.key(files[i]) {
+				t.Errorf("then(%d) got %q", i, data)
+			}
+		})
+
+		if (err == nil) != (wantErr == nil) || (err != nil && err.Error() != wantErr.Error()) {
+			t.Fatalf("withDir=%v: error %v, want %v", withDir, err, wantErr)
+		}
+
+		if err == nil && (!slices.Equal(contents, wantContents) || !slices.Equal(found, wantFound) || called.Load() != 3) {
+			t.Fatalf("got %q %v (%d calls), want %q %v", contents, found, called.Load(), wantContents, wantFound)
+		}
+
+		if allOut.Output() != loopOut.Output() {
+			t.Fatalf("withDir=%v: output %q, want %q", withDir, allOut.Output(), loopOut.Output())
+		}
 	}
 }
 
