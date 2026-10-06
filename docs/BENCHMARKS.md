@@ -9,6 +9,9 @@ interleaved round by round, medians). "before" is 68c361d, "after" is
 kept the load average at 4 to 14; it is given per row. Not a quiet
 machine, so the wall times are the quietest available, not quiet ones.
 
+The GOGC=200 default was reverted when merging (see the follow-up issue):
+main ships the "-gc" column's behaviour.
+
 | Project | Cache | Composer | before | after (-gc) | after | CPU before → -gc → after |
 |---|---|---:|---:|---:|---:|---:|
 | laravel | offline (20 rounds, load 4-9) | | 234 ms | 214 ms | 198 ms | 980 → 832 → 712 ms |
