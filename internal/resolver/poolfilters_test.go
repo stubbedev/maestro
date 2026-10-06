@@ -121,6 +121,18 @@ func TestSecurityAdvisoryPoolFilter_FilterPackagesByAdvisories(t *testing.T) {
 	}
 }
 
+// TestSecurityAdvisoryPoolFilter_Parallel runs the filter tests with the
+// matching advisories computed on several goroutines whatever the pool
+// size.
+func TestSecurityAdvisoryPoolFilter_Parallel(t *testing.T) {
+	defer func(n int) { minParallelPackages = n }(minParallelPackages)
+	minParallelPackages = 1
+
+	t.Run("FilterPackagesByAdvisories", TestSecurityAdvisoryPoolFilter_FilterPackagesByAdvisories)
+	t.Run("DontFilterPackagesByIgnoredAdvisories", TestSecurityAdvisoryPoolFilter_DontFilterPackagesByIgnoredAdvisories)
+	t.Run("DontFilterPackagesWithAbandonedPackage", TestSecurityAdvisoryPoolFilter_DontFilterPackagesWithAbandonedPackage)
+}
+
 func TestSecurityAdvisoryPoolFilter_DontFilterPackagesByIgnoredAdvisories(t *testing.T) {
 	ignoreID := &policy.OrderedMap[*policy.IgnoreIDRule]{}
 	ignoreID.Set("CVE-2024-1234", policy.NewIgnoreIDRule("CVE-2024-1234", nil, true, true))

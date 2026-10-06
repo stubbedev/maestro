@@ -3,7 +3,10 @@ package http
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -128,5 +131,69 @@ func TestHttpDownloader_PrefetchOnlyMatchesTheSameRequest(t *testing.T) {
 	}
 	if n := calls.Load(); n != 2 {
 		t.Errorf("%d requests reached the server, want 2", n)
+	}
+}
+
+// PrefetchResponse gives the speculative reader the response the later
+// request takes; urgent transfers start before the others, and a request
+// taking a transfer still queued makes it at once.
+func TestHttpDownloader_PrefetchQueue(t *testing.T) {
+	release := make(chan struct{})
+	var mu sync.Mutex
+	var order []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		order = append(order, r.URL.Path)
+		mu.Unlock()
+		if strings.HasPrefix(r.URL.Path, "/slow/") {
+			<-release
+		}
+		_, _ = w.Write([]byte(`{"path":"` + r.URL.Path + `"}`))
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	defer func(n int) { maxPrefetches = n }(maxPrefetches)
+	maxPrefetches = 2 // below the connections per host
+
+	h, _ := newPrefetchDownloader(t)
+	ssl, _ := arrayValue(h.options, "ssl").(*php.Array)
+	cafile, _ := optionString(ssl, "cafile")
+	ValidateCaFile(cafile, nil)
+
+	// every slot taken by a transfer the server holds
+	for i := range maxPrefetches {
+		h.Prefetch(srv.URL+"/slow/"+strconv.Itoa(i), nil)
+	}
+	waitFor(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+
+		return len(order) == maxPrefetches
+	})
+
+	h.Prefetch(srv.URL+"/later", nil)
+	response := h.PrefetchResponse(srv.URL+"/urgent", nil)
+	queued := h.PrefetchResponse(srv.URL+"/queued", nil)
+
+	// taken while queued: made at once, its reader sees the response
+	r, err := h.Get(srv.URL+"/queued", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status, body, ok := queued(); !ok || status != 200 || body != r.Body() || body != `{"path":"/queued"}` {
+		t.Errorf("queued response: %d %q %v", status, body, ok)
+	}
+
+	// a slot frees: the urgent transfer goes before the earlier other one
+	release <- struct{}{}
+	if status, body, ok := response(); !ok || status != 200 || body != `{"path":"/urgent"}` {
+		t.Errorf("urgent response: %d %q %v", status, body, ok)
+	}
+	mu.Lock()
+	tail := slices.Clone(order[maxPrefetches:])
+	mu.Unlock()
+	if len(tail) < 2 || tail[0] != "/queued" || tail[1] != "/urgent" {
+		t.Errorf("order after the slow transfers: %v", tail)
 	}
 }

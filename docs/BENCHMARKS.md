@@ -160,6 +160,60 @@ Composer runs on every install, is the rest (laravel ~90 ms of ~200 ms,
 symfony ~40 ms); caching it is a separate part of #12. Composer's no-op
 symfony install takes 0.72 s, so 20x would be 36 ms.
 
+## update --dry-run: metadata loading (#12, 2026-10-06)
+
+Same machine, projects and flags as below (`update --dry-run --no-plugins
+--no-scripts -q`, per tool its own COMPOSER_HOME/COMPOSER_CACHE_DIR/
+MAESTRO_CACHE_DIR, COMPOSER_TEST_SUITE=1). The three tools ran
+interleaved round by round (medians of 5-7 rounds) because other agents
+kept the machine at a load average of 5-26; absolute times are noisy,
+the ratios less so. "before" is b01f0e2, "after" this change. *warm*:
+metadata cache filled by earlier runs (every p2 file still gets its
+conditional request, as Composer's); *cold*: empty caches each run.
+
+| Project | Cache | Composer | maestro before | | maestro after | |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | warm (quiet run, load ~5) | 2.51s | 0.74s | 3.4x | 0.42s | 6.0x |
+| laravel | warm (load 3-15) | 2.62s | 0.80s | 3.3x | 0.48s | 5.4x |
+| laravel | cold | 2.60s | 1.04s | 2.5x | 0.61s | 4.3x |
+| symfony | warm (quiet run, load ~4) | 7.27s | 1.73s | 4.2x | 0.85s | 8.5x |
+| symfony | warm (load up to 26) | 8.85s | 1.72s | 5.2x | 0.90s | 9.9x |
+| symfony | cold | 6.89s | 1.95s | 3.5x | 1.31s | 5.3x |
+
+What the profiles showed and what changed:
+
+- The waves: the installer prefetched the locked packages' p2 files, but
+  every package outside the lock (old versions' requirements, replaced
+  names such as illuminate/*) cost a round trip per level, and every wave
+  decoded, expanded and built its files on the critical path. The pool
+  builder now lets the repository speculate (`composerrepo/speculate.go`):
+  it walks the dependency graph ahead on other goroutines, going on with
+  cached copies at once, requests (prefetches) each file, decodes it and
+  builds the packages of the versions the constraints seen accept; the
+  loads take decoded files and packages for the exact same JSON, once,
+  and otherwise behave, print and request as before. Without a cached
+  root file it starts once the root file is loaded.
+- Each p2 file was decoded three times (packages, advisories, filter
+  list): the advisory and filter loads now use a slim copy of the files
+  already decoded. Minified versions are expanded in place, copying only
+  the versions loaded.
+- The pool optimizer (0.5 s for symfony on one core) and the advisory
+  filter's matching run on all cores (0.19 s).
+- Prefetches start in request order, the speculation's first, and a
+  request taking a still-queued prefetch makes it at once; the
+  installer's prefetch now includes the root requirements (the fixed root
+  package it read has none). Packagist already answers over one HTTP/2
+  connection (128 streams); 64 vs 128 parallel prefetches made no
+  measurable difference.
+
+Not done, and why: conditional requests cannot be skipped (Composer
+revalidates every p2 file on update, so a skipped request could miss a
+change); typed p2 decoding was not needed once decoding left the
+critical path. laravel's remaining ~0.4 s is ~40 ms of startup before the
+installer, ~70-130 ms for the TLS connection and the root file's
+conditional request, Packagist's latency for ~150 conditional requests,
+then advisory/filter/optimizer/solver (~70 ms).
+
 ## Per command, real-world projects (perf task, 2026-10-06)
 
 Machine: Linux 7.0 x86-64, 8 cores, 30 GB RAM, /tmp on tmpfs (so the

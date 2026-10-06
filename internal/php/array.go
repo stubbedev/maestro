@@ -410,6 +410,40 @@ func (a *Array) Clone() *Array {
 	return c
 }
 
+// ShallowClone returns a copy of a that shares its nested arrays and
+// objects: what setting each of a's keys and values in turn into a new
+// array gives (the same order, and the next free index of the int keys
+// copied), without its cost.
+func (a *Array) ShallowClone() *Array {
+	c := &Array{
+		entries: make([]entry, 0, a.live),
+		next:    noNextFree,
+		packed:  true,
+		live:    a.live,
+	}
+	for i := range a.entries {
+		e := a.entries[i]
+		if e.k.kind == kindDead {
+			continue
+		}
+		if e.k.kind == kindInt && e.k.i >= c.next {
+			if e.k.i < math.MaxInt64 {
+				c.next = e.k.i + 1
+			} else {
+				c.next = math.MaxInt64
+			}
+		}
+		if c.packed && (e.k.kind != kindInt || e.k.i != int64(len(c.entries))) {
+			c.packed = false
+		}
+		c.entries = append(c.entries, e)
+	}
+	if !c.packed && len(c.entries) > linearMax {
+		c.buildIndex()
+	}
+	return c
+}
+
 // cloneValue deep-copies arrays and objects.
 func cloneValue(v any) any {
 	switch v := v.(type) {

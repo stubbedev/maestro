@@ -164,6 +164,29 @@ func (c *Cache) Peek(file string) (string, bool) {
 	return string(data), true
 }
 
+// Peeker returns Peek as it is now, for use on other goroutines: the
+// function reads the files without the cache's state, which only the
+// goroutine using the cache may touch.
+func (c *Cache) Peeker() func(file string) (string, bool) {
+	if !c.IsEnabled() {
+		return func(string) (string, bool) { return "", false }
+	}
+	root, sanitize := c.root, c.sanitize
+
+	return func(file string) (string, bool) {
+		key, _, err := sanitize.Replace(file, "-", -1)
+		if err != nil {
+			key = file
+		}
+		data, err := os.ReadFile(root + key)
+		if err != nil {
+			return "", false
+		}
+
+		return string(data), true
+	}
+}
+
 // errPartialWrite carries file_put_contents' partial write warning.
 type errPartialWrite struct{ written, total int }
 

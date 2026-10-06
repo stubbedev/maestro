@@ -25,6 +25,12 @@ const (
 // ParseStability ports VersionParser::parseStability(): the stability of a
 // version.
 func ParseStability(version string) string {
+	// digits and dots only (most normalized versions): no reference to
+	// strip, no modifier to match
+	if version != "" && strings.Trim(version, "0123456789.") == "" {
+		return StabilityStable
+	}
+
 	version = stripReference(version)
 
 	if strings.HasPrefix(version, "dev-") || strings.HasSuffix(version, "-dev") {

@@ -94,6 +94,28 @@ func TestCompilingMatcher_Match(t *testing.T) {
 	}
 }
 
+// TestCompilingMatcher_Matcher checks Matcher against Match for every
+// operator, constraints of each kind and versions including branches.
+func TestCompilingMatcher_Matcher(t *testing.T) {
+	parser := VersionParser{}
+	versions := []string{"1.0.0.0", "1.2.3.0", "2.0.0.0-beta1", "2.0.0.0", "10.0.0.0", "dev-main", "1.0.x-dev", "9999999-dev", ""}
+	for _, input := range []string{"*", "^1.0", "~1.2.3", ">=1.0 <2.0", "^1.0 || ^2.0", "dev-main", "!= 2.0", "<1.0 || >=10", "1.0.x-dev", "< 1.0 >= 2.0"} {
+		constraint, err := parser.ParseConstraints(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, op := range []Op{OpEQ, OpLT, OpLE, OpGT, OpGE, OpNE} {
+			matches := CompilingMatcher.Matcher(constraint, op)
+			for _, v := range versions {
+				CompilingMatcher.Clear()
+				if got, want := matches(v), CompilingMatcher.Match(constraint, op, v); got != want {
+					t.Errorf("%q %d %q: %v, Match %v", input, op, v, got, want)
+				}
+			}
+		}
+	}
+}
+
 func TestCompilingMatcher_CacheKey(t *testing.T) {
 	if CompilingMatcher.Match(mustConstraint(t, ">=", "2.11"), OpEQ, "1.0") {
 		t.Error(">= 2.11 should not match 1.0")

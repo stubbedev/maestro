@@ -251,6 +251,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 	if _, _, err := r.loadRootServerFile(noMaxAge); err != nil {
 		return repository.LoadResult{}, err
 	}
+	r.rootFileLoaded()
 
 	if r.lazyProvidersURL == "" {
 		return repository.LoadResult{}, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1289), Message: "loadAsyncPackages only supports v2 protocol composer repos with a metadata-url"}
@@ -289,7 +290,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 		constraints = append(constraints, constraint)
 	}
 
-	downloads, err := r.startCachedAsyncDownloads(fileNames, realNames)
+	downloads, err := r.startCachedAsyncDownloads(fileNames, realNames, false)
 	if err != nil {
 		return repository.LoadResult{}, err
 	}
@@ -323,11 +324,12 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 			continue
 		}
 		results[i].found = true
+		pre := r.decoded.prebuiltFor(response)
 
 		wg.Go(func() {
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			results[i].packages, results[i].err = r.buildPackages(raw, get(response, "minified") == "composer/2.0", packagesSource, realNames[i], constraints[i], acceptableStabilities, stabilityFlags, alreadyLoaded)
+			results[i].packages, results[i].err = r.buildPackages(raw, get(response, "minified") == "composer/2.0", packagesSource, realNames[i], constraints[i], acceptableStabilities, stabilityFlags, alreadyLoaded, pre)
 		})
 	}
 	wg.Wait()
@@ -369,10 +371,75 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 // buildPackages is the part of loadAsyncPackages' callback that builds
 // the packages of a file's version list (raw, minified or not). It only
 // reads the repository, so files are built in parallel.
-func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSource, realName string, constraint semver.ConstraintInterface, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded) ([]pkg.PackageInterface, error) {
+func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSource, realName string, constraint semver.ConstraintInterface, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, error) {
 	items := asArray(raw).Values()
 	if minified {
-		var err error
+		// the versions loaded are copied out of the expansion, the others
+		// only looked at; the packages a speculation built from them
+		// already (pre) are taken instead, in their place
+		var (
+			versionsToLoad []*php.Array
+			loaded         []pkg.PackageInterface // nil where versionsToLoad has the version
+		)
+		index := -1
+		ok, err := expandEach(items, func(data *php.Array, keep func() *php.Array) error {
+			index++
+			var versionNormalized string
+			normalized := true
+			if v := get(data, "version_normalized"); v != nil && v != pkg.DefaultBranchAlias {
+				versionNormalized = php.ToString(v)
+			} else {
+				// normalizeVersionData sets it in the version
+				normalized = false
+				data = keep()
+				keep = func() *php.Array { return data }
+				var err error
+				if versionNormalized, err = r.normalizeVersionData(data); err != nil {
+					return err
+				}
+			}
+
+			// avoid loading packages which have already been loaded
+			if alreadyLoaded[realName][versionNormalized] != nil {
+				return nil
+			}
+
+			acceptable, err := r.isVersionAcceptable(constraint, realName, data, versionNormalized, acceptableStabilities, stabilityFlags)
+			if err != nil {
+				return err
+			}
+			if acceptable {
+				var built pkg.PackageInterface
+				if normalized {
+					built = pre.take(realName, r.notifyURL, index)
+				}
+				if built == nil {
+					versionsToLoad = append(versionsToLoad, keep())
+				}
+				loaded = append(loaded, built)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			created, err := r.createPackages(versionsToLoad, packagesSource)
+			if err != nil || len(created) == len(loaded) {
+				return created, err
+			}
+			for i, p := range loaded {
+				if p == nil {
+					loaded[i], created = created[0], created[1:]
+				} else {
+					r.configureLoaded(p)
+				}
+			}
+
+			return loaded, nil
+		}
+
 		if items, err = expandVersions(items); err != nil {
 			return nil, err
 		}
@@ -417,12 +484,7 @@ func shallowClone(a *php.Array) *php.Array {
 	if a == nil {
 		return nil
 	}
-	c := php.NewArrayCap(a.Len())
-	for k, v := range a.All() {
-		c.SetKey(k, v)
-	}
-
-	return c
+	return a.ShallowClone()
 }
 
 // get2 is get() for a value that may not be an array.
@@ -477,6 +539,59 @@ func versionOffsetError(v any) error {
 	}
 
 	return &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(v), Site: phperr.At("ComposerRepository.php", 1329)}
+}
+
+// expandEach calls fn with each version MetadataMinifier::expand($versions)
+// gives, in order, without copying every version as expand does: data is
+// the expanded version, which fn must not change and may only read until
+// it returns, and keep returns it as expand returns it, an array of its
+// own (the entry itself for a version expand does not copy). It stops at
+// fn's first error. ok is false, and fn not called, for lists that are
+// not all arrays with string keys only (expandVersions handles those).
+func expandEach(items []any, fn func(data *php.Array, keep func() *php.Array) error) (ok bool, err error) {
+	arrays := make([]*php.Array, len(items))
+	for i, v := range items {
+		a, ok := v.(*php.Array)
+		if !ok {
+			return false, nil
+		}
+		for k := range a.All() {
+			if k.IsInt() {
+				return false, nil
+			}
+		}
+		arrays[i] = a
+	}
+
+	// working is the expanded version, kept up to date in place: with
+	// string keys only, applying a version's changes to it gives the keys,
+	// order and values of the copy expand makes.
+	var working *php.Array
+	for _, versionData := range arrays {
+		if working == nil || working.Len() == 0 {
+			// expand takes the entry itself; it is copied before fn may
+			// have it changed
+			working = shallowClone(versionData)
+			if err := fn(working, func() *php.Array { return versionData }); err != nil {
+				return true, err
+			}
+
+			continue
+		}
+
+		for k, v := range versionData.All() {
+			if v == "__unset" {
+				working.DeleteKey(k)
+			} else {
+				working.SetKey(k, v)
+			}
+		}
+		if err := fn(working, func() *php.Array { return shallowClone(working) }); err != nil {
+			return true, err
+		}
+	}
+
+	return true, nil
 }
 
 // expandVersions is MetadataMinifier::expand($versions). Entries that are

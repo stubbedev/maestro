@@ -272,19 +272,19 @@ func (c *CurlDownloader) buildTransfer(origin, url string, options *php.Array, a
 // (transportPool.doOrTake). Requests whose preparation could print or
 // prompt (stored credentials, an insecure URL) or that a callback vets are
 // left alone. c.mu is held.
-func (c *CurlDownloader) prefetch(origin, url string, options *php.Array) {
+func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent bool) *prefetchedTransfer {
 	if _, found := FindAuthOrigin(c.io, origin); found {
-		return
+		return nil
 	}
 	if _, ok := path(options, "prevent_url_access_callable"); ok {
-		return
+		return nil
 	}
 	if ssl, _ := arrayValue(options, "ssl").(*php.Array); !caChecked(ssl) {
-		return
+		return nil
 	}
 	if ok, _ := insecurePackagistRegex.IsMatch(url); !ok || (!strings.Contains(url, "$") && !strings.Contains(url, "%24")) {
 		if c.config.ProhibitURLByConfig(url, io.NewNullIO(), options) != nil {
-			return
+			return nil
 		}
 	}
 
@@ -300,9 +300,12 @@ func (c *CurlDownloader) prefetch(origin, url string, options *php.Array) {
 		options.Delete("retry-auth-failure")
 	}
 
-	if req, _, _, err := c.buildTransfer(origin, url, options, attributes, nil); err == nil {
-		c.pool.prefetch(req)
+	req, _, _, err := c.buildTransfer(origin, url, options, attributes, nil)
+	if err != nil {
+		return nil
 	}
+
+	return c.pool.prefetch(req, urgent)
 }
 
 // buildRequest maps the request options onto the transfer the way

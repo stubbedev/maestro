@@ -5,8 +5,10 @@ package http
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,52 +43,114 @@ func prefetchKeyOf(r *transferRequest) (prefetchKey, bool) {
 // prefetchedTransfer is a transfer started ahead; done closes when res is
 // set.
 type prefetchedTransfer struct {
+	r    *transferRequest
 	done chan struct{}
 	res  *transferResult
+	// started is set by whoever runs the transfer: a prefetch worker, or
+	// the request taking it before a worker got to it.
+	started atomic.Bool
+}
+
+// run makes the transfer, unless it was started already.
+func (t *prefetchedTransfer) run(ctx context.Context, p *transportPool) bool {
+	if t.started.Swap(true) {
+		return false
+	}
+	t.res = p.do(ctx, t.r)
+	close(t.done)
+
+	return true
 }
 
 // maxPrefetches bounds the prefetched transfers running at once: over
 // HTTP/2 (Packagist, GitHub) they share one connection; a server
 // answering over HTTP/1 gets that many connections at most.
-const maxPrefetches = 64
+var maxPrefetches = 64 // a variable for the tests
 
-// prefetches holds the transfers a pool started ahead of time.
+// prefetches holds the transfers a pool started ahead of time. They start
+// at most maxPrefetches at once: first the urgent ones (asked for by a
+// reader of their response), then the others, each in the order they
+// were asked for.
 type prefetches struct {
 	mu      sync.Mutex
 	pending map[prefetchKey][]*prefetchedTransfer
-	slots   chan struct{}
+	urgent  []*prefetchedTransfer
+	later   []*prefetchedTransfer
+	running int
 }
 
 // prefetch starts r in the background, unless an identical transfer is
-// already waiting to be taken. It produces no output.
-func (p *transportPool) prefetch(r *transferRequest) {
+// already waiting to be taken, and returns the transfer (nil when r may
+// not be prefetched). An urgent transfer starts before the others; one
+// asked for again as urgent becomes so. It produces no output.
+func (p *transportPool) prefetch(r *transferRequest, urgent bool) *prefetchedTransfer {
 	key, ok := prefetchKeyOf(r)
 	if !ok {
-		return
+		return nil
 	}
 
 	p.ahead.mu.Lock()
+	defer p.ahead.mu.Unlock()
+
 	if p.ahead.pending == nil {
 		p.ahead.pending = map[prefetchKey][]*prefetchedTransfer{}
-		p.ahead.slots = make(chan struct{}, maxPrefetches)
 	}
-	if len(p.ahead.pending[key]) > 0 {
+	if list := p.ahead.pending[key]; len(list) > 0 {
+		t := list[0]
+		if i := slices.Index(p.ahead.later, t); urgent && i >= 0 {
+			p.ahead.later = slices.Delete(p.ahead.later, i, i+1)
+			p.ahead.urgent = append(p.ahead.urgent, t)
+		}
+
+		return t
+	}
+	t := &prefetchedTransfer{r: r, done: make(chan struct{})}
+	p.ahead.pending[key] = append(p.ahead.pending[key], t)
+	if urgent {
+		p.ahead.urgent = append(p.ahead.urgent, t)
+	} else {
+		p.ahead.later = append(p.ahead.later, t)
+	}
+	if p.ahead.running < maxPrefetches {
+		p.ahead.running++
+		go p.runPrefetches()
+	}
+
+	return t
+}
+
+// runPrefetches runs queued transfers until there are none.
+func (p *transportPool) runPrefetches() {
+	for {
+		p.ahead.mu.Lock()
+		queue := &p.ahead.urgent
+		if len(*queue) == 0 {
+			queue = &p.ahead.later
+		}
+		if len(*queue) == 0 {
+			p.ahead.running--
+			p.ahead.mu.Unlock()
+
+			return
+		}
+		t := (*queue)[0]
+		(*queue)[0] = nil
+		*queue = (*queue)[1:]
 		p.ahead.mu.Unlock()
 
-		return
+		t.run(context.Background(), p)
 	}
-	t := &prefetchedTransfer{done: make(chan struct{})}
-	p.ahead.pending[key] = append(p.ahead.pending[key], t)
-	slots := p.ahead.slots
-	p.ahead.mu.Unlock()
+}
 
-	go func() {
-		slots <- struct{}{}
-		defer func() { <-slots }()
+// response waits for the transfer and returns its status and body, ok
+// false when it failed.
+func (t *prefetchedTransfer) response() (status int, body string, ok bool) {
+	<-t.done
+	if res := t.res; res != nil && res.errno == 0 && res.err == nil {
+		return res.status, string(res.body), true
+	}
 
-		t.res = p.do(context.Background(), r)
-		close(t.done)
-	}()
+	return 0, "", false
 }
 
 // take removes and returns a prefetched transfer identical to r, if any.
@@ -114,10 +178,14 @@ func (p *transportPool) take(r *transferRequest) *prefetchedTransfer {
 }
 
 // doOrTake is do, answered by a prefetched transfer of the same request
-// when there is one. A cancellation before it finished falls back to do,
-// which reports the cancellation as it would have.
+// when there is one (made here when it is still queued). A cancellation
+// before it finished falls back to do, which reports the cancellation as
+// it would have.
 func (p *transportPool) doOrTake(ctx context.Context, r *transferRequest) *transferResult {
 	if t := p.take(r); t != nil {
+		if t.run(ctx, p) {
+			return t.res
+		}
 		select {
 		case <-t.done:
 			return t.res

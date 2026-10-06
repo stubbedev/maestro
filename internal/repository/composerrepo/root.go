@@ -527,10 +527,7 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 		return nil, nil
 	}
 
-	var notifyURL any
-	if r.notifyURL != "" {
-		notifyURL = r.notifyURL
-	}
+	notifyURL := notificationURL(r.notifyURL)
 	for i, data := range packages {
 		if data == nil {
 			data = php.NewArray()
@@ -555,14 +552,30 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 	}
 
 	for _, p := range packageInstances {
-		if mirrors, ok := r.sourceMirrors[p.SourceType().S]; ok && p.SourceType().Valid {
-			p.SetSourceMirrors(mirrors)
-		}
-		p.SetDistMirrors(r.distMirrors)
-		r.configurePackageTransportOptions(p)
+		r.configureLoaded(p)
 	}
 
 	return packageInstances, nil
+}
+
+// configureLoaded is the part of createPackages after loading: the
+// repository's mirrors and transport options.
+func (r *ComposerRepository) configureLoaded(p pkg.PackageInterface) {
+	if mirrors, ok := r.sourceMirrors[p.SourceType().S]; ok && p.SourceType().Valid {
+		p.SetSourceMirrors(mirrors)
+	}
+	p.SetDistMirrors(r.distMirrors)
+	r.configurePackageTransportOptions(p)
+}
+
+// notificationURL is the notification-url createPackages gives versions
+// without one: the root file's notify URL, null when it has none.
+func notificationURL(notifyURL string) any {
+	if notifyURL != "" {
+		return notifyURL
+	}
+
+	return nil
 }
 
 // initializePartialPackages ports initializePartialPackages: it groups

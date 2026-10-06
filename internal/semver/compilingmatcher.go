@@ -112,6 +112,33 @@ func (compilingMatcher) Match(constraint ConstraintInterface, operator Op, versi
 	return result
 }
 
+// Matcher returns Match(constraint, operator, version) as a function of
+// version, for matching one constraint against many versions: it finds
+// (or compiles) the constraint's checker once, and leaves the result
+// cache alone, whose entries are what the checker gives. It is safe to
+// call the function from several goroutines at once.
+func (compilingMatcher) Matcher(constraint ConstraintInterface, operator Op) func(version string) bool {
+	var buf [128]byte
+	key := strconv.AppendInt(buf[:0], int64(operator), 10)
+	key = appendConstraintString(key, constraint)
+
+	c := &compilingMatcherCache
+	c.RLock()
+	checker, ok := c.compiled[string(key)]
+	c.RUnlock()
+
+	if !ok {
+		checker = constraint.compile(operator)
+		c.Lock()
+		c.compiled[string(key)] = checker
+		c.Unlock()
+	}
+
+	return func(version string) bool {
+		return checker.eval(version, strings.HasPrefix(version, "dev-"))
+	}
+}
+
 // appendConstraintString appends (string) $constraint. It dispatches
 // statically so that dst can stay on the caller's stack.
 func appendConstraintString(dst []byte, constraint ConstraintInterface) []byte {

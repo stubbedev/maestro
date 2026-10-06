@@ -4,7 +4,9 @@
 package resolver
 
 import (
+	"runtime"
 	"slices"
+	"sync"
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/filterlist"
@@ -82,7 +84,8 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 	var packages []pkg.PackageInterface
 	securityRemovedVersions := &repository.NameMap[*repository.NameMap[[]repository.Advisory]]{}
 	abandonedRemovedVersions := &repository.NameMap[*VersionMap]{}
-	for _, p := range pool.Packages() {
+	matching := parallelMatchingAdvisories(pool.Packages(), advisoryMap)
+	for i, p := range pool.Packages() {
 		if abandoned.Block {
 			filtered, err := f.auditor.FilterAbandonedPackages([]pkg.PackageInterface{p}, ignoreAbandonedForBlocking)
 			if err != nil {
@@ -102,7 +105,7 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 			}
 		}
 
-		matchingAdvisories := matchingAdvisories(p, advisoryMap)
+		matchingAdvisories := matching[i]
 		if len(matchingAdvisories) > 0 {
 			for _, packageName := range p.Names(false) {
 				versions, ok := securityRemovedVersions.Get(packageName)
@@ -125,6 +128,36 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 		Security:  securityRemovedVersions,
 		Abandoned: abandonedRemovedVersions,
 	}), nil
+}
+
+// parallelMatchingAdvisories is matchingAdvisories of each package,
+// computed on several goroutines for a large pool (it only reads the
+// packages and the advisories).
+func parallelMatchingAdvisories(packages []pkg.PackageInterface, advisoryMap *repository.NameMap[[]repository.Advisory]) [][]repository.Advisory {
+	out := make([][]repository.Advisory, len(packages))
+	if advisoryMap.Len() == 0 {
+		return out
+	}
+
+	compute := func(from, to int) {
+		for i := from; i < to; i++ {
+			out[i] = matchingAdvisories(packages[i], advisoryMap)
+		}
+	}
+	workers := runtime.GOMAXPROCS(0)
+	if len(packages) < minParallelPackages || workers < 2 {
+		compute(0, len(packages))
+
+		return out
+	}
+	var wg sync.WaitGroup
+	size := (len(packages) + workers - 1) / workers
+	for from := 0; from < len(packages); from += size {
+		wg.Go(func() { compute(from, min(from+size, len(packages))) })
+	}
+	wg.Wait()
+
+	return out
 }
 
 // matchingAdvisories ports getMatchingAdvisories.

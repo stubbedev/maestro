@@ -1710,7 +1710,8 @@ func (i *Installer) prefetchMetadata(set *repository.RepositorySet, locked *repo
 			names = append(names, name)
 		}
 	}
-	for _, links := range []pkg.Links{i.fixedRootPackage.Requires(), i.fixedRootPackage.DevRequires()} {
+	// the root package's: the fixed root package has none
+	for _, links := range []pkg.Links{i.pkg.Requires(), i.pkg.DevRequires()} {
 		for name := range links.All() {
 			add(name)
 		}
