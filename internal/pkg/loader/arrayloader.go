@@ -44,7 +44,7 @@ func (l *ArrayLoader) VersionParser() *pkg.VersionParser { return l.versionParse
 func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterface, error) {
 	p, err := l.createObject(config, class)
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createObject`, "ArrayLoader.php", 55)
+		return nil, err
 	}
 
 	pp, _ := pkg.AsPackage(p)
@@ -57,17 +57,15 @@ func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterfac
 
 		parsed, err := l.ParseLinks(p.Name(), p.PrettyVersion(), t.Method, links)
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->parseLinks`, "ArrayLoader.php", 63)
+			return nil, err
 		}
 
 		setLinks(pp, t.Method, parsed)
 	}
 
-	leave := phperr.Push(`Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 72)
 	configured, err := l.configureObject(p, config)
-	leave()
 
-	return configured, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 72)
+	return configured, err
 }
 
 // LoadPackages ports ArrayLoader::loadPackages: complete packages for many
@@ -80,16 +78,16 @@ func (l *ArrayLoader) LoadPackages(versions []*php.Array) ([]pkg.PackageInterfac
 	for _, version := range versions {
 		p, err := l.createObject(version, pkg.ClassCompletePackage)
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createObject`, "ArrayLoader.php", 88)
+			return nil, err
 		}
 
 		if err := l.configureCachedLinks(cache, p, version); err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureCachedLinks`, "ArrayLoader.php", 90)
+			return nil, err
 		}
 
 		configured, err := l.configureObject(p, version)
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 91)
+			return nil, err
 		}
 
 		packages = append(packages, configured)
@@ -167,7 +165,7 @@ func nullableString(fn, param string, v any) (pkg.NullString, error) {
 		return pkg.Str(v), nil
 	}
 
-	return pkg.NullString{}, calledFromArrayLoader(pkg.ArgumentTypeError(fn, 1, param, "?string", v), fn)
+	return pkg.NullString{}, pkg.ArgumentTypeError(fn, 1, param, "?string", v)
 }
 
 // arrayArg checks a value passed to an array parameter.
@@ -180,64 +178,21 @@ func arrayArg(fn, param, expected string, v any) (*php.Array, error) {
 		return nil, nil
 	}
 
-	return nil, calledFromArrayLoader(pkg.ArgumentTypeError(fn, 1, param, expected, v), fn)
-}
-
-// arrayLoaderCall is where ArrayLoader.php calls a package method: the
-// method's declaration (file:line) and the line of the call.
-type arrayLoaderCall struct {
-	file       string
-	decl, call int
-}
-
-// arrayLoaderCalls are the package methods ArrayLoader calls with
-// configuration values, each from one line.
-var arrayLoaderCalls = map[string]arrayLoaderCall{
-	"__construct":           {"Package.php", 115, 141},
-	"setTargetDir":          {"Package.php", 155, 159},
-	"setInstallationSource": {"Package.php", 207, 177},
-	"setSourceType":         {"Package.php", 220, 192},
-	"setSourceUrl":          {"Package.php", 233, 193},
-	"setSourceMirrors":      {"Package.php", 259, 196},
-	"setDistType":           {"Package.php", 280, 209},
-	"setDistUrl":            {"Package.php", 293, 210},
-	"setDistSha1Checksum":   {"Package.php", 319, 212},
-	"setDistMirrors":        {"Package.php", 332, 214},
-	"setTransportOptions":   {"Package.php", 364, 311},
-	"setAutoload":           {"Package.php", 536, 228},
-	"setDevAutoload":        {"Package.php", 556, 232},
-	"setIncludePaths":       {"Package.php", 574, 236},
-	"setPhpExt":             {"Package.php", 593, 240},
-	"setNotificationUrl":    {"Package.php", 609, 254},
-	"setArchiveName":        {"CompletePackage.php", 218, 259},
-	"setArchiveExcludes":    {"CompletePackage.php", 234, 262},
-}
-
-// calledFromArrayLoader gives the TypeError of fn ("Class::method", a
-// package method ArrayLoader calls) the declaration site, the "called in"
-// suffix and the frame of ArrayLoader's call.
-func calledFromArrayLoader(e *pkg.TypeError, fn string) *pkg.TypeError {
-	class, method, _ := strings.Cut(fn, "::")
-	c, ok := arrayLoaderCalls[method]
-	if !ok {
-		return e
-	}
-
-	return e.Called(class+"->"+method, phperr.At(c.file, c.decl), "ArrayLoader.php", c.call)
+	return nil, pkg.ArgumentTypeError(fn, 1, param, expected, v)
 }
 
 const packageClass = `Composer\Package\Package`
 
 func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.PackageInterface, error) {
 	if !isset(config, "name") {
-		return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 112), Message: "Unknown package has no name defined (" + jsonEncode(config) + ")."}
+		return nil, &util.UnexpectedValueError{Message: "Unknown package has no name defined (" + jsonEncode(config) + ")."}
 	}
 
 	nameValue := get(config, "name")
 
 	versionValue, _ := config.Get("version")
 	if versionValue == nil || !isScalar(versionValue) {
-		return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 115), Message: "Package " + php.ToString(nameValue) + " has no version defined."}
+		return nil, &util.UnexpectedValueError{Message: "Package " + php.ToString(nameValue) + " has no version defined."}
 	}
 
 	prettyVersion := php.ToString(versionValue)
@@ -261,7 +216,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 		v, err := l.versionParser.Normalize(prettyVersion)
 		if err != nil {
 			if uv := (*semver.UnexpectedValueError)(nil); errors.As(err, &uv) {
-				return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 133), Message: "Failed to normalize version for package \"" + php.ToString(nameValue) + "\": " + uv.Message, Prev: err}
+				return nil, &util.UnexpectedValueError{Message: "Failed to normalize version for package \"" + php.ToString(nameValue) + "\": " + uv.Message, Prev: err}
 			}
 
 			return nil, err
@@ -272,7 +227,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 
 	name, ok := nameValue.(string)
 	if !ok {
-		return nil, calledFromArrayLoader(pkg.ArgumentTypeError(packageClass+"::__construct", 1, "name", "string", nameValue), packageClass+"::__construct")
+		return nil, pkg.ArgumentTypeError(packageClass+"::__construct", 1, "name", "string", nameValue)
 	}
 
 	switch class {
@@ -282,7 +237,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 		return pkg.NewRootPackage(name, version, prettyVersion), nil
 	}
 
-	return nil, &util.LogicError{Site: phperr.At("ArrayLoader.php", 153), Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
+	return nil, &util.LogicError{Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
 }
 
 var (
@@ -294,7 +249,7 @@ var (
 func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array) (pkg.PackageInterface, error) {
 	cp, ok := pkg.AsCompletePackage(p)
 	if !ok {
-		return nil, &util.LogicError{Site: phperr.At("ArrayLoader.php", 153), Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
+		return nil, &util.LogicError{Message: `ArrayLoader expects instances of the Composer\Package\CompletePackage class to function correctly`}
 	}
 
 	if err := configureFields(cp, config); err != nil {
@@ -355,7 +310,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	if v := get(config, "type"); v != nil {
 		s, ok := v.(string)
 		if !ok {
-			return pkg.ArgumentTypeError("strtolower", 1, "string", "string", v).Raised("strtolower", "ArrayLoader.php", 156)
+			return pkg.ArgumentTypeError("strtolower", 1, "string", "string", v)
 		}
 
 		typ = php.Strtolower(s)
@@ -446,8 +401,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	if t := get(config, "time"); !empty(t) {
 		s, ok := t.(string)
 		if !ok {
-			return pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", t).
-				Called(`Composer\Pcre\Preg::isMatch`, phperr.At("vendor/composer/pcre/src/Preg.php", 289), "ArrayLoader.php", 244)
+			return pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", t)
 		}
 
 		if mustMatch(digitsOnly, s) {
@@ -462,7 +416,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	if u := get(config, "notification-url"); !empty(u) {
 		s, ok := u.(string)
 		if !ok {
-			return calledFromArrayLoader(pkg.ArgumentTypeError(packageClass+"::setNotificationUrl", 1, "notificationUrl", "string", u), packageClass+"::setNotificationUrl")
+			return pkg.ArgumentTypeError(packageClass+"::setNotificationUrl", 1, "notificationUrl", "string", u)
 		}
 
 		p.SetNotificationURL(s)
@@ -496,7 +450,7 @@ func loadBinaries(bin any) (*php.Array, error) {
 	for k, v := range in.All() {
 		s, ok := v.(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError("ltrim", 1, "string", "string", v).Raised("ltrim", "ArrayLoader.php", 171)
+			return nil, pkg.ArgumentTypeError("ltrim", 1, "string", "string", v)
 		}
 
 		out.SetKey(k, php.LtrimSet(s, "/"))
@@ -512,7 +466,7 @@ func loadSuggests(suggest *php.Array, prettyVersion string) (*php.Array, error) 
 	for target, reason := range suggest.All() {
 		s, ok := reason.(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError("trim", 1, "string", "string", reason).Raised("trim", "ArrayLoader.php", 220)
+			return nil, pkg.ArgumentTypeError("trim", 1, "string", "string", reason)
 		}
 
 		if php.Trim(s) == "self.version" {
@@ -538,7 +492,7 @@ func configureSource(p *pkg.CompletePackage, config *php.Array) error {
 
 	source := subArray(config, "source")
 	if source == nil || !isset(source, "type") || !isset(source, "url") || !isset(source, "reference") {
-		return &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 186), Message: "Package " + php.ToString(get(config, "name")) +
+		return &util.UnexpectedValueError{Message: "Package " + php.ToString(get(config, "name")) +
 			"'s source key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ...},\n" +
 			jsonEncode(get(config, "source")) + " given."}
 	}
@@ -576,7 +530,7 @@ func configureDist(p *pkg.CompletePackage, config *php.Array) error {
 
 	dist := subArray(config, "dist")
 	if dist == nil || !isset(dist, "type") || !isset(dist, "url") {
-		return &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 202), Message: "Package " + php.ToString(get(config, "name")) +
+		return &util.UnexpectedValueError{Message: "Package " + php.ToString(get(config, "name")) +
 			"'s dist key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ..., \"shasum\": ...},\n" +
 			jsonEncode(get(config, "dist")) + " given."}
 	}
@@ -629,7 +583,7 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 	if name := get(archive, "name"); !empty(name) {
 		s, ok := name.(string)
 		if !ok {
-			return calledFromArrayLoader(pkg.ArgumentTypeError(completePackageClass+"::setArchiveName", 1, "name", "?string", name), completePackageClass+"::setArchiveName")
+			return pkg.ArgumentTypeError(completePackageClass+"::setArchiveName", 1, "name", "?string", name)
 		}
 
 		p.SetArchiveName(pkg.Str(s))
@@ -826,7 +780,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 
 			for prettyTarget, c := range links.All() {
 				if prettyTarget.IsInt() {
-					return pkg.ArgumentTypeError("strtolower", 1, "string", "string", prettyTarget.Value()).Raised("strtolower", "ArrayLoader.php", 342)
+					return pkg.ArgumentTypeError("strtolower", 1, "string", "string", prettyTarget.Value())
 				}
 
 				target := php.Strtolower(prettyTarget.String())
@@ -840,17 +794,16 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 				if _, isArray := c.(*php.Array); isArray {
 					// isset($linkCache[$name][$type][$target][$constraint])
 					// fails before createLink() is called
-					return (&pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}).Raised("", "ArrayLoader.php", 352)
+					return &pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}
 				}
 				if !ok {
-					return pkg.ArgumentTypeError(`Composer\Package\Loader\ArrayLoader::createLink`, 5, "prettyConstraint", "string", c).
-						Called(`Composer\Package\Loader\ArrayLoader->createLink`, phperr.At("ArrayLoader.php", 397), "ArrayLoader.php", 353)
+					return pkg.ArgumentTypeError(`Composer\Package\Loader\ArrayLoader::createLink`, 5, "prettyConstraint", "string", c)
 				}
 
 				if constraint == "self.version" {
 					link, err := l.createLink(name, prettyVersion, t.Method, target, constraint)
 					if err != nil {
-						return phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 350)
+						return err
 					}
 
 					add(target, link)
@@ -866,7 +819,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 				if !ok {
 					var err error
 					if link, err = l.createLink(name, prettyVersion, t.Method, target, constraint); err != nil {
-						return phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 353)
+						return err
 					}
 
 					byName[key] = link
@@ -911,7 +864,7 @@ func (l *ArrayLoader) ParseLinks(source, sourceVersion, description string, link
 
 		link, err := l.createLink(source, sourceVersion, description, target, constraint)
 		if err != nil {
-			return pkg.Links{}, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 384)
+			return pkg.Links{}, err
 		}
 
 		add(target, link)
@@ -928,9 +881,8 @@ func (l *ArrayLoader) createLink(source, sourceVersion, description, target, pre
 
 	parsed, err := l.versionParser.ParseConstraints(constraint)
 	if err != nil {
-		phperr.Call(err, `Composer\Package\Version\VersionParser->parseConstraints`, "ArrayLoader.php", 410)
 		if uv := (*semver.UnexpectedValueError)(nil); errors.As(err, &uv) {
-			return nil, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 412), Message: "Link constraint in " + source + " " + description + " > " + target +
+			return nil, &util.UnexpectedValueError{Message: "Link constraint in " + source + " " + description + " > " + target +
 				" should be a valid version constraint, got \"" + constraint + "\"", Prev: err}
 		}
 
@@ -945,7 +897,7 @@ func (l *ArrayLoader) createLink(source, sourceVersion, description, target, pre
 func (l *ArrayLoader) GetBranchAlias(config *php.Array) (string, bool, error) {
 	versionValue, _ := config.Get("version")
 	if versionValue == nil || !isScalar(versionValue) {
-		return "", false, &util.UnexpectedValueError{Site: phperr.At("ArrayLoader.php", 432), Message: "no/invalid version defined"}
+		return "", false, &util.UnexpectedValueError{Message: "no/invalid version defined"}
 	}
 
 	version := php.ToString(versionValue)
@@ -960,7 +912,7 @@ func (l *ArrayLoader) GetBranchAlias(config *php.Array) (string, bool, error) {
 
 			targetBranch, ok := v.(string)
 			if !ok {
-				return "", false, pkg.ArgumentTypeError("substr", 1, "string", "string", v).Raised("substr", "ArrayLoader.php", 447)
+				return "", false, pkg.ArgumentTypeError("substr", 1, "string", "string", v)
 			}
 
 			// ensure it is an alias to a -dev package

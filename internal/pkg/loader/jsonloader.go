@@ -7,7 +7,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -41,7 +40,7 @@ func (l *JsonLoader) Load(source any) (pkg.PackageInterface, error) {
 			config, err = json.ParseJSON(s, "")
 		}
 	default:
-		return nil, &util.InvalidArgumentError{Site: phperr.At("JsonLoader.php", 48), Message: "JsonLoader: Unknown $json parameter " + php.TypeName(source) +
+		return nil, &util.InvalidArgumentError{Message: "JsonLoader: Unknown $json parameter " + php.TypeName(source) +
 			". Please report at https://github.com/composer/composer/issues/new."}
 	}
 
@@ -52,16 +51,15 @@ func (l *JsonLoader) Load(source any) (pkg.PackageInterface, error) {
 	a, ok := config.(*php.Array)
 	if !ok {
 		// PHP names the method of the loader's class
-		class, file, decl := `Composer\Package\Loader\ArrayLoader`, "ArrayLoader.php", 49
+		class := `Composer\Package\Loader\ArrayLoader`
 		switch l.loader.(type) {
 		case *ValidatingArrayLoader:
-			class, file, decl = `Composer\Package\Loader\ValidatingArrayLoader`, "ValidatingArrayLoader.php", 67
+			class = `Composer\Package\Loader\ValidatingArrayLoader`
 		case *RootPackageLoader:
-			class, file, decl = `Composer\Package\Loader\RootPackageLoader`, "RootPackageLoader.php", 79
+			class = `Composer\Package\Loader\RootPackageLoader`
 		}
 
-		return nil, pkg.ArgumentTypeError(class+"::load", 1, "config", "array", config).
-			Called(class+"->load", phperr.At(file, decl), "JsonLoader.php", 54)
+		return nil, pkg.ArgumentTypeError(class+"::load", 1, "config", "array", config)
 	}
 
 	return l.loader.Load(a, pkg.ClassCompletePackage)
