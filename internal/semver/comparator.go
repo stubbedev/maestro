@@ -47,7 +47,7 @@ func (comparator) NotEqualTo(version1, version2 string) bool {
 func (comparator) Compare(version1, operator, version2 string) (bool, error) {
 	op, ok := OperatorConstant(operator)
 	if !ok {
-		return false, invalidOperatorError(operator, 100)
+		return false, invalidOperatorError(operator)
 	}
 
 	return compareOp(version1, op, version2), nil
