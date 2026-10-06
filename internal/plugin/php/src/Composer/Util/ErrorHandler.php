@@ -2,18 +2,22 @@
 
 /*
  * maestro's plugin shim: Composer\Util\ErrorHandler, reimplemented with
- * Composer 2.10.3's behaviour and messages (docs/PLUGINS.md §5.2 step 8).
- * Composer has one ErrorHandler for its code and plugin code alike: its
+ * Composer 2.10.3's behaviour (docs/PLUGINS.md §5.2 step 8): the same
+ * \ErrorExceptions, the same notices shown at the same verbosity. Composer
+ * has one ErrorHandler for its code and plugin code alike: its
  * $hasShownDeprecationNotice is the process's (a static maestro keeps in
- * step with its own, internal/util's TriggerDeprecation), and the stack it
- * lists at -v is Composer's (Maestro\Shim\Traces::current()). Locations in
- * the shim's Composer classes are Composer's (Traces::composerLocation()).
+ * step with its own, internal/util's TriggerDeprecation). How a notice or
+ * warning looks is maestro's (docs/PORTING.md "The contract", #13):
+ * maestro renders it (`ui.diagnostic`, internal/ui), without Composer's
+ * source paths and PHP stacks. Locations in the shim's Composer classes
+ * are Composer's (Traces::composerLocation()).
  * Written for PHP 7.2.5 to 8.5.
  */
 
 namespace Composer\Util;
 
 use Composer\IO\IOInterface;
+use Maestro\Shim\Rpc;
 use Maestro\Shim\Sync;
 use Maestro\Shim\Traces;
 
@@ -43,13 +47,17 @@ class ErrorHandler
             "\na legitimately suppressed error that you were not supposed to see.";
         }
 
+        $raisedIn = $file;
         list($file, $line) = Traces::composerLocation($file, $line);
 
         if (!$isDeprecationNotice) {
             // ignore some newly introduced warnings in new php versions until dependencies
             // can be fixed as we do not want to abort execution for those
             if (in_array($level, [E_WARNING, E_USER_WARNING], true) && strpos($message, 'should either be used or intentionally ignored by casting it as (void)') !== false) {
-                self::outputWarning('Ignored new PHP warning but it should be reported and fixed: '.$message.' in '.$file.':'.$line, true);
+                // where plugin code raised it; a location in the shim (one
+                // of Composer's files) tells the user nothing
+                $where = $file === $raisedIn ? ' in '.$file.':'.$line : '';
+                self::outputWarning('warning', 'Ignored new PHP warning but it should be reported and fixed: '.$message.$where, true);
 
                 return true;
             }
@@ -61,14 +69,14 @@ class ErrorHandler
             $shown = Sync::getStatic('hasShownDeprecationNotice');
             if ($shown > 0 && !self::$io->isVerbose()) {
                 if ($shown === 1) {
-                    self::$io->writeError('<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>');
+                    self::outputWarning('note', 'More deprecation notices were hidden, run again with `-v` to show them.');
                     Sync::setStatic('hasShownDeprecationNotice', 2);
                 }
 
                 return true;
             }
             Sync::setStatic('hasShownDeprecationNotice', 1);
-            self::outputWarning('Deprecation Notice: '.$message.' in '.$file.':'.$line);
+            self::outputWarning('deprecation', $message);
         }
 
         return true;
@@ -81,22 +89,15 @@ class ErrorHandler
         self::$io = $io;
     }
 
-    private static function outputWarning(string $message, bool $outputEvenWithoutIO = false): void
+    /**
+     * Reports a diagnostic of $kind (deprecation, note or warning) on the
+     * IO's error output, as maestro renders it; without an IO, a warning
+     * goes to STDERR, undecorated, as maestro's plain rendering has it.
+     */
+    private static function outputWarning(string $kind, string $message, bool $outputEvenWithoutIO = false): void
     {
         if (self::$io !== null) {
-            self::$io->writeError('<warning>'.$message.'</warning>');
-            if (self::$io->isVerbose()) {
-                self::$io->writeError('<warning>Stack trace:</warning>');
-                self::$io->writeError(array_filter(array_map(static function ($a): ?string {
-                    if (isset($a['line'], $a['file'])) {
-                        return '<warning> '.$a['file'].':'.$a['line'].'</warning>';
-                    }
-
-                    return null;
-                }, Traces::current(array_slice(debug_backtrace(), 2))), static function (?string $line) {
-                    return $line !== null;
-                }));
-            }
+            Rpc::call('ui.diagnostic', [self::$io, $kind, $message]);
 
             return;
         }
