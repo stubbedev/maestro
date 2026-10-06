@@ -209,6 +209,15 @@ func dialNetwork(key transportKey) string {
 	return "tcp"
 }
 
+// tlsHandshakeError is a failed TLS handshake (curl's "TLS connect
+// error"); it also keeps net/http from rewriting a non-TLS answer into
+// http.ErrSchemeMismatch.
+type tlsHandshakeError struct{ err error }
+
+func (e *tlsHandshakeError) Error() string { return e.err.Error() }
+
+func (e *tlsHandshakeError) Unwrap() error { return e.err }
+
 // tlsHandshakeTimeoutError is net/http's error for a TLS handshake that
 // timed out (same message and behaviour).
 type tlsHandshakeTimeoutError struct{}
@@ -268,9 +277,11 @@ func tlsHandshake(ctx context.Context, plain net.Conn, addr string, base *tls.Co
 		_ = plain.Close()
 		if err == (tlsHandshakeTimeoutError{}) { //nolint:errorlint // net/http compares it so
 			<-errc
+
+			return nil, err
 		}
 
-		return nil, err
+		return nil, &tlsHandshakeError{err}
 	}
 
 	return tlsConn, nil

@@ -568,7 +568,7 @@ func TestHttpDownloader_TLS(t *testing.T) {
 	untrusted, _ := newTestDownloader(t, nil, writeTestCA(t))
 
 	_, err = untrusted.Get(srv.URL, nil)
-	if err == nil || !strings.Contains(err.Error(), "curl error 60 while downloading "+srv.URL+": SSL certificate problem:") {
+	if err == nil || !strings.Contains(err.Error(), "curl error 60 while downloading "+srv.URL+": SSL certificate OpenSSL verify result: self-signed certificate (18)") {
 		t.Fatalf("got %v", err)
 	}
 

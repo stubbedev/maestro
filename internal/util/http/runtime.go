@@ -111,3 +111,34 @@ var defaultRuntime Runtime = NewStaticRuntime("", "")
 
 // uname is php_uname('s') and php_uname('r'), read once.
 var uname = sync.OnceValues(systemUname)
+
+// sslVersion is the source of curlSSLVersion (SetCurlSSLVersion).
+var sslVersion struct {
+	mu sync.RWMutex
+	fn func() string
+}
+
+// SetCurlSSLVersion sets where the TLS library version of PHP's libcurl
+// comes from (curl_version()['ssl_version'] of the probed php, such as
+// "OpenSSL/3.6.4"), which curl puts in some of its error messages. fn is
+// called when such an error is reported; nil, or "", is "OpenSSL".
+func SetCurlSSLVersion(fn func() string) {
+	sslVersion.mu.Lock()
+	sslVersion.fn = fn
+	sslVersion.mu.Unlock()
+}
+
+// curlSSLVersion is libcurl's TLS library version (Curl_ssl_version).
+func curlSSLVersion() string {
+	sslVersion.mu.RLock()
+	fn := sslVersion.fn
+	sslVersion.mu.RUnlock()
+
+	if fn != nil {
+		if v := fn(); v != "" {
+			return v
+		}
+	}
+
+	return "OpenSSL"
+}

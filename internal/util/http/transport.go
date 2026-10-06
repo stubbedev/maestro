@@ -556,7 +556,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 			return finish()
 		}
 
-		res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0)
+		res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0, -1)
 		if !r.curlStatusLines {
 			res.streamWarnings = streamWarnings(err, host)
 		}
@@ -624,9 +624,10 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 			if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 				res.err = cause
 			} else {
-				res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, true, time.Since(start), counter.n)
+				res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, true, time.Since(start), counter.n, resp.ContentLength)
 				if res.errno == curlePartialFile && resp.ContentLength > 0 {
-					res.errMsg = "transfer closed with " + strconv.FormatInt(resp.ContentLength-counter.n, 10) + " bytes remaining to read"
+					// lib/transfer.c (8.x)
+					res.errMsg = "end of response with " + strconv.FormatInt(resp.ContentLength-counter.n, 10) + " bytes missing"
 				}
 			}
 		}
@@ -823,18 +824,25 @@ func (w fileWriter) Write(b []byte) (int, error) {
 }
 
 // curlError maps a net/http failure to the curl error number and message
-// curl reports for the same failure. host and port name the peer, via
-// the proxy (" over proxy <host>", or "").
-func curlError(ctx context.Context, err error, host, port, via string, connected bool, elapsed time.Duration, received int64) (int, string) {
+// libcurl 8.22 (the one PHP links in the reference environment, with
+// OpenSSL 3) reports for the same failure; the messages were compared on
+// the same failures with php-curl. host and port name the peer, via the
+// proxy (" over proxy <host>", or ""); received is the body bytes read so
+// far and total the Content-Length (-1 when unknown).
+func curlError(ctx context.Context, err error, host, port, via string, connected bool, elapsed time.Duration, received, total int64) (int, string) {
 	ms := strconv.FormatInt(elapsed.Milliseconds(), 10)
 
 	if te, ok := errors.AsType[*tunnelError](err); ok {
 		return te.errno, te.msg
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(context.Cause(ctx), context.DeadlineExceeded) {
+	if _, ok := errors.AsType[tlsHandshakeTimeoutError](err); ok || errors.Is(err, context.DeadlineExceeded) || errors.Is(context.Cause(ctx), context.DeadlineExceeded) {
 		if !connected {
 			return curleOperationTimedout, "Connection timed out after " + ms + " milliseconds"
+		}
+
+		if total >= 0 {
+			return curleOperationTimedout, "Operation timed out after " + ms + " milliseconds with " + strconv.FormatInt(received, 10) + " out of " + strconv.FormatInt(total, 10) + " bytes received"
 		}
 
 		return curleOperationTimedout, "Operation timed out after " + ms + " milliseconds with " + strconv.FormatInt(received, 10) + " bytes received"
@@ -848,56 +856,57 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 		return curleCouldntResolveHost, "Could not resolve host: " + host
 	}
 
-	var (
-		unknownAuthority x509.UnknownAuthorityError
-		hostnameErr      x509.HostnameError
-		invalidCert      x509.CertificateInvalidError
-		verifyErr        *tls.CertificateVerificationError
-	)
+	if errno, msg, ok := certificateError(err, host); ok {
+		return errno, msg
+	}
 
-	switch {
-	case errors.Is(err, errChainTooLong):
-		return curlePeerFailedVerify, "SSL certificate problem: certificate chain too long"
-	case errors.As(err, &hostnameErr):
-		return curlePeerFailedVerify, "SSL: no alternative certificate subject name matches target host name '" + host + "'"
-	case errors.As(err, &unknownAuthority):
-		if c := unknownAuthority.Cert; c != nil && c.CheckSignatureFrom(c) == nil {
-			return curlePeerFailedVerify, "SSL certificate problem: self-signed certificate"
+	if opErr := dialError(err); opErr != nil {
+		if opErr.Timeout() {
+			return curleOperationTimedout, "Connection timed out after " + ms + " milliseconds"
 		}
 
-		return curlePeerFailedVerify, "SSL certificate problem: unable to get local issuer certificate"
-	case errors.As(err, &invalidCert):
-		if invalidCert.Reason == x509.Expired {
-			return curlePeerFailedVerify, "SSL certificate problem: certificate has expired"
+		return curleCouldntConnect, "Failed to connect to " + host + ":" + port + via + " after " + ms + " ms: Could not connect to server"
+	}
+
+	// the TLS handshake (Curl_ossl_connect): curl reports OpenSSL's error
+	// queue as "TLS connect error: <error>", or the socket error
+	if _, ok := errors.AsType[*tlsHandshakeError](err); ok {
+		switch {
+		case errors.Is(err, syscall.ECONNRESET):
+			return curleSSLConnectError, "Recv failure: Connection reset by peer"
+		case errors.Is(err, syscall.EPIPE):
+			return curleSSLConnectError, "Send failure: Broken pipe"
+		case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
+			return curleSSLConnectError, "TLS connect error: error:0A000126:SSL routines::unexpected eof while reading"
 		}
 
-		return curlePeerFailedVerify, "SSL certificate problem: " + invalidCert.Error()
-	case errors.As(err, &verifyErr):
-		return curlePeerFailedVerify, "SSL certificate problem: " + verifyErr.Err.Error()
+		if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
+			return curleSSLConnectError, "TLS connect error: error:0A00010B:SSL routines::wrong version number"
+		}
+
+		if code, reason, ok := opensslAlert(err); ok {
+			return curleSSLConnectError, "TLS connect error: error:" + code + ":SSL routines::" + reason
+		}
+
+		return curleSSLConnectError, "TLS connect error: " + err.Error()
+	}
+
+	if errors.Is(err, http.ErrSchemeMismatch) {
+		return curleSSLConnectError, "TLS connect error: error:0A00010B:SSL routines::wrong version number"
+	}
+
+	// an alert after the handshake, read with the response (a TLS 1.3
+	// server refusing the client certificate)
+	if code, reason, ok := opensslAlert(err); ok {
+		return curleRecvError, "OpenSSL SSL_read: " + curlSSLVersion() + ": error:" + code + ":SSL routines::" + reason + ", errno 0"
 	}
 
 	if errors.Is(err, syscall.ECONNRESET) {
-		if !connected {
-			return curleSSLConnectError, "OpenSSL SSL_connect: Connection reset by peer in connection to " + host + ":" + port
-		}
-
 		return curleRecvError, "Recv failure: Connection reset by peer"
 	}
 
 	if errors.Is(err, syscall.EPIPE) {
 		return curleSendError, "Send failure: Broken pipe"
-	}
-
-	if opErr := dialError(err); opErr != nil {
-		if opErr.Timeout() {
-			return curleOperationTimedout, "Failed to connect to " + hostPort(host, port) + via + " after " + ms + " ms: Timeout was reached"
-		}
-
-		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + via + " after " + ms + " ms: Could not connect to server"
-	}
-
-	if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
-		return curleSSLConnectError, "OpenSSL/3.0.0: error:0A00010B:SSL routines::wrong version number"
 	}
 
 	msg := err.Error()
@@ -907,8 +916,9 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 		return curleHTTP2Stream, "HTTP/2 stream was not closed cleanly: " + msg
 	case strings.Contains(msg, "http2:"):
 		return curleHTTP2, "Error in the HTTP2 framing layer"
-	case strings.Contains(msg, "tls:"):
-		return curleSSLConnectError, "OpenSSL SSL_connect: " + msg + " in connection to " + host + ":" + port
+	case strings.Contains(msg, "malformed HTTP response") && !strings.Contains(msg, `response "HTTP/`):
+		// a status line not starting with "HTTP/" is HTTP/0.9 to curl
+		return curleUnsupportedProtocol, "Received HTTP/0.9 when not allowed"
 	case errors.Is(err, io.ErrUnexpectedEOF):
 		return curlePartialFile, "transfer closed with outstanding read data remaining"
 	case errors.Is(err, io.EOF):
@@ -916,10 +926,140 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 			return curleGotNothing, "Empty reply from server"
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + hostPort(host, port) + via + " after " + ms + " ms: Could not connect to server"
+		return curleCouldntConnect, "Failed to connect to " + host + ":" + port + via + " after " + ms + " ms: Could not connect to server"
 	}
 
 	return curleRecvError, "Failure when receiving data from the peer: " + msg
+}
+
+// certificateError is curl's report of a peer certificate OpenSSL (or
+// curl's host name check) rejects: "SSL certificate OpenSSL verify
+// result: <X509_verify_cert_error_string> (<code>)".
+func certificateError(err error, host string) (int, string, bool) {
+	var (
+		unknownAuthority x509.UnknownAuthorityError
+		hostnameErr      x509.HostnameError
+		invalidCert      x509.CertificateInvalidError
+		verifyErr        *tls.CertificateVerificationError
+	)
+
+	result := func(text string, code int) (int, string, bool) {
+		return curlePeerFailedVerify, "SSL certificate OpenSSL verify result: " + text + " (" + strconv.Itoa(code) + ")", true
+	}
+
+	switch {
+	case errors.Is(err, errChainTooLong):
+		return result("certificate chain too long", 22)
+	case errors.As(err, &hostnameErr):
+		// lib/vtls/openssl.c, ossl_verifyhost
+		target := "host name"
+		if ip := net.ParseIP(host); ip != nil {
+			target = "IPv6 address"
+			if ip.To4() != nil {
+				target = "IPv4 address"
+			}
+		}
+
+		return curlePeerFailedVerify, "SSL: no alternative certificate subject name matches target " + target + " '" + host + "'", true
+	case errors.As(err, &unknownAuthority):
+		var chain []*x509.Certificate
+		if errors.As(err, &verifyErr) {
+			chain = verifyErr.UnverifiedCertificates
+		}
+
+		switch {
+		case len(chain) == 1 && isSelfSigned(chain[0]):
+			return result("self-signed certificate", 18)
+		case len(chain) > 1 && isSelfSigned(chain[len(chain)-1]):
+			return result("self-signed certificate in certificate chain", 19)
+		}
+
+		return result("unable to get local issuer certificate", 20)
+	case errors.As(err, &invalidCert):
+		switch invalidCert.Reason {
+		case x509.Expired:
+			if invalidCert.Cert != nil && time.Now().Before(invalidCert.Cert.NotBefore) {
+				return result("certificate is not yet valid", 9)
+			}
+
+			return result("certificate has expired", 10)
+		case x509.IncompatibleUsage:
+			return result("unsupported certificate purpose", 26)
+		case x509.NotAuthorizedToSign:
+			return result("invalid CA certificate", 24)
+		case x509.TooManyIntermediates:
+			return result("path length constraint exceeded", 25)
+		}
+
+		return result("certificate signature failure", 7)
+	case errors.As(err, &verifyErr):
+		return result("certificate signature failure", 7)
+	}
+
+	return 0, "", false
+}
+
+// isSelfSigned is OpenSSL's self-signed test: issued by its own subject,
+// with a signature its own key verifies.
+func isSelfSigned(c *x509.Certificate) bool {
+	return string(c.RawIssuer) == string(c.RawSubject) && c.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature) == nil
+}
+
+// opensslAlerts maps crypto/tls's text of an alert received from the peer
+// to OpenSSL 3's error code and reason for it (SSL_AD_REASON_OFFSET plus
+// the alert number).
+var opensslAlerts = map[string][2]string{
+	"unexpected message":              {"0A0003F2", "ssl/tls alert unexpected message"},
+	"bad record MAC":                  {"0A0003FC", "ssl/tls alert bad record mac"},
+	"decryption failed":               {"0A0003FD", "tlsv1 alert decryption failed"},
+	"record overflow":                 {"0A0003FE", "tlsv1 alert record overflow"},
+	"decompression failure":           {"0A000406", "ssl/tls alert decompression failure"},
+	"handshake failure":               {"0A000410", "ssl/tls alert handshake failure"},
+	"bad certificate":                 {"0A000412", "ssl/tls alert bad certificate"},
+	"unsupported certificate":         {"0A000413", "ssl/tls alert unsupported certificate"},
+	"revoked certificate":             {"0A000414", "ssl/tls alert certificate revoked"},
+	"expired certificate":             {"0A000415", "ssl/tls alert certificate expired"},
+	"unknown certificate":             {"0A000416", "ssl/tls alert certificate unknown"},
+	"illegal parameter":               {"0A000417", "ssl/tls alert illegal parameter"},
+	"unknown certificate authority":   {"0A000418", "tlsv1 alert unknown ca"},
+	"access denied":                   {"0A000419", "tlsv1 alert access denied"},
+	"error decoding message":          {"0A00041A", "tlsv1 alert decode error"},
+	"error decrypting message":        {"0A00041B", "tlsv1 alert decrypt error"},
+	"export restriction":              {"0A000424", "tlsv1 alert export restriction"},
+	"protocol version not supported":  {"0A00042E", "tlsv1 alert protocol version"},
+	"insufficient security level":     {"0A00042F", "tlsv1 alert insufficient security"},
+	"internal error":                  {"0A000438", "tlsv1 alert internal error"},
+	"inappropriate fallback":          {"0A00043E", "tlsv1 alert inappropriate fallback"},
+	"user canceled":                   {"0A000442", "tlsv1 alert user cancelled"},
+	"no renegotiation":                {"0A00044C", "tlsv1 alert no renegotiation"},
+	"missing extension":               {"0A000455", "tlsv13 alert missing extension"},
+	"unsupported extension":           {"0A000456", "tlsv1 unsupported extension"},
+	"certificate unobtainable":        {"0A000457", "tlsv1 certificate unobtainable"},
+	"unrecognized name":               {"0A000458", "tlsv1 unrecognized name"},
+	"bad certificate status response": {"0A000459", "tlsv1 bad certificate status response"},
+	"bad certificate hash value":      {"0A00045A", "tlsv1 bad certificate hash value"},
+	"unknown PSK identity":            {"0A00045B", "tlsv1 alert unknown psk identity"},
+	"certificate required":            {"0A00045C", "tlsv13 alert certificate required"},
+	"no application protocol":         {"0A000460", "tlsv1 alert no application protocol"},
+}
+
+// opensslAlert is OpenSSL's error for an alert the peer sent, which
+// crypto/tls reports as a "remote error".
+func opensslAlert(err error) (code, reason string, ok bool) {
+	for {
+		opErr, isOp := errors.AsType[*net.OpError](err)
+		if !isOp {
+			return "", "", false
+		}
+
+		if opErr.Op == "remote error" && opErr.Err != nil {
+			e, found := opensslAlerts[strings.TrimPrefix(opErr.Err.Error(), "tls: ")]
+
+			return e[0], e[1], found
+		}
+
+		err = opErr.Err
+	}
 }
 
 // streamWarnings are the warnings PHP's http stream wrapper raises when
@@ -974,15 +1114,4 @@ func dialError(err error) *net.OpError {
 			return nil
 		}
 	}
-}
-
-// hostPort is how libcurl 8.22 (the one PHP links in the reference
-// environment) names the peer in its connect errors: "host:port", an IPv6
-// address in brackets.
-func hostPort(host, port string) string {
-	if strings.Contains(host, ":") {
-		host = "[" + host + "]"
-	}
-
-	return host + ":" + port
 }

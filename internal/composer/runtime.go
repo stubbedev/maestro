@@ -116,12 +116,32 @@ func (r *Runtime) DefaultTimezone() *time.Location {
 
 // InstallProcessGlobals makes this runtime's php the source of the
 // process-wide PHP state lower packages read: ini_get() for
-// composer/ca-bundle's CA search (http.SetIniSource) and the default time
-// zone of date() (php.SetDefaultTimezone). Both are read lazily, so the
-// php probe is waited for only when they are used.
+// composer/ca-bundle's CA search (http.SetIniSource), the default time
+// zone of date() (php.SetDefaultTimezone) and the TLS library version
+// libcurl names in some errors (http.SetCurlSSLVersion). They are read
+// lazily, so the php probe is waited for only when they are used.
 func (r *Runtime) InstallProcessGlobals() {
 	http.SetIniSource(r.IniGet)
 	php.SetDefaultTimezone(r.DefaultTimezone)
+	http.SetCurlSSLVersion(r.CurlSSLVersion)
+}
+
+// CurlSSLVersion is curl_version()['ssl_version'] of the php Composer runs
+// on ("OpenSSL/3.6.4"), "" without php or its curl extension.
+func (r *Runtime) CurlSSLVersion() string {
+	view, _, err := r.ComposerView()
+	if err != nil || view == nil {
+		return ""
+	}
+
+	v, err := platform.NewRuntime(view).Invoke(platform.Func("curl_version"))
+	if version, ok := v.(*php.Array); ok && err == nil {
+		if s, ok := version.Get("ssl_version"); ok && s != nil {
+			return php.ToString(s)
+		}
+	}
+
+	return ""
 }
 
 // PlatformOptions returns the collaborators of a PlatformRepository for
