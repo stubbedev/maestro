@@ -61,7 +61,10 @@ func (s *Store) Insert(d Dist, path string) (*Release, error) {
 		return nil, err
 	}
 
-	return &Release{entries: entries}, nil
+	r := &Release{entries: entries, id: id}
+	s.releases.Store(id, r)
+
+	return r, nil
 }
 
 // inserter stores the files of one archive: the archive is read in one

@@ -19,9 +19,10 @@ type PruneResult struct {
 	Bytes    int64
 }
 
-// Prune removes the releases not used (looked up or inserted) for maxAge,
-// then every object no remaining release refers to, and leftover temporary
-// files. It holds the store lock exclusively, so inserts and imports wait.
+// Prune removes the releases not used (looked up or inserted) for maxAge
+// with their derived data, then every object no remaining release refers
+// to, and leftover temporary files. It holds the store lock exclusively,
+// so inserts and imports wait.
 func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
 	var res PruneResult
 
@@ -32,8 +33,11 @@ func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
 
 	defer unlock()
 
+	s.releases.Clear()
+
 	cutoff := time.Now().Add(-maxAge).Unix()
 	keep := map[[32]byte]struct{}{}
+	releases := map[string]struct{}{}
 
 	err = s.walkIndexes(func(path string, st fileStat) error {
 		if st.mtime < cutoff {
@@ -47,6 +51,8 @@ func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
 			return remove(path)
 		}
 
+		releases[filepath.Base(filepath.Dir(path))+"/"+filepath.Base(path)] = struct{}{}
+
 		for i := range entries {
 			if entries[i].Kind == archive.File {
 				keep[entries[i].Hash] = struct{}{}
@@ -56,6 +62,10 @@ func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
 		return nil
 	})
 	if err != nil {
+		return res, err
+	}
+
+	if err := s.pruneDerived(releases); err != nil {
 		return res, err
 	}
 
@@ -118,6 +128,8 @@ func (s *Store) Verify() (VerifyResult, error) {
 	}
 
 	defer unlock()
+
+	s.releases.Clear()
 
 	bp := bufPool.Get().(*[]byte) //nolint:errcheck // the pool only holds *[]byte.
 	defer bufPool.Put(bp)

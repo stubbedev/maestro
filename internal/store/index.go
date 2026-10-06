@@ -19,10 +19,22 @@ type Entry struct {
 	Hash [32]byte
 }
 
+// ModTime is the modification time, in whole Unix seconds with
+// nanoseconds zero, of a file imported from the entry while it holds the
+// entry's content: its object's stamp, which hardlinks share and clones
+// and copies are given. Any write to the file moves it, so a file whose
+// size and modification time match is the entry's content as far as the
+// store can tell (see "Hard-linked package files" for the one way an edit
+// escapes that).
+func (e *Entry) ModTime() int64 {
+	return stampTime(&e.Hash)
+}
+
 // Release is an extracted dist as the store records it: every entry of its
 // package tree, the root first and each entry after its parent directory.
 type Release struct {
 	entries []Entry
+	id      [32]byte
 }
 
 // Entries is the release's package tree. It must not be modified.
@@ -108,7 +120,8 @@ func decodeIndex(data []byte) ([]Entry, error) {
 		return nil, fmt.Errorf("%w: checksum mismatch", errCorruptIndex)
 	}
 
-	d := decoder{b: body[len(indexMagic):]}
+	// One string holds every path and target, which entries share.
+	d := decoder{b: body[len(indexMagic):], s: string(body[len(indexMagic):])}
 
 	count := d.uvarint()
 	if d.err != nil || count == 0 || count > uint64(len(d.b)) {
@@ -116,8 +129,7 @@ func decodeIndex(data []byte) ([]Entry, error) {
 	}
 
 	entries := make([]Entry, count)
-	dirs := make(map[string]struct{}, count/4+1)
-	seen := make(map[string]struct{}, count)
+	seen := make(map[string]bool, count) // path -> is a directory
 
 	for i := range entries {
 		e := &entries[i]
@@ -159,7 +171,7 @@ func decodeIndex(data []byte) ([]Entry, error) {
 			return nil, fmt.Errorf("%w: truncated entry %d", errCorruptIndex, i)
 		}
 
-		if err := admit(e, i == 0, dirs, seen); err != nil {
+		if err := admit(e, i == 0, seen); err != nil {
 			return nil, fmt.Errorf("%w: %w", errCorruptIndex, err)
 		}
 	}
@@ -171,14 +183,15 @@ func decodeIndex(data []byte) ([]Entry, error) {
 	return entries, nil
 }
 
-// admit checks one entry against those before it.
-func admit(e *Entry, first bool, dirs, seen map[string]struct{}) error {
+// admit checks one entry against those before it (seen: path -> whether
+// it is a directory).
+func admit(e *Entry, first bool, seen map[string]bool) error {
 	if first {
 		if e.Path != "" || e.Kind != archive.Dir {
 			return errors.New("the first entry is not the package directory")
 		}
 
-		dirs[""] = struct{}{}
+		seen[""] = true
 
 		return nil
 	}
@@ -187,7 +200,7 @@ func admit(e *Entry, first bool, dirs, seen map[string]struct{}) error {
 		return fmt.Errorf("invalid path %q", e.Path)
 	}
 
-	if _, ok := dirs[archive.Parent(e.Path)]; !ok {
+	if !seen[archive.Parent(e.Path)] {
 		return fmt.Errorf("%q comes before its directory", e.Path)
 	}
 
@@ -195,19 +208,17 @@ func admit(e *Entry, first bool, dirs, seen map[string]struct{}) error {
 		return fmt.Errorf("%q is listed twice", e.Path)
 	}
 
-	seen[e.Path] = struct{}{}
-
-	if e.Kind == archive.Dir {
-		dirs[e.Path] = struct{}{}
-	}
+	seen[e.Path] = e.Kind == archive.Dir
 
 	return nil
 }
 
-// decoder reads an index body, remembering the first failure.
+// decoder reads an index body, remembering the first failure. s is the
+// body as a string, which strings are cut from.
 type decoder struct {
 	err error
 	b   []byte
+	s   string
 }
 
 func (d *decoder) fail() {
@@ -255,5 +266,14 @@ func (d *decoder) bytes(n uint64) []byte {
 }
 
 func (d *decoder) string() string {
-	return string(d.bytes(d.uvarint()))
+	n := d.uvarint()
+	if n > uint64(len(d.b)) {
+		d.fail()
+		return ""
+	}
+
+	start := len(d.s) - len(d.b)
+	d.b = d.b[n:]
+
+	return d.s[start : len(d.s)-len(d.b)]
 }

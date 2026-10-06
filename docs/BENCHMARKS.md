@@ -1,5 +1,92 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## Warm install and dump-autoload (issue #12, 2026-10-06)
+
+Machine: Linux 6.18 x86-64, 12 cores, php 8.4.25 of the dev shell, real
+Packagist network. Measured on tmpfs (/dev/shm: the store imports by
+hardlink) and on btrfs with zstd (/tmp: by reflink clone). Other agents'
+builds and test suites ran on the same machine (load 3 to 16), so each
+maestro row interleaves the two binaries run by run.
+
+Method (scripts kept out of the repo): the laravel and symfony projects of
+the e2e suite (laravel/laravel v13.10.1 locked; symfony/skeleton 7.4 plus
+symfony/webapp-pack), every command with `--no-plugins --no-scripts -q`,
+per tool and binary its own COMPOSER_HOME, COMPOSER_CACHE_DIR and
+MAESTRO_CACHE_DIR, COMPOSER_TEST_SUITE=1. Each maestro binary starts from
+a fresh maestro cache (Composer's files cache copied in), one install per
+project to fill the store, a second warm install and three dumps; then
+*dump -o* (`dump-autoload -o` in the installed project, median of 15) and
+*warm install* (a fresh copy of the project without vendor/, `install`,
+median of 11), laravel before symfony. Composer: mean of 5 hyperfine runs
+after a warm-up. "before" is b01f0e2, "after" this change.
+
+| fs | Project | Command | Composer | maestro before | | maestro after | |
+|---|---|---|---:|---:|---:|---:|---:|
+| tmpfs | laravel | warm install | 2.46s | 299 ms | 8.2x | 291 ms | 8.4x |
+| tmpfs | laravel | dump-autoload -o | 1.02s | 137 ms | 7.4x | 127 ms | 8.0x |
+| tmpfs | laravel | dump -o after 22 warm installs | 1.02s | 163 ms | 6.2x | 122 ms | 8.3x |
+| tmpfs | symfony | warm install | 2.19s | 302 ms | 7.2x | 290 ms | 7.5x |
+| tmpfs | symfony | dump-autoload -o | 1.15s | 183 ms | 6.3x | 143 ms | 8.0x |
+| btrfs | laravel | warm install | 2.50s | 510 ms | 4.9x | 477 ms | 5.2x |
+| btrfs | laravel | dump-autoload -o | 1.07s | 149 ms | 7.2x | 143 ms | 7.4x |
+| btrfs | symfony | warm install | 2.14s | 547 ms | 3.9x | 452 ms | 4.7x |
+| btrfs | symfony | dump-autoload -o | 1.19s | 184 ms | 6.5x | 150 ms | 7.9x |
+
+CPU time (user + system, medians) falls further than wall time: warm
+install 479 → 439 ms (laravel) and 428 → 361 ms (symfony) on tmpfs,
+1288 → 1162 ms and 1345 → 1101 ms on btrfs. A quieter btrfs run of the
+laravel install measured 540 → 418 ms.
+
+What changed:
+
+- The parse cache file (`classmap/v1.bin`) recorded the content hash of
+  every file a dump read or a store import created, by inode. A warm
+  install into a new worktree creates new inodes, so each one added an
+  entry per PHP file, and every dump loads the whole file first: before
+  grew to 8 MB after 22 warm installs in the runs above (24 MB after some
+  thirty earlier), and its dump slowed from 137 to 163 ms. Store imports
+  now give clones and copies their object's stamp as modification time,
+  as hardlinks always had, so the dump recognises a package file by one
+  stat (size and stamp of the release file at that path) without any
+  record, and keeps the parse results with the release in the store
+  (`derived/`), loaded only for the releases a project uses and shared
+  by every project: the cache file stays at a few KB (the root package's
+  files), and a new worktree's dump reads and parses none of the package
+  files an earlier dump saw. Store imports no longer stat each PHP file
+  to report it to the dump.
+- Imports ran up to GOMAXPROCS goroutines each, a hundred packages at a
+  time: on btrfs creating files gets slower with more threads (a
+  standalone test cloned laravel's 8,861 files in 230 to 350 ms with one
+  thread, 115 to 165 ms with 4 to 8, 125 to 170 ms with 16), on tmpfs no
+  faster beyond 8.
+  All imports now share at most eight, and a large package takes on
+  helpers as others finish.
+- The dump after an install no longer decodes the store indexes again,
+  indexes decode without a copy per path, release lookups run while the
+  scan walks the directories, and each exclude-from-classmap regex is
+  compiled once per dump instead of once per autoload directory.
+
+Not done: io_uring. On tmpfs the store imports (hardlinks: some 14 ms of
+syscalls over eight threads for laravel) finish while the installer is
+still issuing the downloads; on btrfs the time is the filesystem's own
+work creating and cloning inodes, which batching syscalls does not
+reduce, and FICLONE has no io_uring operation. Copies already use
+copy_file_range (Go's io.Copy between files), clones FICLONE or
+clonefile.
+
+Where a warm install's time goes now (execution trace, laravel on tmpfs,
+about 290 ms): the main goroutine waits 76 ms on the filter list's
+conditional request (`verifyLock`), 28 ms on the php probe and 20 ms on
+root version guessing, all before the first package; GC mark workers use
+58 ms of CPU. In this change's areas: the imports overlap the download
+loop (about 50 ms for 109 packages, mostly store lookups and the cached
+archives' opens), the 109 install operations take 35 ms one after the
+other (each resolves the vendor dir's realpath several times), and the
+dump 45 ms (walk and stat of 9,000 files, the rules' scans, writing
+autoload_static.php). A standalone `dump-autoload -o` spends some 60 ms
+before the dump starts (process start, the php probe, version guessing).
+The ≥20x warm install target needs those fixed costs gone first.
+
 ## Per command, real-world projects (perf task, 2026-10-06)
 
 Machine: Linux 7.0 x86-64, 8 cores, 30 GB RAM, /tmp on tmpfs (so the

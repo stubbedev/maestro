@@ -27,3 +27,6 @@ func fstatKey(f *os.File) (fileKey, bool) {
 
 	return keyOf(&st), true
 }
+
+// statStamp is for platforms without file identities: statKey has it all.
+func statStamp(string) (size, mtime int64, ok bool) { return 0, 0, false }

@@ -61,7 +61,17 @@
 // applied deepest first at the end (so a read-only directory can still be
 // filled); a setgid bit the package directory inherits from its parent is
 // kept on every directory, as unzip keeps it. Symlinks are created as
-// recorded and never followed. File modification times are not preserved.
+// recorded and never followed. File modification times are not preserved:
+// every imported file carries its object's stamp (below) instead, which
+// hardlinks share and clones and copies are given, so that a later run
+// can tell from one stat that a package file still holds the release's
+// content (Entry.ModTime; the autoload dump uses it instead of reading
+// the file).
+//
+// Imports running at once share a few goroutines between them
+// (Options.Workers, by default GOMAXPROCS but at most 8): filesystems
+// create files no faster when more threads contend for their locks, and
+// btrfs slower.
 //
 // # Hard-linked package files
 //
@@ -89,9 +99,10 @@
 // the time of the write, before the data changes; a chmod changes its mode.
 // So each import checks the object against its stamp: a hardlink is checked
 // after it was made (one lstat of the new name, so content written before
-// the link existed cannot pass), a clone or copy before and after reading
-// the object (an fstat each; a write during the copy moves the time), and a
-// file that fails is removed again. An object that fails is healed before
+// the link existed cannot pass), a clone or copy after reading the object
+// (an fstat; a write before or during the copy moves the time; macOS's
+// clonefile, which works on names, checks before and after), and a file
+// that fails is removed again. An object that fails is healed before
 // use: its content is hashed while it is copied into a new file that
 // replaces it (the edited inode stays with the package files linked to it),
 // and when the hash is wrong the object is dropped and the release fails

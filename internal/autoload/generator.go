@@ -22,6 +22,7 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -36,6 +37,7 @@ type Generator struct {
 	eventDispatcher EventDispatcher
 	io              io.IO
 	parseCache      *classmap.ParseCache
+	store           *store.Store
 	devMode         bool
 	devModeSet      bool
 	// devModeValue is a $devMode that is not a bool (installed.json's
@@ -168,6 +170,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloads`, "AutoloadGenerator.php", 264)
 	}
+	g.addReleases(packageMap)
 
 	if err := d.namespaces(autoloads); err != nil {
 		return nil, err
@@ -213,10 +216,6 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	return classMap, nil
 }
 
-// KnowContent tells the parse cache the SHA-256 of a file maestro created
-// from contents it knows (classmap.ParseCache.KnowContent).
-func (g *Generator) KnowContent(path string, sum [32]byte) { g.parseCache.KnowContent(path, sum) }
-
 // UseParseCacheFile makes the generator keep the classes it finds in files
 // in the file at path, by file contents, and use the classes kept there by
 // earlier runs instead of parsing the same contents again (deliberate
@@ -259,9 +258,10 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return
 	}
+	g.addReleases(packageMap)
 	requests := make([]classmap.ScanRequest, 0, len(autoloads.Classmap))
 	for _, dir := range autoloads.Classmap {
-		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: buildExclusionRegex(dir, autoloads.ExcludeFromClassmap)})
+		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: d.exclusions.build(dir, autoloads.ExcludeFromClassmap)})
 	}
 	if scanPsrPackages {
 		for _, s := range d.psrScans(autoloads, autoloads.ExcludeFromClassmap) {
@@ -333,7 +333,7 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue).
 				Called(`Composer\Autoload\AutoloadGenerator->buildExclusionRegex`, phperr.At("AutoloadGenerator.php", 488), "AutoloadGenerator.php", 329)
 		}
-		scans = append(scans, psrScan{dir, buildExclusionRegex(dir, excluded), classmap.Classmap, ""})
+		scans = append(scans, psrScan{dir, d.exclusions.build(dir, excluded), classmap.Classmap, ""})
 	}
 	if scanPsrPackages {
 		scans = append(scans, d.psrScans(autoloads, excluded)...)

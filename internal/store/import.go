@@ -70,7 +70,11 @@ func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 		return err
 	}
 
-	if err := s.build(r.entries, tmp, opts.Unshared); err != nil {
+	s.slots <- struct{}{}
+	err = s.build(r.entries, tmp, opts.Unshared)
+	<-s.slots
+
+	if err != nil {
 		_ = removeTree(tmp)
 		return err
 	}
@@ -78,15 +82,6 @@ func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 	if err := renameDir(tmp, dst); err != nil {
 		_ = removeTree(tmp)
 		return err
-	}
-
-	if opts.Created != nil {
-		base := dst + string(os.PathSeparator)
-		for i := 1; i < len(r.entries); i++ {
-			if e := &r.entries[i]; e.Kind == archive.File {
-				opts.Created(base+filepath.FromSlash(e.Path), e.Hash)
-			}
-		}
 	}
 
 	return nil
@@ -179,52 +174,66 @@ func (s *Store) mkdir(path string, mode fs.FileMode) (fs.FileMode, error) {
 	return mode, os.Chmod(path, mode)
 }
 
-// importFiles imports the files, in parallel for larger packages.
+// importFiles imports the files, in parallel for larger packages. The
+// caller holds an import slot and works through the files; it takes on
+// helpers while other slots are free and enough files are left (rechecking
+// as it goes, since the imports running beside it finish), so that
+// concurrent imports together keep to their slots.
 func (s *Store) importFiles(dev *device, entries []Entry, files []int, base string, unshared bool) error {
-	one := func(i int) error {
-		e := &entries[i]
-		return s.importFile(dev, e, base+filepath.FromSlash(e.Path), unshared)
-	}
-
-	workers := min(s.workers, (len(files)+63)/64)
-	if workers <= 1 {
-		for _, i := range files {
-			if err := one(i); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-
 	var (
-		next   atomic.Int64
-		failed atomic.Bool
-		once   sync.Once
-		first  error
-		wg     sync.WaitGroup
+		next    atomic.Int64
+		failed  atomic.Bool
+		once    sync.Once
+		first   error
+		wg      sync.WaitGroup
+		helpers int
+		work    func(owner bool)
 	)
 
-	for range workers {
-		wg.Go(func() {
-			for !failed.Load() {
-				k := next.Add(1) - 1
-				if k >= int64(len(files)) {
-					return
-				}
+	work = func(owner bool) {
+		for n := 0; !failed.Load(); n++ {
+			k := next.Add(1) - 1
+			if k >= int64(len(files)) {
+				return
+			}
 
-				if err := one(files[k]); err != nil {
-					once.Do(func() { first = err })
-					failed.Store(true)
+			if owner && n%importBatch == 0 {
+				// another helper per importBatch files still to do
+				for helpers < cap(s.slots)-1 && (int64(len(files))-k)/importBatch > int64(helpers+1) {
+					select {
+					case s.slots <- struct{}{}:
+						helpers++
+
+						wg.Go(func() {
+							defer func() { <-s.slots }()
+
+							work(false)
+						})
+
+						continue
+					default:
+					}
+
+					break
 				}
 			}
-		})
+
+			e := &entries[files[k]]
+			if err := s.importFile(dev, e, base+filepath.FromSlash(e.Path), unshared); err != nil {
+				once.Do(func() { first = err })
+				failed.Store(true)
+			}
+		}
 	}
 
+	work(true)
 	wg.Wait()
 
 	return first
 }
+
+// importBatch is how many files are worth another goroutine.
+const importBatch = 64
 
 // importFile creates dst from e's object, healing the object once if it
 // is missing or no longer matches its stamp. An object that still fails
@@ -320,9 +329,10 @@ func linkObject(obj, dst string, want stamp) error {
 }
 
 // copyObject creates dst as a copy of the object obj (copy_file_range
-// where available). The object is checked against its stamp before and
-// after the copy: an object can be written in place through a package
-// file hard-linked to it, and any write moves its modification time.
+// where available) carrying the object's stamp as its modification time.
+// The object is checked against its stamp after the copy: an object can
+// be written in place through a package file hard-linked to it, and any
+// write, before or during the copy, moves its modification time.
 func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error {
 	in, err := openShared(obj)
 	if err != nil {
@@ -330,10 +340,6 @@ func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error 
 	}
 
 	defer func() { _ = in.Close() }()
-
-	if err := checkOpen(in, want); err != nil {
-		return err
-	}
 
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
@@ -343,6 +349,10 @@ func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error 
 	_, err = io.Copy(out, in)
 	if err == nil && chmodAfterCreate(perm, s.umask) {
 		err = out.Chmod(perm)
+	}
+
+	if err == nil {
+		err = setMtime(out, want.mtime)
 	}
 
 	if cerr := out.Close(); err == nil {

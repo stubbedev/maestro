@@ -20,6 +20,24 @@ var reConstantPrefix = php.MustCompile(`{^(([^.+*?\[^\]$(){}=!<>|:\\#-]+|\\[.+*?
 // buildExclusionRegex ports buildExclusionRegex: the exclude-from-classmap
 // patterns that can apply below dir, as one regex (nil for none).
 func buildExclusionRegex(dir string, excluded []string) classmap.Matcher {
+	return (&exclusionRegexes{}).build(dir, excluded)
+}
+
+// exclusionRegexes builds the exclusion regexes of one dump: what the
+// rules share (the patterns' constant prefixes, the regexes compiled from
+// the same patterns) is worked out once (deliberate deviation 3, speed).
+type exclusionRegexes struct {
+	prefixes map[string]prefixResult
+	compiled map[string]classmap.Matcher
+}
+
+type prefixResult struct {
+	prefix string
+	err    error
+}
+
+// build is buildExclusionRegex.
+func (c *exclusionRegexes) build(dir string, excluded []string) classmap.Matcher {
 	if len(excluded) == 0 {
 		return nil
 	}
@@ -50,7 +68,7 @@ func buildExclusionRegex(dir string, excluded []string) classmap.Matcher {
 		for _, pattern := range excluded {
 			// extract the constant string prefix of the pattern here, until
 			// we reach a non-escaped regex special character
-			prefix, _, err := reConstantPrefix.Replace(pattern, "$1", -1)
+			prefix, err := c.constantPrefix(pattern)
 			if err != nil {
 				return errMatcher{err}
 			}
@@ -68,15 +86,39 @@ func buildExclusionRegex(dir string, excluded []string) classmap.Matcher {
 	}
 
 	pattern := "{(" + strings.Join(excluded, "|") + ")}"
+	if m, ok := c.compiled[pattern]; ok {
+		return m
+	}
+	var m classmap.Matcher
 	re, err := php.Compile(pattern)
 	if err != nil {
 		// preg_match() warns about a pattern that does not compile, which
 		// Composer's error handler turns into an exception at the first
 		// match (in composer/pcre's Preg::pregMatch).
-		return errMatcher{&util.ErrorException{Message: "preg_match(): " + err.Error(), Site: phperr.At("Preg.php", 430)}}
+		m = errMatcher{&util.ErrorException{Message: "preg_match(): " + err.Error(), Site: phperr.At("Preg.php", 430)}}
+	} else {
+		m = re
 	}
+	if c.compiled == nil {
+		c.compiled = map[string]classmap.Matcher{}
+	}
+	c.compiled[pattern] = m
 
-	return re
+	return m
+}
+
+// constantPrefix is a pattern's constant prefix (reConstantPrefix).
+func (c *exclusionRegexes) constantPrefix(pattern string) (string, error) {
+	if r, ok := c.prefixes[pattern]; ok {
+		return r.prefix, r.err
+	}
+	prefix, _, err := reConstantPrefix.Replace(pattern, "$1", -1)
+	if c.prefixes == nil {
+		c.prefixes = map[string]prefixResult{}
+	}
+	c.prefixes[pattern] = prefixResult{prefix, err}
+
+	return prefix, err
 }
 
 // errMatcher is a matcher that fails.

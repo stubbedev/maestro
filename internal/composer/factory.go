@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/cache"
@@ -42,11 +41,6 @@ type Factory struct {
 	// Runtime is the process the instances are created in; nil is a new
 	// one (with no client version).
 	Runtime *Runtime
-
-	// autoloadGenerator is the last full Composer's generator, told the
-	// contents of the files store imports create (knowContent); the
-	// download manager is created before it.
-	autoloadGenerator atomic.Pointer[autoload.Generator]
 
 	// CreateConfigFunc replaces static::createConfig.
 	CreateConfigFunc func(out io.IO, cwd string) (*config.Config, error)
@@ -450,9 +444,12 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 			generator.Parser.ShortOpenTag = view.ShortOpenTag()
 			generator.Parser.PHPVersionID = int(view.VersionID)
 		}
-		// classes found in files seen before (deliberate deviation 3)
+		// classes found in files seen before, and in package store
+		// releases (deliberate deviation 3)
 		generator.UseParseCacheFile(cache.Dir() + "/classmap/v1.bin")
-		f.autoloadGenerator.Store(generator)
+		if st, err := store.Open(cache.Store(), nil); err == nil {
+			generator.UseStore(st)
+		}
 		full.SetAutoloadGenerator(generator)
 
 		// initialize archive manager
@@ -723,7 +720,6 @@ func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownl
 		IniFiles:       f.runtime().Environment().IniFiles,
 		// extension_loaded() of the PHP Composer runs on; without php,
 		// maestro extracts everything natively.
-		ContentKnown: f.knowContent,
 		ExtensionLoaded: func(name string) bool {
 			if view, _, err := f.runtime().ComposerView(); err != nil || view == nil {
 				return true
@@ -856,18 +852,4 @@ func (f *Factory) purgePackages(repo repository.InstalledRepositoryInterface, im
 	}
 
 	return nil
-}
-
-// knowContent hands the path and SHA-256 of a file a store import created
-// to the autoload generator's parse cache (deliberate deviation 3: the
-// dump that follows the install need not read it).
-func (f *Factory) knowContent(path string, sum [32]byte) {
-	// only what the class map scans by default (php, inc) is worth a stat;
-	// any other file is simply read if a scan needs it
-	if !strings.HasSuffix(path, ".php") && !strings.HasSuffix(path, ".inc") {
-		return
-	}
-	if g := f.autoloadGenerator.Load(); g != nil {
-		g.KnowContent(path, sum)
-	}
 }
