@@ -431,6 +431,10 @@ func (g *Generator) suffix(config Config, vendorPath, suffix string, locker Lock
 			if err != nil {
 				return "", err
 			}
+			// $locker->getLockData()['content-hash'] is read without isset
+			if !data.Has("content-hash") {
+				return "", &util.ErrorException{Message: `Undefined array key "content-hash"`, Site: phperr.At("AutoloadGenerator.php", 431)}
+			}
 			if hash, ok := data.GetString("content-hash"); ok {
 				if ok, err := reContentHash.IsMatch(hash); err != nil {
 					return "", err

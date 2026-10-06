@@ -182,23 +182,38 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 		return nil, err
 	}
 
-	lockedPackages, _ := lockData.GetArray("packages")
+	// $lockedPackages = $lockData['packages'] (untyped: a value that is
+	// not an array fails array_merge() or is no valid lock)
+	rawPackages, ok := lockData.Get("packages")
+	if !ok {
+		return nil, &util.ErrorException{Site: phperr.At("Locker.php", 167), Message: `Undefined array key "packages"`}
+	}
 	if withDevReqs {
-		dev, ok := lockData.GetArray("packages-dev")
-		if !ok {
+		dev, _ := lockData.Get("packages-dev")
+		if dev == nil {
 			return nil, &util.RuntimeError{Site: phperr.At("Locker.php", 172), Message: "The lock file does not contain require-dev information, run install with the --no-dev option or delete it and run composer update to generate a new lock file."}
 		}
-		if lockedPackages == nil {
-			lockedPackages = php.NewArray()
+		for i, v := range []any{rawPackages, dev} {
+			if _, ok := v.(*php.Array); !ok {
+				return nil, (&pkg.TypeError{Message: "array_merge(): Argument #" + strconv.Itoa(i+1) + " must be of type array, " + php.ZvalValueName(v) + " given"}).
+					Raised("array_merge", "Locker.php", 170)
+			}
 		}
-		lockedPackages = php.ArrayMerge(lockedPackages, dev)
+		rawPackages = php.ArrayMerge(rawPackages.(*php.Array), dev.(*php.Array)) //nolint:forcetypeassert // checked above
 	}
 
-	if lockedPackages.Len() == 0 {
+	// empty($lockedPackages)
+	if !php.ToBool(rawPackages) {
 		return packages, nil
 	}
 
-	if first, ok := lockedPackages.GetArray(0); !ok || lockValue(first, "name") == nil {
+	// isset($lockedPackages[0]['name']) is false for anything but an array
+	lockedPackages, isArray := rawPackages.(*php.Array)
+	var first *php.Array
+	if isArray {
+		first, _ = lockedPackages.GetArray(0)
+	}
+	if lockValue(first, "name") == nil {
 		return nil, &util.RuntimeError{Site: phperr.At("Locker.php", 205), Message: `Your composer.lock is invalid. Run "composer update" to generate a new one.`}
 	}
 
@@ -223,18 +238,46 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 		}
 	}
 
-	if aliases, ok := lockData.GetArray("aliases"); ok {
-		for _, alias := range repository.RootAliasesFromArray(aliases) {
-			p, ok := packageByName[alias.Package]
+	if aliases, _ := lockData.Get("aliases"); aliases != nil {
+		list, ok := aliases.(*php.Array)
+		if !ok {
+			return nil, &util.ErrorException{Site: phperr.At("Locker.php", 193), Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(aliases) + " given"}
+		}
+		for _, alias := range list.All() {
+			// isset($packageByName[$alias['package']])
+			name, err := lockOffset(alias, "package", 194)
+			if err != nil {
+				return nil, err
+			}
+			if _, isArray := name.(*php.Array); isArray {
+				return nil, (&pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}).Raised("", "Locker.php", 194)
+			}
+			p, ok := packageByName[php.ToKey(name).String()]
 			if !ok {
 				continue
+			}
+			// new CompleteAliasPackage($packageByName[...],
+			// $alias['alias_normalized'], $alias['alias'])
+			var args [2]string
+			for i, key := range []string{"alias_normalized", "alias"} {
+				v, err := lockOffset(alias, key, 195)
+				if err != nil {
+					return nil, err
+				}
+				str, ok := v.(string)
+				if !ok {
+					param := [2]string{"version", "prettyVersion"}[i]
+					return nil, pkg.ArgumentTypeError(`Composer\Package\CompleteAliasPackage::__construct`, i+2, param, "string", v).
+						Called(`Composer\Package\CompleteAliasPackage->__construct`, phperr.At("CompleteAliasPackage.php", 30), "Locker.php", 195)
+				}
+				args[i] = str
 			}
 			complete, ok := p.(pkg.CompletePackageInterface)
 			if !ok {
 				return nil, (&pkg.TypeError{Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.Class() + " given"}).
 					Called(`Composer\Package\CompleteAliasPackage->__construct`, phperr.At("CompleteAliasPackage.php", 30), "Locker.php", 195)
 			}
-			aliasPkg := pkg.NewCompleteAliasPackage(complete, alias.AliasNormalized, alias.Alias)
+			aliasPkg := pkg.NewCompleteAliasPackage(complete, args[0], args[1])
 			aliasPkg.SetRootPackageAlias(true)
 			if err := packages.AddPackage(aliasPkg); err != nil {
 				return nil, err
@@ -253,12 +296,25 @@ func (l *Locker) DevPackageNames() ([]string, error) {
 		return nil, err
 	}
 	var names []string
-	if dev, ok := lockData.GetArray("packages-dev"); ok {
-		for _, p := range dev.All() {
-			if data, ok := p.(*php.Array); ok {
-				names = append(names, php.Strtolower(php.ToString(lockValue(data, "name"))))
-			}
+	dev, _ := lockData.Get("packages-dev")
+	if dev == nil {
+		return names, nil
+	}
+	list, ok := dev.(*php.Array)
+	if !ok {
+		return nil, &util.ErrorException{Site: phperr.At("Locker.php", 216), Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(dev) + " given"}
+	}
+	for _, p := range list.All() {
+		// strtolower($package['name']) under strict_types
+		name, err := lockOffset(p, "name", 217)
+		if err != nil {
+			return nil, err
 		}
+		s, ok := name.(string)
+		if !ok {
+			return nil, pkg.ArgumentTypeError("strtolower", 1, "string", "string", name).Raised("strtolower", "Locker.php", 217)
+		}
+		names = append(names, php.Strtolower(s))
 	}
 
 	return names, nil
@@ -298,35 +354,51 @@ func (l *Locker) MinimumStability() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if v, ok := lockData.GetString("minimum-stability"); ok {
+	v, _ := lockData.Get("minimum-stability")
+	switch v := v.(type) {
+	case nil:
+		return "stable", nil
+	case string:
 		return v, nil
 	}
 
-	return "stable", nil
+	return "", returnTypeError("getMinimumStability", "string", v, 265)
+}
+
+// returnTypeError is the TypeError of Locker::<method>() returning a value
+// of the lock file that its return type (under strict_types) rejects, at
+// the return statement on line.
+func returnTypeError(method, typ string, v any, line int) error {
+	return (&pkg.TypeError{Message: `Composer\Package\Locker::` + method + "(): Return value must be of type " + typ + ", " + php.ZvalValueName(v) + " returned"}).
+		Raised("", "Locker.php", line)
 }
 
 // StabilityFlags ports Locker::getStabilityFlags.
-func (l *Locker) StabilityFlags() (*php.Array, error) { return l.arrayOrEmpty("stability-flags", 273) }
+func (l *Locker) StabilityFlags() (*php.Array, error) {
+	return l.arrayOrEmpty("getStabilityFlags", "stability-flags", 273, 275)
+}
 
 // PreferStable ports Locker::getPreferStable; ok false is null (old lock
 // files lack the key).
 func (l *Locker) PreferStable() (value, ok bool, err error) {
-	return l.optionalBool("prefer-stable", 280)
+	return l.optionalBool("getPreferStable", "prefer-stable", 280, 284)
 }
 
 // PreferLowest ports Locker::getPreferLowest; ok false is null.
 func (l *Locker) PreferLowest() (value, ok bool, err error) {
-	return l.optionalBool("prefer-lowest", 289)
+	return l.optionalBool("getPreferLowest", "prefer-lowest", 289, 293)
 }
 
 // PlatformOverrides ports Locker::getPlatformOverrides.
 func (l *Locker) PlatformOverrides() (*php.Array, error) {
-	return l.arrayOrEmpty("platform-overrides", 301)
+	return l.arrayOrEmpty("getPlatformOverrides", "platform-overrides", 301, 303)
 }
 
 // Aliases ports Locker::getAliases: a list of ['package' => ...,
 // 'version' => ..., 'alias' => ..., 'alias_normalized' => ...].
-func (l *Locker) Aliases() (*php.Array, error) { return l.arrayOrEmpty("aliases", 313) }
+func (l *Locker) Aliases() (*php.Array, error) {
+	return l.arrayOrEmpty("getAliases", "aliases", 313, 315)
+}
 
 // PluginAPI ports Locker::getPluginApi.
 func (l *Locker) PluginAPI() (string, error) {
@@ -341,29 +413,39 @@ func (l *Locker) PluginAPI() (string, error) {
 	return "1.1.0", nil
 }
 
-func (l *Locker) arrayOrEmpty(key string, line int) (*php.Array, error) {
+// arrayOrEmpty is `return $lockData[key] ?? [];` of an array-typed
+// method (lock data read at line, returned at ret).
+func (l *Locker) arrayOrEmpty(method, key string, line, ret int) (*php.Array, error) {
 	lockData, err := l.lockData(line)
 	if err != nil {
 		return nil, err
 	}
-	if v, ok := lockData.GetArray(key); ok {
+	v, _ := lockData.Get(key)
+	switch v := v.(type) {
+	case nil:
+		return php.NewArray(), nil
+	case *php.Array:
 		return v, nil
 	}
 
-	return php.NewArray(), nil
+	return nil, returnTypeError(method, "array", v, ret)
 }
 
-func (l *Locker) optionalBool(key string, line int) (value, ok bool, err error) {
+// optionalBool is `return $lockData[key] ?? null;` of a ?bool method.
+func (l *Locker) optionalBool(method, key string, line, ret int) (value, ok bool, err error) {
 	lockData, err := l.lockData(line)
 	if err != nil {
 		return false, false, err
 	}
 	v, _ := lockData.Get(key)
-	if v == nil {
+	switch v := v.(type) {
+	case nil:
 		return false, false, nil
+	case bool:
+		return v, true, nil
 	}
 
-	return php.ToBool(v), true, nil
+	return false, false, returnTypeError(method, "?bool", v, ret)
 }
 
 // lockData is LockData called at line of Locker.php (the frame of its
@@ -838,4 +920,24 @@ func providerDescription(provider pkg.PackageInterface, target string) (string, 
 	}
 
 	return description, nil
+}
+
+// lockOffset is $entry[$key] read (not in isset()) at line of Locker.php:
+// a missing key is the "Undefined array key" warning, an entry that is a
+// string the TypeError of a string offset, any other scalar PHP's "Trying
+// to access array offset" warning (null for it).
+func lockOffset(entry any, key string, line int) (any, error) {
+	switch e := entry.(type) {
+	case *php.Array:
+		v, ok := e.Get(key)
+		if !ok {
+			return nil, &util.ErrorException{Site: phperr.At("Locker.php", line), Message: `Undefined array key "` + key + `"`}
+		}
+
+		return v, nil
+	case string:
+		return nil, (&pkg.TypeError{Message: "Cannot access offset of type string on string"}).Raised("", "Locker.php", line)
+	}
+
+	return nil, &util.ErrorException{Site: phperr.At("Locker.php", line), Message: "Trying to access array offset on " + php.ZvalValueName(entry)}
 }

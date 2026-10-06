@@ -172,7 +172,9 @@ func CreateRepo(repoConfig any, rm *RepositoryManager) (RepositoryInterface, err
 // be nil; with one, it loads the configuration's credentials first.
 func DefaultRepos(out io.IO, cfg *config.Config, rm *RepositoryManager) (*NameMap[RepositoryInterface], error) {
 	if out != nil {
-		out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
+		if err := out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
+			return nil, phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, "RepositoryFactory.php", 91)
+		}
 	}
 
 	repos, err := createRepos(rm, cfg.Repositories())

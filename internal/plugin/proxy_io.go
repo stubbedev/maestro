@@ -212,12 +212,14 @@ func (p *phpIO) SetAuthentication(repositoryName, username string, password *str
 // LoadConfiguration implements io.IO: the PHP IO's loadConfiguration()
 // with maestro's Config (its process-timeout reaches maestro through
 // ProcessExecutor::setTimeout(), which PHP syncs).
-func (p *phpIO) LoadConfiguration(cfg io.Config, _ func(timeout int)) {
+func (p *phpIO) LoadConfiguration(cfg io.Config, _ func(timeout int)) error {
 	c, ok := cfg.(interface{ Config() *config.Config })
 	if !ok {
-		return
+		return nil
 	}
 	p.do("loadConfiguration", p.r.value(c.Config()))
+
+	return nil
 }
 
 func contextValue(context *php.Array) *php.Array {

@@ -425,7 +425,7 @@ func (i *Installer) Run() (int, error) {
 		i.autoloadGenerator.SetPlatformRequirementFilter(i.platformRequirementFilter)
 		classMap, err := i.autoloadGenerator.DumpAutoloads(i.config, localRepo, i.pkg, i.installationManager, "composer", i.optimizeAutoloader, "", i.locker)
 		if err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->dump`, "Installer.php", 389)
 		}
 
 		if i.strictPsrAutoloader && classMap != nil && len(classMap.PsrViolations()) > 0 {
@@ -1078,7 +1078,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 
 	devPackageNames, err := i.locker.DevPackageNames()
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Package\Locker->getDevPackageNames`, "Installer.php", 875)
 	}
 	localRepo.SetDevPackageNames(devPackageNames)
 	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); err != nil {
@@ -1110,17 +1110,17 @@ func (i *Installer) verifyLock(lockedRepository *repository.LockArrayRepository)
 
 	platformRepo, err := i.createPlatformRepo(false)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Installer->createPlatformRepo`, "Installer.php", 764)
 	}
 	// creating repository set
 	policy, err := i.createPolicy(false, nil)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Installer->createPolicy`, "Installer.php", 766)
 	}
 	// use aliases from lock file only, so empty root aliases here
 	repositorySet, err := i.createRepositorySet(false, platformRepo, nil, lockedRepository)
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Installer->createRepositorySet`, "Installer.php", 768)
 	}
 	if err := repositorySet.AddRepository(lockedRepository); err != nil {
 		return 0, err
@@ -1249,6 +1249,7 @@ func (i *Installer) createPlatformRepo(forUpdate bool) (*repository.PlatformRepo
 		platformOverrides, err = i.configArray("platform")
 	} else {
 		platformOverrides, err = i.locker.PlatformOverrides()
+		err = phperr.Call(err, `Composer\Package\Locker->getPlatformOverrides`, "Installer.php", 904)
 	}
 	if err != nil {
 		return nil, err
@@ -1288,10 +1289,10 @@ func (i *Installer) createRepositorySet(forUpdate bool, platformRepo *repository
 	} else {
 		var err error
 		if minimumStability, err = i.locker.MinimumStability(); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Locker->getMinimumStability`, "Installer.php", 923)
 		}
 		if stabilityFlags, err = i.locker.StabilityFlags(); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Locker->getStabilityFlags`, "Installer.php", 924)
 		}
 
 		packages, err := lockedRepository.Packages()
@@ -1386,10 +1387,10 @@ func (i *Installer) createPolicy(forUpdate bool, lockedRepo *repository.LockArra
 	if !forUpdate {
 		var err error
 		if preferStable, stableOK, err = i.locker.PreferStable(); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Locker->getPreferStable`, "Installer.php", 984)
 		}
 		if preferLowest, lowestOK, err = i.locker.PreferLowest(); err != nil {
-			return nil, err
+			return nil, phperr.Call(err, `Composer\Package\Locker->getPreferLowest`, "Installer.php", 985)
 		}
 	}
 	// old lock file without prefer stable/lowest will return null

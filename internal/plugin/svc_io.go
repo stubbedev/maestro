@@ -215,9 +215,7 @@ func (r *Runtime) registerIO() {
 		if err != nil {
 			return nil, err
 		}
-		out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
-
-		return nil, nil
+		return nil, out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
 	})
 	// ConsoleIO::enableDebugging($startTime): microtime(true) in PHP.
 	method("enableDebugging", func(out io.IO, a args) (any, error) {

@@ -248,7 +248,9 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 	}
 
 	// we need to manually load the configuration to pass the auth credentials to the io interface!
-	cio.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
+	if err := cio.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
+		return 0, phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, createProjectFile, 195)
+	}
 
 	c.suggestedPackagesReporter = installer.NewSuggestedPackagesReporter(cio)
 

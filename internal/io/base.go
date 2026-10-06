@@ -3,7 +3,11 @@
 package io
 
 import (
+	"errors"
+	"strconv"
+
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // writer is the part of IO the shared BaseIO code dispatches to, like
@@ -96,7 +100,9 @@ func equalNullable(a, b *string) bool {
 	return *a == *b
 }
 
-// array returns a config value as an array (an empty one when it is not).
+// array returns a config value as an array (an empty one when it is not:
+// Config::get gives arrays for the auth keys, Config::merge rejects
+// others).
 func array(v any) *php.Array {
 	if a, ok := v.(*php.Array); ok {
 		return a
@@ -105,25 +111,78 @@ func array(v any) *php.Array {
 	return php.NewArray()
 }
 
-// field is $array[$key] of a credentials array, as a string.
-func field(v any, key string) string {
-	f, _ := array(v).Get(key)
+// NewWarning makes the \ErrorException Composer's ErrorHandler throws for
+// a PHP warning raised at site; internal/util, above this package, sets it
+// to its ErrorException.
+var NewWarning = func(message string, site phperr.Site) error { return errors.New(message) }
 
-	return php.ToString(f)
-}
+const baseIOFile = "BaseIO.php"
 
-// nullableField is $array[$key] ?? null.
-func nullableField(v any, key string) *string {
-	f, ok := array(v).Get(key)
-	if !ok || f == nil {
-		return nil
+// dim is $v[$key] read (not in isset()) at line of BaseIO.php: a missing
+// key is the "Undefined array key" warning, a string the TypeError of a
+// string offset, other scalars the "Trying to access array offset"
+// warning.
+func dim(v any, key string, line int) (any, error) {
+	switch c := v.(type) {
+	case *php.Array:
+		f, ok := c.Get(key)
+		if !ok {
+			return nil, NewWarning(`Undefined array key "`+key+`"`, phperr.At(baseIOFile, line))
+		}
+
+		return f, nil
+	case string:
+		return nil, (&php.EngineError{Class: "TypeError", Message: "Cannot access offset of type string on string"}).Raised("", baseIOFile, line)
 	}
 
-	return new(php.ToString(f))
+	return nil, NewWarning("Trying to access array offset on "+php.ZvalValueName(v), phperr.At(baseIOFile, line))
+}
+
+// authenticate is checkAndSetAuthentication(string $repositoryName,
+// string $username, ?string $password) called at line of BaseIO.php with
+// a configuration's values, whose types strict_types checks.
+func (b *BaseIO) authenticate(domain php.Key, username, password any, line int) error {
+	for i, a := range []struct {
+		name     string
+		v        any
+		nullable bool
+	}{{"repositoryName", domain.Value(), false}, {"username", username, false}, {"password", password, true}} {
+		if _, ok := a.v.(string); ok || a.nullable && a.v == nil {
+			continue
+		}
+		typ := "string"
+		if a.nullable {
+			typ = "?string"
+		}
+
+		return (&php.EngineError{Class: "TypeError", Message: `Composer\IO\BaseIO::checkAndSetAuthentication(): Argument #` + strconv.Itoa(i+1) + " ($" + a.name + ") must be of type " + typ + ", " + php.ZvalValueName(a.v) + " given"}).
+			Called(`Composer\IO\BaseIO->checkAndSetAuthentication`, phperr.At(baseIOFile, 95), baseIOFile, line)
+	}
+	var pw *string
+	if s, ok := password.(string); ok {
+		pw = &s
+	}
+	b.checkAndSetAuthentication(domain.String(), username.(string), pw) //nolint:forcetypeassert // checked above
+
+	return nil
+}
+
+// credentials reads $cred[$k1] and $cred[$k2] at line, in order.
+func credentials(cred any, k1, k2 string, line int) (any, any, error) {
+	v1, err := dim(cred, k1, line)
+	if err != nil {
+		return nil, nil, err
+	}
+	v2, err := dim(cred, k2, line)
+
+	return v1, v2, err
 }
 
 // LoadConfiguration loads the auth settings of config (loadConfiguration).
-func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) {
+// Values of the wrong type fail as under Composer's strict_types: the
+// TypeErrors of checkAndSetAuthentication() and
+// ProcessExecutor::setTimeout(int), the warnings of missing keys.
+func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) error {
 	bitbucketOauth := array(config.Get("bitbucket-oauth"))
 	githubOauth := array(config.Get("github-oauth"))
 	gitlabOauth := array(config.Get("gitlab-oauth"))
@@ -137,58 +196,88 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 	// reload oauth tokens from config if available
 
 	for domain, cred := range bitbucketOauth.All() {
-		b.checkAndSetAuthentication(domain.String(), field(cred, "consumer-key"), new(field(cred, "consumer-secret")))
+		key, secret, err := credentials(cred, "consumer-key", "consumer-secret", 131)
+		if err != nil {
+			return err
+		}
+		if err := b.authenticate(domain, key, secret, 131); err != nil {
+			return err
+		}
 	}
 
 	for domain, token := range githubOauth.All() {
-		d := domain.String()
-		if d != "github.com" {
-			b.addImplicitDomain(config, "github-domains", d)
+		if d := domain.Value(); d != "github.com" {
+			b.addImplicitDomain(config, "github-domains", domain.String())
 		}
 
-		b.checkAndSetAuthentication(d, php.ToString(token), new("x-oauth-basic"))
+		if err := b.authenticate(domain, token, "x-oauth-basic", 140); err != nil {
+			return err
+		}
 	}
 
 	for domain, token := range gitlabOauth.All() {
-		d := domain.String()
-		if d != "gitlab.com" {
-			b.addImplicitDomain(config, "gitlab-domains", d)
+		if d := domain.Value(); d != "gitlab.com" {
+			b.addImplicitDomain(config, "gitlab-domains", domain.String())
 		}
 
-		t := php.ToString(token)
 		if _, ok := token.(*php.Array); ok {
-			t = field(token, "token")
+			var err error
+			if token, err = dim(token, "token", 149); err != nil {
+				return err
+			}
 		}
-		b.checkAndSetAuthentication(d, t, new("oauth2"))
+		if err := b.authenticate(domain, token, "oauth2", 150); err != nil {
+			return err
+		}
 	}
 
 	for domain, token := range gitlabToken.All() {
-		d := domain.String()
-		if d != "gitlab.com" {
-			b.addImplicitDomain(config, "gitlab-domains", d)
+		if d := domain.Value(); d != "gitlab.com" {
+			b.addImplicitDomain(config, "gitlab-domains", domain.String())
 		}
 
-		username, password := php.ToString(token), "private-token"
+		var username, password any = token, "private-token"
 		if _, ok := token.(*php.Array); ok {
-			username, password = field(token, "username"), field(token, "token")
+			var err error
+			if username, err = dim(token, "username", 159); err != nil {
+				return err
+			}
+			if password, err = dim(token, "token", 160); err != nil {
+				return err
+			}
 		}
-		b.checkAndSetAuthentication(d, username, new(password))
+		if err := b.authenticate(domain, username, password, 161); err != nil {
+			return err
+		}
 	}
 
 	for domain, cred := range forgejoToken.All() {
-		d := domain.String()
-		b.addImplicitDomain(config, "forgejo-domains", d)
+		b.addImplicitDomain(config, "forgejo-domains", domain.String())
 
-		b.checkAndSetAuthentication(d, field(cred, "username"), new(field(cred, "token")))
+		username, token, err := credentials(cred, "username", "token", 170)
+		if err != nil {
+			return err
+		}
+		if err := b.authenticate(domain, username, token, 170); err != nil {
+			return err
+		}
 	}
 
 	// reload http basic credentials from config if available
 	for domain, cred := range httpBasic.All() {
-		b.checkAndSetAuthentication(domain.String(), field(cred, "username"), new(field(cred, "password")))
+		username, password, err := credentials(cred, "username", "password", 175)
+		if err != nil {
+			return err
+		}
+		if err := b.authenticate(domain, username, password, 175); err != nil {
+			return err
+		}
 	}
 
 	for domain, token := range bearerToken.All() {
-		b.checkAndSetAuthentication(domain.String(), php.ToString(token), new("bearer"))
+		if err := b.authenticate(domain, token, "bearer", 179); err != nil {
+			return err
+		}
 	}
 
 	// load custom HTTP headers from config
@@ -196,7 +285,9 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 		if headers != nil {
 			// (string) json_encode($headers): "" when encoding fails.
 			encoded, _ := php.JSONEncode(headers, 0)
-			b.checkAndSetAuthentication(domain.String(), encoded, new("custom-headers"))
+			if err := b.authenticate(domain, encoded, "custom-headers", 185); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -214,13 +305,33 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 			continue
 		}
 		encoded, _ := php.JSONEncode(sslOptions, 0)
-		b.checkAndSetAuthentication(domain.String(), "client-certificate", new(encoded))
+		if err := b.authenticate(domain, "client-certificate", encoded, 208); err != nil {
+			return err
+		}
 	}
 
-	// setup process timeout
-	if setTimeout != nil {
-		setTimeout(php.ToNativeInt(config.Get("process-timeout")))
+	// setup process timeout: ProcessExecutor::setTimeout(int $timeout)
+	timeout := config.Get("process-timeout")
+	n, ok := timeout.(int64)
+	if !ok {
+		return (&php.EngineError{Class: "TypeError", Message: `Composer\Util\ProcessExecutor::setTimeout(): Argument #1 ($timeout) must be of type int, ` + php.ZvalValueName(timeout) + " given"}).
+			Called(`Composer\Util\ProcessExecutor::setTimeout`, phperr.At("ProcessExecutor.php", 458), baseIOFile, 212)
 	}
+	if setTimeout != nil {
+		setTimeout(int(n))
+	}
+
+	return nil
+}
+
+// nullableField is $array[$key] ?? null.
+func nullableField(v any, key string) *string {
+	f, ok := array(v).Get(key)
+	if !ok || f == nil {
+		return nil
+	}
+
+	return new(php.ToString(f))
 }
 
 // addImplicitDomain adds domain to the configured *-domains list when it is

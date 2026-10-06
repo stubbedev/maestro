@@ -116,7 +116,7 @@ type IO interface {
 	// LoadConfiguration loads the auth settings of config. setTimeout
 	// receives the "process-timeout" value (ProcessExecutor::setTimeout(),
 	// which lives above this package); nil skips it.
-	LoadConfiguration(config Config, setTimeout func(timeout int))
+	LoadConfiguration(config Config, setTimeout func(timeout int)) error
 
 	Emergency(message string, context *php.Array)
 	Alert(message string, context *php.Array)

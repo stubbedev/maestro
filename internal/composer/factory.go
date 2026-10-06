@@ -347,7 +347,9 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 	if fullLoad {
 		// load auth configs into the IO instance
-		out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
+		if err := out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
+			return nil, nil, phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, "Factory.php", 357)
+		}
 
 		// load existing Composer\InstalledVersions instance if available and scripts/plugins are allowed, as they might need it
 		// we only load if the InstalledVersions class wasn't defined yet so that this is only loaded once

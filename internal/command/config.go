@@ -519,7 +519,9 @@ func (c *ConfigCommand) Execute(in console.Input, out console.Output) (int, erro
 		}
 	}
 
-	c.IO().LoadConfiguration(c.Config.ForIO(), util.SetProcessTimeout)
+	if err := c.IO().LoadConfiguration(c.Config.ForIO(), util.SetProcessTimeout); err != nil {
+		return 0, phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, configCommandFile, 213)
+	}
 
 	// List the configuration of the file settings
 	if in.Option("list") == true {

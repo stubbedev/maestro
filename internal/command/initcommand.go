@@ -590,7 +590,9 @@ func (c *InitCommand) initRepositories(cio io.IO, repositories []string) error {
 	if err != nil {
 		return err
 	}
-	cio.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout)
+	if err := cio.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
+		return phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, initFile, 234)
+	}
 
 	// RepositoryFactory::manager($io, $config)
 	httpDownloader, err := factory.CreateHttpDownloader(cio, cfg, nil)

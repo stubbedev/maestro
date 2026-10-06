@@ -21,6 +21,13 @@ var errorHandler struct {
 	shown int
 }
 
+// The warnings internal/io raises are ErrorHandler's ErrorExceptions.
+func init() {
+	io.NewWarning = func(message string, site phperr.Site) error {
+		return &ErrorException{Message: message, Site: site}
+	}
+}
+
 // RegisterErrorHandler ports ErrorHandler::register($io): the IO
 // deprecation notices are written to (Application::doRun registers its
 // ConsoleIO; before that, as after bin/composer's register(), notices

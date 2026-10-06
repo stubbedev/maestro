@@ -22,6 +22,7 @@ var paths = map[string]string{
 	"AuthHelper.php":                       "src/Composer/Util/AuthHelper.php",
 	"AutoloadGenerator.php":                "src/Composer/Autoload/AutoloadGenerator.php",
 	"BaseCommand.php":                      "src/Composer/Command/BaseCommand.php",
+	"BaseIO.php":                           "src/Composer/IO/BaseIO.php",
 	"BaseConfigCommand.php":                "src/Composer/Command/BaseConfigCommand.php",
 	"BaseDependencyCommand.php":            "src/Composer/Command/BaseDependencyCommand.php",
 	"BaseExcludeFilter.php":                "src/Composer/Package/Archiver/BaseExcludeFilter.php",
