@@ -5,8 +5,6 @@ package jsonlint
 import (
 	"strconv"
 	"unicode/utf8"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Lowest and highest values a continuation octet (10xxxxxx) may take.
@@ -111,7 +109,6 @@ func ValidateUTF8(input string) error {
 	// The fast-path flagged this input as invalid UTF-8, yet the manual scan
 	// found no fault.
 	return &InvalidEncodingError{ParsingError{
-		Site:    phperr.At("Utf8Validator.php", 303),
 		Message: "Fast-path detected an error that the manual scan could not find. Please report it at https://github.com/Seldaek/jsonlint/issues.",
 		Details: Details{Kind: EncodingDetails, Key: "0", Encoding: pos},
 	}}
@@ -137,5 +134,5 @@ func encodingError(reason, key string, pos EncodingPosition, endOfInput bool) er
 		strconv.Itoa(pos.OffsetInOctetsFromStringStart+1) + ". This character starts at octet " +
 		strconv.Itoa(pos.CharacterStartPositionFromStringStart+1) + ".)"
 
-	return &InvalidEncodingError{ParsingError{Site: phperr.At("Utf8Validator.php", 375), Message: message, Details: Details{Kind: EncodingDetails, Key: key, Encoding: pos}}}
+	return &InvalidEncodingError{ParsingError{Message: message, Details: Details{Kind: EncodingDetails, Key: key, Encoding: pos}}}
 }

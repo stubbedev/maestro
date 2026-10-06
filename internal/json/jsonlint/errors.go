@@ -6,7 +6,6 @@ package jsonlint
 
 import (
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // DetailsKind tells which keys a Details carries.
@@ -107,7 +106,6 @@ func (l Location) Array() *php.Array {
 type ParsingError struct {
 	Message string
 	Details Details
-	phperr.Site
 }
 
 func (e *ParsingError) Error() string { return e.Message }
@@ -146,7 +144,6 @@ func (*InvalidEncodingError) PHPClass() (string, int) {
 // mode). PHP's lint does not catch these either.
 type PHPError struct {
 	Message string
-	phperr.Site
 }
 
 func (e *PHPError) Error() string { return e.Message }

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Lexer symbols (Lexer::* constants).
@@ -92,7 +91,7 @@ func (l *lexer) lex() (int, error) {
 		case symSkipWhitespace, symBreakLine:
 		case symComment, symOpenComment:
 			if l.flags&AllowComments == 0 {
-				return 0, &ParsingError{Site: phperr.At("Lexer.php", 203), Message: "Lexical error on line " + itoa(l.yylineno+1) + ". Comments are not allowed.\n" + l.showPosition()}
+				return 0, &ParsingError{Message: "Lexical error on line " + itoa(l.yylineno+1) + ". Comments are not allowed.\n" + l.showPosition()}
 			}
 			until := symCloseComment
 			if symbol == symComment {
@@ -106,7 +105,7 @@ func (l *lexer) lex() (int, error) {
 				return 14, nil
 			}
 		case symCloseComment:
-			return 0, &ParsingError{Site: phperr.At("Lexer.php", 203), Message: "Lexical error on line " + itoa(l.yylineno+1) + ". Unexpected token.\n" + l.showPosition()}
+			return 0, &ParsingError{Message: "Lexical error on line " + itoa(l.yylineno+1) + ". Unexpected token.\n" + l.showPosition()}
 		default:
 			return symbol, nil
 		}
@@ -230,5 +229,5 @@ func (l *lexer) next() (int, error) {
 		return symEOF, nil
 	}
 
-	return 0, &ParsingError{Site: phperr.At("Lexer.php", 203), Message: "Lexical error on line " + itoa(l.yylineno+1) + ". Unrecognized text.\n" + l.showPosition()}
+	return 0, &ParsingError{Message: "Lexical error on line " + itoa(l.yylineno+1) + ". Unrecognized text.\n" + l.showPosition()}
 }
