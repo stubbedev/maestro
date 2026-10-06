@@ -1,5 +1,61 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## update --dry-run: versions expanded once, GOGC=200 (#26, 2026-10-07)
+
+Same machine, projects and command as #22 below (`update --dry-run
+--no-plugins --no-scripts -q`, COMPOSER_TEST_SUITE=1, binaries
+interleaved round by round, medians). "before" is 68c361d, "after" is
+96dab1b; "-gc" is a3c7a1c (without the GOGC change). Other agents' work
+kept the load average at 4 to 14; it is given per row. Not a quiet
+machine, so the wall times are the quietest available, not quiet ones.
+
+| Project | Cache | Composer | before | after (-gc) | after | CPU before → -gc → after |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | offline (20 rounds, load 4-9) | | 234 ms | 214 ms | 198 ms | 980 → 832 → 712 ms |
+| laravel | warm (12 rounds, load 5-13) | 3.21 s | 584 ms | | 398 ms | 1034 → 742 ms |
+| laravel | warm (12 rounds, load 7-11) | 2.45 s | 345 ms | | 308 ms | 994 → 706 ms |
+| symfony | offline (10 rounds, load 12-14) | | 704 ms | | 588 ms | 2579 → 1934 ms |
+| symfony | warm (8 rounds, load 12) | | 661 ms | | 624 ms | 2499 → 1891 ms |
+
+The laravel target (≥8x Composer, warm): 8.1x and 7.9x by median in the
+two rounds (Composer itself moved from 3.2 to 2.45 s between them), 7.3x
+to 7.7x by the fastest runs; against #22's Composer median (2.8-2.9 s)
+308 ms is 9.2x. Still not a quiet-machine number.
+
+What changed (normal and -v output identical, offline and online, on
+both projects; the e2e update, require-remove, laravel, symfony,
+security, outdated, commands, plugin-download-events, plugin-merge and
+plugin-flex scenarios pass):
+
+- **Versions expanded once.** The speculation's version scan now tells
+  whether what it read of a minified list is exactly what the load reads
+  (every version has a usable version_normalized, branch aliases read
+  without error); those versions go to the load with the packages built
+  ahead, and the load decides from them which versions it builds,
+  expanding the list only up to the last one not built ahead (in this
+  run, 131 of 170 loads took this path; the other 39 decoded files the
+  speculation had not handed over yet). The prebuild expands only up to
+  the last version accepted and loads each version in place (the
+  notification-url set only for the time of the load) instead of copying
+  it, and copies of arrays without holes copy the index instead of
+  building it. `expandEach` and its callbacks went from ~205 to ~125 ms
+  CPU per run, the prebuild from ~170 to ~70 ms.
+- **GOGC=200 unless GOGC is set.** A run builds most of what it keeps
+  early, so the default collector ran 18 times on laravel. Peak RSS:
+  laravel ~160 → ~185 MB, symfony ~280 → ~320 MB (GOGC=400 saved
+  another ~85 ms CPU but grew symfony's peak to ~510 MB).
+- **Cache housekeeping.** `clear-cache` removes maestro's decoded p2
+  directory when it clears cache-repo-dir, and `--gc` removes slots not
+  written for cache-ttl, silently. The slots stay twice the JSON's size:
+  dropping the JSON copy means hashing on every read, which costs more
+  than the copy saves (#22).
+
+Not done: the 39 loads above still decode (from the decoded cache)
+files the speculation has not handed over (~50 ms CPU); fresh 200
+responses are decoded without storing a slot; the pool builder's first
+wave still waits for laravel/framework's file; the pool optimizer
+(~35 ms wall); a fast scan of `require` names before a full decode.
+
 ## Git mirrors read in Go (issue #23, 2026-10-06)
 
 Machine as below, git 2.55.0, the project of #18 (psr/log, psr/container
