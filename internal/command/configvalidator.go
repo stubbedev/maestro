@@ -325,7 +325,17 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	}
 
 	if !isArray {
-		return nil, nil, nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::load`, 1, "config", "array", manifest)
+		// isset($manifest['version']) is false, so $manifest['version'] =
+		// '1.0.0' writes into the scalar: an error, or, for false (and
+		// null), a new array after the deprecation notice
+		arr, _, deprecated, e := php.WritableArray(manifest)
+		if e != nil {
+			return nil, nil, nil, e.Raised("", "ConfigValidator.php", 221)
+		}
+		if deprecated {
+			util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At("ConfigValidator.php", 221))
+		}
+		m = arr
 	}
 	l := loader.NewValidatingArrayLoader(loader.NewArrayLoader(nil, true), nil, arrayLoaderValidationFlags)
 	if !isset(m, "version") {
@@ -334,7 +344,10 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	if !isset(m, "name") {
 		m.Set("name", "dummy/dummy")
 	}
-	if _, lerr := l.Load(m, pkg.ClassCompletePackage); lerr != nil {
+	leave := phperr.Enter(`Composer\Package\Loader\ValidatingArrayLoader->load`, "ConfigValidator.php", 226)
+	_, lerr := l.Load(m, pkg.ClassCompletePackage)
+	leave()
+	if lerr != nil {
 		var ipe *loader.InvalidPackageError
 		if !errors.As(lerr, &ipe) {
 			return nil, nil, nil, lerr

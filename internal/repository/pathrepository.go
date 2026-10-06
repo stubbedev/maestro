@@ -64,15 +64,29 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 	r.process = process
 	r.versionGuesser = version.NewVersionGuesser(NewGuesserProcess(process), out)
 	r.repoConfig = repoConfig
-	r.options = php.NewArray()
-	if v, _ := repoConfig.Get("options"); v != nil {
-		options, ok := v.(*php.Array)
-		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Repository\PathRepository::__construct`, 1, "repoConfig", "array{url?: string, options?: array}", v)
-		}
-		r.options = options.Clone()
+	// $this->options = $repoConfig['options'] ?? [] (an untyped property)
+	options, _ := repoConfig.Get("options")
+	if a, ok := options.(*php.Array); ok {
+		r.options = a.Clone()
 	}
-	if v, _ := r.options.Get("relative"); v == nil {
+	// if (!isset($this->options['relative'])) $this->options['relative'] =
+	// ...: options that are not an array fail there, or, false, become
+	// one after a deprecation notice
+	var relative any
+	if r.options != nil {
+		relative, _ = r.options.Get("relative")
+	}
+	if relative == nil {
+		if r.options == nil {
+			arr, _, deprecated, e := php.WritableArray(options)
+			if e != nil {
+				return nil, e.Raised("", "PathRepository.php", 124)
+			}
+			if deprecated {
+				util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At("PathRepository.php", 124))
+			}
+			r.options = arr
+		}
 		r.options.Set("relative", !util.IsAbsolutePath(r.url))
 	}
 

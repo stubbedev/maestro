@@ -72,7 +72,8 @@ type ComposerRepository struct {
 	repository.ArrayRepository
 
 	repoConfig     *php.Array
-	options        *php.Array
+	options        *php.Array // nil when rawOptions is not an array
+	rawOptions     any
 	url            string
 	baseURL        string
 	io             io.IO
@@ -224,11 +225,10 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 		r.allowSslDowngrade = true
 	}
 
-	options, _ := repoConfig.Get("options")
-	r.options, ok = options.(*php.Array)
-	if !ok {
-		return nil, &pkg.TypeError{Message: "Composer\\Repository\\ComposerRepository::__construct(): $repoConfig['options'] must be of type array, " + php.TypeName(options) + " given"}
-	}
+	// $this->options = $repoConfig['options'] (an untyped property): a
+	// value that is not an array fails where it reaches a typed parameter
+	r.rawOptions, _ = repoConfig.Get("options")
+	r.options, _ = r.rawOptions.(*php.Array)
 	r.url = url
 
 	// force url for packagist.org to repo.packagist.org
@@ -677,7 +677,7 @@ func (r *ComposerRepository) loadPackageList(packageFilter string) ([]string, er
 	if packageFilter != "" {
 		url += "?filter=" + php.Urlencode(packageFilter)
 
-		return r.getPackageNamesList(url)
+		return r.getPackageNamesList(url, 520)
 	}
 
 	const cacheKey = "package-list.txt"
@@ -685,7 +685,7 @@ func (r *ComposerRepository) loadPackageList(packageFilter string) ([]string, er
 		return cached, err
 	}
 
-	names, err := r.getPackageNamesList(url)
+	names, err := r.getPackageNamesList(url, 535)
 	if err != nil {
 		return nil, err
 	}
@@ -700,13 +700,28 @@ func (r *ComposerRepository) loadPackageList(packageFilter string) ([]string, er
 }
 
 // getPackageNamesList GETs a list API URL and returns its packageNames.
-func (r *ComposerRepository) getPackageNamesList(url string) ([]string, error) {
-	result, err := r.getJSON(url, r.options)
+func (r *ComposerRepository) getPackageNamesList(url string, line int) ([]string, error) {
+	options, err := r.getOptions(line)
+	if err != nil {
+		return nil, err
+	}
+	result, err := r.getJSON(url, options)
 	if err != nil {
 		return nil, err
 	}
 
 	return stringList(result, "packageNames"), nil
+}
+
+// getOptions is $this->options passed to HttpDownloader::get() at line:
+// the TypeError of options that are not an array (strict_types).
+func (r *ComposerRepository) getOptions(line int) (*php.Array, error) {
+	if r.options == nil {
+		return nil, pkg.ArgumentTypeError(`Composer\Util\HttpDownloader::get`, 2, "options", "array", r.rawOptions).
+			Called(`Composer\Util\HttpDownloader->get`, phperr.At("HttpDownloader.php", 105), "ComposerRepository.php", line)
+	}
+
+	return r.options, nil
 }
 
 // getJSON is $this->httpDownloader->get($url, $options)->decodeJson()
@@ -862,7 +877,11 @@ func (r *ComposerRepository) Search(query string, mode int, typ string) ([]repos
 		url := strings.ReplaceAll(r.searchURL, "%query%", php.Urlencode(query))
 		url = strings.ReplaceAll(url, "%type%", typ)
 
-		search, err := r.getJSON(url, r.options)
+		options, err := r.getOptions(624)
+		if err != nil {
+			return nil, err
+		}
+		search, err := r.getJSON(url, options)
 		if err != nil {
 			return nil, err
 		}
@@ -912,7 +931,7 @@ func (r *ComposerRepository) Search(query string, mode int, typ string) ([]repos
 			vendor, _ := m.Named("vendor")
 			q, _ := m.Named("query")
 			url := r.listURL + "?vendor=" + php.Urlencode(vendor) + "&filter=" + php.Urlencode(q+"*")
-			names, err := r.getPackageNamesList(url)
+			names, err := r.getPackageNamesList(url, 661)
 			if err != nil {
 				return nil, err
 			}
@@ -992,7 +1011,11 @@ func (r *ComposerRepository) Providers(packageName string) ([]repository.Provide
 	result := &repository.NameMap[repository.ProviderInfo]{}
 
 	if r.providersAPIURL != "" {
-		apiResult, err := r.getJSON(strings.ReplaceAll(r.providersAPIURL, "%package%", packageName), r.options)
+		options, err := r.getOptions(1014)
+		if err != nil {
+			return nil, err
+		}
+		apiResult, err := r.getJSON(strings.ReplaceAll(r.providersAPIURL, "%package%", packageName), options)
 		if err != nil {
 			if statusCode(err) == 404 {
 				return nil, nil

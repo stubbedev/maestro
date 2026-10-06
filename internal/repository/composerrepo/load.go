@@ -370,18 +370,22 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 // the packages of a file's version list (raw, minified or not). It only
 // reads the repository, so files are built in parallel.
 func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSource, realName string, constraint semver.ConstraintInterface, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded) ([]pkg.PackageInterface, error) {
-	versionList := asArray(raw)
-	versions := make([]*php.Array, 0, versionList.Len())
-	for _, v := range versionList.All() {
+	items := asArray(raw).Values()
+	if minified {
+		var err error
+		if items, err = expandVersions(items); err != nil {
+			return nil, err
+		}
+	}
+	versions := make([]*php.Array, 0, len(items))
+	for _, v := range items {
 		data, ok := v.(*php.Array)
 		if !ok {
-			return nil, &pkg.TypeError{Message: "Cannot access offset of type string on " + php.TypeName(v)}
+			// isset($version['version_normalized']) is false, then
+			// $version['version'] is read for normalize()
+			return nil, versionOffsetError(v)
 		}
 		versions = append(versions, data)
-	}
-
-	if minified {
-		versions = metadataminifier.Expand(versions)
 	}
 
 	versionsToLoad := make([]*php.Array, 0, len(versions))
@@ -461,4 +465,88 @@ func (r *ComposerRepository) isVersionAcceptable(constraint semver.ConstraintInt
 	}
 
 	return false, nil
+}
+
+// versionOffsetError is reading $version['version'] (ComposerRepository.php
+// line 1329) of a version entry that is not an array: a TypeError for a
+// string, else PHP's "Trying to access array offset" warning, which
+// Composer's ErrorHandler throws.
+func versionOffsetError(v any) error {
+	if _, ok := v.(string); ok {
+		return (&pkg.TypeError{Message: "Cannot access offset of type string on string"}).Raised("", "ComposerRepository.php", 1329)
+	}
+
+	return &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(v), Site: phperr.At("ComposerRepository.php", 1329)}
+}
+
+// expandVersions is MetadataMinifier::expand($versions). Entries that are
+// all arrays go through metadataminifier.Expand; otherwise PHP's loop is
+// followed with its untyped values: a falsy expanded version is replaced
+// by the next entry, an entry that is not an array is foreach()'s warning,
+// and an expanded version that is a truthy scalar fails the write or
+// unset() of each key (composer/metadata-minifier declares no
+// strict_types).
+func expandVersions(items []any) ([]any, error) {
+	arrays := make([]*php.Array, 0, len(items))
+	for _, v := range items {
+		a, ok := v.(*php.Array)
+		if !ok {
+			break
+		}
+		arrays = append(arrays, a)
+	}
+	if len(arrays) == len(items) {
+		expanded := metadataminifier.Expand(arrays)
+		out := make([]any, len(expanded))
+		for i, a := range expanded {
+			out[i] = a
+		}
+
+		return out, nil
+	}
+
+	const file = "MetadataMinifier.php"
+	expanded := make([]any, 0, len(items))
+	var expandedVersion any
+	for _, versionData := range items {
+		if !php.ToBool(expandedVersion) {
+			expandedVersion = versionData
+			expanded = append(expanded, expandedVersion)
+
+			continue
+		}
+
+		data, ok := versionData.(*php.Array)
+		if !ok {
+			return nil, &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(versionData) + " given", Site: phperr.At(file, 34)}
+		}
+		// arrays are values: the entry appended before keeps its keys
+		if a, ok := expandedVersion.(*php.Array); ok {
+			expandedVersion = a.Clone()
+		}
+		for k, val := range data.All() {
+			if val == "__unset" {
+				switch c := expandedVersion.(type) {
+				case *php.Array:
+					c.DeleteKey(k)
+				case string:
+					return nil, (&php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}).Raised("", file, 36)
+				default:
+					return nil, (&php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}).Raised("", file, 36)
+				}
+
+				continue
+			}
+			// expandedVersion is truthy: never null or false here
+			a, _, _, e := php.WritableArray(expandedVersion)
+			if e != nil {
+				return nil, e.Raised("", file, 38)
+			}
+			a.SetKey(k, val)
+		}
+
+		expanded = append(expanded, expandedVersion)
+	}
+
+	return expanded, nil
 }

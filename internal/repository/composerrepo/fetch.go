@@ -39,13 +39,30 @@ var httpURLRegex = php.MustCompile(`{^https?://}i`)
 
 // preFileDownload dispatches PRE_FILE_DOWNLOAD for a metadata URL: the
 // URL and transport options to use. The options are the repository's
-// own (or a listener's): callers clone them before modifying.
-func (r *ComposerRepository) preFileDownload(filename string) (string, *php.Array, error) {
+// own (or a listener's): callers clone them before modifying. eventLine is
+// the line of the caller's setTransportOptions($this->options) call,
+// getLine that of its HttpDownloader call: where options that are not an
+// array fail (strict_types).
+func (r *ComposerRepository) preFileDownload(filename string, eventLine, getLine int) (string, *php.Array, error) {
 	if r.eventDispatcher == nil {
+		if r.options == nil {
+			fn, decl := `Composer\Util\HttpDownloader::get`, phperr.At("HttpDownloader.php", 105)
+			if getLine == 2012 {
+				fn, decl = `Composer\Util\HttpDownloader::add`, phperr.At("HttpDownloader.php", 131)
+			}
+
+			return "", nil, pkg.ArgumentTypeError(fn, 2, "options", "array", r.rawOptions).
+				Called(strings.Replace(fn, "::", "->", 1), decl, "ComposerRepository.php", getLine)
+		}
+
 		return filename, r.options, nil
 	}
 
 	event := eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, r.httpDownloader, filename, "metadata", &MetadataContext{Repository: r})
+	if r.options == nil {
+		return "", nil, pkg.ArgumentTypeError(`Composer\Plugin\PreFileDownloadEvent::setTransportOptions`, 1, "options", "array", r.rawOptions).
+			Called(`Composer\Plugin\PreFileDownloadEvent->setTransportOptions`, phperr.At("PreFileDownloadEvent.php", 154), "ComposerRepository.php", eventLine)
+	}
 	event.SetTransportOptions(r.options)
 	if _, err := r.eventDispatcher.Dispatch(event.Name(), event); err != nil {
 		return "", nil, err
@@ -155,7 +172,7 @@ func (r *ComposerRepository) fetchFile(filename, cacheKey, sha256 string, storeL
 // fetchFileAttempt is one try of fetchFile's loop; retry tells it to
 // continue with the next try.
 func (r *ComposerRepository) fetchFileAttempt(filename *string, cacheKey, sha256 string, storeLastModifiedTime bool, retries int) (*php.Array, bool, error) {
-	processed, options, err := r.preFileDownload(*filename)
+	processed, options, err := r.preFileDownload(*filename, 1755, 1761)
 	if err != nil {
 		return nil, false, err
 	}
@@ -264,7 +281,7 @@ func (r *ComposerRepository) fetchFileIfLastModified(filename, cacheKey, lastMod
 }
 
 func (r *ComposerRepository) fetchFileIfLastModifiedAttempt(filename, cacheKey, lastModifiedTime string) (*php.Array, bool, error) {
-	filename, options, err := r.preFileDownload(filename)
+	filename, options, err := r.preFileDownload(filename, 1850, 1860)
 	if err != nil {
 		return nil, false, err
 	}
@@ -365,7 +382,7 @@ func (r *ComposerRepository) asyncFetchFile(filename, cacheKey, lastModifiedTime
 		return f, nil
 	}
 
-	filename, options, err := r.preFileDownload(filename)
+	filename, options, err := r.preFileDownload(filename, 1928, 2012)
 	if err != nil {
 		return nil, err
 	}

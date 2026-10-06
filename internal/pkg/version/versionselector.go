@@ -119,7 +119,7 @@ func (s *VersionSelector) FindBestCandidate(packageName string, opts FindBestCan
 
 	found, err := s.repositorySet.FindPackages(php.Strtolower(packageName), constraint, opts.RepoSetFlags)
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Repository\RepositorySet->findPackages`, "VersionSelector.php", 86)
 	}
 	candidates := append([]pkg.PackageInterface(nil), found...)
 

@@ -146,10 +146,11 @@ func nonEmpty(data *php.Array, key string) bool {
 func FromString(repository string, allowFilesystem bool, rm *RepositoryManager) (RepositoryInterface, error) {
 	repoConfig, err := ConfigFromString(repository, allowFilesystem, rm.HTTPDownloader())
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Repository\RepositoryFactory::configFromString`, "RepositoryFactory.php", 59)
 	}
+	repo, err := CreateRepo(repoConfig, rm)
 
-	return CreateRepo(repoConfig, rm)
+	return repo, phperr.Call(err, `Composer\Repository\RepositoryFactory::createRepo`, "RepositoryFactory.php", 61)
 }
 
 // CreateRepo ports RepositoryFactory::createRepo (Composer deprecated
@@ -157,7 +158,7 @@ func FromString(repository string, allowFilesystem bool, rm *RepositoryManager) 
 func CreateRepo(repoConfig any, rm *RepositoryManager) (RepositoryInterface, error) {
 	repos, err := createRepos(rm, php.ListOf(repoConfig))
 	if err != nil {
-		return nil, err
+		return nil, phperr.Call(err, `Composer\Repository\RepositoryFactory::createRepos`, "RepositoryFactory.php", 73)
 	}
 	for _, repo := range repos.All() {
 		return repo, nil

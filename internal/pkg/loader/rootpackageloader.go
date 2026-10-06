@@ -132,14 +132,20 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 	}
 
 	if ms := get(config, "minimum-stability"); ms != nil {
-		s, ok := ms.(string)
-		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Semver\VersionParser::normalizeStability`, 1, "stability", "string", ms)
+		// normalizeStability($stability) is untyped (composer/semver
+		// declares no strict_types) and starts with (string) $stability:
+		// a scalar is cast, an array is PHP's "Array to string
+		// conversion" warning, which Composer's ErrorHandler throws
+		const normalizeStability = `Composer\Semver\VersionParser::normalizeStability`
+		if _, ok := ms.(*php.Array); ok {
+			err := &util.ErrorException{Message: "Array to string conversion", Site: phperr.At("VersionParser.php", 89)}
+
+			return nil, phperr.Call(err, normalizeStability, "RootPackageLoader.php", 150)
 		}
 
-		normalized, err := semver.NormalizeStability(s)
+		normalized, err := semver.NormalizeStability(php.ToString(ms))
 		if err != nil {
-			return nil, err
+			return nil, phperr.Call(err, normalizeStability, "RootPackageLoader.php", 150)
 		}
 
 		realPackage.SetMinimumStability(normalized)

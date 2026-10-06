@@ -42,7 +42,12 @@ var _ ConfigurableRepository = (*ArtifactRepository)(nil)
 func NewArtifactRepository(repoConfig *php.Array, out mio.IO) (*ArtifactRepository, error) {
 	r := &ArtifactRepository{loader: loader.NewArrayLoader(nil, false), repoConfig: repoConfig, io: out}
 	r.bind(r, r)
-	urlValue, _ := repoConfig.Get("url")
+	urlValue, set := repoConfig.Get("url")
+	if !set {
+		// $repoConfig['url'] read without isset: the warning Composer's
+		// ErrorHandler throws
+		return nil, &util.ErrorException{Message: `Undefined array key "url"`, Site: phperr.At("ArtifactRepository.php", 50)}
+	}
 	url, ok := urlValue.(string)
 	if !ok {
 		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue).

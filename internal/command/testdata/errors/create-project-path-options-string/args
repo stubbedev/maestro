@@ -1,0 +1,4 @@
+create-project
+a/b
+out
+--repository={"type":"path","url":"pkg","options":"x"}

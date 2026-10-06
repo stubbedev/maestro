@@ -101,6 +101,17 @@ func NewRepositorySet(minimumStability string, stabilityFlags *php.Array, rootAl
 	return s, nil
 }
 
+// loadPackagesClass is the class declaring repo's loadPackages(), as a
+// trace names its call.
+func loadPackagesClass(repo RepositoryInterface) string {
+	switch c := repo.Class(); c {
+	case `Composer\Repository\ComposerRepository`, `Composer\Repository\CompositeRepository`, `Composer\Repository\FilterRepository`:
+		return c
+	}
+
+	return `Composer\Repository\ArrayRepository`
+}
+
 // RootAliasesPerPackage ports RepositorySet::getRootAliasesPerPackage:
 // package name => version => alias.
 func RootAliasesPerPackage(aliases []RootAlias) map[string]map[string]AliasTarget {
@@ -208,7 +219,7 @@ func (s *RepositorySet) FindPackages(name string, constraint semver.ConstraintIn
 		for _, repo := range s.repositories {
 			result, err := repo.LoadPackages(nameMap, acceptable, stabilityFlags, nil)
 			if err != nil {
-				return nil, err
+				return nil, phperr.Call(err, loadPackagesClass(repo)+`->loadPackages`, "RepositorySet.php", 201)
 			}
 			candidates = append(candidates, result.Packages...)
 			// avoid loading the same package again from other repositories once it has been found

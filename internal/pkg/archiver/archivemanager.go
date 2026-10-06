@@ -230,9 +230,15 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 		return "", err
 	}
 
-	archiveExcludes, err := stringList(p.ArchiveExcludes())
-	if err != nil {
-		return "", err
+	// the excludes reach generatePattern(string $rule) only through
+	// ComposerExcludeFilter, which ArchivableFilesFinder does not create
+	// when ignoring filters: then rules that are not strings are no error
+	var archiveExcludes []string
+	if !ignoreFilters {
+		var err error
+		if archiveExcludes, err = stringList(p.ArchiveExcludes()); err != nil {
+			return "", err
+		}
 	}
 
 	archivePath, err := usableArchiver.Archive(sourcePath, tempTarget, format, append(excludePatterns, archiveExcludes...), ignoreFilters)

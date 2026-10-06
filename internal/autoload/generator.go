@@ -33,11 +33,15 @@ type Generator struct {
 	// are PHP's built-in On and PHP 8.4's scanner.
 	Parser classmap.Parser
 
-	eventDispatcher           EventDispatcher
-	io                        io.IO
-	parseCache                *classmap.ParseCache
-	devMode                   bool
-	devModeSet                bool
+	eventDispatcher EventDispatcher
+	io              io.IO
+	parseCache      *classmap.ParseCache
+	devMode         bool
+	devModeSet      bool
+	// devModeValue is a $devMode that is not a bool (installed.json's
+	// "dev", stored in the untyped property as is); devMode is its
+	// truthiness
+	devModeValue              any
 	classMapAuthoritative     bool
 	apcu                      bool
 	apcuPrefix                *string
@@ -68,7 +72,9 @@ type ignoreNothing struct{}
 func (ignoreNothing) IsIgnored(string) bool { return false }
 
 // SetDevMode ports setDevMode.
-func (g *Generator) SetDevMode(devMode bool) { g.devMode, g.devModeSet = devMode, true }
+func (g *Generator) SetDevMode(devMode bool) {
+	g.devMode, g.devModeSet, g.devModeValue = devMode, true, nil
+}
 
 // SetClassMapAuthoritative ports setClassMapAuthoritative: whether the
 // generated autoloader considers the class map authoritative.
@@ -128,6 +134,9 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 			util.PutEnv("COMPOSER_DEV_MODE", map[bool]string{true: "1", false: "0"}[g.devMode])
 		}
 
+		if err := g.devModeArg(204); err != nil {
+			return nil, err
+		}
 		if _, err := g.eventDispatcher.DispatchScript(PreAutoloadDump, g.devMode, nil, flags); err != nil {
 			return nil, err
 		}
@@ -190,6 +199,9 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	}
 
 	if g.runScripts {
+		if err := g.devModeArg(476); err != nil {
+			return nil, err
+		}
 		if _, err := g.eventDispatcher.DispatchScript(PostAutoloadDump, g.devMode, nil, flags); err != nil {
 			return nil, err
 		}
@@ -279,15 +291,29 @@ func (g *Generator) detectDevMode(config Config) error {
 	if !ok {
 		return nil
 	}
+	// if (isset($installedJson['dev'])) $this->devMode = $installedJson['dev'];
 	switch dev, _ := a.Get("dev"); dev := dev.(type) {
 	case nil:
 	case bool:
 		g.devMode = dev
 	default:
-		return &php.EngineError{Class: "TypeError", Message: "Cannot assign " + php.TypeName(dev) + ` to property Composer\Autoload\AutoloadGenerator::$devMode of type ?bool`}
+		g.devMode, g.devModeValue = php.ToBool(dev), dev
 	}
 
 	return nil
+}
+
+// devModeArg checks $this->devMode passed to EventDispatcher::dispatchScript
+// (bool $devMode) at line of AutoloadGenerator.php: a value of
+// installed.json's "dev" that is not a bool is the TypeError of
+// strict_types.
+func (g *Generator) devModeArg(line int) error {
+	if g.devModeValue == nil {
+		return nil
+	}
+
+	return pkg.ArgumentTypeError(`Composer\EventDispatcher\EventDispatcher::dispatchScript`, 2, "devMode", "bool", g.devModeValue).
+		Called(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, phperr.At("EventDispatcher.php", 138), "AutoloadGenerator.php", line)
 }
 
 // scan builds the class map: the classmap rules, plus the PSR-0/4 dirs

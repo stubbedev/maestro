@@ -11,6 +11,7 @@ package repository
 
 import (
 	"errors"
+	"math"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -90,17 +91,20 @@ var advisoryConstraintPrefix = php.MustCompile(`{(^[>=<^~]*[\d.]+).*}`)
 // parse is cut down to its leading version (<=3.20-test2 becoming <=3.20),
 // or matches nothing.
 func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser ConstraintParser) (Advisory, error) {
-	affectedVersions, err := arrayString(phperr.At("PartialSecurityAdvisory.php", 48), data, "affectedVersions", func(v any) error {
-		return pkg.ArgumentTypeError("PartialSecurityAdvisory::create", 1, "affectedVersions", "string", v)
-	})
-	if err != nil {
-		return nil, err
+	raw, ok := data.Get("affectedVersions")
+	if !ok {
+		return nil, &util.ErrorException{Site: phperr.At("PartialSecurityAdvisory.php", 48), Message: `Undefined array key "affectedVersions"`}
 	}
-	constraint, err := parser.ParseConstraints(affectedVersions)
+	constraint, err := parseConstraintsValue(parser, raw, "PartialSecurityAdvisory.php", 48)
 	if isUnexpectedValue(err) {
 		// try to keep only the essential part of the constraint to turn invalid ones like <=3.20-test2 into <=3.20 which is better than nothing
+		if raw == nil {
+			// Preg::replace() takes scalars only
+			return nil, phperr.Call(&pkg.TypeError{Message: "$subject must be a string, NULL given.", Site: phperr.At("vendor/composer/pcre/src/Preg.php", 157)},
+				`Composer\Pcre\Preg::replace`, "PartialSecurityAdvisory.php", 51)
+		}
 		var affectedVersion string
-		affectedVersion, _, err = advisoryConstraintPrefix.Replace(affectedVersions, "$1", -1)
+		affectedVersion, _, err = advisoryConstraintPrefix.Replace(php.ToString(raw), "$1", -1)
 		if err == nil {
 			constraint, err = parser.ParseConstraints(affectedVersion)
 		}
@@ -115,26 +119,50 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 	// new self(...) at line 63 (PartialSecurityAdvisory::__construct,
 	// line 66); new SecurityAdvisory(...) at line 60 when the data is
 	// complete: $advisoryId is argument #2 of either
+	complete := issetAll(data, "title", "sources", "reportedAt")
 	advisoryIDLine, ctor, decl := 63, `Composer\Advisory\PartialSecurityAdvisory`, phperr.At("PartialSecurityAdvisory.php", 66)
-	if issetAll(data, "title", "sources", "reportedAt") {
+	if complete {
 		advisoryIDLine, ctor, decl = 60, `Composer\Advisory\SecurityAdvisory`, phperr.At("SecurityAdvisory.php", 59)
 	}
-	advisoryID, err := arrayString(phperr.At("PartialSecurityAdvisory.php", advisoryIDLine), data, "advisoryId", func(v any) error {
-		return pkg.ArgumentTypeError(ctor+"::__construct", 2, "advisoryId", "string", v).
+	rawID, ok := data.Get("advisoryId")
+	if !ok {
+		return nil, &util.ErrorException{Site: phperr.At("PartialSecurityAdvisory.php", advisoryIDLine), Message: `Undefined array key "advisoryId"`}
+	}
+	advisoryID, idOK := rawID.(string)
+	idTypeError := func() error {
+		return pkg.ArgumentTypeError(ctor+"::__construct", 2, "advisoryId", "string", rawID).
 			Called(ctor+"->__construct", decl, "PartialSecurityAdvisory.php", advisoryIDLine)
-	})
+	}
+	if !complete {
+		if !idOK {
+			return nil, idTypeError()
+		}
+
+		return &PartialSecurityAdvisory{AdvisoryID: advisoryID, PackageName: packageName, AffectedVersions: constraint}, nil
+	}
+
+	// the arguments are evaluated first, new \DateTimeImmutable($data
+	// ['reportedAt']) among them; the constructor then checks its
+	// parameters in order
+	title, _ := data.Get("title")
+	sources, _ := data.Get("sources")
+	reportedAt, _ := data.Get("reportedAt")
+	reportedAtStr, ok := reportedAt.(string)
+	if !ok {
+		return nil, pkg.ArgumentTypeError("DateTimeImmutable::__construct", 1, "datetime", "string", reportedAt).
+			Raised("DateTimeImmutable->__construct", "PartialSecurityAdvisory.php", 60)
+	}
+	date, err := loader.ParseDateTime(reportedAtStr)
 	if err != nil {
+		if de, ok := errors.AsType[*loader.DateTimeError](err); ok {
+			return nil, &dateMalformedError{DateTimeError: de, Site: phperr.At("PartialSecurityAdvisory.php", 60)}
+		}
+
 		return nil, err
 	}
-	partial := PartialSecurityAdvisory{AdvisoryID: advisoryID, PackageName: packageName, AffectedVersions: constraint}
-
-	title, hasTitle := data.Get("title")
-	sources, hasSources := data.Get("sources")
-	reportedAt, hasReportedAt := data.Get("reportedAt")
-	if !hasTitle || title == nil || !hasSources || sources == nil || !hasReportedAt || reportedAt == nil {
-		return &partial, nil
+	if !idOK {
+		return nil, idTypeError()
 	}
-
 	titleStr, ok := title.(string)
 	if !ok {
 		return nil, securityAdvisoryTypeError(4, "title", "string", title)
@@ -143,16 +171,7 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 	if !ok {
 		return nil, securityAdvisoryTypeError(5, "sources", "array", sources)
 	}
-	reportedAtStr, ok := reportedAt.(string)
-	if !ok {
-		// new \DateTimeImmutable($data['reportedAt']) at line 60
-		return nil, pkg.ArgumentTypeError("DateTimeImmutable::__construct", 1, "datetime", "string", reportedAt).
-			Raised("DateTimeImmutable->__construct", "PartialSecurityAdvisory.php", 60)
-	}
-	date, err := loader.ParseDateTime(reportedAtStr)
-	if err != nil {
-		return nil, err
-	}
+	partial := PartialSecurityAdvisory{AdvisoryID: advisoryID, PackageName: packageName, AffectedVersions: constraint}
 	advisory := &SecurityAdvisory{PartialSecurityAdvisory: partial, Title: titleStr, ReportedAt: date, Sources: sourceList}
 	for _, f := range []struct {
 		key string
@@ -185,13 +204,11 @@ type FilterListEntry struct {
 
 // CreateFilterListEntry ports FilterListEntry::create.
 func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintParser) (*FilterListEntry, error) {
-	constraintStr, err := arrayString(phperr.At("FilterListEntry.php", 82), data, "constraint", func(v any) error {
-		return pkg.ArgumentTypeError(`Composer\Semver\VersionParser::parseConstraints`, 1, "constraint", "string", v)
-	})
-	if err != nil {
-		return nil, err
+	raw, ok := data.Get("constraint")
+	if !ok {
+		return nil, &util.ErrorException{Site: phperr.At("FilterListEntry.php", 82), Message: `Undefined array key "constraint"`}
 	}
-	constraint, err := parser.ParseConstraints(constraintStr)
+	constraint, err := parseConstraintsValue(parser, raw, "FilterListEntry.php", 82)
 	if err != nil {
 		return nil, err
 	}
@@ -222,6 +239,48 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 
 	return entry, nil
 }
+
+// parseConstraintsValue ports Composer\Package\Version\VersionParser::
+// parseConstraints($constraints) called at file:line with a value of the
+// metadata: the parameter is untyped, so a scalar is no TypeError. It
+// indexes its constraint cache with the value (isset() at line 33, the
+// assignment at line 37): an array is isset()'s TypeError, a float with a
+// fraction PHP's "Implicit conversion" deprecation notice at both (the
+// cache maestro keeps per parser is keyed by the string parsed, so a value
+// another one already filled the key of is parsed anew), and the scalar is
+// parsed as the string it casts to.
+func parseConstraintsValue(parser ConstraintParser, v any, file string, line int) (semver.ConstraintInterface, error) {
+	const fn = `Composer\Package\Version\VersionParser->parseConstraints`
+	const versionParser = "src/Composer/Package/Version/VersionParser.php"
+	switch c := v.(type) {
+	case string:
+		return parser.ParseConstraints(c)
+	case *php.Array:
+		err := (&pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}).Raised("", versionParser, 33)
+
+		return nil, phperr.Call(err, fn, file, line)
+	case float64:
+		if c != math.Trunc(c) && !math.IsInf(c, 0) && !math.IsNaN(c) {
+			leave := phperr.Enter(fn, file, line)
+			msg := "Implicit conversion from float " + php.ToString(c) + " to int loses precision"
+			util.RaiseDeprecation(msg, phperr.At(versionParser, 33))
+			util.RaiseDeprecation(msg, phperr.At(versionParser, 37))
+			leave()
+		}
+	}
+
+	return parser.ParseConstraints(php.ToString(v))
+}
+
+// dateMalformedError is the DateMalformedStringException (PHP 8.3+) new
+// \DateTimeImmutable() throws for a time string it cannot parse.
+type dateMalformedError struct {
+	*loader.DateTimeError
+	phperr.Site
+}
+
+// PHPClass implements util.PHPClasser.
+func (*dateMalformedError) PHPClass() (string, int) { return "DateMalformedStringException", 0 }
 
 // securityAdvisoryTypeError is the TypeError of argument n of new
 // SecurityAdvisory(...) (SecurityAdvisory.php:59), called in
