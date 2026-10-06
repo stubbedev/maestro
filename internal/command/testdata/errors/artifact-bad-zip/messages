@@ -1,0 +1,2 @@
+Your requirements could not be resolved to an installable set of packages.
+- Root composer.json requires x/y, it could not be found in any version, there may be a typo in the package name.

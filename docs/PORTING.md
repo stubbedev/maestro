@@ -301,9 +301,10 @@ Cycle-breaking decisions already made:
    neither php nor the network. A golden over 1 MB is committed gzipped
    (`*.json.gz`, written by the oracle script, read with compress/gzip).
    Oracles compare the frozen surface exactly. The errors oracle
-   (`tools/oracle/errors`, `internal/command/errorstest`) is to compare exit
-   codes and essential message content rather than exact rendering (#13
-   step 2).
+   (`tools/oracle/errors`, `internal/command/errorstest`) compares exit
+   codes and stdout exactly and checks that stderr reports the messages of
+   Composer's exceptions (or a scenario's listed lines), whitespace-
+   insensitively, not how they are rendered.
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
    2.10.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare

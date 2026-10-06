@@ -1,42 +1,49 @@
 #!/usr/bin/env bash
-# Differential oracle for exception rendering and verbose startup output:
-# runs the reference Composer (.ref/composer/bin/composer) and maestro on
-# every scenario of internal/command/testdata/errors at default, -v, -vv
-# and -vvv verbosity, and compares stdout+stderr and the exit code byte for
-# byte. Run from the repository root inside the devenv shell:
+# Differential oracle for failing invocations: runs the reference Composer
+# and maestro on every scenario of internal/command/testdata/errors at
+# default, -v, -vv and -vvv verbosity, and compares what docs/PORTING.md's
+# contract freezes: the exit code and stdout, exactly. How errors are
+# rendered is free (#13); the error messages Composer reports are checked
+# by TestErrors (internal/command/errorstest), which reads them from the
+# goldens this script records. Run from the repository root inside the
+# devenv shell:
 #
 #   tools/oracle/errors/errors.sh [-k] [-w] [scenario...]
 #
 # MAESTRO names the maestro binary (default: built from ./cmd/maestro into
-# a temporary directory). -k keeps the work directory and prints its path.
-# -w also writes Composer's normalised output of each run to the
-# scenario's golden file <verbosity>.txt (default, v, vv, vvv), which
-# TestErrorRendering (internal/command/errorstest) compares maestro with
-# in-process, without php's Composer or this script.
+# a temporary directory). ORACLE_COMPOSER is Composer 2.10.3's entry point
+# (default: .ref/composer/bin/composer, else the composer.phar the
+# cmd/maestro end-to-end test downloads into the user cache directory).
+# -k keeps the work directory and prints its path. -w also writes
+# Composer's normalised output of each run to the scenario's goldens:
+#
+#   <verbosity>.txt     stdout and stderr together, then "exit N"
+#   <verbosity>.stdout  stdout alone, only when Composer wrote any
+#
+# (verbosity: default, v, vv, vvv), which TestErrors (internal/command/
+# errorstest) compares maestro with in-process, without php's Composer or
+# this script.
 #
 # A scenario is a directory holding:
 #   project/  the working directory (copied fresh for every run)
 #   args      the command line, one argument per line
 #   env       optional KEY=VALUE lines (@SERVER@ is the local HTTP server)
 #   home/     optional COMPOSER_HOME contents
+#   messages  optional lines of Composer's output that report the error,
+#             checked by TestErrors instead of the exception boxes' messages
 # The local HTTP server (tools/oracle/errors/router.php, `php -S`) serves
 # internal/command/testdata/errors/_server.
 #
-# Normalised before comparing: the scenario's temporary paths and the
-# server port, the machine in the -vvv "Running ... with PHP" line, the
-# random cache garbage collection (COMPOSER_TEST_SUITE=1 also keeps it from
-# running: Cache::gcIsNecessary, one run in 51 otherwise, creates the files
-# cache directory, which changes clear-cache's output) and temporary archive
-# directory names,
-# what depends on the machine's php (its version, and the pool and rule
-# counts, which include one platform package per loaded extension), the
-# resolution time, and where Composer's sources are: the "Exception trace:"
-# frames and TypeErrors' "called in" name Composer's files by their absolute
-# paths, which maestro gives as those of a phar at its executable
-# (phar://$work/maestro/src/Composer/...). Composer runs from a copy of
-# .ref/composer whose path is exactly as long as that root, so exception
-# boxes holding such a path are as wide in both; both roots read
-# @COMPOSER@.
+# Normalised: the scenario's temporary paths and the server port, the
+# machine in the -vvv "Running ... with PHP" line, the random cache garbage
+# collection (COMPOSER_TEST_SUITE=1 also keeps it from running:
+# Cache::gcIsNecessary, one run in 51 otherwise, creates the files cache
+# directory, which changes clear-cache's output) and temporary archive
+# directory names, what depends on the machine's php (its version, and the
+# pool and rule counts, which include one platform package per loaded
+# extension), the resolution time, and where Composer's sources are
+# (Composer's and maestro's, phar://<maestro executable>, both read
+# @COMPOSER@).
 set -uo pipefail
 root=$(pwd)
 data=$root/internal/command/testdata/errors
@@ -63,12 +70,20 @@ else
 	go build -o "$maestro" ./cmd/maestro || exit 1
 fi
 mroot=phar://$maestro
-croot=$work/composer
-while [ ${#croot} -lt ${#mroot} ]; do croot=${croot}_; done
-mkdir -p "$croot"
-for f in bin src vendor res composer.json composer.lock LICENSE; do
-	cp -a "$root/.ref/composer/$f" "$croot/" || exit 1
-done
+
+composer=${ORACLE_COMPOSER:-}
+if [ -z "$composer" ]; then
+	if [ -f "$root/.ref/composer/bin/composer" ]; then
+		composer=$root/.ref/composer/bin/composer
+	else
+		composer=${XDG_CACHE_HOME:-$HOME/.cache}/maestro-e2e/composer-2.10.3.phar
+	fi
+fi
+[ -f "$composer" ] || { echo "no Composer at $composer (run ref-sync, or MAESTRO_E2E=1 go test ./cmd/maestro once)" >&2; exit 1; }
+case "$composer" in
+*.phar) croot=phar://$(realpath "$composer") ;;
+*) croot=$(realpath "$(dirname "$composer")/..") ;;
+esac
 
 port=$(php -r '$s=stream_socket_server("tcp://127.0.0.1:0");echo explode(":",stream_socket_get_name($s,false))[1];')
 php -S 127.0.0.1:"$port" -t "$data/_server" "$root/tools/oracle/errors/router.php" >/dev/null 2>&1 &
@@ -95,8 +110,12 @@ normalize() {
 		-e 's/(but your php version \()[^)]*(\) does not satisfy)/\1@PHPVERSION@\2/'
 }
 
-run() { # name bin out verbosity
-	local name=$1 bin=$2 out=$3 vflag=$4 dir=$data/$1
+# run name bin out verbosity separate: runs the scenario and writes <out>.n,
+# its normalised output (stdout and stderr together, or with separate=1
+# stdout alone) followed by "exit N"; with separate=1 also <out>.stdout.n,
+# the normalised stdout alone
+run() {
+	local name=$1 bin=$2 out=$3 vflag=$4 separate=$5 dir=$data/$1
 	rm -rf "$work/run"
 	mkdir -p "$work/run/home" "$work/run/cache"
 	cp -a "$dir/project" "$work/run/p"
@@ -108,14 +127,19 @@ run() { # name bin out verbosity
 		while IFS= read -r l; do [ -n "$l" ] && envs+=("${l//@SERVER@/$server}"); done < "$dir/env"
 	fi
 	(
-		cd "$work/run/p" &&
-			env -i PATH="$PATH" HOME="$work/run/home" COMPOSER_HOME="$work/run/home" \
-				COMPOSER_CACHE_DIR="$work/run/cache" COMPOSER_NO_INTERACTION=1 NO_COLOR=1 COLUMNS=80 \
-				COMPOSER_TEST_SUITE=1 \
-				"${envs[@]}" $bin "${args[@]}" --no-ansi > "$out" 2>&1
-		echo "exit $?" >> "$out"
+		cd "$work/run/p" || exit
+		exec 3> "$out"
+		if [ "$separate" = 1 ]; then exec 4> /dev/null; else exec 4>&3; fi
+		env -i PATH="$PATH" HOME="$work/run/home" COMPOSER_HOME="$work/run/home" \
+			COMPOSER_CACHE_DIR="$work/run/cache" COMPOSER_NO_INTERACTION=1 NO_COLOR=1 COLUMNS=80 \
+			COMPOSER_TEST_SUITE=1 \
+			"${envs[@]}" $bin "${args[@]}" --no-ansi >&3 2>&4
+		echo "exit $?" > "$out.exit"
 	)
-	normalize < "$out" > "$out.n"
+	if [ "$separate" = 1 ]; then
+		normalize < "$out" > "$out.stdout.n"
+	fi
+	cat "$out" "$out.exit" | normalize > "$out.n"
 }
 
 fail=0
@@ -123,18 +147,22 @@ total=0
 for name in "$@"; do
 	for v in "" -v -vv -vvv; do
 		total=$((total + 1))
-		run "$name" "php $croot/bin/composer" "$work/c.out" "$v"
+		golden=$data/$name/${v#-}
+		[ -z "$v" ] && golden=$data/$name/default
+		run "$name" "php $composer" "$work/c.out" "$v" 1
 		if [ $write = 1 ]; then
-			cp "$work/c.out.n" "$data/$name/${v#-}.txt"
-			[ -z "$v" ] && mv "$data/$name/.txt" "$data/$name/default.txt"
+			run "$name" "php $composer" "$work/c.all" "$v" 0
+			cp "$work/c.all.n" "$golden.txt"
+			rm -f "$golden.stdout"
+			[ -s "$work/c.out.stdout.n" ] && cp "$work/c.out.stdout.n" "$golden.stdout"
 		fi
-		run "$name" "$maestro" "$work/m.out" "$v"
+		run "$name" "$maestro" "$work/m.out" "$v" 1
 		if ! diff -u "$work/c.out.n" "$work/m.out.n" > "$work/diff"; then
 			fail=$((fail + 1))
-			echo "DIFF $name ${v:-(default)}"
+			echo "DIFF $name ${v:-(default)} (stdout, exit code)"
 			sed 's/^/    /' "$work/diff" | head -${DIFFLINES:-40}
 		fi
 	done
 done
-echo "$((total - fail))/$total identical"
+echo "$((total - fail))/$total with Composer's exit code and stdout"
 [ $fail = 0 ]

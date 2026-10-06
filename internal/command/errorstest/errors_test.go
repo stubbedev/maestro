@@ -1,9 +1,26 @@
-// Package errorstest compares maestro's output for the scenarios of
-// internal/command/testdata/errors with the reference Composer's, recorded
-// by tools/oracle/errors/errors.sh -w: exception boxes (throw site, class,
-// previous exceptions), the "Exception trace:" call stacks (Composer's
-// files read @COMPOSER@ for both), verbose and debug lines, exit codes, at
-// default, -v, -vv and -vvv verbosity.
+// Package errorstest checks maestro on the scenarios of
+// internal/command/testdata/errors against the reference Composer's runs,
+// recorded by tools/oracle/errors/errors.sh -w, at default, -v, -vv and
+// -vvv verbosity. It checks what docs/PORTING.md's contract freezes and
+// leaves how errors are rendered free (#13):
+//
+//   - the exit code, exactly;
+//   - stdout, exactly (<verbosity>.stdout, empty when absent): it is
+//     frozen, and error output must not land there;
+//   - the error's information, on stderr: the messages of Composer's
+//     exception and its previous ones, read from the error boxes of the
+//     recorded output (<verbosity>.txt), or, where the scenario has a
+//     messages file, its lines (for errors that are no exception, such as
+//     solver problems and failed scripts, or where only part of a message
+//     carries the information). Each listed line must occur in Composer's
+//     recorded output too. Messages are compared without whitespace (box
+//     padding and wrapping, indentation and line breaks don't matter),
+//     box-drawing characters and PHP's TypeError call site
+//     (", called in X on line N").
+//
+// The box, the exception class, the "In File.php line N:" heading, the
+// "Exception trace:" stack, the command synopsis and the rest of stderr
+// (warnings, progress, debug output) are not compared.
 //
 // Each run is a child process (the test binary itself, which TestMain
 // turns into cmd/maestro's main when ERRORSTEST_CHILD is set): Composer's
@@ -18,7 +35,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,6 +50,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 const dataDir = "../testdata/errors"
@@ -71,7 +88,7 @@ func childMain() int {
 	return min(code, 255)
 }
 
-func TestErrorRendering(t *testing.T) {
+func TestErrors(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs every scenario's Composer startup; skipped in -short mode")
 	}
@@ -97,29 +114,110 @@ func TestErrorRendering(t *testing.T) {
 			continue
 		}
 		name := e.Name()
+		dir := filepath.Join(dataDir, name)
+		var listed []string
+		if _, err := os.Stat(filepath.Join(dir, "messages")); err == nil {
+			listed = readLines(t, filepath.Join(dir, "messages"))
+		}
 		for _, v := range verbosities {
-			golden := filepath.Join(dataDir, name, v.name+".txt")
-			want, err := os.ReadFile(golden)
+			golden := filepath.Join(dir, v.name)
+			recorded, err := os.ReadFile(golden + ".txt")
 			if err != nil {
 				continue
+			}
+			want, err := readGolden(string(recorded), listed)
+			if err != nil {
+				t.Fatalf("%s.txt: %v", golden, err)
+			}
+			if want.code != 0 && len(want.messages) == 0 {
+				t.Fatalf("%s.txt: Composer failed without an error box; list the lines that report the error in %s",
+					golden, filepath.Join(dir, "messages"))
+			}
+			if stdout, err := os.ReadFile(golden + ".stdout"); err == nil {
+				want.stdout = string(stdout)
 			}
 			t.Run(name+"/"+v.name, func(t *testing.T) {
 				// Every run is a child process with directories of its own.
 				t.Parallel()
-				got := runScenario(t, filepath.Join(dataDir, name), v.flag, server.URL)
-				if got != string(want) {
-					t.Errorf("output differs from Composer's (%s):\n%s", golden, lineDiff(string(want), got))
-				}
+				compare(t, golden, want, runScenario(t, dir, v.flag, server.URL))
 			})
 		}
 	}
 }
 
-// runScenario runs the scenario as errors.sh does and returns the
-// normalised output followed by "exit N".
-func runScenario(t *testing.T, dir, flag, serverURL string) string {
+// expected is what a run must give: Composer's exit code and stdout, and
+// the messages its error reports (see testutil.CompactMessage).
+type expected struct {
+	code     int
+	stdout   string
+	messages []string
+}
+
+// result is a normalised run of maestro: its exit code, stdout, and
+// stderr compacted (see testutil.CompactMessage).
+type result struct {
+	code   int
+	stdout string
+	stderr string
+}
+
+func compare(t *testing.T, golden string, want expected, got result) {
 	t.Helper()
-	work := workDir(t)
+	if got.code != want.code {
+		t.Errorf("exit code %d, Composer's %d (%s.txt)", got.code, want.code, golden)
+	}
+	if got.stdout != want.stdout {
+		t.Errorf("stdout differs from Composer's (%s.stdout):\n%s", golden, lineDiff(want.stdout, got.stdout))
+	}
+	stdout := testutil.CompactMessage(got.stdout)
+	for _, m := range want.messages {
+		switch {
+		case strings.Contains(got.stderr, m):
+		case strings.Contains(stdout, m):
+			t.Errorf("error message on stdout, not stderr (%s.txt): %q", golden, m)
+		default:
+			t.Errorf("error message missing from stderr (%s.txt): %q\nstderr, compacted: %q", golden, m, got.stderr)
+		}
+	}
+}
+
+// exitLine is the oracle's last line: "exit N" after the output (on the
+// output's last line when that has no newline).
+var exitLine = regexp.MustCompile(`exit ([0-9]+)\n$`)
+
+// readGolden reads a recorded run (stdout and stderr together, then
+// "exit N"): its exit code, and the messages its error reports, which are
+// the listed ones (the scenario's messages file; each must occur in the
+// recorded output) or else those of its exception boxes.
+func readGolden(recorded string, listed []string) (expected, error) {
+	m := exitLine.FindStringSubmatchIndex(recorded)
+	if m == nil {
+		return expected{}, errors.New(`no "exit N" line`)
+	}
+	code, _ := strconv.Atoi(recorded[m[2]:m[3]])
+	output := recorded[:m[0]]
+	want := expected{code: code}
+	if listed == nil {
+		want.messages, _ = testutil.ErrorRendering(output)
+
+		return want, nil
+	}
+	all := testutil.CompactMessage(output)
+	for _, l := range listed {
+		c := testutil.CompactMessage(l)
+		if !strings.Contains(all, c) {
+			return expected{}, fmt.Errorf("listed message not in Composer's output: %q", l)
+		}
+		want.messages = append(want.messages, c)
+	}
+
+	return want, nil
+}
+
+// runScenario runs the scenario as errors.sh does.
+func runScenario(t *testing.T, dir, flag, serverURL string) result {
+	t.Helper()
+	work := t.TempDir()
 	run := filepath.Join(work, "run")
 	root := "phar://" + filepath.Join(work, "maestro")
 	for _, d := range []string{"home", "cache"} {
@@ -159,12 +257,12 @@ func runScenario(t *testing.T, dir, flag, serverURL string) string {
 		}
 	}
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(os.Args[0], args...)
 	cmd.Dir = filepath.Join(run, "p")
 	cmd.Env = env
-	cmd.Stdout = &buf
-	cmd.Stderr = &buf
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	code := 0
 	if err := cmd.Run(); err != nil {
 		ee, ok := errors.AsType[*exec.ExitError](err)
@@ -176,35 +274,13 @@ func runScenario(t *testing.T, dir, flag, serverURL string) string {
 
 	host := strings.TrimPrefix(serverURL, "http://")
 
-	// The goldens record Composer on Linux, where PHP_EOL is "\n".
-	return normalize(php.NormalizeEOL(buf.String()), run, root, host) + "exit " + strconv.Itoa(code) + "\n"
-}
-
-// workDir creates the scenario's directory with the shape of the oracle's
-// (mktemp -d /tmp/maestro-errors.XXXXXX): its length decides where the
-// exception boxes wrap paths.
-func workDir(t *testing.T) string {
-	t.Helper()
-	if fi, err := os.Stat("/tmp"); err != nil || !fi.IsDir() {
-		t.Skip("the goldens' paths are under /tmp")
-	}
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	for {
-		b := make([]byte, 6)
-		for i := range b {
-			b[i] = chars[rand.IntN(len(chars))]
-		}
-		dir := "/tmp/maestro-errors." + string(b)
-		err := os.Mkdir(dir, 0o700)
-		if os.IsExist(err) {
-			continue
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { _ = os.RemoveAll(dir) })
-
-		return dir
+	// The goldens record Composer on Linux, where PHP_EOL is "\n". stderr
+	// is compacted before its paths are replaced: an error box may wrap a
+	// path anywhere.
+	return result{
+		code:   code,
+		stdout: normalize(php.NormalizeEOL(stdout.String()), run, root, host),
+		stderr: replacePaths(testutil.CompactMessage(stderr.String()), run, root, host),
 	}
 }
 
@@ -224,25 +300,26 @@ var normalizers = []struct {
 // normalize applies errors.sh's normalisation; root is maestro's
 // phperr.Root, under which it names Composer's files.
 func normalize(s, run, root, host string) string {
-	s = strings.ReplaceAll(s, run, "@DIR@")
-	s = strings.ReplaceAll(s, root+"/", "@COMPOSER@/")
-	s = strings.ReplaceAll(s, host, "@SERVER@")
+	s = replacePaths(s, run, root, host)
 	for _, n := range normalizers {
 		s = n.re.ReplaceAllString(s, n.repl)
 	}
 
-	// curl's "Failed to connect ... after N ms" depends on the machine's
-	// load; the goldens hold 0 ms. The exception box pads the line, so the
-	// padding takes up the digits' difference.
-	return connectTime.ReplaceAllStringFunc(s, func(m string) string {
-		sub := connectTime.FindStringSubmatch(m)
-		pad := sub[3] + strings.Repeat(" ", len(sub[1])-1)
-
-		return "after 0 ms" + sub[2] + pad
-	})
+	return s
 }
 
-var connectTime = regexp.MustCompile(`(?m)after ([0-9]+) ms(:[^\n]*?)( *)$`)
+// replacePaths replaces the run's directory, Composer's source root and
+// the server's address with the goldens' placeholders, and so php's
+// version in a compacted solver problem.
+func replacePaths(s, run, root, host string) string {
+	s = strings.ReplaceAll(s, run, "@DIR@")
+	s = strings.ReplaceAll(s, root+"/", "@COMPOSER@/")
+	s = strings.ReplaceAll(s, host, "@SERVER@")
+
+	return compactPHPVersion.ReplaceAllString(s, "${1}@PHPVERSION@${2}")
+}
+
+var compactPHPVersion = regexp.MustCompile(`(butyourphpversion\()[^)]*(\)doesnotsatisfy)`)
 
 // routerHandler ports tools/oracle/errors/router.php.
 func routerHandler(root string) http.Handler {
@@ -339,16 +416,4 @@ func lineDiff(want, got string) string {
 	}
 
 	return b.String()
-}
-
-func TestNormalizeConnectTime(t *testing.T) {
-	for in, want := range map[string]string{
-		"  connect to h:1 after 0 ms: Could not connect   \n": "  connect to h:1 after 0 ms: Could not connect   \n",
-		"  connect to h:1 after 12 ms: Could not connect  \n": "  connect to h:1 after 0 ms: Could not connect   \n",
-		"  connect to h:1 after 105 ms: Could not connect \n": "  connect to h:1 after 0 ms: Could not connect   \n",
-	} {
-		if got := normalize(in, "/nowhere", "phar:///nowhere", "nohost"); got != want {
-			t.Errorf("normalize(%q) = %q, want %q", in, got, want)
-		}
-	}
 }

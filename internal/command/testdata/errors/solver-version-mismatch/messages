@@ -1,0 +1,2 @@
+Your requirements could not be resolved to an installable set of packages.
+- Root composer.json requires x/foo ^2, found x/foo[1.0.0] but it does not match the constraint.
