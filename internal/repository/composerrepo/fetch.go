@@ -9,9 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
@@ -543,7 +541,7 @@ type cachedDownload struct {
 
 // startCachedAsyncDownloads ports startCachedAsyncDownload for several
 // files at once (each fileName with its packageName, "" for the file's
-// name): it reads and decodes their cached copies (decoding in parallel)
+// name): it reads and decodes their cached copies (in parallel)
 // and starts the requests, in order. Pass the result to waitFetches, then
 // to finishCachedDownload in order.
 //
@@ -557,45 +555,42 @@ func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames [
 	}
 
 	downloads := make([]*cachedDownload, len(fileNames))
-	cached := make([]string, len(fileNames))
+	cacheKeys := make([]string, len(fileNames))
 	for i, fileName := range fileNames {
 		name := php.Strtolower(fileName)
 		packageName := packageNames[i]
 		if packageName == "" {
 			packageName = name
 		}
-		d := &cachedDownload{
+		downloads[i] = &cachedDownload{
 			url:         strings.ReplaceAll(r.lazyProvidersURL, "%package%", name),
 			cacheKey:    "provider-" + php.Strtr(name, "/", "~") + ".json",
 			packageName: packageName,
 		}
-		downloads[i] = d
-
-		contents, ok, err := r.cache.Read(d.cacheKey)
-		if err != nil {
-			return nil, err
-		}
-		if ok && php.ToBool(contents) {
-			if slim {
-				d.contents = r.decoded.slimOf(d.cacheKey, contents)
-			} else {
-				d.contents = r.decoded.take(d.cacheKey, contents)
-			}
-			if d.contents == nil {
-				cached[i] = contents
-			}
-		}
+		cacheKeys[i] = downloads[i].cacheKey
 	}
 
-	decoded := parallelDecode(cached, func(i int, data *php.Array) {
-		if !slim {
-			r.decoded.rememberSlim(downloads[i].cacheKey, cached[i], data)
+	// the cached copies, read in parallel and decoded (unless decoded
+	// before) on the goroutine that read each one
+	_, _, err := r.cache.ReadAll(cacheKeys, func(i int, contents string) {
+		if !php.ToBool(contents) {
+			return
+		}
+		d := downloads[i]
+		if slim {
+			d.contents = r.decoded.slimOf(d.cacheKey, contents)
+		} else {
+			d.contents = r.decoded.take(d.cacheKey, contents)
+		}
+		if d.contents == nil {
+			d.contents = decodeArray(contents)
+			if !slim {
+				r.decoded.rememberSlim(d.cacheKey, contents, d.contents)
+			}
 		}
 	})
-	for i, contents := range decoded {
-		if cached[i] != "" {
-			downloads[i].contents = contents
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	for _, d := range downloads {
@@ -629,35 +624,6 @@ func (r *ComposerRepository) finishCachedDownload(d *cachedDownload) (*php.Array
 	}
 
 	return response, packagesSource, nil
-}
-
-// parallelDecode is json_decode($s, true) of each non-empty string, run
-// in parallel: nil for "" and for what does not decode to an array. then,
-// when not nil, is called with each input decoded, on the goroutine that
-// decoded it.
-func parallelDecode(inputs []string, then func(i int, data *php.Array)) []*php.Array {
-	out := make([]*php.Array, len(inputs))
-	work := make(chan int)
-	var wg sync.WaitGroup
-	for range min(runtime.GOMAXPROCS(0), len(inputs)) {
-		wg.Go(func() {
-			for i := range work {
-				out[i] = decodeArray(inputs[i])
-				if then != nil {
-					then(i, out[i])
-				}
-			}
-		})
-	}
-	for i, s := range inputs {
-		if s != "" {
-			work <- i
-		}
-	}
-	close(work)
-	wg.Wait()
-
-	return out
 }
 
 // statusCode is $e->getStatusCode() of a TransportException, 0 (null)

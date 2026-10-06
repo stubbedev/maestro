@@ -18,9 +18,11 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -147,6 +149,63 @@ func (c *Cache) Read(file string) (string, bool, error) {
 	}
 
 	return string(data), true, nil
+}
+
+// ReadAll is Read of each file in turn, with the files read in parallel
+// (deliberate deviation 3): the "Reading … from cache" lines come out in
+// order once all reads are done, and an error is that of the first file
+// that failed, after the lines of the files before it, as the loop of
+// Reads would leave them. then, when not nil, is called with each file
+// read, on the goroutine that read it.
+func (c *Cache) ReadAll(files []string, then func(i int, contents string)) ([]string, []bool, error) {
+	contents := make([]string, len(files))
+	found := make([]bool, len(files))
+	if !c.IsEnabled() || len(files) == 0 {
+		return contents, found, nil
+	}
+
+	paths := make([]string, len(files))
+	errs := make([]error, len(files))
+	work := make(chan int)
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), len(files)) {
+		wg.Go(func() {
+			for i := range work {
+				paths[i] = c.root + c.key(files[i])
+				if !fileExists(paths[i]) {
+					continue
+				}
+				found[i] = true
+				data, err := os.ReadFile(paths[i])
+				if err != nil {
+					errs[i] = err
+
+					continue
+				}
+				contents[i] = string(data)
+				if then != nil {
+					then(i, contents[i])
+				}
+			}
+		})
+	}
+	for i := range files {
+		work <- i
+	}
+	close(work)
+	wg.Wait()
+
+	for i := range files {
+		if !found[i] {
+			continue
+		}
+		c.io.WriteError("Reading "+paths[i]+" from cache", true, mio.Debug)
+		if errs[i] != nil {
+			return nil, nil, &util.ErrorException{Message: "file_get_contents(" + paths[i] + "): Failed to open stream: " + util.Strerror(errs[i]), Site: phperr.At("Cache.php", 128)}
+		}
+	}
+
+	return contents, found, nil
 }
 
 // Peek is Read without its output, for speculative reads that Composer
