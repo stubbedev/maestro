@@ -134,16 +134,8 @@ type release struct {
 
 // Execute implements console.Executor.
 func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, error) {
-	current := c.CurrentVersion
-	if current == "" {
-		if app := c.application(); app != nil {
-			current = app.Runtime().ClientVersion()
-		}
-	}
-	current, _, _ = strings.Cut(current, "+")
-
-	localFilename, err := c.Executable()
-	if err != nil || current == "" || current == "dev" || isSystemPackage(localFilename) {
+	current, localFilename, ok := runningMaestro(c.application(), c.CurrentVersion, c.Executable)
+	if !ok {
 		out.Writeln("<error>This instance of Composer does not have the self-update command.</error>")
 		out.Writeln("<comment>This could be due to a number of reasons, such as Composer being installed as a system package on your OS, or Composer being installed as a package in the current project.</comment>")
 
@@ -227,7 +219,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 	var target *release
 	if requested != "" {
 		requested = strings.TrimPrefix(requested, "v")
-		target, err = c.fetchRelease(httpDownloader, "/releases/tags/v"+requested)
+		target, err = releaseSource(c.APIBase).fetch(httpDownloader, "/releases/tags/v"+requested)
 		if err != nil {
 			if te, ok := errors.AsType[*util.TransportError](err); ok && te.StatusCode == nethttp.StatusNotFound {
 				return 0, &Error{Class: ClassInvalidArgument, Message: `Version "` + requested + `" could not be found.`, File: selfUpdateCommandFile, Line: 286, Prev: err}
@@ -235,7 +227,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 
 			return 0, err
 		}
-	} else if target, err = c.latestRelease(httpDownloader, channel); err != nil {
+	} else if target, err = releaseSource(c.APIBase).latest(httpDownloader, channel); err != nil {
 		return 0, err
 	}
 	updateVersion := target.version
@@ -317,6 +309,26 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 	return 0, nil
 }
 
+// runningMaestro is the running maestro's version (without build
+// metadata) and binary; ok is false when it has no self-update: a
+// development build ("dev", or no version) or a binary a package manager
+// owns. override and executable are the commands' test hooks; the version
+// is the runtime's client version unless override is set.
+func runningMaestro(app *Application, override string, executable func() (string, error)) (current, binary string, ok bool) {
+	current = override
+	if current == "" && app != nil {
+		current = app.Runtime().ClientVersion()
+	}
+	current, _, _ = strings.Cut(current, "+")
+
+	binary, err := executable()
+	if err != nil || current == "" || current == "dev" || isSystemPackage(binary) {
+		return current, binary, false
+	}
+
+	return current, binary, true
+}
+
 // isSystemPackage reports binaries a package manager owns (the Nix store),
 // which Composer's "installed as a system package" message covers.
 func isSystemPackage(path string) bool {
@@ -363,13 +375,18 @@ func readChannel(home string) string {
 	return channel
 }
 
-func (c *SelfUpdateCommand) apiURL(path string) string {
-	return strings.TrimRight(c.APIBase, "/") + "/repos/" + maestroRepository + path
+// releaseSource is the GitHub API root maestro's releases are read from
+// (githubAPI; tests point it elsewhere), shared by self-update and
+// diagnose's version check.
+type releaseSource string
+
+func (r releaseSource) apiURL(path string) string {
+	return strings.TrimRight(string(r), "/") + "/repos/" + maestroRepository + path
 }
 
-// fetchRelease reads one release from the GitHub API.
-func (c *SelfUpdateCommand) fetchRelease(d *http.HttpDownloader, path string) (*release, error) {
-	resp, err := d.Get(c.apiURL(path), nil)
+// fetch reads one release from the GitHub API.
+func (r releaseSource) fetch(d *http.HttpDownloader, path string) (*release, error) {
+	resp, err := d.Get(r.apiURL(path), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -381,14 +398,14 @@ func (c *SelfUpdateCommand) fetchRelease(d *http.HttpDownloader, path string) (*
 	return parseRelease(data), nil
 }
 
-// latestRelease is the newest release of the channel: stable takes
+// latest is the newest release of the channel: stable takes
 // /releases/latest (no pre-releases), preview and snapshot the newest of
 // /releases.
-func (c *SelfUpdateCommand) latestRelease(d *http.HttpDownloader, channel string) (*release, error) {
+func (r releaseSource) latest(d *http.HttpDownloader, channel string) (*release, error) {
 	if channel != "preview" && channel != "snapshot" {
-		return c.fetchRelease(d, "/releases/latest")
+		return r.fetch(d, "/releases/latest")
 	}
-	resp, err := d.Get(c.apiURL("/releases?per_page=30"), nil)
+	resp, err := d.Get(r.apiURL("/releases?per_page=30"), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -405,9 +422,9 @@ func (c *SelfUpdateCommand) latestRelease(d *http.HttpDownloader, channel string
 		if draft, _ := a.Get("draft"); draft == true {
 			continue
 		}
-		r := parseRelease(a)
-		if best == nil || semver.VersionCompare(r.version, best.version) > 0 {
-			best = r
+		rel := parseRelease(a)
+		if best == nil || semver.VersionCompare(rel.version, best.version) > 0 {
+			best = rel
 		}
 	}
 	if best == nil {

@@ -39,10 +39,20 @@ func init() {
 // The PHP checks answer for the PHP Composer would run on (the process
 // runtime's ComposerView). Divergences, all documented here:
 //   - "Checking pubkeys" and "Checking Composer version" only run in
-//     Composer's phar build (strpos(__FILE__, 'phar:') === 0). maestro
-//     never has Composer's signing keys and updates itself from its own
-//     GitHub releases (PORTING.md deviation 4), so it behaves like Composer
-//     run from source and skips both.
+//     Composer's phar build (strpos(__FILE__, 'phar:') === 0), the build
+//     self-update can update. maestro updates itself from its own GitHub
+//     releases (PORTING.md deviation 4), so it runs the version check in a
+//     release build that has a self-update (releaseBuild) instead, and
+//     skips the pubkeys check everywhere, as Composer run from source does.
+//     checkPubKeys reports whether keys.tags.pub and keys.dev.pub, which
+//     self-update needs to verify a phar's signature, are in COMPOSER_HOME;
+//     maestro verifies a download against the checksums.txt of its
+//     release, which self-update fetches with it, so there is no local key
+//     material that could be missing and the line could only say OK.
+//   - "Checking Composer version" compares maestro's version with its
+//     latest release on the update channel, found as self-update finds it
+//     (releaseSource), and warns when self-update would install another
+//     version (checkVersion).
 //   - "Checking Composer and its dependencies for vulnerabilities" audits
 //     Composer's own installed.json; maestro bundles no PHP dependencies,
 //     so it audits composer/composer at Composer::getVersion() only.
@@ -50,6 +60,12 @@ func init() {
 //     ioncube_loader_iversion().
 type DiagnoseCommand struct {
 	*BaseCommand
+
+	// APIBase, Executable and CurrentVersion are self-update's test
+	// hooks, for the version check.
+	APIBase        string
+	Executable     func() (string, error)
+	CurrentVersion string
 
 	httpDownloader *http.HttpDownloader
 	process        *util.ProcessExecutor
@@ -59,7 +75,7 @@ type DiagnoseCommand struct {
 
 // NewDiagnoseCommand ports new DiagnoseCommand().
 func NewDiagnoseCommand() *DiagnoseCommand {
-	c := &DiagnoseCommand{BaseCommand: NewBaseCommand("")}
+	c := &DiagnoseCommand{BaseCommand: NewBaseCommand(""), APIBase: githubAPI, Executable: currentExecutable}
 	c.SetImpl(c)
 	c.SetName("diagnose").
 		SetDescription("Diagnoses the system to identify common errors").
@@ -179,8 +195,16 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 		return 0, err
 	}
 
-	// The phar-only checks (pubkeys, Composer version) are skipped, see
-	// the type's comment.
+	// if (strpos(__FILE__, 'phar:') === 0): a release build of maestro;
+	// the pubkeys check is skipped (see the type's comment).
+	if current, ok := c.releaseBuild(); ok {
+		cio.Write("Checking Composer version: ", false, io.Normal)
+		res, err := c.checkVersion(cfg, current)
+		if err != nil {
+			return 0, err
+		}
+		c.outputResult(res)
+	}
 
 	cio.Write("Composer version: <comment>"+composer.GetVersion()+"</comment>", true, io.Normal)
 
@@ -381,6 +405,49 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	c.outputResult(disk)
 
 	return c.exitCode, nil
+}
+
+// releaseBuild is the running maestro's version when it is a release
+// build that self-update can update. Its version must parse, as
+// checkVersion skips the comparison for an unreplaced
+// '@package_version@'.
+func (c *DiagnoseCommand) releaseBuild() (string, bool) {
+	current, _, ok := runningMaestro(c.application(), c.CurrentVersion, c.Executable)
+	if !ok {
+		return "", false
+	}
+	if _, err := pkg.NewVersionParser().Normalize(current); err != nil {
+		return "", false
+	}
+
+	return current, true
+}
+
+// checkVersion ports checkVersion against maestro's releases: Versions
+// ::getLatest() is the latest release of the channel self-update reads,
+// and the result warns when self-update would install another version
+// (Composer compares with !==; maestro's stable channel, like its
+// self-update, does not offer an older release than the running one).
+func (c *DiagnoseCommand) checkVersion(cfg *config.Config, current string) (any, error) {
+	if result := c.checkConnectivityAndComposerNetworkHTTPEnablement(); result != true {
+		return result, nil
+	}
+
+	home, err := cfg.Get("home", 0)
+	if err != nil {
+		return nil, err
+	}
+	channel := readChannel(php.ToString(home))
+	latest, err := releaseSource(c.APIBase).latest(c.httpDownloader, channel)
+	if err != nil {
+		return err, nil
+	}
+
+	if latest.version != current && (channel != "stable" || semver.VersionCompare(latest.version, current) > 0) {
+		return "<comment>You are not running the latest " + channel + " version, run `composer self-update` to update (" + current + " => " + latest.version + ")</comment>", nil
+	}
+
+	return true, nil
 }
 
 // diagnosePackagesJSONURL ports ComposerRepository::getPackagesJsonUrl.

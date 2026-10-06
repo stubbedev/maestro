@@ -8,6 +8,7 @@ import (
 	gojson "encoding/json"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/platform"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // requirePackagist skips tests that, like Composer's, talk to packagist.org
@@ -186,6 +188,95 @@ func TestDiagnoseCommand_ConfigureCommandWarnings(t *testing.T) {
 		}
 		if output := appTester.Display(true); !strings.Contains(output, tc.want) {
 			t.Errorf("%s: output lacks %q:\n%s", tc.configure, tc.want, output)
+		}
+	}
+}
+
+// diagnoseTester is an application whose diagnose runs as the release
+// build current of maestro, installed at a temporary path, reading its
+// releases from rs.
+func diagnoseTester(t *testing.T, rs *releaseServer, current string) (*commandtest.ApplicationTester, *command.DiagnoseCommand) {
+	t.Helper()
+	appTester := commandtest.GetApplicationTester(t)
+	cmd, err := appTester.Application.Find("diagnose")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := cmd.(*command.DiagnoseCommand)
+	d.APIBase = rs.URL
+	exe := filepath.Join(t.TempDir(), "maestro")
+	d.Executable = func() (string, error) { return exe, nil }
+	d.CurrentVersion = current
+
+	return appTester, d
+}
+
+// TestDiagnoseCommand_VersionCheck is checkVersion against maestro's
+// releases, the latest one found as self-update finds it.
+func TestDiagnoseCommand_VersionCheck(t *testing.T) {
+	rs := newReleaseServer(t, "1.2.0", "NEW")
+	rs.prerelase = "1.3.0-RC1"
+
+	for _, tc := range []struct {
+		current, channel string
+		want             any
+	}{
+		{"1.0.0+abc", "", "<comment>You are not running the latest stable version, run `composer self-update` to update (1.0.0 => 1.2.0)</comment>"},
+		{"1.2.0", "", true},
+		{"1.2.1", "", true},
+		{"1.2.0", "preview", "<comment>You are not running the latest preview version, run `composer self-update` to update (1.2.0 => 1.3.0-RC1)</comment>"},
+		{"1.3.0-RC1", "snapshot", true},
+	} {
+		commandtest.InitTempComposer(t, nil, nil, nil, true)
+		if tc.channel != "" {
+			home, _ := util.GetEnv("COMPOSER_HOME")
+			if err := os.MkdirAll(home, 0o777); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(home, "maestro-update-channel"), []byte(tc.channel+"\n"), 0o666); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, d := diagnoseTester(t, rs, tc.current)
+		got, err := command.DiagnoseCheckVersion(d)
+		if err != nil || got != tc.want {
+			t.Errorf("%s (%s): got %#v, %v, want %#v", tc.current, tc.channel, got, err, tc.want)
+		}
+	}
+
+	// A failed request is the check's result (outputResult renders a FAIL).
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	_, d := diagnoseTester(t, rs, "1.0.0")
+	d.APIBase = rs.URL + "/nope"
+	got, err := command.DiagnoseCheckVersion(d)
+	if gotErr, ok := got.(error); err != nil || !ok || !isPHPInstance(gotErr, `Composer\Downloader\TransportException`) {
+		t.Errorf("got %#v, %v", got, err)
+	}
+}
+
+// TestDiagnoseCommand_VersionCheckPlacement checks where the version line
+// goes, that only a release build has one (in Composer, only the phar)
+// and that the pubkeys line never shows.
+func TestDiagnoseCommand_VersionCheckPlacement(t *testing.T) {
+	t.Setenv("COMPOSER_DISABLE_NETWORK", "1")
+	rs := newReleaseServer(t, "1.2.0", "NEW")
+
+	for current, want := range map[string]string{
+		"1.0.0": "Checking Composer version: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.\nComposer version: 2.10.3\n",
+		"dev":   "Composer version: 2.10.3\n",
+		"test":  "Composer version: 2.10.3\n",
+	} {
+		commandtest.InitTempComposer(t, `{"name": "foo/bar", "version": "1.0.0", "description": "test pkg", "license": "MIT"}`, nil, nil, true)
+		appTester, _ := diagnoseTester(t, rs, current)
+		if _, err := appTester.RunArgs(commandtest.Options{}, "command", "diagnose"); err != nil {
+			t.Fatal(err)
+		}
+		output := appTester.Display(true)
+		if !strings.HasPrefix(output, want) {
+			t.Errorf("%s: output does not start with %q:\n%s", current, want, output)
+		}
+		if strings.Contains(output, "pubkeys") {
+			t.Errorf("%s: output has a pubkeys check:\n%s", current, output)
 		}
 	}
 }
