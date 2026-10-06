@@ -921,7 +921,10 @@ func fmodNonZero(number1, number2 any) bool {
 	if n2 == 0 {
 		fail("Division by zero")
 	}
-	modulus := n1 - math.Round(n1/n2)*n2
+	// PHP rounds the product before the subtraction (separate opcodes); the
+	// conversion stops Go fusing them into one FMA on arm64 and other FMA
+	// targets, whose exact remainder would differ (1e20 divisibleBy 3).
+	modulus := n1 - float64(math.Round(n1/n2)*n2)
 	const precision = 0.0000000001
 
 	return !(-precision < modulus && modulus < precision) && modulus != 0
