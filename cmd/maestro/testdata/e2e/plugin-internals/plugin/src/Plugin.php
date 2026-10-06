@@ -79,15 +79,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface, Capable
     }
 
     /**
-     * The frames of the PluginManager and the Installer on the stack, as
-     * flex and php-http/discovery look for them: class, function and the
-     * number of arguments.
+     * The frames of the PluginManager, the Installer and the console (the
+     * Application's and Symfony's Command::run()) on the stack, as flex,
+     * thanks and php-http/discovery look for them: class, function and
+     * the number of arguments.
      */
-    private static function frames(): string
+    public static function frames(): string
     {
         $found = [];
         foreach (debug_backtrace(\DEBUG_BACKTRACE_PROVIDE_OBJECT) as $trace) {
-            if (isset($trace['object']) && ($trace['object'] instanceof \Composer\Plugin\PluginManager || $trace['object'] instanceof \Composer\Installer)) {
+            if (!isset($trace['object'])) {
+                continue;
+            }
+            $object = $trace['object'];
+            if ($object instanceof \Composer\Plugin\PluginManager || $object instanceof \Composer\Installer
+                || $object instanceof \Symfony\Component\Console\Application || strpos($trace['class'], 'Symfony\\Component\\Console\\') === 0) {
                 $found[] = $trace['class'].$trace['type'].$trace['function'].'('.count($trace['args']).')';
             }
         }

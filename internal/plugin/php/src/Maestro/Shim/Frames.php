@@ -20,10 +20,11 @@ namespace Maestro\Shim;
  * arguments, so that debug_backtrace() shows Composer's `class`,
  * `function`, `object` and `args`. The shim's implementation of the method
  * starts with Frames::resumes(), which runs the rest of the call there
- * (the inner frames, then the handler) instead of the method's work.
- * Frames whose method the shim cannot enter so (Symfony's own, which the
- * bundled library declares) are left out: every frame PHP shows is one of
- * Composer's.
+ * (the inner frames, then the handler) instead of the method's work; the
+ * bundled Symfony Console's doRun(), doRunCommand() and Command::run() do
+ * so as SymfonyHooks loads them, their files left as Composer's. Frames of
+ * methods that do not resume are left out: every frame PHP shows is one
+ * of Composer's.
  */
 final class Frames
 {
@@ -33,7 +34,15 @@ final class Frames
      * (Console::builtin()).
      */
     private const ENTERED = [
+        'Composer\\Console\\Application->run' => true,
         'Composer\\Console\\Application->doRun' => true,
+        'Composer\\Console\\Application->getComposer' => true,
+        'Composer\\Console\\Application->getPluginCommands' => true,
+        // the bundled Console's, which resume as SymfonyHooks loads them
+        'Symfony\\Component\\Console\\Application->run' => true,
+        'Symfony\\Component\\Console\\Application->doRun' => true,
+        'Symfony\\Component\\Console\\Application->doRunCommand' => true,
+        'Symfony\\Component\\Console\\Command\\Command->run' => true,
         'Composer\\Installer->run' => true,
         'Composer\\Installer->doUpdate' => true,
         'Composer\\Installer->doInstall' => true,

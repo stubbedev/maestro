@@ -126,8 +126,15 @@ func TestInternals_Frames(t *testing.T) {
 		t.Fatalf("licenses = %d\n%s", code, out)
 	}
 	got := lines(evalPHP(t, p.rt, `return $GLOBALS['maestroTestFrames']['licenses'];`, nil))
+	// Composer's stack, the bundled Symfony Console's frames included
+	// (SymfonyHooks)
 	want := `Composer\Command\BaseCommand->initialize(2) Composer\Command\LicensesCommand
-Composer\Console\Application->doRun(2) Composer\Console\Application`
+Symfony\Component\Console\Command\Command->run(2) Composer\Command\LicensesCommand
+Symfony\Component\Console\Application->doRunCommand(3) Composer\Console\Application
+Symfony\Component\Console\Application->doRun(2) Composer\Console\Application
+Composer\Console\Application->doRun(2) Composer\Console\Application
+Symfony\Component\Console\Application->run(2) Composer\Console\Application
+Composer\Console\Application->run(0) Composer\Console\Application`
 	if got != want {
 		t.Errorf("frames during licenses' PRE_COMMAND_RUN:\n%s\nwant\n%s", got, want)
 	}

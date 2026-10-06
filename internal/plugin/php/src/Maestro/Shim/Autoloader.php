@@ -54,9 +54,16 @@ final class Autoloader
      */
     public static function loadClass($class): void
     {
-        if (isset(self::$classMap[$class])) {
-            self::requireFile(self::$classMap[$class]);
+        if (!isset(self::$classMap[$class])) {
+            return;
         }
+        // the Console classes whose methods enter frames (SymfonyHooks)
+        if ($class === 'Symfony\\Component\\Console\\Application' || $class === 'Symfony\\Component\\Console\\Command\\Command') {
+            SymfonyHooks::load($class, self::$classMap[$class]);
+
+            return;
+        }
+        self::requireFile(self::$classMap[$class]);
     }
 
     /**

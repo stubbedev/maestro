@@ -44,7 +44,7 @@ class Plugin implements PluginInterface, Capable, EventSubscriberInterface
         // them with debug_backtrace() (docs/PLUGINS.md §5.12).
         $frames = [];
         foreach (debug_backtrace(\DEBUG_BACKTRACE_PROVIDE_OBJECT) as $trace) {
-            if (isset($trace['object'], $trace['class']) && strpos($trace['class'], 'Composer\\') === 0) {
+            if (isset($trace['object'], $trace['class']) && (strpos($trace['class'], 'Composer\\') === 0 || strpos($trace['class'], 'Symfony\\Component\\Console\\') === 0)) {
                 $frames[] = $trace['class'].$trace['type'].$trace['function'].'('.count($trace['args']).') '.get_class($trace['object']);
             }
         }

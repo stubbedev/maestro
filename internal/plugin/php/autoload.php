@@ -555,6 +555,7 @@ return array(
         'Maestro\\Shim\\RemoteObject' => 'src/Maestro/Shim/RemoteObject.php',
         'Maestro\\Shim\\Rpc' => 'src/Maestro/Shim/Rpc.php',
         'Maestro\\Shim\\Server' => 'src/Maestro/Shim/Server.php',
+        'Maestro\\Shim\\SymfonyHooks' => 'src/Maestro/Shim/SymfonyHooks.php',
         'Maestro\\Shim\\Sync' => 'src/Maestro/Shim/Sync.php',
         'Maestro\\Shim\\Traces' => 'src/Maestro/Shim/Traces.php',
         'Maestro\\Shim\\UnsupportedApiException' => 'src/Maestro/Shim/UnsupportedApiException.php',

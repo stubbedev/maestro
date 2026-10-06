@@ -80,9 +80,31 @@ class Application extends \Symfony\Component\Console\Application
 
     public function getComposer(bool $required = true, ?bool $disablePlugins = null, ?bool $disableScripts = null): ?\Composer\Composer
     {
+        // maestro's getComposer(), as a frame of Composer's stack
+        // (docs/PLUGINS.md §5.12)
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return null;
+        }
+
         $this->composer = Rpc::call('app.getComposer', [$this, $required, $disablePlugins, $disableScripts]);
 
         return $this->composer;
+    }
+
+    /**
+     * Composer's getPluginCommands(), which maestro runs: here only a frame
+     * of Composer's stack while plugins load for their commands
+     * (docs/PLUGINS.md §5.12).
+     *
+     * @return list<\Composer\Command\BaseCommand>
+     */
+    private function getPluginCommands(): array
+    {
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return [];
+        }
+
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Console\\Application::getPluginCommands() in plugins');
     }
 
     protected function getDefaultCommands(): array
@@ -153,6 +175,12 @@ class Application extends \Symfony\Component\Console\Application
 
     public function run(?\Symfony\Component\Console\Input\InputInterface $input = null, ?\Symfony\Component\Console\Output\OutputInterface $output = null): int
     {
+        // maestro's run(), as a frame of Composer's stack
+        // (docs/PLUGINS.md §5.12)
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return 0;
+        }
+
         if (null === $output) {
             $output = \Composer\Factory::createOutput();
         }

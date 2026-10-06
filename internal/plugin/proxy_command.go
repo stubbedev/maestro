@@ -559,7 +559,7 @@ func (r *Runtime) registerApplications() {
 		if a.has(1) {
 			required = a.boolean(1)
 		}
-		c, err := app.GetComposer(required, nullableBool(a, 2), nullableBool(a, 3))
+		c, err := app.GetComposerFromPHP(required, nullableBool(a, 2), nullableBool(a, 3))
 		if err != nil || c == nil {
 			return nil, err
 		}

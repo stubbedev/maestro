@@ -24,6 +24,11 @@ class ThrowCommand extends BaseCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        if (getenv('INTERNALS_FRAMES')) {
+            $output->writeln('internals:throw: '.Plugin::frames());
+
+            return 0;
+        }
         if (getenv('INTERNALS_THROW') === 'composer') {
             // an exception of Composer's own code, under the command
             $this->requireComposer()->getRepositoryManager()->createRepository('nope', []);

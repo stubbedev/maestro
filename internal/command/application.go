@@ -139,6 +139,24 @@ func (a *Application) Run(in console.Input, out console.Output) (int, error) {
 // above run() in an exception's trace): OutdatedCommand and GlobalCommand
 // run the application again.
 func (a *Application) RunFrom(file string, line int, in console.Input, out console.Output) (int, error) {
+	// run() and parent::run() on the stack plugin code sees
+	// (docs/PLUGINS.md §5.12), with the arguments PHP passes: none from
+	// bin/composer ($application->run()), then run()'s $input and $output
+	// (null there)
+	if rt := a.Runtime(); rt != nil {
+		var args, parentArgs []any
+		if file == "bin/composer" {
+			parentArgs = []any{nil, nil}
+		} else {
+			args = []any{in, out}
+			parentArgs = args
+		}
+		rt.PushFrame(`Composer\Console\Application->run`, a, args...)
+		defer rt.PopFrame()
+		rt.PushFrame(`Symfony\Component\Console\Application->run`, a, parentArgs...)
+		defer rt.PopFrame()
+	}
+
 	if out == nil {
 		out = composer.CreateOutput()
 	}
@@ -504,9 +522,15 @@ func isNoSSL(err error) bool {
 	return phpClass(err) == `Composer\Exception\NoSslException`
 }
 
-// pluginCommands ports getPluginCommands.
+// pluginCommands ports getPluginCommands(), whose frame is on the stack
+// plugin code sees (docs/PLUGINS.md §5.12).
 func (a *Application) pluginCommands() ([]console.Commander, error) {
-	c, err := a.GetComposer(false, new(false), nil)
+	if rt := a.Runtime(); rt != nil {
+		rt.PushFrame(`Composer\Console\Application->getPluginCommands`, a)
+		defer rt.PopFrame()
+	}
+
+	c, err := a.getComposer(2, false, new(false), nil) // $this->getComposer(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -669,7 +693,7 @@ func (a *Application) addScriptCommands(cio *io.ConsoleIO) error {
 			projectLoaderRegistered = true
 			// Composer registers the project's autoloader here, for
 			// command class scripts; only the plugin runtime needs it.
-			if c, err = a.GetComposer(false, nil, nil); err != nil {
+			if c, err = a.getComposer(1, false, nil, nil); err != nil { // $this->getComposer(false)
 				return err
 			}
 			if c != nil {
@@ -818,7 +842,7 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) {
 	}
 
 	util.SilencerSuppress()
-	c, err := a.GetComposer(false, new(true), nil)
+	c, err := a.getComposer(2, false, new(true), nil) // $this->getComposer(false, true)
 	util.SilencerRestore()
 	if err == nil && c != nil {
 		cfg := c.Config()
@@ -903,8 +927,28 @@ func (*Application) newWorkingDir(in console.Input) (*string, error) {
 }
 
 // GetComposer ports getComposer($required, $disablePlugins,
-// $disableScripts); nil flags read --no-plugins/--no-scripts.
+// $disableScripts); nil flags read --no-plugins/--no-scripts. It is
+// BaseCommand's call, with its three arguments.
 func (a *Application) GetComposer(required bool, disablePlugins, disableScripts *bool) (*composer.Composer, error) {
+	return a.getComposer(3, required, disablePlugins, disableScripts)
+}
+
+// GetComposerFromPHP is GetComposer called by PHP code, whose stack has
+// the call's frame already.
+func (a *Application) GetComposerFromPHP(required bool, disablePlugins, disableScripts *bool) (*composer.Composer, error) {
+	return a.getComposer(-1, required, disablePlugins, disableScripts)
+}
+
+// getComposer is GetComposer called with argc arguments, a frame on the
+// stack plugin code sees while the Composer instance is created
+// (docs/PLUGINS.md §5.12: plugins are activated there); none for -1.
+func (a *Application) getComposer(argc int, required bool, disablePlugins, disableScripts *bool) (*composer.Composer, error) {
+	if rt := a.Runtime(); rt != nil && argc >= 0 && a.composer == nil {
+		args := []any{required, nullableBoolArg(disablePlugins), nullableBoolArg(disableScripts)}
+		rt.PushFrame(`Composer\Console\Application->getComposer`, a, args[:argc]...)
+		defer rt.PopFrame()
+	}
+
 	dp := a.disablePluginsByDefault
 	if disablePlugins != nil {
 		dp = *disablePlugins
@@ -951,6 +995,15 @@ func (a *Application) GetComposer(required bool, disablePlugins, disableScripts 
 	}
 
 	return a.composer, nil
+}
+
+// nullableBoolArg is a ?bool argument as PHP has it: null or the bool.
+func nullableBoolArg(b *bool) any {
+	if b == nil {
+		return nil
+	}
+
+	return *b
 }
 
 func isJSONValidation(err error) bool {

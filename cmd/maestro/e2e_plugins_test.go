@@ -216,6 +216,8 @@ func pluginScenarios() []scenario {
 				// The plugin is active from here on (pre-operations-exec).
 				{args: []string{"require", "local/lib-b"}, env: []string{"INTERNALS_FRAMES=1"}},
 				{args: []string{"install", "-v"}, env: []string{"INTERNALS_FRAMES=1"}},
+				// the console's frames in a command written in PHP
+				{args: []string{"internals:throw"}, env: []string{"INTERNALS_FRAMES=1"}},
 				{args: []string{"internals:throw", "-v"}, normalize: normalizeComposerTrace},
 				{args: []string{"internals:throw", "-v"}, env: []string{"INTERNALS_THROW=composer"}, normalize: normalizeComposerTrace},
 				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=listener"}, normalize: normalizeComposerTrace},
