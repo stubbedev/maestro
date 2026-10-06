@@ -35,6 +35,12 @@ type RecordScan struct {
 // violations, instead of scanning, when all of them still have the
 // identity recorded (as git trusts its index: an identity too close to
 // the time the record was written is not trusted, see statTrustMargin).
+//
+// A file the scan took for a store release's file by its stamp
+// (AddReleases) is recorded without its change time, which changes
+// whenever the store hard-links the inode into another project: its
+// device, inode, size and stamp still have to match, the stamp being what
+// the scan itself trusted for its content.
 type Record struct {
 	path    string
 	key     [32]byte
@@ -109,7 +115,7 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 
 // recordHeader is the first line of a record: format and binary.
 func recordHeader() string {
-	return "maestro classmap record 1" + binaryID() + "\n"
+	return "maestro classmap record 2" + binaryID() + "\n"
 }
 
 // identitiesKnown reports whether files have identities here (statAnyKey).
@@ -180,19 +186,23 @@ func (g *Generator) SaveRecord(rec *Record) {
 	for _, d := range r.dirs {
 		add(d)
 	}
+	files := make(map[string]bool, len(r.files))
 	for _, f := range r.files {
 		add(f)
+		files[f] = true
 	}
 	slices.Sort(paths)
 	// a record holding an identity too recent to trust would never be
 	// used (Load): it is not written (after an install, the next dump
 	// writes one)
 	keys := make([]fileKey, len(paths))
+	stamped := make([]bool, len(paths))
 	limit := time.Now().Add(-statTrustMargin)
 	var failed atomic.Bool
 	parallel(len(paths), func(i int) {
 		k, ok := statAnyKey(paths[i])
-		if !ok || !time.Unix(k.mtimeSec, k.mtimeNsec).Before(limit) || !time.Unix(k.ctimeSec, k.ctimeNsec).Before(limit) {
+		stamped[i] = ok && files[paths[i]] && g.cache.isStamped(paths[i], k)
+		if !ok || !trusted(k, stamped[i], limit) {
 			failed.Store(true)
 		}
 		keys[i] = k
@@ -213,6 +223,9 @@ func (g *Generator) SaveRecord(rec *Record) {
 		w.string(p[shared:])
 		prev = p
 		k := keys[i]
+		if stamped[i] {
+			k.ctimeSec, k.ctimeNsec = 0, stampedCtimeNsec
+		}
 		for _, v := range [...]uint64{
 			k.dev, k.ino, uint64(k.size), //nolint:gosec // read back as an int64
 			uint64(k.mtimeSec), uint64(k.mtimeNsec), //nolint:gosec // read back as an int64
@@ -276,6 +289,34 @@ func (g *Generator) SaveRecord(rec *Record) {
 		return
 	}
 	pruneRecords(dir)
+}
+
+// stampedCtimeNsec is what a record holds as the change time nanoseconds
+// of a stamped file (see Record), whose change time it does not record:
+// no change time has it.
+const stampedCtimeNsec = 1_000_000_000
+
+// isStamped reports whether the file at path with identity k is a release
+// file by its stamp (lookupByIdentity), as the scan took it.
+func (c *ParseCache) isStamped(path string, k fileKey) bool {
+	if c == nil || k.mtimeNsec != 0 {
+		return false
+	}
+	c.releasesPending.Wait()
+	if !c.stampedAny.Load() {
+		return false
+	}
+	_, ok := c.releases.stamped(path, k.size, k.mtimeSec)
+
+	return ok
+}
+
+// trusted reports whether identity k is old enough, compared with limit,
+// to be trusted: its modification time and, unless the file is stamped,
+// its change time.
+func trusted(k fileKey, stamped bool, limit time.Time) bool {
+	return time.Unix(k.mtimeSec, k.mtimeNsec).Before(limit) &&
+		(stamped || time.Unix(k.ctimeSec, k.ctimeNsec).Before(limit))
 }
 
 // pruneRecords removes the least recently written records past
@@ -460,8 +501,11 @@ func (rec *Record) Load() (*ClassMap, bool) {
 			return
 		}
 		k, ok := statAnyKey(paths[i])
-		if !ok || k != keys[i] ||
-			!time.Unix(k.mtimeSec, k.mtimeNsec).Before(limit) || !time.Unix(k.ctimeSec, k.ctimeNsec).Before(limit) {
+		stamped := keys[i].ctimeNsec == stampedCtimeNsec
+		if stamped {
+			k.ctimeSec, k.ctimeNsec = keys[i].ctimeSec, keys[i].ctimeNsec
+		}
+		if !ok || k != keys[i] || !trusted(k, stamped, limit) {
 			changed.Store(true)
 		}
 	})
