@@ -16,7 +16,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -87,7 +86,7 @@ func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, igno
 		if err != nil {
 			// the file went away since the finder saw it: addFile() fails
 			// quietly, fileperms() with a warning
-			return "", &util.ErrorException{Message: "fileperms(): stat failed for " + file.Pathname, Site: phperr.At("ZipArchiver.php", 65)}
+			return "", &util.ErrorException{Message: "fileperms(): stat failed for " + file.Pathname}
 		}
 
 		entries = append(entries, zipEntry{name: relativePath, source: file.Pathname, mode: fi.Mode(), mtime: fi.ModTime()})
@@ -99,7 +98,7 @@ func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, igno
 		// Directory record)
 		if !fileExists(target) {
 			if err := os.WriteFile(target, emptyZip, 0o666); err != nil {
-				return "", &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + util.Strerror(err), Site: phperr.At("ZipArchiver.php", 87)}
+				return "", &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + util.Strerror(err)}
 			}
 		}
 
@@ -114,7 +113,7 @@ func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, igno
 func writeLibzip(target string, entries []zipEntry) error {
 	tmp, err := createTemp(target)
 	if err != nil {
-		return &util.ErrorException{Message: "ZipArchive::close(): Failure to create temporary file: " + util.Strerror(err), Site: phperr.At("ZipArchiver.php", 73)}
+		return &util.ErrorException{Message: "ZipArchive::close(): Failure to create temporary file: " + util.Strerror(err)}
 	}
 
 	defer func() { _ = os.Remove(tmp.Name()) }()
@@ -132,7 +131,7 @@ func writeLibzip(target string, entries []zipEntry) error {
 	}
 
 	if cerr := tmp.Close(); err == nil && cerr != nil {
-		err = &util.ErrorException{Message: "ZipArchive::close(): Write error: " + util.Strerror(cerr), Site: phperr.At("ZipArchiver.php", 73)}
+		err = &util.ErrorException{Message: "ZipArchive::close(): Write error: " + util.Strerror(cerr)}
 	}
 
 	if err != nil {
@@ -140,7 +139,7 @@ func writeLibzip(target string, entries []zipEntry) error {
 	}
 
 	if err := os.Rename(tmp.Name(), target); err != nil {
-		return &util.ErrorException{Message: "ZipArchive::close(): Renaming temporary file failed: " + util.Strerror(err), Site: phperr.At("ZipArchiver.php", 73)}
+		return &util.ErrorException{Message: "ZipArchive::close(): Renaming temporary file failed: " + util.Strerror(err)}
 	}
 
 	return nil
@@ -163,7 +162,7 @@ func writeLibzipEntries(zw *zip.Writer, entries []zipEntry) error {
 		if !e.isDir {
 			var err error
 			if data, err = os.ReadFile(e.source); err != nil {
-				return &util.ErrorException{Message: "ZipArchive::close(): Can't open file: " + util.Strerror(err), Site: phperr.At("ZipArchiver.php", 73)}
+				return &util.ErrorException{Message: "ZipArchive::close(): Can't open file: " + util.Strerror(err)}
 			}
 
 			h.ExternalAttrs = unixMode(e.mode) << 16

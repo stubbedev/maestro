@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -54,7 +53,7 @@ type ArchivableFilesFinder struct {
 func NewArchivableFilesFinder(sources string, excludes []string, ignoreFilters bool) (*ArchivableFilesFinder, error) {
 	sourcesRealPath, ok := util.RealpathOK(sources)
 	if !ok {
-		return nil, &util.RuntimeError{Site: phperr.At("ArchivableFilesFinder.php", 52), Message: `Could not realpath() the source directory "` + sources + `"`}
+		return nil, &util.RuntimeError{Message: `Could not realpath() the source directory "` + sources + `"`}
 	}
 
 	sources = util.NormalizePath(sourcesRealPath)
@@ -99,7 +98,7 @@ func NewArchivableFilesFinder(sources string, excludes []string, ignoreFilters b
 		if f.IsDir {
 			empty, err := util.IsDirEmpty(f.Pathname)
 			if err != nil {
-				return nil, openDirError("FilesystemIterator", f.Pathname, err, phperr.At("ArchivableFilesFinder.php", 109))
+				return nil, openDirError("FilesystemIterator", f.Pathname, err)
 			}
 
 			if !empty {
@@ -121,7 +120,7 @@ func (f *ArchivableFilesFinder) Files() []File { return f.files }
 // sees files that have a real path.
 func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]File, error) {
 	if !isDir(dir) {
-		return nil, &util.InvalidArgumentError{Class: util.ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
+		return nil, &util.InvalidArgumentError{Class: util.ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`}
 	}
 
 	// Finder::normalizeDir and Symfony's RecursiveDirectoryIterator::current
@@ -142,7 +141,7 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 			// Finder) and for subdirectories (by parent::getChildren());
 			// getChildren() rethrows the latter as an AccessDeniedException
 			// (line 127) with the SPL exception as its previous.
-			inner := openDirError("RecursiveDirectoryIterator", strings.TrimSuffix(base+subPath, "/"), err, phperr.At("RecursiveDirectoryIterator.php", 48))
+			inner := openDirError("RecursiveDirectoryIterator", strings.TrimSuffix(base+subPath, "/"), err)
 			if subPath == "" {
 				return inner
 			}
@@ -151,7 +150,6 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 				Class:   util.ClassAccessDenied,
 				Message: inner.Error(),
 				Prev:    inner,
-				Site:    phperr.At("RecursiveDirectoryIterator.php", 127),
 			}
 		}
 
@@ -209,8 +207,8 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 
 // openDirError is the UnexpectedValueException a SPL directory iterator
 // throws for a directory it cannot open, at site.
-func openDirError(class, dir string, err error, site phperr.Site) error {
-	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + util.Strerror(err), Site: site}
+func openDirError(class, dir string, err error) error {
+	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + util.Strerror(err)}
 }
 
 // readDirNames lists a directory's names in readdir() order.
