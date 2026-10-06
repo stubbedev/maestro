@@ -239,10 +239,12 @@ jobs:
           php-version: '8.4'
           tools: none
 
+      # -short skips the large single-threaded oracle replays: they test
+      # platform-independent logic, which the test job runs in full.
       - name: Test
         env:
           MAESTRO_PHP_TESTS: '1'
-        run: go test ./...
+        run: go test -short ./...
 
   cross:
     runs-on: ubuntu-latest
