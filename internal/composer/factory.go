@@ -446,6 +446,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		// classes found in files seen before, and in package store
 		// releases (deliberate deviation 3)
 		generator.UseParseCacheFile(cache.Dir() + "/classmap/v1.bin")
+		generator.UseScanRecords(cache.Dir() + "/classmap/records")
 		if st, err := store.Open(cache.Store(), nil); err == nil {
 			generator.UseStore(st)
 		}

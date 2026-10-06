@@ -115,6 +115,13 @@ func validatePackage(p pkg.PackageInterface) error {
 // of a package map (from BuildPackageMap; its first entry is the root
 // package if it is a RootPackageInterface).
 func (g *Generator) ParseAutoloads(packageMap []PackageMapEntry, rootPackage pkg.PackageInterface, filter DevFilter) (*Autoloads, error) {
+	return g.parseAutoloads(packageMap, rootPackage, filter, g.devMode)
+}
+
+// parseAutoloads is ParseAutoloads with the root package's autoload-dev
+// rules included for rootDev instead of by $this->devMode: a warm-up or
+// a speculation runs before the dump sets it.
+func (g *Generator) parseAutoloads(packageMap []PackageMapEntry, rootPackage pkg.PackageInterface, filter DevFilter, rootDev bool) (*Autoloads, error) {
 	var rootEntry *PackageMapEntry
 	if len(packageMap) > 0 {
 		if _, ok := packageMap[0].Package.(pkg.RootPackageInterface); ok {
@@ -143,23 +150,23 @@ func (g *Generator) ParseAutoloads(packageMap []PackageMapEntry, rootPackage pkg
 	// dependents, etc. which makes sense to allow root to override
 	// classmap or psr-0/4 entries with higher precedence rules
 	a := &Autoloads{PSR0: php.NewArray(), PSR4: php.NewArray(), Files: php.NewArray()}
-	if err := g.parseAutoloadsType(reverseSortedMap, typePSR0, rootPackage, a); err != nil {
+	if err := g.parseAutoloadsType(reverseSortedMap, typePSR0, rootPackage, a, rootDev); err != nil {
 		return nil, err
 	}
-	if err := g.parseAutoloadsType(reverseSortedMap, typePSR4, rootPackage, a); err != nil {
+	if err := g.parseAutoloadsType(reverseSortedMap, typePSR4, rootPackage, a, rootDev); err != nil {
 		return nil, err
 	}
-	if err := g.parseAutoloadsType(reverseSortedMap, typeClassmap, rootPackage, a); err != nil {
+	if err := g.parseAutoloadsType(reverseSortedMap, typeClassmap, rootPackage, a, rootDev); err != nil {
 		return nil, err
 	}
 	// sorted (i.e. dependents first) for files to ensure that dependencies
 	// are loaded/available once a file is included
-	if err := g.parseAutoloadsType(sortedPackageMap, typeFiles, rootPackage, a); err != nil {
+	if err := g.parseAutoloadsType(sortedPackageMap, typeFiles, rootPackage, a, rootDev); err != nil {
 		return nil, err
 	}
 	// using sorted here but it does not really matter as all are excluded
 	// equally
-	if err := g.parseAutoloadsType(sortedPackageMap, typeExclude, rootPackage, a); err != nil {
+	if err := g.parseAutoloadsType(sortedPackageMap, typeExclude, rootPackage, a, rootDev); err != nil {
 		return nil, err
 	}
 
@@ -188,8 +195,8 @@ var (
 )
 
 // parseAutoloadsType ports parseAutoloadsType, adding the rules of type
-// typ to a.
-func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloadType, rootPackage pkg.PackageInterface, a *Autoloads) error {
+// typ to a; the root package's autoload-dev rules are added for rootDev.
+func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloadType, rootPackage pkg.PackageInterface, a *Autoloads, rootDev bool) error {
 	for _, item := range packageMap {
 		// packages that are not installed cannot autoload anything
 		if !item.Installed {
@@ -198,7 +205,7 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 		p, installPath := item.Package, item.InstallPath
 
 		autoload := p.Autoload()
-		if g.devMode && p == rootPackage {
+		if rootDev && p == rootPackage {
 			autoload = php.ArrayMergeRecursive(autoload, p.DevAutoload())
 		}
 

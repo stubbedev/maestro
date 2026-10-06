@@ -7,6 +7,8 @@ import "os"
 // statKey: no file identities here, so nothing is cached.
 func statKey(string) (fileKey, bool) { return fileKey{}, false }
 
+func statAnyKey(string) (fileKey, bool) { return fileKey{}, false }
+
 func fstatKey(*os.File) (fileKey, bool) { return fileKey{}, false }
 
 // statStamp is the size and modification second of the regular file at

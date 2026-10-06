@@ -1,6 +1,7 @@
 package autoload
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -109,5 +110,26 @@ func TestGenerator_SpeculationUsesInstalledDevMode(t *testing.T) {
 	}
 	if !e.classmapHas("DevOnly") {
 		t.Error("DevOnly is missing from the class map")
+	}
+}
+
+// A warm-up runs before the dev mode is set, and parses the root's
+// autoload-dev rules too.
+func TestGenerator_WarmReadsRootDevRules(t *testing.T) {
+	e, p := speculationEnv(t)
+	p.SetDevAutoload(arr("classmap", list("dev/")))
+	packageMap, err := e.generator.BuildPackageMap(e.im, p, e.repo.CanonicalPackages())
+	if err != nil {
+		t.Fatal(err)
+	}
+	autoloads, err := e.generator.parseAutoloads(packageMap, p, NoDevFilter, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(autoloads.Classmap, func(dir string) bool { return dir == "dev/" }) {
+		t.Errorf("the root's autoload-dev classmap is missing: %v", autoloads.Classmap)
+	}
+	if e.generator.devMode {
+		t.Error("parseAutoloads set the dev mode")
 	}
 }

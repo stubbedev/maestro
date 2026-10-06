@@ -124,6 +124,73 @@ the load) for ~190 ms CPU; the loads still decode (now from the cache)
 files the speculation has not handed over yet (~50 ms); GC is ~20%. The
 pool builder's first wave waits ~45 ms for laravel/framework's file.
 
+## Class map record (issue #21, 2026-10-07)
+
+Machine, projects and method as in the #14 section below (btrfs, laravel
+and symfony with `--no-plugins --no-scripts -q`, warm caches and store,
+separate COMPOSER_HOME, COMPOSER_CACHE_DIR and MAESTRO_CACHE_DIR per
+tool). hyperfine, 30 runs after 2 warm-ups, the two maestro binaries one
+after the other; *warm install* removes vendor/ before each run (not
+timed), 25 runs. "before" is db1459b, "after" this change. Other agents'
+builds shared the machine (load 4 to 12). Composer: median of 20 to 25
+runs.
+
+| Project | Command | Composer | maestro before | | maestro after | |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | dump-autoload -o | 1.43 s | 98 ms | 14.6x | 72 ms | 19.9x |
+| symfony | dump-autoload -o | 1.27 s | 100 ms | 12.7x | 75 ms | 16.9x |
+| laravel | no-op install | 1.43 s | 150 ms | 9.5x | 145 ms | 9.9x |
+| symfony | no-op install | 0.78 s | 139 ms | 5.6x | 137 ms | 5.7x |
+| laravel | warm install | | 333 ms | | 332 ms | |
+| symfony | warm install | | 343 ms | | 343 ms | |
+
+CPU time (user + system, medians): dump-autoload -o 236 → 123 ms
+(laravel) and 259 → 135 ms (symfony); no-op install 280 → 168 ms and
+184 → 134 ms. The no-op install's scan was already hidden behind the
+network wait, so it gains CPU rather than wall time.
+
+What changed:
+
+- **The class map is kept per project** (`classmap.Record`, in
+  maestro's cache dir under `classmap/records`, at most 64 records).
+  It is keyed by the scans (paths, exclusion patterns, autoload types,
+  namespaces), the parser, the binary, the working directory and the
+  project and vendor realpaths, and holds, besides the class map with
+  its ambiguous classes and PSR violations, the identity (device,
+  inode, size, modification and change times) of every directory the
+  Finder listed, of the scan roots' ancestors below the project and
+  vendor dirs, and of every file with a scanned extension. A dump with
+  the same scans stats those (some 10,000 on laravel, in parallel, about
+  2 ms) instead of scanning, and takes the class map when none changed.
+  Identities not safely older than the record (3 s, git's racily clean
+  entries) are not trusted, so a record is neither written nor used
+  right after an install changed the files: the next dump writes it. The
+  warnings are printed from the record at the same point as from a scan
+  (checked against the scans on the autoload e2e fixture, all six dump
+  variants, and on laravel and symfony). Store releases are only looked
+  up when a scan runs. On laravel the dump's scan went from about 13 ms
+  of wall time (95 ms of CPU) to about 5 ms.
+- **autoload_static.php's class map is exported in the background**
+  (var_export, the strtr of the absolute dirs, the re-indent) while
+  autoload_classmap.php and the files before it are built and written:
+  about 2 ms.
+- `Generator.Warm` (-vvv only) now parses the root package's
+  autoload-dev rules too; it read them from a dev mode not set yet.
+
+Looked at and not changed:
+
+- The vendor dir's realpath on every install step (item 4 of #21) was
+  already resolved once per install by 17d6eed; a warm install's
+  install steps now spend their time in the store import.
+- `git --version` caching (item 5): one exec of the four git commands a
+  dump-autoload runs for root version guessing; not done.
+- After a record hit, a laravel dump-autoload -o spends about 25 ms in
+  the process before the dump (startup, the php probe, version
+  guessing), 5 ms reading and checking the record, and about 20 ms
+  after it, mostly building autoload_classmap.php and
+  autoload_static.php (1 MB each) and comparing them with the files on
+  disk.
+
 ## Store-backed git sources (issue #18, 2026-10-06)
 
 Machine as below, btrfs, git 2.55.0, the user's git configuration (index

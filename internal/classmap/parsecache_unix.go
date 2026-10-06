@@ -18,6 +18,16 @@ func statKey(path string) (fileKey, bool) {
 	return keyOf(&st), true
 }
 
+// statAnyKey is statKey for a file of any type.
+func statAnyKey(path string) (fileKey, bool) {
+	var st unix.Stat_t
+	if unix.Stat(path, &st) != nil {
+		return fileKey{}, false
+	}
+
+	return keyOf(&st), true
+}
+
 // fstatKey is the fileKey of an open file.
 func fstatKey(f *os.File) (fileKey, bool) {
 	var st unix.Stat_t
