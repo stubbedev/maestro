@@ -1,0 +1,6 @@
+{
+    "name": "local/ignored-c",
+    "version": "1.0.0",
+    "autoload": {"psr-4": {"Local\\IgnoredC\\": "src/"}},
+    "extra": {"laminas": {"component": "Local\\IgnoredC"}}
+}

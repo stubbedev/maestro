@@ -3,7 +3,8 @@
 /*
  * maestro's plugin shim: Composer\Repository\PlatformRepository
  * (docs/PLUGINS.md §4.6). maestro's platform repositories are proxies of
- * maestro's (see ArrayRepository); creating one in PHP is not supported yet.
+ * maestro's (see ArrayRepository); one created in PHP is maestro's too
+ * (repo.newPlatform detects the platform, as Composer's constructor does).
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -15,17 +16,22 @@ class PlatformRepository extends \Composer\Repository\ArrayRepository
 
     public function __construct(array $packages = [], array $overrides = [], ?\Composer\Platform\Runtime $runtime = null, ?\Composer\Platform\HhvmDetector $hhvmDetector = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PlatformRepository::__construct() in plugins yet');
+        \Maestro\Shim\Rpc::call('repo.newPlatform', [$this, $packages, $overrides]);
     }
 
     public function addPackage(\Composer\Package\PackageInterface $package): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PlatformRepository::addPackage() in plugins yet');
+        if (\Maestro\Shim\Remote::owned($this)) {
+            \Maestro\Shim\Rpc::call('repo.addPackage', [$this, $package]);
+
+            return;
+        }
+        \Maestro\Shim\Remote::unsupported(self::class, 'addPackage');
     }
 
     public function getDisabledPackages(): array
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PlatformRepository::getDisabledPackages() in plugins yet');
+        return \Maestro\Shim\Rpc::call('repo.getDisabledPackages', [$this]);
     }
 
     public static function getPlatformPhpVersion(): ?string
@@ -43,7 +49,9 @@ class PlatformRepository extends \Composer\Repository\ArrayRepository
 
     protected function initialize(): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PlatformRepository::initialize() in plugins yet');
+        if (!\Maestro\Shim\Remote::owned($this)) {
+            \Maestro\Shim\Remote::unsupported(self::class, 'initialize');
+        }
     }
 
     public static function isPlatformPackage(string $name): bool
@@ -59,7 +67,7 @@ class PlatformRepository extends \Composer\Repository\ArrayRepository
 
     public function isPlatformPackageDisabled(string $name): bool
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PlatformRepository::isPlatformPackageDisabled() in plugins yet');
+        return \Maestro\Shim\Rpc::call('repo.isPlatformPackageDisabled', [$this, $name]);
     }
 
     public function search(string $query, int $mode = 0, ?string $type = null): array

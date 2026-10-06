@@ -24,6 +24,7 @@ use Composer\Semver\Constraint\MultiConstraint;
  *   {"\0c":"all","p":"*"}
  *   {"\0c":"none","p":null}
  *   {"\0c":"link","src":"a/b","tgt":"c/d","c":<constraint>,"d":"requires","pc":"^1.0"}
+ *   {"\0c":"response","url":..,"code":200,"headers":[..],"body":..}   (a Composer\Util\Http\Response, maestro to PHP)
  *   {"\0c":"date","v":"2024-01-02T03:04:05.000000+00:00"}   (a DateTimeInterface, PHP to maestro)
  */
 final class Values
@@ -40,7 +41,7 @@ final class Values
 
     /**
      * @param array<string, mixed> $tag
-     * @return Link|ConstraintInterface
+     * @return Link|ConstraintInterface|\Composer\Util\Http\Response
      */
     public static function decode(array $tag)
     {
@@ -52,6 +53,8 @@ final class Values
                 Remote::fill($link, Link::class, ['description' => (string) $tag['d']]);
 
                 return $link;
+            case 'response':
+                return new \Composer\Util\Http\Response(['url' => Codec::decode($tag['url'])], $tag['code'], Codec::decode($tag['headers']), Codec::decode($tag['body']));
             case 'constraint':
                 $c = new Constraint((string) $tag['op'], (string) $tag['v']);
                 break;

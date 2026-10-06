@@ -1,0 +1,18 @@
+{
+    "name": "maestro-test/alpha",
+    "require": {
+        "psr/log": "^3.0"
+    },
+    "require-dev": {
+        "psr/container": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"Alpha\\": "src/"}
+    },
+    "extra": {
+        "alpha-setting": true
+    },
+    "scripts": {
+        "alpha-hello": "echo alpha says hello"
+    }
+}

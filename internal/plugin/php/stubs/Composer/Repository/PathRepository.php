@@ -20,6 +20,10 @@ class PathRepository extends \Composer\Repository\ArrayRepository implements \Co
 
     public function getRepoName(): string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getRepoName', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PathRepository::getRepoName() in plugins yet');
     }
 

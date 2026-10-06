@@ -25,6 +25,10 @@ class PackageRepository extends \Composer\Repository\ArrayRepository implements 
 
     public function getRepoName(): string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getRepoName', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\PackageRepository::getRepoName() in plugins yet');
     }
 

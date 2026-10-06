@@ -11,7 +11,10 @@ use Composer\EventDispatcher\Event;
 use Composer\Installer\InstallerEvent;
 use Composer\Installer\PackageEvent;
 use Composer\Plugin\CommandEvent;
+use Composer\Plugin\PostFileDownloadEvent;
 use Composer\Plugin\PreCommandRunEvent;
+use Composer\Plugin\PreFileDownloadEvent;
+use Composer\Plugin\PrePoolCreateEvent;
 use Composer\Script\Event as ScriptEvent;
 use Maestro\Shim\MirrorAdapter;
 use Maestro\Shim\Remote;
@@ -31,6 +34,9 @@ final class EventAdapter implements MirrorAdapter
         InstallerEvent::class => ['composer', 'io', 'devMode', 'executeOperations', 'transaction'],
         CommandEvent::class => ['commandName', 'input', 'output'],
         PreCommandRunEvent::class => ['input', 'command'],
+        PrePoolCreateEvent::class => ['repositories', 'request', 'acceptableStabilities', 'stabilityFlags', 'rootAliases', 'rootReferences', 'packages', 'unacceptableFixedPackages'],
+        PreFileDownloadEvent::class => ['httpDownloader', 'processedUrl', 'customCacheKey', 'type', 'context', 'transportOptions'],
+        PostFileDownloadEvent::class => ['fileName', 'checksum', 'url', 'context', 'type'],
     ];
 
     public function base(): string

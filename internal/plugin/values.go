@@ -65,6 +65,11 @@ type constraintValue struct{ c semver.ConstraintInterface }
 // PHPOpaque implements php.Opaque.
 func (constraintValue) PHPOpaque() {}
 
+// EncodeRPC implements rpc.ValueEncoder: a constraint maestro hands to PHP.
+func (v constraintValue) EncodeRPC(e *rpc.Encoder) (*php.Array, error) {
+	return encodeConstraint(e, v.c)
+}
+
 // dateValue is a DateTimeInterface from PHP, as a php.Opaque value.
 type dateValue struct{ t time.Time }
 

@@ -22,7 +22,7 @@ class EventDispatcher
 
     public function __construct(\Composer\PartialComposer $composer, \Composer\IO\IOInterface $io, ?\Composer\Util\ProcessExecutor $process = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::__construct() in plugins yet');
+        \Maestro\Shim\Rpc::call('ed.new', [$this, $composer, $io]);
     }
 
     public function addListener(string $eventName, $listener, int $priority = 0): void

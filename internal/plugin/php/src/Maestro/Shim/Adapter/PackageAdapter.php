@@ -9,8 +9,10 @@ namespace Maestro\Shim\Adapter;
 
 use Composer\Package\AliasPackage;
 use Composer\Package\BasePackage;
+use Composer\Package\CompleteAliasPackage;
 use Composer\Package\CompletePackage;
 use Composer\Package\Package;
+use Composer\Package\RootAliasPackage;
 use Composer\Package\RootPackage;
 use Maestro\Shim\MirrorAdapter;
 use Maestro\Shim\Remote;
@@ -62,7 +64,28 @@ final class PackageAdapter implements MirrorAdapter
 
     public function snapshot($object): array
     {
-        return $this->fields($object, self::names($object));
+        $fields = $this->fields($object, self::names($object));
+        $fields['class'] = self::composerClass($object);
+
+        return $fields;
+    }
+
+    /**
+     * The nearest Composer class of a package: what maestro builds for a
+     * package created in PHP (a plugin's subclass keeps its own class in
+     * PHP).
+     *
+     * @param object $object
+     */
+    private static function composerClass($object): string
+    {
+        foreach ([RootAliasPackage::class, CompleteAliasPackage::class, AliasPackage::class, RootPackage::class, CompletePackage::class] as $class) {
+            if ($object instanceof $class) {
+                return $class;
+            }
+        }
+
+        return Package::class;
     }
 
     public function fields($object, array $names): array
@@ -77,6 +100,14 @@ final class PackageAdapter implements MirrorAdapter
 
     public function apply($object, array $fields): void
     {
+        // A snapshot of the core fields only (docs/PLUGINS.md §5.3): the
+        // getters of the rest fetch them first (LazyPackages).
+        if (isset($fields['lazy'])) {
+            unset($fields['lazy']);
+            \Maestro\Shim\LazyPackages::$pending[spl_object_id($object)] = true;
+        } else {
+            unset(\Maestro\Shim\LazyPackages::$pending[spl_object_id($object)]);
+        }
         if (isset($fields['releaseDate'])) {
             $fields['releaseDate'] = new \DateTime($fields['releaseDate']);
         }

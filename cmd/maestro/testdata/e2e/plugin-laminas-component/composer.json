@@ -1,0 +1,24 @@
+{
+    "name": "maestro-test/laminas-component",
+    "description": "laminas/laminas-component-installer: package events inject the components and modules of installed packages into config/modules.config.php (auto-installs, the non-interactive prompt's default, the ignore list) and remove them on uninstall; it builds an InstalledRepository of the local, root and platform repositories in PHP.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "laminas/laminas-component-installer": "3.8.0",
+        "local/component-a": "1.0.0",
+        "local/module-b": "1.0.0",
+        "local/ignored-c": "1.0.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "laminas/laminas-component-installer": true
+        }
+    },
+    "extra": {
+        "laminas": {
+            "component-auto-installs": ["Local\\ComponentA"],
+            "component-ignore-list": ["Local\\IgnoredC"]
+        }
+    }
+}

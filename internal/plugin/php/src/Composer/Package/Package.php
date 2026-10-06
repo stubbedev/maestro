@@ -78,6 +78,7 @@ class Package extends BasePackage
 
     public function getTargetDir(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         if (null === $this->targetDir) {
             return null;
         }
@@ -87,41 +88,49 @@ class Package extends BasePackage
 
     public function getExtra(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->extra;
     }
 
     public function getBinaries(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->binaries;
     }
 
     public function getInstallationSource(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->installationSource;
     }
 
     public function getSourceType(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->sourceType;
     }
 
     public function getSourceUrl(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->sourceUrl;
     }
 
     public function getSourceReference(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->sourceReference;
     }
 
     public function getSourceMirrors(): ?array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->sourceMirrors;
     }
 
     public function getSourceUrls(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         if (Remote::owned($this)) {
             return Rpc::call('pkg.getSourceUrls', [$this]);
         }
@@ -131,31 +140,37 @@ class Package extends BasePackage
 
     public function getDistType(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->distType;
     }
 
     public function getDistUrl(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->distUrl;
     }
 
     public function getDistReference(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->distReference;
     }
 
     public function getDistSha1Checksum(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->distSha1Checksum;
     }
 
     public function getDistMirrors(): ?array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->distMirrors;
     }
 
     public function getDistUrls(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         if (Remote::owned($this)) {
             return Rpc::call('pkg.getDistUrls', [$this]);
         }
@@ -165,6 +180,7 @@ class Package extends BasePackage
 
     public function getTransportOptions(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->transportOptions;
     }
 
@@ -180,66 +196,79 @@ class Package extends BasePackage
 
     public function getReleaseDate(): ?\DateTimeInterface
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->releaseDate;
     }
 
     public function getRequires(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->requires;
     }
 
     public function getConflicts(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->conflicts;
     }
 
     public function getProvides(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->provides;
     }
 
     public function getReplaces(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->replaces;
     }
 
     public function getDevRequires(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->devRequires;
     }
 
     public function getSuggests(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->suggests;
     }
 
     public function getAutoload(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->autoload;
     }
 
     public function getDevAutoload(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->devAutoload;
     }
 
     public function getIncludePaths(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->includePaths;
     }
 
     public function getPhpExt(): ?array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->phpExt;
     }
 
     public function getNotificationUrl(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->notificationUrl;
     }
 
     public function isDefaultBranch(): bool
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->isDefaultBranch;
     }
 

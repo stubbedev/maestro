@@ -20,6 +20,11 @@ func (r *Runtime) registerAPI() {
 	r.registerInstallationManagerInstallers()
 	r.registerPromises()
 	r.registerConsole()
+	r.registerLoaders()
+	r.registerRunInstaller()
+	r.registerHTTP()
+	r.registerResolverEvents()
+	r.registerSelectors()
 	r.Handle("repo.getPlatformPhpVersion", func(any) (any, error) { return r.platformPHPVersion(), nil })
 }
 

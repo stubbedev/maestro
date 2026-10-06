@@ -38,6 +38,7 @@ const (
 	classLoop                = `Composer\Util\Loop`
 	classArchiveManager      = `Composer\Package\Archiver\ArchiveManager`
 	classJsonFile            = `Composer\Json\JsonFile`
+	classHttpDownloader      = `Composer\Util\HttpDownloader`
 )
 
 // serviceObject returns the proxy of the Go service v of PHP class class
@@ -110,6 +111,12 @@ func (r *Runtime) value(v any) any {
 		}
 
 		return r.serviceObject(v, classLoop)
+	case *http.HttpDownloader:
+		if v == nil {
+			return nil
+		}
+
+		return r.serviceObject(v, classHttpDownloader)
 	case *archiver.ArchiveManager:
 		if v == nil {
 			return nil

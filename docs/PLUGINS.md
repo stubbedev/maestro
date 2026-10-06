@@ -554,9 +554,8 @@ forwarding to its package, `setSourceDistReferences` touching three
 fields, `setRepository` refusing a second repository) are maestro's
 code; the changed `Rev` sends the new snapshot with the reply, before the
 setter returns in PHP. Dirty-field sync remains for mirrors whose setters
-are plain fields (tests use it). Snapshots are always full: the lazy tiers
-below are not implemented, as no phase-2 path sends large package lists
-(PRE_POOL_CREATE is phase 5). Service objects (Composer, Config, the
+are plain fields (tests use it). Snapshots are full, except the core tier
+of PRE_POOL_CREATE's package lists (phase 5, below). Service objects (Composer, Config, the
 managers, repositories, the Locker, the AutoloadGenerator) are not mirrors:
 PHP holds an instance of their Composer class built without its
 constructor, whose methods are RPCs; a stub class's methods throw
@@ -592,8 +591,8 @@ The same blocks carry other process state:
 Scanning is O(known handles) per transfer. That is a few hundred integer
 compares in normal runs and about 10k during PRE_POOL_CREATE, which is cheap.
 
-**Lazy snapshot tiers (packages, not implemented yet).** A package mirror
-would arrive in one of two tiers:
+**Lazy snapshot tiers (packages; phase 5, PRE_POOL_CREATE's lists).** A
+package mirror arrives in one of two tiers:
 
 - **core**: id, class, name, prettyName, version, prettyVersion, type,
   stability, isDev, alias target handle, repository handle.
@@ -608,8 +607,8 @@ core snapshots for PRE_POOL_CREATE package lists, which can hold more than
 **PHP-born data objects.** Phase 2 adopts PHP-born events this way (a
 plugin's Event subclass passed to `dispatch()`: Go builds an
 `eventdispatcher.PHPEvent` from its snapshot, and listeners get the very
-same object back); packages and operations created in PHP stay PHP's
-until phase 5.
+same object back); phase 5 adopts packages and operations created in PHP
+the same way.
 
 `new Package('dummy/pkg', '1.0.0.0', '1.0.0')`
 stays purely local. composer/installers creates one on every `supports()`
@@ -1854,6 +1853,76 @@ filter helpers, IOs created in PHP given to maestro (other than NullIO).
   `setExtra` round trip into installed.json, `patches-relock`,
   `patches-repatch`), laminas-dependency-plugin, laminas-component-installer,
   civicrm downloads.
+
+Status: done. What crosses and how:
+
+- Objects PHP constructs from maestro's classes become maestro's: the
+  constructor calls `<area>.new` with `$this`, maestro builds its object
+  and adopts PHP's (`rpc.Conn.Adopt`, the sync block's `reg`), so identity
+  holds and the methods are maestro's from then on: `PlatformRepository`
+  (the platform detected, as the constructor does), `(Installed)FilesystemRepository`,
+  `RepositorySet`, `VersionSelector`, `Locker`, `JsonConfigSource`,
+  `HttpDownloader`, `RemoteFilesystem`, `Loop`, `Cache` (also a subclass's
+  `parent::__construct()`), `SuggestedPackagesReporter` and
+  `EventDispatcher` (`ed.new`, a second dispatcher set up as Factory sets
+  up a Composer's). Packages and operations created in PHP are adopted when
+  they first cross (`new Package`, a plugin's `Package` subclass such as
+  civicrm's, `new UninstallOperation`): maestro builds its own from the
+  snapshot (`adopt_package.go`, `adoptOperation`). A `JsonManipulator` has
+  a maestro peer (`json.newManipulator`, `json.manipulate`).
+- PHP reimplementations with Composer's behaviour: `CompositeRepository`,
+  `InstalledRepository`, `RepositoryFactory` (its manager is maestro's,
+  `repofactory.manager`), `Util\Http\Response`, the platform requirement
+  filters, `BaseIO::loadConfiguration` for IOs created in PHP, and
+  ProcessExecutor's asynchronous jobs (`executeAsync` runs Symfony Process
+  in PHP, as Composer does; `Loop::wait()` waits for maestro's jobs, then
+  for these).
+- `Composer\Installer` records its settings in Composer's properties;
+  `run()` (`installer.run`) builds maestro's Installer from them (the
+  services, the settings, the platform filter) and runs it re-entrantly.
+- PRE_POOL_CREATE: the event, its `Request` (`request.*`) and lists;
+  `setPackages()`/`setUnacceptableFixedPackages()` are maestro's setters, so
+  the pool is built from them. The packages of these lists PHP does not
+  know yet cross with their core fields only (id, names, versions, type,
+  stability, dev: the lazy tier of §5.3); the getters of the other fields
+  fetch them (`pkg.load`, `Maestro\Shim\LazyPackages`). PRE_OPERATIONS_EXEC:
+  `Transaction::getOperations()` of maestro's transactions. PRE/POST_FILE_DOWNLOAD:
+  mirrors whose setters (URL, cache key, transport options) are maestro's;
+  a metadata event's context is `['repository' => ..., 'response' =>
+  Response]`.
+- Promises carry values (`promiseValueToPHP`): `DownloadManager::download()`
+  resolves with the file's path, `HttpDownloader::add()` with a `Response`.
+  A `ProcessExecutor::execute()` with a callable output gets its chunks on
+  the goroutine holding the PHP baton.
+- The generated stubs of maestro's own remote repositories
+  (`ComposerRepository`, `VcsRepository`, `FilterRepository`, ...) serve
+  RepositoryInterface's methods (`repo.*`), and `Transaction`'s
+  `getOperations()` (tools/shimgen `remoteMethods`).
+
+Fixtures (cmd/maestro e2e_plugins_test.go, cold and warm): `plugin-merge`
+(wikimedia/composer-merge-plugin 2.1.0: includes, a `package` repository
+created and prepended, `replace`, scripts, extra, dev sections, the first
+install's nested update, a changed include), `plugin-patches1`
+(cweagans/composer-patches 1.7.3: patching, `patches_applied` in
+installed.json, the uninstall before solving when the patches change),
+`plugin-patches2` (2.0.0: patches.lock.json, `patches-relock`,
+`patches-repatch`, `patches-doctor`, `help`), `plugin-laminas-dependency`
+(laminas-dependency-plugin 2.7.0's code from a path repository: its
+release requires composer-plugin-api <2.3.0, so Composer 2.10 skips it;
+PRE_POOL_CREATE slipstreaming, composer.json rewrite, nested `update
+--lock`), `plugin-laminas-component` (laminas-component-installer 3.8.0),
+`plugin-civicrm` (civicrm/composer-downloads-plugin 4.0.0: file and
+archive downloads, root and package) and `plugin-download-events` (a path
+plugin on PRE/POST_FILE_DOWNLOAD). `TestPlugins_ResolverAPIs`
+(MAESTRO_PHP_TESTS=1) covers the rest in-process.
+
+Known differences: steps whose output a plugin echoes from a child
+process in chunks (cweagans's `-v` patch output) are left out of the
+fixtures, as the chunk boundaries vary from run to run in Composer as in
+maestro. Not yet: repositories and downloaders implemented in PHP given to
+maestro (`RepositoryManager::addRepository()`/`setRepositoryClass()` with
+a PHP class, `DownloadManager::setDownloader()`), `RepositorySet` pools
+and advisories, `Loop::wait()`'s progress bar counts only maestro's jobs.
 
 **Phase 6: internals emulation.**
 - Backtrace frames.

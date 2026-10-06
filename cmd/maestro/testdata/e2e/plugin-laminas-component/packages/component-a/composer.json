@@ -1,0 +1,6 @@
+{
+    "name": "local/component-a",
+    "version": "1.0.0",
+    "autoload": {"psr-4": {"Local\\ComponentA\\": "src/"}},
+    "extra": {"laminas": {"component": "Local\\ComponentA"}}
+}

@@ -104,6 +104,30 @@ func (c *Conn) Handle(method string, h Handler) { c.handlers[method] = h }
 // base class is base.
 func (c *Conn) RegisterMirrorFactory(base string, f MirrorFactory) { c.factories[base] = f }
 
+// Adopt makes the PHP-born object o the Go object obj (docs/PLUGINS.md
+// §5.3): a service maestro created for an object PHP constructed (`new
+// Locker(...)`, `new PlatformRepository(...)`). PHP rebinds its object to
+// obj's handle with the next message, so from then on it is Go-owned and
+// its methods are maestro's. It must run on the goroutine holding the
+// baton (a handler of a call from PHP).
+func (c *Conn) Adopt(o *PHPObject, obj Object) error {
+	if _, ok := c.h.adopted[o.H]; ok {
+		return &ProtocolError{Message: "object " + o.Class + " was adopted already"}
+	}
+	gh, err := c.h.handleOf(obj)
+	if err != nil {
+		return err
+	}
+	c.h.adopted[o.H] = obj
+	var rev uint64
+	if m, ok := obj.(Mirror); ok {
+		rev = m.Rev()
+	}
+	c.pendingReg = append(c.pendingReg, registration{tmp: o.H, h: gh, m: obj, rev: rev})
+
+	return nil
+}
+
 // RegisterTag sets the decoder of a value tag (key starts with NUL).
 func (c *Conn) RegisterTag(key string, d TagDecoder) { c.tags[key] = d }
 

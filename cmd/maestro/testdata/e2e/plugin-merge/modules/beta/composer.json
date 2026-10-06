@@ -1,0 +1,22 @@
+{
+    "name": "maestro-test/beta",
+    "repositories": [
+        {
+            "type": "package",
+            "package": {
+                "name": "inline/meta",
+                "version": "1.2.0",
+                "type": "metapackage",
+                "require": {"psr/log": "^3.0"}
+            }
+        }
+    ],
+    "require": {
+        "psr/log": ">=3.0.1",
+        "inline/meta": "^1.0",
+        "local/merged-lib": "^1.0"
+    },
+    "suggest": {
+        "psr/simple-cache": "for caching"
+    }
+}

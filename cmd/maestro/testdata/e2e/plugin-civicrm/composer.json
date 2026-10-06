@@ -1,0 +1,30 @@
+{
+    "name": "maestro-test/civicrm-downloads",
+    "description": "civicrm/composer-downloads-plugin: extra files downloaded through the DownloadManager (a PHP Package subclass handed to download()/install(), Loop::wait, the download promise's file path), for the root package and an installed package.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "civicrm/composer-downloads-plugin": "4.0.0",
+        "local/with-download": "1.0.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "civicrm/composer-downloads-plugin": true
+        }
+    },
+    "extra": {
+        "downloads": {
+            "readme": {
+                "url": "https://raw.githubusercontent.com/php-fig/log/3.0.2/README.md",
+                "path": "extern/log-readme.md",
+                "type": "file"
+            },
+            "container": {
+                "url": "https://github.com/php-fig/container/archive/refs/tags/2.0.2.zip",
+                "path": "extern/container",
+                "ignore": ["src/ContainerExceptionInterface.php"]
+            }
+        }
+    }
+}

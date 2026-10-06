@@ -1,0 +1,16 @@
+{
+    "name": "maestro-test/resolver-project",
+    "description": "A project whose plugin uses the Composer API of docs/PLUGINS.md's phase 5: PRE_POOL_CREATE, PRE_OPERATIONS_EXEC, loaders, repositories, the Locker, JSON editing, the cache, version selection and a nested install.",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"type": "path", "url": "libs/*", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/resolver-plugin": "*",
+        "local/lib-a": "*"
+    },
+    "config": {
+        "allow-plugins": {"maestro-test/resolver-plugin": true}
+    }
+}

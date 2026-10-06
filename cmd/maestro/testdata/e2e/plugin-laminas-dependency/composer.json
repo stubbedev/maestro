@@ -1,0 +1,19 @@
+{
+    "name": "maestro-test/laminas-dependency",
+    "description": "laminas/laminas-dependency-plugin (its 2.7.0 code from a path repository, see packages/): a zendframework package replaced by its laminas successor (PRE_POOL_CREATE slipstreaming, composer.json rewritten, the zend package uninstalled, `update --lock` run in a new Application).",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "laminas/laminas-dependency-plugin": "2.7.0",
+        "zendframework/zend-escaper": "2.6.1"
+    },
+    "config": {
+        "platform": {
+            "php": "7.4.33"
+        },
+        "allow-plugins": {
+            "laminas/laminas-dependency-plugin": true
+        }
+    }
+}

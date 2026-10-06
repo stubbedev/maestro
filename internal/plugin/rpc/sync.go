@@ -42,11 +42,11 @@ var PHPStatics = map[string]any{
 	"processTimeout":   int64(300),
 }
 
-// registration is a PHP-born mirror Go adopted, announced in the next
+// registration is a PHP-born object Go adopted, announced in the next
 // sync block.
 type registration struct {
 	tmp, h Handle
-	m      Mirror
+	m      Object
 	// rev is the mirror's revision when PHP's object was adopted: what
 	// PHP's object holds, so later changes reach it even when they happen
 	// before the registration is sent.
@@ -115,7 +115,9 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 		for _, r := range c.pendingReg {
 			list.Append(php.ArrayOf("tmp", int64(r.tmp), "h", int64(r.h)))
 			e.sent[r.h] = true
-			e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: r.m, rev: r.rev})
+			if m, ok := r.m.(Mirror); ok {
+				e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: m, rev: r.rev})
+			}
 		}
 		s.Set("reg", list)
 		commits = append(commits, func() { c.pendingReg = nil })

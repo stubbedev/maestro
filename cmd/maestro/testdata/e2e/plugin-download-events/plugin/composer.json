@@ -1,0 +1,14 @@
+{
+    "name": "maestro-test/download-events-plugin",
+    "version": "1.0.0",
+    "type": "composer-plugin",
+    "require": {
+        "composer-plugin-api": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"MaestroTest\\DownloadEvents\\": "src/"}
+    },
+    "extra": {
+        "class": "MaestroTest\\DownloadEvents\\Plugin"
+    }
+}

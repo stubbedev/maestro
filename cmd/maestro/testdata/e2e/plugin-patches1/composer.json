@@ -1,0 +1,20 @@
+{
+    "name": "maestro-test/patches1",
+    "description": "cweagans/composer-patches 1.x: patches applied after install, patches_applied recorded in installed.json through setExtra, re-patching (the package uninstalled before solving) when the patches change.",
+    "require": {
+        "cweagans/composer-patches": "1.7.3",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "psr/log": {
+                "Retitle the README": "patches/psr-log-title.patch"
+            }
+        }
+    }
+}

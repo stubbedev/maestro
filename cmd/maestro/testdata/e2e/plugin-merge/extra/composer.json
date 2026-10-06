@@ -1,0 +1,9 @@
+{
+    "name": "maestro-test/extra",
+    "require": {
+        "psr/event-dispatcher": "^1.0"
+    },
+    "replace": {
+        "maestro-test/replaced": "*"
+    }
+}

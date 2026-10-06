@@ -88,9 +88,9 @@ type handles struct {
 	sent map[Handle]bool
 
 	phpObjects map[Handle]*PHPObject
-	// adopted maps the PHP handle of a PHP-born mirror Go registered to
-	// its Go object.
-	adopted map[Handle]Mirror
+	// adopted maps the PHP handle of a PHP-born object Go registered (a
+	// mirror, or a service maestro created for it) to its Go object.
+	adopted map[Handle]Object
 
 	// mirrors are the Go mirrors PHP holds, with the revision it has, in
 	// the order PHP got them.
@@ -110,7 +110,7 @@ func newHandles() handles {
 		goIDs:      map[Object]Handle{},
 		sent:       map[Handle]bool{},
 		phpObjects: map[Handle]*PHPObject{},
-		adopted:    map[Handle]Mirror{},
+		adopted:    map[Handle]Object{},
 		mirrorIdx:  map[Handle]*mirrorState{},
 	}
 }

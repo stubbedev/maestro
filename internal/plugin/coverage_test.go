@@ -12,11 +12,12 @@ import (
 
 // TestHandlers_CoverShim (docs/PLUGINS.md §9.1 "Handler coverage"): the
 // methods the shim calls in maestro (`Rpc::call('<area>.<method>', ...)`
-// in its source) are exactly the handlers maestro registers.
+// in its source and in the generated stubs, whose instances may be
+// maestro's) are exactly the handlers maestro registers.
 func TestHandlers_CoverShim(t *testing.T) {
 	called := map[string]bool{}
 	pattern := php.MustCompile(`{Rpc::call\('([a-z]+\.[A-Za-z0-9]+)'}`)
-	err := fs.WalkDir(shimFS(), "src", func(path string, d fs.DirEntry, err error) error {
+	walk := func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".php") {
 			return err
 		}
@@ -33,9 +34,11 @@ func TestHandlers_CoverShim(t *testing.T) {
 		}
 
 		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
+	}
+	for _, dir := range []string{"src", "stubs"} {
+		if err := fs.WalkDir(shimFS(), dir, walk); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	rt := New(Options{CacheDir: t.TempDir()})

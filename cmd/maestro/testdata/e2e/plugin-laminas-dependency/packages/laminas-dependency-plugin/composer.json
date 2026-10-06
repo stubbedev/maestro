@@ -1,0 +1,18 @@
+{
+    "name": "laminas/laminas-dependency-plugin",
+    "description": "Replace zendframework and zfcampus packages with their Laminas Project equivalents. (laminas/laminas-dependency-plugin 2.7.0's code, unchanged; its composer.json requires composer-plugin-api <2.3.0, which Composer 2.10 is not, so this copy relaxes it.)",
+    "version": "2.7.0",
+    "type": "composer-plugin",
+    "license": "BSD-3-Clause",
+    "require": {
+        "composer-plugin-api": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Laminas\\DependencyPlugin\\": "src/"
+        }
+    },
+    "extra": {
+        "class": "Laminas\\DependencyPlugin\\DependencyRewriterPluginDelegator"
+    }
+}

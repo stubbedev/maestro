@@ -1,0 +1,14 @@
+{
+    "name": "maestro-test/resolver-plugin",
+    "version": "1.0.0",
+    "type": "composer-plugin",
+    "require": {
+        "composer-plugin-api": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"MaestroTest\\ResolverPlugin\\": "src/"}
+    },
+    "extra": {
+        "class": "MaestroTest\\ResolverPlugin\\Plugin"
+    }
+}

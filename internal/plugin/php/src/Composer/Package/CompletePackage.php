@@ -149,66 +149,79 @@ class CompletePackage extends Package implements CompletePackageInterface
 
     public function getScripts(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->scripts;
     }
 
     public function getRepositories(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->repositories;
     }
 
     public function getLicense(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->license;
     }
 
     public function getKeywords(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->keywords;
     }
 
     public function getAuthors(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->authors;
     }
 
     public function getDescription(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->description;
     }
 
     public function getHomepage(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->homepage;
     }
 
     public function getSupport(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->support;
     }
 
     public function getFunding(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->funding;
     }
 
     public function isAbandoned(): bool
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return (bool) $this->abandoned;
     }
 
     public function getReplacementPackage(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return \is_string($this->abandoned) ? $this->abandoned : null;
     }
 
     public function getArchiveName(): ?string
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->archiveName;
     }
 
     public function getArchiveExcludes(): array
     {
+        \Maestro\Shim\LazyPackages::load($this);
         return $this->archiveExcludes;
     }
 }

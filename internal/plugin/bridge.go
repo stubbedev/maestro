@@ -166,3 +166,46 @@ func param[T any](a args, i int) (T, error) {
 
 	return t, nil
 }
+
+// adopt makes the object PHP is constructing (the receiver of a `<area>.new`
+// call, param 0) maestro's service v: PHP's object is
+// rebound to v's proxy, so identity holds and its methods are maestro's
+// from then on (docs/PLUGINS.md §5.3).
+func (r *Runtime) adopt(a args, v any) error {
+	o, ok := a.at(0).(*rpc.PHPObject)
+	if !ok {
+		return a.errorf("param 0 is not an object being constructed in PHP (a %T)", a.at(0))
+	}
+	conn, err := r.started()
+	if err != nil {
+		return err
+	}
+	obj := r.bridge.object(v, func() rpc.Object { return &service{v: v, class: o.Class} })
+
+	return conn.Adopt(o, obj)
+}
+
+// unsupportedError is a Maestro\Shim\UnsupportedApiException thrown back
+// into PHP: an API use maestro cannot follow (yet).
+type unsupportedError struct{ msg string }
+
+func unsupportedf(format string, v ...any) error {
+	return &unsupportedError{msg: fmt.Sprintf(format, v...)}
+}
+
+func (e *unsupportedError) Error() string { return e.msg }
+
+// ThrowableClass implements console.Throwable.
+func (*unsupportedError) ThrowableClass() string { return `Maestro\Shim\UnsupportedApiException` }
+
+// ThrowableFile implements console.Throwable.
+func (*unsupportedError) ThrowableFile() string { return "" }
+
+// ThrowableLine implements console.Throwable.
+func (*unsupportedError) ThrowableLine() int { return 0 }
+
+// ThrowableCode implements console.Throwable.
+func (*unsupportedError) ThrowableCode() int { return 0 }
+
+// ThrowablePrevious implements console.Throwable.
+func (*unsupportedError) ThrowablePrevious() error { return nil }

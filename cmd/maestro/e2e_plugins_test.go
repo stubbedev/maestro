@@ -435,6 +435,134 @@ func pluginScenarios() []scenario {
 				{args: []string{"global", "update"}},
 			},
 		},
+		{
+			// wikimedia/composer-merge-plugin (docs/PLUGINS.md phase 5): the
+			// root package's requires, repositories (createRepository,
+			// prependRepository), autoload, extra and scripts merged before
+			// solving; the first install re-runs the update in-process
+			// (Factory::create, Installer::create()->run()).
+			name:    "plugin-merge",
+			fixture: "plugin-merge",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"update"}},
+				{args: []string{"run-script", "alpha-hello"}},
+				{args: []string{"dump-autoload", "-o"}},
+				{args: []string{"install", "-vvv"}},
+				{args: []string{"update", "psr/log"}},
+				// A requirement added to an included file: merged before
+				// the solver runs.
+				{args: []string{"update"}, setup: writeFile("project/modules/alpha/composer.json", mergeAlphaUpdated)},
+				{args: []string{"install", "--no-plugins"}},
+			},
+		},
+		{
+			// cweagans/composer-patches 1.x (docs/PLUGINS.md phase 5): its
+			// POST_PACKAGE_INSTALL listener applies the patches (git apply,
+			// through ProcessExecutor) and records them with setExtra() on
+			// the local repository's package, which reaches installed.json;
+			// changed patches make its PRE_INSTALL_CMD listener uninstall
+			// the package (InstallationManager::uninstall, Loop::wait) so
+			// it is installed and patched again.
+			name:    "plugin-patches1",
+			fixture: "plugin-patches1",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"install", "-v"}, setup: writeFile("project/composer.json", patches1Two)},
+				{args: []string{"update"}},
+				{args: []string{"install", "-vvv"}, setup: writeFile("project/composer.json", patches1None)},
+				{args: []string{"install", "--no-plugins"}},
+			},
+		},
+		{
+			// cweagans/composer-patches 2.x (docs/PLUGINS.md phase 5):
+			// patches.lock.json, patches applied from its package event
+			// listeners, its commands: patches-relock (rewrites the lock),
+			// patches-repatch (uninstalls through InstallationManager,
+			// Loop::wait, then runs `install` in the running Application),
+			// patches-doctor.
+			name:    "plugin-patches2",
+			fixture: "plugin-patches2",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"patches-relock"}, setup: writeFile("project/composer.json", patches2Two)},
+				{args: []string{"patches-repatch"}},
+				// No -v: git's output, which the plugin then echoes, reaches
+				// it in chunks whose boundaries differ from run to run, in
+				// Composer as in maestro.
+				{args: []string{"patches-relock", "-v"}},
+				{args: []string{"install"}, setup: writeFile("project/composer.json", patches2One)},
+				{args: []string{"patches-doctor"}},
+				{args: []string{"help", "patches-repatch"}},
+				{args: []string{"update"}},
+				{args: []string{"install", "--no-plugins"}},
+			},
+		},
+		{
+			// laminas/laminas-dependency-plugin (docs/PLUGINS.md phase 5):
+			// its PRE_PACKAGE_INSTALL listener finds the laminas successor
+			// of a zendframework package (RepositoryManager::findPackage),
+			// POST_AUTOLOAD_DUMP rewrites composer.json, uninstalls the
+			// zend package and runs `update --lock` in a new Application;
+			// later its PRE_POOL_CREATE listener slipstreams the
+			// replacement into the pool (setPackages).
+			name:    "plugin-laminas-dependency",
+			fixture: "plugin-laminas-dependency",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"require", "zendframework/zend-stdlib:3.2.1"}},
+				{args: []string{"update", "-v"}},
+				{args: []string{"install", "--no-plugins"}},
+			},
+		},
+		{
+			// laminas/laminas-component-installer (docs/PLUGINS.md phase
+			// 5): its package event listeners inject components and
+			// modules into config/modules.config.php, building an
+			// InstalledRepository of the local, root and platform
+			// repositories in PHP.
+			name:    "plugin-laminas-component",
+			fixture: "plugin-laminas-component",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"remove", "local/module-b"}},
+				{args: []string{"require", "local/module-b:1.0.0", "-v"}},
+				{args: []string{"remove", "local/component-a", "local/module-b"}},
+				{args: []string{"install", "--no-dev"}},
+			},
+		},
+		{
+			// civicrm/composer-downloads-plugin (docs/PLUGINS.md phase 5):
+			// its Package subclass created in PHP goes to the
+			// DownloadManager (download(), install()), whose promises
+			// settle in Loop::wait(); a file download's promise gives the
+			// file's path.
+			name:    "plugin-civicrm",
+			fixture: "plugin-civicrm",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}},
+				{args: []string{"install", "-v"}, setup: removeFile("project/extern/log-readme.md")},
+				{args: []string{"update"}},
+			},
+		},
+		{
+			// PRE_FILE_DOWNLOAD and POST_FILE_DOWNLOAD (docs/PLUGINS.md
+			// phase 5) for metadata and a package: the listener changes the
+			// transport options and the cache key of the download.
+			name:    "plugin-download-events",
+			fixture: "plugin-download-events",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"install"}, setup: removeFile("project/vendor/psr/log/README.md")},
+				{args: []string{"reinstall", "psr/log"}},
+				{args: []string{"update", "-v"}},
+			},
+		},
 	}
 }
 
@@ -522,6 +650,121 @@ var stackFrames = regexp.MustCompile(`(?m)^(Stack trace:\n \S+\n)(?: \S+\n)+`)
 // normalizeStackTrace drops the frames of ErrorHandler's stack traces below
 // the plugin's own line, for the reason of normalizeTrace.
 func normalizeStackTrace(s string) string { return stackFrames.ReplaceAllString(s, "$1") }
+
+// mergeAlphaUpdated is plugin-merge's modules/alpha with one more
+// requirement.
+const mergeAlphaUpdated = `{
+    "name": "maestro-test/alpha",
+    "require": {
+        "psr/log": "^3.0",
+        "psr/simple-cache": "^3.0"
+    },
+    "require-dev": {
+        "psr/container": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"Alpha\\": "src/"}
+    }
+}
+`
+
+// patches1Two is plugin-patches1's composer.json with a second patch.
+const patches1Two = `{
+    "name": "maestro-test/patches1",
+    "require": {
+        "cweagans/composer-patches": "1.7.3",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "psr/log": {
+                "Retitle the README": "patches/psr-log-title.patch",
+                "A second change": "patches/psr-log-second.patch"
+            }
+        }
+    }
+}
+`
+
+// patches1None is plugin-patches1's composer.json without patches, but
+// patching still enabled.
+const patches1None = `{
+    "name": "maestro-test/patches1",
+    "require": {
+        "cweagans/composer-patches": "1.7.3",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "enable-patching": true,
+        "patches": {}
+    }
+}
+`
+
+// patches2One is plugin-patches2's composer.json with its second patch
+// only.
+const patches2One = `{
+    "name": "maestro-test/patches2",
+    "require": {
+        "cweagans/composer-patches": "2.0.0",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "psr/log": [
+                {
+                    "description": "Add a file",
+                    "url": "patches/psr-log-second.patch"
+                }
+            ]
+        }
+    }
+}
+`
+
+// patches2Two is plugin-patches2's composer.json with a second patch.
+const patches2Two = `{
+    "name": "maestro-test/patches2",
+    "require": {
+        "cweagans/composer-patches": "2.0.0",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "psr/log": [
+                {
+                    "description": "Retitle the README",
+                    "url": "patches/psr-log-title.patch"
+                },
+                {
+                    "description": "Add a file",
+                    "url": "patches/psr-log-second.patch"
+                }
+            ]
+        }
+    }
+}
+`
 
 // wordpressUpdated is plugin-wordpress-core's stand-in for WordPress at a
 // new version.

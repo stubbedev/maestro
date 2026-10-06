@@ -107,7 +107,92 @@ abstract class BaseIO implements \Composer\IO\IOInterface
             return;
         }
 
-        \Maestro\Shim\Remote::unsupported(static::class, 'loadConfiguration');
+        $bitbucketOauth = $config->get('bitbucket-oauth');
+        $githubOauth = $config->get('github-oauth');
+        $gitlabOauth = $config->get('gitlab-oauth');
+        $gitlabToken = $config->get('gitlab-token');
+        $forgejoToken = $config->get('forgejo-token');
+        $httpBasic = $config->get('http-basic');
+        $bearerToken = $config->get('bearer');
+        $customHeaders = $config->get('custom-headers');
+        $clientCertificate = $config->get('client-certificate');
+
+        foreach ($bitbucketOauth as $domain => $cred) {
+            $this->checkAndSetAuthentication($domain, $cred['consumer-key'], $cred['consumer-secret']);
+        }
+
+        foreach ($githubOauth as $domain => $token) {
+            if ($domain !== 'github.com' && !in_array($domain, $config->get('github-domains'), true)) {
+                $this->debug($domain.' is not in the configured github-domains, adding it implicitly as authentication is configured for this domain');
+                $config->merge(['config' => ['github-domains' => array_merge($config->get('github-domains'), [$domain])]], 'implicit-due-to-auth');
+            }
+
+            $this->checkAndSetAuthentication($domain, $token, 'x-oauth-basic');
+        }
+
+        foreach ($gitlabOauth as $domain => $token) {
+            if ($domain !== 'gitlab.com' && !in_array($domain, $config->get('gitlab-domains'), true)) {
+                $this->debug($domain.' is not in the configured gitlab-domains, adding it implicitly as authentication is configured for this domain');
+                $config->merge(['config' => ['gitlab-domains' => array_merge($config->get('gitlab-domains'), [$domain])]], 'implicit-due-to-auth');
+            }
+
+            $token = is_array($token) ? $token['token'] : $token;
+            $this->checkAndSetAuthentication($domain, $token, 'oauth2');
+        }
+
+        foreach ($gitlabToken as $domain => $token) {
+            if ($domain !== 'gitlab.com' && !in_array($domain, $config->get('gitlab-domains'), true)) {
+                $this->debug($domain.' is not in the configured gitlab-domains, adding it implicitly as authentication is configured for this domain');
+                $config->merge(['config' => ['gitlab-domains' => array_merge($config->get('gitlab-domains'), [$domain])]], 'implicit-due-to-auth');
+            }
+
+            $username = is_array($token) ? $token['username'] : $token;
+            $password = is_array($token) ? $token['token'] : 'private-token';
+            $this->checkAndSetAuthentication($domain, $username, $password);
+        }
+
+        foreach ($forgejoToken as $domain => $cred) {
+            if (!in_array($domain, $config->get('forgejo-domains'), true)) {
+                $this->debug($domain.' is not in the configured forgejo-domains, adding it implicitly as authentication is configured for this domain');
+                $config->merge(['config' => ['forgejo-domains' => array_merge($config->get('forgejo-domains'), [$domain])]], 'implicit-due-to-auth');
+            }
+
+            $this->checkAndSetAuthentication($domain, $cred['username'], $cred['token']);
+        }
+
+        foreach ($httpBasic as $domain => $cred) {
+            $this->checkAndSetAuthentication($domain, $cred['username'], $cred['password']);
+        }
+
+        foreach ($bearerToken as $domain => $token) {
+            $this->checkAndSetAuthentication($domain, $token, 'bearer');
+        }
+
+        foreach ($customHeaders as $domain => $headers) {
+            if ($headers !== null) {
+                $this->checkAndSetAuthentication($domain, (string) json_encode($headers), 'custom-headers');
+            }
+        }
+
+        foreach ($clientCertificate as $domain => $cred) {
+            $sslOptions = array_filter(
+                [
+                    'local_cert' => isset($cred['local_cert']) ? $cred['local_cert'] : null,
+                    'local_pk' => isset($cred['local_pk']) ? $cred['local_pk'] : null,
+                    'passphrase' => isset($cred['passphrase']) ? $cred['passphrase'] : null,
+                ],
+                static function (?string $value): bool {
+                    return $value !== null;
+                }
+            );
+            if (!isset($sslOptions['local_cert'])) {
+                $this->writeError(sprintf('<warning>Warning: Client certificate configuration is missing key `local_cert` for %s.</warning>', $domain));
+                continue;
+            }
+            $this->checkAndSetAuthentication($domain, 'client-certificate', (string) json_encode($sslOptions));
+        }
+
+        \Composer\Util\ProcessExecutor::setTimeout($config->get('process-timeout'));
     }
 
     public function log($level, $message, array $context = []): void

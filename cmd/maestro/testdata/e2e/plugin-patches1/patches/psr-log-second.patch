@@ -1,0 +1,7 @@
+diff --git a/PATCHED.txt b/PATCHED.txt
+new file mode 100644
+index 0000000..893adcd
+--- /dev/null
++++ b/PATCHED.txt
+@@ -0,0 +1 @@
++patched

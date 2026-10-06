@@ -129,6 +129,8 @@ type Runtime struct {
 	pendingBegins []int
 	pendingLoader *eventdispatcher.LoaderContents
 	pendingIV     *php.Array
+	// parsers is the VersionParser PHP's loaders share (svc_loader.go).
+	parsers versionParsers
 }
 
 // New returns a Runtime; it starts nothing.

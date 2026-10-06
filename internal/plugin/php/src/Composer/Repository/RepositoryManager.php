@@ -17,12 +17,12 @@ class RepositoryManager
 
     public function addRepository(\Composer\Repository\RepositoryInterface $repository): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::addRepository() in plugins yet');
+        \Maestro\Shim\Rpc::call('rm.addRepository', [$this, $repository]);
     }
 
     public function createRepository(string $type, array $config, ?string $name = null): \Composer\Repository\RepositoryInterface
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::createRepository() in plugins yet');
+        return \Maestro\Shim\Rpc::call('rm.createRepository', [$this, $type, $config, $name]);
     }
 
     public function findPackage(string $name, $constraint): ?\Composer\Package\PackageInterface
@@ -37,7 +37,7 @@ class RepositoryManager
 
     public function getHttpDownloader(): \Composer\Util\HttpDownloader
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::getHttpDownloader() in plugins yet');
+        return \Maestro\Shim\Rpc::call('rm.getHttpDownloader', [$this]);
     }
 
     public function getLocalRepository(): \Composer\Repository\InstalledRepositoryInterface
@@ -52,12 +52,12 @@ class RepositoryManager
 
     public function prependRepository(\Composer\Repository\RepositoryInterface $repository): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::prependRepository() in plugins yet');
+        \Maestro\Shim\Rpc::call('rm.prependRepository', [$this, $repository]);
     }
 
     public function setLocalRepository(\Composer\Repository\InstalledRepositoryInterface $repository): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::setLocalRepository() in plugins yet');
+        \Maestro\Shim\Rpc::call('rm.setLocalRepository', [$this, $repository]);
     }
 
     public function setRepositoryClass(string $type, $class): void

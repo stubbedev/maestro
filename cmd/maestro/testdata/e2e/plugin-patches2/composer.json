@@ -1,0 +1,23 @@
+{
+    "name": "maestro-test/patches2",
+    "description": "cweagans/composer-patches 2.x: patches.lock.json, patches applied in package events, and its commands (patches-relock, patches-repatch with Loop::wait and a nested install, patches-doctor).",
+    "require": {
+        "cweagans/composer-patches": "2.0.0",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "cweagans/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "psr/log": [
+                {
+                    "description": "Retitle the README",
+                    "url": "patches/psr-log-title.patch"
+                }
+            ]
+        }
+    }
+}

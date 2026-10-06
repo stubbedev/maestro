@@ -3,7 +3,7 @@
 /*
  * maestro's plugin shim: Composer\Package\Locker (docs/PLUGINS.md §4.5),
  * a service proxy of maestro's (locker.*): the lock data is maestro's, in
- * memory.
+ * memory. One created in PHP is maestro's too.
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -11,9 +11,13 @@ namespace Composer\Package;
 
 class Locker
 {
+    /** @var \Composer\Json\JsonFile|null the lock file (built from maestro's path for maestro's lockers) */
+    private $lockFile;
     public function __construct(\Composer\IO\IOInterface $io, \Composer\Json\JsonFile $lockFile, \Composer\Installer\InstallationManager $installationManager, string $composerFileContents, ?\Composer\Util\ProcessExecutor $process = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Package\\Locker::__construct() in plugins yet');
+        $this->lockFile = $lockFile;
+        $io = \Maestro\Shim\Remote::read($lockFile, \Composer\Json\JsonFile::class, ['io'])['io'];
+        \Maestro\Shim\Rpc::call('locker.new', [$this, $io, $lockFile->getPath(), $installationManager, $composerFileContents]);
     }
 
     public function getAliases(): array
@@ -33,7 +37,11 @@ class Locker
 
     public function getJsonFile(): \Composer\Json\JsonFile
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Package\\Locker::getJsonFile() in plugins yet');
+        if ($this->lockFile === null) {
+            $this->lockFile = new \Composer\Json\JsonFile(\Maestro\Shim\Rpc::call('locker.getJsonFile', [$this]));
+        }
+
+        return $this->lockFile;
     }
 
     public function getLockData(): array
@@ -98,11 +106,11 @@ class Locker
 
     public function setLockData(array $packages, ?array $devPackages, array $platformReqs, array $platformDevReqs, array $aliases, string $minimumStability, array $stabilityFlags, bool $preferStable, bool $preferLowest, array $platformOverrides, bool $write = true): bool
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Package\\Locker::setLockData() in plugins yet');
+        return \Maestro\Shim\Rpc::call('locker.setLockData', [$this, array_values($packages), $devPackages === null ? null : array_values($devPackages), $platformReqs, $platformDevReqs, $aliases, $minimumStability, $stabilityFlags, $preferStable, $preferLowest, $platformOverrides, $write]);
     }
 
     public function updateHash(\Composer\Json\JsonFile $composerJson, ?callable $dataProcessor = null): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Package\\Locker::updateHash() in plugins yet');
+        \Maestro\Shim\Rpc::call('locker.updateHash', [$this, $composerJson->getPath(), $dataProcessor]);
     }
 }

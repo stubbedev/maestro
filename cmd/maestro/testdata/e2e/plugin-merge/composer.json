@@ -1,0 +1,24 @@
+{
+    "name": "maestro-test/merge",
+    "description": "wikimedia/composer-merge-plugin: requires, repositories, autoload, extra and scripts merged from other composer.json files into the root package before solving.",
+    "repositories": [
+        {"type": "path", "url": "packages/*", "options": {"symlink": false}}
+    ],
+    "require": {
+        "wikimedia/composer-merge-plugin": "2.1.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "wikimedia/composer-merge-plugin": true
+        }
+    },
+    "extra": {
+        "merge-plugin": {
+            "include": ["modules/*/composer.json"],
+            "require": ["extra/composer.json"],
+            "merge-dev": true,
+            "merge-extra": true,
+            "merge-scripts": true
+        }
+    }
+}

@@ -117,14 +117,15 @@ final class Promises
     }
 
     /**
-     * The PHP promise standing for a maestro promise ({id, s}).
+     * The PHP promise standing for a maestro promise ({id, s}, and the
+     * value v of a fulfilled one).
      *
      * @param array<string, mixed> $p
      */
     public static function fromMaestro(array $p): PromiseInterface
     {
         if ($p['s'] === 'fulfilled') {
-            return \React\Promise\resolve(null);
+            return \React\Promise\resolve(isset($p['v']) ? $p['v'] : null);
         }
 
         $deferred = new Deferred();
@@ -153,7 +154,7 @@ final class Promises
         unset(self::$deferreds[$id]);
 
         if ($a['ok']) {
-            $deferred->resolve(null);
+            $deferred->resolve(isset($a['v']) ? $a['v'] : null);
         } else {
             self::reject($deferred, $id);
         }

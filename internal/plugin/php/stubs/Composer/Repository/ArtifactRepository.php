@@ -24,6 +24,10 @@ class ArtifactRepository extends \Composer\Repository\ArrayRepository implements
 
     public function getRepoName()
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getRepoName', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ArtifactRepository::getRepoName() in plugins yet');
     }
 

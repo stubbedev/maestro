@@ -276,6 +276,12 @@ final class Rpc
         $tags = strpos($json, '\\u0000') !== false;
 
         if (isset($msg['s'])) {
+            // The registrations first: the rest of the block (mirror
+            // updates) may name the objects they rebind.
+            if (isset($msg['s']['reg'])) {
+                Sync::apply(['reg' => $msg['s']['reg']]);
+                unset($msg['s']['reg']);
+            }
             Sync::apply($tags ? Codec::decode($msg['s']) : $msg['s']);
         }
         if ($tags) {

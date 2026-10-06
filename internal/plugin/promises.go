@@ -64,13 +64,27 @@ func (r *Runtime) registerPromises() {
 // goroutine settling it, which holds the PHP baton (the one driving the
 // event loop).
 func (r *Runtime) promiseToPHP(p *installer.Promise) any {
+	return promiseValueToPHP(r, p, nil)
+}
+
+// promiseValueToPHP is promiseToPHP for a promise with a value, which
+// conv makes PHP's (nil: none, the promise resolves with null).
+func promiseValueToPHP[T any](r *Runtime, p *util.Promise[T], conv func(T) any) any {
 	if p == nil {
 		return nil
+	}
+	value := func() any {
+		if conv == nil {
+			return nil
+		}
+		v, _ := p.Wait()
+
+		return conv(v)
 	}
 
 	settled, err := p.Result()
 	if settled && err == nil {
-		return php.ArrayOf("id", 0, "s", "fulfilled")
+		return php.ArrayOf("id", 0, "s", "fulfilled", "v", value())
 	}
 
 	r.promises.mu.Lock()
@@ -86,14 +100,17 @@ func (r *Runtime) promiseToPHP(p *installer.Promise) any {
 	}
 
 	p.OnSettled(func(err error) {
+		var v any
 		if err != nil {
 			r.promises.mu.Lock()
 			r.promises.rejected[id] = err
 			r.promises.mu.Unlock()
+		} else {
+			v = value()
 		}
 		// What fails here (PHP ended) fails every later call to PHP the
 		// same way; there is nobody to hand it to.
-		_, _ = r.Call("promise.settle", php.ArrayOf("id", id, "ok", err == nil))
+		_, _ = r.Call("promise.settle", php.ArrayOf("id", id, "ok", err == nil, "v", v))
 	})
 
 	return php.ArrayOf("id", id, "s", "pending")

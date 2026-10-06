@@ -5,17 +5,21 @@
 package plugin
 
 import (
+	"os"
+
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -312,6 +316,95 @@ func (r *Runtime) registerLocker() {
 		})
 	}
 
+	// new Locker($io, new JsonFile($path), $im, $contents) in PHP.
+	r.Handle("locker.new", func(v any) (any, error) {
+		a := argsOf("locker.new", v)
+		out, ok, err := ioParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		var fio io.IO
+		if ok {
+			fio = out
+		}
+		file, err := json.NewFile(a.str(2), nil, fio)
+		if err != nil {
+			return nil, err
+		}
+		im, err := param[repository.InstallationManager](a, 3)
+		if err != nil {
+			return nil, err
+		}
+		l, err := locker.New(out, file, im, a.str(4), util.NewProcessExecutor(out))
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, r.adopt(a, l)
+	})
+	method("getJsonFile", func(l *locker.Locker, _ args) (any, error) { return l.JSONFile().Path(), nil })
+	method("setLockData", func(l *locker.Locker, a args) (any, error) {
+		packages, err := packagesParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		in := locker.LockDataInput{
+			Packages:          packages,
+			PlatformReqs:      a.arrayOrEmpty(3),
+			PlatformDevReqs:   a.arrayOrEmpty(4),
+			Aliases:           a.arrayOrEmpty(5),
+			MinimumStability:  a.str(6),
+			StabilityFlags:    a.arrayOrEmpty(7),
+			PreferStable:      a.boolean(8),
+			PreferLowest:      a.boolean(9),
+			PlatformOverrides: a.arrayOrEmpty(10),
+		}
+		if a.has(2) {
+			dev, err := packagesParam(a, 2)
+			if err != nil {
+				return nil, err
+			}
+			in.DevPackages = append([]pkg.PackageInterface{}, dev...)
+		}
+
+		return l.SetLockData(in, !a.has(11) || a.boolean(11))
+	})
+	// updateHash($composerJson, $dataProcessor): a PHP processor runs
+	// first, on the data maestro will write, so that its exception leaves
+	// the lock file untouched, as in Composer.
+	method("updateHash", func(l *locker.Locker, a args) (any, error) {
+		var processor func(*php.Array) *php.Array
+		if a.has(2) {
+			contents, err := os.ReadFile(a.str(1))
+			if err != nil {
+				return nil, l.UpdateHash(a.str(1), nil)
+			}
+			data, err := l.JSONFile().Read()
+			if err != nil {
+				return nil, err
+			}
+			lockData, _ := data.(*php.Array)
+			if lockData == nil {
+				lockData = php.NewArray()
+			}
+			hash, err := locker.GetContentHash(string(contents))
+			if err != nil {
+				return nil, err
+			}
+			lockData.Set("content-hash", hash)
+			v, err := r.Call("callable.invoke", php.ArrayOf("callable", a.at(2), "args", php.ListOf(lockData)))
+			if err != nil {
+				return nil, err
+			}
+			processed, _ := v.(*php.Array)
+			if processed == nil {
+				processed = php.NewArray()
+			}
+			processor = func(*php.Array) *php.Array { return processed }
+		}
+
+		return nil, l.UpdateHash(a.str(1), processor)
+	})
 	method("isLocked", func(l *locker.Locker, _ args) (any, error) { return l.IsLocked() })
 	method("isFresh", func(l *locker.Locker, _ args) (any, error) { return l.IsFresh() })
 	method("getLockData", func(l *locker.Locker, _ args) (any, error) { return l.LockData() })

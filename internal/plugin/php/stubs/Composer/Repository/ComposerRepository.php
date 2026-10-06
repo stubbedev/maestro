@@ -44,11 +44,19 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
 
     public function findPackage(string $name, $constraint)
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.findPackage', [$this, $name, $constraint]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::findPackage() in plugins yet');
     }
 
     public function findPackages(string $name, $constraint = null)
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.findPackages', [$this, $name, $constraint]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::findPackages() in plugins yet');
     }
 
@@ -69,11 +77,19 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
 
     public function getPackages()
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getPackages', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::getPackages() in plugins yet');
     }
 
     public function getProviders(string $packageName)
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getProviders', [$this, $packageName]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::getProviders() in plugins yet');
     }
 
@@ -84,6 +100,10 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
 
     public function getRepoName()
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getRepoName', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::getRepoName() in plugins yet');
     }
 
@@ -114,6 +134,10 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
 
     public function loadPackages(array $packageNameMap, array $acceptableStabilities, array $stabilityFlags, array $alreadyLoaded = [])
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.loadPackages', [$this, $packageNameMap, $acceptableStabilities, $stabilityFlags, $alreadyLoaded]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::loadPackages() in plugins yet');
     }
 
@@ -124,6 +148,10 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
 
     public function search(string $query, int $mode = 0, ?string $type = null)
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.search', [$this, $query, $mode, $type]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::search() in plugins yet');
     }
 }

@@ -1,0 +1,7 @@
+{
+    "name": "local/module-b",
+    "version": "1.0.0",
+    "require": {"local/component-a": "^1.0"},
+    "autoload": {"psr-4": {"Local\\ModuleB\\": "src/"}},
+    "extra": {"laminas": {"module": "Local\\ModuleB"}}
+}

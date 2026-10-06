@@ -25,6 +25,10 @@ class Transaction
 
     public function getOperations(): array
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('transaction.getOperations', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\DependencyResolver\\Transaction::getOperations() in plugins yet');
     }
 

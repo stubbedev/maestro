@@ -62,6 +62,21 @@
 //     created in PHP is adopted when it first crosses.
 //   - php/src/Maestro/Shim/Console.php is the PHP half.
 //
+// Resolver-time and write APIs (phase 5):
+//
+//   - adopt_package.go and Runtime.adopt make objects PHP creates
+//     maestro's: packages and operations when they first cross, services
+//     (PlatformRepository, Locker, Cache, HttpDownloader, ...) when PHP
+//     constructs them.
+//   - svc_loader.go (ArrayLoader, ArrayDumper), svc_runinstaller.go
+//     (Composer\Installer's run() and SuggestedPackagesReporter),
+//     svc_http.go (HttpDownloader, RemoteFilesystem, Loop, DownloadManager,
+//     Cache), svc_resolverevents.go (PRE_POOL_CREATE with its Request and
+//     lazily loaded packages, PRE/POST_FILE_DOWNLOAD, transactions),
+//     svc_selector.go (RepositorySet, VersionSelector) and the repository,
+//     Locker, JSON and config source handlers of svc_repo.go,
+//     svc_composer.go and svc_util.go.
+//
 // # Differences from Composer that are not observable
 //
 // When PHP code calls exit() or dies of a fatal error mid-call, Go-side

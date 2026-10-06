@@ -3,8 +3,8 @@
 /*
  * maestro's plugin shim: Composer\Repository\FilesystemRepository
  * (docs/PLUGINS.md §4.6). maestro's local repositories are proxies of
- * maestro's (see ArrayRepository); creating one in PHP is not supported
- * yet.
+ * maestro's (see ArrayRepository); one created in PHP is maestro's too,
+ * reading and writing its file as Composer's does.
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -23,7 +23,9 @@ class FilesystemRepository extends WritableArrayRepository
 
     public function __construct(JsonFile $repositoryFile, bool $dumpVersions = false, ?RootPackageInterface $rootPackage = null, ?Filesystem $filesystem = null)
     {
-        Remote::unsupported(static::class, '__construct');
+        $this->file = $repositoryFile;
+        $io = Remote::read($repositoryFile, JsonFile::class, ['io'])['io'];
+        Rpc::call('repo.newFilesystem', [$this, $repositoryFile->getPath(), $io, $dumpVersions, $rootPackage, $this instanceof InstalledRepositoryInterface]);
     }
 
     public function getDevMode()

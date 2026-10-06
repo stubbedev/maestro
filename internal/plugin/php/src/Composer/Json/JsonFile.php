@@ -62,7 +62,41 @@ class JsonFile
 
     public static function encode($data, int $options = 448, string $indent = self::INDENT_DEFAULT): string
     {
-        return \Maestro\Shim\Rpc::call('json.encode', [$data, $options, $indent]);
+        return \Maestro\Shim\Rpc::call('json.encode', [self::prepare($data), $options, $indent]);
+    }
+
+    /**
+     * What json_encode() sees of a value: JsonSerializable objects as
+     * their jsonSerialize(), other objects as their public properties,
+     * which maestro's encoder then writes as json_encode() does.
+     *
+     * @param mixed $data
+     * @return mixed
+     */
+    private static function prepare($data)
+    {
+        if ($data instanceof \JsonSerializable) {
+            return self::prepare($data->jsonSerialize());
+        }
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                if (is_array($value) || is_object($value)) {
+                    $data[$key] = self::prepare($value);
+                }
+            }
+
+            return $data;
+        }
+        if (is_object($data)) {
+            $object = new \stdClass();
+            foreach (get_object_vars($data) as $key => $value) {
+                $object->$key = is_array($value) || is_object($value) ? self::prepare($value) : $value;
+            }
+
+            return $object;
+        }
+
+        return $data;
     }
 
     public function exists(): bool
@@ -102,6 +136,6 @@ class JsonFile
 
     public function write(array $hash, int $options = 448)
     {
-        \Maestro\Shim\Rpc::call('json.write', [$this->peer(), $hash, $options]);
+        \Maestro\Shim\Rpc::call('json.write', [$this->peer(), self::prepare($hash), $options]);
     }
 }

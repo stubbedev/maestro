@@ -1,0 +1,17 @@
+{
+    "name": "local/with-download",
+    "version": "1.0.0",
+    "require": {
+        "civicrm/composer-downloads-plugin": "^4.0"
+    },
+    "extra": {
+        "downloads": {
+            "*": {
+                "path": "extern/{$id}"
+            },
+            "event-dispatcher": {
+                "url": "https://github.com/php-fig/event-dispatcher/archive/refs/tags/1.0.0.tar.gz"
+            }
+        }
+    }
+}

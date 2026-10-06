@@ -68,7 +68,7 @@ class Factory
 
     public static function createHttpDownloader(\Composer\IO\IOInterface $io, \Composer\Config $config, array $options = []): \Composer\Util\HttpDownloader
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Factory::createHttpDownloader() in plugins yet');
+        return \Maestro\Shim\Rpc::call('factory.createHttpDownloader', [$io, $config, $options]);
     }
 
     public function createInstallationManager(\Composer\Util\Loop $loop, \Composer\IO\IOInterface $io, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null): \Composer\Installer\InstallationManager

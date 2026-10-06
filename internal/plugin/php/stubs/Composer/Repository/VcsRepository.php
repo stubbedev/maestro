@@ -44,6 +44,10 @@ class VcsRepository extends \Composer\Repository\ArrayRepository implements \Com
 
     public function getRepoName()
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('repo.getRepoName', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\VcsRepository::getRepoName() in plugins yet');
     }
 

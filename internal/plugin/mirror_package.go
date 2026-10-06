@@ -7,6 +7,7 @@
 package plugin
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -26,6 +27,10 @@ const releaseDateLayout = "2006-01-02T15:04:05.000000-07:00"
 type packageMirror struct {
 	r *Runtime
 	p pkg.PackageInterface
+	// lazy is set while PHP holds only the core fields (docs/PLUGINS.md
+	// §5.3 "Lazy snapshot tiers"): PRE_POOL_CREATE's package lists send
+	// them, PHP asks for the rest (`pkg.load`) when a getter needs it.
+	lazy atomic.Bool
 }
 
 // PHPOpaque implements php.Opaque.
@@ -50,6 +55,20 @@ func (m *packageMirror) ApplyMirror(*php.Array) error {
 // class (Maestro\Shim\Adapter\PackageAdapter).
 func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 	p := m.p
+	if m.lazy.Load() {
+		return php.ArrayOf(
+			"id", int64(p.ID()),
+			"name", p.Name(),
+			"prettyName", p.PrettyName(),
+			"version", p.Version(),
+			"prettyVersion", p.PrettyVersion(),
+			"type", nullable(rawType(p)),
+			"stability", p.Stability(),
+			"dev", p.IsDev(),
+			"lazy", true,
+		), nil
+	}
+
 	s := php.NewArrayCap(64)
 	s.Set("id", int64(p.ID()))
 	s.Set("name", p.Name())
@@ -173,6 +192,31 @@ func (r *Runtime) packageObject(p pkg.PackageInterface) any {
 	return r.bridge.object(p, func() rpc.Object { return &packageMirror{r: r, p: p} })
 }
 
+// lazyPackageList is packageList for the package lists of PRE_POOL_CREATE
+// (docs/PLUGINS.md §5.3): a package PHP does not know yet gets its core
+// fields only (not a root package or an alias, whose fields are their
+// own).
+func (r *Runtime) lazyPackageList(packages []pkg.PackageInterface) *php.Array {
+	a := php.NewArrayCap(len(packages))
+	for _, p := range packages {
+		if p == nil {
+			a.Append(nil)
+
+			continue
+		}
+		_, root := p.(pkg.RootPackageInterface)
+		_, alias := p.(pkg.Alias)
+		a.Append(r.bridge.object(p, func() rpc.Object {
+			m := &packageMirror{r: r, p: p}
+			m.lazy.Store(!root && !alias)
+
+			return m
+		}))
+	}
+
+	return a
+}
+
 // packageList returns packages as a PHP list of package objects.
 func (r *Runtime) packageList(packages []pkg.PackageInterface) *php.Array {
 	a := php.NewArrayCap(len(packages))
@@ -232,6 +276,8 @@ func nullString(a args, i int) pkg.NullString {
 
 // registerPackages registers the `pkg.*` methods.
 func (r *Runtime) registerPackages() {
+	r.RegisterMirrorFactory(packageBase, r.adoptPackage)
+
 	// setter registers a setter of the packages implementing T.
 	type setterFunc func(p pkg.PackageInterface, a args) error
 	setter := func(method string, fn setterFunc) {
@@ -293,6 +339,17 @@ func (r *Runtime) registerPackages() {
 		}
 
 		return p.SetRepository(repo)
+	})
+	// The fields of a package PHP got with its core fields only.
+	r.Handle("pkg.load", func(v any) (any, error) {
+		a := argsOf("pkg.load", v)
+		m, ok := a.at(0).(*packageMirror)
+		if !ok {
+			return nil, a.errorf("param 0 is not a package maestro knows (a %T)", a.at(0))
+		}
+		m.lazy.Store(false)
+
+		return m.MirrorSnapshot()
 	})
 	r.Handle("pkg.getRepository", func(v any) (any, error) {
 		a := argsOf("pkg.getRepository", v)

@@ -5,6 +5,7 @@
 package plugin
 
 import (
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
@@ -28,6 +29,9 @@ func commandArg(v any) util.Command {
 }
 
 func (r *Runtime) registerUtil() {
+	r.registerManipulator()
+	r.registerAsyncProcesses()
+	r.registerConfigSources()
 	fs := func(name string, fn func(a args) (any, error)) {
 		r.Handle("fs."+name, func(v any) (any, error) { return fn(argsOf("fs."+name, v)) })
 	}
@@ -109,6 +113,8 @@ func (r *Runtime) registerUtil() {
 			output string
 		)
 		switch {
+		case a.has(5):
+			code, err = r.executeWithCallback(pe, commandArg(a.at(0)), cwd, a.at(5))
 		case a.boolean(4):
 			code, err = pe.ExecuteTty(commandArg(a.at(0)), cwd)
 		case a.boolean(3):
@@ -236,3 +242,182 @@ func (r *Runtime) registerUtil() {
 }
 
 var _ rpc.Object = (*service)(nil)
+
+// executeWithCallback is ProcessExecutor::execute($command, $callable):
+// the PHP callable gets each chunk of output with its type, in order, on
+// the goroutine holding the PHP baton (the process's output arrives on
+// others).
+func (r *Runtime) executeWithCallback(pe *util.ProcessExecutor, command util.Command, cwd string, callable any) (int, error) {
+	type chunk struct{ typ, buf string }
+	chunks := make(chan chunk, 64)
+	type result struct {
+		code int
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		code, err := pe.ExecuteFunc(command, func(typ, buf string) { chunks <- chunk{typ, buf} }, cwd)
+		close(chunks)
+		done <- result{code, err}
+	}()
+
+	var callErr error
+	for c := range chunks {
+		if callErr != nil {
+			continue
+		}
+		_, callErr = r.Call("callable.invoke", php.ArrayOf("callable", callable, "args", php.ListOf(c.typ, c.buf)))
+	}
+	res := <-done
+	if callErr != nil {
+		return 0, callErr
+	}
+
+	return res.code, res.err
+}
+
+// registerManipulator registers JsonManipulator's methods: each PHP
+// instance has a maestro peer (json.newManipulator) whose methods are
+// json.manipulate's.
+func (r *Runtime) registerManipulator() {
+	r.Handle("json.newManipulator", func(v any) (any, error) {
+		a := argsOf("json.newManipulator", v)
+		m, err := json.NewManipulator(a.str(0))
+		if err != nil {
+			return nil, err
+		}
+
+		return &service{v: m, class: `Composer\Json\JsonManipulator`}, nil
+	})
+	r.Handle("json.manipulate", func(v any) (any, error) {
+		a := argsOf("json.manipulate", v)
+		m, err := receiver[*json.Manipulator](a)
+		if err != nil {
+			return nil, err
+		}
+		p := args{method: "json.manipulate " + a.str(1), list: a.arrayOrEmpty(2).Values()}
+
+		switch a.str(1) {
+		case "getContents":
+			return m.Contents(), nil
+		case "addConfigSetting":
+			return m.AddConfigSetting(p.str(0), p.at(1))
+		case "addLink":
+			return m.AddLink(p.str(0), p.str(1), p.str(2), p.boolean(3))
+		case "addListItem":
+			return m.AddListItem(p.str(0), p.at(1), p.boolean(2))
+		case "addMainKey":
+			return m.AddMainKey(p.str(0), p.at(1))
+		case "addProperty":
+			return m.AddProperty(p.str(0), p.at(1))
+		case "addRepository":
+			return m.AddRepository(p.str(0), p.at(1), p.boolean(2))
+		case "addSubNode":
+			return m.AddSubNode(p.str(0), p.str(1), p.at(2), p.boolean(3))
+		case "changeEmptyMainKeyFromAssocToList":
+			return m.ChangeEmptyMainKeyFromAssocToList(p.str(0))
+		case "insertListItem":
+			return m.InsertListItem(p.str(0), p.at(1), p.integer(2))
+		case "insertRepository":
+			return m.InsertRepository(p.str(0), p.at(1), p.str(2), p.integer(3))
+		case "removeConfigSetting":
+			return m.RemoveConfigSetting(p.str(0))
+		case "removeListItem":
+			return m.RemoveListItem(p.str(0), p.integer(1))
+		case "removeMainKey":
+			return m.RemoveMainKey(p.str(0))
+		case "removeMainKeyIfEmpty":
+			return m.RemoveMainKeyIfEmpty(p.str(0))
+		case "removeProperty":
+			return m.RemoveProperty(p.str(0))
+		case "removeRepository":
+			return m.RemoveRepository(p.str(0))
+		case "removeSubNode":
+			return m.RemoveSubNode(p.str(0), p.str(1))
+		case "setRepositoryUrl":
+			return m.SetRepositoryURL(p.str(0), p.str(1))
+		case "format":
+			return m.Format(p.at(0), p.integer(1), p.boolean(2))
+		}
+
+		return nil, a.errorf("JsonManipulator has no method %s", a.str(1))
+	})
+}
+
+// registerConfigSources registers the `cfgsrc.*` methods: maestro's
+// JsonConfigSources, and those PHP creates.
+func (r *Runtime) registerConfigSources() {
+	r.Handle("cfgsrc.new", func(v any) (any, error) {
+		a := argsOf("cfgsrc.new", v)
+		out, ok, err := ioParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		var fio io.IO
+		if ok {
+			fio = out
+		}
+		f, err := json.NewFile(a.str(1), nil, fio)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, r.adopt(a, config.NewJSONConfigSource(f, a.boolean(3)))
+	})
+	method := func(name string, fn func(s config.ConfigSource, a args) error) {
+		r.Handle("cfgsrc."+name, func(v any) (any, error) {
+			a := argsOf("cfgsrc."+name, v)
+			s, err := receiver[config.ConfigSource](a)
+			if err != nil {
+				return nil, err
+			}
+
+			return nil, fn(s, a)
+		})
+	}
+	r.Handle("cfgsrc.getName", func(v any) (any, error) {
+		a := argsOf("cfgsrc.getName", v)
+		s, err := receiver[config.ConfigSource](a)
+		if err != nil {
+			return nil, err
+		}
+
+		return s.Name(), nil
+	})
+	method("addRepository", func(s config.ConfigSource, a args) error {
+		return s.AddRepository(a.str(1), a.at(2), !a.has(3) || a.boolean(3))
+	})
+	method("insertRepository", func(s config.ConfigSource, a args) error {
+		return s.InsertRepository(a.str(1), a.at(2), a.str(3), a.integer(4))
+	})
+	method("setRepositoryUrl", func(s config.ConfigSource, a args) error { return s.SetRepositoryURL(a.str(1), a.str(2)) })
+	method("removeRepository", func(s config.ConfigSource, a args) error { return s.RemoveRepository(a.str(1)) })
+	method("addConfigSetting", func(s config.ConfigSource, a args) error { return s.AddConfigSetting(a.str(1), a.at(2)) })
+	method("removeConfigSetting", func(s config.ConfigSource, a args) error { return s.RemoveConfigSetting(a.str(1)) })
+	method("addProperty", func(s config.ConfigSource, a args) error { return s.AddProperty(a.str(1), a.at(2)) })
+	method("removeProperty", func(s config.ConfigSource, a args) error { return s.RemoveProperty(a.str(1)) })
+	method("addLink", func(s config.ConfigSource, a args) error { return s.AddLink(a.str(1), a.str(2), a.str(3)) })
+	method("removeLink", func(s config.ConfigSource, a args) error { return s.RemoveLink(a.str(1), a.str(2)) })
+}
+
+// passwordArg is ProcessExecutor::outputCommandRun's --password pattern.
+var passwordArg = php.MustCompile(`{--password (.*[^\\]') }`)
+
+// registerAsyncProcesses registers `proc.describeAsync`: the debug line of
+// an asynchronous process PHP code starts (outputCommandRun), with
+// maestro's URL sanitizing.
+func (r *Runtime) registerAsyncProcesses() {
+	r.Handle("proc.describeAsync", func(v any) (any, error) {
+		a := argsOf("proc.describeAsync", v)
+		safe, _, err := passwordArg.Replace(util.SanitizeURL(commandArg(a.at(0)).String()), `--password '***' `, -1)
+		if err != nil {
+			return nil, err
+		}
+		cwd := "CWD"
+		if c, ok := a.nullableString(1); ok && php.ToBool(c) {
+			cwd = c
+		}
+
+		return "Executing async command (" + cwd + "): " + safe, nil
+	})
+}

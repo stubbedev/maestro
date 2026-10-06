@@ -84,6 +84,8 @@ func (m *eventMirror) MirrorSnapshot() (*php.Array, error) {
 	case *eventdispatcher.PreCommandRunEvent:
 		s.Set("command", e.Command())
 		s.Set("input", m.r.inputObject(e.Input()))
+	default:
+		m.r.phase5EventFields(s, e)
 	}
 
 	return s, nil
@@ -224,6 +226,61 @@ func (m *operationMirror) MirrorSnapshot() (*php.Array, error) {
 	return php.NewArray(), nil
 }
 
+// adoptOperation builds the Go side of an operation created in PHP (`new
+// UninstallOperation($package)`, cweagans/composer-patches) when it first
+// crosses to maestro.
+func (r *Runtime) adoptOperation(class string, snapshot *php.Array) (rpc.Mirror, error) {
+	pkgOf := func(key string) (pkg.PackageInterface, error) {
+		v, _ := snapshot.Get(key)
+		m, ok := v.(*packageMirror)
+		if !ok {
+			return nil, &rpc.ProtocolError{Message: "an operation created in PHP without a package maestro knows"}
+		}
+
+		return m.p, nil
+	}
+
+	var op operation.Operation
+	if class == `Composer\DependencyResolver\Operation\UpdateOperation` {
+		initial, err := pkgOf("initialPackage")
+		if err != nil {
+			return nil, err
+		}
+		target, err := pkgOf("targetPackage")
+		if err != nil {
+			return nil, err
+		}
+		op = operation.NewUpdateOperation(initial, target)
+	} else {
+		p, err := pkgOf("package")
+		if err != nil {
+			return nil, err
+		}
+		switch class {
+		case `Composer\DependencyResolver\Operation\UninstallOperation`:
+			op = operation.NewUninstallOperation(p)
+		case `Composer\DependencyResolver\Operation\MarkAliasInstalledOperation`, `Composer\DependencyResolver\Operation\MarkAliasUninstalledOperation`:
+			alias, ok := p.(pkg.Alias)
+			if !ok {
+				return nil, &rpc.ProtocolError{Message: class + " of a package that is not an alias"}
+			}
+			if class == `Composer\DependencyResolver\Operation\MarkAliasInstalledOperation` {
+				op = operation.NewMarkAliasInstalledOperation(alias)
+			} else {
+				op = operation.NewMarkAliasUninstalledOperation(alias)
+			}
+		case `Composer\DependencyResolver\Operation\InstallOperation`:
+			op = operation.NewInstallOperation(p)
+		default:
+			return nil, unsupportedf("maestro does not support giving it a %s created in PHP yet", class)
+		}
+	}
+	m := &operationMirror{r: r, op: op}
+	r.bridge.object(op, func() rpc.Object { return m })
+
+	return m, nil
+}
+
 // operationObject returns the object an operation crosses to PHP as.
 func (r *Runtime) operationObject(op operation.Operation) any {
 	if op == nil || !hashable(op) {
@@ -268,6 +325,8 @@ func listenerArg(a args, i int) (eventdispatcher.Listener, error) {
 
 func (r *Runtime) registerEvents() {
 	r.RegisterMirrorFactory(eventBase, r.adoptEvent)
+	r.registerNewDispatcher()
+	r.RegisterMirrorFactory(`Composer\DependencyResolver\Operation\SolverOperation`, r.adoptOperation)
 
 	method := func(name string, fn func(d *eventdispatcher.EventDispatcher, a args) (any, error)) {
 		r.Handle("ed."+name, func(v any) (any, error) {
@@ -465,3 +524,33 @@ func (r *Runtime) registerPluginManager() {
 
 // keep pkg referenced for the package helpers used across files.
 var _ pkg.PackageInterface
+
+// registerNewDispatcher registers `ed.new`: new EventDispatcher($composer,
+// $io) in PHP (magento) is a second dispatcher of maestro's, set up as
+// Factory sets up a Composer's.
+func (r *Runtime) registerNewDispatcher() {
+	r.Handle("ed.new", func(v any) (any, error) {
+		a := argsOf("ed.new", v)
+		var c eventdispatcher.PartialComposer
+		switch cv := serviceValue(a.at(1)).(type) {
+		case *composer.Composer:
+			c = cv
+		case *composer.PartialComposer:
+			c = cv
+		default:
+			return nil, a.errorf("param 1 is not a Composer instance maestro knows")
+		}
+		out, _, err := ioParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		d := eventdispatcher.New(c, out, nil)
+		if f := r.composerFactory; f != nil && f.Runtime != nil {
+			d.SetPHP(f.Runtime.PlatformPHP())
+		}
+		d.SetScriptRuntime(r)
+		d.SetEnsureComposerBinary(r.EnsureComposerBinary)
+
+		return nil, r.adopt(a, d)
+	})
+}
