@@ -106,7 +106,7 @@ func TestE2EPlugins(t *testing.T) {
 
 // pluginScenarios are the plugin fixtures of testdata/e2e/plugin-*.
 func pluginScenarios() []scenario {
-	return []scenario{
+	return append([]scenario{
 		{
 			// A path repository plugin and root scripts using the Composer
 			// API (docs/PLUGINS.md §4): the update without a lock file, the
@@ -564,7 +564,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"update", "-v"}},
 			},
 		},
-	}
+	}, phase6PluginScenarios()...)
 }
 
 // removeFile removes a file of the scenario root before a step (so the

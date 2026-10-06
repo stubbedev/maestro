@@ -35,6 +35,8 @@ class Config
     private $localAuthConfigSource = null;
     private $useEnvironment;
     private $warnedHosts = [];
+    /** @var int|null maestro's object a clone of this one copies (Remote::self) */
+    private $maestroOrigin;
 
     public function __construct(bool $useEnvironment = true, ?string $baseDir = null)
     {
@@ -43,77 +45,77 @@ class Config
 
     public function setConfigSource(ConfigSourceInterface $source): void
     {
-        Rpc::call('config.setConfigSource', [$this, $source]);
+        Rpc::call('config.setConfigSource', [Remote::self($this), $source]);
     }
 
     public function getConfigSource(): ConfigSourceInterface
     {
-        return Rpc::call('config.getConfigSource', [$this]);
+        return Rpc::call('config.getConfigSource', [Remote::self($this)]);
     }
 
     public function setAuthConfigSource(ConfigSourceInterface $source): void
     {
-        Rpc::call('config.setAuthConfigSource', [$this, $source]);
+        Rpc::call('config.setAuthConfigSource', [Remote::self($this), $source]);
     }
 
     public function getAuthConfigSource(): ConfigSourceInterface
     {
-        return Rpc::call('config.getAuthConfigSource', [$this]);
+        return Rpc::call('config.getAuthConfigSource', [Remote::self($this)]);
     }
 
     public function setLocalAuthConfigSource(ConfigSourceInterface $source): void
     {
-        Rpc::call('config.setLocalAuthConfigSource', [$this, $source]);
+        Rpc::call('config.setLocalAuthConfigSource', [Remote::self($this), $source]);
     }
 
     public function getLocalAuthConfigSource(): ?ConfigSourceInterface
     {
-        return Rpc::call('config.getLocalAuthConfigSource', [$this]);
+        return Rpc::call('config.getLocalAuthConfigSource', [Remote::self($this)]);
     }
 
     public function merge(array $config, string $source = self::SOURCE_UNKNOWN): void
     {
-        Rpc::call('config.merge', [$this, $config, $source]);
+        Rpc::call('config.merge', [Remote::self($this), $config, $source]);
     }
 
     public function getRepositories(): array
     {
-        return Rpc::call('config.getRepositories', [$this]);
+        return Rpc::call('config.getRepositories', [Remote::self($this)]);
     }
 
     public function get(string $key, int $flags = 0)
     {
-        return Rpc::call('config.get', [$this, $key, $flags]);
+        return Rpc::call('config.get', [Remote::self($this), $key, $flags]);
     }
 
     public function all(int $flags = 0): array
     {
-        return Rpc::call('config.all', [$this, $flags]);
+        return Rpc::call('config.all', [Remote::self($this), $flags]);
     }
 
     public function getSourceOfValue(string $key): string
     {
-        return Rpc::call('config.getSourceOfValue', [$this, $key]);
+        return Rpc::call('config.getSourceOfValue', [Remote::self($this), $key]);
     }
 
     public function raw(): array
     {
-        return Rpc::call('config.raw', [$this]);
+        return Rpc::call('config.raw', [Remote::self($this)]);
     }
 
     public function has(string $key): bool
     {
-        return Rpc::call('config.has', [$this, $key]);
+        return Rpc::call('config.has', [Remote::self($this), $key]);
     }
 
     public function prohibitUrlByConfig(string $url, ?IOInterface $io = null, array $repoOptions = []): void
     {
-        Rpc::call('config.prohibitUrlByConfig', [$this, $url, $io, $repoOptions]);
+        Rpc::call('config.prohibitUrlByConfig', [Remote::self($this), $url, $io, $repoOptions]);
     }
 
     public function setBaseDir(?string $baseDir): void
     {
-        Rpc::call('config.setBaseDir', [$this, $baseDir]);
+        Rpc::call('config.setBaseDir', [Remote::self($this), $baseDir]);
     }
 
     public static function disableProcessTimeout(): void

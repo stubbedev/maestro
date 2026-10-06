@@ -1,0 +1,15 @@
+{
+    "manifests": {
+        "psr/log": {
+            "manifest": {
+                "copy-from-recipe": {"config/": "%CONFIG_DIR%/"},
+                "env": {"LOG_LEVEL": "info"},
+                "gitignore": ["/var/log/"]
+            },
+            "files": {
+                "config/packages/log.yaml": {"contents": ["log:", "    level: '%env(LOG_LEVEL)%'"], "executable": false}
+            },
+            "ref": "1111111111111111111111111111111111111111"
+        }
+    }
+}

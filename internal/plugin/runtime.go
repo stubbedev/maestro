@@ -131,6 +131,15 @@ type Runtime struct {
 	pendingIV     *php.Array
 	// parsers is the VersionParser PHP's loaders share (svc_loader.go).
 	parsers versionParsers
+	// frameBases are the depths of the frame stack at the PHP → Go calls
+	// in progress, innermost last (frames.go).
+	frameBases []int
+	// phpObjs are the proxies of the repositories and downloaders written
+	// in PHP that maestro uses (proxy_repository.go).
+	phpObjs phpObjects
+	// phpRunInstallers are the Installers maestro runs for a PHP
+	// Installer's run(), whose frame is PHP's own (frames.go).
+	phpRunInstallers map[*composer.Installer]bool
 }
 
 // New returns a Runtime; it starts nothing.
@@ -218,6 +227,8 @@ func DefaultStatics() map[string]rpc.Static {
 
 // Handle sets the handler of a method PHP calls (docs/PLUGINS.md §6.6).
 func (r *Runtime) Handle(method string, h rpc.Handler) {
+	h = r.frameBoundary(h)
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

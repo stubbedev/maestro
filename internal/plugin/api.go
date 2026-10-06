@@ -25,6 +25,8 @@ func (r *Runtime) registerAPI() {
 	r.registerHTTP()
 	r.registerResolverEvents()
 	r.registerSelectors()
+	r.registerInternals()
+	r.registerDownloaders()
 	r.Handle("repo.getPlatformPhpVersion", func(any) (any, error) { return r.platformPHPVersion(), nil })
 }
 

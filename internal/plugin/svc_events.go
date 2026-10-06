@@ -240,6 +240,11 @@ func (r *Runtime) adoptOperation(class string, snapshot *php.Array) (rpc.Mirror,
 		return m.p, nil
 	}
 
+	// A plugin's subclass is maestro's operation of the Composer class it
+	// extends; PHP keeps its own object.
+	if c, ok := snapshot.GetString("composerClass"); ok {
+		class = c
+	}
 	var op operation.Operation
 	if class == `Composer\DependencyResolver\Operation\UpdateOperation` {
 		initial, err := pkgOf("initialPackage")

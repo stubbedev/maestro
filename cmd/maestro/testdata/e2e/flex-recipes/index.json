@@ -1,0 +1,21 @@
+{
+    "recipes": {
+        "psr/log": [
+            "3.0"
+        ],
+        "psr/container": [
+            "2.0"
+        ]
+    },
+    "branch": "main",
+    "is_contrib": false,
+    "_links": {
+        "repository": "github.com/maestro-test/recipes",
+        "origin_template": "{package}:{version}@github.com/maestro-test/recipes:main",
+        "recipe_template_relative": "{package_dotted}.{version}.json"
+    },
+    "aliases": {
+        "logger": "psr/log",
+        "log": "psr/log"
+    }
+}

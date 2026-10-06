@@ -9,6 +9,8 @@ namespace Maestro\Shim;
 
 use Composer\Autoload\ClassLoader;
 use Composer\Command\BaseCommand;
+use Composer\Downloader\DownloaderInterface;
+use Composer\Repository\RepositoryInterface;
 use Symfony\Component\Console\Application as SymfonyApplication;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Completion\CompletionInput;
@@ -48,6 +50,8 @@ final class Console
         Server::register('command.script', [self::class, 'scriptCommand']);
         Server::register('autoload.register', [self::class, 'registerLoader']);
         Server::register('object.call', [self::class, 'call']);
+        Server::register('object.promise', [self::class, 'callPromise']);
+        Server::register('object.new', [self::class, 'create']);
         self::$inputAdapter = new Adapter\InputAdapter();
         Mirrors::register(self::$inputAdapter);
         Mirrors::register(new Adapter\OutputAdapter());
@@ -218,11 +222,64 @@ final class Console
     {
         $object = $a['object'];
         $method = $a['method'];
-        if (!$object instanceof OutputInterface || !in_array($method, ['write', 'setVerbosity', 'getVerbosity', 'setDecorated', 'isDecorated'], true)) {
+        if (!self::callable($object, $method)) {
             throw new ProtocolException('maestro shim: maestro cannot call '.get_class($object).'::'.$method.'()');
         }
 
         return $object->$method(...array_values($a['args']));
+    }
+
+    /**
+     * `object.promise`: a method returning ?PromiseInterface of a PHP
+     * downloader maestro uses; the promise is handed over as
+     * Promises::watch() does.
+     *
+     * @param array<string, mixed> $a
+     * @return array{id: int, s: string}|null
+     */
+    public static function callPromise(array $a)
+    {
+        $promise = self::call($a);
+
+        return $promise === null ? null : Promises::watch($promise);
+    }
+
+    /**
+     * `object.new`: `new $class(...$args)` of a repository class a plugin
+     * registered (RepositoryManager::setRepositoryClass()).
+     *
+     * @param array<string, mixed> $a
+     * @return object
+     */
+    public static function create(array $a)
+    {
+        $class = $a['class'];
+        if (!is_string($class) || !class_exists($class) || !is_subclass_of($class, RepositoryInterface::class)) {
+            throw new \InvalidArgumentException('Repository class '.(is_string($class) ? $class : gettype($class)).' does not exist or is not a repository');
+        }
+
+        return new $class(...array_values($a['args']));
+    }
+
+    /**
+     * The methods maestro calls on PHP objects it uses: outputs it writes
+     * to, repositories and downloaders written in PHP.
+     *
+     * @param object $object
+     */
+    private static function callable($object, string $method): bool
+    {
+        if ($object instanceof OutputInterface) {
+            return in_array($method, ['write', 'setVerbosity', 'getVerbosity', 'setDecorated', 'isDecorated'], true);
+        }
+        if ($object instanceof RepositoryInterface) {
+            return in_array($method, ['getRepoName', 'hasPackage', 'findPackage', 'findPackages', 'getPackages', 'loadPackages', 'search', 'getProviders', 'count'], true);
+        }
+        if ($object instanceof DownloaderInterface) {
+            return in_array($method, ['getInstallationSource', 'download', 'prepare', 'install', 'update', 'remove', 'cleanup'], true);
+        }
+
+        return false;
     }
 
     /**

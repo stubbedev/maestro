@@ -256,14 +256,27 @@ func (p *phpCommand) run(base *console.Command, in console.Input, out console.Ou
 	if base.Name() != "" {
 		name = base.Name()
 	}
-	v, err := r.Call("command.run", php.ArrayOf(
+	params := php.ArrayOf(
 		"command", p.obj,
 		"app", r.appValue(applicationOf(base)),
 		"input", r.inputObject(in),
 		"output", r.outputObject(out),
 		"name", name,
 		"description", base.Description(),
-	))
+	)
+	// The command's own run() is a real frame in PHP: the frame
+	// maestro's command runner pushed for it is left out.
+	if frames := r.framesValue(); frames != nil {
+		if last, ok := frames.Values()[frames.Len()-1].(*php.Array); ok {
+			if o, _ := last.Get(int64(0)); o == p.obj {
+				frames = php.ListOf(frames.Values()[:frames.Len()-1]...)
+			}
+		}
+		if frames.Len() > 0 {
+			params.Set("frames", frames)
+		}
+	}
+	v, err := r.Call("command.run", params)
 	if err != nil {
 		return 0, err
 	}
@@ -522,6 +535,11 @@ func (r *Runtime) registerApplications() {
 		code, err := app.DoRun(in, out)
 
 		return int64(code), err
+	})
+	// Commands plugin code added with Symfony's add() to the running
+	// Application it found on the stack (Maestro\Shim\Frames).
+	method("added", func(app *command.Application, a args) (any, error) {
+		return nil, r.addPHPCommands(app, a.at(1))
 	})
 	method("commands", func(app *command.Application, _ args) (any, error) {
 		var seen []console.Commander

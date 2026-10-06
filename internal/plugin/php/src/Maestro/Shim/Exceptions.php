@@ -69,7 +69,28 @@ final class Exceptions
         $message = isset($x['message']) ? (string) $x['message'] : '';
         $code = isset($x['code']) ? $x['code'] : 0;
 
-        return self::create($class, $message, $code, $previous);
+        $e = self::create($class, $message, $code, $previous);
+        // maestro's throw site: the Composer file and line that throw it.
+        if (isset($x['file']) && is_string($x['file']) && $x['file'] !== '') {
+            self::locate($e, $x['file'], isset($x['line']) ? (int) $x['line'] : 0);
+        }
+
+        return $e;
+    }
+
+    /**
+     * Sets the file and line of a throwable.
+     */
+    private static function locate(\Throwable $e, string $file, int $line): void
+    {
+        $scope = $e instanceof \Exception ? \Exception::class : \Error::class;
+        foreach (['file' => $file, 'line' => $line] as $name => $value) {
+            $property = new \ReflectionProperty($scope, $name);
+            if (PHP_VERSION_ID < 80100) {
+                $property->setAccessible(true);
+            }
+            $property->setValue($e, $value);
+        }
     }
 
     /**

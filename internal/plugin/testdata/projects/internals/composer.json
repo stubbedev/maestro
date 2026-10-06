@@ -1,0 +1,16 @@
+{
+    "name": "maestro-test/internals-project",
+    "description": "A project whose plugin uses Composer's internals as docs/PLUGINS.md's phase 6 emulates them: backtrace frames, the Installer on the stack (its properties, clone and __construct()), protected and private properties, Transaction with Closure::bind, RepositorySet pools, Pool, repositories and downloaders written in PHP.",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"type": "path", "url": "libs/*", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/internals-plugin": "*",
+        "local/lib-a": "*"
+    },
+    "config": {
+        "allow-plugins": {"maestro-test/internals-plugin": true}
+    }
+}

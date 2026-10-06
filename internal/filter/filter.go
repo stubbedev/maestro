@@ -11,6 +11,7 @@ package filter
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
@@ -50,6 +51,7 @@ func (IgnoreNothing) IsUpperBoundIgnored(string) bool { return false }
 
 // IgnoreList is IgnoreListPlatformRequirementFilter.
 type IgnoreList struct {
+	reqList               []string
 	ignoreRegex           *php.Regexp
 	ignoreUpperBoundRegex *php.Regexp
 }
@@ -67,10 +69,15 @@ func NewIgnoreList(reqList []string) *IgnoreList {
 	}
 
 	return &IgnoreList{
+		reqList:               slices.Clone(reqList),
 		ignoreRegex:           php.MustCompile(pkg.PackageNamesToRegexp(ignoreAll, "{^(?:%s)$}iD")),
 		ignoreUpperBoundRegex: php.MustCompile(pkg.PackageNamesToRegexp(ignoreUpperBound, "{^(?:%s)$}iD")),
 	}
 }
+
+// ReqList returns the requirements the filter was built from (the plugin
+// runtime builds PHP's filter object from them).
+func (f *IgnoreList) ReqList() []string { return slices.Clone(f.reqList) }
 
 // isMatch is Preg::isMatch on a pattern built from preg_quote'd names, which
 // cannot hit the engine's limits.

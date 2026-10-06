@@ -136,6 +136,21 @@ func (a *Application) Run(in console.Input, out console.Output) (int, error) {
 	return a.Application.Run(in, out)
 }
 
+// DoRunCommand is Symfony's doRunCommand() with the frames Composer's
+// stack holds while a command runs: doRunCommand($command, $input,
+// $output), then the command's run($input, $output) (docs/PLUGINS.md
+// §5.12; symfony/flex looks for a GlobalCommand).
+func (a *Application) DoRunCommand(cmd console.Commander, in console.Input, out console.Output) (int, error) {
+	if rt := a.Runtime(); rt != nil {
+		rt.PushFrame(a, cmd, in, out)
+		rt.PushFrame(cmd, in, out)
+		defer rt.PopFrame()
+		defer rt.PopFrame()
+	}
+
+	return a.Application.DoRunCommand(cmd, in, out)
+}
+
 func envTruthy(name string) bool {
 	v, ok := util.GetEnv(name)
 
@@ -145,6 +160,12 @@ func envTruthy(name string) bool {
 // DoRun ports doRun. An ExitCoder error ends the run with its code and
 // nothing rendered.
 func (a *Application) DoRun(in console.Input, out console.Output) (int, error) {
+	// Composer's stack holds doRun($input, $output) from here on: plugins
+	// look for it (docs/PLUGINS.md §5.12).
+	if rt := a.Runtime(); rt != nil {
+		rt.PushFrame(a, in, out)
+		defer rt.PopFrame()
+	}
 	code, err := a.doRun(in, out)
 	if err == nil {
 		return code, nil

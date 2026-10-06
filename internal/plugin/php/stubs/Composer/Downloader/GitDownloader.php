@@ -45,6 +45,10 @@ class GitDownloader extends \Composer\Downloader\VcsDownloader implements \Compo
 
     public function getLocalChanges(\Composer\Package\PackageInterface $package, string $path): ?string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.getLocalChanges', [$this, $package, $path]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\GitDownloader::getLocalChanges() in plugins yet');
     }
 
@@ -55,6 +59,10 @@ class GitDownloader extends \Composer\Downloader\VcsDownloader implements \Compo
 
     public function getUnpushedChanges(\Composer\Package\PackageInterface $package, string $path): ?string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.getUnpushedChanges', [$this, $package, $path]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\GitDownloader::getUnpushedChanges() in plugins yet');
     }
 

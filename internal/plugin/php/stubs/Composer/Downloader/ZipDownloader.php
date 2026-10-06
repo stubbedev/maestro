@@ -10,6 +10,10 @@ class ZipDownloader extends \Composer\Downloader\ArchiveDownloader
 {
     public function download(\Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null, bool $output = true): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.download', [$this, $package, $path, $prevPackage, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\ZipDownloader::download() in plugins yet');
     }
 

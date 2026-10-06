@@ -1,0 +1,9 @@
+{
+    "name": "maestro-test/demo-pack",
+    "version": "1.0.0",
+    "type": "symfony-pack",
+    "license": "MIT",
+    "require": {
+        "psr/container": "^2.0"
+    }
+}

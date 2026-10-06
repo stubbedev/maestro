@@ -52,6 +52,21 @@ func (*service) PHPOpaque() {}
 // PHPClass implements rpc.Object.
 func (s *service) PHPClass() string { return s.class }
 
+func (s *service) goValue() any { return s.v }
+
+// goObject is a PHP-facing object standing for a Go object of the
+// Composer API: a service proxy or a service mirror (internals.go).
+type goObject interface{ goValue() any }
+
+// unwrap returns the Go object a PHP-facing object stands for, or v.
+func unwrap(v any) any {
+	if g, ok := v.(goObject); ok {
+		return g.goValue()
+	}
+
+	return v
+}
+
 // hashable reports whether v can key the bridge's map: pointers and
 // other comparable values.
 func hashable(v any) bool {
@@ -155,10 +170,7 @@ func receiver[T any](a args) (T, error) {
 // itself.
 func param[T any](a args, i int) (T, error) {
 	var zero T
-	v := a.at(i)
-	if s, ok := v.(*service); ok {
-		v = s.v
-	}
+	v := unwrap(a.at(i))
 	t, ok := v.(T)
 	if !ok {
 		return zero, a.errorf("param %d is a %T, not a %T", i, a.at(i), zero)

@@ -30,6 +30,10 @@ class FossilDownloader extends \Composer\Downloader\VcsDownloader
 
     public function getLocalChanges(\Composer\Package\PackageInterface $package, string $path): ?string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.getLocalChanges', [$this, $package, $path]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FossilDownloader::getLocalChanges() in plugins yet');
     }
 

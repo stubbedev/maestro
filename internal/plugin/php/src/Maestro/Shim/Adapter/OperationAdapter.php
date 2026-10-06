@@ -39,12 +39,25 @@ final class OperationAdapter implements MirrorAdapter
     {
         $names = $object instanceof UpdateOperation ? ['initialPackage', 'targetPackage'] : ['package'];
 
-        return Remote::read($object, SolverOperation::class, $names);
+        $snapshot = Remote::read($object, SolverOperation::class, $names);
+        // The Composer class a plugin's subclass extends (vaimo's
+        // ResetOperation extends InstallOperation).
+        for ($c = get_class($object); is_string($c); $c = get_parent_class($c)) {
+            if (strpos($c, 'Composer\\DependencyResolver\\Operation\\') === 0) {
+                $snapshot['composerClass'] = $c;
+                break;
+            }
+        }
+
+        return $snapshot;
     }
 
     public function fields($object, array $names): array
     {
-        return array_intersect_key($this->snapshot($object), array_flip($names));
+        $snapshot = $this->snapshot($object);
+        unset($snapshot['composerClass']);
+
+        return array_intersect_key($snapshot, array_flip($names));
     }
 
     public function apply($object, array $fields): void

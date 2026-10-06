@@ -12,6 +12,8 @@ use Composer\IO\ConsoleIO;
 use Composer\IO\NullIO;
 use Maestro\Shim\MirrorAdapter;
 use Maestro\Shim\Remote;
+use Symfony\Component\Console\Helper\HelperSet;
+use Symfony\Component\Console\Helper\QuestionHelper;
 
 /**
  * maestro's IO as PHP mirrors it (docs/PLUGINS.md §5.9): a ConsoleIO (or
@@ -49,8 +51,21 @@ final class IOAdapter implements MirrorAdapter
     public function apply($object, array $fields): void
     {
         if ($object instanceof ConsoleIO) {
-            $state = Remote::read($object, ConsoleIO::class, ['maestroState'])['maestroState'];
-            Remote::fill($object, ConsoleIO::class, ['maestroState' => $fields + $state]);
+            // Composer's protected members (docs/PLUGINS.md §5.12): the
+            // run's input and output, and the helper set Application::doRun
+            // gives its ConsoleIO.
+            $members = [];
+            foreach (['input', 'output'] as $name) {
+                if (array_key_exists($name, $fields)) {
+                    $members[$name] = $fields[$name];
+                    unset($fields[$name]);
+                }
+            }
+            $state = Remote::read($object, ConsoleIO::class, ['maestroState', 'helperSet']);
+            if ($members !== [] && $state['helperSet'] === null) {
+                $members['helperSet'] = new HelperSet([new QuestionHelper()]);
+            }
+            Remote::fill($object, ConsoleIO::class, ['maestroState' => $fields + $state['maestroState']] + $members);
         }
     }
 

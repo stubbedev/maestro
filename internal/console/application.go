@@ -43,6 +43,10 @@ type (
 	AppRenderer interface {
 		DoRenderThrowable(err error, out Output)
 	}
+	// AppDoRunCommander overrides doRunCommand().
+	AppDoRunCommander interface {
+		DoRunCommand(command Commander, in Input, out Output) (int, error)
+	}
 )
 
 // Application is a collection of commands.
@@ -225,7 +229,11 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	}
 
 	a.runningCommand = command
-	exitCode, err := a.DoRunCommand(command, in, out)
+	run := a.DoRunCommand
+	if d, ok := a.self.(AppDoRunCommander); ok {
+		run = d.DoRunCommand
+	}
+	exitCode, err := run(command, in, out)
 	if err != nil {
 		// PHP leaves runningCommand set when the command throws, so the
 		// rendered exception is followed by the command synopsis.

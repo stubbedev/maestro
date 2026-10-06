@@ -27,6 +27,36 @@ final class Remote
     }
 
     /**
+     * The object a method of a maestro service runs on: $object itself,
+     * or, for a PHP clone of maestro's object (whose private maestroOrigin
+     * the clone copied), $object once maestro made it a copy of the
+     * original's Go object (`object.clone`), as PHP's clone copies
+     * Composer's object.
+     *
+     * @template T of object
+     * @param T $object
+     * @return T
+     */
+    public static function self($object)
+    {
+        if (Handles::lookup($object) !== null) {
+            return $object;
+        }
+        $class = get_class($object);
+        for ($c = $class; is_string($c); $c = get_parent_class($c)) {
+            if (property_exists($c, 'maestroOrigin')) {
+                $origin = self::read($object, $c, ['maestroOrigin'])['maestroOrigin'];
+                if (is_int($origin) && Handles::has($origin)) {
+                    Rpc::call('object.clone', [$object, Handles::get($origin)]);
+                }
+                break;
+            }
+        }
+
+        return $object;
+    }
+
+    /**
      * Throws the UnsupportedApiException of a method the shim does not
      * implement (yet) for this kind of object.
      *

@@ -4,11 +4,15 @@
 package plugin
 
 import (
+	"time"
+
+	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver"
 )
 
 // constraintMapParam returns param i, a name => constraint array, as a
@@ -85,7 +89,7 @@ func (r *Runtime) registerSelectors() {
 		return constraintMapValue(s.TemporaryConstraints()), nil
 	})
 	method("addRepository", func(s *repository.RepositorySet, a args) (any, error) {
-		repo, err := goRepositoryParam(a, 1)
+		repo, err := r.repositoryParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -123,6 +127,87 @@ func (r *Runtime) registerSelectors() {
 		}
 
 		return s.IsPackageAcceptable(names, a.str(2)), nil
+	})
+
+	method("createPool", func(s *repository.RepositorySet, a args) (any, error) {
+		req, ok := unwrap(a.at(1)).(*resolver.Request)
+		if !ok {
+			return nil, unsupportedf("maestro does not support Composer\\Repository\\RepositorySet::createPool() with a Request created in PHP yet")
+		}
+		out, _, err := ioParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		opts := resolver.CreatePoolOptions{IgnoredTypes: stringList(a.at(4))}
+		if a.has(3) {
+			ed, err := param[*eventdispatcher.EventDispatcher](a, 3)
+			if err != nil {
+				return nil, err
+			}
+			opts.EventDispatcher = ed
+		}
+		if a.has(5) {
+			opts.AllowedTypes = stringList(a.at(5))
+			if opts.AllowedTypes == nil {
+				opts.AllowedTypes = []string{}
+			}
+		}
+		pool, err := resolver.CreatePool(s, req, out, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.poolValue(pool), nil
+	})
+	method("createPoolWithAllPackages", func(s *repository.RepositorySet, _ args) (any, error) {
+		pool, err := resolver.CreatePoolWithAllPackages(s)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.poolValue(pool), nil
+	})
+	method("createPoolForPackages", func(s *repository.RepositorySet, a args) (any, error) {
+		var locked *repository.LockArrayRepository
+		if a.has(2) {
+			l, err := param[*repository.LockArrayRepository](a, 2)
+			if err != nil {
+				return nil, unsupportedf("maestro does not support a LockArrayRepository created in PHP here yet")
+			}
+			locked = l
+		}
+		pool, err := resolver.CreatePoolForPackages(s, stringList(a.at(1)), locked)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.poolValue(pool), nil
+	})
+	advisories := func(res repository.SecurityAdvisoriesResult, err error) (any, error) {
+		if err != nil {
+			return nil, err
+		}
+		list := php.NewArray()
+		for name, advs := range res.Advisories.All() {
+			items := php.NewArrayCap(len(advs))
+			for _, adv := range advs {
+				items.Append(advisoryValue(adv))
+			}
+			list.Set(name, items)
+		}
+
+		return php.ArrayOf("advisories", list, "unreachableRepos", php.StringList(res.UnreachableRepos)), nil
+	}
+	method("getSecurityAdvisories", func(s *repository.RepositorySet, a args) (any, error) {
+		return advisories(s.GetSecurityAdvisories(stringList(a.at(1)), a.boolean(2), a.boolean(3)))
+	})
+	method("getMatchingSecurityAdvisories", func(s *repository.RepositorySet, a args) (any, error) {
+		packages, err := packagesParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return advisories(s.GetMatchingSecurityAdvisories(packages, a.boolean(2), a.boolean(3)))
 	})
 
 	r.Handle("selector.new", func(v any) (any, error) {
@@ -221,4 +306,50 @@ func (r *Runtime) registerSelectors() {
 
 		return s.FindRecommendedRequireVersion(p)
 	})
+}
+
+// poolValue describes a pool for the shim's PHP-local Pool: its packages
+// (in id order), the unacceptable fixed or locked ones and the versions
+// the pool builder removed (security and filter list removals are left
+// out).
+func (r *Runtime) poolValue(p *resolver.Pool) *php.Array {
+	versions := func(m *repository.NameMap[*resolver.VersionMap]) *php.Array {
+		out := php.NewArray()
+		if m == nil {
+			return out
+		}
+		for name, vm := range m.All() {
+			v := php.NewArray()
+			for version, pretty := range vm.All() {
+				v.Set(version, pretty)
+			}
+			out.Set(name, v)
+		}
+
+		return out
+	}
+
+	return php.ArrayOf(
+		"packages", r.lazyPackageList(p.Packages()),
+		"unacceptable", r.lazyPackageList(p.UnacceptableFixedOrLockedPackages()),
+		"removedVersions", versions(p.AllRemovedVersions()),
+		"abandonedRemovedVersions", versions(p.AllAbandonedRemovedPackageVersions()),
+	)
+}
+
+// advisoryValue describes an advisory for the shim's
+// (Partial)SecurityAdvisory objects.
+func advisoryValue(adv repository.Advisory) *php.Array {
+	p := adv.Partial()
+	out := php.ArrayOf("advisoryId", p.AdvisoryID, "packageName", p.PackageName, "affectedVersions", constraintValue{p.AffectedVersions})
+	if full, ok := adv.(*repository.SecurityAdvisory); ok {
+		out.Set("title", full.Title)
+		out.Set("sources", full.Sources)
+		out.Set("reportedAt", full.ReportedAt.Format(time.RFC3339))
+		out.Set("cve", nullable(full.CVE))
+		out.Set("link", nullable(full.Link))
+		out.Set("severity", nullable(full.Severity))
+	}
+
+	return out
 }

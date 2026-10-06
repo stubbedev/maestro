@@ -1,0 +1,15 @@
+{
+    "name": "maestro-test/discovery",
+    "description": "php-http/discovery 1.20.0: missing implementations required and installed in a nested run of a clone of the running Installer.",
+    "type": "project",
+    "require": {
+        "php-http/discovery": "1.20.0",
+        "php-http/client-implementation": "*",
+        "symfony/http-client": "7.3.4"
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    }
+}

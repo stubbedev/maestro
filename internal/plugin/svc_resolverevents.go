@@ -328,6 +328,39 @@ func (r *Runtime) registerRequest() {
 // registerTransactions registers the `transaction.*` methods: the
 // transactions of maestro's installer events (PRE_OPERATIONS_EXEC).
 func (r *Runtime) registerTransactions() {
+	// new Transaction($presentPackages, $resultPackages): maestro computes
+	// the operations.
+	r.Handle("transaction.new", func(v any) (any, error) {
+		a := argsOf("transaction.new", v)
+		present, err := packagesParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		result, err := packagesParam(a, 2)
+		if err != nil {
+			return nil, err
+		}
+		t := resolver.NewTransaction(present, result)
+		o, ok := a.at(0).(*rpc.PHPObject)
+		if !ok {
+			return nil, a.errorf("param 0 is not an object being constructed in PHP (a %T)", a.at(0))
+		}
+		conn, err := r.started()
+		if err != nil {
+			return nil, err
+		}
+		obj, _ := r.transactionObject(t, t, o.Class).(rpc.Object)
+		if err := conn.Adopt(o, obj); err != nil {
+			return nil, err
+		}
+		ops := t.Operations()
+		out := php.NewArrayCap(len(ops))
+		for _, op := range ops {
+			out.Append(r.value(op))
+		}
+
+		return out, nil
+	})
 	r.Handle("transaction.getOperations", func(v any) (any, error) {
 		a := argsOf("transaction.getOperations", v)
 		var ops []operation.Operation

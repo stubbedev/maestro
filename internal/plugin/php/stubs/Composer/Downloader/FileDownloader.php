@@ -20,7 +20,7 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
     public function __construct(\Composer\IO\IOInterface $io, \Composer\Config $config, \Composer\Util\HttpDownloader $httpDownloader, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null, ?\Composer\Cache $cache = null, ?\Composer\Util\Filesystem $filesystem = null, ?\Composer\Util\ProcessExecutor $process = null)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::__construct() in plugins yet');
+        \Maestro\Shim\Rpc::call('downloader.new', [$this, $io, $config, $httpDownloader, $eventDispatcher, $cache, $filesystem, $process]);
     }
 
     protected function addCleanupPath(\Composer\Package\PackageInterface $package, string $path): void
@@ -30,6 +30,10 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
     public function cleanup(string $type, \Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.cleanup', [$this, $type, $package, $path, $prevPackage]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::cleanup() in plugins yet');
     }
 
@@ -40,6 +44,10 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
     public function download(\Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null, bool $output = true): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.download', [$this, $package, $path, $prevPackage, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::download() in plugins yet');
     }
 
@@ -60,21 +68,37 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
     public function getInstallationSource(): string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.getInstallationSource', [$this]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::getInstallationSource() in plugins yet');
     }
 
     public function getLocalChanges(\Composer\Package\PackageInterface $package, string $path): ?string
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.getLocalChanges', [$this, $package, $path]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::getLocalChanges() in plugins yet');
     }
 
     public function install(\Composer\Package\PackageInterface $package, string $path, bool $output = true): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.install', [$this, $package, $path, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::install() in plugins yet');
     }
 
     public function prepare(string $type, \Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.prepare', [$this, $type, $package, $path, $prevPackage]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::prepare() in plugins yet');
     }
 
@@ -85,6 +109,10 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
     public function remove(\Composer\Package\PackageInterface $package, string $path, bool $output = true): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.remove', [$this, $package, $path, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::remove() in plugins yet');
     }
 
@@ -95,6 +123,10 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
     public function update(\Composer\Package\PackageInterface $initial, \Composer\Package\PackageInterface $target, string $path): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.update', [$this, $initial, $target, $path]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::update() in plugins yet');
     }
 }

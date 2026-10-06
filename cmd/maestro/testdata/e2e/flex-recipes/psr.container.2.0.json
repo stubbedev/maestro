@@ -1,0 +1,13 @@
+{
+    "manifests": {
+        "psr/container": {
+            "manifest": {
+                "copy-from-recipe": {"config/": "%CONFIG_DIR%/"}
+            },
+            "files": {
+                "config/container.php": {"contents": ["<?php", "", "return [];"], "executable": false}
+            },
+            "ref": "2222222222222222222222222222222222222222"
+        }
+    }
+}

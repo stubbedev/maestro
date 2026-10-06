@@ -233,7 +233,7 @@ func (pi *phpInstaller) call(method string, params ...any) (*php.Array, error) {
 	if pi.lib != nil {
 		a.Set("vendorDir", pi.lib.VendorDir())
 	}
-	res, err := pi.r.Call("installer.call", a)
+	res, err := pi.r.Call("installer.call", pi.r.framed(a))
 	if err != nil {
 		return nil, err
 	}

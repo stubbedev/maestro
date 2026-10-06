@@ -27,6 +27,8 @@ use Composer\Package\RootPackageInterface;
 use Composer\Policy\PolicyConfig;
 use Composer\Repository\RepositoryInterface;
 use Composer\Repository\RepositoryManager;
+use Maestro\Shim\Adapter\ServiceAdapter;
+use Maestro\Shim\Mirrors;
 use Maestro\Shim\Rpc;
 
 class Installer
@@ -113,38 +115,11 @@ class Installer
         foreach (get_object_vars($this) as $name => $value) {
             $settings[$name] = $value;
         }
-        $settings['platformRequirementFilter'] = self::describeFilter($this->platformRequirementFilter);
+        $settings['platformRequirementFilter'] = ServiceAdapter::describeFilter($this->platformRequirementFilter);
         $result = Rpc::call('installer.run', [$settings]);
         $this->lockTransaction = $result['lockTransaction'];
 
         return $result['code'];
-    }
-
-    /**
-     * A platform requirement filter as maestro builds it again: true
-     * (ignore all), false (ignore nothing), the list of an ignore list, or
-     * the object itself.
-     *
-     * @param PlatformRequirementFilterInterface $filter
-     * @return bool|list<string>|PlatformRequirementFilterInterface
-     */
-    private static function describeFilter($filter)
-    {
-        if ($filter instanceof \Composer\Filter\PlatformRequirementFilter\IgnoreAllPlatformRequirementFilter) {
-            return true;
-        }
-        if ($filter instanceof \Composer\Filter\PlatformRequirementFilter\IgnoreNothingPlatformRequirementFilter) {
-            return false;
-        }
-        if ($filter instanceof \Composer\Filter\PlatformRequirementFilter\IgnoreListPlatformRequirementFilter) {
-            $read = function () {
-                return $this->reqList;
-            };
-
-            return \Closure::bind($read, $filter, \Composer\Filter\PlatformRequirementFilter\IgnoreListPlatformRequirementFilter::class)();
-        }
-
-        return $filter;
     }
 
     protected function doUpdate(\Composer\Repository\InstalledRepositoryInterface $localRepo, bool $doInstall): int
@@ -191,6 +166,7 @@ class Installer
     public function setIgnoredTypes(array $types): self
     {
         $this->ignoredTypes = $types;
+        Mirrors::touch($this, 'ignoredTypes');
 
         return $this;
     }
@@ -198,6 +174,7 @@ class Installer
     public function setAllowedTypes(?array $types): self
     {
         $this->allowedTypes = $types;
+        Mirrors::touch($this, 'allowedTypes');
 
         return $this;
     }
@@ -205,6 +182,7 @@ class Installer
     public function setAdditionalFixedRepository(RepositoryInterface $additionalFixedRepository): self
     {
         $this->additionalFixedRepository = $additionalFixedRepository;
+        Mirrors::touch($this, 'additionalFixedRepository');
 
         return $this;
     }
@@ -212,6 +190,7 @@ class Installer
     public function setTemporaryConstraints(array $constraints): self
     {
         $this->temporaryConstraints = $constraints;
+        Mirrors::touch($this, 'temporaryConstraints');
 
         return $this;
     }
@@ -219,6 +198,7 @@ class Installer
     public function setDryRun(bool $dryRun = true): self
     {
         $this->dryRun = $dryRun;
+        Mirrors::touch($this, 'dryRun');
 
         return $this;
     }
@@ -231,6 +211,7 @@ class Installer
     public function setDownloadOnly(bool $downloadOnly = true): self
     {
         $this->downloadOnly = $downloadOnly;
+        Mirrors::touch($this, 'downloadOnly');
 
         return $this;
     }
@@ -238,6 +219,7 @@ class Installer
     public function setPreferSource(bool $preferSource = true): self
     {
         $this->preferSource = $preferSource;
+        Mirrors::touch($this, 'preferSource');
 
         return $this;
     }
@@ -245,6 +227,7 @@ class Installer
     public function setPreferDist(bool $preferDist = true): self
     {
         $this->preferDist = $preferDist;
+        Mirrors::touch($this, 'preferDist');
 
         return $this;
     }
@@ -252,6 +235,7 @@ class Installer
     public function setOptimizeAutoloader(bool $optimizeAutoloader): self
     {
         $this->optimizeAutoloader = $optimizeAutoloader;
+        Mirrors::touch($this, 'optimizeAutoloader');
         if (!$this->optimizeAutoloader) {
             $this->setClassMapAuthoritative(false);
         }
@@ -262,6 +246,7 @@ class Installer
     public function setClassMapAuthoritative(bool $classMapAuthoritative): self
     {
         $this->classMapAuthoritative = $classMapAuthoritative;
+        Mirrors::touch($this, 'classMapAuthoritative');
         if ($this->classMapAuthoritative) {
             $this->setOptimizeAutoloader(true);
         }
@@ -272,7 +257,9 @@ class Installer
     public function setApcuAutoloader(bool $apcuAutoloader, ?string $apcuAutoloaderPrefix = null): self
     {
         $this->apcuAutoloader = $apcuAutoloader;
+        Mirrors::touch($this, 'apcuAutoloader');
         $this->apcuAutoloaderPrefix = $apcuAutoloaderPrefix;
+        Mirrors::touch($this, 'apcuAutoloaderPrefix');
 
         return $this;
     }
@@ -280,6 +267,7 @@ class Installer
     public function setStrictPsrAutoloader(bool $strictPsr): self
     {
         $this->strictPsrAutoloader = $strictPsr;
+        Mirrors::touch($this, 'strictPsrAutoloader');
 
         return $this;
     }
@@ -287,6 +275,7 @@ class Installer
     public function setUpdate(bool $update): self
     {
         $this->update = $update;
+        Mirrors::touch($this, 'update');
 
         return $this;
     }
@@ -294,6 +283,7 @@ class Installer
     public function setInstall(bool $install): self
     {
         $this->install = $install;
+        Mirrors::touch($this, 'install');
 
         return $this;
     }
@@ -301,6 +291,7 @@ class Installer
     public function setDevMode(bool $devMode = true): self
     {
         $this->devMode = $devMode;
+        Mirrors::touch($this, 'devMode');
 
         return $this;
     }
@@ -308,6 +299,7 @@ class Installer
     public function setDumpAutoloader(bool $dumpAutoloader = true): self
     {
         $this->dumpAutoloader = $dumpAutoloader;
+        Mirrors::touch($this, 'dumpAutoloader');
 
         return $this;
     }
@@ -315,6 +307,7 @@ class Installer
     public function setRunScripts(bool $runScripts = true): self
     {
         $this->runScripts = $runScripts;
+        Mirrors::touch($this, 'runScripts');
 
         return $this;
     }
@@ -322,6 +315,7 @@ class Installer
     public function setConfig(Config $config): self
     {
         $this->config = $config;
+        Mirrors::touch($this, 'config');
 
         return $this;
     }
@@ -329,6 +323,7 @@ class Installer
     public function setVerbose(bool $verbose = true): self
     {
         $this->verbose = $verbose;
+        Mirrors::touch($this, 'verbose');
 
         return $this;
     }
@@ -348,6 +343,7 @@ class Installer
     public function setPlatformRequirementFilter(PlatformRequirementFilterInterface $platformRequirementFilter): self
     {
         $this->platformRequirementFilter = $platformRequirementFilter;
+        Mirrors::touch($this, 'platformRequirementFilter');
 
         return $this;
     }
@@ -355,6 +351,7 @@ class Installer
     public function setUpdateMirrors(bool $updateMirrors): self
     {
         $this->updateMirrors = $updateMirrors;
+        Mirrors::touch($this, 'updateMirrors');
 
         return $this;
     }
@@ -377,6 +374,7 @@ class Installer
         }
 
         $this->updateAllowTransitiveDependencies = $updateAllowTransitiveDependencies;
+        Mirrors::touch($this, 'updateAllowTransitiveDependencies');
 
         return $this;
     }
@@ -384,6 +382,7 @@ class Installer
     public function setPreferStable(bool $preferStable = true): self
     {
         $this->preferStable = $preferStable;
+        Mirrors::touch($this, 'preferStable');
 
         return $this;
     }
@@ -391,6 +390,7 @@ class Installer
     public function setPreferLowest(bool $preferLowest = true): self
     {
         $this->preferLowest = $preferLowest;
+        Mirrors::touch($this, 'preferLowest');
 
         return $this;
     }
@@ -398,6 +398,7 @@ class Installer
     public function setMinimalUpdate(bool $minimalUpdate = true): self
     {
         $this->minimalUpdate = $minimalUpdate;
+        Mirrors::touch($this, 'minimalUpdate');
 
         return $this;
     }
@@ -405,6 +406,7 @@ class Installer
     public function setWriteLock(bool $writeLock = true): self
     {
         $this->writeLock = $writeLock;
+        Mirrors::touch($this, 'writeLock');
 
         return $this;
     }
@@ -412,6 +414,7 @@ class Installer
     public function setExecuteOperations(bool $executeOperations = true): self
     {
         $this->executeOperations = $executeOperations;
+        Mirrors::touch($this, 'executeOperations');
 
         return $this;
     }
@@ -419,7 +422,9 @@ class Installer
     public function setAudit(bool $audit): self
     {
         $this->audit = $audit;
+        Mirrors::touch($this, 'audit');
         $this->auditConfig = null;
+        Mirrors::touch($this, 'auditConfig');
 
         return $this;
     }
@@ -427,6 +432,7 @@ class Installer
     public function setErrorOnAudit(bool $errorOnAudit): self
     {
         $this->errorOnAudit = $errorOnAudit;
+        Mirrors::touch($this, 'errorOnAudit');
 
         return $this;
     }
@@ -434,7 +440,9 @@ class Installer
     public function setAuditFormat(string $auditFormat): self
     {
         $this->auditFormat = $auditFormat;
+        Mirrors::touch($this, 'auditFormat');
         $this->auditConfig = null;
+        Mirrors::touch($this, 'auditConfig');
 
         return $this;
     }
@@ -442,6 +450,7 @@ class Installer
     public function setAuditConfig(AuditConfig $auditConfig): self
     {
         $this->auditConfig = $auditConfig;
+        Mirrors::touch($this, 'auditConfig');
 
         return $this;
     }
@@ -449,6 +458,7 @@ class Installer
     public function setPolicyConfig(PolicyConfig $policyConfig): self
     {
         $this->policyConfig = $policyConfig;
+        Mirrors::touch($this, 'policyConfig');
 
         return $this;
     }
@@ -463,6 +473,7 @@ class Installer
     public function setSuggestedPackagesReporter(SuggestedPackagesReporter $suggestedPackagesReporter): self
     {
         $this->suggestedPackagesReporter = $suggestedPackagesReporter;
+        Mirrors::touch($this, 'suggestedPackagesReporter');
 
         return $this;
     }

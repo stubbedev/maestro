@@ -20,6 +20,7 @@ final class Api
         Mirrors::register(new Adapter\IOAdapter());
         Mirrors::register(new Adapter\EventAdapter());
         Mirrors::register(new Adapter\OperationAdapter());
+        Mirrors::register(new Adapter\ServiceAdapter());
         Dispatch::register();
         Plugins::register();
         Installers::register();

@@ -42,8 +42,21 @@ final class Server
         if (!isset(self::$handlers[$method])) {
             throw new UnsupportedApiException('maestro shim: no handler for '.$method);
         }
+        $handler = self::$handlers[$method];
 
-        return (self::$handlers[$method])($args);
+        // A call that runs plugin code carries the frames Composer's stack
+        // would hold there (docs/PLUGINS.md §5.12).
+        if (is_array($args) && isset($args['frames'])) {
+            $frames = $args['frames'];
+            unset($args['frames']);
+            if (is_array($frames) && $frames !== []) {
+                return Frames::run($frames, static function () use ($handler, $args) {
+                    return $handler($args);
+                });
+            }
+        }
+
+        return $handler($args);
     }
 
     /**

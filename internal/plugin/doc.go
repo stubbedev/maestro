@@ -77,6 +77,20 @@
 //     Locker, JSON and config source handlers of svc_repo.go,
 //     svc_composer.go and svc_util.go.
 //
+// Internals emulation (phase 6):
+//
+//   - frames.go gives PHP code the frames Composer's stack would hold
+//     (the Application, the running command, the Installer):
+//     Maestro\Shim\Frames enters each through a closure bound to its
+//     object, so debug_backtrace() finds them.
+//   - internals.go makes maestro's services carry the protected and
+//     private properties plugins read (the running Composer\Installer's
+//     settings, EventDispatcher::$runScripts, Config::$baseDir, a
+//     Transaction's packages) and serves clones of maestro's objects.
+//   - proxy_repository.go lets maestro use repositories and downloaders
+//     written in PHP; svc_downloader.go serves maestro's downloaders to
+//     PHP and creates the ones PHP constructs.
+//
 // # Differences from Composer that are not observable
 //
 // When PHP code calls exit() or dies of a fatal error mid-call, Go-side

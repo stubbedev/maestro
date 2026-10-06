@@ -12,6 +12,10 @@ abstract class ArchiveDownloader extends \Composer\Downloader\FileDownloader
 
     public function cleanup(string $type, \Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.cleanup', [$this, $type, $package, $path, $prevPackage]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\ArchiveDownloader::cleanup() in plugins yet');
     }
 
@@ -24,11 +28,19 @@ abstract class ArchiveDownloader extends \Composer\Downloader\FileDownloader
 
     public function install(\Composer\Package\PackageInterface $package, string $path, bool $output = true): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.install', [$this, $package, $path, $output]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\ArchiveDownloader::install() in plugins yet');
     }
 
     public function prepare(string $type, \Composer\Package\PackageInterface $package, string $path, ?\Composer\Package\PackageInterface $prevPackage = null): \React\Promise\PromiseInterface
     {
+        if (\Maestro\Shim\Remote::owned($this)) {
+            return \Maestro\Shim\Rpc::call('downloader.prepare', [$this, $type, $package, $path, $prevPackage]);
+        }
+
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\ArchiveDownloader::prepare() in plugins yet');
     }
 }

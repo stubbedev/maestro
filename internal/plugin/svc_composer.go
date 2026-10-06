@@ -37,13 +37,7 @@ func partialComposer(a args) (*composer.PartialComposer, error) {
 }
 
 // serviceValue returns the Go object of a service param.
-func serviceValue(v any) any {
-	if s, ok := v.(*service); ok {
-		return s.v
-	}
-
-	return v
-}
+func serviceValue(v any) any { return unwrap(v) }
 
 func (r *Runtime) registerComposer() {
 	partial := func(method string, fn func(c *composer.PartialComposer, a args) (any, error)) {

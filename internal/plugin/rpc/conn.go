@@ -15,6 +15,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -555,7 +556,17 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 		class, code = cl, cd
 	}
 
+	if previous == nil {
+		previous = phperr.PreviousOf(err)
+	}
+
 	x = php.ArrayOf("class", class, "message", err.Error(), "code", int64(code))
+	// Composer's throw site (docs/PLUGINS.md §5.10): Symfony renders "In
+	// <file> line <n>:" from it.
+	if site, ok := phperr.SiteOf(err); ok {
+		x.Set("file", site.File)
+		x.Set("line", int64(site.Line))
+	}
 	if previous != nil && depth < maxExceptionDepth {
 		x.Set("previous", c.exceptionValue(previous, depth+1))
 	}

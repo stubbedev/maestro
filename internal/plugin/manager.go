@@ -379,7 +379,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		return err
 	}
 
-	res, err := m.r.Call("plugin.load", php.ArrayOf(
+	res, err := m.r.Call("plugin.load", m.r.framed(php.ArrayOf(
 		"pm", m,
 		"package", m.r.packageObject(p),
 		"classes", php.StringList(classes),
@@ -389,7 +389,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		"legacyInstaller", oldInstallerPlugin,
 		"failOnMissing", failOnMissingClasses,
 		"runningInGlobalDir", m.runningInGlobalDir,
-	))
+	)))
 	reg := registration{name: p.Name()}
 	if a, ok := res.(*php.Array); ok {
 		if list, ok := a.GetArray("registered"); ok {

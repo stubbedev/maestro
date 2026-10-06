@@ -8,6 +8,7 @@
 package plugin
 
 import (
+	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
@@ -19,6 +20,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -31,6 +33,9 @@ func (a installerDownloadManager) SetPreferSource(preferSource bool) {
 }
 
 func (a installerDownloadManager) SetPreferDist(preferDist bool) { a.m.SetPreferDist(preferDist) }
+
+// Manager returns the DownloadManager (composer.Installer.State's).
+func (a installerDownloadManager) Manager() *downloader.DownloadManager { return a.m }
 
 // composerOf returns the Composer instance PHP got whose repository
 // manager is rm (the process runtime and executor of the services a PHP
@@ -56,11 +61,8 @@ type settings struct {
 
 func (s settings) get(name string) any {
 	v, _ := s.s.Get(name)
-	if sv, ok := v.(*service); ok {
-		return sv.v
-	}
 
-	return v
+	return unwrap(v)
 }
 
 func (s settings) boolean(name string) bool { return php.ToBool(s.get(name)) }
@@ -267,8 +269,15 @@ func (r *Runtime) applyInstallerSettings(inst *composer.Installer, s settings) e
 		inst.SetTemporaryConstraints(constraints)
 	}
 	for _, name := range []string{"auditConfig", "policyConfig"} {
-		if o, ok := s.get(name).(*rpc.PHPObject); ok {
-			return unsupportedf("maestro does not support running an Installer with a %s yet", o.Class)
+		switch v := s.get(name).(type) {
+		case *rpc.PHPObject:
+			return unsupportedf("maestro does not support running an Installer with a %s yet", v.Class)
+		case *advisory.AuditConfig:
+			// The AuditConfig of an Installer maestro ran (a clone of the
+			// one on the stack keeps it).
+			inst.SetAuditConfig(*v)
+		case *policy.PolicyConfig:
+			inst.SetPolicyConfig(v)
 		}
 	}
 
@@ -282,6 +291,14 @@ func (r *Runtime) registerRunInstaller() {
 		if err != nil {
 			return nil, err
 		}
+		// PHP's Installer::run() is on PHP's stack already: the frame the
+		// run pushes stands for it and is left out.
+		r.mu.Lock()
+		if r.phpRunInstallers == nil {
+			r.phpRunInstallers = map[*composer.Installer]bool{}
+		}
+		r.phpRunInstallers[inst] = true
+		r.mu.Unlock()
 		code, err := inst.Run()
 		if err != nil {
 			return nil, err

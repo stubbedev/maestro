@@ -27,6 +27,9 @@ func (r *Runtime) repositoryObject(repo pkg.Repository) any {
 	if repo == nil {
 		return nil
 	}
+	if p, ok := repo.(*proxyRepository); ok {
+		return p.obj
+	}
 	class := `Composer\Repository\RepositoryInterface`
 	if c, ok := repo.(interface{ Class() string }); ok {
 		class = c.Class()
@@ -37,11 +40,11 @@ func (r *Runtime) repositoryObject(repo pkg.Repository) any {
 
 // goRepository returns the maestro repository a PHP value stands for.
 func goRepository(v any) (pkg.Repository, bool) {
-	s, ok := v.(*service)
+	g, ok := v.(goObject)
 	if !ok {
 		return nil, false
 	}
-	repo, ok := s.v.(pkg.Repository)
+	repo, ok := g.goValue().(pkg.Repository)
 
 	return repo, ok
 }
@@ -352,7 +355,7 @@ func (r *Runtime) registerRepositories() {
 		return r.repositoryObject(repo), nil
 	})
 	rmMethod("addRepository", func(rm *repository.RepositoryManager, a args) (any, error) {
-		repo, err := goRepositoryParam(a, 1)
+		repo, err := r.repositoryParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +364,7 @@ func (r *Runtime) registerRepositories() {
 		return nil, nil
 	})
 	rmMethod("prependRepository", func(rm *repository.RepositoryManager, a args) (any, error) {
-		repo, err := goRepositoryParam(a, 1)
+		repo, err := r.repositoryParam(a, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -382,6 +385,11 @@ func (r *Runtime) registerRepositories() {
 
 		return nil, nil
 	})
+	rmMethod("setRepositoryClass", func(rm *repository.RepositoryManager, a args) (any, error) {
+		rm.SetRepositoryClass(a.str(1), r.phpRepositoryConstructor(a.str(2)))
+
+		return nil, nil
+	})
 	rmMethod("getHttpDownloader", func(rm *repository.RepositoryManager, _ args) (any, error) {
 		return r.value(rm.HTTPDownloader()), nil
 	})
@@ -393,7 +401,7 @@ func (r *Runtime) registerRepositories() {
 
 // goRepositoryParam returns param i, a repository of maestro's. A
 // repository created in PHP stays PHP's: maestro cannot use it.
-func goRepositoryParam(a args, i int) (repository.RepositoryInterface, error) { //nolint:unparam // the param's position is the method's.
+func goRepositoryParam(a args, i int) (repository.RepositoryInterface, error) {
 	if repo, ok := goRepository(a.at(i)); ok {
 		if ri, ok := repo.(repository.RepositoryInterface); ok {
 			return ri, nil

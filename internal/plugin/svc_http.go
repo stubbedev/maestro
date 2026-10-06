@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -45,6 +46,9 @@ func (r *Runtime) httpRuntime() http.Runtime {
 func (r *Runtime) downloaderObject(d downloader.Downloader) any {
 	if d == nil {
 		return nil
+	}
+	if p, ok := d.(*proxyDownloader); ok {
+		return p.obj
 	}
 	class := `Composer\Downloader\DownloaderInterface`
 	if c, ok := d.(downloader.Classer); ok {
@@ -292,9 +296,15 @@ func (r *Runtime) registerDownloadManager() {
 		return nil, nil
 	})
 	dmMethod("setDownloader", func(dm *downloader.DownloadManager, a args) (any, error) {
-		d, err := param[downloader.Downloader](a, 2)
-		if err != nil {
-			return nil, unsupportedf("maestro does not support Composer\\Downloader\\DownloadManager::setDownloader() with a downloader created in PHP yet")
+		var d downloader.Downloader
+		if o, ok := a.at(2).(*rpc.PHPObject); ok {
+			// A downloader written in PHP.
+			d = r.phpDownloader(o)
+		} else {
+			var err error
+			if d, err = param[downloader.Downloader](a, 2); err != nil {
+				return nil, err
+			}
 		}
 		dm.SetDownloader(a.str(1), d)
 

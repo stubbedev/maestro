@@ -1,0 +1,5 @@
+{
+    "name": "local/lib-b",
+    "version": "2.0.0",
+    "suggest": {"local/lib-c": "for the suggestion the plugin silences"}
+}

@@ -1,0 +1,20 @@
+{
+    "name": "maestro-test/vaimo",
+    "description": "vaimo/composer-patches 6.0.3 (best effort): patches applied by reinstalling packages, its patch commands.",
+    "require": {
+        "vaimo/composer-patches": "6.0.3",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "vaimo/composer-patches": true
+        }
+    },
+    "extra": {
+        "patches": {
+            "psr/log": {
+                "Retitle the README": "patches/psr-log-title.patch"
+            }
+        }
+    }
+}

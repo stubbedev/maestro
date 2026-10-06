@@ -1,0 +1,13 @@
+{
+    "name": "maestro-test/thanks",
+    "description": "symfony/thanks 1.4.0: its commands added to the running Application found on the stack.",
+    "require": {
+        "symfony/thanks": "1.4.0",
+        "psr/log": "3.0.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "symfony/thanks": true
+        }
+    }
+}

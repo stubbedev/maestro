@@ -224,6 +224,10 @@ var repositoryMethods = []string{"count", "findPackage", "findPackages", "getPac
 // transactions (transaction.*, internal/plugin/svc_resolverevents.go).
 var transactionMethods = []string{"getOperations"}
 
+// downloaderMethods are the downloader methods maestro serves for its own
+// downloaders (downloader.*, internal/plugin/svc_downloader.go).
+var downloaderMethods = []string{"getInstallationSource", "download", "prepare", "install", "update", "remove", "cleanup", "getLocalChanges", "getUnpushedChanges", "getVcsReference"}
+
 // remoteMethods are the methods of a stub class whose instances may be
 // maestro's (a remote repository or a transaction maestro hands to PHP):
 // name => the RPC method serving them on such an instance.
@@ -237,6 +241,20 @@ func remoteMethods(class string, c *shimbuild.Class) map[string]string {
 			if _, ok := c.Methods.Values[name]; ok {
 				out[name] = "transaction." + name
 			}
+		}
+
+		return out
+	}
+	if slices.Contains(c.Interfaces, `Composer\Downloader\DownloaderInterface`) {
+		for _, name := range downloaderMethods {
+			if m, ok := c.Methods.Values[name]; ok && !m.Static && !m.Abstract && m.Visibility == "public" {
+				out[name] = "downloader." + name
+			}
+		}
+		if class == `Composer\Downloader\FileDownloader` {
+			// new FileDownloader(...) (and its subclasses without a
+			// constructor of their own) creates maestro's downloader.
+			out["__construct"] = "downloader.new"
 		}
 
 		return out
@@ -309,6 +327,15 @@ func renderMethod(class, name string, m *shimbuild.Method, inInterface bool, rem
 	}
 
 	b.WriteString("\n    {\n")
+	if remote != "" && name == "__construct" {
+		params := []string{"$this"}
+		for _, p := range m.Params {
+			params = append(params, "$"+p.Name)
+		}
+		b.WriteString("        \\Maestro\\Shim\\Rpc::call(" + php.VarExport(remote) + ", [" + strings.Join(params, ", ") + "]);\n    }\n")
+
+		return b.String()
+	}
 	if remote != "" {
 		params := []string{"$this"}
 		for _, p := range m.Params {

@@ -62,6 +62,8 @@ class RepositoryManager
 
     public function setRepositoryClass(string $type, $class): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\RepositoryManager::setRepositoryClass() in plugins yet');
+        // A repository class written in PHP: maestro creates its
+        // repositories here (object.new) and uses them through proxies.
+        \Maestro\Shim\Rpc::call('rm.setRepositoryClass', [$this, $type, $class]);
     }
 }

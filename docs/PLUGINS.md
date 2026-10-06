@@ -1937,6 +1937,94 @@ and advisories, `Loop::wait()`'s progress bar counts only maestro's jobs.
   (`bin all install`, forwarding), symfony/thanks, vaimo/composer-patches
   (best effort).
 
+Status: done. What crosses and how:
+
+- Frames (`frames.go`, `Maestro\Shim\Frames`): maestro's Application pushes
+  `doRun($input, $output)` on composer.Runtime's frame stack, its command
+  runner `doRunCommand($command, ...)` and the command's `run($input,
+  $output)`, `Installer::run()` itself. Every call into PHP code
+  (`plugin.load`, `listener.call`, `script.*`, `installer.call`,
+  `command.run`) carries the frames pushed since PHP last called maestro,
+  and the shim enters each through a closure bound to the frame's object
+  and called with its arguments (no method is added to Composer's
+  classes): `debug_backtrace()` shows `object` and `args` as Composer's
+  frames do, nested runs included (two Installers on the stack during a
+  nested run; the PHP Installer whose `run()` maestro runs is its own
+  frame). A plugin adding commands with Symfony's `add()` to the
+  Application it found there reaches maestro's Application (`app.added`).
+- `Composer\Installer` (`internals.go`): maestro's running Installer crosses
+  as a Composer\Installer whose properties are its settings and
+  collaborators (a service mirror: `Maestro\Shim\Adapter\ServiceAdapter`
+  writes the properties in their declaring class's scope); its setters
+  record the property, as Composer's do, and send it back as a dirty field
+  that maestro's Installer takes (flex's
+  `setSuggestedPackagesReporter(new SuggestedPackagesReporter(new
+  NullIO))`, discovery's `setAudit(false)`). `clone` gives PHP's own
+  Installer object, `__construct()` re-initialises it with the services
+  passed, and its `run()` runs a new maestro Installer from its properties
+  (`installer.run`), the AuditConfig and PolicyConfig of the original
+  included. The platform requirement filter crosses as its description
+  and becomes the PHP filter object again.
+- The protected and private property list of §5.12 is filled from Go:
+  the Installer's properties, `EventDispatcher::$runScripts`,
+  `Config::$baseDir`, `ConsoleIO::$input`/`$output` (the run's input and
+  output mirrors) and `$helperSet` (a HelperSet with a QuestionHelper, as
+  `Application::doRun()` builds it), `ArgvInput::$tokens` (the input
+  mirror, phase 4), `Transaction::$presentPackages`/`$resultPackageMap`
+  (keyed by spl_object_id, packages in the lazy core tier).
+- `new Transaction($present, $result)` (also inside `Closure::bind`)
+  keeps Composer's properties and computes its operations with maestro's
+  algorithm (`transaction.new`).
+- `clone` of maestro's Config gives an independent copy (the clone's
+  private `maestroOrigin` names the original; `object.clone`).
+- `RepositorySet::createPool*()` returns a PHP-local `Pool` of the
+  packages maestro's pool holds (with its ids, and the versions it
+  removed; security and filter-list removals are left out);
+  `getSecurityAdvisories()`/`getMatchingSecurityAdvisories()` return
+  Composer's advisory objects. `new Pool(...)` is PHP-local.
+- Repositories written in PHP given to `RepositoryManager::addRepository()`/
+  `prependRepository()` or `RepositorySet::addRepository()`, and
+  repository classes registered with `setRepositoryClass()` (created in
+  PHP by `object.new`), are maestro's through proxies calling the PHP
+  object (`object.call`); so are downloaders given to
+  `DownloadManager::setDownloader()` (`object.promise` hands their
+  promises over). maestro's downloaders serve their methods to PHP
+  (`downloader.*`, generated into the stubs by tools/shimgen), and `new
+  FileDownloader(...)` (or a subclass without a constructor of its own)
+  creates maestro's (`downloader.new`). An operation subclass created in
+  PHP (vaimo's `ResetOperation`) is adopted as the Composer operation it
+  extends.
+- Go errors thrown into PHP carry their Composer throw site (file and
+  line), so Symfony's "In AuthHelper.php line 152:" heading matches.
+- `Loop::wait()` counts the processes PHP code started on the loop's
+  executor in its progress bar, as `countActiveJobs()` does.
+
+Fixtures (cmd/maestro e2e_plugins6_test.go, cold and warm): `plugin-flex`
+(symfony/flex 2.11.0 with a local recipes endpoint served over http from
+testdata/e2e/flex-recipes: the first install's re-run, recipes and
+symfony.lock, pack unpacking, `req logger` alias resolution, `recipes`,
+`recipes:install`, `rem`, `-vvv`, `--no-plugins`; flex's random session
+id is normalised), `plugin-discovery` (php-http/discovery 1.20.0's
+auto-install), `plugin-bamarni` (bamarni/composer-bin-plugin 1.9.1: `bin
+all install`, `bin <ns> ...`, forwarding), `plugin-thanks` (symfony/thanks
+1.4.0: its commands, `thanks` without credentials) and `plugin-vaimo`
+(vaimo/composer-patches 6.0.3: patches applied and reapplied, `patch:*`).
+`TestPlugins_Internals` (MAESTRO_PHP_TESTS=1) covers the rest in-process.
+
+Known differences and gaps: the PluginManager frame of §5.12 is not
+pushed (no surveyed plugin looks for it); a frame's function name is the
+trampoline closure's, not Composer's method (no surveyed plugin checks
+it), and PHP exception traces at -v show the trampolines; a Go error's
+file in PHP is the basename of Composer's file (the "In X line N:"
+heading matches, the -v trace's full path does not); `Pool`s from maestro
+leave out security and filter-list removals; a PHP subclass of
+FileDownloader with its own overrides, LockTransaction's own properties
+and `Transaction::$resultPackagesByName` of maestro's transactions are
+not emulated; processes PHP code started asynchronously progress only
+while PHP waits for them (`Loop::wait()` in PHP), not while maestro's own
+loop waits. vaimo/composer-patches passes its fixture; its remote patch
+downloads (FileDownloader from PHP) are covered only in-process.
+
 **Ongoing.** Every member still a stub after phase 6 stays a stub until an
 e2e fixture or a user report needs it. `UnsupportedApiException` messages
 name the exact method, so these reports are actionable.

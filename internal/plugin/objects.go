@@ -74,13 +74,15 @@ func (r *Runtime) value(v any) any {
 			return nil
 		}
 
-		return r.serviceObject(v, classConfig)
+		return r.configObject(v)
 	case *eventdispatcher.EventDispatcher:
 		if v == nil {
 			return nil
 		}
 
-		return r.serviceObject(v, classEventDispatcher)
+		return r.eventDispatcherObject(v)
+	case *composer.Installer:
+		return r.installerObject(v)
 	case *repository.RepositoryManager:
 		if v == nil {
 			return nil
@@ -146,13 +148,13 @@ func (r *Runtime) value(v any) any {
 			return nil
 		}
 
-		return r.serviceObject(v, `Composer\DependencyResolver\LockTransaction`)
+		return r.transactionObject(v, &v.Transaction, `Composer\DependencyResolver\LockTransaction`)
 	case *resolver.Transaction:
 		if v == nil {
 			return nil
 		}
 
-		return r.serviceObject(v, `Composer\DependencyResolver\Transaction`)
+		return r.transactionObject(v, v, `Composer\DependencyResolver\Transaction`)
 	}
 
 	return v
@@ -162,6 +164,7 @@ func (r *Runtime) value(v any) any {
 // NullIO whose flags are fields (Maestro\Shim\Adapter\IOAdapter).
 type ioMirror struct {
 	io io.IO
+	r  *Runtime
 
 	mu   sync.Mutex
 	last ioState
@@ -214,17 +217,29 @@ func (m *ioMirror) Rev() uint64 {
 	return m.rev
 }
 
-// MirrorSnapshot implements rpc.Mirror.
+// MirrorSnapshot implements rpc.Mirror. A ConsoleIO also carries its
+// protected input and output (docs/PLUGINS.md §5.9, §5.12: the run's
+// input and output mirrors; bamarni/composer-bin-plugin reads them).
 func (m *ioMirror) MirrorSnapshot() (*php.Array, error) {
 	st := m.state()
 
-	return php.ArrayOf(
+	s := php.ArrayOf(
 		"interactive", st.interactive,
 		"decorated", st.decorated,
 		"verbose", st.verbose,
 		"veryVerbose", st.veryVerbose,
 		"debug", st.debug,
-	), nil
+	)
+	if c, ok := m.io.(*io.ConsoleIO); ok && m.r != nil {
+		if in := c.ConsoleInput(); in != nil {
+			s.Set("input", m.r.inputObject(in))
+		}
+		if out := c.ConsoleOutput(); out != nil {
+			s.Set("output", m.r.outputObject(out))
+		}
+	}
+
+	return s, nil
 }
 
 // ApplyMirror implements rpc.Mirror: PHP changes the IO through its
@@ -242,7 +257,7 @@ func (r *Runtime) ioObject(v io.IO) any {
 		return nil
 	}
 	m := r.bridge.object(v, func() rpc.Object {
-		m := &ioMirror{io: v}
+		m := &ioMirror{io: v, r: r}
 		m.last = m.state()
 
 		return m

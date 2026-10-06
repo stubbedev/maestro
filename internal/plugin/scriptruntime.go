@@ -96,7 +96,7 @@ func (r *Runtime) CallListener(l eventdispatcher.PHPCallable, ev eventdispatcher
 	if err := r.flushPending(); err != nil {
 		return "", false, err
 	}
-	res, ran, err := r.callWithBefore("listener.call", php.ArrayOf("h", rpc.Handle(l.H), "event", r.eventObject(ev)), func() bool {
+	res, ran, err := r.callWithBefore("listener.call", r.framed(php.ArrayOf("h", rpc.Handle(l.H), "event", r.eventObject(ev))), func() bool {
 		before()
 
 		return true
@@ -116,7 +116,7 @@ func (r *Runtime) CallPHPScript(className, methodName string, ev eventdispatcher
 	if err := r.startFor("script "+className+"::"+methodName, eventIO(ev)); err != nil {
 		return "", false, err
 	}
-	res, ran, err := r.callWithBefore("script.php", php.ArrayOf("class", className, "method", methodName, "event", r.eventObject(ev)), func() bool {
+	res, ran, err := r.callWithBefore("script.php", r.framed(php.ArrayOf("class", className, "method", methodName, "event", r.eventObject(ev))), func() bool {
 		before()
 
 		return true
@@ -143,12 +143,12 @@ func (r *Runtime) RunCommandClass(className string, ev eventdispatcher.Event, in
 	if out != nil {
 		output = r.outputObject(ioOutput(out))
 	}
-	res, ran, err := r.callWithBefore("script.commandClass", php.ArrayOf(
+	res, ran, err := r.callWithBefore("script.commandClass", r.framed(php.ArrayOf(
 		"class", className,
 		"event", r.eventObject(ev),
 		"input", input,
 		"output", output,
-	), before)
+	)), before)
 	if err != nil {
 		return ranStatus(ran), 0, err
 	}

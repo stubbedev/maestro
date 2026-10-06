@@ -53,16 +53,27 @@ class Loop
             }
         );
 
+        // The jobs are maestro's (downloads, its processes) and the
+        // processes PHP code started on this loop's executor: the progress
+        // counts both, as Composer's countActiveJobs() does.
+        $phpActive = function (): int {
+            return $this->processExecutor !== null ? $this->processExecutor->countActiveJobs() : 0;
+        };
         if ($progress !== null) {
-            $progress->start(Rpc::call('loop.countJobs', [$this]));
+            $progress->start(Rpc::call('loop.countJobs', [$this]) + $phpActive());
         }
-        // maestro's jobs (downloads, its processes), then the processes PHP
-        // code started, whose callbacks may start more of either.
+        // maestro's jobs, then PHP's, whose callbacks may start more of
+        // either.
+        $lastUpdate = 0;
         do {
             Rpc::call('loop.wait', [$this]);
             $phpJobs = false;
-            while ($this->processExecutor !== null && $this->processExecutor->countActiveJobs() > 0) {
+            while (($active = $phpActive()) > 0) {
                 $phpJobs = true;
+                if ($progress !== null && microtime(true) - $lastUpdate > 0.1) {
+                    $lastUpdate = microtime(true);
+                    $progress->setProgress(max(0, $progress->getMaxSteps() - $active));
+                }
                 usleep(1000);
             }
         } while ($phpJobs);

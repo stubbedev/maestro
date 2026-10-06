@@ -3,6 +3,7 @@
 package config
 
 import (
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -142,6 +143,28 @@ func New(useEnvironment bool, baseDir string) *Config {
 	}
 
 	return c
+}
+
+// Clone returns a copy of the configuration (PHP's clone $config: the
+// arrays are copied, the config sources shared).
+func (c *Config) Clone() *Config {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	d := &Config{
+		config:                c.config.Clone(),
+		baseDir:               c.baseDir,
+		repositories:          c.repositories.Clone(),
+		configSource:          c.configSource,
+		authConfigSource:      c.authConfigSource,
+		localAuthConfigSource: c.localAuthConfigSource,
+		useEnvironment:        c.useEnvironment,
+		warnedHosts:           maps.Clone(c.warnedHosts),
+		sslVerifyWarnedHosts:  maps.Clone(c.sslVerifyWarnedHosts),
+		sourceOfConfigValue:   maps.Clone(c.sourceOfConfigValue),
+	}
+
+	return d
 }
 
 // Rev is a counter every change to the configuration increments, for the
