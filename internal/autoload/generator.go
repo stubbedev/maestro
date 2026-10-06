@@ -248,7 +248,7 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return
 	}
-	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, NoDevFilter)
+	autoloads, err := g.parseAutoloads(packageMap, rootPackage, NoDevFilter, true)
 	if err != nil {
 		return
 	}

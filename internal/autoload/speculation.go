@@ -69,11 +69,7 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 	if err != nil {
 		return
 	}
-	// parseAutoloads reads the root's autoload-dev by $this->devMode
-	saved := g.devMode
-	g.devMode = devMode
-	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, devFilter(devMode, localRepo.DevPackageNames()))
-	g.devMode = saved
+	autoloads, err := g.parseAutoloads(packageMap, rootPackage, devFilter(devMode, localRepo.DevPackageNames()), devMode)
 	if err != nil {
 		return
 	}
