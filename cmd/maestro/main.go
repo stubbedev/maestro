@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime/debug"
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/composer"
@@ -31,23 +30,10 @@ import (
 var version = "dev"
 
 func main() {
-	setGCPercent()
 	stop := startProfiling()
 	code := run()
 	stop()
 	os.Exit(code)
-}
-
-// setGCPercent collects garbage half as often as Go's default (GOGC=200)
-// unless GOGC is set. A run is short and builds most of what it keeps in
-// its first few hundred milliseconds, so the default collects many times
-// while the heap grows: on a warm laravel update --dry-run this saves
-// ~13% of the CPU time for 10-15% more peak memory (docs/BENCHMARKS.md,
-// #26).
-func setGCPercent() {
-	if _, ok := os.LookupEnv("GOGC"); !ok {
-		debug.SetGCPercent(200)
-	}
 }
 
 // startProfiling starts the profiles the maestro_profile build asks for
