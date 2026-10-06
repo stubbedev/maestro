@@ -28,12 +28,12 @@ var errorHandler struct {
 // The warnings internal/io raises are ErrorHandler's ErrorExceptions,
 // none while Silencer::suppress() is in effect.
 func init() {
-	io.NewWarning = func(message string, site phperr.Site) error {
+	io.NewWarning = func(message string) error {
 		if silenced.Load() > 0 {
 			return nil
 		}
 
-		return &ErrorException{Message: message, Site: site}
+		return &ErrorException{Message: message}
 	}
 }
 
