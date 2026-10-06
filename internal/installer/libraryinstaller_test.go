@@ -379,7 +379,8 @@ func TestLibraryInstaller_InstallPathFollowsVendorDirChanges(t *testing.T) {
 	}
 
 	// replaced by a link elsewhere: the link's target, as realpath() gives
-	elsewhere := f.rootDir + "/elsewhere"
+	// it (with backslashes on Windows, so joined like the fixture's paths)
+	elsewhere := f.rootDir + string(filepath.Separator) + "elsewhere"
 	mustMkdir(t, elsewhere)
 
 	if err := os.RemoveAll(f.vendorDir); err != nil {
