@@ -7,9 +7,6 @@ package http
 
 import (
 	"bytes"
-	"compress/flate"
-	"compress/gzip"
-	"compress/zlib"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -88,8 +85,9 @@ type transferRequest struct {
 	timeout, readTimeout time.Duration
 	connectTimeout       time.Duration
 	key                  transportKey
-	// decode makes the transport undo gzip/deflate content encodings
-	// (CURLOPT_ENCODING ""), advertising them unless a header does.
+	// decode makes the transport undo content encodings as curl does for
+	// CURLOPT_ENCODING "" (encoding.go), advertising them unless a header
+	// does.
 	decode bool
 	// http1Status reports HTTP/2 status lines as curl does ("HTTP/2 200 ").
 	curlStatusLines bool
@@ -500,11 +498,9 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	var src io.Reader = counter
 
 	if r.decode {
-		decoded, err := decodingReader(src, resp.Header.Get("Content-Encoding"))
-		if err != nil {
-			res.errno, res.errMsg = curleBadContentEncoding, "Error while processing content unencoding: "+err.Error()
-
-			return finish()
+		decoded := decodingReader(src, strings.Join(resp.Header.Values("Content-Encoding"), ","))
+		if c, ok := decoded.(io.Closer); ok {
+			defer c.Close()
 		}
 
 		src = decoded
@@ -529,9 +525,14 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	res.info.SizeDownload = counter.n
 
 	if err != nil {
-		var wErr *writeError
+		var (
+			wErr   *writeError
+			encErr *encodingError
+		)
 
 		switch {
+		case errors.As(err, &encErr):
+			res.errno, res.errMsg = encErr.errno, encErr.msg
 		case errors.Is(err, errMaxSize):
 			res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 526), "Maximum allowed download size reached. Downloaded "+strconv.FormatInt(counter.n, 10)+" of allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
 		case errors.As(err, &wErr):
@@ -556,7 +557,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 // internal header, "Name;" sends it empty.
 func setRequestHeaders(req *http.Request, r *transferRequest) {
 	h := req.Header
-	userAgent, accept, acceptEncoding := false, false, false
+	userAgent, accept, acceptEncodingSet := false, false, false
 
 	for _, line := range r.headers {
 		name, value, found := strings.Cut(line, ":")
@@ -595,7 +596,7 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 		case "accept":
 			accept = true
 		case "accept-encoding":
-			acceptEncoding = true
+			acceptEncodingSet = true
 		}
 
 		if value == "" {
@@ -616,8 +617,8 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 		h["User-Agent"] = []string{""}
 	}
 
-	if r.decode && !acceptEncoding {
-		h["Accept-Encoding"] = []string{"deflate, gzip"}
+	if r.decode && !acceptEncodingSet {
+		h["Accept-Encoding"] = []string{acceptEncoding}
 	}
 
 	if r.content != nil && h.Get("Content-Type") == "" {
@@ -705,57 +706,6 @@ func (w fileWriter) Write(b []byte) (int, error) {
 	}
 
 	return n, nil
-}
-
-// decodingReader undoes a Content-Encoding curl decodes.
-func decodingReader(r io.Reader, encoding string) (io.Reader, error) {
-	switch strings.ToLower(strings.TrimSpace(encoding)) {
-	case "", "identity":
-		return r, nil
-	case "gzip", "x-gzip":
-		return gzip.NewReader(r)
-	case "deflate":
-		// curl accepts zlib-wrapped and raw deflate.
-		br := &peekReader{r: r}
-
-		head, err := br.peek(2)
-		if err == nil && len(head) == 2 && head[0]&0x0f == 8 && (uint16(head[0])<<8|uint16(head[1]))%31 == 0 {
-			return zlib.NewReader(br)
-		}
-
-		return flate.NewReader(br), nil
-	}
-
-	return nil, errors.New("unsupported content encoding " + encoding)
-}
-
-// peekReader lets the first bytes be inspected before reading.
-type peekReader struct {
-	r    io.Reader
-	head []byte
-}
-
-func (p *peekReader) peek(n int) ([]byte, error) {
-	buf := make([]byte, n)
-	m, err := io.ReadFull(p.r, buf)
-	p.head = buf[:m]
-
-	if errors.Is(err, io.ErrUnexpectedEOF) {
-		err = nil
-	}
-
-	return p.head, err
-}
-
-func (p *peekReader) Read(b []byte) (int, error) {
-	if len(p.head) > 0 {
-		n := copy(b, p.head)
-		p.head = p.head[n:]
-
-		return n, nil
-	}
-
-	return p.r.Read(b)
 }
 
 // curlError maps a net/http failure to the curl error number and message

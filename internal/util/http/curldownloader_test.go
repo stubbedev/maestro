@@ -247,7 +247,7 @@ func TestHttpDownloader_GetAndHeaders(t *testing.T) {
 	}
 
 	if !strings.HasPrefix(gotHeaders.Get("User-Agent"), "Composer/2.10.3 (") || gotHeaders.Get("X-Custom") != "1" ||
-		gotHeaders.Get("Accept") != "*/*" || gotHeaders.Get("Accept-Encoding") != "deflate, gzip" {
+		gotHeaders.Get("Accept") != "*/*" || gotHeaders.Get("Accept-Encoding") != "deflate, gzip, br, zstd" {
 		t.Fatalf("request headers %v", gotHeaders)
 	}
 
