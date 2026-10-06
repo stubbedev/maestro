@@ -40,8 +40,10 @@ class Loop
     {
         if ($this->processExecutor === null && Rpc::call('loop.hasProcessExecutor', [$this])) {
             // maestro's loop runs its own processes; the asynchronous
-            // processes of PHP code run in PHP, as Composer runs them.
-            $this->processExecutor = new ProcessExecutor();
+            // processes of PHP code run in PHP, as Composer runs them, on
+            // an executor writing to the IO of maestro's (Composer's one
+            // executor), and maestro's services given it use maestro's.
+            $this->processExecutor = new ProcessExecutor(Rpc::call('loop.processExecutorIO', [$this]));
             $this->processExecutor->enableAsync();
             // maestro's loop drives and counts them whenever it waits
             Rpc::call('loop.phpProcessExecutor', [$this, $this->processExecutor]);

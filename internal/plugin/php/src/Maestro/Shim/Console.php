@@ -55,6 +55,8 @@ final class Console
         Server::register('object.promise', [self::class, 'callPromise']);
         Server::register('object.new', [self::class, 'create']);
         Server::register('downloader.describe', [self::class, 'describeDownloader']);
+        Server::register('proc.describe', [self::class, 'describeProcessExecutor']);
+        Server::register('fs.describe', [self::class, 'describeFilesystem']);
         self::$inputAdapter = new Adapter\InputAdapter();
         Mirrors::register(self::$inputAdapter);
         Mirrors::register(new Adapter\OutputAdapter());
@@ -323,6 +325,33 @@ final class Console
         }
 
         return ['parents' => array_values(class_parents($object)), 'overrides' => $overrides];
+    }
+
+    /**
+     * `proc.describe`: what maestro's ProcessExecutor standing for one
+     * created in PHP needs of it (docs/PLUGINS.md §4.8): its IO and whether
+     * it runs asynchronous processes (enableAsync()).
+     *
+     * @param array<string, mixed> $a
+     * @return array{io: mixed, async: bool}
+     */
+    public static function describeProcessExecutor(array $a): array
+    {
+        $props = Remote::read($a['object'], \Composer\Util\ProcessExecutor::class, ['io', 'allowAsync']);
+
+        return ['io' => $props['io'], 'async' => (bool) $props['allowAsync']];
+    }
+
+    /**
+     * `fs.describe`: the ProcessExecutor a Filesystem created in PHP was
+     * given, or null.
+     *
+     * @param array<string, mixed> $a
+     * @return array{executor: mixed}
+     */
+    public static function describeFilesystem(array $a): array
+    {
+        return ['executor' => Remote::read($a['object'], \Composer\Util\Filesystem::class, ['processExecutor'])['processExecutor']];
     }
 
     /** The FileDownloader methods a subclass's override of runs instead. */

@@ -20,7 +20,6 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/repository"
-	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -339,7 +338,12 @@ func (r *Runtime) registerLocker() {
 		if err != nil {
 			return nil, err
 		}
-		l, err := locker.New(out, file, im, a.str(4), util.NewProcessExecutor(out))
+		// $process ?? new ProcessExecutor($io)
+		process, err := r.processParam(a, 5, out)
+		if err != nil {
+			return nil, err
+		}
+		l, err := locker.New(out, file, im, a.str(4), process)
 		if err != nil {
 			return nil, err
 		}
@@ -914,8 +918,8 @@ func (r *Runtime) registerFactory() {
 	})
 	// $factory->createDownloadManager($io, $config, $httpDownloader,
 	// $process, $eventDispatcher): maestro's manager with its downloaders,
-	// as Factory sets one up; PHP's ProcessExecutor is PHP's, so the
-	// downloaders get maestro's own on the same IO.
+	// as Factory sets one up, on maestro's executor standing for $process
+	// (processExecutorOf).
 	r.Handle("factory.createDownloadManager", func(v any) (any, error) {
 		a := argsOf("factory.createDownloadManager", v)
 		out, err := r.ioArg(a)
@@ -934,7 +938,11 @@ func (r *Runtime) registerFactory() {
 		if err != nil {
 			return nil, err
 		}
-		dm, err := r.factory().CreateDownloadManager(out, cfg, hd, util.NewProcessExecutor(out), ed)
+		process, err := r.processParam(a, 3, out)
+		if err != nil {
+			return nil, err
+		}
+		dm, err := r.factory().CreateDownloadManager(out, cfg, hd, process, ed)
 		if err != nil {
 			return nil, err
 		}

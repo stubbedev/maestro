@@ -17,7 +17,7 @@ class Locker
     {
         $this->lockFile = $lockFile;
         $io = \Maestro\Shim\Remote::read($lockFile, \Composer\Json\JsonFile::class, ['io'])['io'];
-        \Maestro\Shim\Rpc::call('locker.new', [$this, $io, $lockFile->getPath(), $installationManager, $composerFileContents]);
+        \Maestro\Shim\Rpc::call('locker.new', [$this, $io, $lockFile->getPath(), $installationManager, $composerFileContents, $process]);
     }
 
     public function getAliases(): array

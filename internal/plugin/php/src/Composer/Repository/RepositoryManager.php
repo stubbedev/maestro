@@ -13,8 +13,8 @@ class RepositoryManager
     public function __construct(\Composer\IO\IOInterface $io, \Composer\Config $config, \Composer\Util\HttpDownloader $httpDownloader, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null, ?\Composer\Util\ProcessExecutor $process = null)
     {
         // maestro's manager (rm.new), whose proxy this object is from now
-        // on; its ProcessExecutor is maestro's, on the same IO.
-        \Maestro\Shim\Rpc::call('rm.new', [$this, $io, $config, $httpDownloader, $eventDispatcher]);
+        // on; its ProcessExecutor stands for $process when one is given.
+        \Maestro\Shim\Rpc::call('rm.new', [$this, $io, $config, $httpDownloader, $eventDispatcher, $process]);
     }
 
     public function addRepository(\Composer\Repository\RepositoryInterface $repository): void

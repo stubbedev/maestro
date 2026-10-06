@@ -455,6 +455,9 @@ func (p *ProcessExecutor) startQueued() {
 	p.unlock()
 }
 
+// IO returns the IO the executor writes to (its $io); nil for none.
+func (p *ProcessExecutor) IO() IO { return p.io }
+
 // Scheduler returns the scheduler running the completions of the async
 // jobs.
 func (p *ProcessExecutor) Scheduler() *Scheduler {

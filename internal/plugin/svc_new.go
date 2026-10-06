@@ -60,9 +60,9 @@ func (r *Runtime) registerConstructors() {
 
 	// new RepositoryManager(IOInterface $io, Config $config, HttpDownloader
 	// $httpDownloader, ?EventDispatcher $eventDispatcher = null,
-	// ?ProcessExecutor $process = null); PHP's ProcessExecutor is PHP's,
-	// so maestro's manager gets its own on the same IO, as
-	// $process ?? new ProcessExecutor($io) would.
+	// ?ProcessExecutor $process = null): $process ?? new
+	// ProcessExecutor($io), maestro's standing for a given one
+	// (processExecutorOf).
 	r.Handle("rm.new", func(v any) (any, error) {
 		a := argsOf("rm.new", v)
 		out, _, err := r.ioParam(a, 1)
@@ -86,7 +86,12 @@ func (r *Runtime) registerConstructors() {
 			dispatcher = ed
 		}
 
-		return nil, r.adopt(a, repository.NewRepositoryManager(out, cfg, hd, dispatcher, http.NewProcessExecutor(out)))
+		process, err := r.processParam(a, 5, out)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, r.adopt(a, repository.NewRepositoryManager(out, cfg, hd, dispatcher, process))
 	})
 
 	// new InstallationManager(Loop $loop, IOInterface $io, ?EventDispatcher $eventDispatcher = null).

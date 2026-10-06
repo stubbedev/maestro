@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
+	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
@@ -260,6 +261,17 @@ func (r *Runtime) registerHTTP() {
 	}
 	loopMethod("getHttpDownloader", func(l *http.Loop, _ args) (any, error) { return r.value(l.HttpDownloader()), nil })
 	loopMethod("hasProcessExecutor", func(l *http.Loop, _ args) (any, error) { return l.ProcessExecutor() != nil, nil })
+	// the IO of maestro's loop's executor, which the executor PHP code
+	// gets for the loop writes to as Composer's one executor does
+	loopMethod("processExecutorIO", func(l *http.Loop, _ args) (any, error) {
+		if pe := l.ProcessExecutor(); pe != nil {
+			if out, ok := pe.IO().(io.IO); ok {
+				return r.ioObject(out), nil
+			}
+		}
+
+		return nil, nil
+	})
 	loopMethod("countJobs", func(l *http.Loop, _ args) (any, error) {
 		n, err := l.CountActiveJobs()
 

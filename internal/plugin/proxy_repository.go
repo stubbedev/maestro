@@ -32,6 +32,9 @@ type phpObjects struct {
 	// executors are the ProcessExecutors of PHP code whose asynchronous
 	// processes maestro's loops drive.
 	executors map[*rpc.PHPObject]*phpProcessJobs
+	// processExecutors are maestro's ProcessExecutors standing for the
+	// ones of PHP code given to maestro's services (processExecutorOf).
+	processExecutors map[*rpc.PHPObject]*util.ProcessExecutor
 }
 
 // callObject calls a method of a PHP object maestro uses (`object.call`).

@@ -549,7 +549,16 @@ func (r *Runtime) registerNewDispatcher() {
 		if err != nil {
 			return nil, err
 		}
-		d := eventdispatcher.New(c, out, nil)
+		// $process ?? new ProcessExecutor($io)
+		var process eventdispatcher.Process
+		pe, err := r.processExecutorOf(a.at(3))
+		if err != nil {
+			return nil, err
+		}
+		if pe != nil {
+			process = pe
+		}
+		d := eventdispatcher.New(c, out, process)
 		if f := r.composerFactory; f != nil && f.Runtime != nil {
 			d.SetPHP(f.Runtime.PlatformPHP())
 		}

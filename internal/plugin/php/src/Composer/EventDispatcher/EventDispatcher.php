@@ -23,7 +23,7 @@ class EventDispatcher
 
     public function __construct(\Composer\PartialComposer $composer, \Composer\IO\IOInterface $io, ?\Composer\Util\ProcessExecutor $process = null)
     {
-        \Maestro\Shim\Rpc::call('ed.new', [$this, $composer, $io]);
+        \Maestro\Shim\Rpc::call('ed.new', [$this, $composer, $io, $process]);
     }
 
     public function addListener(string $eventName, $listener, int $priority = 0): void

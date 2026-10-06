@@ -104,3 +104,58 @@ func TestShimStubs_FileDownloaderSubclass(t *testing.T) {
 		t.Errorf("no update line with the subclass's appendix:\n%s", out)
 	}
 }
+
+// A FileDownloader created in PHP runs its processes on the
+// ProcessExecutor it is given, directly or through its Filesystem: given
+// the Loop's, remove() runs its asynchronous `rm -rf` on it, which the
+// loop's wait() drives, as Composer allows; given none, the same
+// remove() throws Composer's LogicException.
+func TestShimStubs_FileDownloaderProcessExecutor(t *testing.T) {
+	requirePHP(t)
+
+	p := newEvalProject(t, "commands")
+	dist := filepath.Join(p.dir, "dist.txt")
+	if err := os.WriteFile(dist, []byte("payload"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := evalPHP(t, p.rt, `
+		$io = $vars['io'];
+		$composer = \Composer\Factory::create($io, null, true);
+		$config = $composer->getConfig();
+		$loop = $composer->getLoop();
+		$hd = $loop->getHttpDownloader();
+		$downloaders = [
+			'executor' => new \Composer\Downloader\FileDownloader($io, $config, $hd, null, null, null, $loop->getProcessExecutor()),
+			'filesystem' => new \Composer\Downloader\FileDownloader($io, $config, $hd, null, null, new \Composer\Util\Filesystem($loop->getProcessExecutor())),
+			'none' => new \Composer\Downloader\FileDownloader($io, $config, $hd),
+		];
+
+		$out = [];
+		foreach ($downloaders as $name => $dl) {
+			$package = new \Composer\Package\Package('acme/file', '1.0.0.0', '1.0.0');
+			$package->setDistType('file');
+			$package->setDistUrl('file://'.$vars['dist']);
+			$target = getcwd().'/target-'.$name;
+			$loop->wait([$dl->download($package, $target)]);
+			$loop->wait([$dl->install($package, $target, false)]);
+			try {
+				$loop->wait([$dl->remove($package, $target, false)]);
+				$out[] = $name.': removed '.var_export(!is_dir($target), true);
+			} catch (\LogicException $e) {
+				$out[] = $name.': '.$e->getMessage();
+			}
+		}
+
+		return $out;
+	`, php.ArrayOf("io", p.rt.value(p.out), "dist", dist))
+
+	want := strings.Join([]string{
+		"executor: removed true",
+		"filesystem: removed true",
+		`none: You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`,
+	}, "\n")
+	if g := lines(got); g != want {
+		t.Errorf("got\n%s\nwant\n%s\noutput:\n%s", g, want, p.output())
+	}
+}

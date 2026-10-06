@@ -20,7 +20,6 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/store"
-	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -66,12 +65,22 @@ func (r *Runtime) newDownloader(a args) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	process := util.NewProcessExecutor(out)
+	// $process ?? new ProcessExecutor($io), and $filesystem ?? new
+	// Filesystem($this->process): the ones PHP gives are honoured (a
+	// loop's executor runs remove()'s asynchronous rm)
+	process, err := r.processParam(a, 7, out)
+	if err != nil {
+		return nil, err
+	}
+	fs, err := r.filesystemOf(a.at(6), process)
+	if err != nil {
+		return nil, err
+	}
 	deps := downloader.Deps{
 		IO:             out,
 		Config:         cfg.ForHTTP(),
 		HTTPDownloader: hd,
-		Filesystem:     util.NewFilesystem(process),
+		Filesystem:     fs,
 		Process:        process,
 		Metadata:       downloader.NewMetadata(),
 	}
