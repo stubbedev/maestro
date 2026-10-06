@@ -52,6 +52,9 @@ state over IPC. Requirements:
   already embed these verbatim because it writes them into every vendor dir.
 - **PHP 7.2.5 compatible.** The shim must run on every PHP that Composer
   2.10.3 runs on (7.2.5 to 8.5), because the child is the project's `php`.
+  CI runs the PHP-backed plugin and command tests on 8.4 and on 7.2 (the
+  `php-7_2` job); only the API parity test needs PHP 8 (its golden is PHP
+  8.4's reflection).
 - **Zero cost when unused.** No `php` process starts unless a plugin is
   actually registered or a PHP-callable or command-class script is dispatched.
 

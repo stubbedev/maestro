@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -307,6 +308,15 @@ func TestShim_Parity(t *testing.T) {
 	phpBinary, ok := platform.FindPHP()
 	if !ok {
 		t.Fatal("no php")
+	}
+	// The golden is Composer's API as PHP 8.4 reflects it (attributes,
+	// union types, default values): an older php renders the same
+	// declarations differently, and reflect.php needs PHP 8. The other
+	// shim tests run on every supported version (CI's php-7.2 job).
+	if v, err := exec.Command(phpBinary, "-r", "echo PHP_MAJOR_VERSION;").Output(); err == nil {
+		if major, _ := strconv.Atoi(string(v)); major < 8 {
+			t.Skip("the API golden is reflected with PHP 8.4; this php is " + string(v) + ".x")
+		}
 	}
 	dir, err := extractShim(t.TempDir())
 	if err != nil {

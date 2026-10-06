@@ -162,6 +162,44 @@ jobs:
           MAESTRO_PHP_TESTS: '1'
         run: go test -race -short ./...
 
+  # The PHP shim runs on the project's php, which can be as old as Composer
+  # 2.10.3's minimum (7.2.5); the test job covers 8.4.
+  php-7_2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Go cache paths
+        id: go
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '7.2'
+          tools: none
+
+      - name: Plugin and command tests
+        env:
+          MAESTRO_PHP_TESTS: '1'
+        run: go test ./internal/plugin/... ./internal/command
+
   # Composer runs on Windows, so maestro must at least build and vet there;
   # the test suite assumes a Unix filesystem and shell.
   windows:
