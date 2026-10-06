@@ -46,9 +46,6 @@ func init() {
 //   - "Checking Composer and its dependencies for vulnerabilities" audits
 //     Composer's own installed.json; maestro bundles no PHP dependencies,
 //     so it audits composer/composer at Composer::getVersion() only.
-//   - phpinfo(INFO_GENERAL)'s "Configure Command" is not recorded by the
-//     platform probe, so the --enable-sigchild/--with-curlwrappers warnings
-//     are never shown (as when the phpinfo pattern does not match).
 //   - ioncube_loader_version() is derived from the probed
 //     ioncube_loader_iversion().
 type DiagnoseCommand struct {
@@ -912,8 +909,19 @@ func (c *DiagnoseCommand) checkPlatform() any {
 		warnings = append(warnings, issue{name: "zlib"})
 	}
 
-	// phpinfo(INFO_GENERAL)'s Configure Command is not probed (see the
-	// type's comment): no sigchild/curlwrappers warnings.
+	// ob_start(); phpinfo(INFO_GENERAL); matched by the platform probe
+	// (Snapshot.ConfigureCommand).
+	if c.view != nil {
+		if configure, ok := c.view.ConfigureCommand(); ok {
+			if strings.Contains(configure, "--enable-sigchild") {
+				warnings = append(warnings, issue{name: "sigchild"})
+			}
+
+			if strings.Contains(configure, "--with-curlwrappers") {
+				warnings = append(warnings, issue{name: "curlwrappers"})
+			}
+		}
+	}
 
 	if filterBool(c.iniGet("xdebug.profiler_enabled")) {
 		warnings = append(warnings, issue{name: "xdebug_profile"})
@@ -971,6 +979,10 @@ func (c *DiagnoseCommand) checkPlatform() any {
 		case "zlib":
 			text = "The zlib extension is not loaded, this can slow down Composer a lot.\nIf possible, enable it or recompile php with --with-zlib\n"
 			displayIniMessage = true
+		case "sigchild":
+			text = "PHP was compiled with --enable-sigchild which can cause issues on some platforms.\nRecompile it without this flag if possible, see also:\n  https://bugs.php.net/bug.php?id=22999"
+		case "curlwrappers":
+			text = "PHP was compiled with --with-curlwrappers which will cause issues with HTTP authentication and GitHub.\n Recompile it without this flag if possible"
 		case "openssl_version":
 			// Attempt to parse version number out, fallback to whole string value.
 			v, _ := c.constant("OPENSSL_VERSION_TEXT")
