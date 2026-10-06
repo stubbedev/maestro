@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/io"
@@ -184,10 +185,20 @@ func TestPrebuilt_Take(t *testing.T) {
 // TestComposerRepository_SpeculateLoads loads the p2 fixtures through the
 // real HttpDownloader with a speculation running ahead, cold and warm, and
 // compares every package (dump, notification URL, mirrors) with the loads
-// made without it; no file is requested twice.
+// made without it; no file is requested twice. The loads decide which
+// versions they build from the versions the speculation read.
 func TestComposerRepository_SpeculateLoads(t *testing.T) {
+	for _, acceptable := range []*php.Array{php.ArrayOf("stable", 0, "dev", 20), php.ArrayOf("stable", 0)} {
+		testSpeculateLoads(t, acceptable)
+	}
+}
+
+func testSpeculateLoads(t *testing.T, acceptable *php.Array) {
 	server := newP2Server(t)
-	acceptable := php.ArrayOf("stable", 0, "dev", 20)
+	flags := php.NewArray()
+	var shared atomic.Int32
+	onVersionsShared = func() { shared.Add(1) }
+	t.Cleanup(func() { onVersionsShared = nil })
 	constraints := &repository.ConstraintMap{}
 	for _, name := range p2Names {
 		constraints.Set(name, must(pkg.NewVersionParser().ParseConstraints(">=2")))
@@ -229,7 +240,7 @@ func TestComposerRepository_SpeculateLoads(t *testing.T) {
 			var s *speculation
 			if speculate {
 				onSpeculation = func(started *speculation) { s = started }
-				stop = repo.SpeculateLoads(constraints.Clone(), func(string) bool { return false }, acceptable, php.NewArray())
+				stop = repo.SpeculateLoads(constraints.Clone(), func(string) bool { return false }, acceptable, flags)
 				onSpeculation = nil
 				if warm {
 					// with the root file cached, the speculation runs
@@ -240,7 +251,7 @@ func TestComposerRepository_SpeculateLoads(t *testing.T) {
 					}
 				}
 			}
-			result := must(repo.LoadPackages(constraints.Clone(), acceptable, php.NewArray(), nil))
+			result := must(repo.LoadPackages(constraints.Clone(), acceptable, flags, nil))
 			if s != nil {
 				s.busy.Wait()
 			}
@@ -269,6 +280,9 @@ func TestComposerRepository_SpeculateLoads(t *testing.T) {
 		}
 
 		if speculate {
+			if shared.Load() == 0 {
+				t.Error("no load used the versions the speculation read")
+			}
 			for i := range want {
 				if !slices.Equal(results[i], want[i]) {
 					t.Errorf("warm %v: the packages differ from the loads without speculation", i == 1)

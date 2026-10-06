@@ -1,6 +1,7 @@
 package php
 
 import (
+	"maps"
 	"math"
 	"math/rand/v2"
 	"slices"
@@ -219,6 +220,10 @@ func TestArrayShallowClone(t *testing.T) {
 			got.packed != want.packed || got.indexed != want.indexed {
 			t.Fatalf("round %d: ShallowClone %+v, want %+v", round, got, want)
 		}
+		// the index may be copied from a's: it is the one building gives
+		if !maps.Equal(got.strIdx, want.strIdx) || !maps.Equal(got.intIdx, want.intIdx) {
+			t.Fatalf("round %d: index %v %v, want %v %v", round, got.strIdx, got.intIdx, want.strIdx, want.intIdx)
+		}
 		for k, v := range got.All() {
 			if w, _ := a.GetKey(k); w != v {
 				t.Fatalf("round %d: %v not shared", round, k)
@@ -226,8 +231,13 @@ func TestArrayShallowClone(t *testing.T) {
 		}
 		got.Append("x")
 		want.Append("x")
+		got.SetKey(StrKey("new"), 1)
+		want.SetKey(StrKey("new"), 1)
 		if !slices.Equal(got.Keys(), want.Keys()) {
 			t.Fatalf("round %d: append after clone: %v, want %v", round, got.Keys(), want.Keys())
+		}
+		if a.Has("new") {
+			t.Fatalf("round %d: a changed with its clone", round)
 		}
 	}
 }

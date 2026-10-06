@@ -72,19 +72,10 @@ func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterfac
 // that are equal between versions.
 func (l *ArrayLoader) LoadPackages(versions []*php.Array) ([]pkg.PackageInterface, error) {
 	packages := make([]pkg.PackageInterface, 0, len(versions))
-	cache := &linkCache{links: map[string]map[linkCacheKey]*pkg.Link{}}
+	b := l.Batch()
 
 	for _, version := range versions {
-		p, err := l.createObject(version, pkg.ClassCompletePackage)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := l.configureCachedLinks(cache, p, version); err != nil {
-			return nil, err
-		}
-
-		configured, err := l.configureObject(p, version)
+		configured, err := b.Load(version)
 		if err != nil {
 			return nil, err
 		}
@@ -93,6 +84,36 @@ func (l *ArrayLoader) LoadPackages(versions []*php.Array) ([]pkg.PackageInterfac
 	}
 
 	return packages, nil
+}
+
+// Batch returns a PackageBatch: LoadPackages one version at a time.
+func (l *ArrayLoader) Batch() *PackageBatch {
+	return &PackageBatch{l: l, cache: &linkCache{links: map[string]map[linkCacheKey]*pkg.Link{}}}
+}
+
+// PackageBatch loads versions as one LoadPackages call loads its list,
+// sharing the links that are equal between them, one at a time (maestro's;
+// see ArrayLoader.Batch). Only the package returned refers to the version
+// array, never to the array itself (only to the values it holds), so the
+// caller may change the array once Load returns.
+type PackageBatch struct {
+	l     *ArrayLoader
+	cache *linkCache
+}
+
+// Load is LoadPackages' work for one version. After an error the batch
+// must not be used again.
+func (b *PackageBatch) Load(version *php.Array) (pkg.PackageInterface, error) {
+	p, err := b.l.createObject(version, pkg.ClassCompletePackage)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := b.l.configureCachedLinks(b.cache, p, version); err != nil {
+		return nil, err
+	}
+
+	return b.l.configureObject(p, version)
 }
 
 func setLinks(p *pkg.Package, method string, links pkg.Links) {
