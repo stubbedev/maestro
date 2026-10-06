@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // call runs c.Call on a goroutine; the returned func waits for it.
@@ -84,7 +85,9 @@ func TestSync_Cwd(t *testing.T) {
 	}
 	t.Chdir(start)
 
-	a, b := t.TempDir(), t.TempDir()
+	// Resolved, as getcwd() reports them on both sides (macOS's temporary
+	// directory is under the /var symlink).
+	a, b := testutil.RealTempDir(t), testutil.RealTempDir(t)
 	c, f, _ := newFake(t, Options{})
 
 	if err := os.Chdir(a); err != nil {

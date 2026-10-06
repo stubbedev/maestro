@@ -8,6 +8,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // PathDownloader has no test in Composer's suite; these cover its
@@ -25,7 +26,7 @@ func pathPackage(url string) *pkg.CompletePackage {
 func newPathDownloader(t *testing.T) (*PathDownloader, *project) {
 	t.Helper()
 
-	pr := newProject(t, t.TempDir(), projectOptions{})
+	pr := newProject(t, testutil.RealTempDir(t), projectOptions{})
 
 	d, err := NewPathDownloader(pr.deps)
 	if err != nil {
@@ -38,7 +39,8 @@ func newPathDownloader(t *testing.T) (*PathDownloader, *project) {
 func sourceTree(t *testing.T) string {
 	t.Helper()
 
-	src := t.TempDir() + "/src"
+	// PathDownloader reports the source's realpath.
+	src := testutil.RealTempDir(t) + "/src"
 	for _, dir := range []string{"/lib", "/tests", "/.git", "/empty"} {
 		if err := os.MkdirAll(src+dir, 0o755); err != nil {
 			t.Fatal(err)
