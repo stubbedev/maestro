@@ -341,7 +341,7 @@ func (r *Runtime) applyInstallerFields(inst *composer.Installer, fields *php.Arr
 		inst.SetUpdateAllowList(stringList(v))
 	}
 	if v, ok := get("updateAllowTransitiveDependencies"); ok {
-		if _, err := inst.SetUpdateAllowTransitiveDependencies(int(php.ToInt(v))); err != nil {
+		if _, err := inst.SetUpdateAllowTransitiveDependencies(php.ToNativeInt(v)); err != nil {
 			return err
 		}
 	}

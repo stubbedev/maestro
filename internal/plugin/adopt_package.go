@@ -76,7 +76,7 @@ func packageFromSnapshot(s *php.Array) (pkg.PackageInterface, error) {
 		p = pkg.NewPackage(name, version, prettyVersion)
 	}
 	if id, ok := s.Get("id"); ok {
-		p.SetID(int(php.ToInt(id)))
+		p.SetID(php.ToNativeInt(id))
 	}
 
 	if pp, ok := pkg.AsPackage(p); ok {

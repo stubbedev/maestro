@@ -181,7 +181,7 @@ func FindStatusCode(headers []string) (int, bool) {
 	for _, header := range headers {
 		// \S+ is possessive before the space: Preg::isMatch cannot throw.
 		if m, _ := statusCodeRegex.Match(header); m != nil {
-			value, found = int(php.ToInt(m.Get(1))), true
+			value, found = php.ToNativeInt(m.Get(1)), true
 		}
 	}
 
@@ -218,7 +218,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 
 	isRedirect := false
 	if v, ok := path(tempAdditionalOptions, "redirects"); ok {
-		r.redirects = int(php.ToInt(v))
+		r.redirects = php.ToNativeInt(v)
 		isRedirect = true
 		tempAdditionalOptions.Delete("redirects")
 	}

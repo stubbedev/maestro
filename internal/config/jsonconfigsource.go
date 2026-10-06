@@ -542,7 +542,7 @@ func callManipulator(m *json.Manipulator, method string, args []any) (bool, erro
 	case "addRepository":
 		return m.AddRepository(str(0), args[1], args[2] == true)
 	case "insertRepository":
-		return m.InsertRepository(str(0), args[1], str(2), int(php.ToInt(args[3])))
+		return m.InsertRepository(str(0), args[1], str(2), php.ToNativeInt(args[3]))
 	case "setRepositoryUrl":
 		return m.SetRepositoryURL(str(0), str(1))
 	case "removeRepository":

@@ -220,7 +220,7 @@ func DefaultStatics() map[string]rpc.Static {
 		"runningOperation": value("runningOperation"),
 		"processTimeout": {
 			Get: func() any { return int64(util.GetProcessTimeout()) },
-			Set: func(v any) { util.SetProcessTimeout(int(php.ToInt(v))) },
+			Set: func(v any) { util.SetProcessTimeout(php.ToNativeInt(v)) },
 		},
 	}
 }
@@ -419,7 +419,7 @@ func (r *Runtime) hello(token string) rpc.Handler {
 		info.PHPBinary, _ = a.GetString("phpBinary")
 		info.SAPI, _ = a.GetString("sapi")
 		if pid, ok := a.Get("pid"); ok {
-			info.PID = int(php.ToInt(pid))
+			info.PID = php.ToNativeInt(pid)
 		}
 		r.mu.Lock()
 		r.info = info

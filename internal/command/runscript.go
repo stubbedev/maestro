@@ -142,7 +142,7 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 			return 0, NewError(ClassRuntime, runScriptCommandFile, 132, "Timeout value must be numeric and positive if defined, or 0 for forever")
 		}
 		// Override global timeout set before in Composer by environment or config
-		util.SetProcessTimeout(int(php.ToInt(t)))
+		util.SetProcessTimeout(php.ToNativeInt(t))
 	}
 
 	util.PutEnv("COMPOSER_DEV_MODE", devModeEnv(devMode))

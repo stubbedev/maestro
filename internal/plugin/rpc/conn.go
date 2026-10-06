@@ -586,10 +586,10 @@ func (c *Conn) decodeException(v any, depth int) (*PHPException, error) {
 	e.Message, _ = x.GetString("message")
 	e.File, _ = x.GetString("file")
 	if code, ok := x.Get("code"); ok {
-		e.Code = int(php.ToInt(code))
+		e.Code = php.ToNativeInt(code)
 	}
 	if line, ok := x.Get("line"); ok {
-		e.Line = int(php.ToInt(line))
+		e.Line = php.ToNativeInt(line)
 	}
 	if h, ok := x.Get("h"); ok {
 		e.H = Handle(php.ToInt(h))
@@ -611,7 +611,7 @@ func (c *Conn) decodeException(v any, depth int) (*PHPException, error) {
 			tf.Type, _ = frame.GetString("type")
 			tf.Function, _ = frame.GetString("function")
 			if line, ok := frame.Get("line"); ok {
-				tf.Line = int(php.ToInt(line))
+				tf.Line = php.ToNativeInt(line)
 			}
 			e.Trace = append(e.Trace, tf)
 		}

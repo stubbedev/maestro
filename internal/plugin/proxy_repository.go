@@ -263,7 +263,7 @@ func (p *proxyRepository) Providers(packageName string) ([]repository.ProviderIn
 func (p *proxyRepository) Count() (int, error) {
 	v, err := p.r.callObject(p.obj, "count")
 
-	return int(php.ToInt(v)), err
+	return php.ToNativeInt(v), err
 }
 
 // phpRepositoryConstructor is the constructor of a repository type a

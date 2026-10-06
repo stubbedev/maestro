@@ -281,7 +281,7 @@ func (p *phpCommand) run(base *console.Command, in console.Input, out console.Ou
 		return 0, err
 	}
 
-	return int(php.ToInt(v)), nil
+	return php.ToNativeInt(v), nil
 }
 
 // complete is `$command->complete($input, $suggestions)` in PHP

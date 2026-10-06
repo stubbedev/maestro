@@ -234,7 +234,7 @@ func (g *GitHub) RateLimit(headers []string) RateLimit {
 
 		switch php.Strtolower(typ) {
 		case "x-ratelimit-limit":
-			rateLimit.Limit, rateLimit.HasLimit = int(php.ToInt(php.Trim(value))), true
+			rateLimit.Limit, rateLimit.HasLimit = php.ToNativeInt(php.Trim(value)), true
 		case "x-ratelimit-reset":
 			rateLimit.Reset = php.Date("Y-m-d H:i:s", php.ToInt(php.Trim(value)))
 		}

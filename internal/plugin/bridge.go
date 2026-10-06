@@ -105,7 +105,7 @@ func (a args) has(i int) bool { return a.at(i) != nil }
 
 func (a args) str(i int) string { return php.ToString(a.at(i)) }
 
-func (a args) integer(i int) int { return int(php.ToInt(a.at(i))) }
+func (a args) integer(i int) int { return php.ToNativeInt(a.at(i)) }
 
 func (a args) boolean(i int) bool { return php.ToBool(a.at(i)) }
 

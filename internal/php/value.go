@@ -102,6 +102,21 @@ func ToBool(v any) bool {
 	}
 }
 
+// ToNativeInt is ToInt as a Go int. PHP's int is 64 bits on every platform
+// maestro is built for, Go's int only 32 on some (386, arm): values beyond
+// int's range saturate there instead of wrapping.
+func ToNativeInt(v any) int {
+	i := ToInt(v)
+	switch {
+	case i > math.MaxInt:
+		return math.MaxInt
+	case i < math.MinInt:
+		return math.MinInt
+	}
+
+	return int(i)
+}
+
 // ToInt converts a value as (int) does: numeric prefixes of strings
 // ("12abc" is 12, "1e3" is 1000), floats truncated (saturating for numeric
 // strings, wrapping for floats, as PHP does), arrays to 0 or 1.

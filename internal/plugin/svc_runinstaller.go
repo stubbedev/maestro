@@ -228,7 +228,7 @@ func (r *Runtime) applyInstallerSettings(inst *composer.Installer, s settings) e
 		inst.SetAllowedTypes(types)
 	}
 	if v := s.get("updateAllowTransitiveDependencies"); v != nil {
-		if _, err := inst.SetUpdateAllowTransitiveDependencies(int(php.ToInt(v))); err != nil {
+		if _, err := inst.SetUpdateAllowTransitiveDependencies(php.ToNativeInt(v)); err != nil {
 			return err
 		}
 	}

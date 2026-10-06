@@ -303,7 +303,7 @@ func (d *SvnDriver) listEntries(url string, trimOutput bool, fn func(rev int, na
 		if err != nil {
 			return err
 		}
-		if m != nil && !fn(int(php.ToInt(m.Get(1))), m.Get(2)) {
+		if m != nil && !fn(php.ToNativeInt(m.Get(1)), m.Get(2)) {
 			break
 		}
 	}

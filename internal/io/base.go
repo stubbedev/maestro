@@ -219,7 +219,7 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 
 	// setup process timeout
 	if setTimeout != nil {
-		setTimeout(int(php.ToInt(config.Get("process-timeout"))))
+		setTimeout(php.ToNativeInt(config.Get("process-timeout")))
 	}
 }
 

@@ -319,7 +319,7 @@ func (r *Runtime) registerRequest() {
 		for _, n := range a.arrayOrEmpty(1).Values() {
 			names = append(names, php.ToString(n))
 		}
-		req.SetUpdateAllowList(names, int(php.ToInt(a.at(2))))
+		req.SetUpdateAllowList(names, php.ToNativeInt(a.at(2)))
 
 		return nil, nil
 	})

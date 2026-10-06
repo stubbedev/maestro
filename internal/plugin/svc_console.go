@@ -158,7 +158,7 @@ func definitionFromValue(v *php.Array) (*console.InputDefinition, error) {
 		mode, _ := a.Get("mode")
 		description, _ := a.GetString("description")
 		def, _ := a.Get("default")
-		arg, err := console.NewInputArgument(name, int(php.ToInt(mode)), description, consoleValue(def))
+		arg, err := console.NewInputArgument(name, php.ToNativeInt(mode), description, consoleValue(def))
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +175,7 @@ func definitionFromValue(v *php.Array) (*console.InputDefinition, error) {
 		mode, _ := o.Get("mode")
 		description, _ := o.GetString("description")
 		def, _ := o.Get("default")
-		m := int(php.ToInt(mode))
+		m := php.ToNativeInt(mode)
 		if m&console.OptionValueNone != 0 {
 			def = nil
 		}
@@ -494,7 +494,7 @@ func (m *outputMirror) MirrorSnapshot() (*php.Array, error) {
 // ApplyMirror implements rpc.Mirror: PHP set the verbosity or decoration.
 func (m *outputMirror) ApplyMirror(fields *php.Array) error {
 	if v, ok := fields.Get("verbosity"); ok {
-		m.out.SetVerbosity(int(php.ToInt(v)))
+		m.out.SetVerbosity(php.ToNativeInt(v))
 	}
 	if v, ok := fields.Get("decorated"); ok {
 		m.out.SetDecorated(php.ToBool(v))
@@ -581,7 +581,7 @@ func (r *Runtime) phpOutputFromValue(v *php.Array) (console.Output, error) {
 	}
 	verbosity, _ := v.Get("verbosity")
 	decorated, _ := v.Get("decorated")
-	out := &phpOutput{r: r, obj: o, verbosity: int(php.ToInt(verbosity)), decorated: php.ToBool(decorated)}
+	out := &phpOutput{r: r, obj: o, verbosity: php.ToNativeInt(verbosity), decorated: php.ToBool(decorated)}
 	if errDesc, ok := v.GetArray("error"); ok {
 		errOut, err := r.phpOutputFromValue(errDesc)
 		if err != nil {

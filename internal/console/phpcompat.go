@@ -63,7 +63,7 @@ func phpLooseEqualsString(v any, s string) bool {
 }
 
 // phpIntval is PHP's (int) cast of a string.
-func phpIntval(s string) int { return int(php.ToInt(s)) }
+func phpIntval(s string) int { return php.ToNativeInt(s) }
 
 // strPadRight is str_pad($s, $length, ' '), which pads by bytes.
 func strPadRight(s string, length int) string {

@@ -110,7 +110,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 				if err != nil {
 					return 0, err
 				}
-				if _, err := ch.Gc(int(php.ToInt(ttl)), php.ToInt(maxSize)); err != nil {
+				if _, err := ch.Gc(php.ToNativeInt(ttl), php.ToInt(maxSize)); err != nil {
 					return 0, err
 				}
 				pruneStore(time.Duration(php.ToInt(ttl)) * time.Second)
@@ -119,7 +119,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 				if err != nil {
 					return 0, err
 				}
-				if _, err := ch.Gc(int(php.ToInt(ttl)), 1024*1024*1024 /* 1GB, this should almost never clear anything that is not outdated */); err != nil {
+				if _, err := ch.Gc(php.ToNativeInt(ttl), 1024*1024*1024 /* 1GB, this should almost never clear anything that is not outdated */); err != nil {
 					return 0, err
 				}
 			case "cache-vcs-dir":
@@ -127,7 +127,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 				if err != nil {
 					return 0, err
 				}
-				if _, err := ch.GcVcsCache(int(php.ToInt(ttl))); err != nil {
+				if _, err := ch.GcVcsCache(php.ToNativeInt(ttl)); err != nil {
 					return 0, err
 				}
 			}

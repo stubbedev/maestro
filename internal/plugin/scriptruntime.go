@@ -154,7 +154,7 @@ func (r *Runtime) RunCommandClass(className string, ev eventdispatcher.Event, in
 	}
 	code, _ := res.Get("code")
 
-	return status(res), int(php.ToInt(code)), nil
+	return status(res), php.ToNativeInt(code), nil
 }
 
 // eventIO is the IO of an event that has one.
