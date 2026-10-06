@@ -143,15 +143,17 @@ func Push(function, file string, line int) (leave func()) {
 	live.mu.Lock()
 	live.nextID++
 	id := live.nextID
-	live.frames = append(live.frames, liveFrame{Frame: Frame{Function: function, File: file, Line: line}, id: id})
+	f := liveFrame{id: id}
+	f.Function, f.File, f.Line = function, file, line
+	live.frames = append(live.frames, f)
 	live.mu.Unlock()
 
 	return func() {
 		live.mu.Lock()
 		defer live.mu.Unlock()
-		for i := len(live.frames) - 1; i >= 0; i-- {
-			if live.frames[i].id == id {
-				live.frames = append(live.frames[:i], live.frames[i+1:]...)
+		for i, f := range slices.Backward(live.frames) {
+			if f.id == id {
+				live.frames = slices.Delete(live.frames, i, i+1)
 
 				return
 			}
