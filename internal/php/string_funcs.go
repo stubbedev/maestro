@@ -6,7 +6,10 @@
 
 package php
 
-import "strings"
+import (
+	"runtime"
+	"strings"
+)
 
 // StripTags ports strip_tags($s) with no allowed tags: it removes HTML/PHP
 // tags, comments and NUL bytes.
@@ -303,19 +306,20 @@ func hexDigitAt(s string, i int) (byte, bool) {
 	return 0, false
 }
 
-// Basename ports basename($path, $suffix) on Unix: the last "/"-separated
-// component without trailing slashes, minus suffix when the component
-// ends with it and is longer than it.
+// Basename ports basename($path, $suffix): the last component without
+// trailing separators, minus suffix when the component ends with it and
+// is longer than it. The separator is "/", and on Windows "\" too.
 func Basename(path, suffix string) string {
+	isSep := func(c byte) bool { return c == '/' || c == '\\' && runtime.GOOS == "windows" }
 	end := len(path)
-	for end > 0 && path[end-1] == '/' {
+	for end > 0 && isSep(path[end-1]) {
 		end--
 	}
 	if end == 0 {
 		return ""
 	}
 	start := end
-	for start > 0 && path[start-1] != '/' {
+	for start > 0 && !isSep(path[start-1]) {
 		start--
 	}
 	if len(suffix) < end-start && path[end-len(suffix):end] == suffix {
