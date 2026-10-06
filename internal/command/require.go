@@ -23,8 +23,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const requireCommandFile = "RequireCommand.php"
-
 func init() {
 	registerCommand(OrderRequire, func() console.Commander { return NewRequireCommand() })
 }
@@ -261,7 +259,7 @@ func (c *RequireCommand) execute(in console.Input, out console.Output, cio io.IO
 				return 0, rerr
 			}
 
-			e := NewError(ClassRuntime, requireCommandFile, 223, "No composer.json present in the current directory ("+c.file+"), this may be the cause of the following exception.")
+			e := NewError(ClassRuntime, "No composer.json present in the current directory ("+c.file+"), this may be the cause of the following exception.")
 			e.Prev = asThrowable(err, -1)
 
 			return 0, e

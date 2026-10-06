@@ -22,7 +22,7 @@ func (e *tracedException) ThrowableTrace() []TraceFrame { return e.trace }
 func TestRenderThrowableDetails(t *testing.T) {
 	app := newTestApp()
 	_, err := app.Call(`Symfony\Component\Console\Application->doRunCommand`, func() (int, error) {
-		return 0, newError(KindRuntime, "ArgvInput.php", 220, `The "--nope" option does not exist.`)
+		return 0, newError(KindRuntime, `The "--nope" option does not exist.`)
 	})
 
 	render := func(err error) string {

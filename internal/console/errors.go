@@ -57,29 +57,22 @@ var (
 	ErrMissingInput     = errors.New("missing input")
 )
 
-// Error is a console exception. File and Line point at the PHP throw site
-// (getFile(), getLine()).
+// Error is a console exception.
 type Error struct {
 	Kind         Kind
 	Message      string
 	Alternatives []string // CommandNotFoundException::getAlternatives()
-	File         string   // the PHP file that throws
-	Line         int
 	Prev         error
 }
 
-// newError returns the console exception thrown at file:line, a file of
-// symfony/console (Application.php is its own, not Composer's).
-func newError(kind Kind, file string, line int, format string, args ...any) *Error {
-	if file == "Application.php" {
-		file = "vendor/symfony/console/Application.php"
-	}
+// newError returns a console exception.
+func newError(kind Kind, format string, args ...any) *Error {
 	msg := format
 	if len(args) > 0 {
 		msg = fmt.Sprintf(format, args...)
 	}
 
-	return &Error{Kind: kind, Message: msg, File: file, Line: line}
+	return &Error{Kind: kind, Message: msg}
 }
 
 func (e *Error) Error() string { return e.Message }

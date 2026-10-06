@@ -88,7 +88,7 @@ func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) 
 
 	abandoned, hasAbandoned := in.Option("abandoned").(string)
 	if hasAbandoned && !slices.Contains(policy.Audits[:], abandoned) {
-		return 0, NewError(ClassInvalidArgument, "AuditCommand.php", 83, "--abandoned must be one of "+strings.Join(policy.Audits[:], ", ")+".")
+		return 0, NewError(ClassInvalidArgument, "--abandoned must be one of "+strings.Join(policy.Audits[:], ", ")+".")
 	}
 
 	policyConfig, err := c.CreatePolicyConfig(comp.Config(), in)
@@ -137,7 +137,7 @@ func (c *AuditCommand) getPackages(comp *composer.Composer, in console.Input) ([
 			return nil, err
 		}
 		if !locked {
-			return nil, NewError(ClassUnexpectedValue, "AuditCommand.php", 120, "Valid composer.json and composer.lock files are required to run this command with --locked")
+			return nil, NewError(ClassUnexpectedValue, "Valid composer.json and composer.lock files are required to run this command with --locked")
 		}
 		repo, err := comp.Locker().LockedRepository(!console.BoolOption(in, "no-dev"))
 		if err != nil {

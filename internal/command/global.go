@@ -11,8 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const globalCommandFile = "GlobalCommand.php"
-
 func init() {
 	registerCommand(OrderGlobal, func() console.Commander { return NewGlobalCommand() })
 }
@@ -161,12 +159,12 @@ func (c *GlobalCommand) prepareSubcommandInput(in console.Input, quiet bool) (*c
 			return nil, err
 		}
 		if !isDir(home) {
-			return nil, NewError(ClassRuntime, globalCommandFile, 143, "Could not create home directory")
+			return nil, NewError(ClassRuntime, "Could not create home directory")
 		}
 	}
 
 	if err := os.Chdir(home); err != nil {
-		e := NewError(ClassRuntime, globalCommandFile, 150, `Could not switch to home directory "`+home+`"`)
+		e := NewError(ClassRuntime, `Could not switch to home directory "`+home+`"`)
 		e.Prev = &util.ErrorException{Message: "chdir(): " + chdirWarning(err)}
 
 		return nil, e

@@ -150,7 +150,7 @@ func (in *ArgvInput) parseShortOptionSet(name string) error {
 				c = Substr(name, i, 1, false)
 			}
 
-			return newError(KindRuntime, "ArgvInput.php", 122, `The "-%s" option does not exist.`, c)
+			return newError(KindRuntime, `The "-%s" option does not exist.`, c)
 		}
 
 		if o.AcceptValue() {
@@ -236,13 +236,13 @@ func (in *ArgvInput) parseArgument(token string) error {
 		message = `No arguments expected, got "` + token + `".`
 	}
 
-	return newError(KindRuntime, "ArgvInput.php", 193, "%s", message)
+	return newError(KindRuntime, "%s", message)
 }
 
 func (in *ArgvInput) addShortOption(shortcut, value string, hasValue bool) error {
 	o := in.optionForShortcut(shortcut)
 	if o == nil {
-		return newError(KindRuntime, "ArgvInput.php", 205, `The "-%s" option does not exist.`, shortcut)
+		return newError(KindRuntime, `The "-%s" option does not exist.`, shortcut)
 	}
 
 	return in.addLongOption(o.Name(), value, hasValue)
@@ -255,10 +255,10 @@ func (in *ArgvInput) addLongOption(name, value string, hasValue bool) error {
 	if o == nil {
 		optionName, ok := def.negations[name]
 		if !ok {
-			return newError(KindRuntime, "ArgvInput.php", 220, `The "--%s" option does not exist.`, name)
+			return newError(KindRuntime, `The "--%s" option does not exist.`, name)
 		}
 		if hasValue {
-			return newError(KindRuntime, "ArgvInput.php", 225, `The "--%s" option does not accept a value.`, name)
+			return newError(KindRuntime, `The "--%s" option does not accept a value.`, name)
 		}
 		in.options[optionName] = false
 
@@ -266,7 +266,7 @@ func (in *ArgvInput) addLongOption(name, value string, hasValue bool) error {
 	}
 
 	if hasValue && !o.AcceptValue() {
-		return newError(KindRuntime, "ArgvInput.php", 235, `The "--%s" option does not accept a value.`, name)
+		return newError(KindRuntime, `The "--%s" option does not accept a value.`, name)
 	}
 
 	if (!hasValue || value == "") && o.AcceptValue() && in.pos < len(in.parsed) {
@@ -285,7 +285,7 @@ func (in *ArgvInput) addLongOption(name, value string, hasValue bool) error {
 		v = value
 	} else {
 		if o.IsValueRequired() {
-			return newError(KindRuntime, "ArgvInput.php", 251, `The "--%s" option requires a value.`, name)
+			return newError(KindRuntime, `The "--%s" option requires a value.`, name)
 		}
 
 		if !o.IsArray() && !o.IsValueOptional() {
@@ -524,7 +524,7 @@ func tokenizeString(input string) ([]string, error) {
 			matched = len(m.Get(0))
 		} else {
 			// should never happen
-			return nil, newError(KindInvalidArgument, "StringInput.php", 72, `Unable to parse input near "... %s ...".`, php.SubstrLen(input, cursor, 10))
+			return nil, newError(KindInvalidArgument, `Unable to parse input near "... %s ...".`, php.SubstrLen(input, cursor, 10))
 		}
 
 		cursor += matched

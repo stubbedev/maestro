@@ -343,7 +343,7 @@ func (c *ArchiveCommand) selectPackage(out io.IO, packageName string, ver pkg.Nu
 
 	cp, ok := p.(pkg.CompletePackageInterface)
 	if !ok {
-		return nil, NewError(ClassLogic, "ArchiveCommand.php", 204, "Expected a CompletePackageInterface instance but found "+p.Class())
+		return nil, NewError(ClassLogic, "Expected a CompletePackageInterface instance but found "+p.Class())
 	}
 	// every Go package is a BasePackage (ArchiveCommand.php line 207)
 

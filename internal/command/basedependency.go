@@ -14,8 +14,6 @@ import (
 	"github.com/stubbedev/maestro/internal/semver"
 )
 
-const baseDependencyCommandFile = "BaseDependencyCommand.php"
-
 // The argument and option names of the dependency commands.
 const (
 	ArgumentPackage    = "package"
@@ -73,7 +71,7 @@ func (c *BaseDependencyCommand) DoExecute(in console.Input, out console.Output, 
 			return 0, err
 		}
 		if !locked {
-			return 0, NewError(ClassUnexpectedValue, baseDependencyCommandFile, 72, "A valid composer.lock file is required to run this command with --locked")
+			return 0, NewError(ClassUnexpectedValue, "A valid composer.lock file is required to run this command with --locked")
 		}
 
 		lockedRepo, err := locker.LockedRepository(true)
@@ -138,7 +136,7 @@ func (c *BaseDependencyCommand) DoExecute(in console.Input, out console.Output, 
 		return 0, err
 	}
 	if len(packages) == 0 {
-		return 0, NewError(ClassInvalidArgument, baseDependencyCommandFile, 102, `Could not find package "`+needle+`" in your project`)
+		return 0, NewError(ClassInvalidArgument, `Could not find package "`+needle+`" in your project`)
 	}
 
 	// If the version we ask for is not installed then we need to locate it in remote repos and add it.

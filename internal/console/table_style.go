@@ -79,7 +79,7 @@ func (s *TableStyle) Clone() *TableStyle {
 // "0", which PHP also treats as empty).
 func (s *TableStyle) SetPaddingChar(paddingChar string) error {
 	if !php.ToBool(paddingChar) {
-		return newError(KindLogic, "TableStyle.php", 59, "The padding char must not be empty.")
+		return newError(KindLogic, "The padding char must not be empty.")
 	}
 	s.paddingChar = paddingChar
 
@@ -226,7 +226,7 @@ func (s *TableStyle) BorderFormat() string { return s.borderFormat }
 // StrPadBoth).
 func (s *TableStyle) SetPadType(padType int) error {
 	if padType != php.StrPadLeft && padType != php.StrPadRight && padType != php.StrPadBoth {
-		return newError(KindInvalidArgument, "TableStyle.php", 329, "Invalid padding type. Expected one of (STR_PAD_LEFT, STR_PAD_RIGHT, STR_PAD_BOTH).")
+		return newError(KindInvalidArgument, "Invalid padding type. Expected one of (STR_PAD_LEFT, STR_PAD_RIGHT, STR_PAD_BOTH).")
 	}
 	s.padType = padType
 
@@ -316,7 +316,7 @@ func TableStyleDefinition(name string) (*TableStyle, error) {
 	style, ok := tableStyles.styles[name]
 	tableStyles.mu.RUnlock()
 	if !ok {
-		return nil, newError(KindInvalidArgument, "Table.php", 133, `Style "%s" is not defined.`, name)
+		return nil, newError(KindInvalidArgument, `Style "%s" is not defined.`, name)
 	}
 
 	return style, nil

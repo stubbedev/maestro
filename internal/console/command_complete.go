@@ -153,12 +153,12 @@ func throwableString(err error) string {
 func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 	shell := in.Option("shell")
 	if !phpTruthy(shell) {
-		return 0, newError(KindSPLRuntime, "CompleteCommand.php", 80, `The "--shell" option must be set.`)
+		return 0, newError(KindSPLRuntime, `The "--shell" option must be set.`)
 	}
 
 	completionOutput := c.completionOutput(phpToString(shell))
 	if completionOutput == nil {
-		return 0, newError(KindSPLRuntime, "CompleteCommand.php", 84, `Shell completion is not supported for your shell: "%s" (supported: "%s").`, phpToString(shell), strings.Join(c.shells(), `", "`))
+		return 0, newError(KindSPLRuntime, `Shell completion is not supported for your shell: "%s" (supported: "%s").`, phpToString(shell), strings.Join(c.shells(), `", "`))
 	}
 
 	completionInput, err := c.createCompletionInput(in)
@@ -248,7 +248,7 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 func (c *CompleteCommand) createCompletionInput(in Input) (*CompletionInput, error) {
 	currentIndex := phpToString(in.Option("current"))
 	if !phpTruthy(in.Option("current")) || !ctypeDigit(currentIndex) {
-		return nil, newError(KindSPLRuntime, "CompleteCommand.php", 168, `The "--current" option must be set and it must be an integer.`)
+		return nil, newError(KindSPLRuntime, `The "--current" option must be set and it must be an integer.`)
 	}
 
 	completionInput := CompletionInputFromTokens(StringsOption(in, "input"), phpIntval(currentIndex))

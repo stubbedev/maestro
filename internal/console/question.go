@@ -73,7 +73,7 @@ func (q *Question) IsHidden() bool { return q.hidden }
 // SetHidden hides the answer; a hidden question cannot autocomplete.
 func (q *Question) SetHidden(hidden bool) error {
 	if q.autocompleter != nil {
-		return newError(KindLogic, "Question.php", 105, "A hidden question cannot use the autocompleter.")
+		return newError(KindLogic, "A hidden question cannot use the autocompleter.")
 	}
 	q.hidden = hidden
 
@@ -145,7 +145,7 @@ func (q *Question) AutocompleterCallback() func(input string) []string { return 
 // SetAutocompleterCallback sets the autocompleter callback.
 func (q *Question) SetAutocompleterCallback(callback func(input string) []string) error {
 	if q.hidden && callback != nil {
-		return newError(KindLogic, "Question.php", 192, "A hidden question cannot use the autocompleter.")
+		return newError(KindLogic, "A hidden question cannot use the autocompleter.")
 	}
 	q.autocompleter = callback
 
@@ -166,7 +166,7 @@ func (q *Question) Validator() Validator { return q.validator }
 // positive. ResetMaxAttempts is setMaxAttempts(null).
 func (q *Question) SetMaxAttempts(attempts int) error {
 	if attempts < 1 {
-		return newError(KindInvalidArgument, "Question.php", 234, "Maximum number of attempts must be a positive value.")
+		return newError(KindInvalidArgument, "Maximum number of attempts must be a positive value.")
 	}
 	q.attempts = attempts
 
@@ -296,7 +296,7 @@ func NewStrictConfirmationQuestion(question string, def bool, trueAnswerRegex, f
 	})
 	q.SetValidator(func(answer any) (any, error) {
 		if _, ok := answer.(bool); !ok {
-			return nil, newError(KindInvalidArgument, "StrictConfirmationQuestion.php", 87, "Please answer yes, y, no, or n.")
+			return nil, newError(KindInvalidArgument, "Please answer yes, y, no, or n.")
 		}
 
 		return answer, nil
@@ -318,7 +318,7 @@ type ChoiceQuestion struct {
 // $default).
 func NewChoiceQuestion(question string, choices *php.Array, def any) (*ChoiceQuestion, error) {
 	if choices == nil || choices.Len() == 0 {
-		return nil, newError(KindSPLLogic, "ChoiceQuestion.php", 36, "Choice question must have at least 1 choice available.")
+		return nil, newError(KindSPLLogic, "Choice question must have at least 1 choice available.")
 	}
 
 	q := &ChoiceQuestion{
@@ -384,7 +384,7 @@ func (q *ChoiceQuestion) defaultValidator() Validator {
 			s := php.ToString(selected)
 			// !preg_match(): a failed match (false) also throws.
 			if ok, _ := multiselectRegex.IsMatch(s); !ok {
-				return nil, newError(KindInvalidArgument, "ChoiceQuestion.php", 129, "%s", phpSprintf(errorMessage, s))
+				return nil, newError(KindInvalidArgument, "%s", phpSprintf(errorMessage, s))
 			}
 			for part := range strings.SplitSeq(s, ",") {
 				selectedChoices = append(selectedChoices, part)
@@ -409,7 +409,7 @@ func (q *ChoiceQuestion) defaultValidator() Validator {
 			}
 
 			if len(results) > 1 {
-				return nil, newError(KindInvalidArgument, "ChoiceQuestion.php", 153, `The provided answer is ambiguous. Value should be one of "%s".`, strings.Join(results, `" or "`))
+				return nil, newError(KindInvalidArgument, `The provided answer is ambiguous. Value should be one of "%s".`, strings.Join(results, `" or "`))
 			}
 
 			key, found := php.ArraySearch(value, choices, false)
@@ -429,7 +429,7 @@ func (q *ChoiceQuestion) defaultValidator() Validator {
 			}
 
 			if !found {
-				return nil, newError(KindInvalidArgument, "ChoiceQuestion.php", 169, "%s", phpSprintf(errorMessage, php.ToString(value)))
+				return nil, newError(KindInvalidArgument, "%s", phpSprintf(errorMessage, php.ToString(value)))
 			}
 
 			// For associative choices, consistently return the key as string:

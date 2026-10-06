@@ -21,8 +21,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const packageDiscoveryFile = "PackageDiscoveryTrait.php"
-
 // PackageDiscovery is Composer\Command\PackageDiscoveryTrait, used by
 // require and init: embed it next to *BaseCommand and set it with
 // NewPackageDiscovery(c.BaseCommand).
@@ -150,7 +148,7 @@ func (d *PackageDiscovery) DetermineRequirements(in console.Input, _ console.Out
 	if len(requires) > 0 {
 		for _, p := range requires {
 			if strings.ToLower(p) == "as" {
-				return nil, NewError(ClassInvalidArgument, packageDiscoveryFile, 102, `Cannot use "`+p+`" as a separate argument. Quote the inline alias as one argument, e.g. "vendor/package:dev-main as 1.2.x-dev".`)
+				return nil, NewError(ClassInvalidArgument, `Cannot use "`+p+`" as a separate argument. Quote the inline alias as one argument, e.g. "vendor/package:dev-main as 1.2.x-dev".`)
 			}
 		}
 
@@ -318,7 +316,7 @@ func (d *PackageDiscovery) DetermineRequirements(in console.Input, _ console.Out
 					return name, nil
 				}
 
-				return nil, NewError("Exception", packageDiscoveryFile, 236, "Not a valid selection")
+				return nil, NewError("Exception", "Not a valid selection")
 			}
 
 			if pkgAnswer, err = out.AskAndValidate("Enter package # to add, or the complete package name if it is not listed: ", validator, 3, ""); err != nil {
@@ -477,7 +475,7 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 					return "", "", err
 				}
 
-				return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 334, msg)
+				return "", "", NewError(ClassInvalidArgument, msg)
 			}
 		}
 		// Check whether the minimum stability was the problem but the package exists
@@ -491,11 +489,11 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 				return "", "", err
 			}
 			if allReposPackage != nil {
-				return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 343,
+				return "", "", NewError(ClassInvalidArgument,
 					"Package "+name+" exists in "+repoName(allReposPackage)+" and "+repoName(p)+" which has a higher repository priority. The packages from the higher priority repository do not match your minimum-stability and are therefore not installable. That repository is canonical so the lower priority repo's packages are not installable. See https://getcomposer.org/repoprio for details and assistance.")
 			}
 
-			return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 348, "Could not find a version of package "+name+" matching your minimum-stability ("+effectiveMinimumStability+"). Require it with an explicit version constraint allowing its desired stability.")
+			return "", "", NewError(ClassInvalidArgument, "Could not find a version of package "+name+" matching your minimum-stability ("+effectiveMinimumStability+"). Require it with an explicit version constraint allowing its desired stability.")
 		}
 		// Check whether the PHP version was the problem for all versions
 		if !ignoresAll {
@@ -523,7 +521,7 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 					return "", "", err
 				}
 
-				return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 361, msg)
+				return "", "", NewError(ClassInvalidArgument, msg)
 			}
 		}
 
@@ -534,7 +532,7 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 		}
 		if len(similar) > 0 {
 			if slices.Contains(similar, name) {
-				return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 372, "Could not find package "+name+". It was however found via repository search, which indicates a consistency issue with the repository.")
+				return "", "", NewError(ClassInvalidArgument, "Could not find package "+name+". It was however found via repository search, which indicates a consistency issue with the repository.")
 			}
 
 			if in.IsInteractive() {
@@ -560,10 +558,10 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 				which = "one of these"
 			}
 
-			return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 385, "Could not find package "+name+".\n\nDid you mean "+which+"?\n    "+strings.Join(similar, "\n    "))
+			return "", "", NewError(ClassInvalidArgument, "Could not find package "+name+".\n\nDid you mean "+which+"?\n    "+strings.Join(similar, "\n    "))
 		}
 
-		return "", "", NewError(ClassInvalidArgument, packageDiscoveryFile, 392, "Could not find a matching version of package "+name+". Check the package spelling, your version constraint and that the package is available in a stability which matches your minimum-stability ("+effectiveMinimumStability+").")
+		return "", "", NewError(ClassInvalidArgument, "Could not find a matching version of package "+name+". Check the package spelling, your version constraint and that the package is available in a stability which matches your minimum-stability ("+effectiveMinimumStability+").")
 	}
 
 	if fixed {
@@ -590,7 +588,7 @@ func repoName(p pkg.PackageInterface) string {
 // name, closest first.
 func (d *PackageDiscovery) findSimilar(name string) ([]string, error) {
 	if d.repos == nil {
-		return nil, NewError(ClassLogic, packageDiscoveryFile, 412, "findSimilar was called before $this->repos was initialized")
+		return nil, NewError(ClassLogic, "findSimilar was called before $this->repos was initialized")
 	}
 	results, err := d.repos.Search(name, repository.SearchFulltext, "")
 	if err != nil {

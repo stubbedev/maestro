@@ -15,7 +15,7 @@ type TrimmedBufferOutput struct {
 // $verbosity, $decorated, $formatter).
 func NewTrimmedBufferOutput(maxLength, verbosity int, decorated bool, formatter Formatter) (*TrimmedBufferOutput, error) {
 	if maxLength <= 0 {
-		return nil, newError(KindInvalidArgument, "TrimmedBufferOutput.php", 30,
+		return nil, newError(KindInvalidArgument,
 			`"%s()" expects a strictly positive maxLength. Got %d.`, `Symfony\Component\Console\Output\TrimmedBufferOutput::__construct`, maxLength)
 	}
 	o := &TrimmedBufferOutput{maxLength: maxLength}

@@ -201,7 +201,7 @@ func (s *OutputFormatterStyleStack) Pop(style Style) (Style, error) {
 		}
 	}
 
-	return nil, newError(KindInvalidArgument, "OutputFormatterStyleStack.php", 76, "Incorrectly nested style tag found.")
+	return nil, newError(KindInvalidArgument, "Incorrectly nested style tag found.")
 }
 
 // Current returns the top style, or the empty style.

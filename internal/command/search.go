@@ -87,7 +87,7 @@ func (c *SearchCommand) Execute(in console.Input, out console.Output) (int, erro
 	mode := repository.SearchFulltext
 	if in.Option("only-name") == true {
 		if in.Option("only-vendor") == true {
-			return 0, NewError(ClassInvalidArgument, "SearchCommand.php", 81, "--only-name and --only-vendor cannot be used together")
+			return 0, NewError(ClassInvalidArgument, "--only-name and --only-vendor cannot be used together")
 		}
 		mode = repository.SearchName
 	} else if in.Option("only-vendor") == true {

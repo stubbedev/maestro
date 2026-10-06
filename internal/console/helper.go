@@ -325,7 +325,7 @@ func (s *HelperSet) Has(name string) bool {
 func (s *HelperSet) Get(name string) (Helper, error) {
 	h, ok := s.helpers[name]
 	if !ok {
-		return nil, newError(KindInvalidArgument, "HelperSet.php", 79, `The helper "%s" is not defined.`, name)
+		return nil, newError(KindInvalidArgument, `The helper "%s" is not defined.`, name)
 	}
 
 	return h, nil

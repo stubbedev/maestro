@@ -35,9 +35,6 @@ const logo = `   ______
                     /_/
 `
 
-// The PHP source file the Application's own exceptions come from.
-const applicationFile = "src/Composer/Console/Application.php"
-
 // PluginCommandProvider is implemented by a composer.PluginManager that
 // loads plugins (the plugin runtime): the commands of every
 // CommandProvider capability, as Application::getPluginCommands collects
@@ -937,7 +934,7 @@ func (*Application) newWorkingDir(in console.Input) (*string, error) {
 	}
 	workingDir := php.ToString(v)
 	if st, err := os.Stat(workingDir); err != nil || !st.IsDir() {
-		return nil, NewError(ClassRuntime, applicationFile, 522, "Invalid working directory specified, "+workingDir+" does not exist.")
+		return nil, NewError(ClassRuntime, "Invalid working directory specified, "+workingDir+" does not exist.")
 	}
 
 	return &workingDir, nil

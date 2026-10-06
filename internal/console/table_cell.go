@@ -105,7 +105,7 @@ func NewTableCellStyle(options TableCellStyleOptions) (*TableCellStyle, error) {
 	if options.Align == "" {
 		options.Align = "left"
 	} else if _, ok := alignPad(options.Align); !ok {
-		return nil, newError(KindInvalidArgument, "TableCellStyle.php", 50, "Wrong align value. Value must be following: 'left', 'center', 'right'.")
+		return nil, newError(KindInvalidArgument, "Wrong align value. Value must be following: 'left', 'center', 'right'.")
 	}
 
 	return &TableCellStyle{options: options}, nil

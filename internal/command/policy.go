@@ -18,8 +18,6 @@ func init() {
 	registerCommand(OrderPolicy, func() console.Commander { return NewPolicyCommand() })
 }
 
-const policyCommandFile = "PolicyCommand.php"
-
 // PolicyCommand is Composer\Command\PolicyCommand.
 type PolicyCommand struct{ *BaseConfigCommand }
 
@@ -81,18 +79,18 @@ func (c *PolicyCommand) Execute(in console.Input, _ console.Output) (int, error)
 	arg2 := in.Argument("arg2")
 
 	if action != "add-source" {
-		return 0, NewError(ClassInvalidArgument, policyCommandFile, 122, `Unknown action "`+action+`". Use add-source.`)
+		return 0, NewError(ClassInvalidArgument, `Unknown action "`+action+`". Use add-source.`)
 	}
 
 	if listName == nil {
-		return 0, NewError(ClassRuntime, policyCommandFile, 78, "You must pass a dependency policy name. Example: composer policy add-source my-policy url https://example.org")
+		return 0, NewError(ClassRuntime, "You must pass a dependency policy name. Example: composer policy add-source my-policy url https://example.org")
 	}
 	name := php.ToString(listName)
 	if err := assertCustomListName(name); err != nil {
 		return 0, err
 	}
 	if arg1 == nil {
-		return 0, NewError(ClassRuntime, policyCommandFile, 82, "You must pass the source type and a url, or a JSON string.")
+		return 0, NewError(ClassRuntime, "You must pass the source type and a url, or a JSON string.")
 	}
 
 	var sourceConfig *php.Array
@@ -111,11 +109,11 @@ func (c *PolicyCommand) Execute(in console.Input, _ console.Output) (int, error)
 		}
 		var ok bool
 		if sourceConfig, ok = parsed.(*php.Array); !ok {
-			return 0, NewError(ClassRuntime, policyCommandFile, 88, "Source JSON must be an object.")
+			return 0, NewError(ClassRuntime, "Source JSON must be an object.")
 		}
 	} else {
 		if arg2 == nil {
-			return 0, NewError(ClassRuntime, policyCommandFile, 92, "You must pass the source type and a url. Example: composer policy add-source my-policy url https://example.org")
+			return 0, NewError(ClassRuntime, "You must pass the source type and a url. Example: composer policy add-source my-policy url https://example.org")
 		}
 		sourceConfig = php.ArrayOf("type", php.ToString(arg1), "url", php.ToString(arg2))
 	}
@@ -163,15 +161,15 @@ func (c *PolicyCommand) Execute(in console.Input, _ console.Output) (int, error)
 // assertCustomListName ports assertCustomListName.
 func assertCustomListName(name string) error {
 	if slices.Contains(policy.BuiltinListNames[:], name) {
-		return NewError(ClassRuntime, policyCommandFile, 129, `Built-in dependency policy "`+name+"\" does not support sources. Use `composer config policy."+name+".<field>` to configure it.")
+		return NewError(ClassRuntime, `Built-in dependency policy "`+name+"\" does not support sources. Use `composer config policy."+name+".<field>` to configure it.")
 	}
 
 	if msg := policy.FutureReservedListNameError(name); msg != "" {
-		return NewError(ClassRuntime, policyCommandFile, 134, msg)
+		return NewError(ClassRuntime, msg)
 	}
 
 	if name == "" || strings.Contains(name, ".") {
-		return NewError(ClassRuntime, policyCommandFile, 138, `Invalid dependency policy name "`+name+`".`)
+		return NewError(ClassRuntime, `Invalid dependency policy name "`+name+`".`)
 	}
 
 	return nil

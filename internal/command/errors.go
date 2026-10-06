@@ -1,5 +1,5 @@
 // The PHP exceptions Composer's commands and Application throw, as errors
-// that carry their class (which plugins see) and throw site.
+// that carry their class (which plugins see).
 
 package command
 
@@ -21,22 +21,19 @@ const (
 )
 
 // Error is a PHP exception thrown by a command or the Application: Class
-// is get_class($e), File the basename of the PHP source that throws it and
-// Line its line there, Code getCode().
+// is get_class($e), Code getCode().
 // It unwraps to the util error of the same class (util.RuntimeError,
 // util.InvalidArgumentError, ...), so errors.As works as `catch` would.
 type Error struct {
 	Class   string
 	Message string
-	File    string
-	Line    int
 	Code    int
 	Prev    error
 }
 
 // NewError returns an Error.
-func NewError(class, file string, line int, message string) *Error {
-	return &Error{Class: class, Message: message, File: file, Line: line}
+func NewError(class, message string) *Error {
+	return &Error{Class: class, Message: message}
 }
 
 func (e *Error) Error() string { return e.Message }

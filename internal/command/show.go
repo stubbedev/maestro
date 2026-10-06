@@ -23,8 +23,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const showFile = "ShowCommand.php"
-
 func init() {
 	registerCommand(OrderShow, func() console.Commander { return NewShowCommand() })
 }
@@ -238,7 +236,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 			return 0, nil
 		}
 		if php.ToBool(input.Argument("package")) {
-			return 0, NewError(ClassInvalidArgument, showFile, 208, "You cannot use --self together with a package name")
+			return 0, NewError(ClassInvalidArgument, "You cannot use --self together with a package name")
 		}
 		selfRoot, _ := selfPackage.(pkg.RootPackageInterface)
 		rootRepo, err := repository.NewRootPackageRepository(selfRoot)
@@ -325,7 +323,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 			}
 		}
 		if !locked {
-			return 0, NewError(ClassUnexpectedValue, showFile, 240, "A valid composer.json and composer.lock files is required to run this command with --locked")
+			return 0, NewError(ClassUnexpectedValue, "A valid composer.json and composer.lock files is required to run this command with --locked")
 		}
 		lr, err := comp.Locker().LockedRepository(!console.BoolOption(input, "no-dev"))
 		if err != nil {
@@ -438,7 +436,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 				return 0, err
 			}
 			if !slices.Contains(rootRequires, single.Name()) {
-				return 0, NewError(ClassInvalidArgument, showFile, 301, `Package "`+single.Name()+`" is installed but not a direct dependent of the root package.`)
+				return 0, NewError(ClassInvalidArgument, `Package "`+single.Name()+`" is installed but not a direct dependent of the root package.`)
 			}
 		}
 
@@ -459,7 +457,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 				hint += ", try using --available (-a) to show all available packages"
 			}
 
-			return 0, NewError(ClassInvalidArgument, showFile, 321, `Package "`+packageFilter+`" not found`+hint+".")
+			return 0, NewError(ClassInvalidArgument, `Package "`+packageFilter+`" not found`+hint+".")
 		}
 	}
 
@@ -1256,7 +1254,7 @@ func (c *ShowCommand) getPackage(installedRepo *repository.InstalledRepository, 
 	}
 	cp, ok := matchedPackage.(pkg.CompletePackageInterface)
 	if !ok {
-		return nil, nil, NewError(ClassLogic, showFile, 858, "ShowCommand::getPackage can only work with CompletePackageInterface, but got "+matchedPackage.Class())
+		return nil, nil, NewError(ClassLogic, "ShowCommand::getPackage can only work with CompletePackageInterface, but got "+matchedPackage.Class())
 	}
 
 	return cp, versions, nil

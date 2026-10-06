@@ -105,7 +105,7 @@ func (in *BaseInput) Validate() error {
 	}
 
 	if len(missing) > 0 {
-		return newError(KindRuntime, "Input.php", 76, `Not enough arguments (missing: "%s").`, strings.Join(missing, ", "))
+		return newError(KindRuntime, `Not enough arguments (missing: "%s").`, strings.Join(missing, ", "))
 	}
 
 	return nil
@@ -136,7 +136,7 @@ func (in *BaseInput) Arguments() []NamedValue {
 func (in *BaseInput) Argument(name string) any {
 	a := in.definition.arg(name)
 	if a == nil {
-		panic(newError(KindInvalidArgument, "Input.php", 110, `The "%s" argument does not exist.`, name))
+		panic(newError(KindInvalidArgument, `The "%s" argument does not exist.`, name))
 	}
 	// $this->arguments[$name] ?? default: a null value falls back.
 	if v, ok := in.arguments[name]; ok && v != nil {
@@ -149,7 +149,7 @@ func (in *BaseInput) Argument(name string) any {
 // SetArgument implements Input.
 func (in *BaseInput) SetArgument(name string, value any) {
 	if !in.definition.HasArgument(name) {
-		panic(newError(KindInvalidArgument, "Input.php", 122, `The "%s" argument does not exist.`, name))
+		panic(newError(KindInvalidArgument, `The "%s" argument does not exist.`, name))
 	}
 	in.arguments[name] = value
 }
@@ -183,7 +183,7 @@ func (in *BaseInput) Option(name string) any {
 
 	o := in.definition.opt(name)
 	if o == nil {
-		panic(newError(KindInvalidArgument, "Input.php", 158, `The "%s" option does not exist.`, name))
+		panic(newError(KindInvalidArgument, `The "%s" option does not exist.`, name))
 	}
 
 	if v, ok := in.options[name]; ok {
@@ -202,7 +202,7 @@ func (in *BaseInput) SetOption(name string, value any) {
 		return
 	}
 	if !in.definition.HasOption(name) {
-		panic(newError(KindInvalidArgument, "Input.php", 174, `The "%s" option does not exist.`, name))
+		panic(newError(KindInvalidArgument, `The "%s" option does not exist.`, name))
 	}
 	in.options[name] = value
 }

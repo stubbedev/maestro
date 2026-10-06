@@ -104,10 +104,10 @@ func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int
 	}
 
 	if console.BoolOption(in, "strict-psr") && !optimize && !authoritative {
-		return 0, NewError(ClassInvalidArgument, "DumpAutoloadCommand.php", 84, "--strict-psr mode only works with optimized autoloader, use --optimize or --classmap-authoritative if you want a strict return value.")
+		return 0, NewError(ClassInvalidArgument, "--strict-psr mode only works with optimized autoloader, use --optimize or --classmap-authoritative if you want a strict return value.")
 	}
 	if console.BoolOption(in, "strict-ambiguous") && !optimize && !authoritative {
-		return 0, NewError(ClassInvalidArgument, "DumpAutoloadCommand.php", 87, "--strict-ambiguous mode only works with optimized autoloader, use --optimize or --classmap-authoritative if you want a strict return value.")
+		return 0, NewError(ClassInvalidArgument, "--strict-ambiguous mode only works with optimized autoloader, use --optimize or --classmap-authoritative if you want a strict return value.")
 	}
 
 	switch {
@@ -128,7 +128,7 @@ func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int
 	}
 	if console.BoolOption(in, "dev") {
 		if console.BoolOption(in, "no-dev") {
-			return 0, NewError(ClassInvalidArgument, "DumpAutoloadCommand.php", 107, "You can not use both --no-dev and --dev as they conflict with each other.")
+			return 0, NewError(ClassInvalidArgument, "You can not use both --no-dev and --dev as they conflict with each other.")
 		}
 		generator.SetDevMode(true)
 	}

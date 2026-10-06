@@ -118,7 +118,7 @@ func (e *PHPException) As(target any) bool {
 	switch t := target.(type) {
 	case **eventdispatcher.ScriptExecutionError:
 		if e.InstanceOf(`Composer\EventDispatcher\ScriptExecutionException`) {
-			*t = &eventdispatcher.ScriptExecutionError{Message: e.Message, Code: e.Code, File: e.File, Line: e.Line}
+			*t = &eventdispatcher.ScriptExecutionError{Message: e.Message, Code: e.Code}
 
 			return true
 		}

@@ -63,7 +63,7 @@ func (d *descriptorBase) describe(self describer, out Output, object any, option
 	case *Application:
 		return self.describeApplication(o, options)
 	default:
-		return newError(KindInvalidArgument, "Descriptor.php", 58, `Object of type "%s" is not describable.`, strings.TrimPrefix(fmt.Sprintf("%T", object), "*"))
+		return newError(KindInvalidArgument, `Object of type "%s" is not describable.`, strings.TrimPrefix(fmt.Sprintf("%T", object), "*"))
 	}
 
 	return nil
@@ -110,7 +110,7 @@ func (h *DescriptorHelper) Describe(out Output, object any, options DescriptorOp
 func (h *DescriptorHelper) describe(out Output, object any, options DescriptorOptions) error {
 	d, ok := h.descriptors[options.Format]
 	if !ok {
-		return newError(KindInvalidArgument, "DescriptorHelper.php", 66, `Unsupported format "%s".`, options.Format)
+		return newError(KindInvalidArgument, `Unsupported format "%s".`, options.Format)
 	}
 
 	return d.Describe(out, object, options)
@@ -187,7 +187,7 @@ func (d *ApplicationDescription) Command(name string) (Commander, error) {
 		return c, nil
 	}
 
-	return nil, newError(KindCommandNotFound, "ApplicationDescription.php", 80, `Command "%s" does not exist.`, name)
+	return nil, newError(KindCommandNotFound, `Command "%s" does not exist.`, name)
 }
 
 func (d *ApplicationDescription) inspect() error {

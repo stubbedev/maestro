@@ -15,8 +15,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-const execCommandFile = "ExecCommand.php"
-
 func init() {
 	registerCommand(OrderExec, func() console.Commander { return NewExecCommand() })
 }
@@ -101,7 +99,7 @@ func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
 				return 0, err
 			}
 
-			return 0, NewError(ClassRuntime, execCommandFile, 83, "No binaries found in composer.json or in bin-dir ("+php.ToString(binDir)+")")
+			return 0, NewError(ClassRuntime, "No binaries found in composer.json or in bin-dir ("+php.ToString(binDir)+")")
 		}
 
 		c.IO().Write("<comment>Available binaries:</comment>", true, io.Normal)
@@ -128,7 +126,7 @@ func (c *ExecCommand) Execute(in console.Input, _ console.Output) (int, error) {
 	initial := app.InitialWorkingDirectory()
 	if cwd, _ := util.GetCwd(false); cwd != initial && initial != "" {
 		if err := os.Chdir(initial); err != nil {
-			e := NewError(ClassRuntime, execCommandFile, 115, `Could not switch back to working directory "`+initial+`"`)
+			e := NewError(ClassRuntime, `Could not switch back to working directory "`+initial+`"`)
 			e.Prev = &util.ErrorException{Message: "chdir(): " + chdirWarning(err)}
 
 			return 0, e

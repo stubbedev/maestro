@@ -128,7 +128,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 	}
 
 	if console.BoolOption(in, "strict-psr-autoloader") && !optimize && !authoritative {
-		return 0, NewError(ClassInvalidArgument, "InstallCommand.php", 125, "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.")
+		return 0, NewError(ClassInvalidArgument, "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.")
 	}
 
 	setOutputProgress(c2.InstallationManager(), !console.BoolOption(in, "no-progress"))

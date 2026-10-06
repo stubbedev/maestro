@@ -72,7 +72,7 @@ func NewColor(foreground, background string, options []string) (*Color, error) {
 				names[k] = o.name
 			}
 
-			return nil, newError(KindInvalidArgument, "Color.php", 63,
+			return nil, newError(KindInvalidArgument,
 				`Invalid option specified: "%s". Expected one of (%s).`, name, strings.Join(names, ", "))
 		}
 		if !seen[i] {
@@ -149,7 +149,7 @@ func parseColor(color string, background bool) (string, error) {
 			color = string([]byte{color[0], color[0], color[1], color[1], color[2], color[2]})
 		}
 		if len(color) != 6 {
-			return "", newError(KindInvalidArgument, "Color.php", 127, `Invalid "%s" color.`, color)
+			return "", newError(KindInvalidArgument, `Invalid "%s" color.`, color)
 		}
 
 		prefix := "3"
@@ -180,7 +180,7 @@ func parseColor(color string, background bool) (string, error) {
 	all = append(all, colorNames...)
 	all = append(all, brightColorNames...)
 
-	return "", newError(KindInvalidArgument, "Color.php", 141,
+	return "", newError(KindInvalidArgument,
 		`Invalid "%s" color; expected one of (%s).`, color, strings.Join(all, ", "))
 }
 

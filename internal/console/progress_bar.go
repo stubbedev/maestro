@@ -532,14 +532,14 @@ func progressDefaultFormatters() map[string]PlaceholderFormatter {
 		},
 		"remaining": func(bar *ProgressBar, _ Output) any {
 			if bar.MaxSteps() == 0 {
-				panic(newError(KindLogic, "ProgressBar.php", 532, "Unable to display the remaining time if the maximum number of steps is not set."))
+				panic(newError(KindLogic, "Unable to display the remaining time if the maximum number of steps is not set."))
 			}
 
 			return FormatTime(bar.Remaining())
 		},
 		"estimated": func(bar *ProgressBar, _ Output) any {
 			if bar.MaxSteps() == 0 {
-				panic(newError(KindLogic, "ProgressBar.php", 539, "Unable to display the estimated time if the maximum number of steps is not set."))
+				panic(newError(KindLogic, "Unable to display the estimated time if the maximum number of steps is not set."))
 			}
 
 			return FormatTime(bar.Estimated())
