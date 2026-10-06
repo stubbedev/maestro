@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -29,9 +28,5 @@ func TestLinksListError(t *testing.T) {
 
 	if want := "Package::setConflicts must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage."; e.Message != want {
 		t.Errorf("message %q", e.Message)
-	}
-
-	if !phperr.Is(err, "Package.php", 716) {
-		t.Errorf("site %v", e.Site)
 	}
 }

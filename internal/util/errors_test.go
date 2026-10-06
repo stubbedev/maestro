@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // PHPClassOf names the class get_class($e) shows, including the library
@@ -41,7 +39,7 @@ func TestPHPClassOf(t *testing.T) {
 }
 
 // The symfony/process and symfony/finder exceptions maestro raises carry
-// their library classes and throw sites (vendor/symfony/process/Process.php,
+// their library classes (vendor/symfony/process/Process.php,
 // vendor/symfony/finder/Finder.php of Composer 2.10.3's vendor).
 func TestSymfonyExceptionClasses(t *testing.T) {
 	missing := t.TempDir() + "/missing"
@@ -55,12 +53,10 @@ func TestSymfonyExceptionClasses(t *testing.T) {
 		name  string
 		err   error
 		class string
-		file  string
-		line  int
 	}{
-		{"Process::start (cwd)", cwdErr, ClassProcessRuntime, "Process.php", 350},
-		{"Process::wait", waitErr, ClassProcessLogic, "Process.php", 1618},
-		{"Finder::in", finderInErr, ClassDirectoryNotFound, "Finder.php", 592},
+		{"Process::start (cwd)", cwdErr, ClassProcessRuntime},
+		{"Process::wait", waitErr, ClassProcessLogic},
+		{"Finder::in", finderInErr, ClassDirectoryNotFound},
 	}
 	for _, c := range cases {
 		if c.err == nil {
@@ -70,10 +66,6 @@ func TestSymfonyExceptionClasses(t *testing.T) {
 		}
 		if got, _ := PHPClassOf(c.err); got != c.class {
 			t.Errorf("%s: class %s, want %s", c.name, got, c.class)
-		}
-		if !phperr.Is(c.err, c.file, c.line) {
-			site, _ := phperr.SiteOf(c.err)
-			t.Errorf("%s: site %s:%d, want %s:%d", c.name, site.File, site.Line, c.file, c.line)
 		}
 		// they extend the SPL classes Composer catches
 		if c.class == ClassProcessRuntime && !IsRuntimeException(c.err) {

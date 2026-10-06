@@ -1,18 +1,19 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
 // bin-compat "symlink" raises Config.php:478's deprecation (Composer
 // 2.10.3 on PHP 8.4.25, ErrorHandler::register() with a verbose
-// BufferIO) and is still returned.
+// BufferIO) and is still returned. The notice's format, the site and the
+// stack trace it shows at -v are free (docs/PORTING.md "The contract").
 func TestConfig_BinCompatSymlinkDeprecation(t *testing.T) {
 	util.ResetErrorHandler()
 	t.Cleanup(util.ResetErrorHandler)
@@ -28,10 +29,8 @@ func TestConfig_BinCompatSymlinkDeprecation(t *testing.T) {
 	merge(t, config, cfg(t, `{"bin-compat": "symlink"}`), SourceUnknown)
 	assertSame(t, "symlink", mustGet(t, config, "bin-compat", 0))
 
-	want := "<warning>Deprecation Notice: config.bin-compat \"symlink\" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in " + phperr.AbsPath("Config.php") + ":478</warning>\n" +
-		"<warning>Stack trace:</warning>\n" +
-		"<warning> " + phperr.AbsPath("Config.php") + ":478</warning>\n"
-	if got := php.NormalizeEOL(out.Output()); got != want {
-		t.Errorf("got %q\nwant %q", got, want)
+	want := `config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead.`
+	if got := php.NormalizeEOL(out.Output()); !strings.Contains(got, want) {
+		t.Errorf("got %q\nwant a notice %q", got, want)
 	}
 }

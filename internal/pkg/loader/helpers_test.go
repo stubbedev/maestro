@@ -120,11 +120,10 @@ func asException(raw json.RawMessage) (class, message string, ok bool) {
 }
 
 // checkException compares err with a recorded exception. PHP's TypeError
-// messages end with where the call came from, which the Go ones leave
-// out.
-// composerRoot is the root of Composer's files in a TypeError's "called
-// in" path.
-var composerRoot = regexp.MustCompile(`(, called in )\S*?/((?:src|vendor)/)`)
+// messages end with where the call came from (", called in X on line N"),
+// which is free (docs/PORTING.md "The contract") and not compared.
+// calledIn is that call site.
+var calledIn = regexp.MustCompile(`, called in .* on line [0-9]+$`)
 
 func checkException(t *testing.T, what string, err error, class, message string) {
 	t.Helper()
@@ -142,10 +141,7 @@ func checkException(t *testing.T, what string, err error, class, message string)
 	}
 
 	if class == "TypeError" {
-		// a userland function's TypeError names the caller's file under
-		// Composer's root, the machine's in the recording and maestro's
-		// phperr.Root here
-		got, want := composerRoot.ReplaceAllString(err.Error(), "${1}@COMPOSER@/$2"), composerRoot.ReplaceAllString(message, "${1}@COMPOSER@/$2")
+		got, want := calledIn.ReplaceAllString(err.Error(), ""), calledIn.ReplaceAllString(message, "")
 		if got != want {
 			t.Errorf("%s: got %q, want %q", what, got, want)
 		}

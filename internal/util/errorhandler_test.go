@@ -1,6 +1,7 @@
 package util
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/console"
@@ -9,34 +10,24 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
-// TestTriggerDeprecation checks ErrorHandler's output against Composer
-// 2.10.3 on PHP 8.4.25: ErrorHandler::register() with a BufferIO
-// of each verbosity, then three trigger_error(..., E_USER_DEPRECATED) calls
-// from /root/eh.php, the second inside f() called at line 30 of the
-// same file (the "Stack trace:" lists the absolute paths of the
-// trigger_error call and of the calls in progress).
+// TestTriggerDeprecation checks which deprecation notices ErrorHandler
+// shows, as Composer 2.10.3 on PHP 8.4.25 does: none before
+// ErrorHandler::register(), then at normal verbosity the first one and a
+// hint that more were hidden, at -v all of them. The notices' format, their
+// sites and the stack traces shown at -v are free (docs/PORTING.md "The
+// contract").
 func TestTriggerDeprecation(t *testing.T) {
 	t.Cleanup(ResetErrorHandler)
-	root := phperr.Root()
-	phperr.SetRoot("/root")
-	t.Cleanup(func() { phperr.SetRoot(root) })
+
+	const hidden = "More deprecation notices were hidden, run again with `-v` to show them."
 
 	for _, c := range []struct {
 		verbosity int
-		want      string
+		shown     []string
+		notShown  []string
 	}{
-		{console.VerbosityNormal, "<warning>Deprecation Notice: first in /root/eh.php:21</warning>\n" +
-			"<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n"},
-		{console.VerbosityVerbose, "<warning>Deprecation Notice: first in /root/eh.php:21</warning>\n" +
-			"<warning>Stack trace:</warning>\n" +
-			"<warning> /root/eh.php:21</warning>\n" +
-			"<warning>Deprecation Notice: second in /root/eh.php:22</warning>\n" +
-			"<warning>Stack trace:</warning>\n" +
-			"<warning> /root/eh.php:22</warning>\n" +
-			"<warning> /root/eh.php:30</warning>\n" +
-			"<warning>Deprecation Notice: third in /root/eh.php:23</warning>\n" +
-			"<warning>Stack trace:</warning>\n" +
-			"<warning> /root/eh.php:23</warning>\n"},
+		{console.VerbosityNormal, []string{"first", hidden}, []string{"unseen", "second", "third"}},
+		{console.VerbosityVerbose, []string{"first", "second", "third"}, []string{"unseen", hidden}},
 	} {
 		ResetErrorHandler()
 
@@ -56,8 +47,16 @@ func TestTriggerDeprecation(t *testing.T) {
 		leave()
 		TriggerDeprecation("third", phperr.At("eh.php", 23))
 
-		if got := php.NormalizeEOL(out.Output()); got != c.want {
-			t.Errorf("verbosity %d:\n got %q\nwant %q", c.verbosity, got, c.want)
+		got := php.NormalizeEOL(out.Output())
+		for _, want := range c.shown {
+			if !strings.Contains(got, want) {
+				t.Errorf("verbosity %d: %q not shown:\n%s", c.verbosity, want, got)
+			}
+		}
+		for _, notWant := range c.notShown {
+			if strings.Contains(got, notWant) {
+				t.Errorf("verbosity %d: %q shown:\n%s", c.verbosity, notWant, got)
+			}
 		}
 	}
 }

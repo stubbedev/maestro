@@ -1,11 +1,12 @@
 package repository
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -19,14 +20,14 @@ import (
 // the filter list entry; a float with a fraction raises two deprecation
 // notices.
 func TestAdvisoryConstraintNotString(t *testing.T) {
-	type result struct{ constraint, err, site string }
+	type result struct{ constraint, err string }
 	for _, c := range []struct {
 		value            any
 		advisory, filter result
 	}{
 		{
 			nil,
-			result{err: "$subject must be a string, NULL given.", site: "vendor/composer/pcre/src/Preg.php:157"},
+			result{err: "$subject must be a string, NULL given."},
 			result{err: `Could not parse version constraint : Invalid version string ""`},
 		},
 		{int64(1), result{constraint: "1"}, result{constraint: "1"}},
@@ -35,8 +36,8 @@ func TestAdvisoryConstraintNotString(t *testing.T) {
 		{1.5, result{constraint: "1.5"}, result{constraint: "1.5"}},
 		{
 			php.ListOf("x"),
-			result{err: "Cannot access offset of type array in isset or empty", site: "src/Composer/Package/Version/VersionParser.php:33"},
-			result{err: "Cannot access offset of type array in isset or empty", site: "src/Composer/Package/Version/VersionParser.php:33"},
+			result{err: "Cannot access offset of type array in isset or empty"},
+			result{err: "Cannot access offset of type array in isset or empty"},
 		},
 	} {
 		check := func(kind string, want result, constraint string, err error) {
@@ -44,9 +45,6 @@ func TestAdvisoryConstraintNotString(t *testing.T) {
 			if want.err != "" {
 				if err == nil || err.Error() != want.err {
 					t.Errorf("%v %s: got %v, want %s", c.value, kind, err, want.err)
-				}
-				if site, _ := phperr.SiteOf(err); want.site != "" && site.File+":"+php.ToString(int64(site.Line)) != want.site {
-					t.Errorf("%v %s: site %s:%d", c.value, kind, site.File, site.Line)
 				}
 
 				return
@@ -74,34 +72,33 @@ func TestAdvisoryConstraintNotString(t *testing.T) {
 
 // new SecurityAdvisory(...) evaluates its arguments, new
 // \DateTimeImmutable($data['reportedAt']) among them, before checking its
-// parameters (Composer 2.10.3, PHP 8.4.25).
+// parameters (Composer 2.10.3, PHP 8.4.25). PHP's call site of a
+// TypeError (", called in X on line N") is free.
 func TestSecurityAdvisoryArgumentOrder(t *testing.T) {
 	for _, c := range []struct {
 		data *php.Array
 		want string
-		site string
 	}{
 		{
 			php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", "t", "sources", php.NewArray(), "reportedAt", "garbage"),
-			"Failed to parse time string (garbage) at position 0 (g): The timezone could not be found in the database", "PartialSecurityAdvisory.php:60",
+			"Failed to parse time string (garbage) at position 0 (g): The timezone could not be found in the database",
 		},
 		{
 			php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", "t", "sources", php.NewArray(), "reportedAt", int64(7)),
-			"DateTimeImmutable::__construct(): Argument #1 ($datetime) must be of type string, int given", "PartialSecurityAdvisory.php:60",
+			"DateTimeImmutable::__construct(): Argument #1 ($datetime) must be of type string, int given",
 		},
 		{
 			php.ArrayOf("affectedVersions", "1", "advisoryId", int64(5), "title", int64(1), "sources", php.NewArray(), "reportedAt", "2020-01-01"),
-			`Composer\Advisory\SecurityAdvisory::__construct(): Argument #2 ($advisoryId) must be of type string, int given` + phperr.CalledIn("PartialSecurityAdvisory.php", 60), "SecurityAdvisory.php:59",
+			`Composer\Advisory\SecurityAdvisory::__construct(): Argument #2 ($advisoryId) must be of type string, int given`,
 		},
 		{
 			php.ArrayOf("affectedVersions", "1", "title", int64(1), "sources", php.NewArray(), "reportedAt", "garbage"),
-			`Undefined array key "advisoryId"`, "PartialSecurityAdvisory.php:60",
+			`Undefined array key "advisoryId"`,
 		},
 	} {
 		_, err := CreatePartialSecurityAdvisory("a/b", c.data, pkg.NewVersionParser())
-		site, _ := phperr.SiteOf(err)
-		if err == nil || err.Error() != c.want || site.File+":"+php.ToString(int64(site.Line)) != c.site {
-			t.Errorf("got %v at %v\nwant %s at %s", err, site, c.want, c.site)
+		if err == nil || calledIn.ReplaceAllString(err.Error(), "") != c.want {
+			t.Errorf("got %v\nwant %s", err, c.want)
 		}
 	}
 }
@@ -118,9 +115,17 @@ func TestAdvisoryConstraintFloatDeprecation(t *testing.T) {
 	if _, err := CreateFilterListEntry("l", php.ArrayOf("constraint", 1.5, "package", "a/b"), pkg.NewVersionParser()); err != nil {
 		t.Fatal(err)
 	}
-	want := "<warning>Deprecation Notice: Implicit conversion from float 1.5 to int loses precision in " + phperr.AbsPath("src/Composer/Package/Version/VersionParser.php") + ":33</warning>\n" +
-		"<warning>More deprecation notices were hidden, run again with `-v` to show them.</warning>\n"
-	if got := php.NormalizeEOL(out.Output()); got != want {
-		t.Errorf("got %q\nwant %q", got, want)
+	// the notices' format and site are free
+	got := php.NormalizeEOL(out.Output())
+	for _, want := range []string{
+		"Implicit conversion from float 1.5 to int loses precision",
+		"More deprecation notices were hidden, run again with `-v` to show them.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("got %q\nwant %q", got, want)
+		}
 	}
 }
+
+// calledIn is PHP's call site in a TypeError's message.
+var calledIn = regexp.MustCompile(`, called in .* on line [0-9]+$`)

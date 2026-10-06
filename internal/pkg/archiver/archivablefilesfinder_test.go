@@ -359,11 +359,8 @@ func TestArchivableFilesFinderExceptions(t *testing.T) {
 	if err.Error() != want {
 		t.Errorf("message %q, want %q", err.Error(), want)
 	}
-	if !phperr.Is(err, "RecursiveDirectoryIterator.php", 127) {
-		t.Errorf("site of %v, want RecursiveDirectoryIterator.php:127", err)
-	}
 	prev := phperr.PreviousOf(err)
-	if class, _ := util.PHPClassOf(prev); class != "UnexpectedValueException" || !phperr.Is(prev, "RecursiveDirectoryIterator.php", 48) {
-		t.Errorf("previous %s %v, want UnexpectedValueException at RecursiveDirectoryIterator.php:48", class, prev)
+	if class, _ := util.PHPClassOf(prev); class != "UnexpectedValueException" {
+		t.Errorf("previous %s %v, want UnexpectedValueException", class, prev)
 	}
 }
