@@ -1043,3 +1043,134 @@ func TestImportReportsCreatedFiles(t *testing.T) {
 		t.Errorf("%d files reported, %d created", len(created), files)
 	}
 }
+
+// Every imported file carries its entry's stamp as modification time,
+// whatever the method: hardlinks share the object's, clones and copies are
+// given it.
+func TestImportStampsFiles(t *testing.T) {
+	setUmask(t, 0o022)
+
+	work := tempDir(t)
+	zip := writeFile(t, work, "dist.zip", sample())
+
+	for _, c := range []struct {
+		name string
+		m    Method
+		opts ImportOptions
+	}{
+		{"auto", Auto, ImportOptions{}},
+		{"clone", Clone, ImportOptions{}},
+		{"hardlink", Hardlink, ImportOptions{}},
+		{"copy", Copy, ImportOptions{}},
+		{"unshared", Auto, ImportOptions{Unshared: true}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := openStore(t, filepath.Join(work, "store-"+c.name), c.m)
+			d := Dist{Name: "a/b", Type: "zip", URL: "https://example.org/b.zip"}
+			dst := filepath.Join(work, "vendor-"+c.name, "a", "b")
+			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := s.Install(d, zip, dst, c.opts); err != nil {
+				if c.m == Clone && strings.Contains(err.Error(), "reflinks") {
+					t.Skipf("no reflinks here: %v", err)
+				}
+
+				t.Fatal(err)
+			}
+
+			r, err := s.Lookup(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			files := 0
+			for _, e := range r.Entries() {
+				if e.Kind != archive.File {
+					continue
+				}
+
+				files++
+
+				info, err := os.Lstat(filepath.Join(dst, filepath.FromSlash(e.Path)))
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if mt := info.ModTime(); mt.Unix() != e.ModTime() || mt.Nanosecond() != 0 || info.Size() != e.Size {
+					t.Errorf("%s: modified %v, size %d; want %v, %d", e.Path, mt, info.Size(), time.Unix(e.ModTime(), 0), e.Size)
+				}
+			}
+
+			if files == 0 {
+				t.Fatal("no files")
+			}
+		})
+	}
+}
+
+// Derived data is kept per release, replaced by a later write, and pruned
+// with its release.
+func TestDerived(t *testing.T) {
+	work := tempDir(t)
+	zip := writeFile(t, work, "dist.zip", sample())
+	s := openStore(t, filepath.Join(work, "store"), Auto)
+	d := Dist{Name: "a/b", Type: "zip", URL: "https://example.org/b.zip"}
+
+	r, err := s.Insert(d, zip)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	other, err := s.Insert(Dist{Name: "a/c", Type: "zip", URL: "https://example.org/c.zip"}, zip)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if data, err := s.ReadDerived(r, "classmap"); err != nil || data != nil {
+		t.Fatalf("before any write: %q, %v", data, err)
+	}
+
+	for _, data := range []string{"first", "second"} {
+		if err := s.WriteDerived(r, "classmap", []byte(data)); err != nil {
+			t.Fatal(err)
+		}
+
+		if got, err := s.ReadDerived(r, "classmap"); err != nil || string(got) != data {
+			t.Fatalf("read %q, %v; want %q", got, err, data)
+		}
+	}
+
+	if got, _ := s.ReadDerived(other, "classmap"); got != nil {
+		t.Errorf("another release reads %q", got)
+	}
+
+	if err := s.WriteDerived(r, "../x", nil); err == nil {
+		t.Error("a name with a path was accepted")
+	}
+
+	if err := s.WriteDerived(other, "classmap", []byte("other")); err != nil {
+		t.Fatal(err)
+	}
+
+	// a/b unused for long: pruned with its derived data; a/c kept
+	path, _ := s.derivedPath(r, "classmap")
+	index, _ := s.indexPath(&d, archive.Zip, &s.archive)
+	old := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(index, old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.Prune(24 * time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("derived data of a pruned release left: %v", err)
+	}
+
+	if got, err := s.ReadDerived(other, "classmap"); err != nil || string(got) != "other" {
+		t.Errorf("derived data of a kept release: %q, %v", got, err)
+	}
+}

@@ -90,8 +90,9 @@ type Options struct {
 	Archive archive.Options
 	// Method is the import method.
 	Method Method
-	// Workers bounds the goroutines one insert or import uses (default
-	// GOMAXPROCS).
+	// Workers bounds the goroutines one insert uses (default GOMAXPROCS),
+	// and those all imports running at once use together (default
+	// GOMAXPROCS, at most maxImportSlots).
 	Workers int
 }
 
@@ -99,17 +100,31 @@ type Options struct {
 // and several processes may share a root.
 type Store struct {
 	devices sync.Map // device number -> *device
-	archive archive.Options
-	root    string
-	files   string
-	index   string
-	tmp     string
+	// releases holds the releases this Store looked up or inserted, by
+	// index name: an index never changes but by a new insert of the same
+	// dist (the same tree) or by Prune and Verify, which forget them.
+	releases sync.Map // [32]byte -> *Release
+	archive  archive.Options
+	root     string
+	files    string
+	index    string
+	derived  string
+	tmp      string
+	// slots holds one token per goroutine creating package files, which
+	// the imports running at once share.
+	slots   chan struct{}
 	workers int
 	method  Method
 	umask   fs.FileMode
-	// shards records which files/ and index/ subdirectories exist.
-	shards [2][256]atomic.Bool
+	// shards records which files/, index/ and derived/ subdirectories
+	// exist.
+	shards [3][256]atomic.Bool
 }
+
+// maxImportSlots bounds the goroutines imports use by default: creating
+// files is the filesystem's work, and beyond a few threads they only
+// contend for its locks (btrfs gets slower, tmpfs no faster).
+const maxImportSlots = 8
 
 // ErrNotFound means a dist is not in the store.
 var ErrNotFound = errors.New("not in the package store")
@@ -139,6 +154,7 @@ func Open(root string, opts *Options) (*Store, error) {
 		root:    root,
 		files:   filepath.Join(root, "files"),
 		index:   filepath.Join(root, "index"),
+		derived: filepath.Join(root, "derived"),
 		tmp:     filepath.Join(root, "tmp"),
 		archive: opts.Archive,
 		method:  opts.Method,
@@ -149,6 +165,13 @@ func Open(root string, opts *Options) (*Store, error) {
 	if s.workers <= 0 {
 		s.workers = runtime.GOMAXPROCS(0)
 	}
+
+	slots := s.workers
+	if opts.Workers <= 0 {
+		slots = min(slots, maxImportSlots)
+	}
+
+	s.slots = make(chan struct{}, slots)
 
 	s.archive.URL = ""
 
@@ -254,14 +277,19 @@ func (s *Store) intoShard(kind int, sum *[32]byte, path string, place func() err
 }
 
 // Lookup returns the release of a dist already in the store, or
-// ErrNotFound. It marks the release as used, for Prune.
+// ErrNotFound. It marks the release as used, for Prune (once per Store:
+// later lookups of the release are answered from memory).
 func (s *Store) Lookup(d Dist) (*Release, error) {
 	format, opts, err := s.options(&d)
 	if err != nil {
 		return nil, err
 	}
 
-	path, _ := s.indexPath(&d, format, opts)
+	path, id := s.indexPath(&d, format, opts)
+
+	if r, ok := s.releases.Load(id); ok {
+		return r.(*Release), nil //nolint:errcheck // the map only holds *Release.
+	}
 
 	f, err := openShared(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -296,7 +324,10 @@ func (s *Store) Lookup(d Dist) (*Release, error) {
 		_ = os.Chtimes(path, now, now)
 	}
 
-	return &Release{entries: entries}, nil
+	r := &Release{entries: entries, id: id}
+	s.releases.Store(id, r)
+
+	return r, nil
 }
 
 // usedGranularity is how stale a release's last-used mark may get before
