@@ -966,7 +966,7 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 	// queue as "TLS connect error: <error>", or the socket error
 	if _, ok := errors.AsType[*tlsHandshakeError](err); ok {
 		switch {
-		case errors.Is(err, syscall.ECONNRESET):
+		case isConnReset(err):
 			return curleSSLConnectError, "Recv failure: Connection reset by peer"
 		case errors.Is(err, syscall.EPIPE):
 			return curleSSLConnectError, "Send failure: Broken pipe"
@@ -995,7 +995,7 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 		return curleRecvError, "OpenSSL SSL_read: " + curlInfo().SSLVersion + ": error:" + code + ":SSL routines::" + reason + ", errno 0"
 	}
 
-	if errors.Is(err, syscall.ECONNRESET) {
+	if isConnReset(err) {
 		return curleRecvError, "Recv failure: Connection reset by peer"
 	}
 
@@ -1198,7 +1198,7 @@ func streamWarnings(err error, connected bool) []string {
 
 	if _, ok := errors.AsType[*tlsHandshakeError](err); ok {
 		switch {
-		case errors.Is(err, syscall.ECONNRESET):
+		case isConnReset(err):
 			return sslFailure("SSL: Connection reset by peer")
 		case errors.Is(err, syscall.EPIPE):
 			return sslFailure("SSL: Broken pipe")
@@ -1226,7 +1226,7 @@ func streamWarnings(err error, connected bool) []string {
 	}
 
 	// no response head: the server closed, reset or did not answer in time
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.ECONNRESET) ||
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || isConnReset(err) ||
 		errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || isServerClosedIdle(err) {
 		return []string{"Failed to open stream: HTTP request failed!"}
 	}
