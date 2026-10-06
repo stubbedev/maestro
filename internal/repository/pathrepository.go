@@ -13,7 +13,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -82,7 +81,7 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 				return nil, e
 			}
 			if deprecated {
-				util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At("PathRepository.php", 124))
+				util.RaiseDeprecation(php.FalseToArrayDeprecation)
 			}
 			r.options = arr
 		}

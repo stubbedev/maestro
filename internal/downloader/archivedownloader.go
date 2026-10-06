@@ -96,7 +96,7 @@ func (a *ArchiveDownloader) download(c call, p pkg.PackageInterface, path string
 	}, nil)
 	if a.format == archive.Zip {
 		// ZipDownloader::download() calls parent::download() at line 100
-		return util.CallSync(result, nil, `Composer\Downloader\FileDownloader->download`, "ZipDownloader.php", 100)
+		return result, nil
 	}
 
 	return result, nil

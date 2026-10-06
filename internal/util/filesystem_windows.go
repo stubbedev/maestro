@@ -7,8 +7,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // dirSeparators are '/' and DIRECTORY_SEPARATOR.
@@ -64,7 +62,7 @@ func fileAtime(fi os.FileInfo) time.Time {
 // pointing to target.
 func (fs *Filesystem) Junction(target, junction string) error {
 	if !isDir(target) {
-		return &IOError{Message: "Cannot junction to \"" + target + "\" as it is not a directory.", Path: target, Site: phperr.At("Filesystem.php", 842)}
+		return &IOError{Message: "Cannot junction to \"" + target + "\" as it is not a directory.", Path: target}
 	}
 
 	// Removing any previous junction to ensure clean execution.
@@ -78,7 +76,7 @@ func (fs *Filesystem) Junction(target, junction string) error {
 			return err
 		}
 
-		return &IOError{Message: "Failed to create junction to \"" + target + "\" at \"" + junction + "\".", Path: target, Site: phperr.At("Filesystem.php", 852)}
+		return &IOError{Message: "Failed to create junction to \"" + target + "\" at \"" + junction + "\".", Path: target}
 	}
 
 	return nil
@@ -101,7 +99,7 @@ func IsJunction(junction string) bool {
 func RemoveJunction(junction string) (bool, error) {
 	junction = strings.TrimRight(strings.ReplaceAll(junction, "/", `\`), `\`)
 	if !IsJunction(junction) {
-		return false, &IOError{Message: junction + " is not a junction and thus cannot be removed as one", Site: phperr.At("Filesystem.php", 908)}
+		return false, &IOError{Message: junction + " is not a junction and thus cannot be removed as one"}
 	}
 
 	if err := Rmdir(junction); err != nil {

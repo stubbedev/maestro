@@ -187,25 +187,7 @@ func (m *DownloadManager) Download(p pkg.PackageInterface, targetDir string, pre
 
 	promise, err := m.download(p, targetDir, prev, &sources, false)
 
-	return util.CallSync(promise, err, `Composer\Downloader\DownloadManager->{closure:Composer\Downloader\DownloadManager::download():206}`, "DownloadManager.php", 264)
-}
-
-// downloadClass is the class declaring d's download(), as an exception's
-// trace names it: ZipDownloader and PathDownloader override
-// FileDownloader's, the VCS downloaders inherit VcsDownloader's.
-func downloadClass(d Downloader) string {
-	switch class := className(d); class {
-	case `Composer\Downloader\ZipDownloader`, `Composer\Downloader\PathDownloader`, `Composer\Downloader\FileDownloader`:
-		return class
-	case `Composer\Downloader\GitDownloader`, `Composer\Downloader\SvnDownloader`, `Composer\Downloader\HgDownloader`,
-		`Composer\Downloader\FossilDownloader`, `Composer\Downloader\PerforceDownloader`:
-		return `Composer\Downloader\VcsDownloader`
-	case `Composer\Downloader\TarDownloader`, `Composer\Downloader\GzipDownloader`, `Composer\Downloader\XzDownloader`,
-		`Composer\Downloader\RarDownloader`, `Composer\Downloader\PharDownloader`:
-		return `Composer\Downloader\FileDownloader`
-	default:
-		return class
-	}
+	return promise, err
 }
 
 // download is download()'s $download closure.
@@ -258,7 +240,6 @@ func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, pre
 	}
 
 	result, err := d.Download(p, targetDir, prev)
-	result, err = util.CallSync(result, err, downloadClass(d)+"->download", "DownloadManager.php", 252)
 	if err != nil {
 		return handleError(err)
 	}

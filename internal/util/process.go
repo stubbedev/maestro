@@ -13,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Output types passed to Process callbacks (Process::OUT, Process::ERR).
@@ -32,7 +30,6 @@ const pipeDrainTimeout = 200 * time.Millisecond
 type ProcessTimedOutError struct {
 	CommandLine string
 	Timeout     time.Duration
-	phperr.Site
 }
 
 // PHPClass implements PHPClasser.
@@ -48,7 +45,6 @@ func (e *ProcessTimedOutError) Error() string {
 // was killed by a signal it was not sent by this Process.
 type ProcessSignaledError struct {
 	Signal int
-	phperr.Site
 }
 
 // PHPClass implements PHPClasser.
@@ -62,7 +58,7 @@ func (e *ProcessSignaledError) Error() string {
 
 // errLaunch is the RuntimeException Process::start throws when proc_open
 // fails.
-var errLaunch = &RuntimeError{Class: ClassProcessRuntime, Message: "Unable to launch a new process.", Site: phperr.At("Process.php", 356)}
+var errLaunch = &RuntimeError{Class: ClassProcessRuntime, Message: "Unable to launch a new process."}
 
 // Process ports Symfony\Component\Process\Process.
 type Process struct {
@@ -130,11 +126,11 @@ func envPairs(env map[string]string) []string {
 // SetTty ports Process::setTty.
 func (p *Process) SetTty(tty bool) error {
 	if tty && IsWindows() {
-		return &RuntimeError{Class: ClassProcessRuntime, Message: "TTY mode is not supported on Windows platform.", Site: phperr.At("Process.php", 1060)}
+		return &RuntimeError{Class: ClassProcessRuntime, Message: "TTY mode is not supported on Windows platform."}
 	}
 
 	if tty && !isTtySupported() {
-		return &RuntimeError{Class: ClassProcessRuntime, Message: "TTY mode requires /dev/tty to be read/writable.", Site: phperr.At("Process.php", 1064)}
+		return &RuntimeError{Class: ClassProcessRuntime, Message: "TTY mode requires /dev/tty to be read/writable."}
 	}
 
 	p.tty = tty
@@ -194,7 +190,7 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	defer p.mu.Unlock()
 
 	if p.started && !p.isTerminated() {
-		return &RuntimeError{Class: ClassProcessRuntime, Message: "Process is already running.", Site: phperr.At("Process.php", 301)}
+		return &RuntimeError{Class: ClassProcessRuntime, Message: "Process is already running."}
 	}
 
 	p.outMu.Lock()
@@ -225,7 +221,7 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 	}
 
 	if p.cwd != "" && !isDir(p.cwd) {
-		return &RuntimeError{Class: ClassProcessRuntime, Message: `The provided cwd "` + p.cwd + `" does not exist.`, Site: phperr.At("Process.php", 350)}
+		return &RuntimeError{Class: ClassProcessRuntime, Message: `The provided cwd "` + p.cwd + `" does not exist.`}
 	}
 
 	// An argument list naming a VCS tool starts it without the shell
@@ -432,7 +428,7 @@ func (p *Process) Wait() (int, error) {
 	if !p.started {
 		p.mu.Unlock()
 
-		return 0, &LogicError{Class: ClassProcessLogic, Message: `Process must be started before calling "wait()".`, Site: phperr.At("Process.php", 1618)}
+		return 0, &LogicError{Class: ClassProcessLogic, Message: `Process must be started before calling "wait()".`}
 	}
 
 	done := p.done
@@ -444,11 +440,11 @@ func (p *Process) Wait() (int, error) {
 	defer p.mu.Unlock()
 
 	if p.timedOut {
-		return p.exitCode, &ProcessTimedOutError{CommandLine: p.GetCommandLine(), Timeout: p.timeout, Site: phperr.At("Process.php", 1205)}
+		return p.exitCode, &ProcessTimedOutError{CommandLine: p.GetCommandLine(), Timeout: p.timeout}
 	}
 
 	if p.termSig > 0 && p.termSig != p.latestSignal {
-		return p.exitCode, &ProcessSignaledError{Signal: p.termSig, Site: phperr.At("Process.php", 442)}
+		return p.exitCode, &ProcessSignaledError{Signal: p.termSig}
 	}
 
 	return p.exitCode, nil
@@ -508,11 +504,11 @@ func (p *Process) Signal(sig int) error {
 	p.mu.Unlock()
 
 	if !running {
-		return &LogicError{Class: ClassProcessLogic, Message: "Cannot send signal on a non running process.", Site: phperr.At("Process.php", 1517)}
+		return &LogicError{Class: ClassProcessLogic, Message: "Cannot send signal on a non running process."}
 	}
 
 	if err := p.sendSignal(sig); err != nil {
-		return &RuntimeError{Class: ClassProcessRuntime, Message: `Error while sending signal "` + strconv.Itoa(sig) + `".`, Site: phperr.At("Process.php", 1542)}
+		return &RuntimeError{Class: ClassProcessRuntime, Message: `Error while sending signal "` + strconv.Itoa(sig) + `".`}
 	}
 
 	return nil
@@ -628,7 +624,7 @@ func replacePlaceholders(commandline string, env []string, windows bool) (string
 
 		idx := lookupEnv(env, name, false)
 		if idx < 0 {
-			return "", &InvalidArgumentError{Class: ClassProcessInvalidArg, Message: `Command line is missing a value for parameter "` + name + `": ` + commandline, Site: phperr.At("Process.php", 1660)}
+			return "", &InvalidArgumentError{Class: ClassProcessInvalidArg, Message: `Command line is missing a value for parameter "` + name + `": ` + commandline}
 		}
 
 		_, value, _ := strings.Cut(env[idx], "=")

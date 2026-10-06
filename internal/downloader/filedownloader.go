@@ -341,7 +341,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 		}
 
 		transfer, err := d.http.AddCopy(url.processed, st.fileName, p.TransportOptions())
-		if transfer, err = util.CallSync(transfer, err, `Composer\Util\HttpDownloader->addCopy`, "FileDownloader.php", 196); err != nil {
+		if err != nil {
 			return nil, err
 		}
 

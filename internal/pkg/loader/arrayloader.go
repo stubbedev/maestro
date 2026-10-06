@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -602,7 +601,7 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 		scripts = castListeners(scripts)
 		for _, reserved := range [...]string{"composer", "php", "putenv"} {
 			if scripts.Has(reserved) {
-				util.TriggerDeprecation("The `"+reserved+"` script name is reserved for internal use, please avoid defining it", phperr.At("ArrayLoader.php", 271))
+				util.TriggerDeprecation("The `" + reserved + "` script name is reserved for internal use, please avoid defining it")
 			}
 		}
 

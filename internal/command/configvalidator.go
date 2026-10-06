@@ -12,7 +12,6 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/spdx"
@@ -326,7 +325,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 			return nil, nil, nil, e
 		}
 		if deprecated {
-			util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At("ConfigValidator.php", 221))
+			util.RaiseDeprecation(php.FalseToArrayDeprecation)
 		}
 		m = arr
 	}

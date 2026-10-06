@@ -165,7 +165,7 @@ func (l *LibraryInstaller) Download(p, prev pkg.PackageInterface) (*Promise, err
 
 	promise, err := dm.Download(p, downloadPath, prev)
 
-	return wrap(util.CallSync(promise, err, `Composer\Downloader\DownloadManager->download`, "LibraryInstaller.php", 111))
+	return wrap(promise, err)
 }
 
 // Prepare is prepare().

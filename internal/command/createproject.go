@@ -17,7 +17,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -669,7 +668,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 							return false, e
 						}
 						if deprecated {
-							util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At(createProjectFile, 435))
+							util.RaiseDeprecation(php.FalseToArrayDeprecation)
 						}
 						options.Set("symlink", false)
 						if created {

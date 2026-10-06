@@ -11,7 +11,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -722,7 +721,7 @@ func (c *Config) binCompat() (any, error) {
 	}
 
 	if value == "symlink" {
-		util.TriggerDeprecation(`config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead.`, phperr.At("Config.php", 478))
+		util.TriggerDeprecation(`config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead.`)
 	}
 
 	return value, nil

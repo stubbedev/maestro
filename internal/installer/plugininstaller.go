@@ -85,7 +85,7 @@ func (i *PluginInstaller) Download(p, prev pkg.PackageInterface) (*Promise, erro
 
 	promise, err := i.LibraryInstaller.Download(p, prev)
 
-	return util.CallSync(promise, err, `Composer\Installer\LibraryInstaller->download`, "PluginInstaller.php", 74)
+	return promise, err
 }
 
 // Install is install(): the package is registered once installed.

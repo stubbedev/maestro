@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -244,7 +243,6 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 // another one already filled the key of is parsed anew), and the scalar is
 // parsed as the string it casts to.
 func parseConstraintsValue(parser ConstraintParser, v any) (semver.ConstraintInterface, error) {
-	const versionParser = "src/Composer/Package/Version/VersionParser.php"
 	switch c := v.(type) {
 	case string:
 		return parser.ParseConstraints(c)
@@ -255,8 +253,8 @@ func parseConstraintsValue(parser ConstraintParser, v any) (semver.ConstraintInt
 	case float64:
 		if c != math.Trunc(c) && !math.IsInf(c, 0) && !math.IsNaN(c) {
 			msg := "Implicit conversion from float " + php.ToString(c) + " to int loses precision"
-			util.RaiseDeprecation(msg, phperr.At(versionParser, 33))
-			util.RaiseDeprecation(msg, phperr.At(versionParser, 37))
+			util.RaiseDeprecation(msg)
+			util.RaiseDeprecation(msg)
 		}
 	}
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -382,7 +381,7 @@ func (h *AuthHelper) bitbucketRetried(url string) bool {
 // AddAuthenticationHeader is the deprecated addAuthenticationHeader($headers,
 // $origin, $url).
 func (h *AuthHelper) AddAuthenticationHeader(headers []string, origin, url string) []string {
-	util.TriggerDeprecation("AuthHelper::addAuthenticationHeader is deprecated since Composer 2.9 use addAuthenticationOptions instead.", phperr.At("AuthHelper.php", 258))
+	util.TriggerDeprecation("AuthHelper::addAuthenticationHeader is deprecated since Composer 2.9 use addAuthenticationOptions instead.")
 
 	options := h.AddAuthenticationOptions(php.ArrayOf("http", php.ArrayOf("header", php.StringList(headers))), origin, url)
 

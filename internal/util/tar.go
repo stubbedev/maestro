@@ -16,21 +16,20 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // noComposerJSONError is thrown (at site) when neither the archive root nor
 // its single top level directory holds a composer.json.
-func noComposerJSONError(site phperr.Site) error {
-	return &RuntimeError{Message: noComposerJSONMessage, Site: site}
+func noComposerJSONError() error {
+	return &RuntimeError{Message: noComposerJSONMessage}
 }
 
 const noComposerJSONMessage = "No composer.json found either at the top level or within the topmost directory"
 
 // multipleTopLevelDirsError is thrown for archives without a root
 // composer.json and more than one top level directory.
-func multipleTopLevelDirsError(site phperr.Site, paths []string) error {
-	return &RuntimeError{Message: "Archive has more than one top level directories, and no composer.json was found on the top level, so it's an invalid archive. Top level paths found were: " + strings.Join(paths, ","), Site: site}
+func multipleTopLevelDirsError(paths []string) error {
+	return &RuntimeError{Message: "Archive has more than one top level directories, and no composer.json was found on the top level, so it's an invalid archive. Top level paths found were: " + strings.Join(paths, ",")}
 }
 
 // TarGetComposerJSON ports Tar::getComposerJson: the root composer.json of
@@ -46,7 +45,7 @@ func TarGetComposerJSON(pathToArchive string) (content string, ok bool, err erro
 
 	entries, err := readPharTar(f)
 	if err != nil {
-		return "", false, &UnexpectedValueError{Message: `internal corruption of phar "` + pathToArchive + `" (truncated entry)`, Site: phperr.At("Tar.php", 25)}
+		return "", false, &UnexpectedValueError{Message: `internal corruption of phar "` + pathToArchive + `" (truncated entry)`}
 	}
 
 	// The root of a PharData lists the first path segment of each entry,
@@ -71,7 +70,7 @@ func TarGetComposerJSON(pathToArchive string) (content string, ok bool, err erro
 	}
 
 	if entry, ok := pharLookup(entries, "composer.json"); ok {
-		content, err := pharContent(phperr.At("Tar.php", 40), entry, "composer.json", pathToArchive)
+		content, err := pharContent(entry, "composer.json", pathToArchive)
 
 		return content, err == nil, err
 	}
@@ -89,7 +88,7 @@ func TarGetComposerJSON(pathToArchive string) (content string, ok bool, err erro
 		if roots[name] {
 			topLevelPaths = append(topLevelPaths, name)
 			if len(topLevelPaths) > 1 {
-				return "", false, multipleTopLevelDirsError(phperr.At("Tar.php", 50), topLevelPaths)
+				return "", false, multipleTopLevelDirsError(topLevelPaths)
 			}
 		}
 	}
@@ -97,13 +96,13 @@ func TarGetComposerJSON(pathToArchive string) (content string, ok bool, err erro
 	if len(topLevelPaths) > 0 {
 		path := topLevelPaths[0] + "/composer.json"
 		if entry, ok := pharLookup(entries, path); ok {
-			content, err := pharContent(phperr.At("Tar.php", 57), entry, path, pathToArchive)
+			content, err := pharContent(entry, path, pathToArchive)
 
 			return content, err == nil, err
 		}
 	}
 
-	return "", false, noComposerJSONError(phperr.At("Tar.php", 60))
+	return "", false, noComposerJSONError()
 }
 
 type pharEntry struct {
@@ -128,9 +127,9 @@ func pharLookup(entries map[string]*pharEntry, path string) (*pharEntry, bool) {
 }
 
 // pharContent is PharFileInfo::getContent.
-func pharContent(site phperr.Site, entry *pharEntry, path, archive string) (string, error) {
+func pharContent(entry *pharEntry, path, archive string) (string, error) {
 	if entry.isDir {
-		return "", &UnexpectedValueError{Message: `phar error: Cannot retrieve contents, "` + path + `" in tar archive "` + archive + `" is a directory`, Site: site}
+		return "", &UnexpectedValueError{Message: `phar error: Cannot retrieve contents, "` + path + `" in tar archive "` + archive + `" is a directory`}
 	}
 
 	return string(entry.content), nil

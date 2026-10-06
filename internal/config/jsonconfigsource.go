@@ -67,7 +67,7 @@ func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo boo
 				cfg.Set("repositories", php.NewArray())
 			}
 
-			list, err := child(cfg, "repositories", 103)
+			list, err := child(cfg, "repositories")
 			if err != nil {
 				return err
 			}
@@ -153,10 +153,10 @@ func (s *JSONConfigSource) SetRepositoryURL(name, url string) error {
 		}
 		for index, repository := range list.All() {
 			if php.StrictEquals(name, index.Value()) {
-				return setIn(191, cfg, url, "repositories", index.Value(), "url")
+				return setIn(cfg, url, "repositories", index.Value(), "url")
 			}
 			if php.StrictEquals(name, repoName(repository)) {
-				return setIn(197, cfg, url, "repositories", index.Value(), "url")
+				return setIn(cfg, url, "repositories", index.Value(), "url")
 			}
 		}
 
@@ -169,7 +169,7 @@ func (s *JSONConfigSource) RemoveRepository(name string) error {
 	return s.manipulateJSON("removeRepository", func(cfg *php.Array, args []any) error {
 		repo := arg(args, 0)
 		if getIn(cfg, "repositories", repo) != nil {
-			if err := unsetIn(212, cfg, "repositories", repo); err != nil {
+			if err := unsetIn(cfg, "repositories", repo); err != nil {
 				return err
 			}
 		} else {
@@ -202,10 +202,10 @@ func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 		} else if m {
 			key, host, _ := strings.Cut(key, ".")
 			if authConfig {
-				return setIn(235, cfg, val, key, host)
+				return setIn(cfg, val, key, host)
 			}
 
-			return setIn(237, cfg, val, "config", key, host)
+			return setIn(cfg, val, "config", key, host)
 		}
 
 		if strings.HasPrefix(key, "policy.") {
@@ -229,7 +229,7 @@ func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 			return nil
 		}
 
-		return setIn(255, cfg, val, "config", key)
+		return setIn(cfg, val, "config", key)
 	}, name, value)
 }
 
@@ -244,10 +244,10 @@ func (s *JSONConfigSource) RemoveConfigSetting(name string) error {
 		} else if m {
 			key, host, _ := strings.Cut(key, ".")
 			if authConfig {
-				return unsetIn(270, cfg, key, host)
+				return unsetIn(cfg, key, host)
 			}
 
-			return unsetIn(272, cfg, "config", key, host)
+			return unsetIn(cfg, "config", key, host)
 		}
 
 		if strings.HasPrefix(key, "policy.") {
@@ -296,7 +296,7 @@ func (s *JSONConfigSource) RemoveConfigSetting(name string) error {
 			return nil
 		}
 
-		return unsetIn(308, cfg, "config", key)
+		return unsetIn(cfg, "config", key)
 	}, name)
 }
 
@@ -323,7 +323,7 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 			a, ok := v.(*php.Array)
 			if !ok || getIn(a, bit) == nil {
 				var err error
-				if a, err = child(holder, hkey, 325); err != nil {
+				if a, err = child(holder, hkey); err != nil {
 					return err
 				}
 				a.Set(bit, php.NewArray())
@@ -331,7 +331,7 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 			// $arr = &$arr[$bit]
 			holder, hkey = a, bit
 		}
-		arr, err := child(holder, hkey, 329)
+		arr, err := child(holder, hkey)
 		if err != nil {
 			return err
 		}
@@ -376,21 +376,21 @@ func (s *JSONConfigSource) RemoveProperty(name string) error {
 			cur = next
 		}
 
-		return unsetIn(352, php.ArrayOf("v", cur), "v", last)
+		return unsetIn(php.ArrayOf("v", cur), "v", last)
 	}, name)
 }
 
 // AddLink ports JsonConfigSource::addLink.
 func (s *JSONConfigSource) AddLink(typ, name, value string) error {
 	return s.manipulateJSON("addLink", func(cfg *php.Array, args []any) error {
-		return setIn(365, cfg, arg(args, 2), arg(args, 0), arg(args, 1))
+		return setIn(cfg, arg(args, 2), arg(args, 0), arg(args, 1))
 	}, typ, name, value)
 }
 
 // RemoveLink ports JsonConfigSource::removeLink.
 func (s *JSONConfigSource) RemoveLink(typ, name string) error {
 	err := s.manipulateJSON("removeSubNode", func(cfg *php.Array, args []any) error {
-		return unsetIn(375, cfg, arg(args, 0), arg(args, 1))
+		return unsetIn(cfg, arg(args, 0), arg(args, 1))
 	}, typ, name)
 	if err != nil {
 		return err
@@ -528,20 +528,20 @@ func (s *JSONConfigSource) rewrite(fb fallback, args []any) error {
 			}
 		}
 		if policy.Len() == 0 {
-			_ = setIn(437, config, php.NewObject(), "config", "policy")
+			_ = setIn(config, php.NewObject(), "config", "policy")
 		}
 	}
 	for _, prop := range [...]string{"platform", "http-basic", "bearer", "gitlab-token", "gitlab-oauth", "github-oauth", "custom-headers", "forgejo-token", "preferred-install"} {
 		if isEmptyArray(getIn(config, "config", prop)) {
-			_ = setIn(442, config, php.NewObject(), "config", prop)
+			_ = setIn(config, php.NewObject(), "config", prop)
 		}
 	}
 	for _, prop := range [...]string{"psr-0", "psr-4"} {
 		if isEmptyArray(getIn(config, "autoload", prop)) {
-			_ = setIn(447, config, php.NewObject(), "autoload", prop)
+			_ = setIn(config, php.NewObject(), "autoload", prop)
 		}
 		if isEmptyArray(getIn(config, "autoload-dev", prop)) {
-			_ = setIn(450, config, php.NewObject(), "autoload-dev", prop)
+			_ = setIn(config, php.NewObject(), "autoload-dev", prop)
 		}
 	}
 	for _, prop := range [...]string{"require", "require-dev", "conflict", "provide", "replace", "suggest", "config", "autoload", "autoload-dev", "scripts", "scripts-descriptions", "scripts-aliases", "support"} {

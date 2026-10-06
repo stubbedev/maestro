@@ -250,13 +250,7 @@ func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo str
 	// once) take place here
 	h.unlock()
 
-	// add() (addCopy()) calls addJob() at line 136 (181)
-	line := 136
-	if copyTo != "" {
-		line = 181
-	}
-
-	return util.CallSync(promise, err, `Composer\Util\HttpDownloader->addJob`, "HttpDownloader.php", line)
+	return promise, err
 }
 
 // unlock releases h.mu and runs the settlements decided meanwhile.
