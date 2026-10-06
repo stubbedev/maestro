@@ -27,8 +27,9 @@ import (
 // Generator is Composer\Autoload\AutoloadGenerator.
 type Generator struct {
 	// Parser decides how scanned files are tokenized: set its
-	// ShortOpenTag from the short_open_tag of the user's php
-	// (internal/platform); the default is PHP's built-in On.
+	// ShortOpenTag and PHPVersionID from the short_open_tag and
+	// PHP_VERSION_ID of the user's php (internal/platform); the defaults
+	// are PHP's built-in On and PHP 8.4's scanner.
 	Parser classmap.Parser
 
 	eventDispatcher           EventDispatcher

@@ -418,7 +418,10 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		// initialize autoload generator
 		generator := autoload.NewGenerator(dispatcher, out)
 		if view, _, err := rt.ComposerView(); err == nil && view != nil {
+			// PhpFileParser runs php_strip_whitespace() on the PHP that
+			// runs Composer: its short_open_tag and its scanner
 			generator.Parser.ShortOpenTag = view.ShortOpenTag()
+			generator.Parser.PHPVersionID = int(view.VersionID)
 		}
 		// classes found in files seen before (deliberate deviation 3)
 		generator.UseParseCacheFile(cache.Dir() + "/classmap/v1.bin")
