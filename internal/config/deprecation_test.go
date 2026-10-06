@@ -5,6 +5,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -26,9 +27,9 @@ func TestConfig_BinCompatSymlinkDeprecation(t *testing.T) {
 	merge(t, config, cfg(t, `{"bin-compat": "symlink"}`), SourceUnknown)
 	assertSame(t, "symlink", mustGet(t, config, "bin-compat", 0))
 
-	want := "<warning>Deprecation Notice: config.bin-compat \"symlink\" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in Config.php:478</warning>\n" +
+	want := "<warning>Deprecation Notice: config.bin-compat \"symlink\" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in " + phperr.AbsPath("Config.php") + ":478</warning>\n" +
 		"<warning>Stack trace:</warning>\n" +
-		"<warning> Config.php:478</warning>\n"
+		"<warning> " + phperr.AbsPath("Config.php") + ":478</warning>\n"
 	if got := out.Output(); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}

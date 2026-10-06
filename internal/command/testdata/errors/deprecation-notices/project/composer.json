@@ -1,0 +1,7 @@
+{
+    "name": "a/b",
+    "description": "d",
+    "license": "MIT",
+    "config": {"bin-compat": "symlink"},
+    "scripts": {"php": "x", "composer": "y"}
+}

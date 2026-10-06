@@ -1,0 +1,159 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
+Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
+Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (a/b) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Deprecation Notice: The `composer` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+Stack trace:
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:72
+ @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
+ @COMPOSER@/src/Composer/Factory.php:394
+ @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Console/Application.php:629
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:129
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:240
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Deprecation Notice: The `php` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+Stack trace:
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:72
+ @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
+ @COMPOSER@/src/Composer/Factory.php:394
+ @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Console/Application.php:629
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:129
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:240
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Deprecation Notice: config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in @COMPOSER@/src/Composer/Config.php:478
+Stack trace:
+ @COMPOSER@/src/Composer/Config.php:478
+ @COMPOSER@/src/Composer/Factory.php:587
+ @COMPOSER@/src/Composer/Factory.php:419
+ @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Console/Application.php:629
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:129
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:240
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading ./composer.json (@DIR@/p/composer.json)
+Deprecation Notice: The `composer` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+Stack trace:
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:72
+ @COMPOSER@/src/Composer/Package/Loader/ValidatingArrayLoader.php:618
+ @COMPOSER@/src/Composer/Util/ConfigValidator.php:226
+ @COMPOSER@/src/Composer/Command/ValidateCommand.php:89
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Deprecation Notice: The `php` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+Stack trace:
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:72
+ @COMPOSER@/src/Composer/Package/Loader/ValidatingArrayLoader.php:618
+ @COMPOSER@/src/Composer/Util/ConfigValidator.php:226
+ @COMPOSER@/src/Composer/Command/ValidateCommand.php:89
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Executing command (.): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (.): 'git' 'describe' '--exact-match' '--tags'
+Executing command (.): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (.): 'hg' 'branch'
+Executing command (.): 'fossil' 'branch' 'list'
+Executing command (.): 'fossil' 'tag' 'list'
+Executing command (.): 'svn' 'info' '--xml'
+Composer could not detect the root package (a/b) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Deprecation Notice: The `composer` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+Stack trace:
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:72
+ @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
+ @COMPOSER@/src/Composer/Factory.php:394
+ @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:315
+ @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Deprecation Notice: The `php` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+Stack trace:
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+ @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:72
+ @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
+ @COMPOSER@/src/Composer/Factory.php:394
+ @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:315
+ @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Deprecation Notice: config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in @COMPOSER@/src/Composer/Config.php:478
+Stack trace:
+ @COMPOSER@/src/Composer/Config.php:478
+ @COMPOSER@/src/Composer/Factory.php:587
+ @COMPOSER@/src/Composer/Factory.php:419
+ @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Command/BaseCommand.php:315
+ @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
+ @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ @COMPOSER@/vendor/symfony/console/Application.php:1040
+ @COMPOSER@/vendor/symfony/console/Application.php:301
+ @COMPOSER@/src/Composer/Console/Application.php:457
+ @COMPOSER@/vendor/symfony/console/Application.php:171
+ @COMPOSER@/src/Composer/Console/Application.php:141
+ @COMPOSER@/bin/composer:113
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+./composer.json is valid
+exit 0

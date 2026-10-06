@@ -1,0 +1,6 @@
+Composer could not detect the root package (a/b) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Deprecation Notice: The `composer` script name is reserved for internal use, please avoid defining it in @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:271
+More deprecation notices were hidden, run again with `-v` to show them.
+Composer could not detect the root package (a/b) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.json is valid
+exit 0

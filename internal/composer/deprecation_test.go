@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -30,7 +31,7 @@ func TestInstaller_SetIgnorePlatformRequirementsDeprecation(t *testing.T) {
 		t.Error("no platform requirement filter")
 	}
 
-	want := "<warning>Deprecation Notice: Installer::setIgnorePlatformRequirements is deprecated since Composer 2.2, use setPlatformRequirementFilter instead. in Installer.php:1459</warning>\n"
+	want := "<warning>Deprecation Notice: Installer::setIgnorePlatformRequirements is deprecated since Composer 2.2, use setPlatformRequirementFilter instead. in " + phperr.AbsPath("Installer.php") + ":1459</warning>\n"
 	if got := out.Output(); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}

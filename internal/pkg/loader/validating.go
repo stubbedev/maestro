@@ -94,10 +94,13 @@ func (l *ValidatingArrayLoader) Load(config *php.Array, class string) (pkg.Packa
 		return nil, e
 	}
 
+	// the inner loader is an ArrayLoader wherever Composer builds one
+	leave := phperr.Enter(`Composer\Package\Loader\ArrayLoader->load`, "ValidatingArrayLoader.php", 618)
 	p, err := l.loader.Load(l.config, class)
+	leave()
 	l.config = php.NewArray()
 
-	return p, err
+	return p, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->load`, "ValidatingArrayLoader.php", 618)
 }
 
 func (l *ValidatingArrayLoader) validate(config *php.Array) error {

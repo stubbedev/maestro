@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -48,10 +47,25 @@ func ResetErrorHandler() {
 // (otherwise a single hint that more were hidden). site is the
 // trigger_error call in Composer.
 //
-// PHP prints the absolute path of Composer's source file and, in verbose
-// mode, its whole call stack (debug_backtrace); maestro names the file by
-// its basename, as the exception renderer does, and lists only that frame.
+// PHP prints the absolute path of Composer's source file (phperr.AbsPath,
+// as for exceptions' "at" lines) and, in verbose mode, its call stack
+// (debug_backtrace): the site, then the calls in progress the ports
+// recorded with phperr.Enter (a path whose ports do not record theirs
+// lists fewer frames).
 func TriggerDeprecation(message string, site phperr.Site) {
+	deprecation(message, site, true)
+}
+
+// RaiseDeprecation reports an E_DEPRECATED the engine raises at site
+// ("Automatic conversion of false to array is deprecated") as
+// ErrorHandler::handle does: as TriggerDeprecation, except that PHP calls
+// handle() from the site itself, so the stack trace lists only the calls
+// in progress.
+func RaiseDeprecation(message string, site phperr.Site) {
+	deprecation(message, site, false)
+}
+
+func deprecation(message string, site phperr.Site, triggered bool) {
 	errorHandler.mu.Lock()
 	defer errorHandler.mu.Unlock()
 
@@ -71,13 +85,23 @@ func TriggerDeprecation(message string, site phperr.Site) {
 
 	errorHandler.shown = 1
 
-	where := php.Basename(site.File, "") + ":" + strconv.Itoa(site.Line)
+	where := phperr.AbsPath(site.File) + ":" + strconv.Itoa(site.Line)
 
 	// outputWarning
 	out.WriteError("<warning>Deprecation Notice: "+message+" in "+where+"</warning>", true, io.Normal)
 
 	if out.IsVerbose() {
 		out.WriteError("<warning>Stack trace:</warning>", true, io.Normal)
-		out.WriteError("<warning> "+where+"</warning>", true, io.Normal)
+		// array_slice(debug_backtrace(), 2): outputWarning's and handle()'s
+		// frames dropped, trigger_error() called at the site first, then
+		// the calls in progress; frames without file and line are left out
+		if triggered {
+			out.WriteError("<warning> "+where+"</warning>", true, io.Normal)
+		}
+		for _, f := range phperr.Stack() {
+			if f.File != "" && f.Line != 0 {
+				out.WriteError("<warning> "+phperr.AbsPath(f.File)+":"+strconv.Itoa(f.Line)+"</warning>", true, io.Normal)
+			}
+		}
 	}
 }

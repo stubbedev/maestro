@@ -63,7 +63,9 @@ func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterfac
 		setLinks(pp, t.Method, parsed)
 	}
 
+	leave := phperr.Enter(`Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 72)
 	configured, err := l.configureObject(p, config)
+	leave()
 
 	return configured, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->configureObject`, "ArrayLoader.php", 72)
 }

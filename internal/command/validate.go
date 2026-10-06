@@ -101,15 +101,19 @@ func (c *ValidateCommand) Execute(in console.Input, out console.Output) (int, er
 		checkVersion = 0
 	}
 	isStrict := console.BoolOption(in, "strict")
+	leave := phperr.Enter(`Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
 	errs, publishErrors, warnings, err := validator.Validate(file, checkAll, checkVersion)
+	leave()
 	if err != nil {
 		return 0, phperr.Call(err, `Composer\Util\ConfigValidator->validate`, "ValidateCommand.php", 89)
 	}
 
 	var lockErrors []string
+	leave = phperr.Enter(`Composer\Command\BaseCommand->createComposerInstance`, "ValidateCommand.php", 92)
 	comp, err := c.CreateComposerInstance(in, cio, file, false, false)
+	leave()
 	if err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createComposerInstance`, "ValidateCommand.php", 92)
 	}
 	// config.lock = false ~= implicit --no-check-lock; --check-lock overrides
 	lockConfig, err := comp.Config().Get("lock", 0)

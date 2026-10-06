@@ -174,7 +174,9 @@ func (c *BaseCommand) RequireComposer(disablePlugins, disableScripts *bool) (*co
 		if app == nil {
 			return nil, NewError(ClassRuntime, baseCommandFile, 106, `Could not create a Composer\Composer instance, you must inject one if this command is not used with a Composer\Console\Application instance`)
 		}
+		leave := phperr.Enter(`Composer\Console\Application->getComposer`, baseCommandFile, 103)
 		composer, err := app.GetComposer(true, disablePlugins, disableScripts)
+		leave()
 		if err != nil {
 			return nil, phperr.Call(err, `Composer\Console\Application->getComposer`, baseCommandFile, 103)
 		}
@@ -196,7 +198,9 @@ func (c *BaseCommand) commandClass() string {
 // requireComposerAt is $this->requireComposer() called at file:line of
 // Composer's sources (the frame it adds to an exception's trace).
 func (c *BaseCommand) requireComposerAt(file string, line int) (*composer.Composer, error) {
+	leave := phperr.Enter(`Composer\Command\BaseCommand->requireComposer`, file, line)
 	comp, err := c.RequireComposer(nil, nil)
+	leave()
 
 	return comp, phperr.Call(err, `Composer\Command\BaseCommand->requireComposer`, file, line)
 }
@@ -206,7 +210,9 @@ func (c *BaseCommand) requireComposerAt(file string, line int) (*composer.Compos
 func (c *BaseCommand) TryComposer(disablePlugins, disableScripts *bool) (*composer.Composer, error) {
 	if c.composer == nil {
 		if app := c.application(); app != nil {
+			leave := phperr.Enter(`Composer\Console\Application->getComposer`, baseCommandFile, 129)
 			composer, err := app.GetComposer(false, disablePlugins, disableScripts)
+			leave()
 			if err != nil {
 				return nil, phperr.Call(err, `Composer\Console\Application->getComposer`, baseCommandFile, 129)
 			}
@@ -313,7 +319,9 @@ func (c *BaseCommand) Initialize(in console.Input, _ console.Output) error {
 		disableScripts = true
 	}
 
+	leave := phperr.Enter(`Composer\Command\BaseCommand->tryComposer`, baseCommandFile, 240)
 	composer, err := c.TryComposer(&disablePlugins, &disableScripts)
+	leave()
 	if err != nil {
 		return phperr.Call(err, `Composer\Command\BaseCommand->tryComposer`, baseCommandFile, 240)
 	}
@@ -393,7 +401,11 @@ func (c *BaseCommand) CreateComposerInstance(in console.Input, out io.IO, cfg an
 		disable = composer.PluginsDisabled
 	}
 
-	return factory.Create(out, cfg, disable, disableScripts)
+	leave := phperr.Enter(`Composer\Factory::create`, baseCommandFile, 315)
+	comp, err := factory.Create(out, cfg, disable, disableScripts)
+	leave()
+
+	return comp, phperr.Call(err, `Composer\Factory::create`, baseCommandFile, 315)
 }
 
 // PreferredInstallOptions ports getPreferredInstallOptions.

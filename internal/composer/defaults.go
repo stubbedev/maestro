@@ -31,7 +31,9 @@ func defaultInstallers(im InstallationManager, c *PartialComposer, full *Compose
 
 	cfg := c.Config()
 	get := func(key string) (string, error) {
+		leave := phperr.Enter(`Composer\Config->get`, "Factory.php", 587)
 		v, err := cfg.Get(key, 0)
+		leave()
 
 		// $composer->getConfig()->get(...) at Factory.php:587
 		return php.ToString(v), phperr.Call(err, `Composer\Config->get`, "Factory.php", 587)

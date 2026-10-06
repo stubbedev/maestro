@@ -107,7 +107,9 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 		return nil, err
 	}
 
+	leave := phperr.Enter(`Composer\Package\Loader\ArrayLoader->load`, "RootPackageLoader.php", 134)
 	p, err := l.ArrayLoader.Load(config, class)
+	leave()
 	if err != nil {
 		return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->load`, "RootPackageLoader.php", 134)
 	}
