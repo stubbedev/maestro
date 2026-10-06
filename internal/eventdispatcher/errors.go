@@ -29,13 +29,6 @@ func (*ScriptExecutionError) ThrowableClass() string {
 	return `Composer\EventDispatcher\ScriptExecutionException`
 }
 
-// ThrowableFile implements console.Throwable: getFile(), the absolute path
-// of Composer's file (phperr.AbsPath).
-func (e *ScriptExecutionError) ThrowableFile() string { return phperr.AbsPath(e.File) }
-
-// ThrowableLine implements console.Throwable.
-func (e *ScriptExecutionError) ThrowableLine() int { return e.Line }
-
 // ThrowableCode implements console.Throwable.
 func (e *ScriptExecutionError) ThrowableCode() int { return e.Code }
 
@@ -55,13 +48,6 @@ func (e *Error) Error() string { return e.Message }
 
 // ThrowableClass implements console.Throwable.
 func (e *Error) ThrowableClass() string { return e.Class }
-
-// ThrowableFile implements console.Throwable: getFile(), the absolute path
-// of Composer's file (phperr.AbsPath).
-func (*Error) ThrowableFile() string { return phperr.AbsPath(dispatcherFile) }
-
-// ThrowableLine implements console.Throwable.
-func (e *Error) ThrowableLine() int { return e.Line }
 
 // ThrowableCode implements console.Throwable.
 func (*Error) ThrowableCode() int { return 0 }

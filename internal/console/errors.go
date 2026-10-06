@@ -117,13 +117,6 @@ func (e *Error) Unwrap() error { return e.Prev }
 // ThrowableClass implements Throwable.
 func (e *Error) ThrowableClass() string { return kindClass[e.Kind] }
 
-// ThrowableFile implements Throwable: getFile(), the absolute path of
-// symfony/console's file (phperr.AbsPath).
-func (e *Error) ThrowableFile() string { return phperr.AbsPath(e.File) }
-
-// ThrowableLine implements Throwable.
-func (e *Error) ThrowableLine() int { return e.Line }
-
 // ThrowableCode implements Throwable.
 func (e *Error) ThrowableCode() int { return 0 }
 
@@ -138,14 +131,11 @@ func (e *Error) PHPPrevious() error { return e.Prev }
 func IsConsoleException(err error) bool { return errors.Is(err, ErrConsole) }
 
 // Throwable is implemented by errors that carry PHP exception details: the
-// class name (get_debug_type), file and line of the throw site, the
-// exception code (the exit code of an uncaught one) and the previous
+// class name (get_debug_type), the exception code (the exit code of an uncaught one) and the previous
 // exception. Plain Go errors are an "Exception" with code 0.
 type Throwable interface {
 	error
 	ThrowableClass() string
-	ThrowableFile() string
-	ThrowableLine() int
 	ThrowableCode() int
 	ThrowablePrevious() error
 }

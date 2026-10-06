@@ -23,8 +23,6 @@ func newTestException(message string, code int, prev error) *testException {
 
 func (e *testException) Error() string            { return e.message }
 func (e *testException) ThrowableClass() string   { return e.class }
-func (e *testException) ThrowableFile() string    { return e.file }
-func (e *testException) ThrowableLine() int       { return e.line }
 func (e *testException) ThrowableCode() int       { return e.code }
 func (e *testException) ThrowablePrevious() error { return e.prev }
 

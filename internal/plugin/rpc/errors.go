@@ -48,12 +48,6 @@ func (e *UnsupportedError) Error() string { return "maestro has no handler for "
 // ThrowableClass implements console.Throwable.
 func (*UnsupportedError) ThrowableClass() string { return `Maestro\Shim\UnsupportedApiException` }
 
-// ThrowableFile implements console.Throwable.
-func (*UnsupportedError) ThrowableFile() string { return "" }
-
-// ThrowableLine implements console.Throwable.
-func (*UnsupportedError) ThrowableLine() int { return 0 }
-
 // ThrowableCode implements console.Throwable.
 func (*UnsupportedError) ThrowableCode() int { return 0 }
 
@@ -181,12 +175,6 @@ func (e *PHPException) InstanceOf(class string) bool { return slices.Contains(e.
 
 // ThrowableClass implements console.Throwable.
 func (e *PHPException) ThrowableClass() string { return e.Class }
-
-// ThrowableFile implements console.Throwable.
-func (e *PHPException) ThrowableFile() string { return e.File }
-
-// ThrowableLine implements console.Throwable.
-func (e *PHPException) ThrowableLine() int { return e.Line }
 
 // ThrowableCode implements console.Throwable.
 func (e *PHPException) ThrowableCode() int { return e.Code }

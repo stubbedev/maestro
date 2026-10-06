@@ -65,13 +65,6 @@ func (e *Error) Unwrap() []error {
 // ThrowableClass implements console.Throwable.
 func (e *Error) ThrowableClass() string { return e.Class }
 
-// ThrowableFile implements console.Throwable: getFile(), the absolute path
-// of Composer's file (phperr.AbsPath).
-func (e *Error) ThrowableFile() string { return phperr.AbsPath(e.File) }
-
-// ThrowableLine implements console.Throwable.
-func (e *Error) ThrowableLine() int { return e.Line }
-
 // ThrowableCode implements console.Throwable.
 func (e *Error) ThrowableCode() int { return e.Code }
 
@@ -106,22 +99,18 @@ func (e *ExitError) Error() string { return "exit " + strconv.Itoa(e.Code) }
 func (e *ExitError) ExitCode() int { return e.Code }
 
 // throwable is how the Application presents an error that is not a
-// console.Throwable to the console: its PHP class (util.PHPClassOf), code,
-// throw site (phperr.SiteOf) and previous exception (phperr.PreviousOf).
+// console.Throwable to the console: its PHP class (util.PHPClassOf), code
+// and previous exception (phperr.PreviousOf).
 type throwable struct {
 	err   error
 	class string
 	code  int
-	file  string
-	line  int
 	prev  error
 }
 
 func (t *throwable) Error() string            { return t.err.Error() }
 func (t *throwable) Unwrap() error            { return t.err }
 func (t *throwable) ThrowableClass() string   { return t.class }
-func (t *throwable) ThrowableFile() string    { return t.file }
-func (t *throwable) ThrowableLine() int       { return t.line }
 func (t *throwable) ThrowableCode() int       { return t.code }
 func (t *throwable) ThrowablePrevious() error { return t.prev }
 func (t *throwable) PHPClass() (string, int)  { return t.class, t.code }
@@ -141,9 +130,6 @@ func asThrowable(err error, code int) error {
 		c = code
 	}
 	t := &throwable{err: err, class: class, code: c}
-	if site, ok := phperr.SiteOf(err); ok {
-		t.file, t.line = phperr.AbsPath(site.File), site.Line
-	}
 	if prev := phperr.PreviousOf(err); prev != nil {
 		t.prev = asThrowable(prev, -1)
 	}
