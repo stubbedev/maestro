@@ -26,7 +26,9 @@ func newLibraryFixture(t *testing.T) (*libraryFixture, *testComposer) {
 		t.Fatal(err)
 	}
 
-	f := &libraryFixture{rootDir: root, vendorDir: root + "/vendor", binDir: root + "/bin", dm: newMockDM()}
+	// Composer's test joins with DIRECTORY_SEPARATOR.
+	sep := string(filepath.Separator)
+	f := &libraryFixture{rootDir: root, vendorDir: root + sep + "vendor", binDir: root + sep + "bin", dm: newMockDM()}
 	mustMkdir(t, f.vendorDir)
 	mustMkdir(t, f.binDir)
 

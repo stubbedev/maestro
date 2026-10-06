@@ -317,7 +317,7 @@ func TestEventDispatcher_RecursionInScriptsNames(t *testing.T) {
 
 	expectOutput(t, out,
 		"> helloWorld: @hello World",
-		"> hello: echo Hello 'World'",
+		"> hello: echo Hello "+util.Escape("World"),
 	)
 	if err := process.AssertComplete(); err != nil {
 		t.Fatal(err)
@@ -353,7 +353,12 @@ func TestEventDispatcher_DispatcherOutputsCommand(t *testing.T) {
 	if len(ioi.errors) != 1 || ioi.errors[0] != "> echo foo" {
 		t.Errorf("writeError calls = %q", ioi.errors)
 	}
-	if len(ioi.raws) != 1 || ioi.raws[0] != "foo\n" {
+	// cmd.exe's echo ends its line with CRLF.
+	want := "foo\n"
+	if util.IsWindows() {
+		want = "foo\r\n"
+	}
+	if len(ioi.raws) != 1 || ioi.raws[0] != want {
 		t.Errorf("writeRaw calls = %q", ioi.raws)
 	}
 }

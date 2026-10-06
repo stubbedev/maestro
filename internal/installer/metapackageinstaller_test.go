@@ -3,6 +3,7 @@ package installer
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -108,11 +109,12 @@ func TestNoopInstaller(t *testing.T) {
 func TestProjectInstaller(t *testing.T) {
 	dir := t.TempDir()
 	dm := newMockDM()
+	// ProjectInstaller turns every backslash of its path into a slash.
 	installer := NewProjectInstaller(dir+`\project\`, dm, util.NewFilesystem(nil))
 
 	p := newPackage("foo/bar", "1.0.0")
 
-	if path, _, _ := installer.InstallPath(p); path != dir+"/project/" {
+	if path, _, _ := installer.InstallPath(p); path != filepath.ToSlash(dir)+"/project/" {
 		t.Errorf("InstallPath = %q", path)
 	}
 
@@ -129,7 +131,7 @@ func TestProjectInstaller(t *testing.T) {
 	}
 
 	var iae *util.InvalidArgumentError
-	if _, err := installer.Download(p, nil); !errors.As(err, &iae) || iae.Message != "Project directory "+dir+"/project/ is not empty." {
+	if _, err := installer.Download(p, nil); !errors.As(err, &iae) || iae.Message != "Project directory "+filepath.ToSlash(dir)+"/project/ is not empty." {
 		t.Errorf("err = %v", err)
 	}
 
@@ -137,5 +139,5 @@ func TestProjectInstaller(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 
-	equalCalls(t, dm.rec.list(), []string{"download foo/bar-1.0.0.0 " + dir + "/project/"})
+	equalCalls(t, dm.rec.list(), []string{"download foo/bar-1.0.0.0 " + filepath.ToSlash(dir) + "/project/"})
 }

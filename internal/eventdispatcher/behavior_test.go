@@ -180,7 +180,7 @@ func TestDispatch_CommandClass(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if want := []string{"'a b' '--opt'", "x --y"}; !slices.Equal(inputs, want) {
+	if want := []string{util.Escape("a b") + " " + util.Escape("--opt"), "x --y"}; !slices.Equal(inputs, want) {
 		t.Errorf("inputs = %q, want %q", inputs, want)
 	}
 	expectOutput(t, out,
@@ -350,7 +350,7 @@ func TestDispatch_ScriptReferenceArguments(t *testing.T) {
 	if !slices.Equal(got[2].Arguments(), []string{"a"}) {
 		t.Errorf("none: args %q", got[2].Arguments())
 	}
-	if v, _ := got[3].Flags().GetString("script-alias-input"); v != "'x' 'y' --z" {
+	if v, _ := got[3].Flags().GetString("script-alias-input"); v != util.Escape("x")+" "+util.Escape("y")+" --z" {
 		t.Errorf("alias: script-alias-input %q", v)
 	}
 }
