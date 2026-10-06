@@ -233,6 +233,7 @@ func (i *Installer) Run() (int, error) {
 	if i.updateAllowList != nil && i.updateMirrors {
 		return 0, &util.RuntimeError{Site: phperr.At("Installer.php", 271), Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
 	}
+	i.prefetchFilterSummaries()
 
 	isFreshInstall, err := i.repositoryManager.LocalRepository().IsFresh()
 	if err != nil {
@@ -1716,6 +1717,32 @@ func (i *Installer) prefetchMetadata(set *repository.RepositorySet, locked *repo
 	for _, repo := range set.Repositories() {
 		if p, ok := repo.(metadataPrefetcher); ok {
 			p.PrefetchPackages(names, set.AcceptableStabilities(), set.StabilityFlags())
+		}
+	}
+}
+
+// filterSummaryPrefetcher is a repository that can start its filter list
+// summary request ahead (composerrepo.ComposerRepository).
+type filterSummaryPrefetcher interface {
+	PrefetchFilterSummary()
+}
+
+// prefetchFilterSummaries starts the filter list summary requests the
+// filter list pool filter will make, when it will run (deliberate
+// deviation 3: an install from the lock otherwise waits on that round trip
+// after reading the lock).
+func (i *Installer) prefetchFilterSummaries() {
+	policyConfig, err := i.getPolicyConfig()
+	if err != nil || !policyConfig.Enabled {
+		return
+	}
+	if policyConfig.ActiveBlockFilterLists(policy.BlockScopeInstall).Len() == 0 && (!i.update || policyConfig.ActiveBlockFilterLists(policy.BlockScopeUpdate).Len() == 0) {
+		return
+	}
+
+	for _, repo := range i.repositoryManager.Repositories() {
+		if p, ok := repo.(filterSummaryPrefetcher); ok {
+			p.PrefetchFilterSummary()
 		}
 	}
 }

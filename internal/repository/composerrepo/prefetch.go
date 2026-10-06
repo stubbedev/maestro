@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -34,15 +35,9 @@ type listenerChecker interface {
 // Nothing is prefetched when a PRE_FILE_DOWNLOAD listener could change the
 // requests, or for a repository without v2 metadata.
 func (r *ComposerRepository) PrefetchPackages(names []string, acceptableStabilities, stabilityFlags *php.Array) {
-	p, ok := r.httpDownloader.(prefetcher)
-	if !ok || r.cache == nil {
+	p := r.prefetcher()
+	if p == nil {
 		return
-	}
-	if r.eventDispatcher != nil {
-		l, ok := r.eventDispatcher.(listenerChecker)
-		if !ok || l.WillDispatchTo(eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, nil, "", "metadata", &MetadataContext{Repository: r})) {
-			return
-		}
 	}
 
 	metadataURL := r.lazyProvidersURL
@@ -94,6 +89,63 @@ func (r *ComposerRepository) PrefetchPackages(names []string, acceptableStabilit
 			p.Prefetch(url, r.conditionalOptions(cached))
 		}
 	}
+}
+
+// prefetcher is the downloader to prefetch with, nil when this repository
+// may not: no cache to read the If-Modified-Since from, or a
+// PRE_FILE_DOWNLOAD listener that could change the requests.
+func (r *ComposerRepository) prefetcher() prefetcher {
+	p, ok := r.httpDownloader.(prefetcher)
+	if !ok || r.cache == nil {
+		return nil
+	}
+	if r.eventDispatcher != nil {
+		l, ok := r.eventDispatcher.(listenerChecker)
+		if !ok || l.WillDispatchTo(eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, nil, "", "metadata", &MetadataContext{Repository: r})) {
+			return nil
+		}
+	}
+
+	return p
+}
+
+// PrefetchFilterSummary starts, without output, the conditional request
+// for the filter list summary that loadFilterSummary will make, taking the
+// summary-url from the root file (its cached copy when it is not loaded
+// yet). As with PrefetchPackages, the later request takes the response and
+// behaves as without this.
+func (r *ComposerRepository) PrefetchFilterSummary() {
+	p := r.prefetcher()
+	if p == nil || r.userFilterDisabled {
+		return
+	}
+
+	summaryURL := ""
+	if r.rootLoaded {
+		if r.filterConfig != nil {
+			summaryURL = r.filterConfig.SummaryURL
+		}
+	} else if cached, ok := r.cache.Peek("packages.json"); ok {
+		// FilterLists loads the root file with a 600 s max age: past it,
+		// a conditional request for it comes first
+		if age, ok := r.cache.Age("packages.json"); ok && age > 600 {
+			p.Prefetch(r.packagesJSONURL(), r.conditionalOptions(cached))
+		}
+		data, _ := php.JSONDecode(cached, true)
+		if filter, ok := get(asArrayOrNil(data), "filter").(*php.Array); ok {
+			summaryURL = filterlist.ComposerRepositoryFilterInformationFromData(filter, func(url string) string {
+				canonical, _ := r.canonicalizeURL(url)
+
+				return canonical
+			}).SummaryURL
+		}
+	}
+	if summaryURL == "" {
+		return
+	}
+
+	cached, _ := r.cache.Peek("filter-summary.json")
+	p.Prefetch(summaryURL, r.conditionalOptions(cached))
 }
 
 // conditionalOptions are the transport options of a request for a file
