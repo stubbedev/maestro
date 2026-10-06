@@ -40,28 +40,14 @@ func (r *ComposerRepository) PrefetchPackages(names []string, acceptableStabilit
 		return
 	}
 
-	metadataURL := r.lazyProvidersURL
-	if !r.rootLoaded {
-		// the root file's request, and the metadata-url its cached copy
-		// names (the request may still change it: then nothing matches)
-		cached, ok := r.cache.Peek("packages.json")
-		if !ok {
-			return
-		}
-		p.Prefetch(r.packagesJSONURL(), r.conditionalOptions(cached))
-
-		data, _ := php.JSONDecode(cached, true)
-		root, _ := data.(*php.Array)
-		raw, ok := get(root, "metadata-url").(string)
-		if !ok || raw == "" {
-			return
-		}
-		var err error
-		if metadataURL, err = r.canonicalizeURL(raw); err != nil {
-			return
-		}
-	}
+	metadataURL := r.aheadMetadataURL(p)
 	if metadataURL == "" {
+		if !r.rootLoaded {
+			// no cached root file to take the metadata URL from: the
+			// requests start once the loads have loaded it
+			r.pendingPrefetch = func() { r.PrefetchPackages(names, acceptableStabilities, stabilityFlags) }
+		}
+
 		return
 	}
 
@@ -70,14 +56,7 @@ func (r *ComposerRepository) PrefetchPackages(names []string, acceptableStabilit
 		if pkg.IsPlatformPackage(name) || name == "__root__" {
 			continue
 		}
-		files := []string{name}
-		if acceptableStabilities == nil || stabilityFlags == nil || version.IsPackageAcceptable(acceptableStabilities, stabilityFlags, []string{name}, "dev") {
-			files = append(files, name+"~dev")
-		}
-		if acceptableStabilities != nil && acceptableStabilities.Has("dev") && acceptableStabilities.Len() == 1 && stabilityFlags != nil && stabilityFlags.Len() == 0 {
-			files = files[1:]
-		}
-		for _, file := range files {
+		for _, file := range metadataFiles(name, acceptableStabilities, stabilityFlags) {
 			url := strings.ReplaceAll(metadataURL, "%package%", file)
 			if _, ok := r.packagesNotFoundCache[url]; ok {
 				continue
@@ -89,6 +68,70 @@ func (r *ComposerRepository) PrefetchPackages(names []string, acceptableStabilit
 			p.Prefetch(url, r.conditionalOptions(cached))
 		}
 	}
+}
+
+// metadataFiles are the v2 metadata files loadAsyncPackages loads for
+// name: its own and its ~dev file when dev versions are acceptable, only
+// the latter when only dev versions are.
+func metadataFiles(name string, acceptableStabilities, stabilityFlags *php.Array) []string {
+	files := []string{name}
+	if acceptableStabilities == nil || stabilityFlags == nil || version.IsPackageAcceptable(acceptableStabilities, stabilityFlags, []string{name}, "dev") {
+		files = append(files, name+"~dev")
+	}
+	if acceptableStabilities != nil && acceptableStabilities.Has("dev") && acceptableStabilities.Len() == 1 && stabilityFlags != nil && stabilityFlags.Len() == 0 {
+		files = files[1:]
+	}
+
+	return files
+}
+
+// aheadMetadataURL is the v2 metadata URL ("" for none) requests made
+// ahead use: the root file's when it is loaded, else the one its cached
+// copy names, after prefetching the root file's request (that request may
+// still change it: then nothing matches).
+func (r *ComposerRepository) aheadMetadataURL(p prefetcher) string {
+	metadataURL, _, _ := r.aheadRoot(p)
+
+	return metadataURL
+}
+
+// aheadRoot is aheadMetadataURL, with the notify URL createPackages will
+// use (notifyOK false when it cannot be told).
+func (r *ComposerRepository) aheadRoot(p prefetcher) (metadataURL, notifyURL string, notifyOK bool) {
+	if r.rootLoaded {
+		return r.lazyProvidersURL, r.notifyURL, true
+	}
+
+	cached, ok := r.cache.Peek("packages.json")
+	if !ok {
+		return "", "", false
+	}
+	p.Prefetch(r.packagesJSONURL(), r.conditionalOptions(cached))
+
+	data, _ := php.JSONDecode(cached, true)
+	root, _ := data.(*php.Array)
+	raw, ok := get(root, "metadata-url").(string)
+	if !ok || raw == "" {
+		return "", "", false
+	}
+	metadataURL, err := r.canonicalizeURL(raw)
+	if err != nil {
+		return "", "", false
+	}
+
+	// as configureFromRoot sets it
+	notifyOK = true
+	for _, key := range []string{"notify-batch", "notify"} {
+		if v := get(root, key); php.ToBool(v) {
+			if notifyURL, err = r.canonicalizeURL(php.ToString(v)); err != nil {
+				notifyOK = false
+			}
+
+			break
+		}
+	}
+
+	return metadataURL, notifyURL, notifyOK
 }
 
 // prefetcher is the downloader to prefetch with, nil when this repository

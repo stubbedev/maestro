@@ -132,6 +132,13 @@ type ComposerRepository struct {
 	// not be fetched again.
 	packagesNotFoundCache map[string]struct{}
 
+	// decoded are the metadata files already decoded (memo.go).
+	decoded decodedFiles
+	// pendingPrefetch and pendingSpeculation wait for the root file to
+	// be loaded (rootFileLoaded).
+	pendingPrefetch    func()
+	pendingSpeculation *speculation
+
 	filterAPIClient    *filterlist.FilterListApiClient
 	filterEntryBuilder *filterlist.FilterListEntryBuilder
 

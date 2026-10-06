@@ -143,7 +143,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 	if r.securityAdvisoryConfig.metadata && (allowPartialAdvisories || apiURL == "") {
 		names := metadataNames(packageConstraintMap)
-		downloads, err := r.startCachedAsyncDownloads(names, names)
+		downloads, err := r.startCachedAsyncDownloads(names, names, true)
 		if err != nil {
 			return repository.AdvisoryResult{}, err
 		}
@@ -329,7 +329,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 	entryBuilder := r.entryBuilder()
 	filter := &repository.NameMap[[]*repository.FilterListEntry]{}
 	names := metadataNames(packageConstraintMap)
-	downloads, err := r.startCachedAsyncDownloads(names, names)
+	downloads, err := r.startCachedAsyncDownloads(names, names, true)
 	if err != nil {
 		return nil, err
 	}

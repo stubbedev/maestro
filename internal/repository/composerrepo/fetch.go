@@ -352,6 +352,8 @@ type asyncFetch struct {
 
 	promise *util.Promise[*http.Response]
 	done    chan struct{}
+	// decoded are the repository's decoded files.
+	decoded *decodedFiles
 	// set by the decoding goroutine
 	response  *http.Response
 	err       error
@@ -392,10 +394,12 @@ func (r *ComposerRepository) asyncFetchFile(filename, cacheKey, lastModifiedTime
 		options = withIfModifiedSince(options, lastModifiedTime)
 	}
 
+	r.decoded.markRequested(filename)
 	f.promise, err = r.httpDownloader.Add(filename, options)
 	if err != nil {
 		return nil, err
 	}
+	f.decoded = &r.decoded
 	f.done = make(chan struct{})
 	go f.decode()
 
@@ -415,13 +419,17 @@ func (f *asyncFetch) decode() {
 		return
 	}
 
-	decoded, err := f.response.DecodeJSON()
-	if err != nil {
-		f.decodeErr = err
+	// a body the speculation decoded already (it decodes to an array, as
+	// DecodeJSON would)
+	if f.data = f.decoded.take(f.cacheKey, f.response.Body()); f.data == nil {
+		decoded, err := f.response.DecodeJSON()
+		if err != nil {
+			f.decodeErr = err
 
-		return
+			return
+		}
+		f.data, _ = decoded.(*php.Array)
 	}
-	f.data, _ = decoded.(*php.Array)
 	f.json = f.response.Body()
 	if lastModifiedDate, _ := f.response.Header("last-modified"); php.ToBool(lastModifiedDate) {
 		f.data, f.json, f.decodeErr = withLastModified(f.data, lastModifiedDate, php.JSONUnescapedSlashes|php.JSONUnescapedUnicode)
@@ -488,6 +496,7 @@ func (r *ComposerRepository) acceptFetch(f *asyncFetch) (fetchResult, error) {
 		if _, err := r.cache.Write(f.cacheKey, f.json); err != nil {
 			return fetchResult{}, err
 		}
+		r.decoded.rememberSlim(f.cacheKey, f.json, f.data)
 	}
 	r.freshMetadataUrls[f.filename] = struct{}{}
 
@@ -537,7 +546,12 @@ type cachedDownload struct {
 // name): it reads and decodes their cached copies (decoding in parallel)
 // and starts the requests, in order. Pass the result to waitFetches, then
 // to finishCachedDownload in order.
-func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames []string) ([]*cachedDownload, error) {
+//
+// With slim, the caller reads nothing of the files' packages but whether
+// they are set (the advisory and filter loads): files decoded before are
+// then taken in their slim form (decodedFiles) instead of being decoded
+// again.
+func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames []string, slim bool) ([]*cachedDownload, error) {
 	if r.lazyProvidersURL == "" {
 		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1369), Message: "startCachedAsyncDownload only supports v2 protocol composer repos with a metadata-url"}
 	}
@@ -562,12 +576,26 @@ func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames [
 			return nil, err
 		}
 		if ok && php.ToBool(contents) {
-			cached[i] = contents
+			if slim {
+				d.contents = r.decoded.slimOf(d.cacheKey, contents)
+			} else {
+				d.contents = r.decoded.take(d.cacheKey, contents)
+			}
+			if d.contents == nil {
+				cached[i] = contents
+			}
 		}
 	}
 
-	for i, contents := range parallelDecode(cached) {
-		downloads[i].contents = contents
+	decoded := parallelDecode(cached, func(i int, data *php.Array) {
+		if !slim {
+			r.decoded.rememberSlim(downloads[i].cacheKey, cached[i], data)
+		}
+	})
+	for i, contents := range decoded {
+		if cached[i] != "" {
+			downloads[i].contents = contents
+		}
 	}
 
 	for _, d := range downloads {
@@ -604,8 +632,10 @@ func (r *ComposerRepository) finishCachedDownload(d *cachedDownload) (*php.Array
 }
 
 // parallelDecode is json_decode($s, true) of each non-empty string, run
-// in parallel: nil for "" and for what does not decode to an array.
-func parallelDecode(inputs []string) []*php.Array {
+// in parallel: nil for "" and for what does not decode to an array. then,
+// when not nil, is called with each input decoded, on the goroutine that
+// decoded it.
+func parallelDecode(inputs []string, then func(i int, data *php.Array)) []*php.Array {
 	out := make([]*php.Array, len(inputs))
 	work := make(chan int)
 	var wg sync.WaitGroup
@@ -613,6 +643,9 @@ func parallelDecode(inputs []string) []*php.Array {
 		wg.Go(func() {
 			for i := range work {
 				out[i] = decodeArray(inputs[i])
+				if then != nil {
+					then(i, out[i])
+				}
 			}
 		})
 	}

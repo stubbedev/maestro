@@ -3,6 +3,7 @@
 package resolver
 
 import (
+	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -238,11 +239,15 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 		}
 	}
 
+	stopSpeculation := b.speculateLoads(request, repositories)
 	for b.packagesToLoad.Len() > 0 {
 		if err := b.loadPackagesMarkedForLoading(request, repositories); err != nil {
+			stopSpeculation()
+
 			return nil, phperr.Call(err, `Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading`, "PoolBuilder.php", 289)
 		}
 	}
+	stopSpeculation()
 
 	if b.temporaryConstraints.Len() > 0 {
 		b.applyTemporaryConstraints()
@@ -294,6 +299,50 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 	semver.Intervals.Clear()
 
 	return pool, nil
+}
+
+// speculateLoads lets the repositories that can start, in the background,
+// the loads the waves of loadPackagesMarkedForLoading are about to make
+// (repository.LoadSpeculator; deliberate deviation 3): the names to load
+// first, without the names that are not loaded (fixed or locked, outside
+// the restricted list), as the loop below skips the repositories. The
+// returned function stops them.
+func (b *PoolBuilder) speculateLoads(request *Request, repositories []repository.RepositoryInterface) func() {
+	if b.packagesToLoad.Len() == 0 {
+		return func() {}
+	}
+
+	loaded := make(map[string]bool, len(b.loadedPackages))
+	for name := range b.loadedPackages {
+		loaded[name] = true
+	}
+	var restricted map[string]bool
+	if b.restrictedPackagesList != nil {
+		restricted = maps.Clone(b.restrictedPackagesList)
+	}
+	skip := func(name string) bool {
+		return loaded[name] || (restricted != nil && !restricted[name])
+	}
+
+	var lockedRepository repository.RepositoryInterface
+	if locked := request.LockedRepository(); locked != nil {
+		lockedRepository = locked
+	}
+	var stops []func()
+	for _, repo := range repositories {
+		if _, isPlatform := repo.(*repository.PlatformRepository); isPlatform || (lockedRepository != nil && repo == lockedRepository) {
+			continue
+		}
+		if s, ok := repo.(repository.LoadSpeculator); ok {
+			stops = append(stops, s.SpeculateLoads(b.packagesToLoad.Clone(), skip, b.acceptableStabilities, b.stabilityFlags))
+		}
+	}
+
+	return func() {
+		for _, stop := range stops {
+			stop()
+		}
+	}
 }
 
 // RootAliasesArray returns the root aliases as PoolBuilder's PHP array:
