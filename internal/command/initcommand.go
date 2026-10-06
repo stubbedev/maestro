@@ -5,7 +5,6 @@ package command
 import (
 	"errors"
 	"os"
-	"os/user"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -910,17 +909,6 @@ func (c *InitCommand) defaultPackageName() string {
 	}
 
 	return sanitizePackageNameComponent(vendor) + "/" + name
-}
-
-// currentUser is get_current_user(). PHP names the owner of the running
-// script (the composer.phar); maestro names the user running it.
-func currentUser() string {
-	u, err := user.Current()
-	if err != nil {
-		return ""
-	}
-
-	return u.Username
 }
 
 // defaultAuthor ports getDefaultAuthor (nil for null).

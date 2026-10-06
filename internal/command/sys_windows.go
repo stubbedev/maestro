@@ -2,7 +2,12 @@
 
 package command
 
-import "golang.org/x/sys/windows"
+import (
+	"os/user"
+	"strings"
+
+	"golang.org/x/sys/windows"
+)
 
 // phpUname is php_uname($mode) for 's' and 'r' on Windows.
 func phpUname() (sysname, release string, ok bool) {
@@ -40,3 +45,19 @@ func diskFreeSpace(dir string) (float64, bool) {
 
 // isRunningAsRoot: posix_getuid does not exist on Windows.
 func isRunningAsRoot() bool { return false }
+
+// currentUser is get_current_user(): on Windows PHP names the user running
+// it (GetUserNameW, without the domain os/user adds).
+func currentUser() string {
+	u, err := user.Current()
+	if err != nil {
+		return ""
+	}
+
+	name := u.Username
+	if i := strings.LastIndexByte(name, '\\'); i >= 0 {
+		name = name[i+1:]
+	}
+
+	return name
+}

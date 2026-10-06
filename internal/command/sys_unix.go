@@ -4,6 +4,8 @@ package command
 
 import (
 	"os"
+	"os/user"
+	"strconv"
 
 	"golang.org/x/sys/unix"
 )
@@ -32,3 +34,30 @@ func diskFreeSpace(dir string) (float64, bool) {
 
 // isRunningAsRoot is `function_exists('posix_getuid') && posix_getuid() === 0`.
 func isRunningAsRoot() bool { return os.Getuid() == 0 }
+
+// currentUser is get_current_user(): php_get_current_user names the owner
+// of the running script (getpwuid of its st_uid), the composer.phar; for
+// maestro that is its executable. "" when it cannot be found, as in PHP.
+func currentUser() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+
+	return fileOwnerName(exe)
+}
+
+// fileOwnerName is the user name of the owner of path, or "".
+func fileOwnerName(path string) string {
+	var st unix.Stat_t
+	if err := unix.Stat(path, &st); err != nil {
+		return ""
+	}
+
+	u, err := user.LookupId(strconv.FormatUint(uint64(st.Uid), 10))
+	if err != nil {
+		return ""
+	}
+
+	return u.Username
+}
