@@ -91,6 +91,20 @@
 //     written in PHP; svc_downloader.go serves maestro's downloaders to
 //     PHP and creates the ones PHP constructs.
 //
+// The remaining stubs (issue #1, docs/PLUGINS.md §8 "Remaining stubs"):
+//
+//   - svc_builtin.go runs maestro's own commands' hooks when PHP runs one
+//     of them (`builtin.*`).
+//   - proxy_io.go and proxy_filter.go let maestro use IOs and platform
+//     requirement filters created in PHP, and hand Go functions to PHP as
+//     callables (`callable.go`).
+//   - svc_new.go builds maestro's services PHP constructs (Config,
+//     AutoloadGenerator, the managers); svc_policy.go mirrors AuditConfig
+//     and serves BaseCommand::createPolicyConfig().
+//   - proxy_subdownloader.go and svc_filedownloader.go give FileDownloader
+//     subclasses written in PHP their overrides and their parent's code;
+//     svc_edinternals.go serves EventDispatcher's protected methods.
+//
 // # Differences from Composer that are not observable
 //
 // When PHP code calls exit() or dies of a fatal error mid-call, Go-side

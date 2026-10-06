@@ -310,8 +310,8 @@ them, and refusing them is acceptable elsewhere.
 | `Installer::__construct` with 9 services, `clone` | 1 (discovery) | Supported through frames (§5.12). **internal** | 6 |
 | `PluginManager`: `getPlugins` (live instances), `getPluginCapabilities` (with `$ctorArgs`), `getPluginCapability`, `addPlugin`, `removePlugin`, `uninstallPlugin`, `registerPackage`, `deactivatePackage`, `uninstallPackage`, `isPluginAllowed`, `getGlobalComposer`, `getRegisteredPlugins` | 2 | Split (§5.4): the instance list and capabilities are PHP; registration and allow policy are RPC | 2 (load), 4 (capabilities) |
 | `Util\PackageSorter`, `Util\Git`, `Util\Svn`, `Util\Url`, `Util\ComposerMirror`, `Util\GitHub`/`GitLab`/`Bitbucket`, `Util\AuthHelper` | 0 | RPC proxies where trivial, Stub otherwise | 6 or never |
-| `DependencyResolver\Pool`, `PoolBuilder`, `Solver`, `Request` (`getFixedOrLockedPackages`, `getUpdateAllowList`), `Problem`, `Rule*`; `new Pool` (discovery) | 2 | `Request` is a mirror inside PrePoolCreateEvent. `new Pool($packages)` is PHP-local (a dumb container). Everything else is **internal** and Stub. | 5 / 6 |
-| `SelfUpdate\*`, `Advisory\*`, `Policy\*`, `FilterList\*`, `Question\StrictConfirmationQuestion`, `Console\GithubActionError`, `Console\HtmlOutputFormatter` | 0 | Stub (presence only), except the Question and Console helpers, which are PHP-local | — |
+| `DependencyResolver\Pool`, `PoolBuilder`, `Solver`, `Request` (`getFixedOrLockedPackages`, `getUpdateAllowList`), `Problem`, `Rule*`; `new Pool` (discovery) | 2 | `Request` is a mirror inside PrePoolCreateEvent; `new Request()` is maestro's. `new Pool($packages)` is PHP-local (a dumb container). Everything else is **internal** and Stub. | 5 / 6 |
+| `SelfUpdate\*`, `Advisory\*`, `Policy\*`, `FilterList\*`, `Question\StrictConfirmationQuestion`, `Console\GithubActionError`, `Console\HtmlOutputFormatter` | 0 | Stub (presence only), except the Question and Console helpers, which are PHP-local, `Advisory\AuditConfig` (a mirror) and the `PolicyConfig` of `BaseCommand::createPolicyConfig()` (maestro's, its members presence-only) | — |
 
 Total: about 160 classes have working behaviour. The remaining ~150 Composer
 classes are generated stubs (§5.1).
@@ -1544,7 +1544,8 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 | `promise.settle` | `id`, `ok` | `null`: maestro's promise `id` settled; PHP settles its Deferred |
 | `promise.reason` | `id` | throws the rejection reason of PHP's promise `id` |
 | `command.run` | `command`, `app`, `input` (an input mirror), `output` (an output mirror), `name`, `description`, `frames` | `int` |
-| `object.call` | `object`, `method`, `args[]` | value. A generic call on a PHP-owned object, used by Go proxies of PHP outputs (`write`, `setVerbosity`, `getVerbosity`, `setDecorated`, `isDecorated`). Only methods of the interface the proxy implements may be called. |
+| `object.call` | `object`, `method`, `args[]` | value. A generic call on a PHP-owned object, used by Go proxies of PHP outputs (`write`, `setVerbosity`, `getVerbosity`, `setDecorated`, `isDecorated`), IOs, platform requirement filters, repositories and downloaders. Only methods of the interface the proxy implements may be called (and a FileDownloader subclass's protected hooks). |
+| `downloader.describe` | `object` | `{parents: [class…], overrides: [method…]}` of a FileDownloader subclass written in PHP |
 | `autoload.install` | `vendorDir`, `psr0`, `psr4`, `classmap` | `null` |
 | `dispatch.begin` / `dispatch.end` | `depth` | `null` |
 | `iv.reload` | `data`, `selfDir?` | `null` |
@@ -1589,6 +1590,17 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `app.*` | `new`, `run`, `doRun`, `commands` (getDefaultCommands), `getComposer`, `resetComposer`, `getIO`, `getDisablePluginsByDefault`, `getDisableScriptsByDefault`, `getInitialWorkingDirectory` (Symfony's own methods stay PHP's, §5.7) |
 | `output.*` | `write` (a GoOutput's formatted message), `errorOutput` |
 | `cache.*` | `Cache` methods, `new` |
+| `builtin.*` | `initialize`, `interact`, `execute`, `run`, `isProxyCommand`, `complete`: the hooks of maestro's own commands run from PHP (§5.7) |
+| `policy.*` | `fromConfig`, `withBlockingDisabled` (BaseCommand::createPolicyConfig()) |
+| `callable.go` | `[callable, args]`: calls the Go function a `Maestro\Shim\GoCallable` stands for |
+| `request.new`, `config.new`, `rm.new`, `im.new`, `dm.new`, `pm.new` | Composer's services constructed in PHP, adopted |
+
+Since issue #1 the areas above also serve the protected methods a PHP
+subclass calls on itself (`ed.doDispatch`, `ag.getPlatformCheck`,
+`installer.doUpdate`, `downloader.getFileName`, `rfs.get`, …) and a few
+more members (`io.enableDebugging`, `io.enableTimestamps`,
+`fs.removeEdgeCases`, `factory.getHomeDir`, …); §8 "Remaining stubs"
+lists them.
 
 Every method listed in §4 with Backing **RPC** has exactly one handler
 here. An RPC method that is not registered returns `err` with class
@@ -1846,9 +1858,10 @@ command's output and to a PHP BufferedOutput, and a command-class script.
 Beyond the list: BaseCommand's `createComposerInstance`,
 `getPreferredInstallOptions`, `formatRequirements`, `normalizeRequirements`,
 `renderTable` and `getTerminalWidth`; `Factory::create`, `createGlobal`
-and `createConfig`. Not yet: running maestro's own commands from PHP
+and `createConfig`. Running maestro's own commands from PHP
 (`$app->find('install')->run()`), BaseCommand's audit/policy/platform
-filter helpers, IOs created in PHP given to maestro (other than NullIO).
+filter helpers and IOs created in PHP given to maestro came later (§8
+"Remaining stubs").
 
 **Phase 5: resolver-time and write APIs.**
 - `PRE_POOL_CREATE` (tiers), `PRE_OPERATIONS_EXEC`.
@@ -2030,16 +2043,134 @@ trampoline closure's, not Composer's method (no surveyed plugin checks
 it), and PHP exception traces at -v show the trampolines; a Go error's
 file in PHP is the basename of Composer's file (the "In X line N:"
 heading matches, the -v trace's full path does not); `Pool`s from maestro
-leave out security and filter-list removals; a PHP subclass of
-FileDownloader with its own overrides, LockTransaction's own properties
-and `Transaction::$resultPackagesByName` of maestro's transactions are
-not emulated; processes PHP code started asynchronously progress only
-while PHP waits for them (`Loop::wait()` in PHP), not while maestro's own
-loop waits. vaimo/composer-patches passes its fixture; its remote patch
-downloads (FileDownloader from PHP) are covered only in-process.
+leave out security and filter-list removals; processes PHP code started
+asynchronously progress only while PHP waits for them (`Loop::wait()` in
+PHP), not while maestro's own loop waits. vaimo/composer-patches passes
+its fixture; its remote patch downloads (FileDownloader from PHP) are
+covered only in-process. (A PHP subclass of FileDownloader with its own
+overrides, LockTransaction's own properties and
+`Transaction::$resultPackagesByName`, gaps of this phase, were closed
+later: see "Remaining stubs".)
 
-**Ongoing.** Every member still a stub after phase 6 stays a stub until an
-e2e fixture or a user report needs it. `UnsupportedApiException` messages
+**Remaining stubs (issue #1).** After phase 6 the hand-written shim
+(`php/src`) still had members no surveyed plugin needed throwing
+`UnsupportedApiException`, plus the known gaps above. Implemented since:
+
+- maestro's own commands run from PHP (`$app->find('install')->run()`,
+  §5.7): Symfony's `Command::run()` runs in PHP; `initialize()`,
+  `interact()`, `execute()` and the classes' own `run()`,
+  `isProxyCommand()` and `complete()` are maestro's command's
+  (`builtin.*`, generated into the command stubs by tools/shimgen). An
+  input created in PHP is adopted as it crosses; the sync engine sends a
+  PHP-born mirror's changes made by the call that adopted it with its
+  registration, so the hooks and Symfony's `setArgument('command')` see
+  the same input.
+- BaseCommand's `getPlatformRequirementFilter()`, `getAuditFormat()` and
+  `createAuditConfig()` (Composer's code; `Advisory\AuditConfig` is
+  Composer's value object, mirrored by its polled public properties), and
+  `createPolicyConfig()` (maestro's `PolicyConfig`, `policy.*`).
+- IOs created in PHP given to maestro (`phpIO`, proxy_io.go): every
+  `IOInterface` method is the PHP object's (`object.call`), maestro's
+  validators cross as `Maestro\Shim\GoCallable` (`callable.go`), and the
+  IO crosses back as itself. A platform requirement filter class of a
+  plugin's own is used the same way (`phpFilter`). On maestro's IO,
+  `ConsoleIO::getTable()`/`getProgressBar()` are Composer's on its output
+  mirror, `enableDebugging()`/`enableTimestamps()` set maestro's prefixes
+  (timestamps formatted as `DateTime::format()`, `php.DateFormat`).
+- Composer's services constructed in PHP are maestro's (adopted):
+  `new Config()`, `AutoloadGenerator`, `RepositoryManager`,
+  `InstallationManager`, `DownloadManager`, `PluginManager`, `Request`.
+  `AutoloadGenerator::dump()` returns Composer's `ClassMap`.
+- Factory's helpers (`getHomeDir()`, `getCacheDir()`, `getDataDir()`,
+  `createDownloadManager()`, `createArchiveManager()` maestro's;
+  `addLocalRepository()`, `createGlobalComposer()`,
+  `createInstallationManager()`, `createDefaultInstallers()`,
+  `createPluginManager()`, `purgePackages()`, `loadRootPackage()`
+  Composer's code on them).
+- Protected methods a subclass calls on itself, Composer's code or
+  maestro's: Filesystem (`directorySize()`, `getProcess()`,
+  `removeDirectoryAsync()`), `Cache::getFinder()`,
+  `DownloadManager::resolvePackageInstallPreference()`,
+  `JsonManipulator::detectIndenting()`, RemoteFilesystem (`get()`,
+  `getRemoteContents()`, `callbackGet()`, `promptAuthAndRetry()`,
+  `getOptionsForUrl()`), Transaction (`calculateOperations()`,
+  `getProvidersInResult()`, `getRootPackages()`), EventDispatcher
+  (`doDispatch()`, `getListeners()`, `getScriptListeners()`,
+  `pushEvent()`, `popEvent()`, `getPhpExecCommand()`, `executeTty()`,
+  `executeEventPhpScript()`, the `is*()` checks), BinaryInstaller (the
+  proxy code generators and installers), AutoloadGenerator (all of
+  them; after a dump its file generators reproduce maestro's files),
+  Installer (`doUpdate()`, `doInstall()`). maestro's own code does not
+  call a subclass's overrides of these, except FileDownloader's (below).
+- A PHP subclass of FileDownloader (or ZipDownloader, ...) with
+  overrides: maestro's downloader of the class it extends, its overrides
+  called by a DownloadManager it is given to and, through `$this`, by the
+  inherited code (`downloader.Hooks`); its protected helpers are
+  maestro's. The stubs' promise-returning downloader methods now return
+  React promises.
+- `LockTransaction` (hand-written) crosses with `$presentMap`,
+  `$unlockableMap` and `$resultPackages`; every transaction with
+  `$resultPackagesByName` (uasort()'s keys). `getAliases()` is Composer's
+  code, `getNewLockPackages()` and `setNonDevPackages()` maestro's.
+- Composer's exception classes `TransportException` (with the response's
+  headers, body and status of one maestro throws), `FilesystemException`,
+  `JsonValidationException` (with its errors), `InvalidPackageException`,
+  `SolverBugException`; the shim's own exceptions carry Composer's throw
+  line (`Exceptions::at()`).
+- `ConsoleOutput::section()` of a maestro output that is not its console
+  (a `maestro-output://` stream).
+
+What stays a stub in `php/src`, and why:
+
+- `Installer::extractDevPackages()`: it takes the solver's
+  `PolicyInterface`; `DefaultPolicy` is presence-only, as its methods
+  work on the solver's `Pool`, which never crosses (a `Pool` in PHP is a
+  copy).
+- `LockTransaction::__construct()` and `setResultPackages()`: they take
+  the solver's `Pool` and `Decisions`, which never cross.
+- `RepositorySet::createPool()` with a `PoolOptimizer`,
+  `SecurityAdvisoryPoolFilter` or `FilterListPoolFilter`: presence-only
+  solver internals whose constructors are stubs, so no plugin can pass
+  one.
+- `new RemoteFilesystem()` with an `AuthHelper`: `Util\AuthHelper` is
+  presence-only (its constructor is a stub).
+- The methods of a dispatcher, FilesystemRepository,
+  InstalledFilesystemRepository or PlatformRepository whose constructor
+  did not run (a subclass not calling `parent::__construct()`, an object
+  made without its constructor): such an object has no maestro peer,
+  which the constructor creates.
+- `ConsoleIO::getTable()`/`getProgressBar()` on a maestro IO without a
+  console output (maestro's ConsoleIO and BufferIO always have one).
+- Running maestro's Application with an input that is not an
+  `ArgvInput`, `StringInput` or `ArrayInput`: maestro parses the command
+  line itself, from tokens or parameters, which another
+  `InputInterface` implementation does not expose.
+- Creating Composer's command classes in PHP (`configure()`, so
+  `new InstallCommand()` or a subclass of one) and their protected
+  helpers (`ShowCommand::printTable()`, ...): maestro's commands are Go
+  objects; only the instances its Applications hold have one behind
+  them.
+- `Maestro\Shim\Server`'s "no handler" error is a protocol mismatch
+  between maestro and its shim, not an API member.
+
+Known limits of the above: a `ProcessExecutor` (or `Filesystem`) given
+to a service created in PHP is PHP's own, so maestro's service runs its
+processes on its own executor (a FileDownloader created in PHP removes
+files without a Loop's asynchronous executor, as Composer's does when it
+is not given one); calls from maestro's parallel work to an IO or filter
+created in PHP are dropped (§5.14); `AutoloadGenerator::getAutoloadRealFile()`
+takes `$prependAutoloader` as `'true'` or anything else.
+
+`TestShimStubs_*` (`internal/plugin/stubs_*_php_test.go`,
+MAESTRO_PHP_TESTS=1) cover these in-process; the `plugin-stubs` e2e
+fixture (cmd/maestro e2e_plugins_test.go, MAESTRO_E2E=1, cold and warm)
+compares with Composer 2.10.3 Composer's commands run from PHP,
+BaseCommand's helpers given to an Installer and IOs created in PHP.
+
+**Ongoing.** The generated stubs (`php/stubs`: VCS drivers, SelfUpdate,
+the solver's internals, `Util\*` helpers such as `Url` or
+`PackageSorter`, ...) are presence-only (D7) and stay so until an e2e
+fixture or a user report needs them. `UnsupportedApiException` messages
 name the exact method, so these reports are actionable.
 
 ---
