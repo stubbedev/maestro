@@ -19,11 +19,32 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-// acceptEncoding is the Accept-Encoding header libcurl sends for
-// CURLOPT_ENCODING "" (Curl_get_content_encodings): every decoder it was
-// built with, in its order. CurlDownloader sets that option, so Composer
-// sends this on every request it lets curl decode.
-const acceptEncoding = "deflate, gzip, br, zstd"
+// curlAcceptEncoding is the Accept-Encoding header PHP's libcurl sends for
+// the CURLOPT_ENCODING CurlDownloader sets: "" makes curl list every
+// decoder it was built with, in its order (Curl_get_content_encodings,
+// "deflate, gzip, br, zstd" with zlib, brotli and zstd); with curl 8.7.0
+// and 8.7.1 Composer asks for "gzip" alone (composer/composer#11913).
+func curlAcceptEncoding(info CurlInfo) string {
+	if info.Features&curlVersionLibz != 0 && (info.Version == "8.7.0" || info.Version == "8.7.1") {
+		return "gzip"
+	}
+
+	var names []string
+
+	if info.Features&curlVersionLibz != 0 {
+		names = append(names, "deflate", "gzip")
+	}
+
+	if info.Features&curlVersionBrotli != 0 {
+		names = append(names, "br")
+	}
+
+	if info.Features&curlVersionZstd != 0 {
+		names = append(names, "zstd")
+	}
+
+	return strings.Join(names, ", ")
+}
 
 // zstdMaxWindow is the largest zstd window libcurl's decoder accepts
 // (ZSTD_d_windowLogMax defaults to 27: 128 MiB).
@@ -58,6 +79,12 @@ const (
 // of the body itself (src) are passed through unchanged. The reader is an
 // io.Closer when it decodes anything; Close releases the decoders.
 func decodingReader(src io.Reader, header string) io.Reader {
+	return decodingReaderFor(src, header, curlInfo().Features)
+}
+
+// decodingReaderFor is decodingReader with the decoders a libcurl with
+// these features has (an encoding it lacks is an unknown one to it).
+func decodingReaderFor(src io.Reader, header string, features int64) io.Reader {
 	var names []string
 
 	for name := range strings.SplitSeq(header, ",") {
@@ -76,16 +103,16 @@ func decodingReader(src io.Reader, header string) io.Reader {
 	var r io.Reader = body
 
 	for i := len(names) - 1; i >= 0; i-- {
-		switch names[i] {
-		case "gzip", "x-gzip":
+		switch name := names[i]; {
+		case (name == "gzip" || name == "x-gzip") && features&curlVersionLibz != 0:
 			r = &lazyDecoder{src: r, body: body, open: openGzip, zlib: true}
-		case "deflate":
+		case name == "deflate" && features&curlVersionLibz != 0:
 			r = &lazyDecoder{src: r, body: body, open: openDeflate, zlib: true}
-		case "br":
+		case name == "br" && features&curlVersionBrotli != 0:
 			r = &lazyDecoder{src: r, body: body, open: func(r *bufio.Reader) (io.Reader, error) {
 				return brotli.NewReader(r, nil)
 			}}
-		case "zstd":
+		case name == "zstd" && features&curlVersionZstd != 0:
 			r = &lazyDecoder{src: r, body: body, open: func(r *bufio.Reader) (io.Reader, error) {
 				return zstd.NewReader(r, zstd.WithDecoderConcurrency(1), zstd.WithDecoderMaxWindow(zstdMaxWindow), zstd.WithDecoderLowmem(true))
 			}}

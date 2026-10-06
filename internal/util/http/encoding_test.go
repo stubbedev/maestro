@@ -6,13 +6,42 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
+
+// TestCurlAcceptEncoding checks the Accept-Encoding for libcurl builds:
+// curl_version()'s features decide, curl 8.7.0/8.7.1 gets "gzip".
+func TestCurlAcceptEncoding(t *testing.T) {
+	all := int64(curlVersionLibz | curlVersionBrotli | curlVersionZstd)
+
+	for _, tc := range []struct {
+		info CurlInfo
+		want string
+	}{
+		{CurlInfo{Version: "8.22.0", Features: all}, "deflate, gzip, br, zstd"},
+		{CurlInfo{Version: "8.5.0", Features: curlVersionLibz}, "deflate, gzip"},
+		{CurlInfo{Version: "8.5.0", Features: curlVersionLibz | curlVersionZstd}, "deflate, gzip, zstd"},
+		{CurlInfo{Version: "8.7.1", Features: all}, "gzip"},
+		{CurlInfo{Version: "8.5.0"}, ""},
+	} {
+		if got := curlAcceptEncoding(tc.info); got != tc.want {
+			t.Errorf("%+v: got %q, want %q", tc.info, got, tc.want)
+		}
+	}
+
+	// a libcurl without brotli does not know "br"
+	r := decodingReaderFor(strings.NewReader("x"), "br", curlVersionLibz)
+	if _, err := io.ReadAll(r); err == nil || err.Error() != "Unrecognized content encoding type" {
+		t.Fatalf("got %v", err)
+	}
+}
 
 // TestDecodingReader_CurlParity checks content decoding against what
 // php-curl (libcurl 8.22 with zlib, brotli and zstd) returned for the same

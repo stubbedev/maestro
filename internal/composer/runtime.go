@@ -117,31 +117,42 @@ func (r *Runtime) DefaultTimezone() *time.Location {
 // InstallProcessGlobals makes this runtime's php the source of the
 // process-wide PHP state lower packages read: ini_get() for
 // composer/ca-bundle's CA search (http.SetIniSource), the default time
-// zone of date() (php.SetDefaultTimezone) and the TLS library version
-// libcurl names in some errors (http.SetCurlSSLVersion). They are read
+// zone of date() (php.SetDefaultTimezone) and curl_version() of its
+// libcurl (http.SetCurlInfo: encodings, TLS library). They are read
 // lazily, so the php probe is waited for only when they are used.
 func (r *Runtime) InstallProcessGlobals() {
 	http.SetIniSource(r.IniGet)
 	php.SetDefaultTimezone(r.DefaultTimezone)
-	http.SetCurlSSLVersion(r.CurlSSLVersion)
+	http.SetCurlInfo(sync.OnceValues(r.CurlInfo))
 }
 
-// CurlSSLVersion is curl_version()['ssl_version'] of the php Composer runs
-// on ("OpenSSL/3.6.4"), "" without php or its curl extension.
-func (r *Runtime) CurlSSLVersion() string {
+// CurlInfo is curl_version() of the php Composer runs on; ok false without
+// php or its curl extension.
+func (r *Runtime) CurlInfo() (http.CurlInfo, bool) {
 	view, _, err := r.ComposerView()
 	if err != nil || view == nil {
-		return ""
+		return http.CurlInfo{}, false
 	}
 
 	v, err := platform.NewRuntime(view).Invoke(platform.Func("curl_version"))
-	if version, ok := v.(*php.Array); ok && err == nil {
-		if s, ok := version.Get("ssl_version"); ok && s != nil {
-			return php.ToString(s)
-		}
+
+	version, ok := v.(*php.Array)
+	if err != nil || !ok {
+		return http.CurlInfo{}, false
 	}
 
-	return ""
+	str := func(key string) string {
+		s, _ := version.Get(key)
+		if s == nil {
+			return ""
+		}
+
+		return php.ToString(s)
+	}
+
+	features, _ := version.Get("features")
+
+	return http.CurlInfo{Version: str("version"), Features: php.ToInt(features), SSLVersion: str("ssl_version")}, true
 }
 
 // PlatformOptions returns the collaborators of a PlatformRepository for

@@ -702,7 +702,9 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 	}
 
 	if r.decode && !acceptEncodingSet {
-		h["Accept-Encoding"] = []string{acceptEncoding}
+		if v := curlAcceptEncoding(curlInfo()); v != "" {
+			h["Accept-Encoding"] = []string{v}
+		}
 	}
 
 	if r.content != nil && h.Get("Content-Type") == "" {
@@ -898,7 +900,7 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 	// an alert after the handshake, read with the response (a TLS 1.3
 	// server refusing the client certificate)
 	if code, reason, ok := opensslAlert(err); ok {
-		return curleRecvError, "OpenSSL SSL_read: " + curlSSLVersion() + ": error:" + code + ":SSL routines::" + reason + ", errno 0"
+		return curleRecvError, "OpenSSL SSL_read: " + curlInfo().SSLVersion + ": error:" + code + ":SSL routines::" + reason + ", errno 0"
 	}
 
 	if errors.Is(err, syscall.ECONNRESET) {

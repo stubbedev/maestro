@@ -245,8 +245,8 @@ func TestCurlError_AlertAfterHandshake(t *testing.T) {
 	ca, caFile := testCA(t)
 	srv := tlsListenCert(t, ca, time.Now().Add(time.Hour), func(c *tls.Config) { c.ClientAuth = tls.RequireAnyClientCert })
 
-	SetCurlSSLVersion(func() string { return "OpenSSL/3.6.4" })
-	t.Cleanup(func() { SetCurlSSLVersion(nil) })
+	SetCurlInfo(func() (CurlInfo, bool) { return CurlInfo{SSLVersion: "OpenSSL/3.6.4"}, true })
+	t.Cleanup(func() { SetCurlInfo(nil) })
 
 	var pool transportPool
 

@@ -112,33 +112,60 @@ var defaultRuntime Runtime = NewStaticRuntime("", "")
 // uname is php_uname('s') and php_uname('r'), read once.
 var uname = sync.OnceValues(systemUname)
 
-// sslVersion is the source of curlSSLVersion (SetCurlSSLVersion).
-var sslVersion struct {
+// CurlInfo is what curl_version() reports of PHP's libcurl, as far as
+// the transport reproduces it.
+type CurlInfo struct {
+	// Version is libcurl's version ("8.22.0").
+	Version string
+	// Features is its feature bit mask (CURL_VERSION_*).
+	Features int64
+	// SSLVersion is its TLS library ("OpenSSL/3.6.4").
+	SSLVersion string
+}
+
+// curl_version() feature bits.
+const (
+	curlVersionLibz   = 1 << 3
+	curlVersionBrotli = 1 << 23
+	curlVersionZstd   = 1 << 26
+)
+
+// defaultCurlInfo stands for PHP's libcurl when nothing describes it: the
+// reference environment's (8.22 with zlib, brotli and zstd, on OpenSSL).
+var defaultCurlInfo = CurlInfo{Version: "8.22.0", Features: curlVersionLibz | curlVersionBrotli | curlVersionZstd, SSLVersion: "OpenSSL"}
+
+// curlInfoSource is the source of curlInfo (SetCurlInfo).
+var curlInfoSource struct {
 	mu sync.RWMutex
-	fn func() string
+	fn func() (CurlInfo, bool)
 }
 
-// SetCurlSSLVersion sets where the TLS library version of PHP's libcurl
-// comes from (curl_version()['ssl_version'] of the probed php, such as
-// "OpenSSL/3.6.4"), which curl puts in some of its error messages. fn is
-// called when such an error is reported; nil, or "", is "OpenSSL".
-func SetCurlSSLVersion(fn func() string) {
-	sslVersion.mu.Lock()
-	sslVersion.fn = fn
-	sslVersion.mu.Unlock()
+// SetCurlInfo sets where the transport learns about the libcurl of the php
+// Composer runs on (curl_version() of the probed php): the content
+// encodings it advertises and decodes, and the TLS library it names in
+// some errors. fn is called when they are needed; nil, or ok false (no
+// php, or no curl extension), is defaultCurlInfo.
+func SetCurlInfo(fn func() (CurlInfo, bool)) {
+	curlInfoSource.mu.Lock()
+	curlInfoSource.fn = fn
+	curlInfoSource.mu.Unlock()
 }
 
-// curlSSLVersion is libcurl's TLS library version (Curl_ssl_version).
-func curlSSLVersion() string {
-	sslVersion.mu.RLock()
-	fn := sslVersion.fn
-	sslVersion.mu.RUnlock()
+// curlInfo is PHP's libcurl as SetCurlInfo describes it.
+func curlInfo() CurlInfo {
+	curlInfoSource.mu.RLock()
+	fn := curlInfoSource.fn
+	curlInfoSource.mu.RUnlock()
 
 	if fn != nil {
-		if v := fn(); v != "" {
-			return v
+		if info, ok := fn(); ok {
+			if info.SSLVersion == "" {
+				info.SSLVersion = defaultCurlInfo.SSLVersion
+			}
+
+			return info
 		}
 	}
 
-	return "OpenSSL"
+	return defaultCurlInfo
 }
