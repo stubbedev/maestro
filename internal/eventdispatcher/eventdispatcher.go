@@ -413,7 +413,7 @@ func (d *EventDispatcher) runPhpScript(event Event, callable string, st *dispatc
 	status, returnedFalse, err := rt.CallPHPScript(className, methodName, event, func() {
 		d.echoPhpScript(event, className, methodName)
 	})
-	inCode(nil)
+	_ = inCode(nil)
 	inScript()
 
 	switch {
@@ -486,7 +486,7 @@ func (d *EventDispatcher) runCommandClass(event Event, className string, additio
 
 		return true
 	})
-	inCode(nil)
+	_ = inCode(nil)
 
 	switch {
 	case status == StatusNotAutoloadable && err == nil:

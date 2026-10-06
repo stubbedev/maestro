@@ -2,7 +2,10 @@
 
 package phperr
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 // An exception's trace is recorded as the error goes up (Call), but PHP
 // code can also ask for the stack while it runs: Composer's ErrorHandler
@@ -59,7 +62,7 @@ func push(f liveFrame) func() {
 //
 //	return ret, done(err)
 func Enter(function, file string, line int) func(err error) error {
-	pop := push(liveFrame{Frame: Frame{Function: function, File: file, Line: line}})
+	pop := push(liveFrame{Function: function, File: file, Line: line})
 
 	return func(err error) error {
 		pop()
@@ -72,7 +75,7 @@ func Enter(function, file string, line int) func(err error) error {
 // name (a listener, a script, an object written in PHP): the returned
 // function records the call's location in the error's trace (Locate).
 func EnterCode(file string, line int) func(err error) error {
-	pop := push(liveFrame{Frame: Frame{File: file, Line: line}})
+	pop := push(liveFrame{File: file, Line: line})
 
 	return func(err error) error {
 		pop()
@@ -87,8 +90,8 @@ func EnterCode(file string, line int) func(err error) error {
 func Within(frames ...Frame) func() {
 	live.mu.Lock()
 	n := len(live.frames)
-	for i := len(frames) - 1; i >= 0; i-- {
-		live.frames = append(live.frames, liveFrame{Frame: frames[i]})
+	for _, f := range slices.Backward(frames) {
+		live.frames = append(live.frames, liveFrame{Frame: f})
 	}
 	live.mu.Unlock()
 
@@ -114,8 +117,7 @@ func Live() [][]Frame {
 	defer live.mu.Unlock()
 
 	segments := [][]Frame{nil}
-	for i := len(live.frames) - 1; i >= 0; i-- {
-		f := live.frames[i]
+	for _, f := range slices.Backward(live.frames) {
 		if f.mark {
 			segments = append(segments, nil)
 

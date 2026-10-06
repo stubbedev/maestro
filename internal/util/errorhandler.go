@@ -55,7 +55,7 @@ func DeprecationNoticeShown() int { return int(errorHandler.shown.Load()) }
 
 // SetDeprecationNoticeShown sets ErrorHandler::$hasShownDeprecationNotice
 // (the plugin runtime, as PHP's ErrorHandler changed it).
-func SetDeprecationNoticeShown(n int) { errorHandler.shown.Store(int32(min(max(n, 0), 2))) } //nolint:gosec // clamped to 0..2
+func SetDeprecationNoticeShown(n int) { errorHandler.shown.Store(int32(min(max(n, 0), 2))) }
 
 // RegisterErrorHandler ports ErrorHandler::register($io): the IO
 // deprecation notices are written to (Application::doRun registers its

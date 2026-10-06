@@ -28,7 +28,7 @@ func TestLive(t *testing.T) {
 
 	// leaving records the call in the error's trace, as Call does
 	err := &testError{msg: "boom"}
-	if got := inner(err); got != err {
+	if got := inner(err); got != error(err) { //nolint:errorlint // the error itself is returned
 		t.Fatalf("Enter's function returned %v", got)
 	}
 	if trace := TraceOf(err); len(trace) != 1 || trace[0].Function != `Composer\Installer->run` {
