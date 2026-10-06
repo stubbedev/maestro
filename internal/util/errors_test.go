@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -30,7 +31,7 @@ func TestPHPClassOf(t *testing.T) {
 		{&IOError{Message: "x", Class: ClassFileNotFound}, `Symfony\Component\Filesystem\Exception\FileNotFoundException`},
 		{&SecurityError{Message: "x"}, `Composer\Exception\SecurityException`},
 		{&ErrorException{Message: "x"}, "ErrorException"},
-		{fmt.Errorf("plain"), "RuntimeException"},
+		{errors.New("plain"), "RuntimeException"},
 	}
 	for _, c := range cases {
 		if got, _ := PHPClassOf(c.err); got != c.want {

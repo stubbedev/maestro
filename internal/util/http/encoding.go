@@ -13,6 +13,7 @@ import (
 	"compress/zlib"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/dsnet/compress/brotli"
@@ -102,8 +103,8 @@ func decodingReaderFor(src io.Reader, header string, features int64) io.Reader {
 
 	var r io.Reader = body
 
-	for i := len(names) - 1; i >= 0; i-- {
-		switch name := names[i]; {
+	for _, name := range slices.Backward(names) {
+		switch {
 		case (name == "gzip" || name == "x-gzip") && features&curlVersionLibz != 0:
 			r = &lazyDecoder{src: r, body: body, open: openGzip, zlib: true}
 		case name == "deflate" && features&curlVersionLibz != 0:

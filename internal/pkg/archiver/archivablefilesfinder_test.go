@@ -327,9 +327,14 @@ func archivedFiles(t *testing.T, sources, command string) []string {
 // UnexpectedValueException of its constructor (line 48), as PHP 8.4 reports
 // them for Finder::create()->in($dir).
 func TestArchivableFilesFinderExceptions(t *testing.T) {
-	dir := t.TempDir()
+	// The finder works on the real path (macOS's temp dir is under the
+	// /var -> /private/var symlink), and so do PHP's messages.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := findFiles(dir+"/missing", nil)
+	_, err = findFiles(dir+"/missing", nil)
 	if class, _ := util.PHPClassOf(err); class != util.ClassDirectoryNotFound {
 		t.Errorf("missing source: %s %v, want %s", class, err, util.ClassDirectoryNotFound)
 	}

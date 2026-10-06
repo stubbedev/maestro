@@ -557,7 +557,7 @@ func (r *Runtime) registerAutoloadGenerator() {
 	// (the others are Composer's code in the shim).
 	method("getIO", func(g *autoload.Generator, _ args) (any, error) { return r.value(g.IO()), nil })
 	method("sortPackageMap", func(g *autoload.Generator, a args) (any, error) {
-		entries, err := packageMapParam(a, 1)
+		entries, err := packageMapParam(a)
 		if err != nil {
 			return nil, err
 		}
@@ -565,7 +565,7 @@ func (r *Runtime) registerAutoloadGenerator() {
 		return r.packageMapValue(autoload.SortPackageMap(entries)), nil
 	})
 	method("parseAutoloadsType", func(g *autoload.Generator, a args) (any, error) {
-		entries, err := packageMapParam(a, 1)
+		entries, err := packageMapParam(a)
 		if err != nil {
 			return nil, err
 		}
@@ -595,7 +595,7 @@ func (r *Runtime) registerAutoloadGenerator() {
 		return g.AutoloadRealFile(a.boolean(2), targetDirLoader, a.boolean(4), a.str(7), a.boolean(8), a.str(9) == "true", a.boolean(10)), nil
 	})
 	method("getPlatformCheck", func(g *autoload.Generator, a args) (any, error) {
-		entries, err := packageMapParam(a, 1)
+		entries, err := packageMapParam(a)
 		if err != nil {
 			return nil, err
 		}
@@ -704,7 +704,7 @@ func (r *Runtime) registerAutoloadGenerator() {
 		return r.packageMapValue(entries), nil
 	})
 	method("parseAutoloads", func(g *autoload.Generator, a args) (any, error) {
-		entries, err := packageMapParam(a, 1)
+		entries, err := packageMapParam(a)
 		if err != nil {
 			return nil, err
 		}
@@ -770,19 +770,19 @@ func (r *Runtime) packageMapValue(entries []autoload.PackageMapEntry) *php.Array
 	return list
 }
 
-// packageMapParam returns param i, a package map.
-func packageMapParam(a args, i int) ([]autoload.PackageMapEntry, error) {
-	list := a.arrayOrEmpty(i)
+// packageMapParam returns param 1, a package map.
+func packageMapParam(a args) ([]autoload.PackageMapEntry, error) {
+	list := a.arrayOrEmpty(1)
 	entries := make([]autoload.PackageMapEntry, 0, list.Len())
 	for _, item := range list.Values() {
 		pair, ok := item.(*php.Array)
 		if !ok || pair.Len() < 2 {
-			return nil, a.errorf("param %d is not a package map", i)
+			return nil, a.errorf("param 1 is not a package map")
 		}
 		pv, _ := pair.Get(0)
 		m, ok := pv.(*packageMirror)
 		if !ok {
-			return nil, a.errorf("param %d holds a %T, not a package maestro knows", i, pv)
+			return nil, a.errorf("param 1 holds a %T, not a package maestro knows", pv)
 		}
 		path, _ := pair.Get(1)
 		entries = append(entries, autoload.PackageMapEntry{Package: m.p, InstallPath: php.ToString(path), Installed: path != nil})

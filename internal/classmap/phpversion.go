@@ -75,7 +75,7 @@ func phpVersionOf(versionID int) phpVersion {
 	if versionID <= 0 {
 		return defaultPHPVersion
 	}
-	v := phpVersion(min(versionID/10000*100+versionID/100%100, int(php85)))
+	v := phpVersion(min(versionID/10000*100+versionID/100%100, int(php85))) //nolint:gosec // capped at php85, and versionID > 0
 
 	return max(v, php72)
 }

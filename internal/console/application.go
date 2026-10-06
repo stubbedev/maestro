@@ -109,8 +109,8 @@ func (a *Application) Call(f phperr.Frame, fn func() (int, error)) (int, error) 
 // the exceptions with the frames of the outer run.
 func (a *Application) Stack() []phperr.Frame {
 	frames := make([]phperr.Frame, 0, len(a.stack)+len(a.runCallers))
-	for i := len(a.stack) - 1; i >= 0; i-- {
-		frames = append(frames, a.stack[i])
+	for _, f := range slices.Backward(a.stack) {
+		frames = append(frames, f)
 	}
 
 	return append(frames, a.runCallers...)
@@ -907,7 +907,7 @@ func throwableInfo(err error) (class, file string, line, code int, prev error) {
 // exception of the plugin runtime), or those maestro recorded for the error
 // as it went up the ports of the PHP calls (phperr.Call).
 func throwableTrace(err error) []TraceFrame {
-	if tr, ok := err.(Tracer); ok { //nolint:errorlint // getTrace() of the object itself.
+	if tr, ok := err.(Tracer); ok { // getTrace() of the object itself.
 		return tr.ThrowableTrace()
 	}
 	frames := phperr.TraceOf(err)

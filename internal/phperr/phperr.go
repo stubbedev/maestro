@@ -168,7 +168,7 @@ func TraceOf(err error) []Frame {
 // tracedOf returns the error holding err's trace: err itself, or the
 // error SiteOf takes the site from (a Go wrapper keeping the message).
 func tracedOf(err error) Traced {
-	if t, ok := err.(Traced); ok { // the object itself first
+	if t, ok := err.(Traced); ok { //nolint:errorlint // the object itself first
 		if s, ok := err.(Sited); !ok || s.ThrowSite().Known() {
 			return t
 		}
@@ -176,7 +176,7 @@ func tracedOf(err error) Traced {
 	msg := err.Error()
 	var found Traced
 	walk(err, func(e error) bool {
-		t, ok := e.(Traced) // walk visits every error of the tree itself
+		t, ok := e.(Traced) //nolint:errorlint // walk visits every error of the tree itself
 		if !ok || e.Error() != msg {
 			return false
 		}
@@ -188,7 +188,7 @@ func tracedOf(err error) Traced {
 		return true
 	})
 	if found == nil {
-		if t, ok := err.(Traced); ok {
+		if t, ok := err.(Traced); ok { //nolint:errorlint // the object itself
 			return t
 		}
 	}

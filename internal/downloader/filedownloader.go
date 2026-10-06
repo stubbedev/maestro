@@ -292,8 +292,10 @@ func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path stri
 	}
 
 	distURLs := p.DistURLs()
-	st := &dlState{c: c, p: p, retries: 3, urls: make([]dlURL, 0, len(distURLs)),
-		callers: []phperr.Frame{{Function: downloadClosure, File: "FileDownloader.php", Line: 302}}}
+	st := &dlState{
+		c: c, p: p, retries: 3, urls: make([]dlURL, 0, len(distURLs)),
+		callers: []phperr.Frame{{Function: downloadClosure, File: "FileDownloader.php", Line: 302}},
+	}
 
 	for _, url := range distURLs {
 		processed, err := d.processURL(p, url)

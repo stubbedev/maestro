@@ -7,9 +7,9 @@ package http
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/des"
+	"crypto/des" //nolint:gosec // PBE-SHA1-3DES and PBES2 DES keys: OpenSSL reads them, so curl does
 	"crypto/pbkdf2"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // PKCS#12 KDF of PBE-SHA1-3DES and HMAC-SHA1 PBKDF2, as OpenSSL
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/tls"
@@ -279,7 +279,7 @@ func decryptPKCS8(der, password []byte) ([]byte, error) {
 		iv = pkcs12KDF(sha1.New, 2, pass, params.Salt, params.IterationCount, 8)
 
 		var err error
-		if block, err = des.NewTripleDESCipher(key); err != nil {
+		if block, err = des.NewTripleDESCipher(key); err != nil { //nolint:gosec // the key format, not a choice
 			return nil, err
 		}
 	default:
@@ -317,7 +317,7 @@ func bmpString(password []byte) []byte {
 	out := make([]byte, 0, 2*len(units)+2)
 
 	for _, u := range units {
-		out = append(out, byte(u>>8), byte(u))
+		out = append(out, byte(u>>8), byte(u)) //nolint:gosec // the two bytes of a UTF-16 unit
 	}
 
 	return append(out, 0, 0)
@@ -374,7 +374,7 @@ func pkcs12KDF(newHash func() hash.Hash, id byte, password, salt []byte, iterati
 
 			for k := v - 1; k >= 0; k-- {
 				sum := int(i[j+k]) + int(b[k]) + carry
-				i[j+k] = byte(sum)
+				i[j+k] = byte(sum) //nolint:gosec // the low byte; the carry keeps the rest
 				carry = sum >> 8
 			}
 		}

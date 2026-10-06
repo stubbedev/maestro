@@ -29,6 +29,13 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+        # These add a PHP call-stack frame to the error in place; their
+        # result is the same error, returned for chaining.
+        - github.com/stubbedev/maestro/internal/phperr.Call
+        - github.com/stubbedev/maestro/internal/phperr.Calls
+        - (*github.com/stubbedev/maestro/internal/platform.PHPError).Called
+        - (*github.com/stubbedev/maestro/internal/php.EngineError).Called
+        - (*github.com/stubbedev/maestro/internal/pkg.TypeError).Called
     gosec:
       excludes:
         # A package manager's whole job is reading and writing paths it is
@@ -39,6 +46,8 @@ linters:
         - G304 # file path from a variable
         - G703 # path traversal via taint analysis: same reason as G304
         - G306 # WriteFile permissions above 0600
+        # errcheck owns unchecked errors, with its exclude-functions above.
+        - G104 # errors unhandled
     perfsprint:
       strconcat: true
       sprintf1: true

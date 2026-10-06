@@ -220,8 +220,10 @@ func TestCurlError_Wording(t *testing.T) {
 	} {
 		var pool transportPool
 
-		r := &transferRequest{url: tc.url, decode: true, curlStatusLines: true, timeout: 300 * time.Second, connectTimeout: 10 * time.Second,
-			key: transportKey{fresh: true, tls: tlsSettings{cafile: tc.cafile, verifyPeer: true, verifyPeerName: true}}}
+		r := &transferRequest{
+			url: tc.url, decode: true, curlStatusLines: true, timeout: 300 * time.Second, connectTimeout: 10 * time.Second,
+			key: transportKey{fresh: true, tls: tlsSettings{cafile: tc.cafile, verifyPeer: true, verifyPeerName: true}},
+		}
 		if tc.timeout != 0 {
 			r.timeout = tc.timeout
 		}
@@ -250,8 +252,10 @@ func TestCurlError_AlertAfterHandshake(t *testing.T) {
 
 	var pool transportPool
 
-	res := pool.do(context.Background(), &transferRequest{url: "https://localhost:" + portOf(srv) + "/", curlStatusLines: true,
-		key: transportKey{fresh: true, tls: tlsSettings{cafile: caFile, verifyPeer: true, verifyPeerName: true}}})
+	res := pool.do(context.Background(), &transferRequest{
+		url: "https://localhost:" + portOf(srv) + "/", curlStatusLines: true,
+		key: transportKey{fresh: true, tls: tlsSettings{cafile: caFile, verifyPeer: true, verifyPeerName: true}},
+	})
 
 	want := "OpenSSL SSL_read: OpenSSL/3.6.4: error:0A00045C:SSL routines::tlsv13 alert certificate required, errno 0"
 	if res.errno != 56 || res.errMsg != want {

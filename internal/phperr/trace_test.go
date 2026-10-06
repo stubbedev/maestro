@@ -22,7 +22,7 @@ func TestCall(t *testing.T) {
 	e := &exc{msg: "outer", prev: prev, Site: phperr.At("ArrayLoader.php", 412)}
 	var err error = &wrapper{err: e}
 
-	if got := phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 384); got != err {
+	if got := phperr.Call(err, `Composer\Package\Loader\ArrayLoader->createLink`, "ArrayLoader.php", 384); got != err { //nolint:errorlint // Call returns its argument itself
 		t.Errorf("Call returned %v, want its error", got)
 	}
 	phperr.Calls(err, phperr.Frame{Function: `Composer\Package\Loader\ArrayLoader->parseLinks`, File: "ArrayLoader.php", Line: 63})
@@ -44,7 +44,7 @@ func TestCall(t *testing.T) {
 	}
 	// errors without a trace of their own are left alone
 	plain := errors.New("plain")
-	if phperr.Call(plain, "f", "X.php", 1) != plain || phperr.TraceOf(plain) != nil {
+	if phperr.Call(plain, "f", "X.php", 1) != plain || phperr.TraceOf(plain) != nil { //nolint:errorlint // the argument itself
 		t.Error("Call on an untraced error")
 	}
 }

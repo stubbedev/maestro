@@ -141,33 +141,49 @@ func TestHeaderLines_WireOrder(t *testing.T) {
 		path         string
 		curl, stream []string
 	}{
-		{"/order",
+		{
+			"/order",
 			[]string{"HTTP/1.1 200 OK", "Z-Last: 1", "content-type: text/plain", "X-Multi: a", "A-First: 2", "x-multi: b", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200 OK", "Z-Last: 1", "content-type: text/plain", "X-Multi: a", "A-First: 2", "x-multi: b", "Content-Length: 2"}},
+			[]string{"HTTP/1.1 200 OK", "Z-Last: 1", "content-type: text/plain", "X-Multi: a", "A-First: 2", "x-multi: b", "Content-Length: 2"},
+		},
 		// PHP's wrapper takes the 103 head for the response (it skips only
 		// 100 Continue); net/http reads past it, so the stream lines are
 		// the 200 head's
-		{"/continue",
+		{
+			"/continue",
 			[]string{"HTTP/1.1 100 Continue", "", "HTTP/1.1 103 Early Hints", "Link: </a>; rel=preload", "", "HTTP/1.1 200 OK", "X-B: 1", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200 OK", "X-B: 1", "Content-Length: 2"}},
-		{"/lf",
+			[]string{"HTTP/1.1 200 OK", "X-B: 1", "Content-Length: 2"},
+		},
+		{
+			"/lf",
 			[]string{"HTTP/1.1 200 OK\nX-B: 1\nX-A:  spaced  \nContent-Length: 2"},
-			[]string{"HTTP/1.1 200 OK", "X-B: 1", "X-A:  spaced", "Content-Length: 2"}},
-		{"/fold",
+			[]string{"HTTP/1.1 200 OK", "X-B: 1", "X-A:  spaced", "Content-Length: 2"},
+		},
+		{
+			"/fold",
 			[]string{"HTTP/1.1 200 OK", "X-Fold: a b", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200 OK", "X-Fold: a b", "Content-Length: 2"}},
-		{"/fold2",
+			[]string{"HTTP/1.1 200 OK", "X-Fold: a b", "Content-Length: 2"},
+		},
+		{
+			"/fold2",
 			[]string{"HTTP/1.1 200 OK", "X-Fold: a b ", "X-N: 1", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200 OK", "X-Fold: a b", "X-N: 1", "Content-Length: 2"}},
-		{"/trail",
+			[]string{"HTTP/1.1 200 OK", "X-Fold: a b", "X-N: 1", "Content-Length: 2"},
+		},
+		{
+			"/trail",
 			[]string{"HTTP/1.1 200 OK  ", "X-T: v \t", "X-E:", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200 OK  ", "X-T: v", "X-E:", "Content-Length: 2"}},
-		{"/http10",
+			[]string{"HTTP/1.1 200 OK  ", "X-T: v", "X-E:", "Content-Length: 2"},
+		},
+		{
+			"/http10",
 			[]string{"HTTP/1.0 404 Not Found", "X-A: 1", "Content-Length: 2"},
-			[]string{"HTTP/1.0 404 Not Found", "X-A: 1", "Content-Length: 2"}},
-		{"/nostatus",
+			[]string{"HTTP/1.0 404 Not Found", "X-A: 1", "Content-Length: 2"},
+		},
+		{
+			"/nostatus",
 			[]string{"HTTP/1.1 200", "X-A: 1", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200", "X-A: 1", "Content-Length: 2"}},
+			[]string{"HTTP/1.1 200", "X-A: 1", "Content-Length: 2"},
+		},
 	} {
 		curl := doTransfer(t, &transferRequest{url: "http://" + addr + tc.path, decode: true, curlStatusLines: true})
 		if !slices.Equal(curl.headers, tc.curl) {
