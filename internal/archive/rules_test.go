@@ -3,7 +3,9 @@ package archive
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"errors"
+	"hash/crc32"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -233,5 +235,93 @@ func TestErrorFormat(t *testing.T) {
 	err := error(&Error{Format: Zip, Err: ErrIrreproducible, Entry: "a/b", Reason: "why", ExitCode: 1})
 	if err.Error() != `zip: "a/b": why` || !errors.Is(err, ErrIrreproducible) {
 		t.Errorf("unexpected %q", err)
+	}
+}
+
+// unicodePathZip is a zip of one file stored as "pkg/f.txt" whose Info-ZIP
+// Unicode Path extra field names it "pkg/" + name.
+func unicodePathZip(t *testing.T, name string) string {
+	t.Helper()
+
+	stored := "pkg/f.txt"
+	unicode := "pkg/" + name
+
+	extra := binary.LittleEndian.AppendUint16(nil, 0x7075)
+	extra = binary.LittleEndian.AppendUint16(extra, uint16(5+len(unicode))) //nolint:gosec // a short name.
+	extra = append(extra, 1)
+	extra = binary.LittleEndian.AppendUint32(extra, crc32.ChecksumIEEE([]byte(stored)))
+	extra = append(extra, unicode...)
+
+	var buf bytes.Buffer
+
+	w := zip.NewWriter(&buf)
+
+	// Raw, with the sizes known up front: no data descriptor.
+	fh := &zip.FileHeader{Name: stored, Method: zip.Store, Extra: extra, CRC32: crc32.ChecksumIEEE([]byte("x")), CompressedSize64: 1, UncompressedSize64: 1}
+	fh.SetMode(0o644)
+
+	f, err := w.CreateRaw(fh)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _ = f.Write([]byte("x"))
+	_ = w.Close()
+
+	path := filepath.Join(t.TempDir(), "a.zip")
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	return path
+}
+
+// TestZipCLocaleLatin1: unzip in the C locale escapes what wctomb() cannot
+// convert. glibc converts nothing beyond ASCII; macOS converts U+0080 to
+// U+00FF to Latin-1 bytes, which APFS refuses, so unzip fails there and
+// Composer falls back to ZipArchive, which maestro does not reproduce.
+func TestZipCLocaleLatin1(t *testing.T) {
+	old := cLocaleLatin1
+	t.Cleanup(func() { cLocaleLatin1 = old })
+
+	for _, c := range []struct {
+		latin1     bool
+		name, want string
+	}{
+		{false, "plaín.txt", "pla#U00edn.txt"},
+		{false, "ж.txt", "#U0436.txt"},
+		{true, "plaín.txt", ""},
+		{true, "ж.txt", "#U0436.txt"},
+	} {
+		cLocaleLatin1 = c.latin1
+
+		a, err := Open(unicodePathZip(t, c.name), Zip, &Options{Locale: LocaleC})
+		if c.want == "" {
+			if !errors.Is(err, ErrIrreproducible) {
+				t.Errorf("latin1 %v, %q: expected ErrIrreproducible, got %v", c.latin1, c.name, err)
+			}
+
+			continue
+		}
+
+		if err != nil {
+			t.Fatalf("latin1 %v, %q: %v", c.latin1, c.name, err)
+		}
+
+		var paths []string
+		for _, e := range a.Entries() {
+			paths = append(paths, e.Path)
+		}
+
+		_ = a.Close()
+
+		if !slices.Contains(paths, c.want) {
+			t.Errorf("latin1 %v, %q: entries %q, want %q", c.latin1, c.name, paths, c.want)
+		}
+	}
+
+	cLocaleLatin1 = true
+	if Rules(Zip, &Options{Locale: LocaleC}) == Rules(Zip, &Options{Locale: LocaleUTF8}) {
+		t.Error("macOS's C locale needs zip rules of its own")
 	}
 }

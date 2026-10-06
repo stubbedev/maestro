@@ -69,7 +69,12 @@ const rulesVersion = "1"
 func Rules(f Format, opts *Options) string {
 	r := f.String() + "/" + rulesVersion
 	if f == Zip {
-		r += "/" + opts.locale().String()
+		l := opts.locale()
+		r += "/" + l.String()
+		// macOS's C locale is another one than glibc's (cLocaleLatin1).
+		if l == LocaleC && cLocaleLatin1 {
+			r += "-latin1"
+		}
 	}
 
 	return r

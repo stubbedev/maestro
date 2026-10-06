@@ -20,6 +20,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -712,6 +713,13 @@ func (z *zipPlanner) decodeName(raw, extra []byte, e *zipEntry, local bool) (nam
 			return "", false, z.fail(ErrIrreproducible, pkErr, entry, "warning:  Unicode filename corrupt.")
 		}
 
+		if cLocaleLatin1 && hasLatin1(utf8Name) {
+			// macOS's C locale converts U+0080 to U+00FF to single Latin-1
+			// bytes, which APFS and HFS+ refuse as no UTF-8: unzip fails on
+			// the entry and Composer falls back to ZipArchive.
+			return "", false, z.fail(ErrIrreproducible, 0, entry, "Latin-1 name in macOS's C locale, which the filesystem refuses")
+		}
+
 		name = escaped
 	default:
 		if !isASCII(utf8Name) {
@@ -782,6 +790,23 @@ func oemName(raw []byte, e *zipEntry, local bool) bool {
 	fromOEM := (e.hostNum == hostFAT && !winZip5) || e.hostNum == hostHPFS || (e.hostNum == hostNTFS && e.hostVer == 50)
 
 	return fromOEM && !isASCII(raw)
+}
+
+// cLocaleLatin1 tells that wctomb() in the C locale converts U+0080 to
+// U+00FF to single bytes, as macOS's libc does; glibc's converts nothing
+// beyond ASCII, which escapeToC reproduces.
+var cLocaleLatin1 = runtime.GOOS == "darwin"
+
+// hasLatin1 reports whether the UTF-8 name s holds a character from U+0080
+// to U+00FF.
+func hasLatin1(s []byte) bool {
+	for _, r := range string(s) {
+		if r >= 0x80 && r <= 0xff {
+			return true
+		}
+	}
+
+	return false
 }
 
 // escapeToC is utf8_to_local_string() in the C locale: ASCII stays, every
