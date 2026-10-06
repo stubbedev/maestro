@@ -12,7 +12,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -739,7 +738,7 @@ func (g *VersionGuesser) guessSvnVersion(packageConfig *php.Array, path string) 
 func (g *VersionGuesser) RootVersionFromEnv() (string, error) {
 	version, _ := util.GetEnv("COMPOSER_ROOT_VERSION")
 	if version == "" {
-		return "", &util.RuntimeError{Site: phperr.At("VersionGuesser.php", 440), Message: "COMPOSER_ROOT_VERSION not set or empty"}
+		return "", &util.RuntimeError{Message: "COMPOSER_ROOT_VERSION not set or empty"}
 	}
 
 	// COMPOSER_ROOT_VERSION can be long enough to exhaust the backtrack
