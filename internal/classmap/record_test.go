@@ -12,6 +12,9 @@ import (
 // ambiguous class) and a PSR-4 rule (src/, holding a violation).
 func recordFixture(t *testing.T) (dir string, scans []RecordScan) {
 	t.Helper()
+	if !identitiesKnown() {
+		t.Skip("files have no identities here (Windows): nothing is recorded")
+	}
 	dir = t.TempDir()
 	for path, content := range map[string]string{
 		"lib/a.php":     `<?php class Dup {} class A {}`,
