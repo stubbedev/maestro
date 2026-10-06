@@ -1,5 +1,3 @@
-//go:build unix
-
 // The end-to-end comparison of plugins and PHP scripts with real Composer
 // (docs/PLUGINS.md §9.2, §9.3): the plugins of docs/PLUGINS.md's phase 2
 // and the runtime scenarios, each fixture project run with the official
@@ -15,7 +13,6 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -29,11 +26,7 @@ func TestE2EPlugins(t *testing.T) {
 		t.Skip("set MAESTRO_E2E=1 to compare maestro's plugins with Composer 2.10.3 (php, git, unzip and the network)")
 	}
 
-	for _, tool := range []string{"php", "git", "unzip"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Fatalf("%s is required: %v", tool, err)
-		}
-	}
+	requireTools(t)
 
 	phar := composerPhar(t)
 	maestro := os.Getenv("MAESTRO_E2E_BIN")
@@ -680,15 +673,16 @@ const pluginAPIUnrequired = `{
 
 // composerRoot is the directory Composer's sources are named under in an
 // exception trace: the phar's (phar://.../composer-2.10.3.phar), and the
-// phar maestro's executable stands for (phar://.../maestro, phperr.Root).
-var composerRoot = regexp.MustCompile(`phar://\S+?(?:\.phar|/maestro)/(src|vendor|bin)/`)
+// phar maestro's executable stands for (phar://.../maestro, phperr.Root;
+// maestro.exe on Windows).
+var composerRoot = regexp.MustCompile(`phar://\S+?(?:\.phar|[/\\]maestro(?:\.exe)?)/(src|vendor|bin)/`)
 
 // pharMain is the outermost frame of Composer's trace: the phar's stub
 // requiring bin/composer, whose require() call is a line before the one of
 // Composer's source tree that maestro names (as its errors oracle does). An
 // exception trace names the frame's function, the "Stack trace:" of
 // ErrorHandler at -v (a deprecation notice) only its file and line.
-var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:|^ @COMPOSER@/bin/composer:)11[23]\n(?: require\(\) at \S+\.phar:\d+\n| \S+\.phar:\d+\n)?`)
+var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:|^ @COMPOSER@/bin/composer:)11[23]\r?\n(?: require\(\) at \S+\.phar:\d+\r?\n| \S+\.phar:\d+\r?\n)?`)
 
 // normalizeComposerTrace keeps the frames of exception traces and of
 // ErrorHandler's stack traces (docs/PLUGINS.md §5.12: maestro completes

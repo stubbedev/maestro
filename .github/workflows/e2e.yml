@@ -34,3 +34,33 @@ jobs:
           MAESTRO_PHP_TESTS: '1'
           GITHUB_TOKEN: ${{ github.token }}
         run: go test -count=1 -timeout 4h -run 'TestE2E|TestAllFunctional' ./cmd/maestro
+
+  # The same comparison on Windows, where Composer and maestro both run
+  # natively: junctions, .bat bin proxies, cmd.exe for scripts, PHP_EOL
+  # line endings, 7-Zip or ZipArchive for zips. Git for Windows' usr/bin
+  # (bash's PATH) has the diff, bzip2 and xz the suite uses.
+  e2e-windows:
+    runs-on: windows-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: zip, bz2
+          tools: none
+
+      - name: End-to-end against Composer
+        env:
+          MAESTRO_E2E: '1'
+          MAESTRO_PHP_TESTS: '1'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: go test -count=1 -timeout 290m -run 'TestE2E|TestAllFunctional' ./cmd/maestro

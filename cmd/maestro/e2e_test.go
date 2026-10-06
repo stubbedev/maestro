@@ -1,5 +1,3 @@
-//go:build unix
-
 // The end-to-end comparison with real Composer (docs/PORTING.md, Tests §3):
 // every scenario (e2e_scenarios_test.go) runs once with the official
 // composer.phar 2.10.3 and once with maestro, from a cold cache and store
@@ -74,6 +72,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -145,11 +144,7 @@ func TestE2E(t *testing.T) {
 		t.Skip("set MAESTRO_E2E=1 to compare maestro with Composer 2.10.3 (php, git, unzip and the network)")
 	}
 
-	for _, tool := range []string{"php", "git", "unzip"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Fatalf("%s is required: %v", tool, err)
-		}
-	}
+	requireTools(t)
 
 	phar := composerPhar(t)
 	maestro := os.Getenv("MAESTRO_E2E_BIN")
@@ -219,6 +214,25 @@ func TestE2E(t *testing.T) {
 	}
 }
 
+// requireTools fails the test when a tool the scenarios need is missing:
+// php, git, and unzip, which Composer's ZipDownloader prefers to
+// ZipArchive on Unix (on Windows it tries 7-Zip first and falls back to
+// ZipArchive, so unzip is optional there).
+func requireTools(t *testing.T) {
+	t.Helper()
+
+	tools := []string{"php", "git"}
+	if runtime.GOOS != "windows" {
+		tools = append(tools, "unzip")
+	}
+
+	for _, tool := range tools {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Fatalf("%s is required: %v", tool, err)
+		}
+	}
+}
+
 // composerPhar returns the checksum-verified composer.phar, downloading it
 // into the user cache directory once.
 func composerPhar(t *testing.T) string {
@@ -280,7 +294,7 @@ func fileSHA256(path string) (string, error) {
 func buildMaestro(t *testing.T, dir string) string {
 	t.Helper()
 
-	bin := filepath.Join(dir, "maestro")
+	bin := filepath.Join(dir, "maestro"+exeSuffix)
 
 	cmd := exec.Command("go", "build", "-o", bin, ".")
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -581,8 +595,9 @@ var timings = regexp.MustCompile(`(completed in )\d+(?:\.\d+)? seconds`)
 // tmpFile is FileDownloader's temporary dist file, vendor/composer/tmp-<md5
 // of the package and spl_object_hash($package)>: the object hash varies
 // between processes. Its hex digits become "x", also where an exception
-// box wrapped the name, so the layout is kept.
-var tmpFile = regexp.MustCompile(`/tmp-[0-9a-f]+(?: *\n +[0-9a-f]+)?`)
+// box wrapped the name (at a PHP_EOL, "\r\n" on Windows), so the layout is
+// kept. Messages may name it with Windows' backslashes.
+var tmpFile = regexp.MustCompile(`[/\\]tmp-[0-9a-f]+(?: *\r?\n +[0-9a-f]+)?`)
 
 // maestroVersion is the line `maestro --version` adds on stderr after
 // Composer's (cmd/maestro's doc): maestro names its own build there.
@@ -596,7 +611,9 @@ func normalizeOutput(s string) string {
 	inBar := false
 
 	for _, line := range lines {
-		if progressLine.MatchString(line) {
+		// On Windows a line ends in PHP_EOL, "\r\n": the "\r" stays (it is
+		// compared) but is not part of a progress bar line.
+		if progressLine.MatchString(strings.TrimSuffix(line, "\r")) {
 			if !inBar {
 				out = append(out, "<progress bar>")
 			}
@@ -614,7 +631,7 @@ func normalizeOutput(s string) string {
 	s = strings.Join(out, "\n")
 	s = timings.ReplaceAllString(s, "${1}<time> seconds")
 	s = tmpFile.ReplaceAllStringFunc(s, func(m string) string {
-		return "/tmp-" + regexp.MustCompile(`[0-9a-f]`).ReplaceAllString(m[len("/tmp-"):], "x")
+		return m[:len("/tmp-")] + regexp.MustCompile(`[0-9a-f]`).ReplaceAllString(m[len("/tmp-"):], "x")
 	})
 
 	return maestroVersion.ReplaceAllString(s, "")
@@ -636,7 +653,12 @@ func textDiff(want, got string) string {
 	_ = os.WriteFile(a, []byte(want), 0o644)
 	_ = os.WriteFile(b, []byte(got), 0o644)
 
-	out, _ := exec.Command("diff", "-u", a, b).CombinedOutput()
+	out, err := exec.Command("diff", "-u", a, b).CombinedOutput()
+	if _, notRun := err.(*exec.Error); notRun { //nolint:errorlint // exec returns it unwrapped
+		// no diff (a Windows without Git's usr/bin on PATH): both texts,
+		// quoted so that a "\r" shows
+		return fmt.Sprintf("- %q\n+ %q", want, got)
+	}
 
 	lines := strings.Split(string(out), "\n")
 	if len(lines) > 2 {

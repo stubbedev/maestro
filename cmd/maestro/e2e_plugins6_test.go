@@ -1,5 +1,3 @@
-//go:build unix
-
 // The plugins of docs/PLUGINS.md's phase 6 (internals emulation):
 // symfony/flex, php-http/discovery, bamarni/composer-bin-plugin,
 // symfony/thanks and vaimo/composer-patches, compared with Composer as

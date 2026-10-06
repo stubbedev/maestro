@@ -166,7 +166,11 @@ Cycle-breaking decisions already made:
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
    2.10.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare
-   output, lock files and vendor trees.
+   output, lock files and vendor trees. They run on Linux and on Windows
+   (`.github/workflows/e2e.yml`, weekly and on demand), where both tools
+   run natively: junctions are compared by target, modes are what the
+   read-only attribute gives, and `"\r\n"` endings are compared as they
+   are.
 
 Run everything inside the devenv shell (`devenv shell -- bash -c '...'` from
 the repo root; it has Go, golangci-lint, php, unzip, gh, just). A port

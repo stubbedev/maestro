@@ -1,5 +1,3 @@
-//go:build unix
-
 package main
 
 import (
@@ -42,7 +40,7 @@ func gitRepo(t *testing.T, dir string, commits ...commit) {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(),
-			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
+			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
 			"GIT_AUTHOR_NAME=Maestro E2E", "GIT_AUTHOR_EMAIL=e2e@example.org",
 			"GIT_COMMITTER_NAME=Maestro E2E", "GIT_COMMITTER_EMAIL=e2e@example.org",
 		)
@@ -115,7 +113,7 @@ func gitRepo(t *testing.T, dir string, commits ...commit) {
 		cmd := exec.Command("git", "commit", "-q", "-m", fmt.Sprintf("commit %d", n))
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(),
-			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null",
+			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
 			"GIT_AUTHOR_NAME=Maestro E2E", "GIT_AUTHOR_EMAIL=e2e@example.org",
 			"GIT_COMMITTER_NAME=Maestro E2E", "GIT_COMMITTER_EMAIL=e2e@example.org",
 			"GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date,

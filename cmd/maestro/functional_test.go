@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func TestAllFunctional(t *testing.T) {
 		t.Skip("set MAESTRO_E2E=1 to run the functional fixtures (php, plugins and the network)")
 	}
 
-	bin := filepath.Join(t.TempDir(), "maestro")
+	bin := filepath.Join(t.TempDir(), "maestro"+exeSuffix)
 	build := exec.Command("go", "build", "-o", bin, ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
@@ -62,7 +63,12 @@ func runFunctional(t *testing.T, bin, testFile string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("/bin/sh", "-c", quoted+" --no-ansi "+testData["RUN"])
+	if runtime.GOOS == "windows" {
+		// escapeshellarg() on Windows: double quotes (the temporary
+		// directory's path has no '"', '%' or '!' it would blank out).
+		quoted = `"` + bin + `"`
+	}
+	cmd := shellCommand(quoted + " --no-ansi " + testData["RUN"])
 	cmd.Dir = testDir
 	cmd.Env = append(os.Environ(), "COMPOSER_HOME="+testDir+"home", "COMPOSER_CACHE_DIR="+testDir+"cache")
 	var out bytes.Buffer

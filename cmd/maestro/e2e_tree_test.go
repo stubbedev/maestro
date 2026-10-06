@@ -1,5 +1,3 @@
-//go:build unix
-
 package main
 
 import (
@@ -14,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -21,7 +20,10 @@ import (
 
 // entry is what a step must reproduce for one path.
 type entry struct {
-	kind string // "dir", "file", "link", "git"
+	kind string // "dir", "file", "link", "junction" (Windows), "git"
+	// mode is the permission bits and type; on Windows Go derives them
+	// from the read-only attribute alone (0444 or 0666, directories 0777),
+	// which is all Composer's chmod() changes there.
 	mode fs.FileMode
 	sum  [32]byte
 	link string
@@ -35,6 +37,8 @@ func (e entry) String() string {
 	switch e.kind {
 	case "link":
 		return "symlink -> " + e.link
+	case "junction":
+		return "junction -> " + e.link
 	case "dir":
 		return fmt.Sprintf("dir %v", e.mode)
 	case "git":
@@ -84,6 +88,17 @@ func snapshot(t *testing.T, root string) map[string]entry {
 		switch {
 		case info.Mode()&fs.ModeSymlink != 0:
 			e.kind = "link"
+			e.mode = 0
+
+			if e.link, err = os.Readlink(path); err != nil {
+				return err
+			}
+		case info.Mode()&fs.ModeIrregular != 0 && runtime.GOOS == "windows":
+			// A junction (a mount point reparse point), which Composer's
+			// Filesystem::junction() creates on Windows where Unix gets a
+			// symlink (path repositories, bin proxies of symlinked
+			// packages): Go reports it as irregular, and reads its target.
+			e.kind = "junction"
 			e.mode = 0
 
 			if e.link, err = os.Readlink(path); err != nil {

@@ -1,5 +1,3 @@
-//go:build unix
-
 package main
 
 import (
@@ -11,7 +9,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -591,7 +588,7 @@ func taintStore(t *testing.T, root string) {
 			return err
 		}
 
-		if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink > 1 {
+		if linkCount(path, info) > 1 {
 			return nil
 		}
 
@@ -783,6 +780,8 @@ func normalizeFund(s string) string {
 		var packages []string
 
 		for line := range strings.SplitSeq(s, "\n") {
+			line = strings.TrimSuffix(line, "\r") // PHP_EOL on Windows
+
 			switch {
 			case strings.HasPrefix(line, "    "):
 				if vendor != "" {
