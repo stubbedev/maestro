@@ -3,6 +3,8 @@ package php
 import (
 	"encoding/base64"
 	"errors"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -34,6 +36,11 @@ func TestOracleFuncs(t *testing.T) {
 		args := make([]string, len(raw))
 		for i, a := range raw {
 			args[i] = funcsString(t, a)
+		}
+		// The golden ran on Linux; basename() splits at backslashes too on
+		// Windows.
+		if fn == "basename" && runtime.GOOS == "windows" && strings.Contains(args[0], `\`) {
+			continue
 		}
 
 		var got string

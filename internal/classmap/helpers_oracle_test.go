@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -92,6 +94,11 @@ func TestOracleHelpers(t *testing.T) {
 	}
 	g := NewGenerator(nil)
 	for _, c := range h.Extension {
+		// The golden ran on Linux; pathinfo() splits at backslashes too
+		// on Windows.
+		if runtime.GOOS == "windows" && strings.Contains(c[0], `\`) {
+			continue
+		}
 		g.extensions = []string{c[1]}
 		if !g.hasExtension(c[0]) {
 			t.Errorf("extension of %q is not %q", c[0], c[1])
