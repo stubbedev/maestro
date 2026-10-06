@@ -6,7 +6,9 @@
  * creates the maestro peer (a Go BinaryInstaller), which installs and
  * removes the binaries. A subclass overriding installBinaries() or
  * removeBinaries() is called in PHP by the LibraryInstaller peers it is
- * given to.
+ * given to. The protected helpers are the peer's (a subclass's parent::
+ * calls); the peer's installBinaries() does not call a subclass's
+ * overrides of them (override installBinaries() itself for that).
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -41,12 +43,12 @@ class BinaryInstaller
 
     protected function generateUnixyProxyCode(string $bin, string $link): string
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\BinaryInstaller::generateUnixyProxyCode() in plugins yet');
+        return Installers::binary($this, __FUNCTION__, [$bin, $link]);
     }
 
     protected function generateWindowsProxyCode(string $bin, string $link): string
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\BinaryInstaller::generateWindowsProxyCode() in plugins yet');
+        return Installers::binary($this, __FUNCTION__, [$bin, $link]);
     }
 
     protected function getBinaries(\Composer\Package\PackageInterface $package): array
@@ -67,12 +69,12 @@ class BinaryInstaller
 
     protected function installFullBinaries(string $binPath, string $link, string $bin, \Composer\Package\PackageInterface $package): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\BinaryInstaller::installFullBinaries() in plugins yet');
+        Installers::binary($this, __FUNCTION__, [$binPath, $link, $bin, $package]);
     }
 
     protected function installUnixyProxyBinaries(string $binPath, string $link): void
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Installer\\BinaryInstaller::installUnixyProxyBinaries() in plugins yet');
+        Installers::binary($this, __FUNCTION__, [$binPath, $link]);
     }
 
     public static function isBinPathInsidePackage(string $installPath, string $binPath): bool

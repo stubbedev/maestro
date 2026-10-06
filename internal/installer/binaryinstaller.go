@@ -438,3 +438,24 @@ func isLink(path string) bool {
 
 	return err == nil && st.Mode()&fs.ModeSymlink != 0
 }
+
+// GenerateUnixyProxyCode is the protected generateUnixyProxyCode() (a
+// subclass's parent call, in the plugin shim).
+func (b *BinaryInstaller) GenerateUnixyProxyCode(bin, link string) (string, error) {
+	return b.generateUnixyProxyCode(bin, link)
+}
+
+// GenerateWindowsProxyCode is the protected generateWindowsProxyCode().
+func (b *BinaryInstaller) GenerateWindowsProxyCode(bin, link string) (string, error) {
+	return b.generateWindowsProxyCode(bin, link)
+}
+
+// InstallFullBinaries is the protected installFullBinaries().
+func (b *BinaryInstaller) InstallFullBinaries(binPath, link, bin string, p pkg.PackageInterface) error {
+	return b.installFullBinaries(binPath, link, bin, p)
+}
+
+// InstallUnixyProxyBinaries is the protected installUnixyProxyBinaries().
+func (b *BinaryInstaller) InstallUnixyProxyBinaries(binPath, link string) error {
+	return b.installUnixyProxyBinaries(binPath, link)
+}

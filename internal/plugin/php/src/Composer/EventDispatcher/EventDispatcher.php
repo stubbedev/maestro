@@ -5,7 +5,8 @@
  * (docs/PLUGINS.md §4.4, §5.5), a service proxy of maestro's dispatcher
  * (ed.*): listeners are kept and run by maestro, which calls PHP for the
  * PHP callables. addSubscriber() expands getSubscribedEvents() here, as
- * Composer does. Creating one in PHP is not supported yet.
+ * Composer does. One created in PHP is maestro's too (ed.new); one whose
+ * constructor did not run has no maestro peer, and its methods throw.
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -85,34 +86,86 @@ class EventDispatcher
         return \Maestro\Shim\Rpc::call('ed.dispatchScript', [$this, $eventName, $devMode, $additionalArgs, $flags]);
     }
 
+    // The protected methods are maestro's dispatcher's (a subclass's
+    // parent:: and $this-> calls), but for the three pure is*() checks;
+    // maestro's dispatch does not call a subclass's overrides of them.
+
     protected function doDispatch(\Composer\EventDispatcher\Event $event)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::doDispatch() in plugins yet');
+        self::requirePeer($this, 'doDispatch');
+
+        return \Maestro\Shim\Rpc::call('ed.doDispatch', [$this, $event]);
     }
 
     protected function executeEventPhpScript(string $className, string $methodName, \Composer\EventDispatcher\Event $event)
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::executeEventPhpScript() in plugins yet');
+        self::requirePeer($this, 'executeEventPhpScript');
+        \Maestro\Shim\Rpc::call('ed.echoPhpScript', [$this, $className, $methodName, $event]);
+
+        return $className::$methodName($event);
     }
 
     protected function executeTty(string $exec): int
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::executeTty() in plugins yet');
+        self::requirePeer($this, 'executeTty');
+
+        return \Maestro\Shim\Rpc::call('ed.executeTty', [$this, $exec]);
     }
 
     protected function getListeners(\Composer\EventDispatcher\Event $event): array
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::getListeners() in plugins yet');
+        self::requirePeer($this, 'getListeners');
+
+        return self::listeners(\Maestro\Shim\Rpc::call('ed.getListeners', [$this, $event]));
     }
 
     protected function getPhpExecCommand(): string
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::getPhpExecCommand() in plugins yet');
+        self::requirePeer($this, 'getPhpExecCommand');
+
+        return \Maestro\Shim\Rpc::call('ed.getPhpExecCommand', [$this]);
     }
 
     protected function getScriptListeners(\Composer\EventDispatcher\Event $event): array
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::getScriptListeners() in plugins yet');
+        self::requirePeer($this, 'getScriptListeners');
+
+        return self::listeners(\Maestro\Shim\Rpc::call('ed.getScriptListeners', [$this, $event]));
+    }
+
+    /**
+     * The listeners maestro describes as the callables they are: scripts as
+     * strings, PHP callables as themselves, maestro's own as callables.
+     *
+     * @param list<mixed> $list
+     * @return list<mixed>
+     */
+    private static function listeners(array $list): array
+    {
+        $out = [];
+        foreach ($list as $listener) {
+            if (is_array($listener) && array_key_exists('h', $listener)) {
+                $listener = \Maestro\Shim\Listeners::callable($listener['h']);
+            } elseif (is_array($listener) && array_key_exists('go', $listener)) {
+                $listener = $listener['go'];
+            }
+            $out[] = $listener;
+        }
+
+        return $out;
+    }
+
+    /**
+     * A dispatcher whose constructor did not run (a subclass not calling
+     * parent::__construct()) has no maestro peer: its methods cannot run.
+     *
+     * @param object $dispatcher
+     */
+    private static function requirePeer($dispatcher, string $method): void
+    {
+        if (!\Maestro\Shim\Remote::owned($dispatcher)) {
+            \Maestro\Shim\Remote::unsupported(self::class, $method);
+        }
     }
 
     public function hasEventListeners(\Composer\EventDispatcher\Event $event): bool
@@ -126,27 +179,31 @@ class EventDispatcher
 
     protected function isCommandClass(string $callable): bool
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::isCommandClass() in plugins yet');
+        return str_contains($callable, '\\') && !str_contains($callable, ' ') && str_ends_with($callable, 'Command');
     }
 
     protected function isComposerScript(string $callable): bool
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::isComposerScript() in plugins yet');
+        return str_starts_with($callable, '@') && !str_starts_with($callable, '@php ') && !str_starts_with($callable, '@putenv ');
     }
 
     protected function isPhpScript(string $callable): bool
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::isPhpScript() in plugins yet');
+        return false === strpos($callable, ' ') && false !== strpos($callable, '::');
     }
 
     protected function popEvent(): ?string
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::popEvent() in plugins yet');
+        self::requirePeer($this, 'popEvent');
+
+        return \Maestro\Shim\Rpc::call('ed.popEvent', [$this]);
     }
 
     protected function pushEvent(\Composer\EventDispatcher\Event $event): int
     {
-        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\EventDispatcher\\EventDispatcher::pushEvent() in plugins yet');
+        self::requirePeer($this, 'pushEvent');
+
+        return \Maestro\Shim\Rpc::call('ed.pushEvent', [$this, $event]);
     }
 
     public function removeListener($listener): void

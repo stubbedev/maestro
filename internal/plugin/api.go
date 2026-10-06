@@ -25,6 +25,7 @@ func (r *Runtime) registerAPI() {
 	r.registerGoCallables()
 	r.registerConstructors()
 	r.registerFileDownloaderHelpers()
+	r.registerDispatcherInternals()
 	r.registerLoaders()
 	r.registerRunInstaller()
 	r.registerHTTP()

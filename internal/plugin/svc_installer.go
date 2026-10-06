@@ -940,6 +940,24 @@ func (r *Runtime) installerBinary(v any) (any, error) {
 
 	method := a.str(1)
 	p := args{method: "installer.binary " + method, list: a.arrayOrEmpty(2).Values()}
+	// The protected helpers a subclass calls (parent::...): maestro's,
+	// whose own installBinaries() does not call a subclass's overrides of
+	// them.
+	switch method {
+	case "generateUnixyProxyCode":
+		return b.peer.GenerateUnixyProxyCode(p.str(0), p.str(1))
+	case "generateWindowsProxyCode":
+		return b.peer.GenerateWindowsProxyCode(p.str(0), p.str(1))
+	case "installUnixyProxyBinaries":
+		return nil, b.peer.InstallUnixyProxyBinaries(p.str(0), p.str(1))
+	case "installFullBinaries":
+		pk, err := packageParam(p, 3)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, b.peer.InstallFullBinaries(p.str(0), p.str(1), p.str(2), pk)
+	}
 	pk, err := packageParam(p, 0)
 	if err != nil {
 		return nil, err
