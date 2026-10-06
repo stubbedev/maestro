@@ -2,6 +2,11 @@ MIT License
 
 Copyright (c) 2026 Alexander Bugge Stage
 
+maestro is a port of Composer (https://getcomposer.org) and embeds some of
+its files unchanged; those portions are
+Copyright (c) Nils Adermann, Jordi Boggiano
+under the same MIT terms.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
