@@ -7,14 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/repository"
 )
 
 // OutOfBoundsError is PHP's \OutOfBoundsException.
 type OutOfBoundsError struct {
 	Message string
-	phperr.Site
 }
 
 func (e *OutOfBoundsError) Error() string { return e.Message }
@@ -22,11 +20,10 @@ func (e *OutOfBoundsError) Error() string { return e.Message }
 // SolverBugError ports SolverBugException (a RuntimeException).
 type SolverBugError struct {
 	Message string
-	phperr.Site
 }
 
-func newSolverBugError(site phperr.Site, message string) *SolverBugError {
-	return &SolverBugError{Site: site, Message: message + "\nThis exception was most likely caused by a bug in Composer.\n" +
+func newSolverBugError(message string) *SolverBugError {
+	return &SolverBugError{Message: message + "\nThis exception was most likely caused by a bug in Composer.\n" +
 		"Please report the command you ran, the exact error you received, and your composer.json on https://github.com/composer/composer/issues - thank you!\n"}
 }
 
@@ -42,12 +39,11 @@ const ErrorDependencyResolutionFailed = 2
 type SolverProblemsError struct {
 	problems    []*Problem
 	learnedPool [][]*Rule
-	phperr.Site
 }
 
 // NewSolverProblemsError is new SolverProblemsException($problems, $learnedPool).
 func NewSolverProblemsError(problems []*Problem, learnedPool [][]*Rule) *SolverProblemsError {
-	return &SolverProblemsError{problems: problems, learnedPool: learnedPool, Site: phperr.At("Solver.php", 234)}
+	return &SolverProblemsError{problems: problems, learnedPool: learnedPool}
 }
 
 func (e *SolverProblemsError) Error() string {

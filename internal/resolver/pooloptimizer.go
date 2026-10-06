@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -513,7 +512,7 @@ func ksortStrings(keys []string) {
 func (o *PoolOptimizer) markPackageForRemoval(id int) error {
 	// We are not allowed to remove packages if they have been marked as irremovable
 	if o.irremovablePackages[id] {
-		return &util.LogicError{Site: phperr.At("PoolOptimizer.php", 299), Message: "Attempted removing a package which was previously marked irremovable"}
+		return &util.LogicError{Message: "Attempted removing a package which was previously marked irremovable"}
 	}
 
 	o.packagesToRemove[id] = true

@@ -7,7 +7,6 @@ package resolver
 import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -51,7 +50,7 @@ func CreatePool(set *repository.RepositorySet, request *Request, out io.IO, opts
 
 	pool, err := poolBuilder.BuildPool(set.Repositories(), request)
 
-	return pool, phperr.Call(err, `Composer\DependencyResolver\PoolBuilder->buildPool`, "RepositorySet.php", 351)
+	return pool, err
 }
 
 // CreatePoolWithAllPackages ports RepositorySet::createPoolWithAllPackages:
@@ -60,10 +59,6 @@ func CreatePool(set *repository.RepositorySet, request *Request, out io.IO, opts
 // needed.
 func CreatePoolWithAllPackages(set *repository.RepositorySet) (*Pool, error) {
 	if err := set.LockForPool(); err != nil {
-		if le, ok := err.(*util.LogicError); ok { //nolint:errorlint // LockForPool returns it unwrapped
-			le.Site = phperr.At("RepositorySet.php", 361)
-		}
-
 		return nil, err
 	}
 
@@ -108,7 +103,7 @@ func CreatePoolForPackages(set *repository.RepositorySet, packageNames []string,
 	var allowedPackages []string
 	for _, packageName := range packageNames {
 		if repository.IsPlatformPackage(packageName) {
-			return nil, &util.LogicError{Site: phperr.At("RepositorySet.php", 407), Message: "createPoolForPackage(s) can not be used for platform packages, as they are never loaded by the PoolBuilder which expects them to be fixed. Use createPoolWithAllPackages or pass in a proper request with the platform packages you need fixed in it."}
+			return nil, &util.LogicError{Message: "createPoolForPackage(s) can not be used for platform packages, as they are never loaded by the PoolBuilder which expects them to be fixed. Use createPoolWithAllPackages or pass in a proper request with the platform packages you need fixed in it."}
 		}
 
 		if err := request.RequireName(packageName, nil); err != nil {

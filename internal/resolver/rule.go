@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -95,7 +94,7 @@ func NewRule2Literals(literal1, literal2 int32, reason int, reasonData any) *Rul
 // $reasonData): the literals (at least 3) are copied and sorted.
 func NewMultiConflictRule(literals []int32, reason int, reasonData any) (*Rule, error) {
 	if len(literals) < 3 {
-		return nil, &util.RuntimeError{Site: phperr.At("MultiConflictRule.php", 33), Message: "multi conflict rule requires at least 3 literals"}
+		return nil, &util.RuntimeError{Message: "multi conflict rule requires at least 3 literals"}
 	}
 	r := &Rule{literals: slices.Clone(literals), reasonData: reasonData, kind: kindMultiConflict, reason: low8(reason), typ: 255}
 	slices.Sort(r.literals)
@@ -150,7 +149,7 @@ func (r *Rule) Type() int { return int(r.typ) }
 // Disable ports disable. A MultiConflictRule cannot be disabled.
 func (r *Rule) Disable() error {
 	if r.kind == kindMultiConflict {
-		return &util.RuntimeError{Site: phperr.At("MultiConflictRule.php", 91), Message: "Disabling multi conflict rules is not possible. Please contact composer at https://github.com/composer/composer to let us debug what lead to this situation."}
+		return &util.RuntimeError{Message: "Disabling multi conflict rules is not possible. Please contact composer at https://github.com/composer/composer to let us debug what lead to this situation."}
 	}
 	r.disabled = true
 
@@ -270,7 +269,7 @@ func (r *Rule) SourcePackage(pool *Pool) (pkg.PackageInterface, error) {
 		return deduplicateDefaultBranchAlias(pool.LiteralToPackage(r.literals[0])), nil
 	}
 
-	return nil, &util.LogicError{Site: phperr.At("Rule.php", 226), Message: "Not implemented"}
+	return nil, &util.LogicError{Message: "Not implemented"}
 }
 
 // PrettyString ports getPrettyString.
