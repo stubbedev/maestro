@@ -284,7 +284,8 @@ func pluginScenarios() []scenario {
 			setup:   gitProject,
 			steps: []step{
 				{args: []string{"install"}},
-				{args: []string{"install", "--no-dev"}},
+				// Removes all 18 packages; see binDirRace.
+				{args: []string{"install", "--no-dev"}, normalizeTree: binDirRace("project/vendor/bin")},
 				{args: []string{"install", "--no-ansi"}},
 			},
 		},
@@ -584,6 +585,42 @@ func gitProject(t *testing.T, root string) {
 	t.Helper()
 
 	gitRepo(t, filepath.Join(root, "project"), commit{files: map[string]string{"README.md": "# project\n"}})
+}
+
+// binDirRace accepts an empty bin dir Composer left behind where maestro
+// removed it, nothing else (docs/tasks/binflake.md).
+//
+// When a batch removes every package, LibraryInstaller::uninstall calls
+// BinaryInstaller::removeBinaries per package once its `rm -rf` finished;
+// removeBinaries creates the bin dir (initializeBinDir()) before returning
+// for a package without binaries, and only a package with binaries removes
+// it again when it is empty. So the bin dir survives unless the package
+// with binaries comes last. Composer runs those callbacks in the order it
+// sees the processes finish, which varies; maestro in the order they
+// started (internal/installer's
+// TestInstallationManager_UninstallBinDirFollowsStartOrder), which is
+// Composer's usual outcome: the removal started last, captainhook's here,
+// is nearly always seen finishing last (vendor/bin removed in 76 of 80
+// fresh runs of this fixture with composer.phar, in all 130 with maestro).
+func binDirRace(dir string) func(composer, maestro map[string]entry) {
+	return func(composer, maestro map[string]entry) {
+		e, ok := composer[dir]
+		if !ok || e.kind != "dir" {
+			return
+		}
+
+		if _, ok := maestro[dir]; ok {
+			return
+		}
+
+		for p := range composer {
+			if strings.HasPrefix(p, dir+"/") {
+				return
+			}
+		}
+
+		delete(composer, dir)
+	}
 }
 
 // stubbedevSkip makes all stubbedev plugins but laravel-dev-mcp skip their

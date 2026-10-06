@@ -48,7 +48,9 @@
 //     (dump-autoload --apcu without --apcu-prefix: bin2hex(random_bytes(10))).
 //   - Scenario-specific ones, each documented at its step (normalize):
 //     fund's package order (normalizeFund) and diagnose's phar-only checks
-//     and binary path (normalizeDiagnose).
+//     and binary path (normalizeDiagnose); and one of the file tree,
+//     plugin-captainhook's `install --no-dev` (binDirRace): an empty
+//     vendor/bin that Composer leaves behind in some runs only.
 //
 // It needs php, git, unzip and the network, so it only runs with
 // MAESTRO_E2E=1. Knobs: MAESTRO_E2E_BIN (a prebuilt maestro instead of
@@ -101,6 +103,9 @@ type step struct {
 	// normalize is applied to stdout and stderr of both tools on top of
 	// the global normalisations; each use says why.
 	normalize func(string) string
+	// normalizeTree adjusts Composer's and maestro's file trees before
+	// they are compared; each use says why.
+	normalizeTree func(composer, maestro map[string]entry)
 	// coldOnly restricts the step to the cold phase.
 	coldOnly bool
 }
@@ -548,6 +553,10 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 
 		if d := textDiff(norm(normalizeOutput(w.stderr)), norm(normalizeOutput(g.stderr))); d != "" {
 			t.Errorf("%s: stderr differs (- Composer, + maestro):\n%s", label, d)
+		}
+
+		if s.normalizeTree != nil {
+			s.normalizeTree(w.tree, g.tree)
 		}
 
 		if d := compareTrees(w.tree, g.tree); d != "" {
