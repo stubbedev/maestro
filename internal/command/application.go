@@ -23,6 +23,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -80,6 +81,10 @@ type Application struct {
 	commandNameFalse bool
 
 	initialWorkingDirectory string
+
+	// errorHints are the hints hintCommonErrors found for the error the
+	// run ends with, until PresentError shows them.
+	errorHints []string
 
 	// Exit is PHP's exit($code) where the Application calls it
 	// (getComposer); os.Exit by default.
@@ -818,7 +823,7 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 
 	console.NewGithubActionError(func(m string) { cio.Write(m, true, io.Normal) }).Emit(err.Error(), "", 0)
 
-	a.hintCommonErrors(err, out)
+	a.errorHints = a.hintCommonErrors(err, out)
 
 	// override TransportException's code for the purpose of parent::run() using it as process exit code
 	// as http error codes are all beyond the 255 range of permitted exit codes
@@ -829,9 +834,12 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 	return 0, asThrowable(err, -1)
 }
 
-// hintCommonErrors ports hintCommonErrors.
-func (a *Application) hintCommonErrors(exception error, out console.Output) {
-	cio := a.io
+// hintCommonErrors ports hintCommonErrors: the hints about the likely
+// causes of exception, which RenderThrowable shows with it
+// (PresentError). Composer writes them before the exception, as errors;
+// their wording is maestro's (#13).
+func (a *Application) hintCommonErrors(exception error, out console.Output) []string {
+	var hints []string
 
 	class := phpClass(exception)
 	if (class == ClassLogic || isPHPError(class)) && out.Verbosity() < console.VerbosityVerbose {
@@ -854,7 +862,7 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) {
 				dir = php.ToString(v)
 			}
 			if df, ok := diskFreeSpace(dir); ok && df < minSpaceFree {
-				cio.WriteError("<error>The disk hosting "+dir+" has less than 100MiB of free space, this may be the cause of the following exception</error>", true, io.Quiet)
+				hints = append(hints, "The disk hosting "+dir+" has less than 100MiB of free space, which may be the cause of this error.")
 
 				break
 			}
@@ -864,49 +872,66 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) {
 	_, isTransport := errors.AsType[*util.TransportError](exception)
 	message := exception.Error()
 	if isTransport && strings.Contains(message, "Unable to use a proxy") {
-		cio.WriteError("<error>The following exception indicates your proxy is misconfigured</error>", true, io.Quiet)
-		cio.WriteError("<error>Check https://getcomposer.org/doc/faqs/how-to-use-composer-behind-a-proxy.md for details</error>", true, io.Quiet)
+		hints = append(hints, "Your proxy seems to be misconfigured, see https://getcomposer.org/doc/faqs/how-to-use-composer-behind-a-proxy.md")
 	}
 
 	if util.IsWindows() && isTransport && strings.Contains(message, "unable to get local issuer certificate") {
 		if matches, _ := filepath.Glob(`C:\Program Files\Avast*`); len(matches) != 0 {
-			cio.WriteError("<error>The following exception indicates a possible issue with the Avast Firewall</error>", true, io.Quiet)
-			cio.WriteError("<error>Check https://getcomposer.org/local-issuer for details</error>", true, io.Quiet)
+			hints = append(hints, "The Avast Firewall may be the cause of this error, see https://getcomposer.org/local-issuer")
 		} else {
-			cio.WriteError("<error>The following exception indicates a possible issue with a Firewall/Antivirus</error>", true, io.Quiet)
-			cio.WriteError("<error>Check https://getcomposer.org/local-issuer for details</error>", true, io.Quiet)
+			hints = append(hints, "A firewall or antivirus may be the cause of this error, see https://getcomposer.org/local-issuer")
 		}
 	}
 
 	if util.IsWindows() && strings.Contains(message, "The system cannot find the path specified") {
-		cio.WriteError("<error>The following exception may be caused by a stale entry in your cmd.exe AutoRun</error>", true, io.Quiet)
-		cio.WriteError("<error>Check https://getcomposer.org/doc/articles/troubleshooting.md#-the-system-cannot-find-the-path-specified-windows- for details</error>", true, io.Quiet)
+		hints = append(hints, "A stale entry in your cmd.exe AutoRun may be the cause of this error, see https://getcomposer.org/doc/articles/troubleshooting.md#-the-system-cannot-find-the-path-specified-windows-")
 	}
 
 	if strings.Contains(message, "fork failed - Cannot allocate memory") {
-		cio.WriteError("<error>The following exception is caused by a lack of memory or swap, or not having swap configured</error>", true, io.Quiet)
-		cio.WriteError("<error>Check https://getcomposer.org/doc/articles/troubleshooting.md#proc-open-fork-failed-errors for details</error>", true, io.Quiet)
+		hints = append(hints, "This error is caused by a lack of memory or swap, or not having swap configured, see https://getcomposer.org/doc/articles/troubleshooting.md#proc-open-fork-failed-errors")
 	}
 
 	if _, ok := errors.AsType[*util.ProcessTimedOutError](exception); ok {
-		cio.WriteError("<error>The following exception is caused by a process timeout</error>", true, io.Quiet)
-		cio.WriteError("<error>Check https://getcomposer.org/doc/06-config.md#process-timeout for details</error>", true, io.Quiet)
+		hints = append(hints, "A process timed out; the limit is the process-timeout setting, see https://getcomposer.org/doc/06-config.md#process-timeout")
 	}
 
 	if a.disablePluginsByDefault && isRunningAsRoot() && !a.io.IsInteractive() {
-		cio.WriteError("<error>Plugins have been disabled automatically as you are running as root, this may be the cause of the following exception. See also https://getcomposer.org/root</error>", true, io.Quiet)
+		hints = append(hints, "Plugins have been disabled automatically as you are running as root, which may be the cause of this error, see https://getcomposer.org/root")
 	} else if errors.Is(exception, console.ErrCommandNotFound) && a.disablePluginsByDefault {
-		cio.WriteError("<error>Plugins have been disabled, which may be why some commands are missing, unless you made a typo</error>", true, io.Quiet)
+		hints = append(hints, "Plugins have been disabled, which may be why some commands are missing, unless you made a typo.")
 	}
 
 	for _, hint := range http.GetExceptionHints(exception) {
-		cio.WriteError(hint, true, io.Quiet)
+		hints = append(hints, exceptionHint(hint))
 	}
 
 	if isTransport && a.commandName != "self-update" &&
 		(strings.Contains(message, "curl error 28 ") || strings.Contains(message, "Resolving timed out") || strings.Contains(message, "Could not resolve host")) {
-		cio.WriteError("<warning>If you intend to run Composer without connecting to the internet, run the command again prefixed with COMPOSER_DISABLE_NETWORK=1 to make Composer run in offline mode.</warning>", true, io.Quiet)
+		hints = append(hints, "To run without connecting to the internet, run the command again prefixed with COMPOSER_DISABLE_NETWORK=1 (offline mode).")
 	}
+
+	return hints
+}
+
+// exceptionHint is one of HttpDownloader::getExceptionHints' lines as a
+// hint: its text, without the console tags, about "this error" rather than
+// "the following exception".
+func exceptionHint(hint string) string {
+	hint = console.StripTags(hint)
+	if rest, ok := strings.CutPrefix(hint, "The following exception "); ok {
+		hint = "This error " + rest
+	}
+
+	return hint
+}
+
+// PresentError implements console.AppErrorPresenter: the hints
+// hintCommonErrors found for the error the run ends with, and the
+// presentation of transport errors (transportDiagnostic).
+func (a *Application) PresentError(err error, d *ui.Diagnostic) {
+	d.Hints = append(d.Hints, a.errorHints...)
+	a.errorHints = nil
+	transportDiagnostic(err, d)
 }
 
 // newWorkingDir ports getNewWorkingDir; nil is null.

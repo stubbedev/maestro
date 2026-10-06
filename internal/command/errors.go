@@ -1,6 +1,5 @@
 // The PHP exceptions Composer's commands and Application throw, as errors
-// that carry their class and throw site so the Application renders them as
-// Symfony does ("In ConfigCommand.php line 214:").
+// that carry their class (which plugins see) and throw site.
 
 package command
 
@@ -23,7 +22,7 @@ const (
 
 // Error is a PHP exception thrown by a command or the Application: Class
 // is get_class($e), File the basename of the PHP source that throws it and
-// Line its line there (both shown when it is rendered), Code getCode().
+// Line its line there, Code getCode().
 // It unwraps to the util error of the same class (util.RuntimeError,
 // util.InvalidArgumentError, ...), so errors.As works as `catch` would.
 type Error struct {
@@ -107,9 +106,8 @@ func (e *ExitError) Error() string { return "exit " + strconv.Itoa(e.Code) }
 func (e *ExitError) ExitCode() int { return e.Code }
 
 // throwable is how the Application presents an error that is not a
-// console.Throwable to Symfony's rendering: its PHP class (util.PHPClassOf),
-// code, throw site (phperr.SiteOf; "n/a" when the error has none) and
-// previous exception (phperr.PreviousOf).
+// console.Throwable to the console: its PHP class (util.PHPClassOf), code,
+// throw site (phperr.SiteOf) and previous exception (phperr.PreviousOf).
 type throwable struct {
 	err   error
 	class string
@@ -128,8 +126,8 @@ func (t *throwable) ThrowableCode() int       { return t.code }
 func (t *throwable) ThrowablePrevious() error { return t.prev }
 func (t *throwable) PHPClass() (string, int)  { return t.class, t.code }
 
-// asThrowable gives err the PHP exception details Symfony's renderer and
-// exit code use. code overrides the exception code when >= 0.
+// asThrowable gives err the PHP exception details the console's rendering
+// and exit code use. code overrides the exception code when >= 0.
 func asThrowable(err error, code int) error {
 	if t, ok := err.(console.Throwable); ok { //nolint:errorlint // PHP inspects the exception object itself.
 		if code < 0 || t.ThrowableCode() == code {
