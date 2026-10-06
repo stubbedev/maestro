@@ -12,17 +12,16 @@ namespace Maestro\Shim;
  * §5.12). PHP's own trace of an exception holds the shim's machinery
  * where Composer's stack has Composer's code: the RPC loop and handlers
  * below the plugin code maestro called, the shim's classes standing for
- * Composer's. maestro knows Composer's frames (internal/phperr records
- * them as an error goes up its ports), so a trace is the plugin's own
- * frames down to the call maestro made, completed by maestro:
+ * Composer's. So a trace is the plugin's own frames down to the call
+ * maestro made:
  *
  * - an exception PHP code throws goes to maestro with its frames up to the
- *   first one the shim's machinery called, the boundary, whose location
- *   maestro sets to Composer's call (the "open" frame) before adding the
- *   frames of the calls the error goes up through;
+ *   first one the shim's machinery called, the boundary, which keeps the
+ *   shim's location;
  * - an exception coming from maestro (a Go error, or a PHP exception going
- *   back) gets those frames as its trace, followed by the PHP stack it is
- *   thrown into, cut at its own boundary in turn.
+ *   back) gets the frames maestro gives it (a PHP exception's own) as its
+ *   trace, followed by the PHP stack it is thrown into, cut at its own
+ *   boundary in turn.
  *
  * Composer's files are named as maestro names them, under the phar
  * maestro's executable stands for (phperr.Root): the vendored libraries
@@ -52,10 +51,10 @@ final class Traces
     /**
      * The trace maestro gets with an exception PHP code threw: its frames
      * up to and including the boundary, each named as Composer's stack
-     * names it, the boundary flagged `open`. The frames maestro gave the
-     * exception when it threw it into PHP (throwInto()) are kept as they
-     * are: a frame there may name the shim's machinery (a call maestro did
-     * not locate), which is no boundary.
+     * names it. The frames maestro gave the exception when it threw it
+     * into PHP (throwInto()) are kept as they are: a frame there may name
+     * the shim's machinery (a call maestro did not locate), which is no
+     * boundary.
      *
      * @return list<array<string, mixed>>
      */
@@ -71,7 +70,6 @@ final class Traces
                 'class' => isset($frame['class']) ? $frame['class'] : '',
                 'type' => isset($frame['type']) ? $frame['type'] : '',
                 'function' => isset($frame['function']) ? $frame['function'] : '',
-                'open' => !empty($frame[self::OPEN]),
             ];
         }
 
@@ -104,7 +102,6 @@ final class Traces
         }
         self::settled()[$e] = count($trace);
         foreach (self::cut(debug_backtrace(0), true) as $frame) {
-            unset($frame[self::OPEN]);
             $trace[] = $frame;
         }
 
@@ -183,14 +180,12 @@ final class Traces
         return $file;
     }
 
-    private const OPEN = "\0maestroOpen";
-
     /**
      * The frames of a trace as Composer's stack has them: with $leading
      * (the stack a Go error is thrown into, which starts inside the RPC
      * loop), the leading frames of the shim's machinery dropped; the
      * frames up to the boundary, the first one the machinery called, which
-     * is kept with OPEN set: Composer's call stands there.
+     * is kept.
      *
      * @param list<array<string, mixed>> $trace
      * @return list<array<string, mixed>>
@@ -207,7 +202,6 @@ final class Traces
             $frame = $trace[$i];
             $file = isset($frame['file']) ? (string) $frame['file'] : '';
             if ($file !== '' && self::internal($file)) {
-                $frame[self::OPEN] = true;
                 $out[] = $frame;
 
                 break;
