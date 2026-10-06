@@ -26,6 +26,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/http2/hpack"
+
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -488,11 +490,15 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	var (
 		connected atomic.Bool
 		primaryIP atomic.Pointer[string]
-		// recorder records the response heads (HTTP/1); connectHead is the
-		// CONNECT head of an HTTP/2 connection's tunnel.
+		// recorder records the response heads (HTTP/1), h2 the stream
+		// (HTTP/2) and connectHead the CONNECT head of an HTTP/2
+		// connection's tunnel.
 		recorder    atomic.Pointer[headRecorder]
+		h2          h2Capture
 		connectHead atomic.Pointer[[]byte]
 	)
+
+	defer h2.release()
 
 	host := req.URL.Hostname()
 	port := req.URL.Port()
@@ -524,9 +530,13 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 			connected.Store(true)
 
 			if hc := asHeadConn(info.Conn); hc != nil {
-				recorder.Store(hc.record())
-			} else if head := takeConnectHeads(info.Conn); head != nil {
-				connectHead.Store(&head)
+				recorder.Store(hc.record(!r.curlStatusLines, method == http.MethodHead))
+			} else if hc, ok := info.Conn.(*h2HeadConn); ok {
+				h2.gotConn(hc)
+
+				if head := hc.takeConnect(); head != nil {
+					connectHead.Store(&head)
+				}
 			}
 
 			if addr, ok := info.Conn.RemoteAddr().(*net.TCPAddr); ok {
@@ -538,6 +548,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				}
 			}
 		},
+		WroteHeaders: h2.wroteHeaders,
 	}
 	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 
@@ -568,7 +579,9 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	res.status = resp.StatusCode
 	res.info.HTTPCode = resp.StatusCode
 	res.info.DownloadContentLength = resp.ContentLength
-	res.headers = headerLines(resp, r.curlStatusLines, recorder.Load(), connectHead.Load())
+	h2Heads, h2OK := h2.heads()
+	headText := ""
+	res.headers, headText = headerLines(resp, r.curlStatusLines, recorder.Load(), connectHead.Load(), h2Heads, h2OK)
 
 	if r.maxFileSize > 0 && resp.ContentLength > r.maxFileSize {
 		res.err = maxFileSizeError(phperr.At("CurlDownloader.php", 521), "Maximum allowed download size reached. Content-length header indicates "+strconv.FormatInt(resp.ContentLength, 10)+" bytes. Allowed "+strconv.FormatInt(r.maxFileSize, 10)+" bytes for "+r.safeURL)
@@ -606,6 +619,10 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	}
 
 	res.info.SizeDownload = counter.n
+
+	if err == nil {
+		applyBodyEnd(res, r, recorder.Load(), &h2, headText)
+	}
 
 	if err != nil {
 		var (
@@ -716,9 +733,10 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 // Composer's explode("\r\n", rtrim(...)) of what curl wrote to its header
 // handle, CONNECT and 1xx heads included; for the stream wrapper
 // $http_response_header. They come from the heads recorded on the
-// connection (headcapture.go), else from net/http's parse of the final one
-// (HTTP/2).
-func headerLines(resp *http.Response, curlStatus bool, rec *headRecorder, h2Connect *[]byte) []string {
+// connection (headcapture.go; h2Heads for HTTP/2, h2capture.go), else
+// from net/http's parse of the final one. text is the header text curl
+// wrote when it is known from the wire ("" for the stream wrapper).
+func headerLines(resp *http.Response, curlStatus bool, rec *headRecorder, h2Connect *[]byte, h2Heads [][]hpack.HeaderField, h2OK bool) (lines []string, text string) {
 	var (
 		connect, heads []byte
 		ok             bool
@@ -732,20 +750,64 @@ func headerLines(resp *http.Response, curlStatus bool, rec *headRecorder, h2Conn
 
 	switch {
 	case !curlStatus && ok:
-		return streamHeaderLines(heads)
+		return streamHeaderLines(heads), ""
 	case !curlStatus:
-		return responseHeaderLines(resp, false)
+		return responseHeaderLines(resp, false), ""
 	case ok:
-		return curlHeaderLines(curlHeaderText(append(append([]byte(nil), connect...), heads...)))
+		text = curlHeaderText(append(append([]byte(nil), connect...), heads...))
+	case h2OK:
+		text = curlHeaderText(connect) + curlH2HeaderText(h2Heads)
+	default:
+		return curlHeaderLines(curlHeaderText(connect) + strings.Join(responseHeaderLines(resp, true), "\r\n")), ""
 	}
 
-	return curlHeaderLines(curlHeaderText(connect) + strings.Join(responseHeaderLines(resp, true), "\r\n"))
+	return curlHeaderLines(text), text
+}
+
+// applyBodyEnd completes a result once its body was read through: for
+// curl the header lines get the trailer curl writes to the header handle
+// after the body (HTTP/1 chunked or HTTP/2); for the stream wrapper an
+// informational head it took for the response (headRecorder.feed) gives
+// the status and the body.
+func applyBodyEnd(res *transferResult, r *transferRequest, rec *headRecorder, h2 *h2Capture, headText string) {
+	if r.curlStatusLines {
+		trailer := ""
+
+		switch {
+		case headText == "":
+		case rec != nil:
+			trailer = string(rec.trailer())
+		default:
+			trailer = curlH2TrailerText(h2.trailer())
+		}
+
+		if trailer != "" {
+			res.headers = curlHeaderLines(headText + trailer)
+		}
+
+		return
+	}
+
+	if rec == nil || r.body != nil {
+		return
+	}
+
+	if code, body, ok := rec.earlyResponse(); ok {
+		if r.limit > 0 && int64(len(body)) > r.limit {
+			body = body[:r.limit]
+		}
+
+		res.status, res.info.HTTPCode = code, code
+		res.body = body
+	}
 }
 
 // responseHeaderLines renders a response head net/http parsed as header
-// lines: the status line, then the fields. net/http does not keep the
-// order fields arrived in, so they are sorted by name; HTTP/2 names are
-// lowercase as on the wire, and curl writes the status line as
+// lines: the status line, then the fields. It is the fallback when the
+// head was not recorded (an HTTP/2 header block the capture could not
+// decode, an HTTP/1 head above maxRecordedHead): net/http does not keep
+// the order fields arrived in, so they are sorted by name; HTTP/2 names
+// are lowercase as on the wire, and curl writes the status line as
 // "HTTP/2 200 ".
 func responseHeaderLines(resp *http.Response, curlStatus bool) []string {
 	lines := make([]string, 0, len(resp.Header)+1)

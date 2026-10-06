@@ -4,11 +4,12 @@
 // stream wrapper fills $http_response_header likewise from the final
 // head. net/http keeps only a map of the final head's fields, so HTTP/1
 // connections record the bytes of the heads read from them (headConn),
-// and the lines are rendered from those.
+// and the lines are rendered from those. curl also writes the trailer
+// fields of a chunked body to the header handle, so for curl the chunks
+// are followed to them.
 //
-// HTTP/2 connections are net/http's own *tls.Conn (its HTTP/2 client
-// requires one), and HPACK-decoded fields are not observable in order: for
-// them the lines are rebuilt from the field map (responseHeaderLines).
+// HTTP/2 connections record their heads per stream instead
+// (h2capture.go).
 
 package http
 
@@ -17,9 +18,12 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // maxRecordedHead bounds the bytes recorded for a response's heads; past
@@ -69,11 +73,13 @@ func (c *headConn) Read(b []byte) (int, error) {
 
 // record starts recording the response heads of the transfer that got
 // the connection; the first transfer on it also gets its CONNECT heads.
-func (c *headConn) record() *headRecorder {
+// stream is set for PHP's http stream wrapper, noBody for a response
+// without a body whatever its head says (a HEAD request).
+func (c *headConn) record(stream, noBody bool) *headRecorder {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	rec := &headRecorder{connect: c.connect}
+	rec := &headRecorder{connect: c.connect, stream: stream, noBody: noBody}
 	c.connect = nil
 	c.rec = rec
 
@@ -93,41 +99,20 @@ func asHeadConn(c net.Conn) *headConn {
 	return nil
 }
 
-// recordingTLSConn is the connection DialTLSContext hands net/http: a
-// tlsHeadConn for HTTP/1, the *tls.Conn itself for HTTP/2 (net/http's
-// HTTP/2 client takes only that), whose CONNECT head, if any, is kept in
-// tunnelHeads.
+// recordingTLSConn is the connection DialTLSContext hands net/http: an
+// h2HeadConn when HTTP/2 was negotiated, else a tlsHeadConn. connect is
+// the CONNECT heads of the tunnel it runs through, if any.
 func recordingTLSConn(tc *tls.Conn, connect []byte) net.Conn {
 	if tc.ConnectionState().NegotiatedProtocol == "h2" {
-		if connect != nil {
-			tunnelHeads.Store(net.Conn(tc), connect)
-		}
-
-		return tc
+		return newH2HeadConn(tc, connect)
 	}
 
 	return &tlsHeadConn{headConn: &headConn{Conn: tc, connect: connect}, tls: tc}
 }
 
-// tunnelHeads are the CONNECT heads of tunnelled connections that are not
-// headConns (HTTP/2 ones), until the first transfer on them takes them.
-var tunnelHeads sync.Map // net.Conn -> []byte
-
-// takeConnectHeads returns the CONNECT heads of a tunnelled HTTP/2
-// connection, once.
-func takeConnectHeads(c net.Conn) []byte {
-	if v, ok := tunnelHeads.LoadAndDelete(c); ok {
-		b, _ := v.([]byte)
-
-		return b
-	}
-
-	return nil
-}
-
 // headRecorder collects the response heads of one transfer: the
 // informational (1xx) ones, then the final one; it stops at the end of the
-// final head.
+// final head, or for curl at the end of a chunked body's trailer.
 type headRecorder struct {
 	mu sync.Mutex
 	// connect are the CONNECT heads of the tunnel, as received.
@@ -137,7 +122,21 @@ type headRecorder struct {
 	start    int
 	complete bool
 	overflow bool
+	// stream applies the stream wrapper's reading of informational heads
+	// (early); noBody tells a response without a body (no trailer).
+	stream, noBody bool
+	nheads         int
+	// early is set when the stream wrapper takes an informational head
+	// for the response; rest are the bytes read after it, its body.
+	early bool
+	rest  []byte
+	// chunks follows a chunked body to its trailer (curl).
+	chunks *chunkTracker
 }
+
+// maxEarlyBody bounds the bytes recorded as the body of an informational
+// head the stream wrapper takes for the response.
+const maxEarlyBody = 64 << 20
 
 // feed adds bytes read from the connection; it reports whether recording
 // is over.
@@ -145,7 +144,20 @@ func (r *headRecorder) feed(b []byte) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if r.complete || r.overflow {
+	switch {
+	case r.early:
+		if len(r.rest)+len(b) > maxEarlyBody {
+			r.early, r.rest = false, nil
+
+			return true
+		}
+
+		r.rest = append(r.rest, b...)
+
+		return false
+	case r.chunks != nil:
+		return r.chunks.feed(b)
+	case r.complete || r.overflow:
 		return true
 	}
 
@@ -157,14 +169,39 @@ func (r *headRecorder) feed(b []byte) bool {
 			break
 		}
 
-		code := statusCode(r.buf[r.start:end])
+		head := r.buf[r.start:end]
+		code := statusCode(head)
 		r.start = end
+		r.nheads++
 
 		// net/http, like curl, reads past informational responses (but
 		// not 101, which ends the exchange)
-		if code < 100 || code >= 200 || code == 101 {
+		informational := code >= 100 && code < 200 && code != 101
+
+		if informational && r.stream && r.nheads == 2 {
+			// PHP's http wrapper skips one informational head, reading
+			// lines up to the next "HTTP/1" status line, and takes the
+			// head starting there for the response, informational or
+			// not; the rest of the stream is its body
+			// (ext/standard/http_fopen_wrapper.c, php_stream_url_wrap_http_ex)
+			r.early = true
+			r.rest = append([]byte(nil), r.buf[end:]...)
 			r.buf = r.buf[:end]
 			r.complete = true
+
+			return false
+		}
+
+		if !informational {
+			rest := r.buf[end:]
+			r.buf = r.buf[:end]
+			r.complete = true
+
+			if !r.stream && !r.noBody && code >= 200 && code != 204 && code != 304 && isChunked(head) {
+				r.chunks = &chunkTracker{}
+
+				return r.chunks.feed(rest)
+			}
 
 			return true
 		}
@@ -186,6 +223,141 @@ func (r *headRecorder) heads() (connect, response []byte, ok bool) {
 	defer r.mu.Unlock()
 
 	return r.connect, r.buf, r.complete
+}
+
+// trailer returns the trailer of a chunked body as received, once the
+// body was read through.
+func (r *headRecorder) trailer() []byte {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.chunks == nil || !r.chunks.done || r.chunks.failed {
+		return nil
+	}
+
+	return r.chunks.trailer
+}
+
+// earlyResponse returns the status and body of an informational head
+// the stream wrapper takes for the response (feed).
+func (r *headRecorder) earlyResponse() (int, []byte, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.early {
+		return 0, nil, false
+	}
+
+	heads := splitHeads(r.buf)
+
+	return statusCode(bytes.Join(heads[len(heads)-1], nil)), r.rest, true
+}
+
+// isChunked reports whether a head's Transfer-Encoding names chunked.
+func isChunked(head []byte) bool {
+	for _, line := range bytes.Split(head, []byte("\n"))[1:] {
+		name, value, ok := bytes.Cut(line, []byte(":"))
+		if ok && strings.EqualFold(string(bytes.TrimSpace(name)), "transfer-encoding") && bytes.Contains(bytes.ToLower(value), []byte("chunked")) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// chunkTracker follows a chunked body as net/http reads it, to keep the
+// trailer section (lib/http_chunks.c hands each trailer line to the
+// header callback as received, without the empty line ending it).
+type chunkTracker struct {
+	state   int
+	line    []byte
+	left    int64
+	trailer []byte
+	done    bool
+	// failed is set when the chunks could not be followed (net/http then
+	// fails the body too).
+	failed bool
+}
+
+const (
+	chunkSize = iota
+	chunkData
+	chunkDataEnd
+	chunkTrailer
+)
+
+// feed follows bytes of the body; it reports whether it is done.
+func (t *chunkTracker) feed(b []byte) bool {
+	for len(b) > 0 && !t.done {
+		if t.state == chunkData {
+			k := min(int64(len(b)), t.left)
+			t.left -= k
+			b = b[k:]
+
+			if t.left == 0 {
+				t.state = chunkDataEnd
+			}
+
+			continue
+		}
+
+		i := bytes.IndexByte(b, '\n')
+		if i < 0 {
+			t.line = append(t.line, b...)
+			if len(t.line) > maxRecordedHead {
+				t.done, t.failed = true, true
+			}
+
+			break
+		}
+
+		line := append(t.line, b[:i+1]...)
+		t.line = nil
+		b = b[i+1:]
+
+		switch t.state {
+		case chunkSize:
+			size, ok := parseChunkSize(line)
+
+			switch {
+			case !ok:
+				t.done, t.failed = true, true
+			case size == 0:
+				t.state = chunkTrailer
+			default:
+				t.left, t.state = size, chunkData
+			}
+		case chunkDataEnd:
+			t.state = chunkSize
+		case chunkTrailer:
+			if len(bytes.TrimRight(line, "\r\n")) == 0 {
+				t.done = true
+			} else if t.trailer = append(t.trailer, line...); len(t.trailer) > maxRecordedHead {
+				t.done, t.failed = true, true
+			}
+		}
+	}
+
+	return t.done
+}
+
+// parseChunkSize reads a chunk-size line (hex digits, optional chunk
+// extensions after ';').
+func parseChunkSize(line []byte) (int64, bool) {
+	line = bytes.TrimRight(line, "\r\n")
+	line, _, _ = bytes.Cut(line, []byte(";"))
+	line = bytes.Trim(line, " \t")
+
+	if len(line) == 0 || len(line) > 16 {
+		return 0, false
+	}
+
+	n, err := strconv.ParseUint(string(line), 16, 64)
+	if err != nil || n > 1<<62 {
+		return 0, false
+	}
+
+	return int64(n), true
 }
 
 // headEnd is the offset just past the empty line ending the head that
@@ -318,7 +490,10 @@ func curlHeaderLines(text string) []string {
 // PHP's http wrapper fills it: one entry per line without its terminator,
 // the status line as received, fields with trailing white space removed
 // and folded fields joined with one space. Its CONNECT and 100 Continue
-// heads are not included (the wrapper consumes them).
+// heads are not included (the wrapper consumes them), nor is a
+// Transfer-Encoding field whose value starts with "chunked": the wrapper
+// decodes the body with its dechunk filter then and does not store the
+// field (php_stream_http_response_header).
 func streamHeaderLines(heads []byte) []string {
 	all := splitHeads(heads)
 	if len(all) == 0 {
@@ -344,5 +519,9 @@ func streamHeaderLines(heads []byte) []string {
 		}
 	}
 
-	return lines
+	return slices.DeleteFunc(lines, func(line string) bool {
+		const name = "Transfer-Encoding:"
+
+		return php.Strncasecmp(line, name, len(name)) == 0 && php.Strncasecmp(strings.TrimLeft(line[len(name):], " \t"), "chunked", 7) == 0
+	})
 }

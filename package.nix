@@ -15,7 +15,7 @@ buildGo127Module {
   # Hash of the go.mod/go.sum module set. .github/workflows/flake.yml
   # recomputes it on every dependency change; `just nix-vendor-hash` does it
   # locally.
-  vendorHash = "sha256-lSXV8JTqhKzyRJJjeno8ulcYsEVRQ18GwTR2CBPuAHU=";
+  vendorHash = "sha256-c7IXvVQkK8HY05fUqPt8dqzboS1CO0sJdJJItPcFjmo=";
 
   subPackages = ["cmd/maestro"];
 

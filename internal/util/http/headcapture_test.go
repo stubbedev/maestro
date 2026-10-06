@@ -24,6 +24,9 @@ var rawResponses = map[string]string{
 	"/trail":    "HTTP/1.1 200 OK  \r\nX-T: v \t\r\nX-E:\r\nContent-Length: 2\r\n\r\nok",
 	"/http10":   "HTTP/1.0 404 Not Found\r\nX-A: 1\r\nContent-Length: 2\r\n\r\nno",
 	"/nostatus": "HTTP/1.1 200\r\nX-A: 1\r\nContent-Length: 2\r\n\r\nok",
+	"/hints":    "HTTP/1.1 103 Early Hints\r\nLink: </a>; rel=preload\r\n\r\nHTTP/1.1 200 OK\r\ntransfer-encoding:CHUNKED\r\nX-A: 1\r\n\r\n2\r\nok\r\n0\r\n\r\n",
+	"/trailer":  "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-T\r\n\r\n1;ext=1\r\no\r\n1\r\nk\r\n0\r\nX-T: v\r\nX-U:  w \r\n\r\n",
+	"/early":    "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 102 Processing\r\nX-P: 1\r\n\r\nHTTP/1.1 103 Early Hints\r\nLink: </a>\r\n\r\nHTTP/1.1 404 Not Found\r\nContent-Length: 2\r\nX-A: 1\r\n\r\nno",
 }
 
 // rawServer serves rawResponses (requests in origin or absolute form) and,
@@ -146,13 +149,25 @@ func TestHeaderLines_WireOrder(t *testing.T) {
 			[]string{"HTTP/1.1 200 OK", "Z-Last: 1", "content-type: text/plain", "X-Multi: a", "A-First: 2", "x-multi: b", "Content-Length: 2"},
 			[]string{"HTTP/1.1 200 OK", "Z-Last: 1", "content-type: text/plain", "X-Multi: a", "A-First: 2", "x-multi: b", "Content-Length: 2"},
 		},
-		// PHP's wrapper takes the 103 head for the response (it skips only
-		// 100 Continue); net/http reads past it, so the stream lines are
-		// the 200 head's
+		// PHP's wrapper skips one informational head and takes the next
+		// head for the response, the 103 one here (TestHeaderLines_Body)
 		{
 			"/continue",
 			[]string{"HTTP/1.1 100 Continue", "", "HTTP/1.1 103 Early Hints", "Link: </a>; rel=preload", "", "HTTP/1.1 200 OK", "X-B: 1", "Content-Length: 2"},
-			[]string{"HTTP/1.1 200 OK", "X-B: 1", "Content-Length: 2"},
+			[]string{"HTTP/1.1 103 Early Hints", "Link: </a>; rel=preload"},
+		},
+		// ... and a lone 103 is skipped; the wrapper does not store a
+		// Transfer-Encoding field starting with "chunked"
+		{
+			"/hints",
+			[]string{"HTTP/1.1 103 Early Hints", "Link: </a>; rel=preload", "", "HTTP/1.1 200 OK", "transfer-encoding:CHUNKED", "X-A: 1"},
+			[]string{"HTTP/1.1 200 OK", "X-A: 1"},
+		},
+		// curl writes the trailer of a chunked body after the head
+		{
+			"/trailer",
+			[]string{"HTTP/1.1 200 OK", "Transfer-Encoding: chunked", "Trailer: X-T", "", "X-T: v", "X-U:  w"},
+			[]string{"HTTP/1.1 200 OK", "Trailer: X-T"},
 		},
 		{
 			"/lf",
@@ -193,6 +208,38 @@ func TestHeaderLines_WireOrder(t *testing.T) {
 		stream := doTransfer(t, &transferRequest{url: "http://" + addr + tc.path, key: transportKey{http1: true}})
 		if !slices.Equal(stream.headers, tc.stream) {
 			t.Errorf("%s stream: got %q, want %q", tc.path, stream.headers, tc.stream)
+		}
+	}
+}
+
+// TestHeaderLines_Body checks the status and body of responses whose
+// heads PHP 8.4's http stream wrapper reads differently from curl: it
+// skips a single informational head (php_stream_url_wrap_http_ex reads
+// lines up to the next "HTTP/1" status line) and takes the next head for
+// the response even when it is informational too, the rest of the
+// stream being its body.
+func TestHeaderLines_Body(t *testing.T) {
+	addr := rawServer(t, "", nil)
+
+	for _, tc := range []struct {
+		path                     string
+		curlStatus, streamStatus int
+		curlBody, streamBody     string
+		streamHeaders            []string
+	}{
+		{"/continue", 200, 103, "ok", "HTTP/1.1 200 OK\r\nX-B: 1\r\nContent-Length: 2\r\n\r\nok", []string{"HTTP/1.1 103 Early Hints", "Link: </a>; rel=preload"}},
+		{"/early", 404, 102, "no", "HTTP/1.1 103 Early Hints\r\nLink: </a>\r\n\r\nHTTP/1.1 404 Not Found\r\nContent-Length: 2\r\nX-A: 1\r\n\r\nno", []string{"HTTP/1.1 102 Processing", "X-P: 1"}},
+		{"/hints", 200, 200, "ok", "ok", []string{"HTTP/1.1 200 OK", "X-A: 1"}},
+		{"/trailer", 200, 200, "ok", "ok", []string{"HTTP/1.1 200 OK", "Trailer: X-T"}},
+	} {
+		curl := doTransfer(t, &transferRequest{url: "http://" + addr + tc.path, decode: true, curlStatusLines: true})
+		if curl.status != tc.curlStatus || string(curl.body) != tc.curlBody {
+			t.Errorf("%s curl: got %d %q", tc.path, curl.status, curl.body)
+		}
+
+		stream := doTransfer(t, &transferRequest{url: "http://" + addr + tc.path, headers: []string{"Connection: close"}, key: transportKey{http1: true}})
+		if stream.status != tc.streamStatus || string(stream.body) != tc.streamBody || !slices.Equal(stream.headers, tc.streamHeaders) {
+			t.Errorf("%s stream: got %d %q %q", tc.path, stream.status, stream.body, stream.headers)
 		}
 	}
 }
