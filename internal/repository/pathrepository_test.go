@@ -111,7 +111,7 @@ func TestPathRepository_LoadPackageWithExplicitVersions(t *testing.T) {
 func TestPathRepository_UrlRemainsRelative(t *testing.T) {
 	repositoryURL := fixturePath(t, "path", "with-version")
 	cwd := util.Realpath(must(util.GetCwd(false)))
-	relativeURL := strings.TrimLeft(strings.TrimPrefix(util.Realpath(repositoryURL), cwd), "/")
+	relativeURL := strings.TrimLeft(strings.TrimPrefix(util.Realpath(repositoryURL), cwd), string(filepath.Separator))
 
 	repo := createPathRepo(t, php.ArrayOf("url", relativeURL))
 	packages := must(repo.Packages())
@@ -119,7 +119,8 @@ func TestPathRepository_UrlRemainsRelative(t *testing.T) {
 	if count(t, repo) != 1 || packages[0].Name() != "test/path-versioned" {
 		t.Fatal("package")
 	}
-	if got := packages[0].DistURL().S; got != relativeURL {
+	// Platform specific separators become generic URL slashes.
+	if got := packages[0].DistURL().S; got != filepath.ToSlash(relativeURL) {
 		t.Fatalf("%q != %q", got, relativeURL)
 	}
 	if transport := packages[0].TransportOptions(); !php.StrictEquals(transport, php.ArrayOf("relative", true)) {
@@ -223,7 +224,7 @@ func TestArtifactRepository_AbsoluteRepoUrlCreatesAbsoluteUrlPackages(t *testing
 	absolutePath := fixturePath(t, "artifacts")
 	repo := must(NewArtifactRepository(php.ArrayOf("type", "artifact", "url", absolutePath), io.NewNullIO()))
 	for _, p := range must(repo.Packages()) {
-		if !strings.HasPrefix(p.DistURL().S, absolutePath) {
+		if !strings.HasPrefix(p.DistURL().S, filepath.ToSlash(absolutePath)) {
 			t.Error(p.DistURL().S)
 		}
 	}

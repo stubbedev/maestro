@@ -586,14 +586,20 @@ func TestFilesystem_EnsureDirectoryExists(t *testing.T) {
 func TestFilesystem_UnlinkErrors(t *testing.T) {
 	path := t.TempDir() + "/missing"
 
+	// Composer adds a hint about file locks on Windows.
+	hint := ""
+	if IsWindows() {
+		hint = windowsLockHint
+	}
+
 	err := Unlink(path)
 
 	var runtimeErr *RuntimeError
-	if !errors.As(err, &runtimeErr) || err.Error() != "Could not delete "+path+": unlink("+path+"): No such file or directory" {
+	if !errors.As(err, &runtimeErr) || err.Error() != "Could not delete "+path+": unlink("+path+"): No such file or directory"+hint {
 		t.Errorf("Unlink error = %v", err)
 	}
 
-	if err := Rmdir(path); err == nil || err.Error() != "Could not delete "+path+": rmdir("+path+"): No such file or directory" {
+	if err := Rmdir(path); err == nil || err.Error() != "Could not delete "+path+": rmdir("+path+"): No such file or directory"+hint {
 		t.Errorf("Rmdir error = %v", err)
 	}
 }

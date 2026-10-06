@@ -347,7 +347,7 @@ func cacheFiles(t *testing.T, dir string) *php.Array {
 			t.Fatal(err)
 		}
 		sum := sha256.Sum256(data)
-		out.Set(path[len(dir)+1:], hex.EncodeToString(sum[:]))
+		out.Set(filepath.ToSlash(path[len(dir)+1:]), hex.EncodeToString(sum[:]))
 	}
 
 	return out

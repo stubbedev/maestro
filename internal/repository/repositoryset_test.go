@@ -176,7 +176,7 @@ func TestRepositoryFactory_ConfigFromString(t *testing.T) {
 	dir := util.Realpath(t.TempDir())
 	repoFile := filepath.Join(dir, "packages.json")
 	noErr(t, os.WriteFile(repoFile, []byte(`{"packages": {"a/a": {}}}`), 0o644))
-	if got := must(ConfigFromString(repoFile, false, nil)); !php.StrictEquals(got, php.ArrayOf("type", "composer", "url", "file://"+repoFile)) {
+	if got := must(ConfigFromString(repoFile, false, nil)); !php.StrictEquals(got, php.ArrayOf("type", "composer", "url", "file://"+filepath.ToSlash(repoFile))) {
 		t.Error(got)
 	}
 	fsFile := filepath.Join(dir, "installed.json")
