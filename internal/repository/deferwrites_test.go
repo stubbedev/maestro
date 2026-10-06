@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // Deferred writes leave the files the last Write asked for would have
@@ -14,7 +15,7 @@ import (
 // write) is not in them.
 func TestFilesystemRepository_DeferWrites(t *testing.T) {
 	run := func(deferred bool) map[string]string {
-		dir := t.TempDir()
+		dir := testutil.RealTempDir(t) // realpath()ed, as the repository compares it
 		t.Chdir(dir)
 		file := must(json.NewFile(dir+"/vendor/composer/installed.json", nil, nil))
 		repo := must(NewFilesystemRepository(file, true, getRootPackage(t, "__root__", "dev-master")))
