@@ -1,5 +1,44 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## Git mirrors read in Go (issue #23, 2026-10-06)
+
+Machine as below, git 2.55.0, the project of #18 (psr/log, psr/container
+and symfony/console v7.3.4, 10 packages), warm mirror cache, files cache
+and package store. `install --prefer-source --no-plugins --no-scripts
+-q` with vendor/ removed before each run, hyperfine, 15 runs after 2
+warm-ups, two rounds; other agents' work ran meanwhile (load 7 to 13).
+"before" is a314d83.
+
+| Command | maestro before (median) | maestro after (median) |
+|---|---:|---:|
+| `install --prefer-source` | 311 / 359 ms | 285 / 284 ms |
+
+The "Syncing … into cache" step ran four git commands on the mirror per
+package (`rev-parse --git-dir`, `rev-parse --verify <sha>^{commit}`,
+`branch`, `tag`): 54 git processes in this install before, 19 after (36
+of those 40 gone, the first mirror still asking git once, and one `git
+config --list` added). The answers now come from
+HEAD, packed-refs, the loose refs, the pack indexes and the loose
+objects, only where they are certainly git's; anything else runs git as
+before, and each kind of answer is compared with git's on the first
+mirror of a run.
+
+Also measured: the dist prefetch of #20 (ddcc28a against its parent
+0121f74), cold `install --no-plugins --no-scripts -vvv --profile` of
+the laravel and symfony projects of #20, caches and vendor/ removed
+before every run, binaries interleaved, 12 runs each. The machine was
+never quiet: load 5 to 30 (other agents' test suites), so these are the
+quietest numbers available, not quiet ones.
+
+| Project | 0121f74 wall (median) | ddcc28a wall (median) | 0121f74 first dist 200 | ddcc28a first dist 200 |
+|---|---:|---:|---:|---:|
+| laravel | 3.41 s | 3.20 s | 0.41 s | 0.37 s |
+| symfony | 4.01 s | 3.71 s | 0.39 s | 0.36 s |
+
+The first dist response again comes some 25 to 40 ms earlier. The wall
+times moved 6 to 7 % in the prefetch's favour, but single runs ranged
+from 2.5 to 10 s, so the difference is within the noise, as in #20.
+
 ## Dist downloads overlap lock verification (issue #20, 2026-10-06)
 
 Machine as below, real Packagist and GitHub network. Projects: laravel
