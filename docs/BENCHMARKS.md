@@ -1,5 +1,102 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## main vs Composer on a quiet machine; GOGC decided (#28, 2026-10-07)
+
+main at bca07d6 against composer.phar 2.10.3, the laravel and symfony
+projects of the sections below (private-app was not available), on
+btrfs, real Packagist and GitHub network. Every command with
+`--no-plugins --no-scripts -q`, COMPOSER_TEST_SUITE=1, each tool its own
+COMPOSER_HOME, COMPOSER_CACHE_DIR and MAESTRO_CACHE_DIR. The two tools
+ran interleaved run by run (the order reversed every other round), 2
+untimed warm-ups for the warm rows, medians; wall, CPU (user + system)
+and peak RSS from wait4. *cold install*: caches, store and vendor/
+removed before each run (5 rounds); *warm install*: a fresh copy of the
+project without vendor/, warm caches and store (15); *no-op install*:
+vendor/ in place (20); *update --dry-run* warm (15, two series) and cold
+(caches removed, 5-6); *dump-autoload -o* in the installed project (20).
+
+No other agent ran. The 1-minute load average was 0.6 to 1.2 at the
+start of each series (its own runs take it to 1-2; the end of the cold
+symfony series saw 3.3 from the desktop's own builds). The CPU ran in
+the power-saver profile (intel_pstate powersave, energy preference
+"power"), as the machine was set: both tools' CPU times are higher than
+in the sections below (symfony's offline update takes ~4 s of CPU here,
+~1.9 s in #26), so compare the ratios, not the absolute times.
+
+| Project | Command | Composer | maestro | speed-up |
+|---|---|---:|---:|---:|
+| laravel | cold install | 7.22 s | 2.47 s | 2.9x |
+| laravel | warm install | 3.25 s | 360 ms | 9.0x |
+| laravel | no-op install | 1.79 s | 112 ms | 16.0x |
+| laravel | update --dry-run, warm | 3.51 s / 3.42 s | 351 ms / 387 ms | 10.0x / 8.8x |
+| laravel | update --dry-run, cold | 3.59 s | 567 ms | 6.3x |
+| laravel | dump-autoload -o | 1.29 s | 37.3 ms | 34.7x |
+| symfony | cold install | 7.71 s | 2.72 s | 2.8x |
+| symfony | warm install | 3.74 s | 381 ms | 9.8x |
+| symfony | no-op install | 1.11 s | 108 ms | 10.2x |
+| symfony | update --dry-run, warm | 7.77 s / 7.47 s | 1.12 s / 965 ms | 6.9x / 7.7x |
+| symfony | update --dry-run, cold | 7.45 s | 1.15 s | 6.4x |
+| symfony | dump-autoload -o | 1.38 s | 41.6 ms | 33.2x |
+
+The #12 targets:
+
+- **update ≥8x: met on laravel** (10.0x and 8.8x in two series), **not on
+  symfony** (6.9x and 7.7x). symfony's run is CPU-bound and spread wide
+  (0.6 to 1.3 s for the same command, 3.7 to 4.2 s of CPU over 12
+  cores): offline it takes as long as online (~1 s), so what is left is
+  decoding, building and resolving, not round trips.
+- **no-op install ≥20x: not met** (laravel 16x, symfony 10x). Both take
+  ~110 ms, of which the conditional requests revalidating packages.json
+  and the filter list (Composer's cache semantics, #14) and process
+  startup are most; Composer's symfony no-op takes 1.1 s, so 20x would be
+  55 ms.
+- **warm install ≥20x: not met** (9-10x). The laravel runs fall in two
+  groups, ~312 and ~362 ms, whatever the GC setting: the 50 ms between
+  them is a network round trip in the revalidation, not maestro's work.
+  The rest is the store import on btrfs and the dump.
+- **cold install ≥4x: not met** (2.8-2.9x), bound by the dist downloads
+  (GitHub codeload). A cold update reaches 6.3-6.4x.
+- dump-autoload -o, not a #12 target of its own, is now 33-35x.
+
+**GOGC: Go's default kept.** Same method, maestro against itself with
+GOGC unset, GOGC=200 (96dab1b's default), GOGC=400 with
+GOMEMLIMIT=320MiB, and GOGC=off with GOMEMLIMIT=512MiB (wall median,
+CPU median, peak RSS median):
+
+| Project | Command | default | GOGC=200 | 400 + 320MiB | off + 512MiB |
+|---|---|---:|---:|---:|---:|
+| laravel | update, warm (20) | 349 ms, 986 ms, 140 MB | 358 ms, 865 ms, 188 MB | 377 ms, 820 ms, 234 MB | 457 ms, 881 ms, 383 MB |
+| laravel | update, offline (20) | 269 ms, 1020 ms, 155 MB | 303 ms, 975 ms, 203 MB | | |
+| symfony | update, warm (12) | 907 ms, 3798 ms, 259 MB | 825 ms, 2963 ms, 323 MB | 1049 ms, 3466 ms, 299 MB | 974 ms, 2875 ms, 501 MB |
+| symfony | update, warm (20) | 957 ms, 3922 ms, 259 MB | 1020 ms, 3569 ms, 342 MB | | |
+| symfony | update, offline (20) | 987 ms, 4172 ms, 272 MB | 927 ms, 3469 ms, 353 MB | | |
+| laravel | warm install (15) | 362 ms, 1058 ms, 64 MB | 363 ms, 1017 ms, 69 MB | 316 ms, 961 ms, 78 MB | 358 ms, 951 ms, 115 MB |
+| symfony | warm install (15) | 376 ms, 1040 ms, 48 MB | 384 ms, 1006 ms, 50 MB | 367 ms, 931 ms, 57 MB | 354 ms, 936 ms, 92 MB |
+| laravel | no-op install (20) | 111 ms, 133 ms, 48 MB | 112 ms, 113 ms, 51 MB | 112 ms, 103 ms, 55 MB | 112 ms, 97 ms, 70 MB |
+| symfony | no-op install (20) | 108 ms, 97 ms, 37 MB | 107 ms, 79 ms, 41 MB | 107 ms, 73 ms, 47 MB | 111 ms, 66 ms, 56 MB |
+
+GOGC=200 cuts CPU by 3 to 22% and raises peak memory by 4 to 34%, but
+the wall time moves both ways by about as much as the series' own spread:
+symfony's update 9% and 6% faster in two series, 6.5% slower in a third;
+laravel's update 3% and 13% slower; installs within ±2%. The 316 ms of
+"400 + 320MiB" on laravel's warm install is the network grouping above
+(its fastest run, 310 ms, is the default's 311 ms). GOGC=off with a limit
+is slower on laravel's update (the larger heap's page faults) and
+doubles peak memory. None improves wall time beyond the noise, so main
+keeps Go's default; an explicit GOGC or GOMEMLIMIT works as for any Go
+program.
+
+Not done: the CPU items of #28 (the 39 loads that decode files the
+look-ahead has not handed over, slots for fresh 200 responses, the first
+wave's wait, the pool optimizer, a scan of `require` names). The GC
+series show 12% less CPU giving no measurable wall time on laravel,
+whose update meets its target; symfony's spread is wider than any of
+those items' estimated gains (~50 ms CPU each), so none could be shown
+to help here. A slot for a fresh 200 response must hold the array that
+decoding the re-encoded file (with `last-modified` added) gives, and be
+written before the load expands it in place, on the load's path; it
+saves one decode in the next run only.
+
 ## update --dry-run: versions expanded once, GOGC=200 (#26, 2026-10-07)
 
 Same machine, projects and command as #22 below (`update --dry-run
