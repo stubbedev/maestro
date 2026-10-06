@@ -47,7 +47,11 @@ deviations listed below.
    exact guarantees.
 2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go,
    reproducing exactly what Composer's preferred path (system `unzip -qq`,
-   `tar`) produces on Unix.
+   `tar`) produces on Unix. In macOS's C locale, unzip writes U+0080 to
+   U+00FF as Latin-1 bytes APFS refuses and Composer falls back to
+   ZipArchive; maestro refuses such names there rather than escaping them
+   as glibc's unzip does. On Windows, where Composer extracts zips with
+   ZipArchive or 7-Zip, maestro extracts as unzip would on Unix.
 3. **Speed.** Parallelism and caching wherever results stay identical.
 4. **self-update** updates maestro from its GitHub releases.
 5. **Plugins** run in maestro's own PHP shim (`internal/plugin/php`), which
