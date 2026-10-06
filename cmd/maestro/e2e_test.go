@@ -477,7 +477,7 @@ func runStep(t *testing.T, root string, env, cmd []string, s step) stepResult {
 	args = append(args, cmd[1:]...)
 
 	for _, a := range s.args {
-		args = append(args, strings.ReplaceAll(a, "@ROOT@", root))
+		args = append(args, strings.ReplaceAll(a, "@ROOT@", rootPath(root)))
 	}
 
 	c := exec.Command(cmd[0], args...)
@@ -505,6 +505,12 @@ func runStep(t *testing.T, root string, env, cmd []string, s step) stepResult {
 	return stepResult{code: code, stdout: stdout.String(), stderr: stderr.String(), dur: dur}
 }
 
+// rootPath is what @ROOT@ stands for in fixtures and arguments: the
+// scenario root with forward slashes, as composer.json files and JSON
+// arguments can hold it (Windows' backslashes would be JSON escapes;
+// Composer takes either separator there).
+func rootPath(root string) string { return filepath.ToSlash(root) }
+
 // copyFixture copies a fixture directory, replacing @ROOT@ in its files.
 func copyFixture(t *testing.T, src, dst, root string) {
 	t.Helper()
@@ -531,7 +537,7 @@ func copyFixture(t *testing.T, src, dst, root string) {
 			return err
 		}
 
-		data = bytes.ReplaceAll(data, []byte("@ROOT@"), []byte(root))
+		data = bytes.ReplaceAll(data, []byte("@ROOT@"), []byte(rootPath(root)))
 
 		return os.WriteFile(target, data, info.Mode().Perm())
 	})

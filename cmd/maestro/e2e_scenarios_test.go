@@ -618,7 +618,7 @@ func writeFile(rel, content string) func(*testing.T, string) {
 			t.Fatal(err)
 		}
 
-		if err := os.WriteFile(path, []byte(strings.ReplaceAll(content, "@ROOT@", root)), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(strings.ReplaceAll(content, "@ROOT@", rootPath(root))), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
