@@ -10,7 +10,6 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -53,7 +52,7 @@ func (d *GitDriver) Initialize() error {
 	if util.IsLocalPath(d.url) {
 		d.url = replaceInfallible(gitDirSuffix, "", d.url)
 		if !isDir(d.url) {
-			return &util.RuntimeError{Site: phperr.At("GitDriver.php", 46), Message: "Failed to read package information from " + util.SanitizeURL(d.url) + " as the path does not exist"}
+			return &util.RuntimeError{Message: "Failed to read package information from " + util.SanitizeURL(d.url) + " as the path does not exist"}
 		}
 
 		d.repoDir = d.url
@@ -61,7 +60,7 @@ func (d *GitDriver) Initialize() error {
 	} else {
 		cacheVcsDir := php.ToString(d.config.Get("cache-vcs-dir"))
 		if !cache.IsUsable(cacheVcsDir) {
-			return &util.RuntimeError{Site: phperr.At("GitDriver.php", 52), Message: "GitDriver requires a usable cache directory, and it looks like you set it to be disabled"}
+			return &util.RuntimeError{Message: "GitDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 		}
 
 		safeURL, err := util.SanitizeURLChecked(d.url)
@@ -80,13 +79,13 @@ func (d *GitDriver) Initialize() error {
 		}
 
 		if !util.IsWritable(parent) {
-			return &util.RuntimeError{Site: phperr.At("GitDriver.php", 63), Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + parent + `" directory is not writable by the current user.`}
+			return &util.RuntimeError{Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + parent + `" directory is not writable by the current user.`}
 		}
 
 		if ok, err := matches(sshURLWithoutPort, d.url); err != nil {
 			return err
 		} else if ok {
-			return &util.InvalidArgumentError{Site: phperr.At("GitDriver.php", 67), Message: "The source URL " + util.SanitizeURL(d.url) + ` is invalid, ssh URLs should have a port number after ":".` + "\n" + "Use ssh://git@example.com:22/path or just git@example.com:path if you do not want to provide a password or custom port."}
+			return &util.InvalidArgumentError{Message: "The source URL " + util.SanitizeURL(d.url) + ` is invalid, ssh URLs should have a port number after ":".` + "\n" + "Use ssh://git@example.com:22/path or just git@example.com:path if you do not want to provide a password or custom port."}
 		}
 
 		gitUtil := uvcs.NewGit(d.io, d.config, d.process, util.NewFilesystem(nil))
@@ -98,7 +97,7 @@ func (d *GitDriver) Initialize() error {
 
 		if !synced {
 			if !isDir(d.repoDir) {
-				return &util.RuntimeError{Site: phperr.At("GitDriver.php", 73), Message: "Failed to clone " + util.SanitizeURL(d.url) + " to read package information from it"}
+				return &util.RuntimeError{Message: "Failed to clone " + util.SanitizeURL(d.url) + " to read package information from it"}
 			}
 
 			d.io.WriteError("<error>Failed to update "+util.SanitizeURL(d.url)+", package information from this repository may be outdated</error>", true, io.Normal)
@@ -181,19 +180,11 @@ func (d *GitDriver) Source(identifier string) *php.Array {
 // Dist ports GitDriver::getDist.
 func (d *GitDriver) Dist(string) *php.Array { return nil }
 
-// transportErrorAt is new TransportException($message, $code) at site.
-func transportErrorAt(site phperr.Site, message string, code int) *util.TransportError {
-	e := util.NewTransportError(message, code)
-	e.Site = site
-
-	return e
-}
-
 // invalidIdentifier is the RuntimeException the CLI drivers throw for an
 // identifier that would read as an option.
-func invalidIdentifier(site phperr.Site, vcs, identifier string) error {
+func invalidIdentifier(vcs, identifier string) error {
 	if identifier != "" && identifier[0] == '-' {
-		return &util.RuntimeError{Site: site, Message: "Invalid " + vcs + " identifier detected. Identifier must not start with a -, given: " + identifier}
+		return &util.RuntimeError{Message: "Invalid " + vcs + " identifier detected. Identifier must not start with a -, given: " + identifier}
 	}
 
 	return nil
@@ -201,7 +192,7 @@ func invalidIdentifier(site phperr.Site, vcs, identifier string) error {
 
 // FileContent ports GitDriver::getFileContent.
 func (d *GitDriver) FileContent(file, identifier string) (string, bool, error) {
-	if err := invalidIdentifier(phperr.At("GitDriver.php", 150), "git", identifier); err != nil {
+	if err := invalidIdentifier("git", identifier); err != nil {
 		return "", false, err
 	}
 
@@ -219,7 +210,7 @@ func (d *GitDriver) FileContent(file, identifier string) (string, bool, error) {
 
 // ChangeDate ports GitDriver::getChangeDate.
 func (d *GitDriver) ChangeDate(identifier string) (time.Time, bool, error) {
-	if err := invalidIdentifier(phperr.At("GitDriver.php", 168), "git", identifier); err != nil {
+	if err := invalidIdentifier("git", identifier); err != nil {
 		return time.Time{}, false, err
 	}
 

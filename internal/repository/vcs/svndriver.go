@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -233,7 +232,7 @@ func (d *SvnDriver) FileContent(file, identifier string) (string, bool, error) {
 	output, err := d.execute([]string{"svn", "cat"}, d.baseURL+path+file+rev)
 	if err != nil {
 		if util.IsRuntimeException(err) {
-			return "", false, transportErrorAt(phperr.At("SvnDriver.php", 195), err.Error(), 400)
+			return "", false, util.NewTransportError(err.Error(), 400)
 		}
 
 		return "", false, err
@@ -447,10 +446,10 @@ func (d *SvnDriver) execute(command []string, url string) (string, error) {
 	if _, ok, verr := d.util.BinaryVersion(); verr != nil {
 		return "", verr
 	} else if !ok {
-		return "", &util.RuntimeError{Site: phperr.At("SvnDriver.php", 390), Message: "Failed to load " + util.SanitizeURL(d.url) + ", svn was not found, check that it is installed and in your PATH env." + "\n\n" + d.process.GetErrorOutput()}
+		return "", &util.RuntimeError{Message: "Failed to load " + util.SanitizeURL(d.url) + ", svn was not found, check that it is installed and in your PATH env." + "\n\n" + d.process.GetErrorOutput()}
 	}
 
-	return "", &util.RuntimeError{Site: phperr.At("SvnDriver.php", 393), Message: "Repository " + util.SanitizeURL(d.url) + " could not be processed, " + util.SanitizeURL(err.Error())}
+	return "", &util.RuntimeError{Message: "Repository " + util.SanitizeURL(d.url) + " could not be processed, " + util.SanitizeURL(err.Error())}
 }
 
 // buildIdentifier ports SvnDriver::buildIdentifier.

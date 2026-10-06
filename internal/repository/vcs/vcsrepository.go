@@ -8,7 +8,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -262,7 +261,7 @@ func (r *VcsRepository) initialize() error {
 	}
 
 	if driver == nil {
-		return &util.InvalidArgumentError{Site: phperr.At("VcsRepository.php", 193), Message: "No driver found to handle VCS repository " + util.SanitizeURL(r.url)}
+		return &util.InvalidArgumentError{Message: "No driver found to handle VCS repository " + util.SanitizeURL(r.url)}
 	}
 
 	r.versionParser = pkg.NewVersionParser()
@@ -300,7 +299,7 @@ func (r *VcsRepository) initialize() error {
 			return err
 		}
 
-		return &repository.InvalidRepositoryError{Site: phperr.At("VcsRepository.php", 423), Message: "No valid composer.json was found in any branch or tag of " + util.SanitizeURL(r.url) + ", could not load a package from it."}
+		return &repository.InvalidRepositoryError{Message: "No valid composer.json was found in any branch or tag of " + util.SanitizeURL(r.url) + ", could not load a package from it."}
 	}
 
 	return nil
