@@ -77,6 +77,9 @@ final class Server
             $_SERVER[$name] = $value;
         }
 
+        // Where maestro names Composer's files (phperr.Root).
+        Traces::setRoot(isset($a['composerRoot']) ? (string) $a['composerRoot'] : '');
+
         // A self-test: the constants the shim pins equal maestro's.
         foreach (isset($a['composerVersion']) ? $a['composerVersion'] : [] as $constant => $want) {
             if (!defined($constant) || constant($constant) !== $want) {

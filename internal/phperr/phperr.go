@@ -147,6 +147,43 @@ func Call(err error, function, file string, line int) error {
 	return err
 }
 
+// Locator is implemented by errors whose trace ends with a frame whose
+// callee they know but whose call they do not: an exception PHP code of
+// the plugin runtime threw, whose trace reaches the call maestro made
+// into that code (docs/PLUGINS.md §5.12). LocateCall sets the file and
+// line of that call.
+type Locator interface {
+	LocateCall(file string, line int)
+}
+
+// Locate records that err left the PHP code it was thrown in through
+// maestro's call of that code at file:line (EventDispatcher calling a
+// listener, PluginManager a plugin), where Call cannot name the callee:
+// for an error whose trace awaits that call's location (a Locator), it
+// sets it, for it and its previous exceptions. Other errors are left
+// alone. It returns err (nil for nil).
+func Locate(err error, file string, line int) error {
+	if err == nil {
+		return nil
+	}
+	seen := map[error]bool{}
+	for e := err; e != nil; e = PreviousOf(e) {
+		t := tracedOf(e)
+		if t == nil {
+			continue
+		}
+		if seen[t] {
+			break
+		}
+		seen[t] = true
+		if l, ok := t.(Locator); ok {
+			l.LocateCall(file, line)
+		}
+	}
+
+	return err
+}
+
 // Calls records several frames, innermost first, as successive Calls.
 func Calls(err error, frames ...Frame) error {
 	for _, f := range frames {

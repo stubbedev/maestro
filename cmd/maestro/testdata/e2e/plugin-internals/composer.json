@@ -1,0 +1,16 @@
+{
+    "name": "maestro-test/internals-project",
+    "description": "A plugin using what docs/PLUGINS.md §5.12 emulates of Composer's internals: exceptions with Composer's call stack, asynchronous processes on Composer's loop.",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"type": "path", "url": "libs/*", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/internals-plugin": "*",
+        "local/lib-a": "*"
+    },
+    "config": {
+        "allow-plugins": {"maestro-test/internals-plugin": true}
+    }
+}

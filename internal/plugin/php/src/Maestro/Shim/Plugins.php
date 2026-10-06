@@ -91,7 +91,7 @@ final class Plugins
                     '__CLASS__' => var_export($class, true),
                 ]);
                 $code = Preg::replace('/^\s*<\?(php)?/i', '', $code, 1);
-                eval($code);
+                eval($code); // @line src/Composer/Plugin/PluginManager.php:305
                 $class .= '_composer_tmp'.self::$classCounter;
                 self::$classCounter++;
             }

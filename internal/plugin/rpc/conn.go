@@ -535,7 +535,9 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 	var x *php.Array
 
 	if pe, ok := err.(*PHPException); ok { //nolint:errorlint // only the exception itself keeps its identity.
-		x = php.ArrayOf("class", pe.Class, "message", pe.Message, "code", int64(pe.Code), "h", int64(pe.H))
+		// its trace as maestro completed it, which PHP continues with the
+		// stack it goes on in (docs/PLUGINS.md §5.12)
+		x = php.ArrayOf("class", pe.Class, "message", pe.Message, "code", int64(pe.Code), "h", int64(pe.H), "trace", traceValue(pe.Trace))
 		if pe.Previous != nil && depth < maxExceptionDepth {
 			x.Set("previous", c.exceptionValue(pe.Previous, depth+1))
 		}
@@ -568,10 +570,20 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 		x.Set("props", php.ArrayOf("scope", scope, "values", props))
 	}
 	// Composer's throw site (docs/PLUGINS.md §5.10): Symfony renders "In
-	// <file> line <n>:" from it.
+	// <file> line <n>:" from it, and -v's "at" line from its path, which
+	// is Composer's file as maestro names it (phperr.AbsPath). The trace
+	// is the frames maestro recorded as the error went up (§5.12), which
+	// PHP continues with the stack it is thrown into.
 	if site, ok := phperr.SiteOf(err); ok {
-		x.Set("file", php.Basename(site.File, ""))
+		x.Set("file", phperr.AbsPath(site.File))
 		x.Set("line", int64(site.Line))
+	}
+	if frames := phperr.TraceOf(err); len(frames) > 0 {
+		trace := make([]console.TraceFrame, len(frames))
+		for i, f := range frames {
+			trace[i] = traceFrame(f)
+		}
+		x.Set("trace", traceValue(trace))
 	}
 	if previous != nil && depth < maxExceptionDepth {
 		x.Set("previous", c.exceptionValue(previous, depth+1))
@@ -620,6 +632,10 @@ func (c *Conn) decodeException(v any, depth int) (*PHPException, error) {
 				tf.Line = php.ToNativeInt(line)
 			}
 			e.Trace = append(e.Trace, tf)
+			// the boundary, the shim's call into the code that threw
+			// (docs/PLUGINS.md §5.12), is the last frame
+			open, _ := frame.Get("open")
+			e.open = open == true
 		}
 	}
 	if prev, ok := x.Get("previous"); ok && prev != nil {
@@ -664,4 +680,14 @@ func exceptionProps(err error) (string, *php.Array) {
 	}
 
 	return `Composer\Downloader\TransportException`, php.ArrayOf("headers", headers, "response", response, "statusCode", status)
+}
+
+// traceValue is a trace as the shim takes it (Traces::throwInto()).
+func traceValue(trace []console.TraceFrame) *php.Array {
+	out := php.NewArrayCap(len(trace))
+	for _, f := range trace {
+		out.Append(php.ArrayOf("file", f.File, "line", int64(f.Line), "class", f.Class, "type", f.Type, "function", f.Function))
+	}
+
+	return out
 }

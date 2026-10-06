@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -147,7 +148,9 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 
 	util.PutEnv("COMPOSER_DEV_MODE", devModeEnv(devMode))
 
-	return c2.EventDispatcher().DispatchScript(scriptName, devMode, args, nil)
+	code, err := c2.EventDispatcher().DispatchScript(scriptName, devMode, args, nil)
+
+	return code, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchScript`, runScriptCommandFile, 140)
 }
 
 // devModeEnv is `$devMode ? '1' : '0'`.

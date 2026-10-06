@@ -7,15 +7,109 @@ package plugin
 // debug_backtrace() shows.
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
+
+// An exception crossing between maestro and PHP carries Composer's call
+// stack: a Go error thrown into PHP has Composer's file (under
+// phperr.Root) and the frames maestro recorded, then the PHP stack it is
+// thrown into, without the shim's machinery; a PHP exception going to
+// maestro has its frames down to the call maestro made, which maestro
+// completes, and going back to PHP keeps them.
+func TestInternals_Traces(t *testing.T) {
+	requirePHP(t)
+
+	phperr.SetRoot("phar:///maestro")
+	t.Cleanup(func() { phperr.SetRoot("") })
+	rt, _, _ := newTestRuntime(t)
+	rt.Handle("test.goFail", func(any) (any, error) {
+		err := &util.RuntimeError{Message: "nope", Site: phperr.At("Factory.php", 317)}
+
+		return nil, phperr.Call(err, `Composer\Factory::createConfig`, "Factory.php", 300)
+	})
+	// a PHP exception going up maestro's ports and back into PHP
+	rt.Handle("test.relay", func(any) (any, error) {
+		_, err := rt.Call("test.throw", php.ArrayOf("message", "deep", "code", 1))
+
+		return nil, phperr.Call(err, `Composer\Installer->run`, "InstallCommand.php", 150)
+	})
+	start(t, rt)
+
+	frame := func(f any) string {
+		a, _ := f.(*php.Array)
+		s := func(k string) string { v, _ := a.Get(k); return php.ToString(v) }
+
+		return s("class") + s("type") + s("function") + " " + s("file") + ":" + s("line")
+	}
+
+	// (a named function: the test handlers' closures have the shim's
+	// scope, which plugin code never has)
+	got := evalPHP(t, rt, `
+		if (!function_exists('maestroTestGoFail')) {
+			function maestroTestGoFail() {
+				\Maestro\Shim\Rpc::call('test.goFail', []);
+			}
+		}
+		try {
+			maestroTestGoFail();
+		} catch (\RuntimeException $e) {
+			return ['file' => $e->getFile().':'.$e->getLine(), 'trace' => $e->getTrace()];
+		}
+	`, nil)
+	if f := php.ToString(get(t, got, "file")); f != "phar:///maestro/src/Composer/Factory.php:317" {
+		t.Errorf("getFile():getLine() = %s", f)
+	}
+	trace, _ := get(t, got, "trace").(*php.Array)
+	if trace == nil || trace.Len() < 2 {
+		t.Fatalf("trace %v", get(t, got, "trace"))
+	}
+	if f := frame(trace.Values()[0]); f != `Composer\Factory::createConfig phar:///maestro/src/Composer/Factory.php:300` {
+		t.Errorf("first frame %s", f)
+	}
+	for _, f := range trace.Values()[1:] {
+		if s := frame(f); strings.Contains(s, `Maestro\Shim\Rpc`) || strings.Contains(s, `Exceptions`) {
+			t.Errorf("a frame of the shim's machinery: %s", s)
+		}
+	}
+
+	_, err := rt.Call("test.eval", php.ArrayOf("code", `
+		if (!function_exists('maestroTestRelay')) {
+			function maestroTestRelay() {
+				\Maestro\Shim\Rpc::call('test.relay', []);
+			}
+		}
+		maestroTestRelay();
+	`))
+	pe, ok := errors.AsType[*rpc.PHPException](err)
+	if !ok {
+		t.Fatalf("err = %v", err)
+	}
+	var names []string
+	for _, f := range pe.Trace {
+		names = append(names, f.Class+f.Type+f.Function)
+	}
+	// the handler that threw (its call by the shim's dispatcher, which
+	// maestro did not locate), the frame maestro added going up, the
+	// function maestroTestRelay() the exception went on in, ...
+	if len(names) < 3 || names[2] != "maestroTestRelay" || names[1] != `Composer\Installer->run` || pe.Trace[1].File != "phar:///maestro/src/Composer/Command/InstallCommand.php" {
+		t.Errorf("trace %+v", pe.Trace)
+	}
+	if _, ok := pe.OpenFrame(); !ok {
+		t.Error("the trace does not end at the call maestro made")
+	}
+}
 
 // A process PHP code starts asynchronously on its loop's executor makes
 // progress while maestro's loop waits, not only while PHP does: Composer

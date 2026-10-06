@@ -6,9 +6,11 @@ package rpc
 import (
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -76,6 +78,97 @@ type PHPException struct {
 	// Extra holds the typed extras of known classes (docs/PLUGINS.md
 	// §5.10), when any.
 	Extra any
+
+	// open is set while the last frame of Trace is the call the shim
+	// made into the PHP code that threw (docs/PLUGINS.md §5.12): its
+	// callee is PHP's, its location still the shim's until maestro
+	// names Composer's call (LocateCall, or AddFrame of a frame for the
+	// same callee).
+	open bool
+}
+
+var (
+	_ phperr.Traced  = (*PHPException)(nil)
+	_ phperr.Locator = (*PHPException)(nil)
+	_ phperr.Chained = (*PHPException)(nil)
+)
+
+// AddFrame implements phperr.Traced: the exception went up through the
+// port of a PHP call, whose frame its trace gets as PHP's would. The first
+// frame added names the call the boundary frame stands for when it is
+// for the same callee (Symfony's Command::run() of a command written in
+// PHP), and only locates it then.
+func (e *PHPException) AddFrame(fr phperr.Frame) {
+	if e.open {
+		e.open = false
+		last := &e.Trace[len(e.Trace)-1]
+		if fr.Function == last.Class+last.Type+last.Function {
+			last.File, last.Line = phperr.AbsPath(fr.File), fr.Line
+
+			return
+		}
+	}
+	e.Trace = append(e.Trace, traceFrame(fr))
+}
+
+// LocateCall implements phperr.Locator: the boundary frame's call is
+// Composer's at file:line.
+func (e *PHPException) LocateCall(file string, line int) {
+	if e.open {
+		e.open = false
+		last := &e.Trace[len(e.Trace)-1]
+		last.File, last.Line = phperr.AbsPath(file), line
+	}
+}
+
+// OpenFrame is the boundary frame while its location is not Composer's
+// yet (LocateCall): the callee of the call maestro made into PHP code
+// that the exception left through.
+func (e *PHPException) OpenFrame() (console.TraceFrame, bool) {
+	if !e.open {
+		return console.TraceFrame{}, false
+	}
+
+	return e.Trace[len(e.Trace)-1], true
+}
+
+// PHPTrace implements phperr.Traced.
+func (e *PHPException) PHPTrace() []phperr.Frame {
+	out := make([]phperr.Frame, len(e.Trace))
+	for i, f := range e.Trace {
+		out[i] = phperr.Frame{Function: f.Class + f.Type + f.Function, File: f.File, Line: f.Line}
+	}
+
+	return out
+}
+
+// PHPPrevious implements phperr.Chained: maestro's frames go to the
+// previous exceptions too, constructed further down the same stack.
+func (e *PHPException) PHPPrevious() error {
+	if e.Previous == nil {
+		return nil
+	}
+
+	return e.Previous
+}
+
+// traceFrame is a frame maestro recorded as PHP's trace has it: the class,
+// call type and function split, the file absolute (phperr.AbsPath).
+func traceFrame(fr phperr.Frame) console.TraceFrame {
+	tf := console.TraceFrame{Function: fr.Function, File: phperr.AbsPath(fr.File), Line: fr.Line}
+	// the first "->" or "::" separates the class, unless it is inside a
+	// closure's name ("{closure:Class::method():12}")
+	i := -1
+	for _, sep := range [...]string{"->", "::"} {
+		if j := strings.Index(fr.Function, sep); j > 0 && (i < 0 || j < i) {
+			i = j
+		}
+	}
+	if i > 0 && !strings.Contains(fr.Function[:i], "{") {
+		tf.Class, tf.Type, tf.Function = fr.Function[:i], fr.Function[i:i+2], fr.Function[i+2:]
+	}
+
+	return tf
 }
 
 func (e *PHPException) Error() string { return e.Message }

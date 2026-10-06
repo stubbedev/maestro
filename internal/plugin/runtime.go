@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -445,6 +446,9 @@ func (r *Runtime) bootArgs() *php.Array {
 			`Composer\Plugin\PluginInterface::PLUGIN_API_VERSION`, repository.PluginAPIVersion,
 		),
 		"io", nil,
+		// the directory maestro names Composer's files under, which the
+		// shim's traces name them under too
+		"composerRoot", phperr.Root(),
 	)
 
 	r.mu.Lock()

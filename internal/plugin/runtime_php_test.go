@@ -268,7 +268,7 @@ func TestRuntime_ExceptionsBothWays(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	if pe.Class != "MaestroTestException" || pe.Message != "bad \xff bytes" || pe.Code != 9 || pe.Line == 0 || !strings.HasSuffix(pe.File, "handlers.php") || len(pe.Trace) == 0 {
-		t.Errorf("exception %+v", pe)
+		t.Errorf("exception %s %q %d %s:%d trace %+v", pe.Class, pe.Message, pe.Code, pe.File, pe.Line, pe.Trace)
 	}
 	if !pe.InstanceOf("DomainException") || !pe.InstanceOf("LogicException") || !pe.InstanceOf("Throwable") {
 		t.Errorf("classes %v", pe.Classes)

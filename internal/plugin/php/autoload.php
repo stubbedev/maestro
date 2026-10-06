@@ -556,6 +556,7 @@ return array(
         'Maestro\\Shim\\Rpc' => 'src/Maestro/Shim/Rpc.php',
         'Maestro\\Shim\\Server' => 'src/Maestro/Shim/Server.php',
         'Maestro\\Shim\\Sync' => 'src/Maestro/Shim/Sync.php',
+        'Maestro\\Shim\\Traces' => 'src/Maestro/Shim/Traces.php',
         'Maestro\\Shim\\UnsupportedApiException' => 'src/Maestro/Shim/UnsupportedApiException.php',
         'Maestro\\Shim\\Values' => 'src/Maestro/Shim/Values.php',
         'Normalizer' => 'lib/symfony/polyfill-intl-normalizer/Resources/stubs/Normalizer.php',

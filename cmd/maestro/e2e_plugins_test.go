@@ -142,7 +142,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"run-script", "exit3"}},
 				{args: []string{"run-script", "fatal"}},
 				{args: []string{"run-script", "throws"}},
-				{args: []string{"run-script", "throws", "-v"}, normalize: normalizeTrace},
+				{args: []string{"run-script", "throws", "-v"}, normalize: normalizeComposerTrace},
 				{args: []string{"run-script", "returns-false"}},
 				{args: []string{"run-script", "missing-class"}},
 				{args: []string{"run-script", "missing-method"}},
@@ -166,7 +166,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"hello-command", "--help"}},
 				{args: []string{"hello-command", "you", "--shout", "-v"}},
 				{args: []string{"hello-command", "a", "b"}},
-				{args: []string{"hello-command", "--nope", "-v"}, normalize: func(s string) string { return normalizeBundled(normalizeTrace(s)) }},
+				{args: []string{"hello-command", "--nope", "-v"}, normalize: normalizeComposerTrace},
 				{args: []string{"run-script", "--list"}},
 				{args: []string{"_complete", "-n", "-c1", "--shell=bash", "-icomposer", "-ihello"}},
 				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-ihello-command", "-i--sh"}},
@@ -192,6 +192,29 @@ func pluginScenarios() []scenario {
 				{args: []string{"stubs:helpers", "--ignore-platform-reqs"}},
 				{args: []string{"stubs:helpers", "--audit-format=xml"}},
 				{args: []string{"stubs:io"}},
+			},
+		},
+		{
+			// What docs/PLUGINS.md §5.12 emulates of Composer's internals
+			// beyond the surveyed plugins' needs (issue #2), through a path
+			// repository plugin: a process it starts asynchronously on
+			// Composer's loop runs, and its callback with it, while
+			// Composer's own install waits; exceptions show Composer's
+			// call stack at -v, thrown by the plugin's command, by
+			// Composer's code under it, by a listener and by activate()
+			// (an eval()'d copy of the plugin class, as Composer loads an
+			// already loaded one).
+			name:    "plugin-internals",
+			fixture: "plugin-internals",
+			steps: []step{
+				{args: []string{"install"}},
+				// The plugin is active from here on (pre-operations-exec).
+				{args: []string{"require", "local/lib-b"}},
+				{args: []string{"install", "-v"}},
+				{args: []string{"internals:throw", "-v"}, normalize: normalizeComposerTrace},
+				{args: []string{"internals:throw", "-v"}, env: []string{"INTERNALS_THROW=composer"}, normalize: normalizeComposerTrace},
+				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=listener"}, normalize: normalizeComposerTrace},
+				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=activate"}, normalize: normalizeComposerTrace},
 			},
 		},
 		{
@@ -648,30 +671,33 @@ const pluginAPIUnrequired = `{
 }
 `
 
-// traceFrame is a frame line of an exception trace Symfony renders at -v
-// (" Class->method() at file:line").
-var traceFrame = regexp.MustCompile(`(?m)^ \S+\(\) at \S+\n`)
+// composerRoot is the directory Composer's sources are named under in an
+// exception trace: the phar's (phar://.../composer-2.10.3.phar), and the
+// phar maestro's executable stands for (phar://.../maestro, phperr.Root).
+var composerRoot = regexp.MustCompile(`phar://\S+?(?:\.phar|/maestro)/(src|vendor|bin)/`)
 
-// normalizeTrace drops the frames of exception traces (docs/PLUGINS.md §10,
-// risk 3): below the plugin's own code Composer's frames are its sources'
-// (EventDispatcher.php, Application.php, ...) and maestro's the shim's, by
-// design. The exception's own file and line are kept.
-func normalizeTrace(s string) string { return traceFrame.ReplaceAllString(s, "") }
+// pharMain is the outermost frame of Composer's trace: the phar's stub
+// requiring bin/composer, whose require() call is a line before the one of
+// Composer's source tree that maestro names (as its errors oracle does).
+var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:)11[23]\n(?: require\(\) at \S+\.phar:\d+\n)?`)
 
-// bundledPath is the directory of the libraries Composer bundles: in the
-// phar, or in maestro's shim (docs/PLUGINS.md §5.1).
-var bundledPath = regexp.MustCompile(`phar://\S*?\.phar/vendor/|\S*/maestro/shim/[0-9a-f]{64}/lib/`)
-
-// normalizeBundled replaces the location of the bundled libraries (an
-// exception thrown by the bundled symfony/console names its file).
-func normalizeBundled(s string) string { return bundledPath.ReplaceAllString(s, "<bundled>/") }
+// normalizeComposerTrace keeps the frames of exception traces (docs/PLUGINS.md
+// §5.12: maestro completes a PHP exception's trace with Composer's frames)
+// and reads Composer's root as @COMPOSER@ for both tools, the phar's stub
+// frame left out.
+func normalizeComposerTrace(s string) string {
+	return pharMain.ReplaceAllString(composerRoot.ReplaceAllString(s, "@COMPOSER@/$1/"), "${1}N\n")
+}
 
 // stackFrames are the frames of a "Stack trace:" Composer's ErrorHandler
 // writes at -v, after the first (the plugin's own line).
 var stackFrames = regexp.MustCompile(`(?m)^(Stack trace:\n \S+\n)(?: \S+\n)+`)
 
 // normalizeStackTrace drops the frames of ErrorHandler's stack traces below
-// the plugin's own line, for the reason of normalizeTrace.
+// the plugin's own line: below the plugin's code, Composer's frames are its
+// sources' (EventDispatcher.php, Application.php, ...) and maestro's the
+// shim's (docs/PLUGINS.md §10, risk 3): ErrorHandler lists debug_backtrace()
+// as it is, which maestro does not complete as it does exception traces.
 func normalizeStackTrace(s string) string { return stackFrames.ReplaceAllString(s, "$1") }
 
 // mergeAlphaUpdated is plugin-merge's modules/alpha with one more

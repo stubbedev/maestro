@@ -25,16 +25,11 @@ final class Exceptions
         $class = get_class($e);
         $classes = array_values(array_unique(array_merge([$class], array_values(class_parents($e)), array_values(class_implements($e)))));
 
-        $trace = [];
-        foreach ($e->getTrace() as $frame) {
-            $trace[] = [
-                'file' => isset($frame['file']) ? $frame['file'] : '',
-                'line' => isset($frame['line']) ? $frame['line'] : 0,
-                'class' => isset($frame['class']) ? $frame['class'] : '',
-                'type' => isset($frame['type']) ? $frame['type'] : '',
-                'function' => isset($frame['function']) ? $frame['function'] : '',
-            ];
-        }
+        // The frames down to the call maestro made, which maestro
+        // completes with Composer's (docs/PLUGINS.md §5.12).
+        $trace = Traces::toMaestro($e);
+        // thrown in a bundled library: Composer's vendor/ file
+        list($file, $line) = Traces::composerLocation($e->getFile(), $e->getLine());
 
         $previous = $e->getPrevious();
 
@@ -43,8 +38,8 @@ final class Exceptions
             'classes' => $classes,
             'message' => $e->getMessage(),
             'code' => $e->getCode(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
+            'file' => $file,
+            'line' => $line,
             'trace' => $trace,
             'previous' => $previous !== null ? self::toWire($previous) : null,
             'h' => Handles::handleOf($e),
@@ -60,6 +55,12 @@ final class Exceptions
         if (isset($x['h']) && Handles::has((int) $x['h'])) {
             $original = Handles::get((int) $x['h']);
             if ($original instanceof \Throwable) {
+                // Composer's frames maestro added as it went up, then
+                // the stack it goes on in.
+                if (isset($x['trace']) && is_array($x['trace'])) {
+                    Traces::throwInto($original, $x['trace']);
+                }
+
                 return $original;
             }
         }
@@ -75,18 +76,21 @@ final class Exceptions
         if (isset($x['props']['scope'], $x['props']['values']) && is_a($e, (string) $x['props']['scope'])) {
             Remote::fill($e, (string) $x['props']['scope'], $x['props']['values']);
         }
-        // maestro's throw site: the Composer file and line that throw it.
+        // maestro's throw site: the Composer file and line that throw it,
+        // and the frames of Composer's stack down to there, then the stack
+        // it is thrown into (docs/PLUGINS.md §5.12).
         if (isset($x['file']) && is_string($x['file']) && $x['file'] !== '') {
             self::locate($e, $x['file'], isset($x['line']) ? (int) $x['line'] : 0);
         }
+        Traces::throwInto($e, isset($x['trace']) && is_array($x['trace']) ? $x['trace'] : []);
 
         return $e;
     }
 
     /**
-     * $e thrown at Composer's line in the shim file of the same name, so
-     * that Symfony's "In <file> line <n>:" heading names Composer's
-     * throw site, as for maestro's errors.
+     * $e thrown at Composer's line in Composer's file the shim file stands
+     * for, so that Symfony's "In <file> line <n>:" heading (and -v's "at"
+     * line) names Composer's throw site, as for maestro's errors.
      *
      * @template T of \Throwable
      * @param T $e
@@ -94,7 +98,7 @@ final class Exceptions
      */
     public static function at(\Throwable $e, int $line): \Throwable
     {
-        self::locate($e, $e->getFile(), $line);
+        self::locate($e, Traces::composerFile($e->getFile()), $line);
 
         return $e;
     }

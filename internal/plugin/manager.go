@@ -219,13 +219,13 @@ func (m *Manager) LoadInstalledPlugins() error {
 	if !m.ArePluginsDisabled("local") {
 		repo := m.composer.RepositoryManager().LocalRepository()
 		if err := m.loadRepository(repo, false, m.composer.Package()); err != nil {
-			return err
+			return phperr.Call(err, pluginManagerClass+"->loadRepository", pluginManagerFile, 106)
 		}
 	}
 
 	if m.globalComposer != nil && !m.ArePluginsDisabled("global") {
 		if err := m.loadRepository(m.globalComposer.RepositoryManager().LocalRepository(), true, nil); err != nil {
-			return err
+			return phperr.Call(err, pluginManagerClass+"->loadRepository", pluginManagerFile, 110)
 		}
 	}
 
@@ -406,7 +406,36 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		m.registeredPlugins = append(m.registeredPlugins, reg)
 	}
 
-	return err
+	return pluginLoadCall(err, oldInstallerPlugin)
+}
+
+// pluginManagerClass names PluginManager in the frames of its calls.
+const pluginManagerClass = `Composer\Plugin\PluginManager`
+
+// pluginLoadCall records the call of registerPackage() that a plugin's
+// exception left through (docs/PLUGINS.md §5.12): `new $class()` (a
+// constructor), addPlugin() (activate() and the subscription below it, in
+// the shim's PHP), or, for a legacy composer-installer, `new $class(...)`
+// and InstallationManager::addInstaller().
+func pluginLoadCall(err error, oldInstallerPlugin bool) error {
+	pe, ok := errors.AsType[*rpc.PHPException](err)
+	if !ok {
+		return err
+	}
+	open, ok := pe.OpenFrame()
+	if !ok {
+		return err
+	}
+	switch {
+	case open.Function == "__construct" && oldInstallerPlugin:
+		return phperr.Locate(err, pluginManagerFile, 314)
+	case open.Function == "__construct":
+		return phperr.Locate(err, pluginManagerFile, 322)
+	case oldInstallerPlugin:
+		return phperr.Call(err, `Composer\Installer\InstallationManager->addInstaller`, pluginManagerFile, 315)
+	}
+
+	return phperr.Call(err, pluginManagerClass+"->addPlugin", pluginManagerFile, 323)
 }
 
 var flexVersionPattern = php.MustCompile(`{^[0-9.]+$}`)
@@ -666,7 +695,12 @@ func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRe
 		}
 
 		if err := m.RegisterPackage(p, false, isGlobalRepo); err != nil {
-			return err
+			line := 533 // composer-plugin
+			if p.Type() == "composer-installer" {
+				line = 536
+			}
+
+			return phperr.Call(err, pluginManagerClass+"->registerPackage", pluginManagerFile, line)
 		}
 	}
 

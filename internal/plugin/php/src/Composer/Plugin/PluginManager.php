@@ -63,10 +63,10 @@ class PluginManager
         }
         $this->io->writeError('Loading plugin '.get_class($plugin).($details ? ' ('.implode(', ', $details).')' : ''), true, \Composer\IO\IOInterface::DEBUG);
         $this->plugins[] = $plugin;
-        $plugin->activate($this->composer, $this->io);
+        $plugin->activate($this->composer, $this->io); // @line 435
 
         if ($plugin instanceof \Composer\EventDispatcher\EventSubscriberInterface) {
-            $this->composer->getEventDispatcher()->addSubscriber($plugin);
+            $this->composer->getEventDispatcher()->addSubscriber($plugin); // @line 438
         }
     }
 
@@ -192,9 +192,9 @@ class PluginManager
 
         $this->io->writeError('Unloading plugin '.get_class($plugin), true, \Composer\IO\IOInterface::DEBUG);
         unset($this->plugins[$index]);
-        $plugin->deactivate($this->composer, $this->io);
+        $plugin->deactivate($this->composer, $this->io); // @line 460
 
-        $this->composer->getEventDispatcher()->removeListener($plugin);
+        $this->composer->getEventDispatcher()->removeListener($plugin); // @line 462
     }
 
     public function setRunningInGlobalDir(bool $runningInGlobalDir): void
@@ -210,6 +210,6 @@ class PluginManager
     public function uninstallPlugin(\Composer\Plugin\PluginInterface $plugin): void
     {
         $this->io->writeError('Uninstalling plugin '.get_class($plugin), true, \Composer\IO\IOInterface::DEBUG);
-        $plugin->uninstall($this->composer, $this->io);
+        $plugin->uninstall($this->composer, $this->io); // @line 477
     }
 }

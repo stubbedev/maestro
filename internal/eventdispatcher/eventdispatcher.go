@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/util"
@@ -115,8 +116,16 @@ func (d *EventDispatcher) Dispatch(eventName string, event Event) (int, error) {
 		event = NewEvent(eventName, nil, nil)
 	}
 
-	return d.doDispatch(event)
+	ret, err := d.doDispatch(event)
+
+	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 126)
 }
+
+// edClass and edFile name EventDispatcher in the frames of its calls.
+const (
+	edClass = `Composer\EventDispatcher\EventDispatcher`
+	edFile  = "EventDispatcher.php"
+)
 
 // fullComposer is the `assert($this->composer instanceof Composer)` of the
 // typed dispatch methods.
@@ -138,7 +147,9 @@ func (d *EventDispatcher) DispatchScript(eventName string, devMode bool, additio
 		return 0, err
 	}
 
-	return d.doDispatch(NewScriptEvent(eventName, c, d.io, devMode, additionalArgs, flags))
+	ret, err := d.doDispatch(NewScriptEvent(eventName, c, d.io, devMode, additionalArgs, flags))
+
+	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 142)
 }
 
 // DispatchPackageEvent is dispatchPackageEvent().
@@ -148,7 +159,9 @@ func (d *EventDispatcher) DispatchPackageEvent(eventName string, devMode bool, l
 		return 0, err
 	}
 
-	return d.doDispatch(NewPackageEvent(eventName, c, d.io, devMode, localRepo, operations, operation))
+	ret, err := d.doDispatch(NewPackageEvent(eventName, c, d.io, devMode, localRepo, operations, operation))
+
+	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 161)
 }
 
 // DispatchInstallerEvent is dispatchInstallerEvent(); executeOperations
@@ -159,7 +172,9 @@ func (d *EventDispatcher) DispatchInstallerEvent(eventName string, devMode, exec
 		return 0, err
 	}
 
-	return d.doDispatch(NewInstallerEvent(eventName, c, d.io, devMode, executeOperations, transaction))
+	ret, err := d.doDispatch(NewInstallerEvent(eventName, c, d.io, devMode, executeOperations, transaction))
+
+	return ret, phperr.Call(err, edClass+"->doDispatch", edFile, 179)
 }
 
 // dispatchState is the per-dispatch bracket of PHP calls.
@@ -293,7 +308,8 @@ func (d *EventDispatcher) callPHPListener(event Event, l PHPCallable, formatted 
 		return 0, false, runtimeError(227, "Subscriber "+l.Class+"::"+l.Method+" for event "+event.Name()+" is not callable, make sure the function is defined and public")
 	}
 	if err != nil {
-		return 0, false, err
+		// `$callable($event)`
+		return 0, false, phperr.Locate(err, edFile, 232)
 	}
 
 	return boolToReturn(returnedFalse), false, nil
@@ -351,6 +367,7 @@ func (d *EventDispatcher) runComposerScript(event Event, callable, formatted str
 
 	ret, err := d.Dispatch(scriptName, scriptEvent)
 	if err != nil {
+		phperr.Call(err, edClass+"->dispatch", edFile, 268)
 		if _, ok := errors.AsType[*ScriptExecutionError](err); ok {
 			d.io.WriteError("<error>Script "+callable+" was called via "+event.Name()+"</error>", true, io.Quiet)
 		}
@@ -399,7 +416,11 @@ func (d *EventDispatcher) runPhpScript(event Event, callable string, st *dispatc
 			d.writeTerminated(callable, event, err)
 		}
 
-		return 0, false, err
+		// `$className::$methodName($event)` in executeEventPhpScript(),
+		// called by doDispatch()
+		phperr.Locate(err, edFile, 512)
+
+		return 0, false, phperr.Call(err, edClass+"->executeEventPhpScript", edFile, 289)
 	}
 
 	return boolToReturn(returnedFalse), false, nil
@@ -466,7 +487,8 @@ func (d *EventDispatcher) runCommandClass(event Event, className string, additio
 			d.writeTerminated(className, event, err)
 		}
 
-		return 0, false, err
+		// `$app->run(new StringInput(...), $output)`
+		return 0, false, phperr.Locate(err, edFile, 341)
 	}
 
 	return code, false, nil

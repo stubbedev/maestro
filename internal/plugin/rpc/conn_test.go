@@ -481,7 +481,8 @@ func TestConn_Exceptions(t *testing.T) {
 		}
 	}
 	// Wrapped: a new RuntimeException whose previous is the original.
-	check("go.wrap", `{"class":"RuntimeException","message":"context: failed","code":0,"previous":{"class":"Composer\\EventDispatcher\\ScriptExecutionException","message":"failed","code":3,"h":-1,"previous":{"class":"LogicException","message":"inner","code":0,"h":-2}}}`)
+	// The PHP exceptions go back with their traces (docs/PLUGINS.md §5.12).
+	check("go.wrap", `{"class":"RuntimeException","message":"context: failed","code":0,"previous":{"class":"Composer\\EventDispatcher\\ScriptExecutionException","message":"failed","code":3,"h":-1,"trace":[{"file":"/p/b.php","line":3,"class":"A","type":"->","function":"f"}],"previous":{"class":"LogicException","message":"inner","code":0,"h":-2,"trace":[]}}}`)
 	check("go.script", `{"class":"Composer\\EventDispatcher\\ScriptExecutionException","message":"Error Output: x","code":3}`)
 	check("go.runtime", `{"class":"RuntimeException","message":"rt","code":0}`)
 	check("go.plain", `{"class":"RuntimeException","message":"plain","code":0}`)

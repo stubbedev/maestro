@@ -480,14 +480,14 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		}
 
 		if err := pm.LoadInstalledPlugins(); err != nil {
-			return nil, nil, err
+			return nil, nil, phperr.Call(err, `Composer\Plugin\PluginManager->loadInstalledPlugins`, "Factory.php", 448)
 		}
 	}
 
 	if fullLoad {
 		initEvent := eventdispatcher.NewEvent(eventdispatcher.PluginInit, nil, nil)
 		if _, err := partial.EventDispatcher().Dispatch(initEvent.Name(), initEvent); err != nil {
-			return nil, nil, err
+			return nil, nil, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatch`, "Factory.php", 453)
 		}
 
 		// once everything is initialized we can

@@ -295,7 +295,7 @@ func (i *Installer) Run() (int, error) {
 			eventName = script.PreUpdateCmd
 		}
 		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 315)
 		}
 	}
 
@@ -484,7 +484,7 @@ func (i *Installer) Run() (int, error) {
 			eventName = script.PostUpdateCmd
 		}
 		if _, err := i.eventDispatcher.DispatchScript(eventName, i.devMode, nil, nil); err != nil {
-			return 0, err
+			return 0, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchScript`, "Installer.php", 441)
 		}
 	}
 
@@ -1012,7 +1012,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 		return 0, err
 	}
 	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); err != nil {
-		return 0, err
+		return 0, phperr.Call(err, `Composer\EventDispatcher\EventDispatcher->dispatchInstallerEvent`, "Installer.php", 838)
 	}
 
 	operations := localRepoTransaction.Operations()
