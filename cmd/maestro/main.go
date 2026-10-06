@@ -42,6 +42,7 @@ var startProfiling = func() func() { return func() {} }
 
 func run() int {
 	rt := composer.NewRuntime(version, nil)
+	rt.InstallProcessGlobals()
 
 	// bin/composer's aborts on the PHP Composer would run on. Without php
 	// maestro still runs (plugins and scripts then fail when they need it).

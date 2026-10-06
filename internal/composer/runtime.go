@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
@@ -89,6 +90,38 @@ func (r *Runtime) ComposerView() (*platform.Snapshot, string, error) {
 	})
 
 	return r.snap, r.skip, r.err
+}
+
+// IniGet is ini_get($name) in Composer's own process (its ComposerView);
+// ok false (PHP's false) for an unknown setting or without php.
+func (r *Runtime) IniGet(name string) (string, bool) {
+	view, _, err := r.ComposerView()
+	if err != nil || view == nil {
+		return "", false
+	}
+
+	return view.IniGet(name)
+}
+
+// DefaultTimezone is date_default_timezone_get() in Composer's process
+// (platform.Snapshot.DefaultTimezone); UTC without php.
+func (r *Runtime) DefaultTimezone() *time.Location {
+	view, _, err := r.ComposerView()
+	if err != nil {
+		return time.UTC
+	}
+
+	return view.DefaultTimezone()
+}
+
+// InstallProcessGlobals makes this runtime's php the source of the
+// process-wide PHP state lower packages read: ini_get() for
+// composer/ca-bundle's CA search (http.SetIniSource) and the default time
+// zone of date() (php.SetDefaultTimezone). Both are read lazily, so the
+// php probe is waited for only when they are used.
+func (r *Runtime) InstallProcessGlobals() {
+	http.SetIniSource(r.IniGet)
+	php.SetDefaultTimezone(r.DefaultTimezone)
 }
 
 // PlatformOptions returns the collaborators of a PlatformRepository for

@@ -169,7 +169,7 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 
 	c.log(
 		"",
-		"<comment>"+time.Now().Format("2006-01-02 15:04:05")+"</>",
+		"<comment>"+php.Date("Y-m-d H:i:s", time.Now().Unix())+"</>",
 		`<info>Input:</> <comment>("|" indicates the cursor position)</>`,
 		"  "+completionInput.String(),
 		"<info>Command:</>",

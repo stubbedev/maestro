@@ -157,7 +157,8 @@ func (c *ConsoleIO) doWrite(messages []string, newline, stderr bool, verbosity V
 
 	if c.timestamp != nil {
 		for i, m := range messages {
-			messages[i] = "[" + c.timestamp(time.Now()) + "] " + m
+			// (new \DateTime())->format(...): PHP's default time zone
+			messages[i] = "[" + c.timestamp(time.Now().In(php.DefaultTimezone())) + "] " + m
 		}
 	}
 

@@ -493,7 +493,8 @@ func (p *Perforce) SyncCodeBase(sourceReference *string) error {
 
 // WriteClientSpecToFile ports writeClientSpecToFile().
 func (p *Perforce) WriteClientSpecToFile(spec stdio.Writer) error {
-	now := time.Now().Format("2006/01/02 15:04:05")
+	// date('Y/m/d H:i:s'): in PHP's default time zone
+	now := time.Now().In(php.DefaultTimezone()).Format("2006/01/02 15:04:05")
 	user := strOf(p.GetUser())
 
 	var b strings.Builder

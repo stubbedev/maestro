@@ -59,10 +59,41 @@ var caBundleLocations = []string{
 	"/etc/ssl/certs", // FreeBSD
 }
 
+// iniGet is ini_get() in the PHP Composer runs on (SetIniSource); nil,
+// and an unknown setting, are false.
+var iniGet struct {
+	mu sync.RWMutex
+	fn func(name string) (string, bool)
+}
+
+// SetIniSource sets where ini_get() reads php.ini settings from: the probed
+// php Composer would run on (platform.Snapshot.IniGet of its Composer
+// view). ini settings are process-wide in PHP, so the source is too; nil
+// means no php (every setting false).
+func SetIniSource(fn func(name string) (string, bool)) {
+	iniGet.mu.Lock()
+	iniGet.fn = fn
+	iniGet.mu.Unlock()
+}
+
+// phpIniGet is ini_get($name) as a string, "" for false.
+func phpIniGet(name string) string {
+	iniGet.mu.RLock()
+	fn := iniGet.fn
+	iniGet.mu.RUnlock()
+
+	if fn == nil {
+		return ""
+	}
+
+	v, _ := fn(name)
+
+	return v
+}
+
 // SystemCaRootBundlePath is CaBundle::getSystemCaRootBundlePath: the CA
 // bundle file or directory to verify peers against, found once per
-// process. The php.ini openssl.cafile/capath settings CaBundle also reads
-// are not consulted (maestro has no php.ini). logger may be nil.
+// process. logger may be nil.
 func SystemCaRootBundlePath(logger Logger) (string, error) {
 	caBundle.mu.Lock()
 	defer caBundle.mu.Unlock()
@@ -71,16 +102,20 @@ func SystemCaRootBundlePath(logger Logger) (string, error) {
 		return caBundle.caPath, nil
 	}
 
-	paths := make([]string, 0, 2+len(caBundleLocations))
+	paths := make([]string, 0, 4+len(caBundleLocations))
 	for _, name := range [2]string{"SSL_CERT_FILE", "SSL_CERT_DIR"} {
 		v, _ := util.GetEnv(name)
 		paths = append(paths, v)
 	}
 
+	// $caBundlePaths[] = ini_get('openssl.cafile'); ini_get('openssl.capath')
+	paths = append(paths, phpIniGet("openssl.cafile"), phpIniGet("openssl.capath"))
+
 	paths = append(paths, caBundleLocations...)
 
 	for _, caBundlePath := range paths {
-		if caBundlePath != "" && (caFileUsable(caBundlePath, logger) || caDirUsable(caBundlePath, logger)) {
+		// `if ($caBundle && ...)`: "" and "0" are falsy
+		if caBundlePath != "" && caBundlePath != "0" && (caFileUsable(caBundlePath, logger) || caDirUsable(caBundlePath, logger)) {
 			caBundle.caPath, caBundle.found = caBundlePath, true
 
 			return caBundlePath, nil

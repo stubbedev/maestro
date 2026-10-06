@@ -61,25 +61,9 @@ func relativeTime(releaseDate, now time.Time) string {
 }
 
 // phpDefaultTimezone is date_default_timezone_get() of the PHP Composer
-// runs on (Composer's Application sets it to itself): the date.timezone
-// ini setting when it names a valid zone, else UTC. PHP 8 never consults
-// the TZ environment variable or the system's zone. Without php it is UTC.
+// runs on (platform.Snapshot.DefaultTimezone); UTC without php.
 func phpDefaultTimezone(snap *platform.Snapshot) *time.Location {
-	if snap == nil {
-		return time.UTC
-	}
-
-	name, _ := snap.IniGet("date.timezone")
-	if name == "" || name == "Local" || strings.HasPrefix(name, "/") {
-		return time.UTC
-	}
-
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		return time.UTC
-	}
-
-	return loc
+	return snap.DefaultTimezone()
 }
 
 // timelibTime is what timelib keeps of a DateTime for diff(): its wall

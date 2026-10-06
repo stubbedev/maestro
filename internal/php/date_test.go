@@ -36,3 +36,26 @@ func TestDateFormat(t *testing.T) {
 		t.Errorf("trailing backslash: %q", got)
 	}
 }
+
+func TestDate_DefaultTimezone(t *testing.T) {
+	t.Cleanup(func() { SetDefaultTimezone(nil) })
+
+	// 2026-01-02 03:04:05 UTC
+	const ts = 1767323045
+
+	if got := Date("Y-m-d H:i:s", ts); got != "2026-01-02 03:04:05" {
+		t.Fatalf("UTC: got %s", got)
+	}
+
+	SetDefaultTimezone(func() *time.Location { return time.FixedZone("x", -5*3600) })
+
+	if got := Date("Y-m-d Hi", ts); got != "2026-01-01 2204" {
+		t.Fatalf("-05:00: got %s", got)
+	}
+
+	SetDefaultTimezone(func() *time.Location { return nil })
+
+	if got := DefaultTimezone(); got != time.UTC {
+		t.Fatalf("nil zone: got %v", got)
+	}
+}

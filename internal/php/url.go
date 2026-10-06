@@ -6,6 +6,7 @@ package php
 
 import (
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -126,11 +127,46 @@ func HTTPBuildQuery(pairs ...string) string {
 	return b.String()
 }
 
-// Date ports date($format, $ts) in PHP's default UTC time zone (Composer
-// runs with it unless php.ini sets date.timezone). Only the Y, m, d, H, i
-// and s format characters are supported.
+// defaultTimezone is the source of DefaultTimezone (SetDefaultTimezone).
+var defaultTimezone struct {
+	mu sync.RWMutex
+	fn func() *time.Location
+}
+
+// SetDefaultTimezone sets what date_default_timezone_get() returns: the
+// zone of the php Composer runs on (platform.Snapshot.DefaultTimezone),
+// which Composer's Application pins with
+// date_default_timezone_set(date_default_timezone_get()). fn is called on
+// every use and may be slow the first time (the php probe); nil, or a nil
+// result, is UTC.
+func SetDefaultTimezone(fn func() *time.Location) {
+	defaultTimezone.mu.Lock()
+	defaultTimezone.fn = fn
+	defaultTimezone.mu.Unlock()
+}
+
+// DefaultTimezone is date_default_timezone_get(): the zone date() and
+// `new \DateTime()` use. It is UTC, PHP's default without a date.timezone
+// setting, unless SetDefaultTimezone says otherwise.
+func DefaultTimezone() *time.Location {
+	defaultTimezone.mu.RLock()
+	fn := defaultTimezone.fn
+	defaultTimezone.mu.RUnlock()
+
+	if fn != nil {
+		if loc := fn(); loc != nil {
+			return loc
+		}
+	}
+
+	return time.UTC
+}
+
+// Date ports date($format, $ts) in PHP's default time zone
+// (DefaultTimezone). Only the Y, m, d, H, i and s format characters are
+// supported.
 func Date(format string, ts int64) string {
-	t := time.Unix(ts, 0).UTC()
+	t := time.Unix(ts, 0).In(DefaultTimezone())
 
 	var b strings.Builder
 
