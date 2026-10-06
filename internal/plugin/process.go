@@ -106,6 +106,9 @@ func spawnPipes(cmd *exec.Cmd) (*spawned, error) {
 	cmd.Env = append(cmd.Env, "MAESTRO_IPC=fd:3,4")
 
 	err = cmd.Start()
+	if err == nil {
+		tieToMaestro(cmd.Process)
+	}
 	// The child's ends live on in the child only.
 	_ = phpIn.Close()
 	_ = phpOut.Close()
@@ -143,6 +146,7 @@ func spawnTCP(cmd *exec.Cmd) (*spawned, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
+	tieToMaestro(cmd.Process)
 	c := watch(cmd)
 
 	type accepted struct {
