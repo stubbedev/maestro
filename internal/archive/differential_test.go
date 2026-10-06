@@ -64,14 +64,6 @@ func extract(path string, format archive.Format, opts *archive.Options, umask in
 	return tree, nil
 }
 
-func unzipBinary() string {
-	if u := os.Getenv("MAESTRO_TEST_UNZIP"); u != "" {
-		return u
-	}
-
-	return "unzip"
-}
-
 func write(t *testing.T, name string, data []byte) string {
 	t.Helper()
 
@@ -85,9 +77,11 @@ func write(t *testing.T, name string, data []byte) string {
 
 // TestDifferentialZip extracts the generated zip corpus with real unzip and
 // with maestro, under two umasks and two locales, and compares every entry.
+// The reference is Info-ZIP UnZip 6.00 with UNICODE_SUPPORT
+// (archivetest.InfoZip); a case whose names this file system cannot store
+// is left out (archivetest.Unstorable).
 func TestDifferentialZip(t *testing.T) {
-	unzip := unzipBinary()
-	archivetest.Need(t, unzip)
+	unzip := archivetest.NeedInfoZip(t)
 
 	locales := []struct {
 		lcAll  string
@@ -102,8 +96,12 @@ func TestDifferentialZip(t *testing.T) {
 		for _, umask := range archivetest.Umasks {
 			for _, l := range locales {
 				name := fmt.Sprintf("%s/umask-%03o/%s", tc.Name, umask, l.lcAll)
-				real := archivetest.Unzip(t, unzip, path, umask, l.lcAll)
 				got, err := extract(path, archive.Zip, &archive.Options{Locale: l.locale}, umask)
+				if archivetest.Unstorable(got) {
+					t.Logf("%s: skipped, this file system refuses names that are not UTF-8", name)
+					continue
+				}
+				real := archivetest.Unzip(t, unzip, path, umask, l.lcAll)
 				c.Compare(t, name, real, got, err, tc.MayRefuse)
 			}
 		}
@@ -170,7 +168,8 @@ func TestDifferentialPharTarBzip2(t *testing.T) {
 // TestDifferentialXz extracts the tar corpus, xz-compressed, with GNU tar
 // and with maestro.
 func TestDifferentialXz(t *testing.T) {
-	archivetest.Need(t, "tar", "xz")
+	tar := archivetest.NeedGNUTar(t)
+	archivetest.Need(t, "xz")
 
 	var c archivetest.Tally
 
@@ -179,7 +178,7 @@ func TestDifferentialXz(t *testing.T) {
 
 		for _, umask := range archivetest.Umasks {
 			name := fmt.Sprintf("%s/xz/umask-%03o", tc.Name, umask)
-			real := archivetest.TarXz(t, path, umask)
+			real := archivetest.TarXz(t, tar, path, umask)
 			got, err := extract(path, archive.Xz, nil, umask)
 			c.Compare(t, name, real, got, err, tc.MayRefuseGNU)
 		}

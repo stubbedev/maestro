@@ -23,6 +23,10 @@ use Composer\Package\RootPackage;
 use Composer\Util\Filesystem;
 
 \Composer\Util\ErrorHandler::register();
+// libzip and PharData's zip writer store DOS times in local time; the Go
+// test (internal/pkg/archiver/main_test.go) runs in the same zone.
+putenv('TZ=Europe/Copenhagen');
+date_default_timezone_set('Europe/Copenhagen');
 mt_srand(20261005);
 umask(022);
 

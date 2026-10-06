@@ -249,11 +249,11 @@ func TestObjectNames(t *testing.T) {
 func TestInstall(t *testing.T) {
 	setUmask(t, 0o022)
 
-	archivetest.Need(t, "unzip")
+	unzip := archivetest.NeedInfoZip(t)
 
 	work := tempDir(t)
 	zip := writeFile(t, work, "dist.zip", sample())
-	want := archivetest.Unzip(t, "unzip", zip, 0o022, "C.UTF-8")
+	want := archivetest.Unzip(t, unzip, zip, 0o022, "C.UTF-8")
 
 	for _, m := range []Method{Auto, Hardlink, Copy} {
 		t.Run(m.String(), func(t *testing.T) {
@@ -678,6 +678,21 @@ func TestSetgidInherited(t *testing.T) {
 
 	if err := os.Chmod(parent, 0o755|fs.ModeSetgid); err != nil {
 		t.Skip(err)
+	}
+
+	// Linux gives a new directory its parent's setgid bit; BSD kernels
+	// (macOS) never do, so there unzip leaves none and neither does maestro.
+	probe := filepath.Join(parent, "probe")
+	if err := os.Mkdir(probe, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if fi, err := os.Stat(probe); err != nil || fi.Mode()&fs.ModeSetgid == 0 {
+		t.Skip("new directories do not inherit the setgid bit on this system")
+	}
+
+	if err := os.Remove(probe); err != nil {
+		t.Fatal(err)
 	}
 
 	zip := writeFile(t, work, "dist.zip", sample())

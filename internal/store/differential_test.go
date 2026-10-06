@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/stubbedev/maestro/internal/archive"
 	"github.com/stubbedev/maestro/internal/archive/archivetest"
 )
 
@@ -81,7 +82,7 @@ func runStoreDifferential(t *testing.T, what string, cases []distCase) {
 	c.Log(t, what)
 }
 
-func zipCase(t *testing.T, dir string, tc archivetest.Case) distCase {
+func zipCase(t *testing.T, dir, unzip string, tc archivetest.Case) distCase {
 	t.Helper()
 
 	path := writeFile(t, dir, tc.Name+".zip", tc.Data)
@@ -92,7 +93,7 @@ func zipCase(t *testing.T, dir string, tc archivetest.Case) distCase {
 		dist: Dist{Name: "corpus/" + tc.Name, Type: "zip", URL: "https://example.org/" + tc.Name + ".zip"},
 		real: func(t *testing.T, umask int) archivetest.Result {
 			t.Helper()
-			return archivetest.Unzip(t, "unzip", path, umask, "C.UTF-8")
+			return archivetest.Unzip(t, unzip, path, umask, "C.UTF-8")
 		},
 		mayRefuse: tc.MayRefuse,
 	}
@@ -101,13 +102,18 @@ func zipCase(t *testing.T, dir string, tc archivetest.Case) distCase {
 // TestDifferentialStoreZip: extraction, store and import together against
 // `unzip -qq` and ArchiveDownloader's single-directory rule, entry by entry.
 func TestDifferentialStoreZip(t *testing.T) {
-	archivetest.Need(t, "unzip")
+	unzip := archivetest.NeedInfoZip(t)
 
 	dir := tempDir(t)
 
 	var cases []distCase
 	for _, tc := range archivetest.ZipCorpus() {
-		cases = append(cases, zipCase(t, dir, tc))
+		c := zipCase(t, dir, unzip, tc)
+		if archivetest.UnstorableArchive(c.path, archive.Zip) {
+			t.Logf("%s: skipped, this file system refuses names that are not UTF-8", tc.Name)
+			continue
+		}
+		cases = append(cases, c)
 	}
 
 	runStoreDifferential(t, "zip corpus through the store", cases)
@@ -116,7 +122,8 @@ func TestDifferentialStoreZip(t *testing.T) {
 // TestDifferentialStoreTar: the tar corpus against PharData (tar.gz) and
 // GNU tar (tar.xz).
 func TestDifferentialStoreTar(t *testing.T) {
-	archivetest.Need(t, "php", "tar", "xz")
+	tar := archivetest.NeedGNUTar(t)
+	archivetest.Need(t, "php", "xz")
 
 	dir := tempDir(t)
 
@@ -143,7 +150,7 @@ func TestDifferentialStoreTar(t *testing.T) {
 				dist: Dist{Name: "corpus/" + tc.Name, Type: "xz", URL: "https://example.org/" + tc.Name + ".tar.xz"},
 				real: func(t *testing.T, umask int) archivetest.Result {
 					t.Helper()
-					return archivetest.TarXz(t, xz, umask)
+					return archivetest.TarXz(t, tar, xz, umask)
 				},
 				mayRefuse: tc.MayRefuseGNU,
 			},
@@ -184,7 +191,8 @@ func TestDifferentialRealDists(t *testing.T) {
 
 		switch {
 		case strings.HasSuffix(n.Name(), ".zip"):
-			if _, err := exec.LookPath("unzip"); err != nil {
+			unzip, _ := archivetest.InfoZip()
+			if unzip == "" || archivetest.UnstorableArchive(path, archive.Zip) {
 				continue
 			}
 
@@ -194,7 +202,7 @@ func TestDifferentialRealDists(t *testing.T) {
 				dist: Dist{Name: "real/" + n.Name(), Type: "zip", URL: path},
 				real: func(t *testing.T, umask int) archivetest.Result {
 					t.Helper()
-					return archivetest.Unzip(t, "unzip", path, umask, "C.UTF-8")
+					return archivetest.Unzip(t, unzip, path, umask, "C.UTF-8")
 				},
 			})
 		case strings.HasSuffix(n.Name(), ".tar.gz"):

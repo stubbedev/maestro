@@ -129,7 +129,13 @@ func skipLocked(t *testing.T, tree []oracleEntry) bool {
 func makeOracleTree(t *testing.T, tree []oracleEntry) string {
 	t.Helper()
 
-	work := t.TempDir()
+	// The oracle's work directory had no symlink in its path; the
+	// temporary directory may (/var -> /private/var on macOS), which
+	// realpath() would resolve in some messages and not in others.
+	work, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, dir := range []string{"pkg", "outside", "pkg2"} {
 		if err := os.Mkdir(work+"/"+dir, 0o777); err != nil {
 			t.Fatal(err)

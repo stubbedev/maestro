@@ -43,9 +43,15 @@ func FuzzInstall(f *testing.F) {
 			t.Fatal(err)
 		}
 
-		d := Dist{Name: "f/z", Type: "zip"}
+		d, format := Dist{Name: "f/z", Type: "zip"}, archive.Zip
 		if tar {
-			d.Type = "tar"
+			d.Type, format = "tar", archive.Tar
+		}
+
+		if archivetest.UnstorableArchive(in, format) {
+			// APFS refuses names that are not UTF-8 (EILSEQ): no extractor
+			// can install this archive here.
+			t.Skip("this file system refuses names that are not UTF-8")
 		}
 
 		dst := filepath.Join(out, "pkg")
