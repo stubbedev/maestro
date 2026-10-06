@@ -1,5 +1,68 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## No-op install (issue #14, 2026-10-06)
+
+Machine and projects as in the next section (btrfs, real Packagist,
+load 5 to 6 from other agents' work). Each command is
+`install --no-plugins --no-scripts` in a project whose vendor/ is
+already installed, with warm caches. Each maestro binary had 30 hyperfine
+runs after 3 warm-ups, the two binaries one after the other; Composer
+had 20 runs. "before" is 06657e5, "after" is this change.
+
+| Project | Composer (mean) | maestro before (median) | maestro after (median) | | after (min) |
+|---|---:|---:|---:|---:|---:|
+| laravel | 1.56 s | 212 ms | 164 ms | 9.5x | 146 ms |
+| symfony | 0.75 s | 153 ms | 141 ms | 5.3x | 135 ms |
+
+Where the time goes (timing marks, laravel): the process reaches
+`Installer.Run` at about 24 ms. In `verifyLock`, everything before
+`CreatePool` takes about 1.5 ms (`createPlatformRepo`, `createPolicy`,
+`createRepositorySet`, `createRequest`, `IsFresh`,
+`MissingRequirementInfo`, `createFilterListPoolFilter`). `CreatePool`
+then waits about 60 ms for the filter list, and `Solve` takes about
+1.5 ms. The filter list request is already sent when `Run` starts
+(`prefetchFilterSummaries`), on the connection the factory opened ahead.
+With the cached packages.json older than 600 s, its revalidation goes
+on that same HTTP/2 connection. So the wait is the network itself:
+TCP and TLS handshakes plus one request, about three round trips of
+24 ms from a connection started at about 15 ms. Starting the request any
+earlier gains nothing.
+
+What changed:
+
+- **The dump's class map scan runs during that wait.** When the lock file
+  asks for no package operation, and no script or plugin listens to
+  pre-pool-create, pre-operations-exec or pre-autoload-dump, the
+  installer starts the class map scan in the background before
+  `verifyLock` (`autoload.Generator.Speculate`). The dump takes that
+  result only if its autoload rules, paths, parser and PSR flag are the
+  same as the ones scanned. The ambiguous-class and PSR warnings are
+  still printed from it at the same point, after "Generating autoload
+  files". The scan is dropped if operations run or the lock check fails.
+  On laravel (optimized autoloader) this takes 25 to 30 ms off the run.
+  Symfony's dump scans only its few classmap rules, so it saves less.
+- **Startup.** The two e-mail validation regexps (jsonschema and the
+  package loader's filter_var port) were compiled at package init on
+  every run, 4.5 ms before `main`. They are now compiled on first use.
+
+Looked at and not changed:
+
+- The "~20 ms gap on symfony" between "Nothing to install" and
+  "Generating autoload files" did not show up: 5 to 6 ms on both
+  projects (installed.json/installed.php write 4 to 5 ms, abandoned check
+  0.5 ms).
+- GC tuning: GOGC=400 or GOGC=off with GOMEMLIMIT cut CPU time by 25 to
+  40%, but no-op wall time stayed the same or got worse (it waits on the
+  network), and the warm install did not get faster within the noise.
+  Not kept.
+- `git --version` caching: root version guessing runs after the factory
+  opens the connection, so it overlaps the network wait and saving that
+  one exec does not shorten a no-op.
+- A persistent class map record (issue item 2) was not built. The scan
+  is now hidden behind the network wait on a no-op install, but it still
+  costs CPU (about 95 ms over the worker threads on laravel) and still
+  costs wall time in `dump-autoload`.
+
 ## Warm install and dump-autoload (issue #12, 2026-10-06)
 
 Machine: Linux 6.18 x86-64, 12 cores, php 8.4.25 of the dev shell, real
