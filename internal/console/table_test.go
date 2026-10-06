@@ -203,7 +203,7 @@ func TestTable_Render(t *testing.T) {
 				mode.fill(t, table, decodeTableList(t, c.Rows))
 				mustNoErr(t, table.SetStyle(c.Style))
 				mustNoErr(t, table.Render())
-				if got := buf.String(); got != c.Expected {
+				if got := tableContent(buf); got != c.Expected {
 					t.Errorf("want:\n%s\ngot:\n%s", c.Expected, got)
 				}
 			})
@@ -232,7 +232,7 @@ func TestTable_SetTitle(t *testing.T) {
 			}))
 			mustNoErr(t, table.SetStyle(c.Style))
 			mustNoErr(t, table.Render())
-			if got := buf.String(); got != c.Expected {
+			if got := tableContent(buf); got != c.Expected {
 				t.Errorf("want:\n%s\ngot:\n%s", c.Expected, got)
 			}
 		})
@@ -248,7 +248,7 @@ func TestTable_RenderHorizontal(t *testing.T) {
 			mustNoErr(t, table.SetRows(decodeTableList(t, c.Rows)))
 			table.SetHorizontal(true)
 			mustNoErr(t, table.Render())
-			if got := buf.String(); got != c.Expected {
+			if got := tableContent(buf); got != c.Expected {
 				t.Errorf("want:\n%s\ngot:\n%s", c.Expected, got)
 			}
 		})
@@ -298,10 +298,16 @@ func TestOracle_Table(t *testing.T) {
 			}
 		case err != nil:
 			t.Errorf("case %d %s: unexpected error %v", i, c.Name, err)
-		case buf.String() != *c.Output:
-			t.Errorf("case %d %s (style %s, decorated %v):\nwant:\n%s\ngot:\n%s", i, c.Name, c.Style, c.Decorated, *c.Output, buf.String())
+		case tableContent(buf) != *c.Output:
+			t.Errorf("case %d %s (style %s, decorated %v):\nwant:\n%s\ngot:\n%s", i, c.Name, c.Style, c.Decorated, *c.Output, tableContent(buf))
 		}
 	}
+}
+
+// tableContent is TableTest::getOutputContent(): the output with PHP_EOL
+// normalized to "\n".
+func tableContent(buf *bytes.Buffer) string {
+	return php.NormalizeEOL(buf.String())
 }
 
 func renderSimple(t *testing.T, decorated bool, build func(*Table)) string {
@@ -311,7 +317,7 @@ func renderSimple(t *testing.T, decorated bool, build func(*Table)) string {
 	build(table)
 	mustNoErr(t, table.Render())
 
-	return buf.String()
+	return tableContent(buf)
 }
 
 func assertTable(t *testing.T, want, got string) {
@@ -396,7 +402,7 @@ func TestTable_RowSeparator(t *testing.T) {
 +------+
 | Bar3 |
 +------+
-`, buf.String())
+`, tableContent(buf))
 
 	if err := table.AddRow(NewTableSeparator()); err != nil {
 		t.Errorf("addRow() with a single TableSeparator() failed: %v", err)
@@ -419,7 +425,7 @@ func TestTable_RenderMultiCalls(t *testing.T) {
 +----+---+
 | foo    |
 +----+---+
-`, buf.String())
+`, tableContent(buf))
 }
 
 func padLeftStyle(t *testing.T) *TableStyle {

@@ -2,7 +2,11 @@
 
 package console
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // OutputStyle decorates an Output; it is the base of SymfonyStyle.
 type OutputStyle struct {
@@ -14,7 +18,7 @@ func NewOutputStyle(out Output) *OutputStyle { return &OutputStyle{output: out} 
 
 // NewLine writes count line breaks.
 func (s *OutputStyle) NewLine(count int) {
-	s.output.Write(strings.Repeat("\n", max(0, count)), false, OutputNormal)
+	s.output.Write(strings.Repeat(php.EOL, max(0, count)), false, OutputNormal)
 }
 
 // Write implements Output.

@@ -98,7 +98,8 @@ func TestAuditor_Oracle(t *testing.T) {
 					t.Errorf("result = %d, want %v", result, want)
 				}
 			}
-			if wantOutput, _ := c.GetString("output"); b.Output() != wantOutput {
+			// The goldens were recorded where PHP_EOL is "\n".
+			if wantOutput, _ := c.GetString("output"); php.NormalizeEOL(b.Output()) != wantOutput {
 				t.Errorf("output:\n%s\nwant:\n%s", b.Output(), wantOutput)
 			}
 		})

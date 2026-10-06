@@ -6,6 +6,7 @@ package io
 import (
 	"bytes"
 	"errors"
+	goio "io"
 	"reflect"
 	"regexp"
 	"strings"
@@ -629,7 +630,7 @@ func TestBaseIO_LoadConfiguration(t *testing.T) {
 		// is printed as is, as in Composer.
 		"<warning>Warning: You should avoid overwriting already defined auth settings for example.org.</warning>\n" +
 		"<warning>Warning: Client certificate configuration is missing key `local_cert` for nocert.example.com.</warning>\n"
-	if got := io.Output(); got != wantOut {
+	if got := php.NormalizeEOL(io.Output()); got != wantOut {
 		t.Errorf("output =\n%s\nwant\n%s", got, wantOut)
 	}
 
@@ -684,6 +685,33 @@ func TestBufferIO_SetUserInputs(t *testing.T) {
 	}
 }
 
+// TestBufferIO_WindowsEOL checks the Windows line endings: setUserInputs
+// ends each input with PHP_EOL, and getOutput() keeps the PHP_EOL
+// StreamOutput writes.
+func TestBufferIO_WindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	io, err := NewBufferIO("", 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.SetUserInputs([]string{"yes", "", "no"})
+	data, err := goio.ReadAll(io.ConsoleInput().(interface{ Stream() goio.Reader }).Stream())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "yes\r\n\r\nno\r\n" {
+		t.Errorf("inputs = %q", got)
+	}
+
+	io.Write("first", true, Normal)
+	io.Write("a\nb", true, Normal)
+	// A "\n" in a message stays; PHP_EOL ends each written line.
+	if got, want := io.Output(), "first\r\na\nb\r\n"; got != want {
+		t.Errorf("Output() = %q, want %q", got, want)
+	}
+}
+
 // TestBufferIO_Output checks getOutput()'s backspace normalisation against
 // results of Composer's regex in PHP 8.4.
 func TestBufferIO_Output(t *testing.T) {
@@ -710,7 +738,8 @@ func TestBufferIO_Output(t *testing.T) {
 	}
 	io.Write("<info>Loading</info>", false, Normal)
 	io.Write("\x1B[31mred", true, Normal)
-	if got := io.Output(); got != "Loadingred\n" {
+	// StreamOutput::doWrite ends the line with PHP_EOL.
+	if got := io.Output(); got != "Loadingred"+php.EOL {
 		t.Errorf("Output() = %q", got)
 	}
 	if io.IsDecorated() || io.IsInteractive() {

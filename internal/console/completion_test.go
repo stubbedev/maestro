@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 func completionTestDefinition() *InputDefinition {
@@ -164,7 +166,7 @@ func TestBashCompletionOutput_OptionsOutput(t *testing.T) {
 	)
 	var buf bytes.Buffer
 	BashCompletionOutput{}.Write(suggestions, NewStreamOutput(&buf, VerbosityNormal, new(false), nil))
-	if want := "--option1\n--negatable\n--no-negatable\n"; buf.String() != want {
+	if want := "--option1\n--negatable\n--no-negatable" + php.EOL; buf.String() != want {
 		t.Errorf("got %q, want %q", buf.String(), want)
 	}
 }
@@ -174,7 +176,7 @@ func TestBashCompletionOutput_ValuesOutput(t *testing.T) {
 	suggestions.SuggestStrings("Green", "Red", "Yellow")
 	var buf bytes.Buffer
 	BashCompletionOutput{}.Write(suggestions, NewStreamOutput(&buf, VerbosityNormal, new(false), nil))
-	if want := "Green\nRed\nYellow\n"; buf.String() != want {
+	if want := "Green\nRed\nYellow" + php.EOL; buf.String() != want {
 		t.Errorf("got %q, want %q", buf.String(), want)
 	}
 }

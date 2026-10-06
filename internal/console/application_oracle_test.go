@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // ostr is an oracle string: a JSON string, or {"b64": ...} for bytes that
@@ -127,7 +129,7 @@ func TestOracle_ApplicationRenderThrowable(t *testing.T) {
 		} else if panicMsg != "" {
 			t.Errorf("%s: unexpected panic %q", name, panicMsg)
 		}
-		if got := buf.String(); got != string(c.Output) {
+		if got := php.NormalizeEOL(buf.String()); got != string(c.Output) {
 			t.Errorf("%s:\nwant %q\ngot  %q", name, c.Output, got)
 		}
 	}
@@ -379,10 +381,10 @@ func TestOracle_ApplicationRun(t *testing.T) {
 		if code != c.Code {
 			t.Errorf("%s: exit code %d, want %d", name, code, c.Code)
 		}
-		if got := stdout.String(); got != string(c.Stdout) {
+		if got := php.NormalizeEOL(stdout.String()); got != string(c.Stdout) {
 			t.Errorf("%s: stdout\nwant %q\ngot  %q", name, c.Stdout, got)
 		}
-		if got := stderr.String(); stripTraceFrames(got) != stripTraceFrames(string(c.Stderr)) {
+		if got := php.NormalizeEOL(stderr.String()); stripTraceFrames(got) != stripTraceFrames(string(c.Stderr)) {
 			t.Errorf("%s: stderr\nwant %q\ngot  %q", name, c.Stderr, got)
 		}
 		if got := os.Getenv("SHELL_VERBOSITY"); got != c.ShellVerbosity {

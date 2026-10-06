@@ -476,7 +476,7 @@ func (b *ProgressBar) overwriteWith(message string) {
 			b.cursor.ClearLine()
 		}
 	} else if b.step > 0 {
-		message = "\n" + message
+		message = php.EOL + message
 	}
 
 	b.previousMessage, b.hasPreviousMessage = originalMessage, true

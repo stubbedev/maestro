@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 )
 
@@ -35,7 +36,7 @@ func TestRenderThrowableTrace(t *testing.T) {
 		"  at phar:///opt/maestro/vendor/symfony/console/Input/ArgvInput.php:220\n" +
 		" Symfony\\Component\\Console\\Input\\ArgvInput->addLongOption() at phar:///opt/maestro/vendor/symfony/console/Input/ArgvInput.php:149\n" +
 		" Symfony\\Component\\Console\\Application->doRunCommand() at phar:///opt/maestro/vendor/symfony/console/Application.php:301\n"
-	if !strings.Contains(buf.String(), want) {
+	if !strings.Contains(php.NormalizeEOL(buf.String()), want) {
 		t.Errorf("rendered\n%s\nwant it to contain\n%s", buf.String(), want)
 	}
 }

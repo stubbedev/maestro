@@ -402,19 +402,32 @@ Vivamus et erat dictum, euismod neque in, laoreet odio. Aenean vitae tellus at l
 func TestQuestionHelper_AskMultilineResponseWithSingleNewline(t *testing.T) {
 	q := NewQuestion("Write an essay", nil)
 	q.SetMultiline(true)
-	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("\n"), true), createOutputInterface(), q), nil)
+	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream(php.EOL), true), createOutputInterface(), q), nil)
 }
 
 func TestQuestionHelper_AskMultilineResponseWithDataAfterNewline(t *testing.T) {
 	q := NewQuestion("Write an essay", nil)
 	q.SetMultiline(true)
-	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("\nthis is text"), true), createOutputInterface(), q), nil)
+	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream(php.EOL+"this is text"), true), createOutputInterface(), q), nil)
+}
+
+// TestQuestionHelper_AskMultilineWindowsEOL: readInput() stops a
+// multiline answer only when what it read is exactly PHP_EOL, "\r\n" on
+// Windows; a lone "\n" there is part of the answer.
+func TestQuestionHelper_AskMultilineWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	q := NewQuestion("Write an essay", nil)
+	q.SetMultiline(true)
+	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("\r\nthis is text"), true), createOutputInterface(), q), nil)
+	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("\nthis is text"), true), createOutputInterface(), q), "this is text")
+	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("\rthis is text"), true), createOutputInterface(), q), "this is text")
 }
 
 func TestQuestionHelper_AskMultilineResponseWithMultipleNewlinesAtEnd(t *testing.T) {
 	q := NewQuestion("Write an essay", nil)
 	q.SetMultiline(true)
-	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("This is a body\n\n"), true), createOutputInterface(), q), "This is a body")
+	assertAnswer(t, askOK(t, NewQuestionHelper(), createStreamableInputInterfaceMock(getInputStream("This is a body"+php.EOL+php.EOL), true), createOutputInterface(), q), "This is a body")
 }
 
 func TestQuestionHelper_AskMultilineResponseWithWithCursorInMiddleOfSeekableInputStream(t *testing.T) {
@@ -772,7 +785,7 @@ func TestSymfonyQuestionHelper_AskThrowsExceptionOnMissingInput(t *testing.T) {
 func TestSymfonyQuestionHelper_ChoiceQuestionPadding(t *testing.T) {
 	q := mustChoice(t, "qqq", php.ArrayOf("foo", "foo", "żółw", "bar", "łabądź", "baz"), nil)
 	want := " qqq:\n  [foo   ] foo\n  [żółw  ] bar\n  [łabądź] baz\n >"
-	if got := symfonyAskOutput(t, "foo\n", q); !strings.Contains(got, want) {
+	if got := php.NormalizeEOL(symfonyAskOutput(t, "foo\n", q)); !strings.Contains(got, want) {
 		t.Fatalf("output %q", got)
 	}
 }
@@ -781,7 +794,7 @@ func TestSymfonyQuestionHelper_ChoiceQuestionCustomPrompt(t *testing.T) {
 	q := mustChoice(t, "qqq", php.ListOf("foo"), nil)
 	q.SetPrompt(" >ccc> ")
 	want := " qqq:\n  [0] foo\n >ccc>"
-	if got := symfonyAskOutput(t, "foo\n", q); !strings.Contains(got, want) {
+	if got := php.NormalizeEOL(symfonyAskOutput(t, "foo\n", q)); !strings.Contains(got, want) {
 		t.Fatalf("output %q", got)
 	}
 }

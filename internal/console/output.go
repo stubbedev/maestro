@@ -176,7 +176,8 @@ func (o *StreamOutput) write(message string, newline bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if newline {
-		_, _ = io.WriteString(o.stream, message+"\n")
+		// StreamOutput::doWrite appends PHP_EOL.
+		_, _ = io.WriteString(o.stream, message+php.EOL)
 
 		return
 	}
@@ -332,7 +333,8 @@ func NewBufferedOutput(verbosity int, decorated bool, formatter Formatter) *Buff
 func (o *BufferedOutput) write(message string, newline bool) {
 	o.buffer.WriteString(message)
 	if newline {
-		o.buffer.WriteByte('\n')
+		// BufferedOutput::doWrite appends PHP_EOL.
+		o.buffer.WriteString(php.EOL)
 	}
 }
 

@@ -89,13 +89,13 @@ func normalizeBackspaces(s string) string {
 	return b.String()
 }
 
-// SetUserInputs feeds inputs, one per line, to the questions asked next and
-// makes the IO interactive.
+// SetUserInputs feeds inputs, each followed by PHP_EOL, to the questions
+// asked next and makes the IO interactive.
 func (b *BufferIO) SetUserInputs(inputs []string) {
 	var sb strings.Builder
 	for _, in := range inputs {
 		sb.WriteString(in)
-		sb.WriteByte('\n')
+		sb.WriteString(php.EOL)
 	}
 	b.input.SetStream(strings.NewReader(sb.String()))
 	b.input.SetInteractive(true)

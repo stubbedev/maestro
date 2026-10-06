@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -167,7 +168,7 @@ func TestCache_ReadWrite(t *testing.T) {
 
 	want := "Writing " + root + "/provider-vendor-Package-name.json into cache\n" +
 		"Reading " + root + "/provider-vendor-Package-name.json from cache\n"
-	if !strings.HasPrefix(b.Output(), want) {
+	if !strings.HasPrefix(php.NormalizeEOL(b.Output()), want) {
 		t.Fatalf("output %q", b.Output())
 	}
 

@@ -312,7 +312,7 @@ func (c *CompleteCommand) log(messages ...string) {
 		return
 	}
 	defer f.Close()
-	_, _ = io.WriteString(f, strings.Join(messages, "\n")+"\n")
+	_, _ = io.WriteString(f, strings.Join(messages, php.EOL)+php.EOL)
 }
 
 // DumpCompletionCommand dumps the shell completion script.

@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"os"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // testerOptions are the $options of ApplicationTester::run() and
@@ -36,7 +38,7 @@ func (t *tester) Display() string {
 		panic("Output not initialized, did you execute the command before requesting the display?")
 	}
 
-	return t.outBuf.String()
+	return php.NormalizeEOL(t.outBuf.String())
 }
 
 // ErrorOutput returns the captured error output.
@@ -45,7 +47,7 @@ func (t *tester) ErrorOutput() string {
 		panic(`The error output is not available when the tester is run without "capture_stderr_separately" option set.`)
 	}
 
-	return t.errBuf.String()
+	return php.NormalizeEOL(t.errBuf.String())
 }
 
 // StatusCode returns the last status code.

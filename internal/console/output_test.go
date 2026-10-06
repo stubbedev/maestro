@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // testOutput is OutputTest's TestOutput: an Output collecting its writes.
@@ -157,7 +159,7 @@ func TestStreamOutput_DoWrite(t *testing.T) {
 	buf := &bytes.Buffer{}
 	o := NewStreamOutput(buf, 0, nil, nil)
 	o.Writeln("foo")
-	eq(t, buf.String(), "foo\n", "->doWrite() writes to the stream")
+	eq(t, buf.String(), "foo"+php.EOL, "->doWrite() writes to the stream")
 }
 
 func TestStreamOutput_DoWriteOnFailure(t *testing.T) {
@@ -262,16 +264,44 @@ func TestConsoleOutput_DecoratedFromBothStreams(t *testing.T) {
 	eq(t, o.IsDecorated(), false, "non-tty streams are not decorated")
 	o.Writeln("<info>x</info>")
 	o.ErrorOutput().Writeln("<info>y</info>")
-	eq(t, out.String(), "x\n")
-	eq(t, errOut.String(), "y\n")
+	eq(t, out.String(), "x"+php.EOL)
+	eq(t, errOut.String(), "y"+php.EOL)
 }
 
 func TestBufferedOutput_Fetch(t *testing.T) {
 	o := NewBufferedOutput(0, false, nil)
 	o.Writeln("<info>foo</info>")
 	o.Write("bar", false, 0)
-	eq(t, o.Fetch(), "foo\nbar")
+	eq(t, o.Fetch(), "foo"+php.EOL+"bar")
 	eq(t, o.Fetch(), "")
+}
+
+// TestOutputs_WindowsEOL: StreamOutput, BufferedOutput and
+// TrimmedBufferOutput end a written line with PHP_EOL, "\r\n" on Windows,
+// and OutputStyle::newLine() repeats it; a "\n" in the message stays.
+func TestOutputs_WindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	buf := &bytes.Buffer{}
+	stream := NewStreamOutput(buf, 0, new(false), nil)
+	stream.Writeln("a\nb")
+	stream.Write("c", true, OutputRaw)
+	stream.Write("d", false, OutputNormal)
+	NewOutputStyle(stream).NewLine(2)
+	eq(t, buf.String(), "a\nb\r\nc\r\nd\r\n\r\n")
+
+	buffered := NewBufferedOutput(0, false, nil)
+	buffered.Writeln("foo")
+	buffered.Write("bar", true, 0)
+	eq(t, buffered.Fetch(), "foo\r\nbar\r\n")
+
+	trimmed, err := NewTrimmedBufferOutput(4, 0, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trimmed.Writeln("foo")
+	trimmed.Writeln("x")
+	eq(t, trimmed.Fetch(), "\nx\r\n")
 }
 
 func TestNullOutput_Constructor(t *testing.T) {

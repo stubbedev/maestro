@@ -2,6 +2,8 @@
 
 package console
 
+import "github.com/stubbedev/maestro/internal/php"
+
 // TrimmedBufferOutput keeps only the last maxLength bytes written.
 type TrimmedBufferOutput struct {
 	BaseOutput
@@ -33,7 +35,7 @@ func (o *TrimmedBufferOutput) Fetch() string {
 func (o *TrimmedBufferOutput) write(message string, newline bool) {
 	o.buffer += message
 	if newline {
-		o.buffer += "\n"
+		o.buffer += php.EOL
 	}
 	if len(o.buffer) > o.maxLength {
 		o.buffer = o.buffer[len(o.buffer)-o.maxLength:]

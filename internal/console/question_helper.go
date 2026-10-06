@@ -699,8 +699,9 @@ func isInteractiveInput(stream io.Reader) bool {
 }
 
 // readInput reads one line, or for a multiline question everything up to
-// end of file (stopping early only on a leading newline). ok is false
-// where PHP returns false.
+// end of file (stopping early only when what was read so far is exactly
+// PHP_EOL: `PHP_EOL === "{$ret}{$char}"`, so a leading "\n", or "\r\n" on
+// Windows). ok is false where PHP returns false.
 func readInput(inputStream io.Reader, question *Question) (string, bool, error) {
 	if !question.IsMultiline() {
 		line, ok := fgets(inputStream)
@@ -720,7 +721,7 @@ func readInput(inputStream io.Reader, question *Question) (string, bool, error) 
 		if !ok {
 			break
 		}
-		if len(ret) == 0 && c == '\n' {
+		if len(ret)+1 == len(php.EOL) && string(ret)+string(c) == php.EOL {
 			break
 		}
 		ret = append(ret, c)

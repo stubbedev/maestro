@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // pbClock is ClockMock: frozen time that only moves with sleep().
@@ -460,16 +462,16 @@ func TestProgressBar_NonDecoratedOutput(t *testing.T) {
 
 	bar.Finish()
 
-	assertPB(t, "   0/200 [>---------------------------]   0%\n"+
-		"  20/200 [==>-------------------------]  10%\n"+
-		"  40/200 [=====>----------------------]  20%\n"+
-		"  60/200 [========>-------------------]  30%\n"+
-		"  80/200 [===========>----------------]  40%\n"+
-		" 100/200 [==============>-------------]  50%\n"+
-		" 120/200 [================>-----------]  60%\n"+
-		" 140/200 [===================>--------]  70%\n"+
-		" 160/200 [======================>-----]  80%\n"+
-		" 180/200 [=========================>--]  90%\n"+
+	assertPB(t, "   0/200 [>---------------------------]   0%"+php.EOL+
+		"  20/200 [==>-------------------------]  10%"+php.EOL+
+		"  40/200 [=====>----------------------]  20%"+php.EOL+
+		"  60/200 [========>-------------------]  30%"+php.EOL+
+		"  80/200 [===========>----------------]  40%"+php.EOL+
+		" 100/200 [==============>-------------]  50%"+php.EOL+
+		" 120/200 [================>-----------]  60%"+php.EOL+
+		" 140/200 [===================>--------]  70%"+php.EOL+
+		" 160/200 [======================>-----]  80%"+php.EOL+
+		" 180/200 [=========================>--]  90%"+php.EOL+
 		" 200/200 [============================] 100%", buf)
 }
 
@@ -483,8 +485,8 @@ func TestProgressBar_NonDecoratedOutputWithClear(t *testing.T) {
 	bar.SetProgress(50)
 	bar.Finish()
 
-	assertPB(t, "  0/50 [>---------------------------]   0%\n"+
-		" 25/50 [==============>-------------]  50%\n"+
+	assertPB(t, "  0/50 [>---------------------------]   0%"+php.EOL+
+		" 25/50 [==============>-------------]  50%"+php.EOL+
 		" 50/50 [============================] 100%", buf)
 }
 
@@ -495,8 +497,25 @@ func TestProgressBar_NonDecoratedOutputWithoutMax(t *testing.T) {
 	bar.Start()
 	bar.Advance(1)
 
-	assertPB(t, "    0 [>---------------------------]\n"+
+	assertPB(t, "    0 [>---------------------------]"+php.EOL+
 		"    1 [->--------------------------]", buf)
+}
+
+// TestProgressBar_NonDecoratedOutputWindowsEOL is testNonDecoratedOutput
+// with Windows' PHP_EOL: overwrite() starts each new line with it.
+func TestProgressBar_NonDecoratedOutputWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+
+	e := setUpProgressBar(t)
+	out, buf := e.output(false, VerbosityNormal)
+	bar := e.bar(out, 2, 0)
+	bar.Start()
+	bar.Advance(1)
+	bar.Finish()
+
+	assertPB(t, " 0/2 [>---------------------------]   0%\r\n"+
+		" 1/2 [==============>-------------]  50%\r\n"+
+		" 2/2 [============================] 100%", buf)
 }
 
 func TestProgressBar_ParallelBars(t *testing.T) {
@@ -919,7 +938,7 @@ func TestProgressBar_MultiLineFormatIsFullyCorrectlyWithManuallyCleanup(t *testi
 		`Processing "foobar"...`+
 		"\x1B[1G\x1B[2K\x1B[1A"+
 		generateOutput("")+
-		"Foo!\n"+
+		"Foo!"+php.EOL+
 		generateOutput("[--->------------------------]")+
 		"\nProcessing \"foobar\"..."+
 		generateOutput("[----->----------------------]\nProcessing \"foobar\"..."), buf)
@@ -953,9 +972,9 @@ func TestProgressBar_ComposerLoop(t *testing.T) {
 	bar.Finish()
 	bar.Clear()
 
-	assertPB(t, " 0/4 [>---------------------------]   0%\n"+
-		" 1/4 [=======>--------------------]  25%\n"+
-		" 3/4 [=====================>------]  75%\n"+
+	assertPB(t, " 0/4 [>---------------------------]   0%"+php.EOL+
+		" 1/4 [=======>--------------------]  25%"+php.EOL+
+		" 3/4 [=====================>------]  75%"+php.EOL+
 		" 4/4 [============================] 100%", buf)
 }
 

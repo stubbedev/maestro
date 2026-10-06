@@ -7,6 +7,7 @@ package console
 import (
 	"bytes"
 	"os"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -268,6 +269,23 @@ func TestSymfonyStyle_GetErrorStyleUsesTheCurrentOutputIfNoErrorOutputIsAvailabl
 	}
 }
 
+// TestSymfonyStyle_BlockWindowsEOL: createBlock() wraps with and splits
+// at PHP_EOL, so on Windows a "\n" inside a message does not start a new
+// block line, and every line ends with "\r\n".
+func TestSymfonyStyle_BlockWindowsEOL(t *testing.T) {
+	php.SetEOLForTest(t, "\r\n")
+	t.Setenv("COLUMNS", "12")
+
+	out := NewBufferedOutput(VerbosityNormal, false, nil)
+	in, _ := NewArrayInput(nil, nil)
+	NewSymfonyStyle(in, out).Block([]string{"aaaa bbbb cccc", "x\ny"}, "", "", " ", false, false)
+
+	got := regexp.MustCompile(` +\r\n`).ReplaceAllString(out.Fetch(), "\r\n")
+	if want := "\r\n aaaa bbbb\r\n cccc\r\n\r\n x\ny\r\n\r\n"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 // TestSymfonyStyle_MemoryConsumption checks that the history buffer stays
 // trimmed however much is written.
 func TestSymfonyStyle_MemoryConsumption(t *testing.T) {
@@ -276,7 +294,12 @@ func TestSymfonyStyle_MemoryConsumption(t *testing.T) {
 	for range 102 {
 		io.Write("teststr", true, VerbosityQuiet)
 	}
-	if n := len(io.bufferedOutput.buffer); n > 2 {
+	// Symfony keeps two line breaks: 4 bytes on Windows ("\r\n").
+	limit := 2
+	if runtime.GOOS == "windows" {
+		limit = 4
+	}
+	if n := len(io.bufferedOutput.buffer); n > limit {
 		t.Fatalf("buffer holds %d bytes", n)
 	}
 }

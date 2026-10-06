@@ -30,16 +30,24 @@ type SymfonyStyle struct {
 
 // NewSymfonyStyle mirrors new SymfonyStyle($input, $output).
 func NewSymfonyStyle(in Input, out Output) *SymfonyStyle {
-	buffered, _ := NewTrimmedBufferOutput(2, out.Verbosity(), false, cloneFormatter(out.Formatter()))
+	// The history holds the last two line breaks: two PHP_EOLs, 4 bytes on
+	// Windows (DIRECTORY_SEPARATOR === '\\').
+	historyLength, windows := 2, 0
+	if runtime.GOOS == "windows" {
+		historyLength, windows = 4, 1
+	}
+	buffered, _ := NewTrimmedBufferOutput(historyLength, out.Verbosity(), false, cloneFormatter(out.Formatter()))
 	width := Terminal{}.Width()
 	if width == 0 {
 		width = SymfonyStyleMaxLineLength
 	}
 
 	return &SymfonyStyle{
-		OutputStyle:    NewOutputStyle(out),
-		input:          in,
-		lineLength:     min(width, SymfonyStyleMaxLineLength),
+		OutputStyle: NewOutputStyle(out),
+		input:       in,
+		// Windows cmd wraps lines as soon as the terminal width is
+		// reached, whether there are following chars or not.
+		lineLength:     min(width-windows, SymfonyStyleMaxLineLength),
 		bufferedOutput: buffered,
 	}
 }
@@ -230,7 +238,7 @@ func (s *SymfonyStyle) ErrorStyle() *SymfonyStyle {
 }
 
 func (s *SymfonyStyle) autoPrependBlock() {
-	chars := s.bufferedOutput.Fetch()
+	chars := php.NormalizeEOL(s.bufferedOutput.Fetch())
 	if len(chars) > 2 {
 		chars = chars[len(chars)-2:]
 	}
@@ -277,7 +285,7 @@ func (s *SymfonyStyle) createBlock(messages []string, typ, style, prefix string,
 
 		decorationLength := Width(message) - Width(RemoveDecoration(s.Formatter(), message))
 		messageLineLength := min(s.lineLength-prefixLength-indentLength+decorationLength, s.lineLength)
-		lines = append(lines, strings.Split(php.Wordwrap(message, messageLineLength, "\n", true), "\n")...)
+		lines = append(lines, strings.Split(php.Wordwrap(message, messageLineLength, php.EOL, true), php.EOL)...)
 
 		if len(messages) > 1 && key < len(messages)-1 {
 			lines = append(lines, "")
