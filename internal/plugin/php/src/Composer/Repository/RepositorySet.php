@@ -3,8 +3,8 @@
 /*
  * maestro's plugin shim: Composer\Repository\RepositorySet
  * (docs/PLUGINS.md §4.6): a proxy of maestro's (reposet.*); one created in
- * PHP is maestro's too. Its pools are PHP-local Pools of the packages
- * maestro's pool holds.
+ * PHP is maestro's too. Its pools are PHP-local Pools of what maestro's
+ * pool holds and its builder removed.
  * Written for PHP 7.2.5 to 8.5.
  */
 
@@ -15,6 +15,7 @@ use Composer\Advisory\SecurityAdvisory;
 use Composer\DependencyResolver\Pool;
 use Composer\DependencyResolver\Request;
 use Composer\EventDispatcher\EventDispatcher;
+use Composer\FilterList\FilterListEntry;
 use Composer\IO\IOInterface;
 use Composer\Semver\Constraint\ConstraintInterface;
 use Maestro\Shim\Remote;
@@ -100,14 +101,85 @@ class RepositorySet
     }
 
     /**
-     * The Pool of maestro's pool (its packages, with maestro's ids, and
-     * the versions it removed).
+     * The Pool of maestro's pool: its packages, with maestro's ids, and
+     * what PoolBuilder removed, as Composer's PoolBuilder passes it to new
+     * Pool(): the optimizer's removals (by name, and by the kept package's
+     * spl_object_id()), the security advisories' (Composer's advisory
+     * objects), the abandoned and the filter lists' (Composer's
+     * FilterListEntry objects). An advisory or entry removing several
+     * versions is one object, as in Composer.
      *
      * @param array<string, mixed> $d
      */
     private static function pool(array $d): Pool
     {
-        return new Pool($d['packages'], $d['unacceptable'], $d['removedVersions'], [], [], $d['abandonedRemovedVersions']);
+        $byPackage = [];
+        foreach ($d['removedVersionsByPackage'] as $pair) {
+            $byPackage[spl_object_id($pair[0])] = $pair[1];
+        }
+
+        $advisories = array_map([self::class, 'advisory'], $d['advisories']);
+        $security = [];
+        foreach ($d['securityRemovedVersions'] as $name => $versions) {
+            foreach ($versions as $version => $refs) {
+                $security[$name][$version] = array_map(static function ($i) use ($advisories) {
+                    return $advisories[$i];
+                }, $refs);
+            }
+        }
+
+        $entries = array_map([self::class, 'filterListEntry'], $d['filterListEntries']);
+        $filterList = [];
+        foreach ($d['filterListRemovedVersions'] as $name => $versions) {
+            foreach ($versions as $version => $refs) {
+                $filterList[$name][$version] = array_map(static function ($i) use ($entries) {
+                    return $entries[$i];
+                }, $refs);
+            }
+        }
+
+        return new Pool($d['packages'], $d['unacceptable'], $d['removedVersions'], $byPackage, $security, $d['abandonedRemovedVersions'], $filterList);
+    }
+
+    /**
+     * Composer's (Partial)SecurityAdvisory of maestro's advisory.
+     *
+     * @param array<string, mixed> $a
+     * @return PartialSecurityAdvisory|SecurityAdvisory
+     */
+    private static function advisory(array $a)
+    {
+        $class = isset($a['title']) ? SecurityAdvisory::class : PartialSecurityAdvisory::class;
+        $advisory = (new \ReflectionClass($class))->newInstanceWithoutConstructor();
+        $advisory->advisoryId = $a['advisoryId'];
+        $advisory->packageName = $a['packageName'];
+        $advisory->affectedVersions = $a['affectedVersions'];
+        if (isset($a['title'])) {
+            $advisory->title = $a['title'];
+            $advisory->sources = $a['sources'];
+            $advisory->reportedAt = new \DateTimeImmutable($a['reportedAt']);
+            $advisory->cve = $a['cve'];
+            $advisory->link = $a['link'];
+            $advisory->severity = $a['severity'];
+        }
+
+        return $advisory;
+    }
+
+    /**
+     * Composer's FilterListEntry of maestro's entry (its public
+     * properties, as its constructor sets them).
+     *
+     * @param array<string, mixed> $e
+     */
+    private static function filterListEntry(array $e): FilterListEntry
+    {
+        $entry = (new \ReflectionClass(FilterListEntry::class))->newInstanceWithoutConstructor();
+        foreach (['packageName', 'listName', 'constraint', 'url', 'reason', 'id', 'source'] as $name) {
+            $entry->$name = $e[$name];
+        }
+
+        return $entry;
     }
 
     /**
@@ -122,20 +194,7 @@ class RepositorySet
         $out = [];
         foreach ($d['advisories'] as $name => $list) {
             foreach ($list as $a) {
-                $class = isset($a['title']) ? SecurityAdvisory::class : PartialSecurityAdvisory::class;
-                $advisory = (new \ReflectionClass($class))->newInstanceWithoutConstructor();
-                $advisory->advisoryId = $a['advisoryId'];
-                $advisory->packageName = $a['packageName'];
-                $advisory->affectedVersions = $a['affectedVersions'];
-                if (isset($a['title'])) {
-                    $advisory->title = $a['title'];
-                    $advisory->sources = $a['sources'];
-                    $advisory->reportedAt = new \DateTimeImmutable($a['reportedAt']);
-                    $advisory->cve = $a['cve'];
-                    $advisory->link = $a['link'];
-                    $advisory->severity = $a['severity'];
-                }
-                $out[$name][] = $advisory;
+                $out[$name][] = self::advisory($a);
             }
         }
 

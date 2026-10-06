@@ -4,6 +4,8 @@
 package plugin
 
 import (
+	"cmp"
+	"slices"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
@@ -308,31 +310,140 @@ func (r *Runtime) registerSelectors() {
 }
 
 // poolValue describes a pool for the shim's PHP-local Pool: its packages
-// (in id order), the unacceptable fixed or locked ones and the versions
-// the pool builder removed (security and filter list removals are left
-// out).
+// (in id order), the unacceptable fixed or locked ones, and what the pool
+// builder and its filters removed, as Composer's PoolBuilder hands them to
+// new Pool(): the versions the optimizer removed (by name, and by the
+// package it kept, whose spl_object_id PHP keys them by), the versions
+// security advisories removed (with Composer's advisory objects), the
+// abandoned ones and the filter list removals (with Composer's
+// FilterListEntry objects). An advisory or entry that removed several
+// versions is one object in PHP too (getFilterListEntryForPackageVersion()
+// tells them apart by spl_object_id()): each crosses once, in
+// "advisories" and "filterListEntries", and the removals name them by
+// index.
 func (r *Runtime) poolValue(p *resolver.Pool) *php.Array {
 	versions := func(m *repository.NameMap[*resolver.VersionMap]) *php.Array {
 		out := php.NewArray()
-		if m == nil {
-			return out
-		}
 		for name, vm := range m.All() {
-			v := php.NewArray()
-			for version, pretty := range vm.All() {
-				v.Set(version, pretty)
-			}
-			out.Set(name, v)
+			out.Set(name, versionMapValue(vm))
 		}
 
 		return out
+	}
+
+	byPackage := php.NewArray()
+	if all := p.AllRemovedVersionsByPackage(); len(all) > 0 {
+		// PoolOptimizer fills the map as it keeps packages, in pool
+		// order; packages outside the pool (none in Composer's builder)
+		// follow by name and version.
+		seen := make(map[pkg.PackageInterface]bool, len(all))
+		add := func(pk pkg.PackageInterface) {
+			if vm, ok := all[pk]; ok && !seen[pk] {
+				seen[pk] = true
+				byPackage.Append(php.ListOf(r.lazyPackage(pk), versionMapValue(vm)))
+			}
+		}
+		for _, pk := range p.Packages() {
+			add(pk)
+		}
+		rest := make([]pkg.PackageInterface, 0, len(all)-len(seen))
+		for pk := range all {
+			if !seen[pk] {
+				rest = append(rest, pk)
+			}
+		}
+		slices.SortFunc(rest, func(a, b pkg.PackageInterface) int {
+			return cmp.Or(cmp.Compare(a.Name(), b.Name()), cmp.Compare(a.Version(), b.Version()))
+		})
+		for _, pk := range rest {
+			add(pk)
+		}
+	}
+
+	advisories := php.NewArray()
+	advisoryIndex := map[repository.Advisory]int64{}
+	security := php.NewArray()
+	for name, byVersion := range p.AllSecurityRemovedPackageVersions().All() {
+		out := php.NewArray()
+		for version, list := range byVersion.All() {
+			refs := php.NewArrayCap(len(list))
+			for _, adv := range list {
+				i, ok := advisoryIndex[adv]
+				if !ok {
+					i = int64(advisories.Len())
+					advisoryIndex[adv] = i
+					advisories.Append(advisoryValue(adv))
+				}
+				refs.Append(i)
+			}
+			out.Set(version, refs)
+		}
+		security.Set(name, out)
+	}
+
+	entries := php.NewArray()
+	entryIndex := map[*repository.FilterListEntry]int64{}
+	filterList := php.NewArray()
+	for name, byVersion := range p.AllFilterListRemovedPackageVersions().All() {
+		out := php.NewArray()
+		for version, list := range byVersion.All() {
+			refs := php.NewArrayCap(len(list))
+			for _, e := range list {
+				i, ok := entryIndex[e]
+				if !ok {
+					i = int64(entries.Len())
+					entryIndex[e] = i
+					entries.Append(filterListEntryValue(e))
+				}
+				refs.Append(i)
+			}
+			out.Set(version, refs)
+		}
+		filterList.Set(name, out)
 	}
 
 	return php.ArrayOf(
 		"packages", r.lazyPackageList(p.Packages()),
 		"unacceptable", r.lazyPackageList(p.UnacceptableFixedOrLockedPackages()),
 		"removedVersions", versions(p.AllRemovedVersions()),
+		"removedVersionsByPackage", byPackage,
+		"advisories", advisories,
+		"securityRemovedVersions", security,
 		"abandonedRemovedVersions", versions(p.AllAbandonedRemovedPackageVersions()),
+		"filterListEntries", entries,
+		"filterListRemovedVersions", filterList,
+	)
+}
+
+// versionMapValue is a normalized version => pretty version array.
+func versionMapValue(vm *resolver.VersionMap) *php.Array {
+	out := php.NewArray()
+	for version, pretty := range vm.All() {
+		out.Set(version, pretty)
+	}
+
+	return out
+}
+
+// filterListEntryValue describes a filter list entry for the shim's
+// FilterListEntry objects (its public properties).
+func filterListEntryValue(e *repository.FilterListEntry) *php.Array {
+	null := func(s pkg.NullString) any {
+		if !s.Valid {
+			return nil
+		}
+
+		return s.S
+	}
+
+	return php.ArrayOf(
+		"packageName", e.PackageName,
+		"listName", e.ListName,
+		"constraint", constraintValue{e.Constraint},
+		"url", null(e.URL),
+		"reason", null(e.Reason),
+		"id", null(e.ID),
+		"source", null(e.Source),
 	)
 }
 
