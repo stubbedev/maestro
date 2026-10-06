@@ -156,7 +156,8 @@ func TestSelfUpdateCommand_SuccessfulUpdateAndRollback(t *testing.T) {
 	if got := readFile(t, bin); got != "NEW" {
 		t.Errorf("binary = %q", got)
 	}
-	if st, err := os.Stat(bin); err != nil || st.Mode().Perm()&0o100 == 0 {
+	// Windows keeps no execute bit.
+	if st, err := os.Stat(bin); err != nil || !util.IsWindows() && st.Mode().Perm()&0o100 == 0 {
 		t.Errorf("binary mode: %v %v", st, err)
 	}
 

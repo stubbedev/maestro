@@ -8,6 +8,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // validateMinimalValidConfiguration is MINIMAL_VALID_CONFIGURATION; strip
@@ -109,6 +110,9 @@ and prefer using the "require" command over editing the composer.json file direc
 }
 
 func TestValidateCommand_UnaccessibleFile(t *testing.T) {
+	if util.IsWindows() {
+		t.Skip("Does not run on windows")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("Cannot run as root")
 	}

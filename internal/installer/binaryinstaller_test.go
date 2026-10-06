@@ -69,6 +69,13 @@ func TestBinaryInstaller_InstallAndExecBinaryWithFullCompat(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			// "full" writes both proxies; on Windows cmd.exe runs the .bat.
+			for _, proxy := range []string{"/binary", "/binary.bat"} {
+				if _, err := os.Stat(binDir + proxy); err != nil {
+					t.Errorf("proxy %s: %v", proxy, err)
+				}
+			}
+
 			var output string
 
 			proc := util.NewProcessExecutor(nil)
