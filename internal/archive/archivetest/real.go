@@ -104,13 +104,15 @@ func Unzip(t testing.TB, unzip, file string, umask int, lcAll string) Result {
 }
 
 // PharData runs TarDownloader's extraction. file must carry a tar
-// extension, which PharData insists on.
+// extension, which PharData insists on. It runs with the memory limit
+// bin/composer raises PHP's to (1536M): with php.ini's default of 128M,
+// PharData runs out of memory on large tarballs such as phpstan's.
 func PharData(t testing.TB, file string, umask int) Result {
 	t.Helper()
 
 	const php = `$p = new PharData($argv[1]); $p->extractTo($argv[2], null, true);`
 
-	return run(t, umask, nil, `exec php -r '`+php+`' "$2" "$1"`, file)
+	return run(t, umask, nil, `exec php -d memory_limit=1536M -r '`+php+`' "$2" "$1"`, file)
 }
 
 // TarXz runs XzDownloader's `tar -xJf <file> -C <dir>` with the given tar
