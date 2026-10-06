@@ -168,18 +168,13 @@ func (e *PHPException) As(target any) bool {
 // internal/util.
 func goErrorClass(err error) (class string, code int, ok bool) {
 	switch e := err.(type) { //nolint:errorlint // the error itself, not its chain: a wrapper adds to the message.
-	case *util.RuntimeError:
-		return "RuntimeException", 0, true
-	case *util.LogicError:
-		return "LogicException", 0, true
-	case *util.InvalidArgumentError:
-		return "InvalidArgumentException", 0, true
-	case *util.UnexpectedValueError:
-		return "UnexpectedValueException", 0, true
-	case *util.ErrorException:
-		return "ErrorException", 0, true
-	case *util.SecurityError:
-		return `Composer\Exception\SecurityException`, 0, true
+	case *util.RuntimeError, *util.LogicError, *util.InvalidArgumentError,
+		*util.UnexpectedValueError, *util.ErrorException, *util.IOError:
+		// their Class field names a library's subclass (symfony/process's
+		// RuntimeException, ...), which PHPClassOf reads
+		class, _ := util.PHPClassOf(e)
+
+		return class, 0, true
 	case *util.TransportError:
 		return `Composer\Downloader\TransportException`, e.Code, true
 	}

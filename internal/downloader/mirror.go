@@ -90,7 +90,7 @@ func symfonyMkdir(dir string) error {
 func symfonyCopy(originFile, targetFile string) error {
 	origin, err := os.Stat(originFile)
 	if err != nil || !origin.Mode().IsRegular() {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" because file does not exist.`, Path: originFile, Site: phperr.At("Filesystem.php", 41)}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" because file does not exist.`, Path: originFile, Class: util.ClassFileNotFound, Site: phperr.At("Filesystem.php", 41)}
 	}
 
 	if err := symfonyMkdir(util.Dirname(targetFile)); err != nil {

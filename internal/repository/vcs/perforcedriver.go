@@ -157,7 +157,7 @@ func (d *PerforceDriver) HasComposerFile(identifier string) (bool, error) {
 // GetContents ports PerforceDriver::getContents, which Perforce does not
 // support.
 func (d *PerforceDriver) GetContents(string) (*http.Response, error) {
-	return nil, &util.LogicError{Site: phperr.At("PerforceDriver.php", 155), Message: "Not implemented/used in PerforceDriver"}
+	return nil, &util.LogicError{Class: "BadMethodCallException", Site: phperr.At("PerforceDriver.php", 155), Message: "Not implemented/used in PerforceDriver"}
 }
 
 var perforceURL = php.MustCompile(`#\b(perforce|p4)\b#i`)

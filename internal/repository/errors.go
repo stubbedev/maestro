@@ -14,6 +14,11 @@ type InvalidRepositoryError struct {
 
 func (e *InvalidRepositoryError) Error() string { return e.Message }
 
+// PHPClass implements util.PHPClasser.
+func (*InvalidRepositoryError) PHPClass() (string, int) {
+	return `Composer\Repository\InvalidRepositoryException`, 0
+}
+
 // SecurityError is Composer\Repository\RepositorySecurityException: a
 // security problem, like a broken or missing signature.
 type SecurityError struct {
@@ -22,6 +27,11 @@ type SecurityError struct {
 }
 
 func (e *SecurityError) Error() string { return e.Message }
+
+// PHPClass implements util.PHPClasser.
+func (*SecurityError) PHPClass() (string, int) {
+	return `Composer\Repository\RepositorySecurityException`, 0
+}
 
 // wrappedError is a PHP exception created with a previous exception
 // (new \RuntimeException($message, 0, $previous)).

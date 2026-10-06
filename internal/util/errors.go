@@ -12,12 +12,18 @@ import (
 	"github.com/stubbedev/maestro/internal/semver"
 )
 
-// RuntimeError is PHP's \RuntimeException.
+// RuntimeError is PHP's \RuntimeException, or a library's subclass of it
+// (Class).
 type RuntimeError struct {
 	Message string
 	// Prev is the $previous exception, rendered after this one (it is
 	// not unwrapped: PHP's catch does not look at it).
 	Prev error
+	// Class is get_class($e) of a library's subclass of \RuntimeException
+	// that adds nothing Composer catches (symfony/process's
+	// Symfony\Component\Process\Exception\RuntimeException); empty for
+	// \RuntimeException itself.
+	Class string
 	phperr.Site
 }
 
@@ -26,12 +32,19 @@ func (e *RuntimeError) Error() string { return e.Message }
 // PHPPrevious implements phperr.Chained.
 func (e *RuntimeError) PHPPrevious() error { return e.Prev }
 
-// InvalidArgumentError is PHP's \InvalidArgumentException.
+// InvalidArgumentError is PHP's \InvalidArgumentException, or a library's
+// subclass of it (Class).
 type InvalidArgumentError struct {
 	Message string
 	// Prev is the $previous exception, rendered after this one (it is
 	// not unwrapped: PHP's catch does not look at it).
 	Prev error
+	// Class is get_class($e) of a library's subclass of
+	// \InvalidArgumentException (symfony/finder's
+	// DirectoryNotFoundException, symfony/process's
+	// InvalidArgumentException); empty for \InvalidArgumentException
+	// itself.
+	Class string
 	phperr.Site
 }
 
@@ -40,12 +53,17 @@ func (e *InvalidArgumentError) Error() string { return e.Message }
 // PHPPrevious implements phperr.Chained.
 func (e *InvalidArgumentError) PHPPrevious() error { return e.Prev }
 
-// LogicError is PHP's \LogicException.
+// LogicError is PHP's \LogicException, or a library's subclass of it
+// (Class).
 type LogicError struct {
 	Message string
 	// Prev is the $previous exception, rendered after this one (it is
 	// not unwrapped: PHP's catch does not look at it).
 	Prev error
+	// Class is get_class($e) of a library's subclass of \LogicException
+	// (symfony/process's Symfony\Component\Process\Exception\LogicException);
+	// empty for \LogicException itself.
+	Class string
 	phperr.Site
 }
 
@@ -64,21 +82,42 @@ type ErrorException struct {
 
 func (e *ErrorException) Error() string { return e.Message }
 
-// IOError is Symfony's Filesystem IOException, carrying the path involved.
+// IOError is symfony/filesystem's IOException, carrying the path involved,
+// or its subclass FileNotFoundException (Class).
 type IOError struct {
 	Message string
 	Path    string
+	// Class is get_class($e) of a subclass of IOException
+	// (ClassFileNotFound); empty for IOException itself.
+	Class string
 	phperr.Site
 }
 
+// The symfony/filesystem, symfony/finder and symfony/process exception
+// classes maestro represents with util's generic error types (their Class).
+const (
+	ClassIOException       = `Symfony\Component\Filesystem\Exception\IOException`
+	ClassFileNotFound      = `Symfony\Component\Filesystem\Exception\FileNotFoundException`
+	ClassDirectoryNotFound = `Symfony\Component\Finder\Exception\DirectoryNotFoundException`
+	ClassAccessDenied      = `Symfony\Component\Finder\Exception\AccessDeniedException`
+	ClassProcessRuntime    = `Symfony\Component\Process\Exception\RuntimeException`
+	ClassProcessLogic      = `Symfony\Component\Process\Exception\LogicException`
+	ClassProcessInvalidArg = `Symfony\Component\Process\Exception\InvalidArgumentException`
+)
+
 func (e *IOError) Error() string { return e.Message }
 
-// UnexpectedValueError is PHP's \UnexpectedValueException.
+// UnexpectedValueError is PHP's \UnexpectedValueException, or a library's
+// subclass of it (Class).
 type UnexpectedValueError struct {
 	Message string
 	// Prev is the $previous exception, rendered after this one (it is
 	// not unwrapped: PHP's catch does not look at it).
 	Prev error
+	// Class is get_class($e) of a library's subclass of
+	// \UnexpectedValueException (symfony/finder's AccessDeniedException);
+	// empty for \UnexpectedValueException itself.
+	Class string
 	phperr.Site
 }
 
@@ -140,6 +179,8 @@ func PHPClassOf(err error) (string, int) {
 		invalid          *InvalidArgumentError
 		semverInvalid    *semver.InvalidArgumentError
 		logic            *LogicError
+		runtime          *RuntimeError
+		ioErr            *IOError
 		classer          PHPClasser
 		errExc           *ErrorException
 		engine           *php.EngineError
@@ -152,19 +193,39 @@ func PHPClassOf(err error) (string, int) {
 		return `Composer\Downloader\TransportException`, transport.Code
 	case errors.As(err, &irrecov):
 		return `Composer\Exception\IrrecoverableDownloadException`, 0
-	case errors.As(err, &unexpected), errors.As(err, &semverUnexpected):
+	case errors.As(err, &unexpected):
+		return orClass(unexpected.Class, "UnexpectedValueException"), 0
+	case errors.As(err, &semverUnexpected):
 		return "UnexpectedValueException", 0
-	case errors.As(err, &invalid), errors.As(err, &semverInvalid):
+	case errors.As(err, &invalid):
+		return orClass(invalid.Class, "InvalidArgumentException"), 0
+	case errors.As(err, &semverInvalid):
 		return "InvalidArgumentException", 0
 	case errors.As(err, &logic):
-		return "LogicException", 0
+		return orClass(logic.Class, "LogicException"), 0
 	case errors.As(err, &classer):
 		return classer.PHPClass()
 	case errors.As(err, &errExc):
 		return "ErrorException", 0
 	case errors.As(err, &engine):
 		return engine.Class, 0
+	case errors.As(err, &ioErr):
+		return orClass(ioErr.Class, ClassIOException), 0
+	case errors.As(err, &runtime):
+		return orClass(runtime.Class, "RuntimeException"), 0
 	}
 
 	return "RuntimeException", 0
 }
+
+// orClass is class, or base when the error is of the base class itself.
+func orClass(class, base string) string {
+	if class != "" {
+		return class
+	}
+
+	return base
+}
+
+// PHPClass implements PHPClasser: Composer\Exception\SecurityException.
+func (*SecurityError) PHPClass() (string, int) { return `Composer\Exception\SecurityException`, 0 }

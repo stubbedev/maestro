@@ -121,7 +121,7 @@ func (f *ArchivableFilesFinder) Files() []File { return f.files }
 // sees files that have a real path.
 func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]File, error) {
 	if !isDir(dir) {
-		return nil, &util.InvalidArgumentError{Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
+		return nil, &util.InvalidArgumentError{Class: util.ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
 	}
 
 	// Finder::normalizeDir and Symfony's RecursiveDirectoryIterator::current
@@ -137,15 +137,22 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 	walk = func(subPath string) error {
 		names, err := readDirNames(base + subPath)
 		if err != nil {
-			// the root's iterator is constructed in Finder; subdirectories'
-			// in getChildren() (which Symfony rethrows as an
-			// AccessDeniedException; maestro keeps the SPL exception)
-			site := phperr.At("RecursiveDirectoryIterator.php", 48)
-			if subPath != "" {
-				site = phperr.At("RecursiveDirectoryIterator.php", 115)
+			// Symfony's RecursiveDirectoryIterator::__construct calls the
+			// SPL constructor at line 48, for the root (constructed by
+			// Finder) and for subdirectories (by parent::getChildren());
+			// getChildren() rethrows the latter as an AccessDeniedException
+			// (line 127) with the SPL exception as its previous.
+			inner := openDirError("RecursiveDirectoryIterator", strings.TrimSuffix(base+subPath, "/"), err, phperr.At("RecursiveDirectoryIterator.php", 48))
+			if subPath == "" {
+				return inner
 			}
 
-			return openDirError("RecursiveDirectoryIterator", strings.TrimSuffix(base+subPath, "/"), err, site)
+			return &util.UnexpectedValueError{
+				Class:   util.ClassAccessDenied,
+				Message: inner.Error(),
+				Prev:    inner,
+				Site:    phperr.At("RecursiveDirectoryIterator.php", 127),
+			}
 		}
 
 		for _, name := range names {

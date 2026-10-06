@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -318,4 +319,46 @@ func archivedFiles(t *testing.T, sources, command string) []string {
 	}
 
 	return files
+}
+
+// Finder's exceptions: DirectoryNotFoundException for a missing directory, and
+// for an unreadable subdirectory the AccessDeniedException Symfony's
+// RecursiveDirectoryIterator::getChildren() throws (line 127) around the SPL
+// UnexpectedValueException of its constructor (line 48), as PHP 8.4 reports
+// them for Finder::create()->in($dir).
+func TestArchivableFilesFinderExceptions(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := findFiles(dir+"/missing", nil)
+	if class, _ := util.PHPClassOf(err); class != util.ClassDirectoryNotFound {
+		t.Errorf("missing source: %s %v, want %s", class, err, util.ClassDirectoryNotFound)
+	}
+
+	locked := filepath.Join(dir, "sub", "locked")
+	if err := os.MkdirAll(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	if _, err := os.ReadDir(locked); err == nil {
+		t.Skip("the directory is readable anyway (running as root)")
+	}
+
+	_, err = NewArchivableFilesFinder(dir, nil, false)
+	if class, _ := util.PHPClassOf(err); class != util.ClassAccessDenied {
+		t.Fatalf("unreadable subdirectory: %s %v, want %s", class, err, util.ClassAccessDenied)
+	}
+	want := "RecursiveDirectoryIterator::__construct(" + locked + "): Failed to open directory: Permission denied"
+	if err.Error() != want {
+		t.Errorf("message %q, want %q", err.Error(), want)
+	}
+	if !phperr.Is(err, "RecursiveDirectoryIterator.php", 127) {
+		t.Errorf("site of %v, want RecursiveDirectoryIterator.php:127", err)
+	}
+	prev := phperr.PreviousOf(err)
+	if class, _ := util.PHPClassOf(prev); class != "UnexpectedValueException" || !phperr.Is(prev, "RecursiveDirectoryIterator.php", 48) {
+		t.Errorf("previous %s %v, want UnexpectedValueException at RecursiveDirectoryIterator.php:48", class, prev)
+	}
 }

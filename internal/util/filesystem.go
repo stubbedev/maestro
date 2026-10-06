@@ -65,7 +65,7 @@ func finderIn(dir string) (string, *os.File, error) {
 
 	if !isDir(dir) {
 		// DirectoryNotFoundException.
-		return "", nil, &InvalidArgumentError{Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
+		return "", nil, &InvalidArgumentError{Class: ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`, Site: phperr.At("Finder.php", 592)}
 	}
 
 	f, err := os.Open(dir)
