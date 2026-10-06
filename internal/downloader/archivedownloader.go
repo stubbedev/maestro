@@ -12,7 +12,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive"
 	mio "github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
@@ -336,7 +335,7 @@ func (a *ArchiveDownloader) renameRecursively(p pkg.PackageInterface, from, to s
 
 		if isDir(target) {
 			if !isDir(file) {
-				return &util.RuntimeError{Site: phperr.At("ArchiveDownloader.php", 150), Message: "Installing " + p.String() + " would lead to overwriting the " + target + " directory with a file from the package, invalid operation."}
+				return &util.RuntimeError{Message: "Installing " + p.String() + " would lead to overwriting the " + target + " directory with a file from the package, invalid operation."}
 			}
 
 			if err := a.renameRecursively(p, file, target); err != nil {

@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -21,7 +20,7 @@ func mirror(originDir, targetDir string, files []archiver.File) error {
 	originDir = strings.TrimRight(originDir, `/\`)
 
 	if _, err := os.Lstat(originDir); err != nil {
-		return &util.IOError{Message: `The origin directory specified "` + originDir + `" was not found.`, Path: originDir, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 555)}
+		return &util.IOError{Message: `The origin directory specified "` + originDir + `" was not found.`, Path: originDir}
 	}
 
 	if err := symfonyMkdir(targetDir); err != nil {
@@ -42,7 +41,7 @@ func mirror(originDir, targetDir string, files []archiver.File) error {
 
 		fi, err := os.Lstat(file)
 		if err != nil {
-			return &util.IOError{Message: `Unable to guess "` + file + `" file type.`, Path: file, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 599)}
+			return &util.IOError{Message: `Unable to guess "` + file + `" file type.`, Path: file}
 		}
 
 		switch {
@@ -64,7 +63,7 @@ func mirror(originDir, targetDir string, files []archiver.File) error {
 				return err
 			}
 		default:
-			return &util.IOError{Message: `Unable to guess "` + file + `" file type.`, Path: file, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 599)}
+			return &util.IOError{Message: `Unable to guess "` + file + `" file type.`, Path: file}
 		}
 	}
 
@@ -78,7 +77,7 @@ func symfonyMkdir(dir string) error {
 	}
 
 	if err := os.MkdirAll(dir, 0o777); err != nil && !isDir(dir) {
-		return &util.IOError{Message: `Failed to create "` + dir + `": ` + util.Strerror(err), Path: dir, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 100)}
+		return &util.IOError{Message: `Failed to create "` + dir + `": ` + util.Strerror(err), Path: dir}
 	}
 
 	return nil
@@ -90,7 +89,7 @@ func symfonyMkdir(dir string) error {
 func symfonyCopy(originFile, targetFile string) error {
 	origin, err := os.Stat(originFile)
 	if err != nil || !origin.Mode().IsRegular() {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" because file does not exist.`, Path: originFile, Class: util.ClassFileNotFound, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 41)}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" because file does not exist.`, Path: originFile, Class: util.ClassFileNotFound}
 	}
 
 	if err := symfonyMkdir(util.Dirname(targetFile)); err != nil {
@@ -103,14 +102,14 @@ func symfonyCopy(originFile, targetFile string) error {
 
 	src, err := os.Open(originFile)
 	if err != nil {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because source file could not be opened for reading: ` + util.Strerror(err), Path: originFile, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 54)}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because source file could not be opened for reading: ` + util.Strerror(err), Path: originFile}
 	}
 
 	defer func() { _ = src.Close() }()
 
 	dst, err := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // copy() creates files 0666 & ~umask
 	if err != nil {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because target file could not be opened for writing: ` + util.Strerror(err), Path: originFile, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 59)}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because target file could not be opened for writing: ` + util.Strerror(err), Path: originFile}
 	}
 
 	_, err = io.Copy(dst, src)
@@ -119,7 +118,7 @@ func symfonyCopy(originFile, targetFile string) error {
 	}
 
 	if err != nil {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `".`, Path: originFile, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 68)}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `".`, Path: originFile}
 	}
 
 	// Like `cp`, preserve executable permission bits
@@ -145,12 +144,12 @@ func symfonySymlink(originDir, targetDir string) error {
 		}
 
 		if err := os.Remove(targetDir); err != nil {
-			return &util.IOError{Message: `Failed to remove file "` + targetDir + `": ` + util.Strerror(err), Path: targetDir, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 206)}
+			return &util.IOError{Message: `Failed to remove file "` + targetDir + `": ` + util.Strerror(err), Path: targetDir}
 		}
 	}
 
 	if err := os.Symlink(originDir, targetDir); err != nil {
-		return &util.IOError{Message: `Failed to create "symbolic" link from "` + originDir + `" to "` + targetDir + `": ` + util.Strerror(err), Path: targetDir, Site: phperr.At("vendor/symfony/filesystem/Filesystem.php", 414)}
+		return &util.IOError{Message: `Failed to create "symbolic" link from "` + originDir + `" to "` + targetDir + `": ` + util.Strerror(err), Path: targetDir}
 	}
 
 	return nil
