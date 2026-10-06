@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"time"
 
 	"golang.org/x/sys/windows"
 )
@@ -153,6 +154,45 @@ func renameNoReplace(oldpath, newpath string) error {
 	}
 
 	return nil
+}
+
+// openShared opens a store file for reading the way POSIX opens any file:
+// letting other processes rename or delete it meanwhile (os.Open on
+// Windows leaves out FILE_SHARE_DELETE, so a reader would make every
+// writer's rename onto the file fail).
+func openShared(path string) (*os.File, error) {
+	p, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		return nil, &fs.PathError{Op: "open", Path: path, Err: err}
+	}
+
+	h, err := windows.CreateFile(p, windows.GENERIC_READ,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, nil, windows.OPEN_EXISTING,
+		windows.FILE_ATTRIBUTE_NORMAL, 0)
+	if err != nil {
+		return nil, &fs.PathError{Op: "open", Path: path, Err: err}
+	}
+
+	return os.NewFile(uintptr(h), path), nil
+}
+
+// replaceFile renames oldpath onto newpath, replacing it. Windows refuses
+// while another process holds newpath open without FILE_SHARE_DELETE (or
+// is replacing it too), which lasts moments: the rename is retried for up
+// to two seconds.
+func replaceFile(oldpath, newpath string) error {
+	var err error
+
+	for wait := time.Millisecond; wait < 2*time.Second; wait *= 2 {
+		if err = os.Rename(oldpath, newpath); err == nil ||
+			!errors.Is(err, windows.ERROR_ACCESS_DENIED) && !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+			return err
+		}
+
+		time.Sleep(wait)
+	}
+
+	return err
 }
 
 // renameDir moves the assembled package directory onto dst, which may be

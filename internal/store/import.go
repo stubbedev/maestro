@@ -315,7 +315,7 @@ func linkObject(obj, dst string, want stamp) error {
 // after the copy: an object can be written in place through a package
 // file hard-linked to it, and any write moves its modification time.
 func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error {
-	in, err := os.Open(obj)
+	in, err := openShared(obj)
 	if err != nil {
 		return err
 	}

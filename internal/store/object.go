@@ -113,7 +113,7 @@ func (s *Store) publishObject(f *os.File, sum *[32]byte, perm fs.FileMode, path 
 	if err == nil {
 		err = s.intoShard(0, sum, path, func() error {
 			if replace {
-				return os.Rename(f.Name(), path)
+				return replaceFile(f.Name(), path)
 			}
 
 			return renameNoReplace(f.Name(), path)
@@ -232,7 +232,7 @@ func (s *Store) heal(e *Entry, perm fs.FileMode) error {
 // e's content, and reports whether it did. Content that turns out to
 // differ still lands in its own, correctly named object, which is harmless.
 func (s *Store) copyIfIntact(src string, e *Entry, perm fs.FileMode, dst string) bool {
-	in, err := os.Open(src)
+	in, err := openShared(src)
 	if err != nil {
 		return false
 	}
@@ -255,7 +255,7 @@ func (s *Store) copyIfIntact(src string, e *Entry, perm fs.FileMode, dst string)
 func hashFile(path string, buf []byte) ([32]byte, int64, error) {
 	var sum [32]byte
 
-	f, err := os.Open(path)
+	f, err := openShared(path)
 	if err != nil {
 		return sum, 0, err
 	}

@@ -258,7 +258,7 @@ func (s *Store) Lookup(d Dist) (*Release, error) {
 
 	path, _ := s.indexPath(&d, format, opts)
 
-	f, err := os.Open(path)
+	f, err := openShared(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, ErrNotFound
 	}
@@ -368,7 +368,7 @@ func (s *Store) writeAtomic(path string, data []byte) error {
 		return err
 	}
 
-	if err := os.Rename(tmp, path); err != nil {
+	if err := replaceFile(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}

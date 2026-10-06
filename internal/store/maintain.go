@@ -146,7 +146,7 @@ func (s *Store) Verify() (VerifyResult, error) {
 
 		res.Restamped++
 
-		in, err := os.Open(path)
+		in, err := openShared(path)
 		if err != nil {
 			return err
 		}
@@ -310,7 +310,14 @@ func walkShards(dir string, fn func(shard, name, path string) error) error {
 }
 
 func readIndex(path string) ([]Entry, error) {
-	data, err := os.ReadFile(path)
+	f, err := openShared(path)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := io.ReadAll(f)
+	_ = f.Close()
+
 	if err != nil {
 		return nil, err
 	}
