@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
@@ -34,6 +35,8 @@ type Runtime struct {
 	snap *platform.Snapshot
 	skip string
 	err  error
+
+	fetching atomic.Bool
 
 	mu                      sync.Mutex
 	runningCommand          *string
@@ -240,6 +243,15 @@ func deref(s *string) (string, bool) {
 
 	return *s, true
 }
+
+// SetFetching tells whether the command about to run talks to the
+// repositories on most runs (install, update, ...): the project's Composer
+// is then created with connections to its https repositories being opened
+// (deliberate deviation 3).
+func (r *Runtime) SetFetching(fetching bool) { r.fetching.Store(fetching) }
+
+// Fetching is what SetFetching last set.
+func (r *Runtime) Fetching() bool { return r.fetching.Load() }
 
 // SetRunningCommand ports Composer::setRunningCommand: ok false (or "") is
 // null. A new outer command resets the running operation.
