@@ -405,8 +405,15 @@ func ExtractStabilityFlags(requires *php.Array, minimumStability string, stabili
 		for _, constraint := range constraints {
 			// infer flags for requirements that have an explicit -dev or -beta version specified but only
 			// for those that are more unstable than the minimumStability or existing flags
-			reqVersion := mustReplace(stripInlineAlias, constraint, "$1")
-			if !mustMatch(singleVersion, reqVersion) {
+			// Both patterns backtrack over a long constraint (".+$" before a
+			// newline, a class run before "$"), and Preg::* throws.
+			reqVersion, _, err := stripInlineAlias.Replace(constraint, "$1", -1)
+			if err != nil {
+				return nil, err
+			}
+			if ok, err := singleVersion.IsMatch(reqVersion); err != nil {
+				return nil, err
+			} else if !ok {
 				continue
 			}
 
@@ -436,7 +443,10 @@ func ExtractReferences(requires, references *php.Array) (*php.Array, error) {
 	references = references.Clone()
 
 	for k, v := range requires.All() {
-		reqVersion := mustReplace(stripInlineAlias, php.ToString(v), "$1")
+		reqVersion, _, err := stripInlineAlias.Replace(php.ToString(v), "$1", -1)
+		if err != nil {
+			return nil, err
+		}
 
 		match, err := referenceInConstrant.MatchStrictGroups(reqVersion)
 		if err != nil {

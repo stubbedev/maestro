@@ -752,7 +752,12 @@ func (l *ValidatingArrayLoader) validateLinks() error {
 
 			if bad {
 				l.warnf(linkType, ".", msg)
-			} else if !mustMatch(validLinkKey, name) {
+			} else if valid, err := validLinkKey.IsMatch(name); err != nil {
+				// Preg::isMatch throws. HasPackageNamingError has already
+				// matched the name against a stricter pattern, so this
+				// cannot happen today.
+				return err
+			} else if !valid {
 				l.errorf(linkType, ".", name, " : invalid key, package names must be strings containing only [A-Za-z0-9_./-]")
 			}
 

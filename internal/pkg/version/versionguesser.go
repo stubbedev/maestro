@@ -100,7 +100,7 @@ func (g *VersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*l
 	}
 
 	if data.version.Valid {
-		return postprocess(data), nil
+		return postprocess(data)
 	}
 
 	for _, guess := range [...]func(*php.Array, string) (*versionData, error){
@@ -114,7 +114,7 @@ func (g *VersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*l
 		}
 
 		if data != nil && data.version.Valid {
-			return postprocess(data), nil
+			return postprocess(data)
 		}
 	}
 
@@ -127,17 +127,27 @@ var (
 	devPrefix = php.MustCompile(`{^dev-}`)
 )
 
-func postprocess(d *versionData) *loader.VersionData {
+func postprocess(d *versionData) (*loader.VersionData, error) {
 	if php.ToBool(d.featureVersion.Value()) && d.featureVersion == d.version && d.featurePrettyVersion == d.prettyVersion {
 		d.featureVersion, d.featurePrettyVersion = pkg.NullString{}, pkg.NullString{}
 	}
 
+	// nineRun is a fixed string; nineRuns repeats a group, which exhausts
+	// PCRE's limits on a long enough run, and Preg::replace throws.
 	if strings.HasSuffix(d.version.S, "-dev") && mustMatch(nineRun, d.version.S) {
-		d.prettyVersion = pkg.Str(mustReplace(nineRuns, d.version.S, ".x"))
+		pretty, _, err := nineRuns.Replace(d.version.S, ".x", -1)
+		if err != nil {
+			return nil, err
+		}
+		d.prettyVersion = pkg.Str(pretty)
 	}
 
 	if php.ToBool(d.featureVersion.Value()) && strings.HasSuffix(d.featureVersion.S, "-dev") && mustMatch(nineRun, d.featureVersion.S) {
-		d.featurePrettyVersion = pkg.Str(mustReplace(nineRuns, d.featureVersion.S, ".x"))
+		pretty, _, err := nineRuns.Replace(d.featureVersion.S, ".x", -1)
+		if err != nil {
+			return nil, err
+		}
+		d.featurePrettyVersion = pkg.Str(pretty)
 	}
 
 	return &loader.VersionData{
@@ -146,7 +156,7 @@ func postprocess(d *versionData) *loader.VersionData {
 		Commit:               d.commit,
 		FeatureVersion:       d.featureVersion,
 		FeaturePrettyVersion: d.featurePrettyVersion,
-	}
+	}, nil
 }
 
 var (
@@ -460,7 +470,10 @@ func (g *VersionGuesser) guessFeatureVersion(packageConfig *php.Array, version p
 	defer g.process.ResetMaxJobs()
 
 	for index, candidate := range branches {
-		candidateVersion := mustReplace(remotePrefix, candidate, "")
+		candidateVersion, _, err := remotePrefix.Replace(candidate, "", -1)
+		if err != nil {
+			return pkg.NullString{}, pkg.NullString{}, err
+		}
 
 		// do not compare against itself or other feature branches
 		if candidate == branch {

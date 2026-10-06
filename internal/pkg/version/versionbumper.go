@@ -61,7 +61,12 @@ func (VersionBumper) BumpRequirement(constraint semver.ConstraintInterface, p pk
 	}
 
 	major := mustReplace(bumpMajor, version, "$1")
-	versionWithoutSuffix := mustReplace(bumpTrailingZeros, version, "")
+	// The repeated group backtracks per repetition: a long run of ".0"
+	// exhausts the limit, and Preg::replace throws.
+	versionWithoutSuffix, _, err := bumpTrailingZeros.Replace(version, "", -1)
+	if err != nil {
+		return "", err
+	}
 	newPrettyConstraint := "^" + versionWithoutSuffix
 
 	// not a simple stable version, abort
@@ -139,7 +144,9 @@ func (VersionBumper) BumpRequirement(constraint semver.ConstraintInterface, p pk
 	return modified, nil
 }
 
-// mustReplace is Preg::replace for patterns that cannot fail at run time.
+// mustReplace is Preg::replace for patterns that cannot fail at run time:
+// bumpMajor is anchored and nothing after its greedy repeats can fail, so it
+// never backtracks; devPrefix is an anchored literal.
 func mustReplace(re *php.Regexp, subject, replacement string) string {
 	s, _, err := re.Replace(subject, replacement, -1)
 	if err != nil {

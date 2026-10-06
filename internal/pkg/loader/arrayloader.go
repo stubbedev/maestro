@@ -273,7 +273,12 @@ func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array)
 	}
 
 	if ok && php.ToBool(aliasNormalized) {
-		prettyAlias := mustReplace(aliasNineRuns, aliasNormalized, ".x")
+		// The repeated group exhausts PCRE's limits on a long enough run of
+		// ".9999999", and Preg::replace throws.
+		prettyAlias, _, err := aliasNineRuns.Replace(aliasNormalized, ".x", -1)
+		if err != nil {
+			return nil, err
+		}
 
 		if root, ok := p.(*pkg.RootPackage); ok {
 			return pkg.NewRootAliasPackage(root, aliasNormalized, prettyAlias), nil
@@ -285,7 +290,8 @@ func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array)
 	return p, nil
 }
 
-// mustReplace is Preg::replace for patterns that cannot fail at run time.
+// mustReplace is Preg::replace for patterns that cannot fail at run time
+// (leadingV, rootpackageloader's are anchored literals).
 func mustReplace(re *php.Regexp, subject, replacement string) string {
 	s, _, err := re.Replace(subject, replacement, -1)
 	if err != nil {
@@ -417,7 +423,9 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	return nil
 }
 
-// mustMatch is Preg::isMatch for patterns that cannot fail at run time.
+// mustMatch is Preg::isMatch for patterns that cannot fail at run time:
+// bounded work per start position (a fixed-length match, or a repeat that
+// cannot backtrack such as digitsOnly's possessive one).
 func mustMatch(re *php.Regexp, subject string) bool {
 	ok, err := re.IsMatch(subject)
 	if err != nil {
