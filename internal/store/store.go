@@ -76,6 +76,11 @@ type ImportOptions struct {
 	// rewrite their own files in place (Composer plugins), whose edits
 	// would otherwise reach the store and every project linked to it.
 	Unshared bool
+	// Created, when set, is called after a successful Materialize with the
+	// path of every regular file it created and the SHA-256 of its
+	// contents (the object's hash), for callers that would otherwise read
+	// the files to hash them (the autoload dump's parse cache).
+	Created func(path string, sum [32]byte)
 }
 
 // Options configure a Store. The zero value is ready to use.

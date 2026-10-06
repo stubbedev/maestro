@@ -60,6 +60,10 @@ type Deps struct {
 	// on: PharData decompresses tar.gz and tar.bz2 dists only with zlib and
 	// bz2. nil counts every extension as loaded.
 	ExtensionLoaded func(name string) bool
+	// ContentKnown, when set, is told the path and SHA-256 of every file a
+	// store import creates (store.ImportOptions.Created), so the autoload
+	// dump need not read them to hash them.
+	ContentKnown func(path string, sum [32]byte)
 }
 
 // hooks are the methods subclasses of FileDownloader override; the base
@@ -93,6 +97,7 @@ type FileDownloader struct {
 	iniFiles func() []string
 	// extensionLoaded is Deps.ExtensionLoaded (never nil).
 	extensionLoaded func(name string) bool
+	contentKnown    func(path string, sum [32]byte)
 	self            hooks
 	// hooks are the overrides of a subclass written in PHP (SetHooks).
 	hooks *Hooks
@@ -136,6 +141,7 @@ func newFileDownloader(deps Deps, class string) *FileDownloader {
 		metadata:               deps.Metadata,
 		iniFiles:               deps.IniFiles,
 		extensionLoaded:        deps.ExtensionLoaded,
+		contentKnown:           deps.ContentKnown,
 		class:                  class,
 		umask:                  store.Umask(),
 		retryDelay:             500 * time.Millisecond,

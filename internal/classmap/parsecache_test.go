@@ -1,6 +1,7 @@
 package classmap
 
 import (
+	"crypto/sha256"
 	"os"
 	"path/filepath"
 	"slices"
@@ -116,4 +117,75 @@ func readCache(path string) *ParseCache {
 	c.UseFile(path)
 
 	return c
+}
+
+// A file maestro created from contents it knows (KnowContent: a store
+// import) is not read when a result for those contents is cached, even
+// though no earlier run saw that file.
+func TestParseCache_KnowContent(t *testing.T) {
+	content := []byte("<?php class Foo {}")
+	seen, imported := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(seen, "a.php"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(imported, "a.php")
+	if err := os.WriteFile(file, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := statKey(file); !ok {
+		t.Skip("no file identities on this platform")
+	}
+	cacheFile := filepath.Join(t.TempDir(), "cache.bin")
+
+	first := readCache(cacheFile)
+	scanWithCache(t, first, seen)
+	first.Save()
+
+	later := readCache(cacheFile)
+	later.KnowContent(file, sha256.Sum256(content))
+	before := fileReads.Load()
+	if got := scanWithCache(t, later, imported); !slices.Equal(got, []string{"Foo"}) {
+		t.Fatalf("scan: %q", got)
+	}
+	if n := fileReads.Load() - before; n != 0 {
+		t.Errorf("imported file read %d times, want 0", n)
+	}
+}
+
+// A run that met identities too recent to trust saves the cache file
+// again, so that a later run can trust them (git rewrites an index with
+// racily clean entries); without that they would never become trusted.
+func TestParseCache_RacyEntriesRewriteTheFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.php"), []byte("<?php class Foo {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := statKey(filepath.Join(dir, "a.php")); !ok {
+		t.Skip("no file identities on this platform")
+	}
+	cacheFile := filepath.Join(t.TempDir(), "cache.bin")
+	first := readCache(cacheFile)
+	scanWithCache(t, first, dir)
+	first.Save()
+
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(cacheFile, old, old); err != nil {
+		t.Fatal(err)
+	}
+	margin := statTrustMargin
+	t.Cleanup(func() { statTrustMargin = margin })
+	statTrustMargin = time.Minute
+
+	// the file's times are not a minute older than the cache file's (an
+	// hour in the past now): racy, read again, and the cache file saved
+	later := readCache(cacheFile)
+	scanWithCache(t, later, dir)
+	later.Save()
+	info, err := os.Stat(cacheFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ModTime().After(old) {
+		t.Error("the cache file was not saved again after a racy entry")
+	}
 }

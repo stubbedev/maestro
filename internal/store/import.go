@@ -80,6 +80,15 @@ func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 		return err
 	}
 
+	if opts.Created != nil {
+		base := dst + string(os.PathSeparator)
+		for i := 1; i < len(r.entries); i++ {
+			if e := &r.entries[i]; e.Kind == archive.File {
+				opts.Created(base+filepath.FromSlash(e.Path), e.Hash)
+			}
+		}
+	}
+
 	return nil
 }
 

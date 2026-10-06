@@ -460,7 +460,7 @@ func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullStri
 			}
 		}
 
-		err := d.store.Materialize(rel, s.dir, importOptions(p))
+		err := d.store.Materialize(rel, s.dir, d.importOptions(p))
 		if _, ok := errors.AsType[*store.MissingError](err); !ok {
 			return "", err
 		}
@@ -597,7 +597,7 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 		}
 	}
 
-	return s.Install(storeDist(p), fileName, dir, importOptions(p))
+	return s.Install(storeDist(p), fileName, dir, d.importOptions(p))
 }
 
 // importOptions is how p's files come from the store. Composer plugins
@@ -606,10 +606,10 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 // infection/extension-installer rewrite their own files in place, which
 // through a hardlink would change the store's object and every other
 // project's copy of the plugin.
-func importOptions(p pkg.PackageInterface) store.ImportOptions {
+func (d *FileDownloader) importOptions(p pkg.PackageInterface) store.ImportOptions {
 	t := p.Type()
 
-	return store.ImportOptions{Unshared: t == "composer-plugin" || t == "composer-installer"}
+	return store.ImportOptions{Unshared: t == "composer-plugin" || t == "composer-installer", Created: d.contentKnown}
 }
 
 // isCwd is realpath($path) === Platform::getCwd().

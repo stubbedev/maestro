@@ -198,6 +198,10 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	return classMap, nil
 }
 
+// KnowContent tells the parse cache the SHA-256 of a file maestro created
+// from contents it knows (classmap.ParseCache.KnowContent).
+func (g *Generator) KnowContent(path string, sum [32]byte) { g.parseCache.KnowContent(path, sum) }
+
 // UseParseCacheFile makes the generator keep the classes it finds in files
 // in the file at path, by file contents, and use the classes kept there by
 // earlier runs instead of parsing the same contents again (deliberate

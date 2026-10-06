@@ -995,3 +995,51 @@ func TestUnshareAndChmod(t *testing.T) {
 		t.Errorf("mode %o", st.mode)
 	}
 }
+
+// ImportOptions.Created hears of every regular file an import creates,
+// with the SHA-256 of what it holds.
+func TestImportReportsCreatedFiles(t *testing.T) {
+	setUmask(t, 0o022)
+
+	work := tempDir(t)
+	zip := writeFile(t, work, "dist.zip", sample())
+	s := openStore(t, filepath.Join(work, "store"), Auto)
+	dst := filepath.Join(work, "vendor", "a", "b")
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	created := map[string][32]byte{}
+	var mu sync.Mutex
+	opts := ImportOptions{Created: func(path string, sum [32]byte) {
+		mu.Lock()
+		defer mu.Unlock()
+		created[path] = sum
+	}}
+	if err := s.Install(Dist{Name: "a/b", Type: "zip", URL: "https://example.org/b.zip"}, zip, dst, opts); err != nil {
+		t.Fatal(err)
+	}
+
+	files := 0
+	err := filepath.WalkDir(dst, func(path string, e fs.DirEntry, err error) error {
+		if err != nil || !e.Type().IsRegular() {
+			return err
+		}
+		files++
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if sum, ok := created[path]; !ok || sum != sha256.Sum256(data) {
+			t.Errorf("%s: reported %t, hash matches %t", path, ok, sum == sha256.Sum256(data))
+		}
+
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if files == 0 || len(created) != files {
+		t.Errorf("%d files reported, %d created", len(created), files)
+	}
+}

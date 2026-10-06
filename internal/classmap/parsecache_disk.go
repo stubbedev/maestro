@@ -50,6 +50,10 @@ type diskCache struct {
 	stats        map[fileKey][32]byte
 	written      time.Time
 	statsChanged bool
+	// racy is set when an identity was too recent to trust: saving the
+	// file again (with a later modification time) lets the next run trust
+	// it, as git rewrites an index holding racily clean entries.
+	racy bool
 }
 
 // statTrustMargin is how much older than the cache file a file's
@@ -184,6 +188,8 @@ func (d *diskCache) statSum(key fileKey) ([32]byte, bool) {
 	}
 	limit := d.written.Add(-statTrustMargin)
 	if !time.Unix(key.mtimeSec, key.mtimeNsec).Before(limit) || !time.Unix(key.ctimeSec, key.ctimeNsec).Before(limit) {
+		d.racy = true
+
 		return sum, false
 	}
 
@@ -235,7 +241,7 @@ func (c *ParseCache) Save() {
 	<-d.loaded
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.added == 0 && !d.statsChanged {
+	if d.added == 0 && !d.statsChanged && !d.racy {
 		return
 	}
 	keep := func(key contentKey) bool { return true }
@@ -291,7 +297,7 @@ func (c *ParseCache) Save() {
 
 		return
 	}
-	d.added, d.statsChanged = 0, false
+	d.added, d.statsChanged, d.racy = 0, false, false
 }
 
 // contentKeyOf is the contentKey of contents parsed by p.

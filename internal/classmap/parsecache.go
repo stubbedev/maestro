@@ -46,6 +46,26 @@ type ParseCache struct {
 	warmed atomic.Bool
 	// disk is the persistent part (UseFile), nil without one.
 	disk *diskCache
+	// known maps the identities of files whose contents maestro knows
+	// without reading them (KnowContent) to their SHA-256.
+	known    sync.Map // fileKey -> [32]byte
+	knownAny atomic.Bool
+}
+
+// KnowContent records that the regular file at path holds contents whose
+// SHA-256 is sum: for files maestro itself just created from contents it
+// knows (the package store's imports, by their object hashes). The file
+// is identified now (one stat), so the record survives renames and holds
+// for this run while the file keeps that identity; a parse looks the
+// contents' result up by the hash instead of reading the file.
+func (c *ParseCache) KnowContent(path string, sum [32]byte) {
+	if c == nil {
+		return
+	}
+	if key, ok := statKey(path); ok {
+		c.known.Store(key, sum)
+		c.knownAny.Store(true)
+	}
 }
 
 // NewParseCache returns an empty cache.
@@ -72,6 +92,14 @@ func (c *ParseCache) lookupByIdentity(p Parser, path string) ([]string, bool) {
 		return nil, false
 	}
 	sum, ok := c.disk.statSum(key)
+	if !ok && c.knownAny.Load() {
+		if v, known := c.known.Load(key); known {
+			sum, ok = v.([32]byte)
+			if ok {
+				c.disk.putStat(key, sum)
+			}
+		}
+	}
 	if !ok {
 		return nil, false
 	}
