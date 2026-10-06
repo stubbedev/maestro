@@ -381,7 +381,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 	// initialize repository manager; cached metadata files are kept
 	// decoded between runs (deliberate deviation 3)
-	composerrepo.UseDecodedCache(cache.Dir() + "/p2/v1")
+	composerrepo.UseDecodedCache(cache.DecodedMetadata())
 	rm := repository.Manager(out, cfg, httpDownloader, dispatcher, process, repository.ExternalTypes{
 		Composer: composerrepo.Constructor,
 		VCS:      rvcs.NewRepository,

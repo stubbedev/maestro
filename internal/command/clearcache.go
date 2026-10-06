@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -24,7 +25,9 @@ func init() {
 // maestro's package store (docs/PORTING.md deviation 1) holds the extracted
 // form of the files cache, so it follows cache-files-dir: a full clear
 // empties it and --gc prunes what was unused for cache-files-ttl. Both are
-// silent, so the output stays Composer's.
+// silent, so the output stays Composer's. Likewise the decoded repository
+// metadata (deviation 3) follows cache-repo-dir: a full clear removes it
+// and --gc removes what was not written for cache-ttl.
 type ClearCacheCommand struct{ *BaseCommand }
 
 // NewClearCacheCommand ports new ClearCacheCommand().
@@ -119,8 +122,12 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 				if err != nil {
 					return 0, err
 				}
-				if _, err := ch.Gc(php.ToNativeInt(ttl), 1024*1024*1024 /* 1GB, this should almost never clear anything that is not outdated */); err != nil {
+				collected, err := ch.Gc(php.ToNativeInt(ttl), 1024*1024*1024 /* 1GB, this should almost never clear anything that is not outdated */)
+				if err != nil {
 					return 0, err
+				}
+				if collected {
+					_ = composerrepo.GcDecodedCache(cache.DecodedMetadata(), php.ToNativeInt(ttl))
 				}
 			case "cache-vcs-dir":
 				ttl, err := get("cache-ttl")
@@ -133,11 +140,15 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 			}
 		} else {
 			out.WriteError("<info>Clearing cache ("+key+"): "+cachePath+"</info>", true, io.Normal)
-			if _, err := ch.Clear(); err != nil {
+			cleared, err := ch.Clear()
+			if err != nil {
 				return 0, err
 			}
-			if key == "cache-files-dir" {
+			switch {
+			case key == "cache-files-dir":
 				pruneStore(0)
+			case key == "cache-repo-dir" && cleared:
+				_ = composerrepo.ClearDecodedCache(cache.DecodedMetadata())
 			}
 		}
 	}
