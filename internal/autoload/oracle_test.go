@@ -165,7 +165,9 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 		}
 	}
 
-	if got, want := sortedLines(replace(php.NormalizeEOL(bio.Output()))), sortedLines(golden(str(result, "output"))); !slices.Equal(got, want) {
+	gotOutput := replace(php.NormalizeEOL(bio.Output()))
+	swaps := walkOrderSwaps(golden(str(result, "output")), gotOutput, walkedDirs(s, workDir, vendorDir, replace))
+	if got, want := sortedLines(gotOutput), sortedLines(swaps.output(golden(str(result, "output")))); !slices.Equal(got, want) {
 		t.Errorf("output:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
@@ -178,15 +180,141 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 		}
 		got, readErr := os.ReadFile(path)
 		want, ok := wantFiles.GetString(name)
+		want = swaps.file(golden(want))
 		switch {
 		case !ok && readErr == nil:
 			t.Errorf("%s written, PHP did not", name)
 		case ok && readErr != nil:
 			t.Errorf("%s not written: %v", name, readErr)
-		case ok && replace(string(got)) != golden(want):
+		case ok && replace(string(got)) != want:
 			t.Errorf("%s:\n%s\nwant:\n%s", name, replace(string(got)), want)
 		}
 	}
+}
+
+// walkSwap is a class found twice in one directory walk: the golden kept
+// first and dropped second, this run the other way round.
+type walkSwap struct{ class, first, second string }
+
+type walkSwaps []walkSwap
+
+// walkOrderSwaps finds the ambiguous classes whose two paths lie under one
+// scanned directory and that this run reported in the opposite order to the
+// golden. Composer's class-map-generator walks a directory with Symfony
+// Finder and does not sort it: like the port's os.File.ReadDir walk, it keeps
+// the order the file system returns entries in. Which of two files found in
+// one walk wins (s367: legacy/f132.php and legacy/a/f20.php) therefore
+// depends on the file system, in PHP as in Go (btrfs and tmpfs differ, #15),
+// and either order is Composer's behaviour. Ambiguities across separate
+// scans are ordered by the generator and still have to match exactly.
+func walkOrderSwaps(want, got string, dirs []string) walkSwaps {
+	const prefix = `<warning>Warning: Ambiguous class resolution, "`
+	var swaps walkSwaps
+	for line := range strings.SplitSeq(want, "\n") {
+		rest, ok := strings.CutPrefix(line, prefix)
+		if !ok {
+			continue
+		}
+		class, rest, ok := strings.Cut(rest, `" was found in both "`)
+		if !ok {
+			continue
+		}
+		first, rest, _ := strings.Cut(rest, `" and "`)
+		second, _, _ := strings.Cut(rest, `", the first will be used.`)
+		swapped := strings.Replace(line, `"`+first+`" and "`+second+`"`, `"`+second+`" and "`+first+`"`, 1)
+		if strings.Contains(got, line) || !strings.Contains(got, swapped) {
+			continue
+		}
+		for _, d := range dirs {
+			if strings.HasPrefix(first, d+"/") && strings.HasPrefix(second, d+"/") {
+				swaps = append(swaps, walkSwap{class, first, second})
+
+				break
+			}
+		}
+	}
+
+	return swaps
+}
+
+// output swaps the two paths of each such warning in the golden output.
+func (w walkSwaps) output(s string) string {
+	for _, sw := range w {
+		s = strings.Replace(s, `"`+sw.first+`" and "`+sw.second+`"`, `"`+sw.second+`" and "`+sw.first+`"`, 1)
+	}
+
+	return s
+}
+
+// file points each swapped class at the other file in a golden autoload
+// file. The paths there are split around $baseDir or __DIR__, so only the
+// part after the directory the two paths share is replaced.
+func (w walkSwaps) file(s string) string {
+	for _, sw := range w {
+		common := 0
+		for i := range min(len(sw.first), len(sw.second)) {
+			if sw.first[i] != sw.second[i] {
+				break
+			}
+			if sw.first[i] == '/' {
+				common = i
+			}
+		}
+		key := "'" + strings.ReplaceAll(sw.class, `\`, `\\`) + "' => "
+		oldEnd, newEnd := sw.first[common:]+"',", sw.second[common:]+"',"
+		lines := strings.Split(s, "\n")
+		for i, l := range lines {
+			if strings.HasPrefix(strings.TrimSpace(l), key) && strings.HasSuffix(l, oldEnd) {
+				lines[i] = strings.TrimSuffix(l, oldEnd) + newEnd
+			}
+		}
+		s = strings.Join(lines, "\n")
+	}
+
+	return s
+}
+
+// walkedDirs lists the directories the scenario's autoload rules have
+// Composer walk, spelt as in the golden.
+func walkedDirs(s *php.Array, workDir, vendorDir string, replace func(string) string) []string {
+	var dirs []string
+	add := func(base string, p *php.Array) {
+		autoload, ok := p.GetArray("autoload")
+		if !ok {
+			return
+		}
+		for _, typ := range []string{"classmap", "psr-0", "psr-4"} {
+			rules, ok := autoload.GetArray(typ)
+			if !ok {
+				continue
+			}
+			for _, v := range rules.Values() {
+				paths, ok := v.(*php.Array)
+				if !ok {
+					paths = php.ListOf(v)
+				}
+				for _, path := range paths.Values() {
+					dirs = append(dirs, replace(strings.TrimSuffix(base+"/"+php.ToString(path), "/")))
+				}
+			}
+		}
+	}
+	if root, ok := s.GetArray("root"); ok {
+		add(workDir, root)
+	}
+	if packages, ok := s.GetArray("packages"); ok {
+		for _, c := range packages.Values() {
+			p := c.(*php.Array)
+			name, _ := p.GetString("name")
+			base := vendorDir + "/" + name
+			if td, _ := p.GetString("target-dir"); td != "" {
+				base += "/" + td
+			}
+			add(base, p)
+		}
+	}
+
+	return dirs
 }
 
 // foldCollision reports whether two of the paths (keys) of files differ only
