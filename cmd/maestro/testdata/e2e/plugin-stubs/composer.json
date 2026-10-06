@@ -1,0 +1,18 @@
+{
+    "name": "maestro-test/stubs-project",
+    "description": "A project whose plugin's commands use Composer API members that were stubs in maestro's shim (issue #1): Composer's own commands run from PHP, BaseCommand's audit, policy and platform requirement filter helpers, and IOs created in PHP given to Composer.",
+    "license": "MIT",
+    "repositories": [
+        {"type": "path", "url": "plugin", "options": {"symlink": false}},
+        {"packagist.org": false}
+    ],
+    "require": {
+        "maestro-test/stubs-plugin": "*"
+    },
+    "config": {
+        "allow-plugins": {"maestro-test/stubs-plugin": true}
+    },
+    "scripts": {
+        "hello": "@php -r \"echo 'hello from a script', PHP_EOL;\""
+    }
+}

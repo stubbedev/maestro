@@ -93,7 +93,7 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
         $requirements = $this->normalizeRequirements($requirements);
         foreach ($requirements as $requirement) {
             if (!isset($requirement['version'])) {
-                throw new \UnexpectedValueException('Option '.$requirement['name'] .' is missing a version constraint, use e.g. '.$requirement['name'].':^1.0');
+                throw \Maestro\Shim\Exceptions::at(new \UnexpectedValueException('Option '.$requirement['name'] .' is missing a version constraint, use e.g. '.$requirement['name'].':^1.0'), 405);
             }
             $requires[$requirement['name']] = $requirement['version'];
         }
@@ -105,7 +105,7 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
     {
         $application = parent::getApplication();
         if (!$application instanceof \Composer\Console\Application) {
-            throw new \RuntimeException('Composer commands can only work with an '.\Composer\Console\Application::class.' instance set');
+            throw \Maestro\Shim\Exceptions::at(new \RuntimeException('Composer commands can only work with an '.\Composer\Console\Application::class.' instance set'), 66);
         }
 
         return $application;
@@ -114,12 +114,12 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
     protected function getAuditFormat(\Symfony\Component\Console\Input\InputInterface $input, string $optName = 'audit-format'): string
     {
         if (!$input->hasOption($optName)) {
-            throw new \LogicException('This should not be called on a Command which has no '.$optName.' option defined.');
+            throw \Maestro\Shim\Exceptions::at(new \LogicException('This should not be called on a Command which has no '.$optName.' option defined.'), 462);
         }
 
         $val = $input->getOption($optName);
         if (!in_array($val, \Composer\Advisory\Auditor::FORMATS, true)) {
-            throw new \InvalidArgumentException('--'.$optName.' must be one of '.implode(', ', \Composer\Advisory\Auditor::FORMATS).'.');
+            throw \Maestro\Shim\Exceptions::at(new \InvalidArgumentException('--'.$optName.' must be one of '.implode(', ', \Composer\Advisory\Auditor::FORMATS).'.'), 467);
         }
 
         return $val;
@@ -151,7 +151,7 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
     protected function getPlatformRequirementFilter(\Symfony\Component\Console\Input\InputInterface $input): \Composer\Filter\PlatformRequirementFilter\PlatformRequirementFilterInterface
     {
         if (!$input->hasOption('ignore-platform-reqs') || !$input->hasOption('ignore-platform-req')) {
-            throw new \LogicException('Calling getPlatformRequirementFilter from a command which does not define the --ignore-platform-req[s] flags is not permitted.');
+            throw \Maestro\Shim\Exceptions::at(new \LogicException('Calling getPlatformRequirementFilter from a command which does not define the --ignore-platform-req[s] flags is not permitted.'), 379);
         }
 
         if (true === $input->getOption('ignore-platform-reqs')) {
@@ -190,10 +190,10 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
         if ($input->hasOption('prefer-install') && is_string($input->getOption('prefer-install'))) {
             if ($input->getOption('prefer-source')) {
-                throw new \InvalidArgumentException('--prefer-source can not be used together with --prefer-install');
+                throw \Maestro\Shim\Exceptions::at(new \InvalidArgumentException('--prefer-source can not be used together with --prefer-install'), 347);
             }
             if ($input->getOption('prefer-dist')) {
-                throw new \InvalidArgumentException('--prefer-dist can not be used together with --prefer-install');
+                throw \Maestro\Shim\Exceptions::at(new \InvalidArgumentException('--prefer-dist can not be used together with --prefer-install'), 350);
             }
             switch ($input->getOption('prefer-install')) {
                 case 'dist':
@@ -207,7 +207,7 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
                     $preferSource = false;
                     break;
                 default:
-                    throw new \UnexpectedValueException('--prefer-install accepts one of "dist", "source" or "auto", got '.$input->getOption('prefer-install'));
+                    throw \Maestro\Shim\Exceptions::at(new \UnexpectedValueException('--prefer-install accepts one of "dist", "source" or "auto", got '.$input->getOption('prefer-install')), 364);
             }
         }
 
@@ -343,10 +343,10 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
                 $this->composer = $application->getComposer(true, $disablePlugins, $disableScripts);
                 assert($this->composer instanceof \Composer\Composer);
             } else {
-                throw new \RuntimeException(
+                throw \Maestro\Shim\Exceptions::at(new \RuntimeException(
                     'Could not create a Composer\Composer instance, you must inject '.
                     'one if this command is not used with a Composer\Console\Application instance'
-                );
+                ), 106);
             }
         }
 

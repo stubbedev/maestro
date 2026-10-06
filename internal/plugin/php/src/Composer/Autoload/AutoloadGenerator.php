@@ -416,12 +416,12 @@ INITIALIZER;
         if (!empty($autoload['psr-4']) && null !== $package->getTargetDir()) {
             $name = $package->getName();
             $package->getTargetDir();
-            throw new \InvalidArgumentException("PSR-4 autoloading is incompatible with the target-dir property, remove the target-dir in package '$name'.");
+            throw \Maestro\Shim\Exceptions::at(new \InvalidArgumentException("PSR-4 autoloading is incompatible with the target-dir property, remove the target-dir in package '$name'."), 559);
         }
         if (!empty($autoload['psr-4'])) {
             foreach ($autoload['psr-4'] as $namespace => $dirs) {
                 if ($namespace !== '' && '\\' !== substr($namespace, -1)) {
-                    throw new \InvalidArgumentException("psr-4 namespaces must end with a namespace separator, '$namespace' does not, use '$namespace\\'.");
+                    throw \Maestro\Shim\Exceptions::at(new \InvalidArgumentException("psr-4 namespaces must end with a namespace separator, '$namespace' does not, use '$namespace\\'."), 564);
                 }
             }
         }

@@ -84,6 +84,22 @@ final class Exceptions
     }
 
     /**
+     * $e thrown at Composer's line in the shim file of the same name, so
+     * that Symfony's "In <file> line <n>:" heading names Composer's
+     * throw site, as for maestro's errors.
+     *
+     * @template T of \Throwable
+     * @param T $e
+     * @return T
+     */
+    public static function at(\Throwable $e, int $line): \Throwable
+    {
+        self::locate($e, $e->getFile(), $line);
+
+        return $e;
+    }
+
+    /**
      * Sets the file and line of a throwable.
      */
     private static function locate(\Throwable $e, string $file, int $line): void

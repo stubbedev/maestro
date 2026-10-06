@@ -173,6 +173,28 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
+			// Composer API members that were stubs in the shim (issue #1),
+			// through a path repository plugin's commands: Composer's own
+			// commands run from PHP ($app->find()->run(): licenses,
+			// depends, run-script with its interact(), their errors,
+			// isProxyCommand()), BaseCommand's audit, policy and platform
+			// requirement filter helpers given to an Installer, and IOs
+			// created in PHP (a BufferIO, a ConsoleIO on a BufferedOutput)
+			// given to Factory and Installer.
+			name:    "plugin-stubs",
+			fixture: "plugin-stubs",
+			steps: []step{
+				{args: []string{"install"}},
+				{args: []string{"stubs:builtin"}},
+				{args: []string{"stubs:builtin", "-v"}},
+				{args: []string{"stubs:helpers"}},
+				{args: []string{"stubs:helpers", "--audit", "--audit-format=json", "--no-blocking", "--ignore-platform-req=ext-foo", "--ignore-platform-req=php+"}},
+				{args: []string{"stubs:helpers", "--ignore-platform-reqs"}},
+				{args: []string{"stubs:helpers", "--audit-format=xml"}},
+				{args: []string{"stubs:io"}},
+			},
+		},
+		{
 			// The stubbedev/*-mcp plugins: four skip
 			// their binary download (their *_SKIP_DOWNLOAD switch), one
 			// downloads it from GitHub and writes .mcp.json.

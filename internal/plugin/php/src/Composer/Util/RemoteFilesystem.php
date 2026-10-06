@@ -109,7 +109,7 @@ class RemoteFilesystem
         }
 
         if ($result !== false && $maxFileSize !== null && Platform::strlen($result) >= $maxFileSize) {
-            throw new \Composer\Downloader\MaxFileSizeExceededException('Maximum allowed download size reached. Downloaded ' . Platform::strlen($result) . ' of allowed ' .  $maxFileSize . ' bytes for ' . Rpc::call('rfs.sanitizeUrl', [$fileUrl]));
+            throw \Maestro\Shim\Exceptions::at(new \Composer\Downloader\MaxFileSizeExceededException('Maximum allowed download size reached. Downloaded ' . Platform::strlen($result) . ' of allowed ' .  $maxFileSize . ' bytes for ' . Rpc::call('rfs.sanitizeUrl', [$fileUrl])), 540);
         }
 
         // https://www.php.net/manual/en/reserved.variables.httpresponseheader.php
