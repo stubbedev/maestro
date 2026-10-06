@@ -56,7 +56,7 @@ func phpRealpath(path string) (string, bool) {
 		abs = cwd + string(filepath.Separator) + path
 	}
 
-	real, err := filepath.EvalSymlinks(abs)
+	real, err := evalSymlinks(abs)
 	if err != nil {
 		return "", false
 	}
