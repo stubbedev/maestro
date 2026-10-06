@@ -282,6 +282,11 @@ func (s *Store) Lookup(d Dist) (*Release, error) {
 
 	path, id := s.indexPath(&d, format, opts)
 
+	return s.lookupIndex(path, id)
+}
+
+// lookupIndex loads the index named id at path (Lookup, LookupNamed).
+func (s *Store) lookupIndex(path string, id [32]byte) (*Release, error) {
 	if r, ok := s.releases.Load(id); ok {
 		return r.(*Release), nil //nolint:errcheck // the map only holds *Release.
 	}

@@ -11,7 +11,8 @@
 //	                                  and permission bits; the suffix is the
 //	                                  octal mode, left out for 644
 //	index/<2 hex>/<62 hex>            one index per extracted release, named
-//	                                  by the SHA-256 of its dist identity
+//	                                  by the SHA-256 of its dist identity,
+//	                                  or per stored directory tree (below)
 //	tmp/                              files being written, renamed into place
 //	lock                              shared by writers, exclusive for Prune
 //
@@ -31,6 +32,18 @@
 // dropped); an index is renamed into place last, so a present index only
 // ever names objects already written. A package directory is assembled in a
 // sibling of its destination and renamed onto it.
+//
+// # Directory trees
+//
+// InsertDir stores a directory as it is on disk under an id the caller
+// derives from everything the tree depends on; LookupNamed finds it again.
+// internal/downloader/vcs keeps git checkouts cloned from the mirror cache
+// this way (deviation 1 extended to source installs). The index is named
+// by the SHA-256 of its own magic string, the umask and the id, so it never
+// collides with a dist's; its entries record the permission bits found on
+// disk (Umask unset), which is why the umask is part of the name. Trees
+// share objects, Prune, Verify and Stats with releases. Checkouts are
+// imported unshared (people edit them), never hard-linked.
 //
 // # Importing
 //
