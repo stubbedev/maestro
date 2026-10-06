@@ -96,7 +96,7 @@ func (h *HttpDownloader) Preconnect(url string, options *php.Array) {
 		ipResolve = 6
 	}
 
-	key := transportKey{tls: tlsFromOptions(ssl), ipResolve: ipResolve}
+	key := transportKey{tls: tlsFromOptions(ssl, false), ipResolve: ipResolve}
 	h.curl.pool.preconnect(key, net.JoinHostPort(u.Hostname(), port), 10*time.Second)
 }
 

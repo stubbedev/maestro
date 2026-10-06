@@ -294,7 +294,7 @@ func (c *CurlDownloader) buildRequest(url string, options, ssl *php.Array, proxy
 		}
 	}
 
-	req.key = transportKey{tls: tlsFromOptions(ssl), ipResolve: attributes.ipResolve, fresh: attributes.retries > 0}
+	req.key = transportKey{tls: tlsFromOptions(ssl, false), ipResolve: attributes.ipResolve, fresh: attributes.retries > 0}
 
 	proxyOptions := proxy.CurlOptions(ssl)
 	req.key.proxy, req.key.proxyAuth = proxyOptions.Proxy, proxyOptions.UserPwd
@@ -302,8 +302,11 @@ func (c *CurlDownloader) buildRequest(url string, options, ssl *php.Array, proxy
 	return req
 }
 
-// tlsFromOptions reads the ssl options curl is given.
-func tlsFromOptions(ssl *php.Array) tlsSettings {
+// tlsFromOptions reads the ssl options curl is given (CurlDownloader's
+// $options['ssl'] map: cafile, capath, verify_peer, verify_peer_name,
+// local_cert, local_pk, passphrase), and for PHP's stream wrapper (stream)
+// also ciphers and verify_depth, which CurlDownloader does not pass on.
+func tlsFromOptions(ssl *php.Array, stream bool) tlsSettings {
 	s := tlsSettings{verifyPeer: true, verifyPeerName: true}
 
 	if ssl == nil {
@@ -326,6 +329,16 @@ func tlsFromOptions(ssl *php.Array) tlsSettings {
 
 	if v, ok := path(ssl, "allow_self_signed"); ok {
 		s.allowSelfSigned = php.ToBool(v)
+	}
+
+	if stream {
+		if v, ok := path(ssl, "ciphers"); ok {
+			s.ciphers, s.hasCiphers = php.ToString(v), true
+		}
+
+		if v, ok := path(ssl, "verify_depth"); ok {
+			s.verifyDepth, s.hasVerifyDepth = php.ToInt(v), true
+		}
 	}
 
 	return s

@@ -860,7 +860,7 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 		connectTimeout: 60 * time.Second,
 		readTimeout:    60 * time.Second, // default_socket_timeout
 		safeURL:        util.SanitizeURL(fileURL),
-		key:            transportKey{tls: tlsFromOptions(ssl), http1: true},
+		key:            transportKey{tls: tlsFromOptions(ssl, true), http1: true},
 	}
 
 	if maxFileSize >= 0 {
@@ -911,7 +911,11 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 	}
 
 	if res.errno != 0 {
-		out.warnings = append(out.warnings, "Failed to open stream: "+res.errMsg)
+		if res.streamWarnings != nil {
+			out.warnings = append(out.warnings, res.streamWarnings...)
+		} else {
+			out.warnings = append(out.warnings, "Failed to open stream: "+res.errMsg)
+		}
 
 		return out, nil
 	}

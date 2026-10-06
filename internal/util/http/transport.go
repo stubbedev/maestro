@@ -10,7 +10,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"io"
 	"net"
@@ -59,6 +58,12 @@ type tlsSettings struct {
 	localCert, localPK string
 	passphrase         string
 	allowSelfSigned    bool
+	// ciphers is the OpenSSL cipher list and verifyDepth the maximum
+	// depth of the peer's chain (PHP's stream wrapper only).
+	ciphers        string
+	hasCiphers     bool
+	verifyDepth    int64
+	hasVerifyDepth bool
 }
 
 // transportKey identifies a pooled transport: requests sharing one share
@@ -112,6 +117,10 @@ type transferResult struct {
 	errMsg string
 	// err, when set, rejects the job as it is (max size, blocked IP).
 	err error
+	// streamWarnings, when set, are the warnings PHP's http stream wrapper
+	// raises for the failure, which RemoteFilesystem reports instead of
+	// errMsg.
+	streamWarnings []string
 
 	status  int
 	headers []string
@@ -258,12 +267,33 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 	}
 
 	if s.localCert != "" {
-		cert, err := loadClientCertificate(s.localCert, s.localPK, s.passphrase)
-		if err != nil {
-			return nil, &transferResult{errno: curleSSLCertproblem, errMsg: "could not load PEM client certificate from " + s.localCert + ", " + err.Error()}
+		cert, failure := loadClientCertificate(s.localCert, s.localPK, s.passphrase)
+		if failure != nil {
+			return nil, &transferResult{errno: failure.errno, errMsg: failure.msg}
 		}
 
 		cfg.Certificates = []tls.Certificate{cert}
+	}
+
+	if s.hasCiphers {
+		suites, anyCipher := evalCipherList(s.ciphers)
+		if !anyCipher {
+			// SSL_CTX_set_cipher_list fails: no crypto for the stream
+			return nil, &transferResult{errno: curleSSLConnectError, errMsg: "operation failed", streamWarnings: []string{"Failed to enable crypto", "Failed to open stream: operation failed"}}
+		}
+
+		if len(suites) == 0 {
+			// only suites crypto/tls lacks (DHE, CAMELLIA, ...): TLS 1.3,
+			// whose suites the list does not restrict, is what remains
+			cfg.MinVersion = tls.VersionTLS13
+		}
+
+		cfg.CipherSuites = suites
+	}
+
+	maxDepth := int64(-1)
+	if s.hasVerifyDepth {
+		maxDepth = s.verifyDepth
 	}
 
 	switch {
@@ -277,11 +307,40 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 		checkName := s.verifyPeerName
 		selfSigned := s.allowSelfSigned
 		cfg.VerifyConnection = func(cs tls.ConnectionState) error {
-			return verifyChain(cs, roots, checkName, selfSigned)
+			return verifyChain(cs, roots, checkName, selfSigned, maxDepth)
+		}
+	case maxDepth >= 0:
+		cfg.VerifyConnection = func(cs tls.ConnectionState) error {
+			return checkChainDepth(cs.VerifiedChains, maxDepth)
 		}
 	}
 
 	return cfg, nil
+}
+
+// errChainTooLong is X509_V_ERR_CERT_CHAIN_TOO_LONG.
+var errChainTooLong = errors.New("certificate chain too long")
+
+// checkChainDepth is the verify_depth check of PHP's verify callback
+// (php_openssl_verify_callback): a certificate deeper in the chain than
+// the limit fails it, the leaf being at depth 0 and the trust anchor the
+// deepest. The shortest chain counts, as OpenSSL stops at the first
+// trusted certificate.
+func checkChainDepth(chains [][]*x509.Certificate, maxDepth int64) error {
+	if maxDepth < 0 || len(chains) == 0 {
+		return nil
+	}
+
+	shortest := len(chains[0])
+	for _, c := range chains[1:] {
+		shortest = min(shortest, len(c))
+	}
+
+	if int64(shortest-1) > maxDepth {
+		return errChainTooLong
+	}
+
+	return nil
 }
 
 func orNone(s string) string {
@@ -294,7 +353,7 @@ func orNone(s string) string {
 
 // verifyChain is the peer verification of a connection whose standard
 // verification was replaced.
-func verifyChain(cs tls.ConnectionState, roots *x509.CertPool, checkName, allowSelfSigned bool) error {
+func verifyChain(cs tls.ConnectionState, roots *x509.CertPool, checkName, allowSelfSigned bool, maxDepth int64) error {
 	if len(cs.PeerCertificates) == 0 {
 		return errors.New("tls: no peer certificates")
 	}
@@ -310,8 +369,12 @@ func verifyChain(cs tls.ConnectionState, roots *x509.CertPool, checkName, allowS
 		opts.Intermediates.AddCert(c)
 	}
 
-	_, err := leaf.Verify(opts)
-	if err != nil && allowSelfSigned && leaf.CheckSignatureFrom(leaf) == nil {
+	chains, err := leaf.Verify(opts)
+	if err == nil {
+		return checkChainDepth(chains, maxDepth)
+	}
+
+	if allowSelfSigned && leaf.CheckSignatureFrom(leaf) == nil {
 		if checkName {
 			return leaf.VerifyHostname(cs.ServerName)
 		}
@@ -358,52 +421,6 @@ func loadCertPool(cafile, capath string) (*x509.CertPool, error) {
 	certPools.Store(key, pool)
 
 	return pool, nil
-}
-
-// loadClientCertificate reads local_cert (which may hold the key too) and
-// local_pk, decrypting a legacy encrypted PEM key with passphrase.
-func loadClientCertificate(certFile, keyFile, passphrase string) (tls.Certificate, error) {
-	certPEM, err := os.ReadFile(certFile)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	keyPEM := certPEM
-	if keyFile != "" {
-		if keyPEM, err = os.ReadFile(keyFile); err != nil {
-			return tls.Certificate{}, err
-		}
-	}
-
-	if passphrase != "" {
-		keyPEM = decryptPEMKeys(keyPEM, passphrase)
-	}
-
-	return tls.X509KeyPair(certPEM, keyPEM)
-}
-
-// decryptPEMKeys replaces legacy encrypted PEM private keys (Proc-Type:
-// 4,ENCRYPTED) by their decryption with passphrase.
-func decryptPEMKeys(data []byte, passphrase string) []byte {
-	var out bytes.Buffer
-
-	for {
-		block, rest := pem.Decode(data)
-		if block == nil {
-			return out.Bytes()
-		}
-
-		//nolint:staticcheck // legacy PEM encryption is what OpenSSL-produced keys use
-		if x509.IsEncryptedPEMBlock(block) {
-			//nolint:staticcheck // see above
-			if der, err := x509.DecryptPEMBlock(block, []byte(passphrase)); err == nil {
-				block = &pem.Block{Type: block.Type, Bytes: der}
-			}
-		}
-
-		_ = pem.Encode(&out, block)
-		data = rest
-	}
 }
 
 // do runs a transfer to completion. ctx cancels it (abortRequest).
@@ -540,6 +557,9 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		}
 
 		res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0)
+		if !r.curlStatusLines {
+			res.streamWarnings = streamWarnings(err, host)
+		}
 
 		return finish()
 	}
@@ -836,6 +856,8 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 	)
 
 	switch {
+	case errors.Is(err, errChainTooLong):
+		return curlePeerFailedVerify, "SSL certificate problem: certificate chain too long"
 	case errors.As(err, &hostnameErr):
 		return curlePeerFailedVerify, "SSL: no alternative certificate subject name matches target host name '" + host + "'"
 	case errors.As(err, &unknownAuthority):
@@ -898,6 +920,40 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 	}
 
 	return curleRecvError, "Failure when receiving data from the peer: " + msg
+}
+
+// streamWarnings are the warnings PHP's http stream wrapper raises when
+// opening a stream fails as err does, for the failures it words
+// differently from curl: refused connections and TLS verification
+// (OpenSSL's verification, or PHP's own check of the peer name against
+// host); nil for others.
+func streamWarnings(err error, host string) []string {
+	const (
+		cryptoFailed = "Failed to enable crypto"
+		openFailed   = "Failed to open stream: operation failed"
+	)
+
+	var (
+		hostnameErr      x509.HostnameError
+		unknownAuthority x509.UnknownAuthorityError
+		invalidCert      x509.CertificateInvalidError
+	)
+
+	switch {
+	case errors.As(err, &hostnameErr):
+		cn := ""
+		if hostnameErr.Certificate != nil {
+			cn = hostnameErr.Certificate.Subject.CommonName
+		}
+
+		return []string{"Peer certificate CN=`" + cn + "' did not match expected CN=`" + host + "'", cryptoFailed, openFailed}
+	case errors.Is(err, errChainTooLong), errors.As(err, &unknownAuthority), errors.As(err, &invalidCert):
+		return []string{"SSL operation failed with code 1. OpenSSL Error messages:\nerror:0A000086:SSL routines::certificate verify failed", cryptoFailed, openFailed}
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return []string{"Failed to open stream: Connection refused"}
+	}
+
+	return nil
 }
 
 // dialError is the failed dial in err, also when net/http reports it as
