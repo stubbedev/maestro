@@ -359,6 +359,9 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	if err != nil {
 		return nil, nil, err
 	}
+	if fullLoad && rt.Fetching() {
+		preconnectRepositories(httpDownloader, cfg.Repositories())
+	}
 	process := http.NewProcessExecutor(out)
 	partial.process = process
 	loop := http.NewLoop(httpDownloader, process)
@@ -506,6 +509,39 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	}
 
 	return partial, full, nil
+}
+
+// maxPreconnects bounds the repositories preconnectRepositories opens
+// connections to.
+const maxPreconnects = 4
+
+// preconnectRepositories opens connections to the hosts of the first https
+// composer repositories configured (Packagist's included), while the root
+// package loads and the command prepares: a command that fetches then
+// finds its first request's connection open (deliberate deviation 3).
+// Nothing is sent on them; one never used is dropped.
+func preconnectRepositories(h *http.HttpDownloader, repos *php.Array) {
+	n := 0
+	for _, value := range repos.All() {
+		repo, ok := value.(*php.Array)
+		if !ok {
+			continue
+		}
+
+		typ, _ := repo.GetString("type")
+		url, _ := repo.GetString("url")
+		if typ != "composer" || !strings.HasPrefix(url, "https://") {
+			continue
+		}
+
+		options, _ := repo.Get("options")
+		opts, _ := options.(*php.Array)
+		h.Preconnect(url, opts)
+
+		if n++; n == maxPreconnects {
+			return
+		}
+	}
 }
 
 func fileExists(path string) bool {

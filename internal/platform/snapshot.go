@@ -47,6 +47,12 @@ type Snapshot struct {
 	classes        map[string]struct{} // get_declared_classes(), lower-cased
 	calls          []probeCall
 	extIndex       map[string]int // lower-cased extension name => index in Extensions
+
+	// mappedFiles are the files the probe's process mapped (/proc/self/maps:
+	// its binary, libraries and extensions); hasMappedFiles is false where
+	// it could not tell.
+	mappedFiles    []string
+	hasMappedFiles bool
 }
 
 // Extension is one loaded extension.
@@ -248,6 +254,10 @@ func (s *Snapshot) fill(root *php.Array) error {
 	s.Xdebug.Constants = stringList(arrayAt(x, "constants"))
 	s.Xdebug.Classes = stringList(arrayAt(x, "classes"))
 	s.Xdebug.Ini = stringList(arrayAt(x, "ini"))
+
+	if v, ok := root.GetArray("mapped_files"); ok {
+		s.mappedFiles, s.hasMappedFiles = stringList(v), true
+	}
 
 	return nil
 }

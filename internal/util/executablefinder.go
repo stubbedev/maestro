@@ -108,6 +108,16 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 		return "", false
 	}
 
+	// `command -v` can only find what the search above did not when the
+	// shell knows the name otherwise (a builtin, an exported function: it
+	// prints the bare name, which must then be an executable in the
+	// working directory) or expands a "~" in PATH, which the search above
+	// takes literally. Without either, the shell is not started
+	// (deliberate deviation 3): its answer could only be "not found".
+	if !strings.Contains(path, "~") && !isExecutable(name) {
+		return "", false
+	}
+
 	out, _ := exec.Command("/bin/sh", "-c", "command -v -- "+quoted).Output() //nolint:gosec // the name is escaped, as exec() is in Symfony.
 
 	if result := phpExecLastLine(string(out)); result != "" && isExecutable(result) {

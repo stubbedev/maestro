@@ -103,6 +103,15 @@ type ProcessExecutor struct {
 	// settles are the promise settlements decided with mu held, run once
 	// it is released: their callbacks may call the executor again.
 	settles []func()
+	// prefetched are the commands Prefetch started, by prefetchKey.
+	prefetched map[string]*prefetchedProcess
+}
+
+// prefetchedProcess is a command started ahead of the Execute that is to
+// take it, with the environment it was started in.
+type prefetchedProcess struct {
+	process *Process
+	environ []string
 }
 
 type asyncJob struct {
@@ -169,25 +178,107 @@ func (p *ProcessExecutor) doExecute(command Command, cwd string, tty, capture bo
 	return p.runProcess(command, cwd, env, tty, capture, output, handler)
 }
 
-func (p *ProcessExecutor) runProcess(command Command, cwd string, env map[string]string, tty, capture bool, output *string, handler func(typ, buffer string)) (int, error) {
-	timeout := time.Duration(GetProcessTimeout()) * time.Second
+// LogsCommands reports whether Execute logs the commands it runs (an IO
+// at debug verbosity).
+func (p *ProcessExecutor) LogsCommands() bool {
+	return p.io != nil && p.io.IsDebug()
+}
 
-	var process *Process
+// Prefetch starts command in cwd now, for an Execute of it that is likely
+// to come (deliberate deviation 3: commands whose turn depends on the
+// output of others run at once). The next Execute capturing the output of
+// the same command in the same directory, with the environment unchanged,
+// takes the started process and waits for it, logging and recording its
+// error output as for any run; one that never comes leaves the process to
+// finish unobserved. Only commands that change nothing are worth
+// prefetching: the process runs whether it is taken or not.
+func (p *ProcessExecutor) Prefetch(command Command, cwd string) {
+	if command.shell || (cwd != "" && p.RequiresGitDirEnv(command)) {
+		return
+	}
+
+	key := prefetchKey(command, cwd)
+
+	p.mu.Lock()
+	_, ok := p.prefetched[key]
+	p.mu.Unlock()
+
+	if ok {
+		return
+	}
+
+	environ := os.Environ()
+	process := p.newProcess(command, cwd, nil)
+
+	if err := process.Start(nil); err != nil {
+		// Execute runs it again and reports what failed
+		return
+	}
+
+	p.mu.Lock()
+	if p.prefetched == nil {
+		p.prefetched = map[string]*prefetchedProcess{}
+	}
+	p.prefetched[key] = &prefetchedProcess{process: process, environ: environ}
+	p.mu.Unlock()
+}
+
+// takePrefetched returns the process Prefetch started for command in cwd,
+// once, if the environment is the one it was started in.
+func (p *ProcessExecutor) takePrefetched(command Command, cwd string) *Process {
+	key := prefetchKey(command, cwd)
+
+	p.mu.Lock()
+	pf, ok := p.prefetched[key]
+	delete(p.prefetched, key)
+	p.mu.Unlock()
+
+	if !ok || !slices.Equal(pf.environ, os.Environ()) {
+		return nil
+	}
+
+	return pf.process
+}
+
+func prefetchKey(command Command, cwd string) string {
+	return cwd + "\x00" + strings.Join(command.args, "\x00")
+}
+
+// newProcess is the Process running command.
+func (p *ProcessExecutor) newProcess(command Command, cwd string, env map[string]string) *Process {
+	timeout := time.Duration(GetProcessTimeout()) * time.Second
 
 	if command.shell {
 		// On Windows Composer means to resolve the executable of a command
 		// line itself, but its possessive {^([^:/\\]++) } also consumes the
 		// spaces, so it never matches and command lines run unchanged.
-		process = NewShellProcess(command.line, cwd, env, timeout)
-	} else {
-		args := command.args
-		if IsWindows() && len(args) > 0 && !strings.ContainsAny(args[0], `:/\`) {
-			args = slices.Clone(args)
-			args[0] = getExecutable(args[0])
-		}
-
-		process = NewProcess(args, cwd, env, timeout)
+		return NewShellProcess(command.line, cwd, env, timeout)
 	}
+
+	args := command.args
+	if IsWindows() && len(args) > 0 && !strings.ContainsAny(args[0], `:/\`) {
+		args = slices.Clone(args)
+		args[0] = getExecutable(args[0])
+	}
+
+	return NewProcess(args, cwd, env, timeout)
+}
+
+func (p *ProcessExecutor) runProcess(command Command, cwd string, env map[string]string, tty, capture bool, output *string, handler func(typ, buffer string)) (int, error) {
+	var prefetched *Process
+	if !command.shell && !tty && capture && handler == nil && env == nil {
+		prefetched = p.takePrefetched(command, cwd)
+	}
+
+	if prefetched != nil {
+		stop := p.watchSignals()
+		code, err := prefetched.Wait()
+		triggered := stop()
+
+		return p.finishProcess(prefetched, code, err, triggered, capture, output, handler)
+	}
+
+	process := p.newProcess(command, cwd, env)
 
 	if !IsWindows() && tty {
 		// TTY enabling errors are ignored.
@@ -203,6 +294,12 @@ func (p *ProcessExecutor) runProcess(command Command, cwd string, env map[string
 	code, err := process.Run(callback)
 	triggered := stop()
 
+	return p.finishProcess(process, code, err, triggered, capture, output, handler)
+}
+
+// finishProcess is the end of execute() once process ran: its output and
+// error output recorded, its exit code returned.
+func (p *ProcessExecutor) finishProcess(process *Process, code int, err error, triggered os.Signal, capture bool, output *string, handler func(typ, buffer string)) (int, error) {
 	if err != nil {
 		if _, signaled := errors.AsType[*ProcessSignaledError](err); !signaled {
 			return code, err

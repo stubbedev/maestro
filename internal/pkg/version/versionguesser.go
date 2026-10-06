@@ -6,6 +6,8 @@ package version
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/io"
@@ -43,7 +45,60 @@ type processExecutor struct{ *util.ProcessExecutor }
 func NewProcessExecutor(p *util.ProcessExecutor) ProcessExecutor { return processExecutor{p} }
 
 func (p processExecutor) Execute(command []string, output *string, cwd string) (int, error) {
+	if !p.LogsCommands() && absentTool(command) {
+		// what the shell's exec of a command it cannot find gives
+		if output != nil {
+			*output = ""
+		}
+
+		return 127, nil
+	}
+
 	return p.ProcessExecutor.Execute(util.Cmd(command...), output, cwd)
+}
+
+// Prefetch starts command ahead of its Execute (util.ProcessExecutor's
+// Prefetch).
+func (p processExecutor) Prefetch(command []string, cwd string) {
+	if !absentTool(command) {
+		p.ProcessExecutor.Prefetch(util.Cmd(command...), cwd)
+	}
+}
+
+// absentTools are the tools whose absence absentTool checks: those the
+// guesser only asks for a version, whose error output nothing reads.
+var absentTools = map[string]bool{"hg": true, "fossil": true, "svn": true}
+
+// absentTool reports whether command runs one of absentTools that is in
+// no directory of PATH, so that the shell would answer "not found" (exit
+// code 127) and the guess goes on: it is then not started (deliberate
+// deviation 3), unless commands are logged (-vvv), where Composer's log
+// shows it run. With a relative PATH entry, which the shell resolves
+// against the command's directory, or on Windows, it is not decided.
+func absentTool(command []string) bool {
+	// without PATH the shell searches its default one
+	path := os.Getenv("PATH")
+	if len(command) == 0 || !absentTools[command[0]] || util.IsWindows() || path == "" {
+		return false
+	}
+
+	for _, dir := range filepath.SplitList(path) {
+		if !filepath.IsAbs(dir) {
+			return false
+		}
+
+		if fi, err := os.Stat(filepath.Join(dir, command[0])); err == nil && !fi.IsDir() {
+			return false
+		}
+	}
+
+	return true
+}
+
+// prefetcher is a ProcessExecutor that can start commands ahead of their
+// Execute.
+type prefetcher interface {
+	Prefetch(command []string, cwd string)
 }
 
 func (p processExecutor) ExecuteAsync(command []string, cwd string) (*util.Promise[ProcessResult], error) {
@@ -185,6 +240,10 @@ func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) 
 		return nil, err
 	}
 
+	if code != 0 {
+		g.prefetchFallbacks(path)
+	}
+
 	if code == 0 {
 		var branches []string
 
@@ -272,14 +331,43 @@ func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) 
 	return data, nil
 }
 
-// headCommit runs git rev-list for HEAD's commit hash.
-func (g *VersionGuesser) headCommit(path string) (pkg.NullString, error) {
-	noShowSignature, err := vcs.GetNoShowSignatureFlags(g.vcsProcess())
-	if err != nil {
-		return pkg.NullString{}, err
+// prefetchFallbacks starts at once the commands guessVersion runs one
+// after the other when the checkout at path is not on a git branch: git's
+// tag and HEAD lookups, then hg's, fossil's and svn's (deliberate
+// deviation 3: each takes a process start, and they are independent).
+// Each is still executed, and so logged and read, in Composer's order;
+// those it never reaches only ran for nothing (they change nothing).
+func (g *VersionGuesser) prefetchFallbacks(path string) {
+	pf, ok := g.process.(prefetcher)
+	if !ok {
+		return
 	}
 
-	command, err := vcs.BuildRevListCommand(g.vcsProcess(), append([]string{"--format=%H", "-n1", "HEAD"}, noShowSignature...))
+	pf.Prefetch([]string{"git", "describe", "--exact-match", "--tags"}, path)
+
+	if command, err := g.headCommitCommand(); err == nil {
+		pf.Prefetch(command, path)
+	}
+
+	pf.Prefetch([]string{"hg", "branch"}, path)
+	pf.Prefetch([]string{"fossil", "branch", "list"}, path)
+	pf.Prefetch([]string{"fossil", "tag", "list"}, path)
+	pf.Prefetch([]string{"svn", "info", "--xml"}, path)
+}
+
+// headCommitCommand is the git rev-list command for HEAD's commit hash.
+func (g *VersionGuesser) headCommitCommand() ([]string, error) {
+	noShowSignature, err := vcs.GetNoShowSignatureFlags(g.vcsProcess())
+	if err != nil {
+		return nil, err
+	}
+
+	return vcs.BuildRevListCommand(g.vcsProcess(), append([]string{"--format=%H", "-n1", "HEAD"}, noShowSignature...))
+}
+
+// headCommit runs git rev-list for HEAD's commit hash.
+func (g *VersionGuesser) headCommit(path string) (pkg.NullString, error) {
+	command, err := g.headCommitCommand()
 	if err != nil {
 		return pkg.NullString{}, err
 	}

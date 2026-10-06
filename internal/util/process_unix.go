@@ -6,7 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -22,6 +26,48 @@ func shellCommand(commandline string, _ *[]string) (*exec.Cmd, error) {
 	cmd.Args[0] = "sh"
 
 	return cmd, nil
+}
+
+// directTools are the programs directCommand starts without a shell:
+// version control tools, which read neither the variables a shell adds to
+// the environment (SHLVL, _, PWD) nor anything else it could change.
+var directTools = map[string]bool{"git": true, "hg": true, "svn": true, "fossil": true, "p4": true}
+
+// directCommand is the command `sh -c "exec <args>"` ends up running, for
+// an argument list naming one of directTools found in an absolute
+// directory of env's PATH as an executable regular file; nil otherwise
+// (the shell then runs it). argv[0] stays the name, as the shell's exec
+// gives it.
+func directCommand(args []string, env []string) *exec.Cmd {
+	if len(args) == 0 || !directTools[args[0]] {
+		return nil
+	}
+
+	// the last PATH, as the child gets it
+	path := ""
+	for _, kv := range env {
+		if v, ok := strings.CutPrefix(kv, "PATH="); ok {
+			path = v
+		}
+	}
+
+	for _, dir := range filepath.SplitList(path) {
+		// the shell resolves a relative entry against the child's
+		// directory: leave those to it
+		if !filepath.IsAbs(dir) {
+			return nil
+		}
+
+		file := dir + "/" + args[0]
+		if fi, err := os.Stat(file); err == nil && fi.Mode().IsRegular() && unix.Access(file, unix.X_OK) == nil {
+			cmd := exec.Command(file, args[1:]...) //nolint:gosec // running VCS commands is the point.
+			cmd.Args[0] = args[0]
+
+			return cmd
+		}
+	}
+
+	return nil
 }
 
 // exitStatus returns the exit code, 128+signal for a process killed by a

@@ -87,6 +87,79 @@ autoload_static.php). A standalone `dump-autoload -o` spends some 60 ms
 before the dump starts (process start, the php probe, version guessing).
 The ≥20x warm install target needs those fixed costs gone first.
 
+## No-op install and fixed per-run costs (#12, 2026-10-06)
+
+Same machine and projects as below (laravel, symfony: the e2e projects'
+composer.json and composer.lock, `--no-plugins --no-scripts`, separate
+COMPOSER_HOME/COMPOSER_CACHE_DIR/MAESTRO_CACHE_DIR per tool,
+COMPOSER_TEST_SUITE=1). Other agents' builds and test suites shared the
+machine (load 3–8), so runs were repeated until stable. *no-op install*:
+`install` with vendor/ in place, `hyperfine -N`, 3 warm-ups, median of
+30 runs; *warm install*: vendor/ removed before each run, mean of 10.
+"before" is b01f0e2, "after" this change; both with warm caches, store and
+(after) probe cache.
+
+| Project | Command | Composer | maestro before | | maestro after | |
+|---|---|---:|---:|---:|---:|---:|
+| laravel | no-op install | 1.45s | 241ms | 6.0x | 213ms | 6.8x |
+| laravel | warm install | 2.52s | 479ms | 5.3x | 457ms | 5.5x |
+| symfony | no-op install | 717ms | 194ms | 3.7x | 157ms | 4.6x |
+| symfony | warm install | 2.06s | 692ms | 3.0x | 588ms | 3.5x |
+
+Processes a no-op install starts (outside a VCS checkout): before 11 (php
+for the probe; git 4 times, hg, fossil twice and svn, each through
+`/bin/sh -c exec`, ~4.5 ms per shell here; `lsmod`; `sh -c command -v
+hhvm`), after 4 (git, run directly, three of them at once).
+
+What changed (all deliberate deviation 3; frozen output is unchanged, the
+e2e suites pass, -vvv logs the same commands in the same order):
+
+- **php probe cached across runs** (internal/platform/probecache_linux.go):
+  the probe's output is kept in maestro's cache dir, keyed by the php
+  binary (found and resolved, its stat), probe.php and the environment
+  (but PWD, OLDPWD, SHLVL, _ and MAESTRO_*), and used only while every
+  file php mapped (/proc/self/maps: its executable, libraries and
+  extensions), the ini files it read, the places it looks for more
+  (PHPRC, the binaries' directories, PHP_CONFIG_FILE_PATH, the scan
+  directories) and uname are unchanged, for at most 24 hours. Scripts
+  (version managers' shims) and non-php* binaries are never cached; a
+  wrapper (the executable php runs is another file) is cached per working
+  directory. Linux only. ~20–30 ms per run.
+- **Root version guessing**: VCS tools (git, hg, svn, fossil, p4) found in
+  an absolute PATH directory start without `/bin/sh -c exec` (the shell
+  still runs them otherwise, so a missing tool gives the shell's 127 and
+  message). Once `git branch` fails, the fallbacks (git describe, git
+  rev-list, hg, fossil, svn) start at once (ProcessExecutor.Prefetch) and
+  are taken in Composer's order; hg, fossil and svn are not started at all
+  when absent from PATH (below -vvv, where Composer's log shows them).
+  ~35 ms → ~8 ms here.
+- **Connections opened early**: install, update, require, remove,
+  reinstall, outdated and audit open TLS connections to the first https
+  composer repositories while the project loads, so the request
+  revalidating Packagist's filter list (every install from a lock file)
+  finds one open.
+- `lsmod` is read from /proc/modules; ExecutableFinder's `command -v`
+  fallback is skipped when the shell could only answer "not found" (no
+  executable of that name in the working directory, no "~" in PATH);
+  LibraryInstaller resolves the vendor dir again only when it is no longer
+  the directory resolved before; Locker::isFresh does not decode the lock
+  file LockData already decoded when its content is unchanged (~6 ms on
+  laravel's lock).
+
+Tried and dropped: parsing the autoload files while the lock file is
+verified (Generator.Warm before doInstall) gave nothing measurable and,
+running alongside installs, broke the store-heal scenario; raising GOGC
+cut ~30% of the CPU time but no wall time.
+
+Why the ≥20x no-op target is not met: what is left is not fixed cost. A
+no-op install revalidates Packagist's filter list (and packages.json when
+older than 600 s) with conditional requests, which Composer's cache
+semantics require: one to two round trips after the connection
+(~25 ms each here), now overlapped with loading. The autoload dump, which
+Composer runs on every install, is the rest (laravel ~90 ms of ~200 ms,
+symfony ~40 ms); caching it is a separate part of #12. Composer's no-op
+symfony install takes 0.72 s, so 20x would be 36 ms.
+
 ## Per command, real-world projects (perf task, 2026-10-06)
 
 Machine: Linux 7.0 x86-64, 8 cores, 30 GB RAM, /tmp on tmpfs (so the

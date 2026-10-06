@@ -328,6 +328,44 @@ func TestLocker_UpdateHash(t *testing.T) {
 	}
 }
 
+// IsFresh after LockData compares the lock file's content with what
+// LockData decoded, and follows a change of it.
+func TestLocker_IsFreshAfterLockData(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "composer.lock")
+	composerJSON := `{"name": "a/b"}`
+	fresh := `{"content-hash": "` + must(GetContentHash(composerJSON)) + `", "packages": []}`
+
+	if err := os.WriteFile(lockPath, []byte(fresh), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	locker := must(New(mio.NewNullIO(), must(json.NewFile(lockPath, nil, nil)), noInstallPaths{}, composerJSON, nil))
+	if _, err := locker.LockData(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !must(locker.IsFresh()) {
+		t.Error("an unchanged fresh lock file is not fresh")
+	}
+
+	if err := os.WriteFile(lockPath, []byte(`{"content-hash": "other", "packages": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if must(locker.IsFresh()) {
+		t.Error("a changed lock file is still fresh")
+	}
+
+	if err := os.WriteFile(lockPath, []byte(`{"content-hash": `), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := locker.IsFresh(); err == nil {
+		t.Error("a broken lock file read without error")
+	}
+}
+
 func readGolden(t *testing.T, path string) *php.Array {
 	t.Helper()
 	f := must(os.Open(path))

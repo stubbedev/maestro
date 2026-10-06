@@ -65,6 +65,9 @@ type File struct {
 	httpDownloader HTTPDownloader
 	io             io.IO
 	indent         string
+	// content is what the last read decoded (hasContent), for Content.
+	content    string
+	hasContent bool
 }
 
 var httpURL = php.MustCompile(`{^https?://}i`)
@@ -98,21 +101,71 @@ func isFile(path string) bool {
 // a *jsonlint.ParsingError, *util.UnexpectedValueError or
 // *util.RuntimeError.
 func (f *File) Read() (any, error) {
+	json, err := f.readContent()
+	if err != nil {
+		return nil, err
+	}
+
+	return f.decode(json)
+}
+
+// Content is the content of the file the last Read or ReadIfChanged
+// decoded; ok is false before any, or for a file read over HTTP.
+func (f *File) Content() (string, bool) { return f.content, f.hasContent }
+
+// ReadIfChanged is Read for a caller holding what content decodes to (the
+// data an earlier Read returned with that Content): when the file still
+// holds content, it is read but not decoded again, and changed is false
+// (deliberate deviation 3: the same content decodes to the same data).
+func (f *File) ReadIfChanged(content string) (data any, changed bool, err error) {
+	json, err := f.readContent()
+	if err != nil {
+		return nil, true, err
+	}
+
+	if f.httpDownloader == nil && json == content {
+		return nil, false, nil
+	}
+
+	data, err = f.decode(json)
+
+	return data, true, err
+}
+
+// decode is the end of read(): json's indentation detected and its value
+// decoded, the content kept for Content.
+func (f *File) decode(json string) (any, error) {
+	indent, err := detectIndenting(json)
+	if err != nil {
+		return nil, err
+	}
+	f.indent = indent
+
+	data, err := ParseJSON(json, f.path)
+	if err == nil && f.httpDownloader == nil {
+		f.content, f.hasContent = json, true
+	}
+
+	return data, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "JsonFile.php", 127)
+}
+
+// readContent is the start of read(): the file's content.
+func (f *File) readContent() (string, error) {
 	var json string
 	if f.httpDownloader != nil {
 		body, err := f.httpDownloader.Get(f.path)
 		if err != nil {
 			if _, ok := errors.AsType[*util.TransportError](err); ok {
-				return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 116), Message: err.Error(), Prev: err}
+				return "", &util.RuntimeError{Site: phperr.At("JsonFile.php", 116), Message: err.Error(), Prev: err}
 			}
 
-			return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 118), Message: "Could not read " + f.path + "\n\n" + err.Error()}
+			return "", &util.RuntimeError{Site: phperr.At("JsonFile.php", 118), Message: "Could not read " + f.path + "\n\n" + err.Error()}
 		}
 		json = body
 	} else {
 		// the exceptions thrown here are wrapped by read()'s catch
 		if !util.IsReadable(f.path) {
-			return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 118), Message: "Could not read " + f.path + "\n\n" + `The file "` + f.path + `" is not readable.`}
+			return "", &util.RuntimeError{Site: phperr.At("JsonFile.php", 118), Message: "Could not read " + f.path + "\n\n" + `The file "` + f.path + `" is not readable.`}
 		}
 		if f.io != nil && f.io.IsDebug() {
 			realpathInfo := ""
@@ -123,20 +176,12 @@ func (f *File) Read() (any, error) {
 		}
 		data, err := os.ReadFile(f.path)
 		if err != nil {
-			return nil, &util.RuntimeError{Site: phperr.At("JsonFile.php", 122), Message: "Could not read " + f.path}
+			return "", &util.RuntimeError{Site: phperr.At("JsonFile.php", 122), Message: "Could not read " + f.path}
 		}
 		json = string(data)
 	}
 
-	indent, err := detectIndenting(json)
-	if err != nil {
-		return nil, err
-	}
-	f.indent = indent
-
-	data, err := ParseJSON(json, f.path)
-
-	return data, phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "JsonFile.php", 127)
+	return json, nil
 }
 
 // Write ports JsonFile::write; options are json_encode flags

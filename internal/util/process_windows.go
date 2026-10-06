@@ -20,6 +20,10 @@ var windowsComSpec = sync.OnceValues(func() (string, bool) {
 	return NewExecutableFinder().Find("cmd.exe")
 })
 
+// directCommand is nil: on Windows every command line goes through
+// cmd.exe, as Symfony runs it.
+func directCommand([]string, []string) *exec.Cmd { return nil }
+
 // shellCommand runs commandline through cmd.exe as Symfony does on
 // Windows, moving quoted arguments into environment variables.
 func shellCommand(commandline string, env *[]string) (*exec.Cmd, error) {

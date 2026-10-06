@@ -77,6 +77,32 @@ func nameOnDisk(path string) string {
 
 // Probe runs probe.php with binary and parses what it reports.
 func Probe(ctx context.Context, binary string) (*Snapshot, error) {
+	s, _, err := probe(ctx, binary)
+
+	return s, err
+}
+
+// probeCached is Probe, through the cache of earlier runs' results
+// (probecache_linux.go): php is started only when binary, the files it
+// loads or its environment changed since.
+func probeCached(ctx context.Context, binary string) (*Snapshot, error) {
+	key := probeCacheKey(binary)
+	if key != "" {
+		if s := loadProbeCache(key, binary); s != nil {
+			return s, nil
+		}
+	}
+
+	s, output, err := probe(ctx, binary)
+	if err == nil && key != "" {
+		storeProbeCache(key, binary, s, output)
+	}
+
+	return s, err
+}
+
+// probe is Probe, also returning php's output.
+func probe(ctx context.Context, binary string) (*Snapshot, []byte, error) {
 	if timeout := util.GetProcessTimeout(); timeout > 0 {
 		var cancel context.CancelFunc
 
@@ -102,7 +128,7 @@ func Probe(ctx context.Context, binary string) (*Snapshot, error) {
 			code = exitErr.ExitCode()
 		}
 
-		return nil, &ProbeError{Binary: binary, ExitCode: code, Output: stdout.String() + stderr.String(), Reason: err.Error()}
+		return nil, nil, &ProbeError{Binary: binary, ExitCode: code, Output: stdout.String() + stderr.String(), Reason: err.Error()}
 	}
 
 	s, err := ParseSnapshot(binary, stdout.Bytes())
@@ -111,17 +137,18 @@ func Probe(ctx context.Context, binary string) (*Snapshot, error) {
 			pe.Output += stderr.String()
 		}
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return s, nil
+	return s, stdout.Bytes(), nil
 }
 
 // Detector probes the php on the PATH once and keeps the result: the
 // platform does not change while maestro runs. Start begins probing in
 // the background, so that the ~20 ms php takes to start overlap with
-// other work; Snapshot waits for the result. It is safe for concurrent
-// use.
+// other work; Snapshot waits for the result. Without its own Probe, the
+// result of an earlier run is used where nothing it came from changed
+// (probeCached). It is safe for concurrent use.
 type Detector struct {
 	once sync.Once
 	done chan struct{}
@@ -158,7 +185,7 @@ func (d *Detector) detect() (*Snapshot, error) {
 	}
 
 	if probe == nil {
-		probe = Probe
+		probe = probeCached
 	}
 
 	binary, ok := find()

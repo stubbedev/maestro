@@ -31,6 +31,11 @@ type LibraryInstaller struct {
 	filesystem      *util.Filesystem
 	binaryInstaller Binaries
 	virt            Virtuals
+
+	// realVendorDir is what InitializeVendorDir's realpath() last gave,
+	// realVendorInfo that directory's lstat().
+	realVendorDir  string
+	realVendorInfo os.FileInfo
 }
 
 var (
@@ -489,7 +494,21 @@ func (l *LibraryInstaller) InitializeVendorDir() error {
 		return err
 	}
 
+	// realpath() of the directory resolved last time is that directory
+	// again while it is still the same directory: its path is not walked
+	// again for every package (deliberate deviation 3)
+	if l.vendorDir != "" && l.vendorDir == l.realVendorDir {
+		if fi, err := os.Lstat(l.vendorDir); err == nil && fi.IsDir() && os.SameFile(fi, l.realVendorInfo) {
+			return nil
+		}
+	}
+
 	l.vendorDir = realpathOrFalse(l.vendorDir)
+	l.realVendorDir, l.realVendorInfo = l.vendorDir, nil
+
+	if l.vendorDir != "" {
+		l.realVendorInfo, _ = os.Lstat(l.vendorDir)
+	}
 
 	return nil
 }

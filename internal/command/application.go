@@ -278,6 +278,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 		}
 	}
 	a.commandName, a.commandNameFalse = commandName, commandNameFalse
+	a.Runtime().SetFetching(fetchingCommands[commandName])
 
 	// prompt user for dir change if no composer.json is present in current dir
 	// (in_array(false, [...], true) is false: an unknown command prompts too)
@@ -395,6 +396,15 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 var noComposerJSONCommands = map[string]bool{
 	"": true, "list": true, "init": true, "about": true, "help": true, "diagnose": true,
 	"self-update": true, "global": true, "create-project": true, "outdated": true,
+}
+
+// fetchingCommands are the commands that talk to the repositories on most
+// runs (an install from a lock file revalidates Packagist's filter list):
+// connections to them are opened while the project loads
+// (Runtime.SetFetching).
+var fetchingCommands = map[string]bool{
+	"install": true, "update": true, "require": true, "remove": true,
+	"reinstall": true, "outdated": true, "audit": true,
 }
 
 // phpTruthyString is a ?string in a PHP condition.
