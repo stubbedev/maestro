@@ -641,6 +641,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 			return 0, err
 		}
 	}
+	i.prefetchMetadata(repositorySet, lockedRepository)
 
 	request, err := i.createRequest(i.fixedRootPackage, platformRepo, lockedRepository)
 	if err != nil {
@@ -1676,4 +1677,44 @@ type autoloadWarmer interface {
 // notifications without waiting for them (installer.Manager).
 type asyncNotifier interface {
 	NotifyInstallsAsync(out io.IO) (waitFor func())
+}
+
+// metadataPrefetcher is a repository that can start its metadata requests
+// ahead (composerrepo.ComposerRepository.PrefetchPackages).
+type metadataPrefetcher interface {
+	PrefetchPackages(names []string, acceptableStabilities, stabilityFlags *php.Array)
+}
+
+// prefetchMetadata starts, ahead of the pool builder's waves of requests,
+// the metadata requests of the packages an update will almost certainly
+// load: the root's requirements and the locked packages (deliberate
+// deviation 3: the pool builder still asks for them in Composer's order
+// and prints what Composer prints; it just finds them answered).
+func (i *Installer) prefetchMetadata(set *repository.RepositorySet, locked *repository.LockArrayRepository) {
+	seen := map[string]bool{}
+	var names []string
+	add := func(name string) {
+		if name = php.Strtolower(name); !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	for _, links := range []pkg.Links{i.fixedRootPackage.Requires(), i.fixedRootPackage.DevRequires()} {
+		for name := range links.All() {
+			add(name)
+		}
+	}
+	if locked != nil {
+		if packages, err := locked.Packages(); err == nil {
+			for _, p := range packages {
+				add(p.Name())
+			}
+		}
+	}
+
+	for _, repo := range set.Repositories() {
+		if p, ok := repo.(metadataPrefetcher); ok {
+			p.PrefetchPackages(names, set.AcceptableStabilities(), set.StabilityFlags())
+		}
+	}
 }

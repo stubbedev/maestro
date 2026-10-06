@@ -154,6 +154,36 @@ func (h *HttpDownloader) Add(url string, options *php.Array) (*util.Promise[*Res
 	return h.asyncRequest(url, options, "")
 }
 
+// Prefetch starts, without output, the request a later Add(url, options)
+// would make, so that this Add takes its response instead of waiting for
+// the network (deliberate deviation 3): the Add prints, retries and
+// settles exactly as without it. Use it for requests Composer is about to
+// make; one that is never made costs a request and nothing else. Requests
+// that would not go through curl, or whose URL holds credentials, are not
+// prefetched.
+func (h *HttpDownloader) Prefetch(url string, options *php.Array) {
+	h.mu.Lock()
+	defer h.unlock()
+
+	if h.disabled || !h.allowAsync || url == "" {
+		return
+	}
+	if m, _ := urlCredentialsRegex.MatchStrictGroups(url); m != nil {
+		return
+	}
+
+	merged := h.options
+	if options != nil {
+		merged = php.ArrayReplaceRecursive(merged, options)
+	}
+	job := &httpJob{url: url, options: merged.Clone(), origin: util.GetOrigin(url, configList(h.config, "gitlab-domains"))}
+	if !h.canUseCurl(job) {
+		return
+	}
+
+	h.curl.prefetch(job.origin, url, job.options)
+}
+
 // Copy is copy($url, $to, $options): a download into the file to,
 // completed synchronously.
 func (h *HttpDownloader) Copy(url, to string, options *php.Array) (*Response, error) {

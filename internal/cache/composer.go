@@ -149,6 +149,21 @@ func (c *Cache) Read(file string) (string, bool, error) {
 	return string(data), true, nil
 }
 
+// Peek is Read without its output, for speculative reads that Composer
+// does not make (deliberate deviation 3): a failure reads as a miss.
+func (c *Cache) Peek(file string) (string, bool) {
+	if !c.IsEnabled() {
+		return "", false
+	}
+
+	data, err := os.ReadFile(c.root + c.key(file))
+	if err != nil {
+		return "", false
+	}
+
+	return string(data), true
+}
+
 // errPartialWrite carries file_put_contents' partial write warning.
 type errPartialWrite struct{ written, total int }
 

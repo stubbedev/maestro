@@ -192,39 +192,12 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 		bodyFile = f
 	}
 
-	options = options.Clone()
-	httpOptions := HTTPOptions(options)
-
-	headers := php.NewArray()
-
-	if h, ok := httpOptions.Get("header"); ok && h != nil {
-		if a, ok := h.(*php.Array); ok {
-			headers = php.ArrayDiff(a, php.ListOf("Connection: close"))
-		} else {
-			headers.Append(h)
-		}
-	}
-
-	headers.Append("Connection: keep-alive")
-	httpOptions.Set("header", headers)
-
-	proxy, err := GetProxyManager().ProxyForRequest(url)
+	req, proxy, options, err := c.buildTransfer(origin, url, options, attributes, bodyFile)
 	if err != nil {
 		closeFile(bodyFile)
 
 		return err
 	}
-
-	options = c.authHelper.addAuthenticationOptions(options, origin, url)
-
-	if options, err = initOptions(url, options, true, c.rt); err != nil {
-		closeFile(bodyFile)
-
-		return err
-	}
-
-	ssl, _ := arrayValue(options, "ssl").(*php.Array)
-	req := c.buildRequest(url, options, ssl, proxy, attributes, bodyFile)
 
 	job.url, job.origin, job.attributes, job.options, job.bodyFile = url, origin, attributes, originalOptions, bodyFile
 
@@ -250,11 +223,86 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	}
 
 	go func() {
-		result := c.pool.do(ctx, req)
+		result := c.pool.doOrTake(ctx, req)
 		post(curlEvent{id: job.id, job: job, result: result})
 	}()
 
 	return nil
+}
+
+// buildTransfer is initDownload's preparation of the request from the
+// options (Connection header, proxy, authentication, stream context): the
+// transfer, the proxy and the final options.
+func (c *CurlDownloader) buildTransfer(origin, url string, options *php.Array, attributes curlAttributes, bodyFile *os.File) (*transferRequest, *RequestProxy, *php.Array, error) {
+	options = options.Clone()
+	httpOptions := HTTPOptions(options)
+
+	headers := php.NewArray()
+
+	if h, ok := httpOptions.Get("header"); ok && h != nil {
+		if a, ok := h.(*php.Array); ok {
+			headers = php.ArrayDiff(a, php.ListOf("Connection: close"))
+		} else {
+			headers.Append(h)
+		}
+	}
+
+	headers.Append("Connection: keep-alive")
+	httpOptions.Set("header", headers)
+
+	proxy, err := GetProxyManager().ProxyForRequest(url)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	options = c.authHelper.addAuthenticationOptions(options, origin, url)
+
+	if options, err = initOptions(url, options, true, c.rt); err != nil {
+		return nil, nil, nil, err
+	}
+
+	ssl, _ := arrayValue(options, "ssl").(*php.Array)
+
+	return c.buildRequest(url, options, ssl, proxy, attributes, bodyFile), proxy, options, nil
+}
+
+// prefetch starts, without output, the transfer initDownload would make
+// for url and options (deliberate deviation 3): a later download of the
+// same request takes its result instead of waiting for the network
+// (transportPool.doOrTake). Requests whose preparation could print or
+// prompt (stored credentials, an insecure URL) or that a callback vets are
+// left alone. c.mu is held.
+func (c *CurlDownloader) prefetch(origin, url string, options *php.Array) {
+	if _, found := FindAuthOrigin(c.io, origin); found {
+		return
+	}
+	if _, ok := path(options, "prevent_url_access_callable"); ok {
+		return
+	}
+	if ssl, _ := arrayValue(options, "ssl").(*php.Array); !caChecked(ssl) {
+		return
+	}
+	if ok, _ := insecurePackagistRegex.IsMatch(url); !ok || (!strings.Contains(url, "$") && !strings.Contains(url, "%24")) {
+		if c.config.ProhibitURLByConfig(url, io.NewNullIO(), options) != nil {
+			return
+		}
+	}
+
+	attributes := curlAttributes{retryAuthFailure: true}
+	switch v, _ := util.GetEnv("COMPOSER_IPRESOLVE"); v {
+	case "4":
+		attributes.ipResolve = 4
+	case "6":
+		attributes.ipResolve = 6
+	}
+	if options.Has("retry-auth-failure") {
+		options = options.Clone()
+		options.Delete("retry-auth-failure")
+	}
+
+	if req, _, _, err := c.buildTransfer(origin, url, options, attributes, nil); err == nil {
+		c.pool.prefetch(req)
+	}
 }
 
 // buildRequest maps the request options onto the transfer the way

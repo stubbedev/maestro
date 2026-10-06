@@ -140,6 +140,8 @@ type transportPool struct {
 	transports map[transportKey]*http.Client
 	// pre are the connections opened ahead (Preconnect).
 	pre map[preKey]*preconn
+	// ahead are the transfers started ahead (prefetch.go).
+	ahead prefetches
 }
 
 func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (*http.Client, *transferResult) {

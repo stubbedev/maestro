@@ -236,6 +236,30 @@ func firstCertificateParses(contents []byte) bool {
 	}
 }
 
+// caChecked reports whether preparing a request with these ssl options
+// would only reuse CaBundle's process-wide results, logging nothing: the
+// cafile it names (or the system bundle, located already) was validated
+// before. Speculative requests (prefetch) are only prepared then.
+func caChecked(ssl *php.Array) bool {
+	caBundle.mu.Lock()
+	defer caBundle.mu.Unlock()
+
+	if cafile, ok := optionString(ssl, "cafile"); ok {
+		_, known := caBundle.validity[cafile]
+
+		return known
+	}
+	if _, ok := path(ssl, "capath"); ok {
+		return true
+	}
+	if !caBundle.found {
+		return false
+	}
+	_, known := caBundle.validity[caBundle.caPath]
+
+	return known || isDir(caBundle.caPath)
+}
+
 // ResetCaBundle is CaBundle::reset().
 func ResetCaBundle() {
 	caBundle.mu.Lock()
