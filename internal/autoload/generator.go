@@ -261,7 +261,7 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	g.addReleases(packageMap)
 	requests := make([]classmap.ScanRequest, 0, len(autoloads.Classmap))
 	for _, dir := range autoloads.Classmap {
-		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: buildExclusionRegex(dir, autoloads.ExcludeFromClassmap)})
+		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: d.exclusions.build(dir, autoloads.ExcludeFromClassmap)})
 	}
 	if scanPsrPackages {
 		for _, s := range d.psrScans(autoloads, autoloads.ExcludeFromClassmap) {
@@ -333,7 +333,7 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, scanPsrPackages, strictA
 			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue).
 				Called(`Composer\Autoload\AutoloadGenerator->buildExclusionRegex`, phperr.At("AutoloadGenerator.php", 488), "AutoloadGenerator.php", 329)
 		}
-		scans = append(scans, psrScan{dir, buildExclusionRegex(dir, excluded), classmap.Classmap, ""})
+		scans = append(scans, psrScan{dir, d.exclusions.build(dir, excluded), classmap.Classmap, ""})
 	}
 	if scanPsrPackages {
 		scans = append(scans, d.psrScans(autoloads, excluded)...)

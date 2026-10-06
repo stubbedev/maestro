@@ -43,6 +43,8 @@ type dump struct {
 	classPaths []pathRef
 	// files is what autoload_files.php returns, nil without one.
 	files *php.Array
+
+	exclusions exclusionRegexes
 }
 
 // namespacePaths is one entry of autoload_namespaces.php or
@@ -304,7 +306,7 @@ func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 					dirExcluded = append(slices.Clip(excluded), d.vendorPath+"/")
 				}
 
-				scans = append(scans, psrScan{dir, buildExclusionRegex(dir, dirExcluded), group.typ, namespace.String()})
+				scans = append(scans, psrScan{dir, d.exclusions.build(dir, dirExcluded), group.typ, namespace.String()})
 			}
 		}
 	}
