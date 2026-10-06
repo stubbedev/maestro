@@ -22,11 +22,13 @@ import (
 type Method int32
 
 const (
-	// Auto clones where the filesystem can, else copies, decided once per
-	// destination device.
+	// Auto clones where the filesystem can, else hardlinks, else copies,
+	// decided once per destination device (pnpm's auto).
 	Auto Method = iota
 	// Clone shares blocks copy-on-write (FICLONE, clonefile).
 	Clone
+	// Hardlink links the store's object.
+	Hardlink
 	// Copy writes the bytes out.
 	Copy
 )
@@ -35,6 +37,8 @@ func (m Method) String() string {
 	switch m {
 	case Clone:
 		return "clone"
+	case Hardlink:
+		return "hardlink"
 	case Copy:
 		return "copy"
 	case Auto:
@@ -47,21 +51,31 @@ func (m Method) String() string {
 // ParseMethod(os.Getenv(MethodEnv)).
 const MethodEnv = "MAESTRO_PACKAGE_IMPORT_METHOD"
 
-// ParseMethod reads an import method name: auto (or empty), clone or copy.
-// There is no hardlink method: a package file sharing its inode with the
-// store would carry one project's in-place edits into every other project
-// (see the package documentation).
+// ParseMethod reads an import method name: auto (or empty), clone,
+// hardlink or copy.
 func ParseMethod(s string) (Method, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "auto":
 		return Auto, nil
 	case "clone":
 		return Clone, nil
+	case "hardlink":
+		return Hardlink, nil
 	case "copy":
 		return Copy, nil
 	}
 
-	return Auto, fmt.Errorf("invalid %s %q (expected auto, clone or copy)", MethodEnv, s)
+	return Auto, fmt.Errorf("invalid %s %q (expected auto, clone, hardlink or copy)", MethodEnv, s)
+}
+
+// ImportOptions adjust one import (Materialize, Install). The zero value
+// imports with the store's method.
+type ImportOptions struct {
+	// Unshared imports every file as an inode of its own, by clone or
+	// copy, never by hardlink, whatever the method: for packages that
+	// rewrite their own files in place (Composer plugins), whose edits
+	// would otherwise reach the store and every project linked to it.
+	Unshared bool
 }
 
 // Options configure a Store. The zero value is ready to use.
@@ -299,7 +313,7 @@ func (s *Store) Ensure(d Dist, path string) (*Release, error) {
 // dist, else (or when objects have gone missing) from the archive at path,
 // which may be empty when the caller has none (ErrNotFound or a
 // *MissingError then tells it to fetch the archive).
-func (s *Store) Install(d Dist, path, dst string) error {
+func (s *Store) Install(d Dist, path, dst string, opts ImportOptions) error {
 	r, err := s.Lookup(d)
 	if errors.Is(err, ErrNotFound) && path != "" {
 		r, err = s.Insert(d, path)
@@ -309,12 +323,12 @@ func (s *Store) Install(d Dist, path, dst string) error {
 		return err
 	}
 
-	err = s.Materialize(r, dst)
+	err = s.Materialize(r, dst, opts)
 
 	var missing *MissingError
 	if errors.As(err, &missing) && path != "" {
 		if r, err = s.Insert(d, path); err == nil {
-			err = s.Materialize(r, dst)
+			err = s.Materialize(r, dst, opts)
 		}
 	}
 

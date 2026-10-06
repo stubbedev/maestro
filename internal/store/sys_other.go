@@ -25,7 +25,8 @@ func fstat(f *os.File) (fileStat, error) {
 	return statInfo(info), nil
 }
 
-// statInfo is the portable subset: no link count, device or ctime (pruning
+// statInfo is the portable subset: no link count, device or ctime (Stats
+// counts no hardlinks, every destination counts as one device, pruning
 // keys on the modification time).
 func statInfo(info fs.FileInfo) fileStat {
 	return fileStat{

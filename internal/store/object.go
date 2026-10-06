@@ -54,10 +54,12 @@ func (s *Store) objectPath(sum *[32]byte, perm fs.FileMode) string {
 }
 
 // stamp is what an intact object's stat shows: a regular file of the
-// indexed size with the object's mode, a modification time derived from
-// its hash, and no other name (an object linked into a package directory
-// by an earlier maestro, or by anyone else, could be written through that
-// link).
+// indexed size with the object's mode and a modification time derived from
+// its hash, to the second (nanoseconds zero). The link count is not part of
+// it: objects are hard-linked into package directories, and every write
+// through any of their names sets the modification time to the time of the
+// write, which no stamp lies near. The change time cannot serve either:
+// every new or removed link moves it.
 type stamp struct {
 	size  int64
 	mtime int64
@@ -70,7 +72,7 @@ func stampOf(size int64, perm fs.FileMode, sum *[32]byte) stamp {
 
 // check fails with errStale unless st is the object as the store wrote it.
 func (w stamp) check(st fileStat) error {
-	if !st.regular || st.nlink != 1 || st.size != w.size || st.mode != w.perm || st.mtime != w.mtime || st.mtimeNs != 0 {
+	if !st.regular || st.size != w.size || st.mode != w.perm || st.mtime != w.mtime || st.mtimeNs != 0 {
 		return errStale
 	}
 
@@ -200,8 +202,9 @@ func (s *Store) putObjectStream(r io.Reader, size int64, perm fs.FileMode, h has
 // that still hashes right, else from another mode's object of the same
 // content. The content is hashed as it is copied into a new file, so
 // nothing written to the old one meanwhile can get in; the new object
-// replaces the old name (any other names of the old inode keep it). It
-// fails with *MissingError when no intact content is left.
+// replaces the old name, and package files hard-linked to the old inode
+// keep it (with whatever was written through them). It fails with
+// *MissingError when no intact content is left.
 func (s *Store) heal(e *Entry, perm fs.FileMode) error {
 	path := s.objectPath(&e.Hash, perm)
 

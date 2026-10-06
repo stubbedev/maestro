@@ -43,7 +43,7 @@ func benchPackage(b *testing.B, dir string) (string, int64) {
 
 // BenchmarkImport materializes a 3,000-file package from a warm store.
 func BenchmarkImport(b *testing.B) {
-	for _, m := range []Method{Clone, Copy} {
+	for _, m := range []Method{Clone, Hardlink, Copy} {
 		b.Run(m.String(), func(b *testing.B) {
 			work := benchDir(b)
 			zip, total := benchPackage(b, work)
@@ -55,7 +55,7 @@ func BenchmarkImport(b *testing.B) {
 				b.Fatal(err)
 			}
 
-			if err := s.Materialize(r, filepath.Join(work, "probe")); err != nil {
+			if err := s.Materialize(r, filepath.Join(work, "probe"), ImportOptions{}); err != nil {
 				b.Skipf("%v unavailable here: %v", m, err)
 			}
 
@@ -65,7 +65,7 @@ func BenchmarkImport(b *testing.B) {
 			n := 0
 			for b.Loop() {
 				n++
-				if err := s.Materialize(r, filepath.Join(work, fmt.Sprint("dst", n))); err != nil {
+				if err := s.Materialize(r, filepath.Join(work, fmt.Sprint("dst", n)), ImportOptions{}); err != nil {
 					b.Fatal(err)
 				}
 			}

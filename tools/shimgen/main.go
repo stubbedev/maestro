@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/classmap"
@@ -204,8 +205,9 @@ func renderStub(name string, c *shimbuild.Class) string {
 		sections = append(sections, s.String())
 	}
 
+	remote := remoteMethods(name, c)
 	for _, k := range c.Methods.Keys {
-		sections = append(sections, renderMethod(name, k, c.Methods.Values[k], c.Kind == "interface"))
+		sections = append(sections, renderMethod(name, k, c.Methods.Values[k], c.Kind == "interface", remote[k]))
 	}
 
 	b.WriteString(strings.Join(sections, "\n"))
@@ -214,7 +216,44 @@ func renderStub(name string, c *shimbuild.Class) string {
 	return b.String()
 }
 
-func renderMethod(class, name string, m *shimbuild.Method, inInterface bool) string {
+// repositoryMethods are the RepositoryInterface methods maestro serves
+// for its own repositories (repo.*, internal/plugin/svc_repo.go).
+var repositoryMethods = []string{"count", "findPackage", "findPackages", "getPackages", "getProviders", "getRepoName", "hasPackage", "loadPackages", "search"}
+
+// transactionMethods are the Transaction methods maestro serves for its own
+// transactions (transaction.*, internal/plugin/svc_resolverevents.go).
+var transactionMethods = []string{"getOperations"}
+
+// remoteMethods are the methods of a stub class whose instances may be
+// maestro's (a remote repository or a transaction maestro hands to PHP):
+// name => the RPC method serving them on such an instance.
+func remoteMethods(class string, c *shimbuild.Class) map[string]string {
+	out := map[string]string{}
+	if c.Kind != "class" {
+		return out
+	}
+	if class == `Composer\DependencyResolver\Transaction` {
+		for _, name := range transactionMethods {
+			if _, ok := c.Methods.Values[name]; ok {
+				out[name] = "transaction." + name
+			}
+		}
+
+		return out
+	}
+	if !slices.Contains(c.Interfaces, `Composer\Repository\RepositoryInterface`) {
+		return out
+	}
+	for _, name := range repositoryMethods {
+		if m, ok := c.Methods.Values[name]; ok && !m.Static && !m.Abstract && m.Visibility == "public" {
+			out[name] = "repo." + name
+		}
+	}
+
+	return out
+}
+
+func renderMethod(class, name string, m *shimbuild.Method, inInterface bool, remote string) string {
 	var b strings.Builder
 
 	for _, a := range m.Attributes {
@@ -269,7 +308,22 @@ func renderMethod(class, name string, m *shimbuild.Method, inInterface bool) str
 		return b.String()
 	}
 
-	b.WriteString("\n    {\n        throw new \\Maestro\\Shim\\UnsupportedApiException(" + php.VarExport("maestro does not support "+class+"::"+name+"() in plugins yet") + ");\n    }\n")
+	b.WriteString("\n    {\n")
+	if remote != "" {
+		params := []string{"$this"}
+		for _, p := range m.Params {
+			params = append(params, "$"+p.Name)
+		}
+		call := "\\Maestro\\Shim\\Rpc::call(" + php.VarExport(remote) + ", [" + strings.Join(params, ", ") + "])"
+		b.WriteString("        if (\\Maestro\\Shim\\Remote::owned($this)) {\n")
+		if m.ReturnType != nil && *m.ReturnType == "void" {
+			b.WriteString("            " + call + ";\n\n            return;\n")
+		} else {
+			b.WriteString("            return " + call + ";\n")
+		}
+		b.WriteString("        }\n\n")
+	}
+	b.WriteString("        throw new \\Maestro\\Shim\\UnsupportedApiException(" + php.VarExport("maestro does not support "+class+"::"+name+"() in plugins yet") + ");\n    }\n")
 
 	return b.String()
 }

@@ -18,7 +18,7 @@ import (
 var errUnsupported = errors.New("reflinks unsupported")
 
 // device is the import method chosen for one destination device. Under
-// Auto it only ever moves down, from clone to copy.
+// Auto it only ever moves down: clone, hardlink, copy.
 type device struct {
 	method atomic.Int32
 }
@@ -55,7 +55,7 @@ func (s *Store) device(dev uint64) *device {
 // exist or be an empty directory. Objects that went missing or were
 // modified are healed from intact copies; when none is left it fails with
 // *MissingError and the release must be inserted again.
-func (s *Store) Materialize(r *Release, dst string) error {
+func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 	unlock, err := s.lock(false)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (s *Store) Materialize(r *Release, dst string) error {
 		return err
 	}
 
-	if err := s.build(r.entries, tmp); err != nil {
+	if err := s.build(r.entries, tmp, opts.Unshared); err != nil {
 		_ = removeTree(tmp)
 		return err
 	}
@@ -89,8 +89,9 @@ type dirFix struct {
 	mode fs.FileMode
 }
 
-// build fills the fresh directory tmp with the release's tree.
-func (s *Store) build(entries []Entry, tmp string) error {
+// build fills the fresh directory tmp with the release's tree, never
+// hardlinking a file when unshared is set.
+func (s *Store) build(entries []Entry, tmp string, unshared bool) error {
 	st, err := lstat(tmp)
 	if err != nil {
 		return err
@@ -140,7 +141,7 @@ func (s *Store) build(entries []Entry, tmp string) error {
 		}
 	}
 
-	if err := s.importFiles(dev, entries, files, base); err != nil {
+	if err := s.importFiles(dev, entries, files, base, unshared); err != nil {
 		return err
 	}
 
@@ -170,10 +171,10 @@ func (s *Store) mkdir(path string, mode fs.FileMode) (fs.FileMode, error) {
 }
 
 // importFiles imports the files, in parallel for larger packages.
-func (s *Store) importFiles(dev *device, entries []Entry, files []int, base string) error {
+func (s *Store) importFiles(dev *device, entries []Entry, files []int, base string, unshared bool) error {
 	one := func(i int) error {
 		e := &entries[i]
-		return s.importFile(dev, e, base+filepath.FromSlash(e.Path))
+		return s.importFile(dev, e, base+filepath.FromSlash(e.Path), unshared)
 	}
 
 	workers := min(s.workers, (len(files)+63)/64)
@@ -217,15 +218,18 @@ func (s *Store) importFiles(dev *device, entries []Entry, files []int, base stri
 }
 
 // importFile creates dst from e's object, healing the object once if it
-// is missing or no longer matches its stamp.
-func (s *Store) importFile(dev *device, e *Entry, dst string) error {
+// is missing or no longer matches its stamp. An object that still fails
+// after healing (rewritten again meanwhile) is reported missing, so that
+// the caller inserts the release again.
+func (s *Store) importFile(dev *device, e *Entry, dst string, unshared bool) error {
 	perm := e.Perm(s.umask)
 	objPerm := objectPerm(perm)
 	obj := s.objectPath(&e.Hash, objPerm)
 	want := stampOf(e.Size, objPerm, &e.Hash)
+	linkable := objPerm == perm && !unshared
 
-	err := s.importObject(dev, obj, dst, perm, want)
-	if !errors.Is(err, errStale) && !errors.Is(err, fs.ErrNotExist) {
+	err := s.importObject(dev, obj, dst, perm, linkable, want)
+	if !stale(err) {
 		return err
 	}
 
@@ -233,31 +237,83 @@ func (s *Store) importFile(dev *device, e *Entry, dst string) error {
 		return herr
 	}
 
-	return s.importObject(dev, obj, dst, perm, want)
+	if err := s.importObject(dev, obj, dst, perm, linkable, want); !stale(err) {
+		return err
+	}
+
+	return &MissingError{Path: obj}
+}
+
+// stale reports an object that failed its stamp check or is gone.
+func stale(err error) bool {
+	return errors.Is(err, errStale) || errors.Is(err, fs.ErrNotExist)
 }
 
 // importObject creates dst with permission bits perm from the object obj
-// with the device's method, moving the device down to copying when the
-// filesystem cannot clone (under Auto).
-func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, want stamp) error {
-	if dev.get() == Clone {
-		err := cloneObject(obj, dst, perm, s.umask, want)
-		if !errors.Is(err, errUnsupported) {
-			return err
-		}
+// with the device's method, moving the device down to the next method when
+// the filesystem refuses one (under Auto). linkable says a hardlink may be
+// used: it carries the right mode and the package allows sharing; else a
+// device that hardlinks copies.
+func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, linkable bool, want stamp) error {
+	for {
+		switch m := dev.get(); {
+		case m == Clone:
+			err := cloneObject(obj, dst, perm, s.umask, want)
+			if !errors.Is(err, errUnsupported) {
+				return err
+			}
 
-		if s.method != Auto {
-			return fmt.Errorf("store: cannot clone %s: the filesystem does not support reflinks", dst)
-		}
+			if s.method != Auto {
+				return fmt.Errorf("store: cannot clone %s: the filesystem does not support reflinks", dst)
+			}
 
-		dev.demote(Clone, Copy)
+			dev.demote(Clone, Hardlink)
+		case m == Hardlink && linkable:
+			err := linkObject(obj, dst, want)
+
+			switch {
+			case err == nil, stale(err):
+				return err
+			case linkLimit(err):
+				// This object has as many links as the filesystem allows.
+				return s.copyObject(obj, dst, perm, want)
+			case !linkUnsupported(err):
+				return err
+			case s.method != Auto:
+				return fmt.Errorf("store: cannot hardlink %s: %w", dst, err)
+			}
+
+			dev.demote(Hardlink, Copy)
+		default:
+			return s.copyObject(obj, dst, perm, want)
+		}
+	}
+}
+
+// linkObject creates dst as a hardlink to the object obj and checks the
+// inode it got against the object's stamp (one lstat, after the link, so
+// that no content written before the link completed passes).
+func linkObject(obj, dst string, want stamp) error {
+	if err := os.Link(obj, dst); err != nil {
+		return err
 	}
 
-	return s.copyObject(obj, dst, perm, want)
+	st, err := lstat(dst)
+	if err == nil {
+		err = want.check(st)
+	}
+
+	if err != nil {
+		_ = os.Remove(dst)
+	}
+
+	return err
 }
 
 // copyObject creates dst as a copy of the object obj (copy_file_range
-// where available).
+// where available). The object is checked against its stamp before and
+// after the copy: an object can be written in place through a package
+// file hard-linked to it, and any write moves its modification time.
 func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error {
 	in, err := os.Open(obj)
 	if err != nil {
@@ -266,12 +322,7 @@ func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error 
 
 	defer func() { _ = in.Close() }()
 
-	st, err := fstat(in)
-	if err != nil {
-		return err
-	}
-
-	if err := want.check(st); err != nil {
+	if err := checkOpen(in, want); err != nil {
 		return err
 	}
 
@@ -289,7 +340,25 @@ func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error 
 		err = cerr
 	}
 
+	if err == nil {
+		err = checkOpen(in, want)
+	}
+
+	if err != nil {
+		_ = os.Remove(dst)
+	}
+
 	return err
+}
+
+// checkOpen checks an open object against its stamp.
+func checkOpen(f *os.File, want stamp) error {
+	st, err := fstat(f)
+	if err != nil {
+		return err
+	}
+
+	return want.check(st)
 }
 
 // removeTree removes path even where it holds directories without write or

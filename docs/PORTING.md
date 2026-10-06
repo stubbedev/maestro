@@ -29,14 +29,22 @@ deviations listed below.
 
 1. **Package store, pnpm style.** Dist archives are extracted once into a
    per-file content-addressed store (`internal/store`) shared by every project
-   and git worktree on the machine. Files are imported into `vendor/` by
-   reflink clone where the filesystem can, else by copy; never by hardlink,
-   so a vendor file edited in place never changes the store or another
-   project. The dist archives stay in Composer's files cache exactly as
-   Composer keeps them, which decides "Loading from cache" vs "Downloading"
-   and heals the store. File contents, modes, symlinks and directory layout
-   match what Composer + `unzip` would produce; file mtimes are not
-   preserved.
+   and git worktree on the machine. Files are imported into `vendor/` as
+   pnpm's `auto` does: reflink clone where the filesystem can, else
+   hardlink, else copy (`MAESTRO_PACKAGE_IMPORT_METHOD=clone|hardlink|copy`
+   forces one method). Composer plugins (`composer-plugin`,
+   `composer-installer`) are never hard-linked, since plugins rewrite their
+   own files in place. Accepted risk, as with pnpm: a tool that writes in
+   place into a hard-linked vendor file changes that file in every project
+   linked to it until their next install of the release; the store notices
+   before importing it again (size, mode and a hash-derived modification
+   time are checked on every import) and heals itself, so the edit never
+   reaches a later install. The dist archives stay in Composer's files
+   cache exactly as Composer keeps them, which decides "Loading from cache"
+   vs "Downloading" and heals the store. File contents, modes, symlinks and
+   directory layout match what Composer + `unzip` would produce; file
+   mtimes are not preserved. internal/store's documentation states the
+   exact guarantees.
 2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go,
    reproducing exactly what Composer's preferred path (system `unzip -qq`,
    `tar`) produces on Unix.

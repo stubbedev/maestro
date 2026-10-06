@@ -34,6 +34,12 @@
 //     temporary store beside vendor/, and materializes the package into
 //     the staging directory.
 //
+// Packages are materialized with the store's import method (pnpm's auto:
+// reflink, else hardlink, else copy), except Composer plugins
+// (composer-plugin, composer-installer), whose files are never hard-linked:
+// plugins rewrite their own files in place (internal/store's documentation
+// says why and what the store guarantees about hard-linked files).
+//
 // Install then empties the target and renames the staging directory onto
 // it (or merges it in, as ArchiveDownloader does when the target is not
 // empty). Extraction failures are reported by Install, after its

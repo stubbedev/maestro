@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
@@ -780,7 +779,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 				}
 				if writeReleaseDate {
 					if releaseDate, ok := p.ReleaseDate(); ok {
-						age := strings.ReplaceAll(getRelativeTime(releaseDate), " ago", " old")
+						age := strings.ReplaceAll(c.getRelativeTime(releaseDate), " ago", " old")
 						if !strings.Contains(age, " old") {
 							age = "from " + age
 						}
@@ -1312,7 +1311,7 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 		return err
 	}
 	if releaseDate, ok := p.ReleaseDate(); isInstalledPackage && ok {
-		io.Write("<info>released</info> : "+releaseDate.Format("2006-01-02")+", "+getRelativeTime(releaseDate), true, mio.Normal)
+		io.Write("<info>released</info> : "+releaseDate.Format("2006-01-02")+", "+c.getRelativeTime(releaseDate), true, mio.Normal)
 	}
 	if latestPackage != nil {
 		style, err := getVersionStyle(latestPackage, p)
@@ -1321,7 +1320,7 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 		}
 		releasedTime := ""
 		if releaseDate, ok := latestPackage.ReleaseDate(); ok {
-			releasedTime = " released " + releaseDate.Format("2006-01-02") + ", " + getRelativeTime(releaseDate)
+			releasedTime = " released " + releaseDate.Format("2006-01-02") + ", " + c.getRelativeTime(releaseDate)
 		}
 		io.Write("<info>latest</info>   : <"+style+">"+latestPackage.PrettyVersion()+"</"+style+">"+releasedTime, true, mio.Normal)
 	} else {
@@ -2070,74 +2069,4 @@ func (c *ShowCommand) getRepositorySet(comp *composer.Composer) (*repository.Rep
 	}
 
 	return c.repositorySet, nil
-}
-
-// getRelativeTime ports ShowCommand::getRelativeTime.
-func getRelativeTime(releaseDate time.Time) string {
-	return relativeTime(releaseDate, time.Now())
-}
-
-func relativeTime(releaseDate, now time.Time) string {
-	if releaseDate.Format("20060102") == now.In(time.UTC).Format("20060102") {
-		return "today"
-	}
-
-	y, m, days := dateDiff(releaseDate, now)
-	if days < 7 {
-		return "this week"
-	}
-
-	if days < 14 {
-		return "last week"
-	}
-
-	if m < 1 && days < 31 {
-		return strconv.Itoa(days/7) + " weeks ago"
-	}
-
-	if y < 1 {
-		s := ""
-		if m > 1 {
-			s = "s"
-		}
-
-		return strconv.Itoa(m) + " month" + s + " ago"
-	}
-
-	s := ""
-	if y > 1 {
-		s = "s"
-	}
-
-	return strconv.Itoa(y) + " year" + s + " ago"
-}
-
-// dateDiff is the y, m and days fields of DateTime::diff (both moments are
-// compared in UTC).
-func dateDiff(a, b time.Time) (y, m, days int) {
-	a, b = a.UTC(), b.UTC()
-	if a.After(b) {
-		a, b = b, a
-	}
-	days = int(b.Sub(a) / (24 * time.Hour))
-
-	y = b.Year() - a.Year()
-	m = int(b.Month()) - int(a.Month())
-	d := b.Day() - a.Day()
-	if clock(b) < clock(a) {
-		d--
-	}
-	if d < 0 {
-		m--
-	}
-	if m < 0 {
-		y--
-		m += 12
-	}
-
-	return y, m, days
-}
-
-func clock(t time.Time) time.Duration {
-	return time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute + time.Duration(t.Second())*time.Second + time.Duration(t.Nanosecond())
 }

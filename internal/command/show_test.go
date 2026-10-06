@@ -9,9 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/repository"
 )
 
@@ -98,51 +100,84 @@ outdated/minor 1.0.0 <highlight>! 1.0.1</highlight>
 outdated/patch 1.0.0 <highlight>! 1.0.1</highlight>`, nil},
 	}
 
+	// The release ages are computed in PHP's default time zone, as
+	// Composer's are (its test creates the dates with new
+	// DateTimeImmutable() in that zone).
+	var snap *platform.Snapshot
+	if view, _, err := commandtest.Runtime().ComposerView(); err == nil {
+		snap = view
+	}
+
+	loc := command.PHPDefaultTimezone(snap)
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			commandtest.InitTempComposer(t, php.ArrayOf(
-				"name", "root/pkg",
-				"version", "1.2.3",
-				"repositories", gbPackageRepo(
-					gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "v1.0.0"),
+			// A run that straddles midnight in that zone sees "today" turn
+			// into "this week"; it is repeated once.
+			for attempt := 0; ; attempt++ {
+				now := time.Now().In(loc)
+				got := runShowCase(t, tc.requires, tc.command, now)
 
-					gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.0.0 description", "version", "v1.0.0"),
-					gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.0.1 description", "version", "v1.0.1"),
-					gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.1.0 description", "version", "v1.1.0"),
-					gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.1.1 description", "version", "v1.1.1"),
-					gbRepoPackage("name", "outdated/major", "description", "outdated/major v2.0.0 description", "version", "v2.0.0"),
+				if attempt == 0 && now.Format("20060102") != time.Now().In(loc).Format("20060102") {
+					continue
+				}
 
-					gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.0.0 description", "version", "1.0.0"),
-					gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.0.1 description", "version", "1.0.1"),
-					gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.1.0 description", "version", "1.1.0"),
-					gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.1.1 description", "version", "1.1.1"),
+				gbAssertSame(t, php.Trim(tc.expected), got)
 
-					gbRepoPackage("name", "outdated/patch", "description", "outdated/patch v1.0.0 description", "version", "1.0.0"),
-					gbRepoPackage("name", "outdated/patch", "description", "outdated/patch v1.0.1 description", "version", "1.0.1"),
-				),
-				"require", gbRequireMap(tc.requires...),
-			), nil, nil, true)
-
-			now := time.Now()
-			p := commandtest.GetPackage(t, "vendor/package", "v1.0.0")
-			p.SetDescription(pkg.Str("description of installed package"))
-			major := commandtest.GetPackage(t, "outdated/major", "v1.0.0")
-			major.SetReleaseDate(now, true)
-			minor := commandtest.GetPackage(t, "outdated/minor", "1.0.0")
-			minor.SetReleaseDate(now.AddDate(-2, 0, 0), true)
-			patch := commandtest.GetPackage(t, "outdated/patch", "1.0.0")
-			patch.SetReleaseDate(now.AddDate(0, 0, -14), true)
-
-			commandtest.CreateInstalledJSON(t, gbPkgs(p, major, minor, patch), nil, true)
-
-			locked := commandtest.GetPackage(t, "vendor/locked", "3.0.0")
-			locked.SetDescription(pkg.Str("description of locked package"))
-			commandtest.CreateComposerLock(t, gbPkgs(locked), nil)
-
-			appTester := gbRun(t, gbMerge(gbParams("command", "show"), tc.command, true))
-			gbAssertSame(t, php.Trim(tc.expected), gbTrim(appTester))
+				break
+			}
 		})
 	}
+}
+
+// runShowCase is one TestShowCommand_Show case at the moment now: the
+// project, then `show` with the case's options.
+func runShowCase(t *testing.T, requires []string, cmd gbKV, now time.Time) string {
+	t.Helper()
+
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"name", "root/pkg",
+		"version", "1.2.3",
+		"repositories", gbPackageRepo(
+			gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "v1.0.0"),
+
+			gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.0.0 description", "version", "v1.0.0"),
+			gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.0.1 description", "version", "v1.0.1"),
+			gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.1.0 description", "version", "v1.1.0"),
+			gbRepoPackage("name", "outdated/major", "description", "outdated/major v1.1.1 description", "version", "v1.1.1"),
+			gbRepoPackage("name", "outdated/major", "description", "outdated/major v2.0.0 description", "version", "v2.0.0"),
+
+			gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.0.0 description", "version", "1.0.0"),
+			gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.0.1 description", "version", "1.0.1"),
+			gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.1.0 description", "version", "1.1.0"),
+			gbRepoPackage("name", "outdated/minor", "description", "outdated/minor v1.1.1 description", "version", "1.1.1"),
+
+			gbRepoPackage("name", "outdated/patch", "description", "outdated/patch v1.0.0 description", "version", "1.0.0"),
+			gbRepoPackage("name", "outdated/patch", "description", "outdated/patch v1.0.1 description", "version", "1.0.1"),
+		),
+		"require", gbRequireMap(requires...),
+	), nil, nil, true)
+
+	p := commandtest.GetPackage(t, "vendor/package", "v1.0.0")
+	p.SetDescription(pkg.Str("description of installed package"))
+	major := commandtest.GetPackage(t, "outdated/major", "v1.0.0")
+	major.SetReleaseDate(now, true)
+	minor := commandtest.GetPackage(t, "outdated/minor", "1.0.0")
+	minor.SetReleaseDate(now.AddDate(-2, 0, 0), true)
+	patch := commandtest.GetPackage(t, "outdated/patch", "1.0.0")
+	// 14 days of 24 hours: AddDate would make it 13 days and 23
+	// hours across a DST change ("last week").
+	patch.SetReleaseDate(now.Add(-14*24*time.Hour), true)
+
+	commandtest.CreateInstalledJSON(t, gbPkgs(p, major, minor, patch), nil, true)
+
+	locked := commandtest.GetPackage(t, "vendor/locked", "3.0.0")
+	locked.SetDescription(pkg.Str("description of locked package"))
+	commandtest.CreateComposerLock(t, gbPkgs(locked), nil)
+
+	appTester := gbRun(t, gbMerge(gbParams("command", "show"), cmd, true))
+
+	return gbTrim(appTester)
 }
 
 func TestShowCommand_OutdatedFiltersAccordingToPlatformReqsAndWarns(t *testing.T) {

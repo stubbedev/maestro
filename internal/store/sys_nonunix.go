@@ -21,3 +21,12 @@ func lockFile(*os.File, bool) error {
 func processUmask() fs.FileMode {
 	return 0
 }
+
+func linkLimit(error) bool {
+	return false
+}
+
+// linkUnsupported treats every hardlink failure as the filesystem's.
+func linkUnsupported(error) bool {
+	return true
+}

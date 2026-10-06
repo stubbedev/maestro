@@ -18,7 +18,7 @@ import (
 
 // methods are the import methods the differential tests run with; Auto
 // also covers reflinks where the test directory supports them.
-var methods = []Method{Auto, Copy}
+var methods = []Method{Auto, Hardlink, Copy}
 
 // distCase is one archive the store differential tests install.
 type distCase struct {
@@ -61,7 +61,7 @@ func runStoreDifferential(t *testing.T, what string, cases []distCase) {
 
 				var got archivetest.Tree
 
-				err := s.Install(dc.dist, dc.path, dst)
+				err := s.Install(dc.dist, dc.path, dst, ImportOptions{})
 				if err == nil {
 					got = snapshot(t, dst)
 				}

@@ -427,7 +427,7 @@ func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullStri
 	materialized := util.GoBackground(d.process.Scheduler(), func() (string, error) {
 		defer func() { _ = cached.Close() }()
 
-		err := d.store.Materialize(rel, s.dir)
+		err := d.store.Materialize(rel, s.dir, importOptions(p))
 		if _, ok := errors.AsType[*store.MissingError](err); !ok {
 			return "", err
 		}
@@ -562,7 +562,19 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 		}
 	}
 
-	return s.Install(storeDist(p), fileName, dir)
+	return s.Install(storeDist(p), fileName, dir, importOptions(p))
+}
+
+// importOptions is how p's files come from the store. Composer plugins
+// (PluginInstaller's types) get files of their own, never hardlinks:
+// plugins such as phpstan/extension-installer and
+// infection/extension-installer rewrite their own files in place, which
+// through a hardlink would change the store's object and every other
+// project's copy of the plugin.
+func importOptions(p pkg.PackageInterface) store.ImportOptions {
+	t := p.Type()
+
+	return store.ImportOptions{Unshared: t == "composer-plugin" || t == "composer-installer"}
 }
 
 // isCwd is realpath($path) === Platform::getCwd().

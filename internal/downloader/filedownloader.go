@@ -617,7 +617,7 @@ func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*
 			continue
 		}
 
-		_ = os.Chmod(binPath, 0o777&^d.umask)
+		_ = store.Chmod(binPath, 0o777&^d.umask)
 	}
 
 	return resolved(""), nil

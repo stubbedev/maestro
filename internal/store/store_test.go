@@ -42,7 +42,7 @@ func helper() int {
 	if err == nil {
 		var s *Store
 		if s, err = Open("store", nil); err == nil {
-			err = s.Install(Dist{Name: "a/b", Type: "zip", URL: url}, "dist.zip", "pkg")
+			err = s.Install(Dist{Name: "a/b", Type: "zip", URL: url}, "dist.zip", "pkg", ImportOptions{})
 		}
 	}
 
@@ -134,19 +134,19 @@ func sample() []byte {
 }
 
 func TestParseMethod(t *testing.T) {
-	for in, want := range map[string]Method{"": Auto, "auto": Auto, " Clone ": Clone, "COPY": Copy} {
+	for in, want := range map[string]Method{"": Auto, "auto": Auto, " Clone ": Clone, "hardlink": Hardlink, "COPY": Copy} {
 		if got, err := ParseMethod(in); err != nil || got != want {
 			t.Errorf("ParseMethod(%q) = %v, %v; want %v", in, got, err, want)
 		}
 	}
 
-	for _, in := range []string{"symlink", "hardlink"} {
+	for _, in := range []string{"symlink", "link", "reflink"} {
 		if _, err := ParseMethod(in); err == nil || !strings.Contains(err.Error(), MethodEnv) {
 			t.Errorf("%s: expected an error naming %s, got %v", in, MethodEnv, err)
 		}
 	}
 
-	for _, m := range []Method{Auto, Clone, Copy} {
+	for _, m := range []Method{Auto, Clone, Hardlink, Copy} {
 		if got, _ := ParseMethod(m.String()); got != m {
 			t.Errorf("%v does not round-trip", m)
 		}
@@ -244,8 +244,8 @@ func TestObjectNames(t *testing.T) {
 	}
 }
 
-// TestInstall imports a package with every method and checks the tree and
-// that no package file shares its inode with the store.
+// TestInstall imports a package with every method and checks the tree,
+// the hardlinks and the stats.
 func TestInstall(t *testing.T) {
 	setUmask(t, 0o022)
 
@@ -255,7 +255,7 @@ func TestInstall(t *testing.T) {
 	zip := writeFile(t, work, "dist.zip", sample())
 	want := archivetest.Unzip(t, "unzip", zip, 0o022, "C.UTF-8")
 
-	for _, m := range []Method{Auto, Copy} {
+	for _, m := range []Method{Auto, Hardlink, Copy} {
 		t.Run(m.String(), func(t *testing.T) {
 			s := openStore(t, filepath.Join(work, "store-"+m.String()), m)
 			d := Dist{Name: "a/b", Type: "zip", URL: "https://example.org/b.zip", Reference: "abc"}
@@ -265,7 +265,7 @@ func TestInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, zip, dst); err != nil {
+			if err := s.Install(d, zip, dst, ImportOptions{}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -273,10 +273,25 @@ func TestInstall(t *testing.T) {
 				t.Fatalf("tree differs:\n%s", archivetest.Short(diff))
 			}
 
+			st, err := lstat(filepath.Join(dst, "src", "A.php"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			linked := s.device(st.dev).get() == Hardlink
+			if m == Auto && !linked && s.device(st.dev).get() != Clone {
+				t.Errorf("auto settled on %v on a filesystem with hardlinks", s.device(st.dev).get())
+			}
+
 			for _, name := range []string{"composer.json", "bin/tool", "src/A.php", "src/B.php", "ro/f", "zero"} {
-				if st, err := lstat(filepath.Join(dst, name)); err != nil || st.nlink != 1 {
-					t.Errorf("%s: %d links, %v", name, st.nlink, err)
+				if st, err := lstat(filepath.Join(dst, name)); err != nil || linked != (st.nlink > 1) {
+					t.Errorf("%s: method %v but %d links, %v", name, s.device(st.dev).get(), st.nlink, err)
 				}
+			}
+
+			if m == Hardlink && st.nlink != 3 {
+				// The object, src/A.php and src/B.php share one inode.
+				t.Errorf("expected 3 links, got %d", st.nlink)
 			}
 
 			// A second worktree needs neither the archive nor the network.
@@ -285,7 +300,7 @@ func TestInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, "", dst2); err != nil {
+			if err := s.Install(d, "", dst2, ImportOptions{}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -293,7 +308,7 @@ func TestInstall(t *testing.T) {
 				t.Fatalf("warm tree differs:\n%s", archivetest.Short(diff))
 			}
 
-			if err := s.Install(Dist{Name: "x/y", Type: "zip"}, "", filepath.Join(work, "nope")); !errors.Is(err, ErrNotFound) {
+			if err := s.Install(Dist{Name: "x/y", Type: "zip"}, "", filepath.Join(work, "nope"), ImportOptions{}); !errors.Is(err, ErrNotFound) {
 				t.Errorf("expected ErrNotFound for an unknown dist, got %v", err)
 			}
 
@@ -304,6 +319,14 @@ func TestInstall(t *testing.T) {
 
 			if stats.Releases != 1 || stats.Objects != 5 || stats.ReleaseBytes <= stats.ObjectBytes {
 				t.Errorf("unexpected stats %+v", stats)
+			}
+
+			if linked != (stats.LinkedBytes > 0) {
+				t.Errorf("linked %v but stats %+v", linked, stats)
+			}
+
+			if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Restamped != 0 || res.Missing != 0 {
+				t.Errorf("linked objects failed verification: %+v %v", res, err)
 			}
 		})
 	}
@@ -316,7 +339,7 @@ func TestCloneMethod(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Clone)
 	zip := writeFile(t, work, "dist.zip", sample())
 
-	err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(work, "dst"))
+	err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(work, "dst"), ImportOptions{})
 	if err != nil && !strings.Contains(err.Error(), "reflinks") {
 		t.Fatal(err)
 	}
@@ -330,227 +353,264 @@ func TestCloneMethod(t *testing.T) {
 	}
 }
 
-// TestInPlaceModification: a tool writing into a vendor file in place
-// changes that project only; the store and every other project keep the
-// release's content.
+// TestUnshared: an unshared import (a Composer plugin) never hardlinks,
+// whatever the method, so the package can rewrite its own files in place
+// without reaching the store or other projects.
+func TestUnshared(t *testing.T) {
+	setUmask(t, 0o022)
+
+	work := tempDir(t)
+	zip := writeFile(t, work, "dist.zip", sample())
+
+	for _, m := range []Method{Auto, Hardlink, Copy} {
+		t.Run(m.String(), func(t *testing.T) {
+			s := openStore(t, filepath.Join(work, "store-"+m.String()), m)
+			d := Dist{Name: "a/b", Type: "zip"}
+			plugin, other := filepath.Join(work, m.String()+"-plugin"), filepath.Join(work, m.String()+"-other")
+
+			if err := s.Install(d, zip, plugin, ImportOptions{Unshared: true}); err != nil {
+				t.Fatal(err)
+			}
+
+			for _, name := range []string{"composer.json", "bin/tool", "src/A.php", "src/B.php", "ro/f", "zero"} {
+				if st, err := lstat(filepath.Join(plugin, name)); err != nil || st.nlink != 1 {
+					t.Errorf("%s: %d links, %v", name, st.nlink, err)
+				}
+			}
+
+			// A shared import of the same release after it links (where the
+			// method does), and the unshared one does not move the device
+			// off hardlinks.
+			if err := s.Install(d, "", other, ImportOptions{}); err != nil {
+				t.Fatal(err)
+			}
+
+			st, _ := lstat(filepath.Join(other, "composer.json"))
+			if m == Hardlink && st.nlink != 2 {
+				t.Errorf("shared import after an unshared one: %d links", st.nlink)
+			}
+
+			// The plugin rewrites its own file, as phpstan/extension-installer
+			// does with file_put_contents.
+			if err := os.WriteFile(filepath.Join(plugin, "composer.json"), []byte(`{"generated":true}`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			if got, _ := os.ReadFile(filepath.Join(other, "composer.json")); string(got) != `{"name":"a/b"}` {
+				t.Fatalf("the other project saw the plugin's edit: %q", got)
+			}
+
+			if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Missing != 0 || res.Restamped != 0 {
+				t.Errorf("the store saw the plugin's edit: %+v %v", res, err)
+			}
+		})
+	}
+}
+
+// TestInPlaceModification: a tool writing into a hard-linked vendor file in
+// place changes the shared inode, so every project linked to it sees the
+// edit (pnpm's accepted risk), but the store notices before importing the
+// object again: the edit never reaches a project imported afterwards, and
+// the release is inserted again from its archive.
 func TestInPlaceModification(t *testing.T) {
 	setUmask(t, 0o022)
 
 	work := tempDir(t)
 	zip := writeFile(t, work, "dist.zip", sample())
-	s := openStore(t, filepath.Join(work, "store"), Auto)
+	s := openStore(t, filepath.Join(work, "store"), Hardlink)
 	d := Dist{Name: "a/b", Type: "zip"}
 	first, second := filepath.Join(work, "p1"), filepath.Join(work, "p2")
 
-	if err := s.Install(d, zip, first); err != nil {
+	if err := s.Install(d, zip, first, ImportOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Install(d, "", second); err != nil {
+	if err := s.Install(d, "", second, ImportOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
-	// Write in place, as phpstan/extension-installer or an editor would.
+	// Write in place, as an editor or a careless patcher would.
 	appendTo(t, filepath.Join(first, "composer.json"), " // patched")
 
-	if got, _ := os.ReadFile(filepath.Join(second, "composer.json")); string(got) != `{"name":"a/b"}` {
-		t.Fatalf("the other project saw the edit: %q", got)
+	if got, _ := os.ReadFile(filepath.Join(second, "composer.json")); !strings.HasSuffix(string(got), "patched") {
+		t.Fatalf("expected the linked project to share the edit, got %q", got)
 	}
 
-	if err := s.Install(d, "", filepath.Join(work, "p3")); err != nil {
-		t.Fatal(err)
-	}
-
-	if got, _ := os.ReadFile(filepath.Join(work, "p3", "composer.json")); string(got) != `{"name":"a/b"}` {
-		t.Fatalf("a new project saw the edit: %q", got)
-	}
-
-	if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Missing != 0 || res.Restamped != 0 {
-		t.Errorf("the store saw the edit: %+v %v", res, err)
-	}
-}
-
-// TestLinkedObjects: an object with another name (a package file an
-// earlier maestro linked to it with a hard link) is never imported as it
-// is: written
-// through that name it is dropped, intact it is replaced by a fresh copy,
-// so a later write through the old name cannot reach the store either.
-func TestLinkedObjects(t *testing.T) {
-	setUmask(t, 0o022)
-
-	work := tempDir(t)
-	zip := writeFile(t, work, "dist.zip", sample())
-	s := openStore(t, filepath.Join(work, "store"), Copy)
-	d := Dist{Name: "a/b", Type: "zip"}
-
-	r, err := s.Insert(d, zip)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	legacy := filepath.Join(work, "legacy")
-	if err := os.Mkdir(legacy, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	obj := func(name string) string {
-		for i := range r.Entries() {
-			if e := &r.Entries()[i]; e.Path == name {
-				return s.objectPath(&e.Hash, objectPerm(e.Perm(s.umask)))
-			}
-		}
-
-		t.Fatalf("%s not in the release", name)
-
-		return ""
-	}
-
-	for _, name := range []string{"composer.json", "zero"} {
-		if err := os.Link(obj(name), filepath.Join(legacy, name)); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// Written through the legacy name: the content is gone from the store.
-	appendTo(t, filepath.Join(legacy, "composer.json"), " // patched")
-
+	// Without the archive the store cannot restore the content.
 	var missing *MissingError
-	if err := s.Materialize(r, filepath.Join(work, "p1")); !errors.As(err, &missing) {
+	if err := s.Install(d, "", filepath.Join(work, "p3"), ImportOptions{}); !errors.As(err, &missing) {
 		t.Fatalf("expected *MissingError, got %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(work, "p1")); !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(work, "p3")); !errors.Is(err, fs.ErrNotExist) {
 		t.Error("a failed import left its destination behind")
 	}
 
-	// With the archive, Install inserts the release again.
-	if err := s.Install(d, zip, filepath.Join(work, "p2")); err != nil {
+	// With it, Install inserts the release again.
+	if err := s.Install(d, zip, filepath.Join(work, "p4"), ImportOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
-	if got, _ := os.ReadFile(filepath.Join(work, "p2", "composer.json")); string(got) != `{"name":"a/b"}` {
+	if got, _ := os.ReadFile(filepath.Join(work, "p4", "composer.json")); string(got) != `{"name":"a/b"}` {
 		t.Fatalf("modified content spread: %q", got)
 	}
 
-	if got, _ := os.ReadFile(filepath.Join(legacy, "composer.json")); !strings.HasSuffix(string(got), "patched") {
-		t.Error("the patched file lost its change")
+	// The edited project keeps its change, and later edits through its
+	// old link no longer reach the store.
+	if got, _ := os.ReadFile(filepath.Join(first, "composer.json")); !strings.HasSuffix(string(got), "patched") {
+		t.Error("the patched project lost its change")
 	}
 
-	// The intact linked object ("zero") was replaced: writing through the
-	// legacy name now changes nothing in the store.
-	if st, _ := lstat(obj("zero")); st.nlink != 1 {
-		t.Fatalf("object still has %d links", st.nlink)
+	appendTo(t, filepath.Join(first, "composer.json"), " again")
+
+	if got, _ := os.ReadFile(filepath.Join(work, "p4", "composer.json")); string(got) != `{"name":"a/b"}` {
+		t.Fatalf("a later edit through the old link spread: %q", got)
 	}
 
-	appendTo(t, filepath.Join(legacy, "zero"), "late")
-
-	if err := s.Materialize(r, filepath.Join(work, "p3")); err != nil {
-		t.Fatal(err)
-	}
-
-	if got, _ := os.ReadFile(filepath.Join(work, "p3", "zero")); len(got) != 0 {
-		t.Fatalf("late write spread: %q", got)
-	}
-
-	// A write that leaves the content as it was (a touch) only restamps.
-	now := time.Now()
-	if err := os.Chtimes(obj("composer.json"), now, now); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := s.Materialize(r, filepath.Join(work, "p4")); err != nil {
-		t.Fatal(err)
-	}
-
-	res, err := s.Verify()
-	if err != nil || res.Corrupt != 0 || res.Missing != 0 || res.Restamped != 0 {
+	if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Missing != 0 || res.Restamped != 0 {
 		t.Errorf("store not healthy after healing: %+v %v", res, err)
 	}
 }
 
-// TestLinkedObjectsConcurrent: while a writer keeps changing a store
-// object in place through another name, concurrent imports either fail
-// with *MissingError or produce the release's exact content, never the
-// writer's.
+// TestLinkedMetadataChanges: changes that keep the content (a touch, a
+// chmod through a vendor file, which a plain chmod of a hard-linked file
+// is) only make the store replace the object by a fresh, correctly
+// stamped copy before linking it again.
+func TestLinkedMetadataChanges(t *testing.T) {
+	setUmask(t, 0o022)
+
+	work := tempDir(t)
+	zip := writeFile(t, work, "dist.zip", sample())
+	s := openStore(t, filepath.Join(work, "store"), Hardlink)
+	d := Dist{Name: "a/b", Type: "zip"}
+	first := filepath.Join(work, "p1")
+
+	if err := s.Install(d, zip, first, ImportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now()
+	if err := os.Chtimes(filepath.Join(first, "src", "A.php"), now, now); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chmod(filepath.Join(first, "composer.json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	second := filepath.Join(work, "p2")
+	if err := s.Install(d, "", second, ImportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	tree := snapshot(t, second)
+	if tree["composer.json"].Perm != 0o644 {
+		t.Errorf("composer.json imported with mode %v", tree["composer.json"].Perm)
+	}
+
+	for _, name := range []string{"src/A.php", "composer.json"} {
+		a, _ := lstat(filepath.Join(first, name))
+		b, _ := lstat(filepath.Join(second, name))
+
+		if os.SameFile(statFileInfo(t, filepath.Join(first, name)), statFileInfo(t, filepath.Join(second, name))) {
+			t.Errorf("%s: linked to the changed inode (%d, %d links)", name, a.nlink, b.nlink)
+		}
+	}
+
+	if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Missing != 0 || res.Restamped != 0 {
+		t.Errorf("store not healthy after restamping: %+v %v", res, err)
+	}
+}
+
+func statFileInfo(t *testing.T, path string) fs.FileInfo {
+	t.Helper()
+
+	fi, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return fi
+}
+
+// TestLinkedObjectsConcurrent: while a writer changes a store object in
+// place through a package file linked to it, concurrent unshared imports
+// (clone or copy) either fail with *MissingError or produce the release's
+// exact content, never the writer's: the object is checked before and
+// after it is read. Each round links a fresh object and races the
+// writer's first write against the copies.
 func TestLinkedObjectsConcurrent(t *testing.T) {
 	setUmask(t, 0o022)
 
 	work := tempDir(t)
 	big := strings.Repeat("0123456789abcdef", 1<<14) // 256 KiB, so a copy takes a while
 	zip := writeFile(t, work, "dist.zip", archivetest.Zip("", archivetest.UnixFile("pkg/big", 0o644, big)))
-	s := openStore(t, filepath.Join(work, "store"), Copy)
-	d := Dist{Name: "a/b", Type: "zip"}
+	junk := bytes.Repeat([]byte("X"), 4096)
 
-	r, err := s.Insert(d, zip)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, m := range []Method{Hardlink, Copy} {
+		t.Run(m.String(), func(t *testing.T) {
+			s := openStore(t, filepath.Join(work, "store-"+m.String()), m)
+			d := Dist{Name: "a/b", Type: "zip"}
 
-	e := &r.Entries()[1]
-	legacy := filepath.Join(work, "legacy")
-
-	if err := os.Link(s.objectPath(&e.Hash, objectPerm(e.Perm(s.umask))), legacy); err != nil {
-		t.Fatal(err)
-	}
-
-	stop := make(chan struct{})
-
-	var writer sync.WaitGroup
-
-	writer.Go(func() {
-		f, err := os.OpenFile(legacy, os.O_WRONLY, 0)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-
-		defer func() { _ = f.Close() }()
-
-		junk := bytes.Repeat([]byte("X"), 4096)
-
-		for off := int64(0); ; off = (off + 4096) % int64(len(big)) {
-			select {
-			case <-stop:
-				return
-			default:
-			}
-
-			_, _ = f.WriteAt(junk, off)
-		}
-	})
-
-	var wg sync.WaitGroup
-
-	for g := range 8 {
-		wg.Go(func() {
-			for k := range 20 {
-				dst := filepath.Join(work, fmt.Sprintf("p%d-%d", g, k))
+			for round := range 25 {
+				// The release, intact again (Install heals from the archive).
+				linked := filepath.Join(work, fmt.Sprintf("%v-linked-%d", m, round))
+				if err := s.Install(d, zip, linked, ImportOptions{}); err != nil {
+					t.Fatal(err)
+				}
 
 				rel, err := s.Lookup(d)
-				if err == nil {
-					err = s.Materialize(rel, dst)
-				}
-
-				if _, ok := errors.AsType[*MissingError](err); ok {
-					continue
-				}
-
 				if err != nil {
-					t.Error(err)
-					return
+					t.Fatal(err)
 				}
 
-				if got, _ := os.ReadFile(filepath.Join(dst, "big")); string(got) != big {
-					t.Errorf("%s: the writer's content got in", dst)
-					return
+				e := &rel.Entries()[1]
+				legacy := filepath.Join(work, fmt.Sprintf("%v-legacy-%d", m, round))
+
+				if err := os.Link(s.objectPath(&e.Hash, objectPerm(e.Perm(s.umask))), legacy); err != nil {
+					t.Fatal(err)
 				}
+
+				var wg sync.WaitGroup
+
+				wg.Go(func() {
+					f, err := os.OpenFile(legacy, os.O_WRONLY, 0)
+					if err != nil {
+						t.Error(err)
+						return
+					}
+
+					defer func() { _ = f.Close() }()
+
+					for off := int64(round%16) * 4096; off < int64(len(big)); off += 16 * 4096 {
+						_, _ = f.WriteAt(junk, off)
+					}
+				})
+
+				for g := range 4 {
+					wg.Go(func() {
+						dst := filepath.Join(work, fmt.Sprintf("%v-p%d-%d", m, round, g))
+
+						err := s.Materialize(rel, dst, ImportOptions{Unshared: true})
+						if _, ok := errors.AsType[*MissingError](err); ok {
+							return
+						}
+
+						if err != nil {
+							t.Error(err)
+							return
+						}
+
+						if got, _ := os.ReadFile(filepath.Join(dst, "big")); string(got) != big {
+							t.Errorf("%s: the writer's content got in", dst)
+						}
+					})
+				}
+
+				wg.Wait()
 			}
 		})
 	}
-
-	wg.Wait()
-	close(stop)
-	writer.Wait()
 }
 
 func appendTo(t *testing.T, path, text string) {
@@ -582,15 +642,15 @@ func TestUmaskVariants(t *testing.T) {
 
 	setUmask(t, 0o022)
 
-	s1 := openStore(t, filepath.Join(work, "store"), Copy)
-	if err := s1.Install(d, zip, filepath.Join(work, "p1")); err != nil {
+	s1 := openStore(t, filepath.Join(work, "store"), Hardlink)
+	if err := s1.Install(d, zip, filepath.Join(work, "p1"), ImportOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
 	unix.Umask(0o002)
 
-	s2 := openStore(t, filepath.Join(work, "store"), Copy)
-	if err := s2.Install(d, "", filepath.Join(work, "p2")); err != nil {
+	s2 := openStore(t, filepath.Join(work, "store"), Hardlink)
+	if err := s2.Install(d, "", filepath.Join(work, "p2"), ImportOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -623,7 +683,7 @@ func TestSetgidInherited(t *testing.T) {
 	zip := writeFile(t, work, "dist.zip", sample())
 	s := openStore(t, filepath.Join(work, "store"), Copy)
 
-	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(parent, "b")); err != nil {
+	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(parent, "b"), ImportOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -671,7 +731,7 @@ func TestPrune(t *testing.T) {
 		t.Errorf("pruned release still found: %v", err)
 	}
 
-	if err := s.Install(cur, "", filepath.Join(work, "dst")); err != nil {
+	if err := s.Install(cur, "", filepath.Join(work, "dst"), ImportOptions{}); err != nil {
 		t.Fatalf("kept release broken by prune: %v", err)
 	}
 
@@ -761,14 +821,14 @@ func TestConcurrentInserts(t *testing.T) {
 
 	for g := range 16 {
 		wg.Go(func() {
-			s, err := Open(root, &Options{Method: []Method{Auto, Copy}[g%2]})
+			s, err := Open(root, &Options{Method: []Method{Auto, Hardlink, Copy}[g%3]})
 			if err != nil {
 				errs <- err
 				return
 			}
 
 			i := g % len(zips)
-			errs <- s.Install(Dist{Name: "a/b", Type: "zip", URL: zips[i]}, zips[i], filepath.Join(work, fmt.Sprintf("g%d", g)))
+			errs <- s.Install(Dist{Name: "a/b", Type: "zip", URL: zips[i]}, zips[i], filepath.Join(work, fmt.Sprintf("g%d", g)), ImportOptions{})
 		})
 	}
 
@@ -847,5 +907,70 @@ func TestConcurrentInserts(t *testing.T) {
 
 	if names, _ := os.ReadDir(s.tmp); len(names) != 0 {
 		t.Errorf("%d temporary files left", len(names))
+	}
+}
+
+// TestUnshareAndChmod: Chmod of a package file hard-linked to the store
+// gives it an inode of its own first, so the store object keeps its mode
+// and stamp.
+func TestUnshareAndChmod(t *testing.T) {
+	setUmask(t, 0o022)
+
+	work := tempDir(t)
+	s := openStore(t, filepath.Join(work, "store"), Hardlink)
+	dst := filepath.Join(work, "dst")
+
+	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, writeFile(t, work, "dist.zip", sample()), dst, ImportOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(dst, "composer.json")
+
+	// Same mode: nothing to do, the link stays.
+	if err := Chmod(bin, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if st, _ := lstat(bin); st.nlink < 2 {
+		t.Fatal("expected a hardlink")
+	}
+
+	// Through a symlink, as chmod follows it.
+	if err := os.Symlink("composer.json", filepath.Join(dst, "via")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Chmod(filepath.Join(dst, "via"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	st, _ := lstat(bin)
+	if st.nlink != 1 || st.mode != 0o755 {
+		t.Errorf("after Chmod: %d links, mode %o", st.nlink, st.mode)
+	}
+
+	if got, _ := os.ReadFile(bin); string(got) != `{"name":"a/b"}` {
+		t.Errorf("content changed: %q", got)
+	}
+
+	if names, _ := filepath.Glob(filepath.Join(dst, ".*maestro-*")); len(names) != 0 {
+		t.Errorf("temporary files left: %v", names)
+	}
+
+	if res, err := s.Verify(); err != nil || res.Restamped != 0 || res.Corrupt != 0 {
+		t.Errorf("the store saw the chmod: %+v %v", res, err)
+	}
+
+	// A file of its own is changed in place.
+	if err := Unshare(bin); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Chmod(bin, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if st, _ := lstat(bin); st.mode != 0o600 {
+		t.Errorf("mode %o", st.mode)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -531,21 +532,17 @@ func removeAll(rel string) func(*testing.T, string) {
 	}
 }
 
-// taintStore overwrites every object of maestro's package store
-// (MAESTRO_CACHE_DIR's store/v1/files, internal/store) in place. Composer's
-// run has no store: nothing to do there.
+// taintStore writes into the installed package files in place, as an
+// editor or a careless tool would, for both tools alike (Composer's vendor
+// files are its own; maestro's are hardlinks to its store's objects where
+// the filesystem has no reflinks, so the edit reaches the store: the risk
+// deviation 1 accepts), then overwrites every object of maestro's package
+// store (MAESTRO_CACHE_DIR's store/v1/files) that no package file links to.
+// The next install must not spread either edit.
 func taintStore(t *testing.T, root string) {
 	t.Helper()
 
-	err := filepath.WalkDir(filepath.Join(root, "mcache", "store", "v1", "files"), func(path string, d os.DirEntry, err error) error {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-
-		if err != nil || !d.Type().IsRegular() {
-			return err
-		}
-
+	taint := func(path string) error {
 		f, err := os.OpenFile(path, os.O_WRONLY, 0)
 		if err != nil {
 			return err
@@ -557,6 +554,48 @@ func taintStore(t *testing.T, root string) {
 		}
 
 		return err
+	}
+
+	vendor := filepath.Join(root, "project", "vendor")
+
+	err := filepath.WalkDir(vendor, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if rel, _ := filepath.Rel(vendor, path); d.IsDir() && (rel == "composer" || rel == "bin") {
+			return filepath.SkipDir
+		}
+
+		if !d.Type().IsRegular() || strings.Count(filepath.ToSlash(path[len(vendor):]), "/") < 3 {
+			return nil
+		}
+
+		return taint(path)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = filepath.WalkDir(filepath.Join(root, "mcache", "store", "v1", "files"), func(path string, d os.DirEntry, err error) error {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+
+		if err != nil || !d.Type().IsRegular() {
+			return err
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink > 1 {
+			return nil
+		}
+
+		return taint(path)
 	})
 	if err != nil {
 		t.Fatal(err)

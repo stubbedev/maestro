@@ -85,8 +85,8 @@ func processUmask() fs.FileMode {
 }
 
 // cloneObject creates dst as a copy-on-write clone of the object at src
-// (FICLONE: btrfs, XFS, bcachefs, ZFS 2.2+), after checking the
-// object. Filesystems that cannot clone, and two different filesystems,
+// (FICLONE: btrfs, XFS, bcachefs, ZFS 2.2+), checking the object before
+// and after. Filesystems that cannot clone, and two different filesystems,
 // fail with errUnsupported, leaving nothing behind.
 func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 	in, err := os.Open(src)
@@ -96,12 +96,7 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 
 	defer func() { _ = in.Close() }()
 
-	st, err := fstat(in)
-	if err != nil {
-		return err
-	}
-
-	if err := want.check(st); err != nil {
+	if err := checkOpen(in, want); err != nil {
 		return err
 	}
 
@@ -120,7 +115,15 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 	}
 
 	if err == nil {
-		return nil
+		// FICLONE locks both inodes: a write through another name of the
+		// object came before the clone, and shows in the stamp.
+		if err = checkOpen(in, want); err == nil {
+			return nil
+		}
+
+		_ = os.Remove(dst)
+
+		return err
 	}
 
 	_ = os.Remove(dst)

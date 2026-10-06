@@ -66,7 +66,7 @@ func processUmask() fs.FileMode {
 }
 
 // cloneObject creates dst with clonefile(2) (APFS), which keeps the
-// object's mode, after checking the object.
+// object's mode, checking the object before and after.
 func cloneObject(src, dst string, perm, _ fs.FileMode, want stamp) error {
 	st, err := lstat(src)
 	if err != nil {
@@ -82,8 +82,22 @@ func cloneObject(src, dst string, perm, _ fs.FileMode, want stamp) error {
 		return errUnsupported
 	}
 
+	if err != nil {
+		return err
+	}
+
+	// A write through another name of the object before or during the
+	// clone shows in the stamp.
+	if st, err = lstat(src); err == nil {
+		err = want.check(st)
+	}
+
 	if err == nil && st.mode != perm {
 		err = os.Chmod(dst, perm)
+	}
+
+	if err != nil {
+		_ = os.Remove(dst)
 	}
 
 	return err
