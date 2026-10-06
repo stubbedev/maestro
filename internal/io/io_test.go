@@ -9,6 +9,7 @@ import (
 	goio "io"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -797,5 +798,28 @@ func TestConsoleIO_ProgressBarAndTable(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "| a |") {
 		t.Errorf("table: stdout %q", stdout.String())
+	}
+}
+
+// The authentication store is read from other goroutines (the metadata
+// prefetches) while the main one may store credentials: go test -race
+// checks the store's lock.
+func TestBaseIO_AuthenticationsConcurrently(t *testing.T) {
+	io := NewNullIO()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 1000 {
+			io.HasAuthentication("example.org")
+			_ = io.Authentication("example.org")
+			_ = io.Authentications()
+		}
+	}()
+	for i := range 1000 {
+		io.SetAuthentication("example.org", "user", new(strconv.Itoa(i)))
+	}
+	<-done
+	if a := io.Authentication("example.org"); *a.Username != "user" || *a.Password != "999" {
+		t.Fatalf("got %v", a)
 	}
 }
