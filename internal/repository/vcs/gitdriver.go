@@ -64,7 +64,11 @@ func (d *GitDriver) Initialize() error {
 			return &util.RuntimeError{Site: phperr.At("GitDriver.php", 52), Message: "GitDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 		}
 
-		d.repoDir = cacheVcsDir + "/" + replaceInfallible(cacheNameChars, "-", util.SanitizeURL(d.url)) + "/"
+		safeURL, err := util.SanitizeURLChecked(d.url)
+		if err != nil {
+			return err
+		}
+		d.repoDir = cacheVcsDir + "/" + replaceInfallible(cacheNameChars, "-", safeURL) + "/"
 
 		if err := uvcs.CleanEnv(d.process); err != nil {
 			return err
@@ -111,7 +115,12 @@ func (d *GitDriver) Initialize() error {
 		return err
 	}
 
-	return d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replaceInfallible(cacheNameChars, "-", util.SanitizeURL(cacheURL)))
+	safeCacheURL, err := util.SanitizeURLChecked(cacheURL)
+	if err != nil {
+		return err
+	}
+
+	return d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replaceInfallible(cacheNameChars, "-", safeCacheURL))
 }
 
 var currentBranch = php.MustCompile(`{^\* +(\S+)}`)

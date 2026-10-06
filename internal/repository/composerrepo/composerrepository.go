@@ -247,7 +247,11 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	if err != nil {
 		return nil, err
 	}
-	cacheName, _, err := cacheDirRegex.Replace(util.SanitizeURL(r.url), "-", -1)
+	safeURL, err := util.SanitizeURLChecked(r.url)
+	if err != nil {
+		return nil, err
+	}
+	cacheName, _, err := cacheDirRegex.Replace(safeURL, "-", -1)
 	if err != nil {
 		return nil, err
 	}

@@ -64,7 +64,11 @@ func (d *HgDriver) updateClone() error {
 		return &util.RuntimeError{Site: phperr.At("HgDriver.php", 47), Message: "HgDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 	}
 
-	d.repoDir = cacheDir + "/" + replaceInfallible(alnumOnly, "-", util.SanitizeURL(d.url)) + "/"
+	safeURL, err := util.SanitizeURLChecked(d.url)
+	if err != nil {
+		return err
+	}
+	d.repoDir = cacheDir + "/" + replaceInfallible(alnumOnly, "-", safeURL) + "/"
 
 	fs := util.NewFilesystem(nil)
 	if err := util.EnsureDirectoryExists(cacheDir); err != nil {

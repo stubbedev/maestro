@@ -95,7 +95,12 @@ func (d *SvnDriver) Initialize() error {
 		d.baseURL = d.url[:pos]
 	}
 
-	if err := d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replaceInfallible(cacheNameChars, "-", util.SanitizeURL(d.baseURL))); err != nil {
+	safeBaseURL, err := util.SanitizeURLChecked(d.baseURL)
+	if err != nil {
+		return err
+	}
+
+	if err := d.newCache(php.ToString(d.config.Get("cache-repo-dir")) + "/" + replaceInfallible(cacheNameChars, "-", safeBaseURL)); err != nil {
 		return err
 	}
 
@@ -103,7 +108,7 @@ func (d *SvnDriver) Initialize() error {
 		return err
 	}
 
-	_, err := d.Tags()
+	_, err = d.Tags()
 
 	return err
 }

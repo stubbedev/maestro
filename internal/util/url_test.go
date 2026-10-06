@@ -1,6 +1,12 @@
 package util
 
-import "testing"
+import (
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // Ports tests/Composer/Test/Util/UrlTest.php. Config is reduced to the
 // github-domains and gitlab-domains values Url reads; their defaults are
@@ -186,5 +192,20 @@ func TestUrl_StripCredentials(t *testing.T) {
 		if got := StripCredentials(c.url); got != c.expected {
 			t.Errorf("StripCredentials(%q) = %q, want %q", c.url, got, c.expected)
 		}
+	}
+}
+
+// Url::sanitize's credentials pattern exhausts the backtrack limit on a
+// long [a-z0-9+.-] run with an unreachable '@': Preg::replaceCallback
+// throws, SanitizeURLChecked returns the error and SanitizeURL "".
+func TestUrl_SanitizePcreError(t *testing.T) {
+	url := strings.Repeat("a", 1100000) + "/@"
+
+	if _, err := SanitizeURLChecked(url); !errors.As(err, new(*php.PcreError)) {
+		t.Errorf("SanitizeURLChecked: got %v, want a *php.PcreError", err)
+	}
+
+	if got := SanitizeURL(url); got != "" {
+		t.Errorf("SanitizeURL: got %d bytes, want \"\"", len(got))
 	}
 }

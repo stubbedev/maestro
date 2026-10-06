@@ -56,7 +56,11 @@ var (
 
 // cachePath is the mirror directory of url under cache-vcs-dir.
 func (d *GitDownloader) cachePath(url string) (string, error) {
-	name, _, err := nonCacheChars.Replace(util.SanitizeURL(url), "-", -1)
+	safeURL, err := util.SanitizeURLChecked(url)
+	if err != nil {
+		return "", err
+	}
+	name, _, err := nonCacheChars.Replace(safeURL, "-", -1)
 	if err != nil {
 		return "", err
 	}

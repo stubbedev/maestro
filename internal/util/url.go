@@ -150,20 +150,32 @@ var (
 	urlCredentials   = php.MustCompile(`{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\A)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]+))?@}i`)
 )
 
-// SanitizeURL ports Url::sanitize: masks access tokens and the credentials
-// of every scheme://user:pass@ in s (plus a scheme-less one at its start).
+// SanitizeURL ports Url::sanitize for messages: masks access tokens and the
+// credentials of every scheme://user:pass@ in s (plus a scheme-less one at
+// its start).
 //
 // Divergence: the credentials pattern exhausts the backtrack limit on a
 // run of about a megabyte of [a-z0-9+.-] followed by an unreachable '@',
 // where Preg::replaceCallback throws a PcreException. SanitizeURL has no
-// error result (it is called from ~100 places, mostly while building
-// messages), so it returns "" then, which leaks nothing.
+// error result (it is called from ~100 places, all building messages), so
+// it returns "" then, which leaks nothing. Code that derives anything other
+// than a message from the result (a cache directory, ...) must use
+// SanitizeURLChecked: "" there would name the cache root itself.
 func SanitizeURL(s string) string {
+	s, _ = SanitizeURLChecked(s)
+
+	return s
+}
+
+// SanitizeURLChecked is SanitizeURL with the PcreError Url::sanitize throws.
+func SanitizeURLChecked(s string) (string, error) {
 	// GitHub repository renames redirect to locations holding the
 	// access_token as GET parameter.
+	// accessTokenParam does bounded work per start position (a negated
+	// class run that cannot backtrack into a match): it cannot fail.
 	s, _, _ = accessTokenParam.Replace(s, "$1***", -1)
 
-	s, _, _ = urlCredentials.ReplaceCallback(s, func(m *php.Match) string {
+	s, _, err := urlCredentials.ReplaceCallback(s, func(m *php.Match) string {
 		prefix, _ := m.Named("prefix")
 		user, _ := m.Named("user")
 		user = SanitizeUsername(user)
@@ -173,8 +185,11 @@ func SanitizeURL(s string) string {
 
 		return prefix + user + "@"
 	}, -1)
+	if err != nil {
+		return "", err
+	}
 
-	return s
+	return s, nil
 }
 
 // urlUserinfo and gitHubTokenRegex cannot exhaust PCRE's limits (checked
