@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -95,7 +94,7 @@ func (d *Downloader) AssertComplete() error {
 // Get is get($fileUrl, $options).
 func (d *Downloader) Get(fileURL string, options *php.Array) (*http.Response, error) {
 	if fileURL == "" {
-		return nil, &util.LogicError{Message: "url cannot be an empty string", Site: phperr.At("HttpDownloaderMock.php", 101)}
+		return nil, &util.LogicError{Message: "url cannot be an empty string"}
 	}
 
 	if options == nil {
@@ -150,7 +149,6 @@ func respond(url string, status int, headers []string, body string) (*http.Respo
 	}
 
 	e := util.NewTransportError(`The "`+url+`" file could not be downloaded`, status)
-	e.Site = phperr.At("HttpDownloaderMock.php", 148)
 	e.Headers = headers
 	e.SetResponse(body)
 

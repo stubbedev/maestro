@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // tracedException is an exception PHP code threw (a plugin's): it knows
@@ -19,18 +18,12 @@ func (e *tracedException) ThrowableTrace() []TraceFrame { return e.trace }
 
 // At -v an error's debugging details are the Go types and PHP classes of
 // its chain and the exit code, and, for an exception PHP code threw, its
-// trace; the PHP call stack of maestro's ports (phperr.Call's frames, the
-// throw site) is not shown.
+// trace.
 func TestRenderThrowableDetails(t *testing.T) {
 	app := newTestApp()
-	_, err := app.Call(phperr.Frame{Function: `Symfony\Component\Console\Application->doRunCommand`, File: applicationPHP, Line: 301}, func() (int, error) {
-		e := newError(KindRuntime, "ArgvInput.php", 220, `The "--nope" option does not exist.`)
-
-		return 0, phperr.Call(e, `Symfony\Component\Console\Input\ArgvInput->addLongOption`, "ArgvInput.php", 149)
+	_, err := app.Call(`Symfony\Component\Console\Application->doRunCommand`, func() (int, error) {
+		return 0, newError(KindRuntime, "ArgvInput.php", 220, `The "--nope" option does not exist.`)
 	})
-	if len(app.Stack()) != 0 {
-		t.Errorf("Stack() after Call = %v, want none", app.Stack())
-	}
 
 	render := func(err error) string {
 		var buf bytes.Buffer
@@ -61,27 +54,5 @@ func TestRenderThrowableDetails(t *testing.T) {
 		"         exit code 3\n"
 	if got := render(plugin); got != want {
 		t.Errorf("rendered\n%s\nwant\n%s", got, want)
-	}
-}
-
-// Stack lists the calls in progress innermost first, above the run()
-// callers.
-func TestApplicationStack(t *testing.T) {
-	app := newTestApp()
-	outer := phperr.Frame{Function: "outer", File: "A.php", Line: 1}
-	inner := phperr.Frame{Function: "inner", File: "B.php", Line: 2}
-	caller := phperr.Frame{Function: "run", File: "bin/composer", Line: 113}
-	app.SetRunCallers(caller)
-
-	var stack []phperr.Frame
-	_, _ = app.Call(outer, func() (int, error) {
-		return app.Call(inner, func() (int, error) {
-			stack = app.Stack()
-
-			return 0, nil
-		})
-	})
-	if len(stack) != 3 || stack[0] != inner || stack[1] != outer || stack[2] != caller {
-		t.Errorf("Stack() = %v, want [inner outer run]", stack)
 	}
 }

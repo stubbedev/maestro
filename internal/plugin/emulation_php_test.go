@@ -14,7 +14,6 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -24,27 +23,22 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-// An exception crossing between maestro and PHP carries Composer's call
-// stack: a Go error thrown into PHP has Composer's file (under
-// phperr.Root) and the frames maestro recorded, then the PHP stack it is
-// thrown into, without the shim's machinery; a PHP exception going to
-// maestro has its frames down to the call maestro made, which maestro
-// completes, and going back to PHP keeps them.
+// An exception crossing between maestro and PHP carries the PHP stack: a
+// Go error thrown into PHP has the stack it is thrown into, without the
+// shim's machinery; a PHP exception going to maestro has its frames, and
+// going back to PHP keeps them.
 func TestInternals_Traces(t *testing.T) {
 	requirePHP(t)
 
-	withComposerRoot(t)
 	rt, _, _ := newTestRuntime(t)
 	rt.Handle("test.goFail", func(any) (any, error) {
-		err := &util.RuntimeError{Message: "nope", Site: phperr.At("Factory.php", 317)}
-
-		return nil, phperr.Call(err, `Composer\Factory::createConfig`, "Factory.php", 300)
+		return nil, &util.RuntimeError{Message: "nope"}
 	})
-	// a PHP exception going up maestro's ports and back into PHP
+	// a PHP exception going through maestro and back into PHP
 	rt.Handle("test.relay", func(any) (any, error) {
 		_, err := rt.Call("test.throw", php.ArrayOf("message", "deep", "code", 1))
 
-		return nil, phperr.Call(err, `Composer\Installer->run`, "InstallCommand.php", 150)
+		return nil, err
 	})
 	start(t, rt)
 
@@ -66,20 +60,17 @@ func TestInternals_Traces(t *testing.T) {
 		try {
 			maestroTestGoFail();
 		} catch (\RuntimeException $e) {
-			return ['file' => $e->getFile().':'.$e->getLine(), 'trace' => $e->getTrace()];
+			return ['message' => $e->getMessage(), 'trace' => $e->getTrace()];
 		}
 	`, nil)
-	if f := php.ToString(get(t, got, "file")); f != "phar:///maestro/src/Composer/Factory.php:317" {
-		t.Errorf("getFile():getLine() = %s", f)
+	if m := php.ToString(get(t, got, "message")); m != "nope" {
+		t.Errorf("getMessage() = %s", m)
 	}
 	trace, _ := get(t, got, "trace").(*php.Array)
-	if trace == nil || trace.Len() < 2 {
+	if trace == nil || trace.Len() < 1 {
 		t.Fatalf("trace %v", get(t, got, "trace"))
 	}
-	if f := frame(trace.Values()[0]); f != `Composer\Factory::createConfig phar:///maestro/src/Composer/Factory.php:300` {
-		t.Errorf("first frame %s", f)
-	}
-	for _, f := range trace.Values()[1:] {
+	for _, f := range trace.Values() {
 		if s := frame(f); strings.Contains(s, `Maestro\Shim\Rpc`) || strings.Contains(s, `Exceptions`) {
 			t.Errorf("a frame of the shim's machinery: %s", s)
 		}
@@ -101,25 +92,20 @@ func TestInternals_Traces(t *testing.T) {
 	for _, f := range pe.Trace {
 		names = append(names, f.Class+f.Type+f.Function)
 	}
-	// the handler that threw (its call by the shim's dispatcher, which
-	// maestro did not locate), the frame maestro added going up, the
-	// function maestroTestRelay() the exception went on in, ...
-	if len(names) < 3 || names[2] != "maestroTestRelay" || names[1] != `Composer\Installer->run` || pe.Trace[1].File != "phar:///maestro/src/Composer/Command/InstallCommand.php" {
+	// the handler that threw (its call by the shim's dispatcher), then
+	// the function maestroTestRelay() the exception went on in, ...
+	if len(names) < 2 || names[1] != "maestroTestRelay" {
 		t.Errorf("trace %+v", pe.Trace)
-	}
-	if _, ok := pe.OpenFrame(); !ok {
-		t.Error("the trace does not end at the call maestro made")
 	}
 }
 
-// An exception a repository or IO written in PHP throws when maestro calls
-// it names Composer's call site of it, not the shim's: the frame of the
-// method maestro called is at RepositoryManager.php:88 (findPackages()),
-// at AuthHelper.php:240 (ask()).
+// An exception a repository, IO or installer written in PHP throws when
+// maestro calls it reaches maestro, and PHP code catching it again, with
+// the frame of the method maestro called: findPackages(), ask(),
+// install().
 func TestInternals_TracesOfPHPObjects(t *testing.T) {
 	requirePHP(t)
 
-	withComposerRoot(t)
 	p := newEvalProject(t, "commands")
 
 	got := evalPHP(t, p.rt, `
@@ -164,7 +150,7 @@ func TestInternals_TracesOfPHPObjects(t *testing.T) {
 		}
 		for _, f := range pe.Trace {
 			if f.Function == "findPackages" || f.Function == "ask" {
-				return f.Function + " " + f.File + ":" + php.ToString(int64(f.Line))
+				return f.Function
 			}
 		}
 		t.Fatalf("no frame of the PHP method: %+v", pe.Trace)
@@ -173,13 +159,13 @@ func TestInternals_TracesOfPHPObjects(t *testing.T) {
 	}
 
 	_, err = rm.FindPackages("acme/a", nil)
-	if f := boundary(err); f != "findPackages phar:///maestro/src/Composer/Repository/RepositoryManager.php:88" {
+	if f := boundary(err); f != "findPackages" {
 		t.Errorf("findPackages() frame %s", f)
 	}
 
 	auth := http.NewAuthHelper(pio, config.New(false, "").ForHTTP())
 	_, err = auth.PromptAuthIfNeeded("https://example.org/x", "example.org", 401, "Unauthorized", nil, 0, "")
-	if f := boundary(err); f != "ask phar:///maestro/src/Composer/Util/AuthHelper.php:240" {
+	if f := boundary(err); f != "ask" {
 		t.Errorf("ask() frame %s", f)
 	}
 
@@ -205,14 +191,14 @@ func TestInternals_TracesOfPHPObjects(t *testing.T) {
 		} catch (\RuntimeException $e) {
 			foreach ($e->getTrace() as $frame) {
 				if ($frame['function'] === 'install') {
-					return $frame['file'].':'.$frame['line'];
+					return $frame['function'];
 				}
 			}
 		}
 
 		return 'no frame';
 	`, php.ArrayOf("io", p.rt.value(p.out)))
-	if frame != "phar:///maestro/src/Composer/Installer/InstallationManager.php:468" {
+	if frame != "install" {
 		t.Errorf("install() frame %v", frame)
 	}
 }

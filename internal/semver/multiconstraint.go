@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // MultiConstraint ports Composer\Semver\Constraint\MultiConstraint: a
@@ -29,7 +28,7 @@ type MultiConstraint struct {
 // NewMultiConstraint ports new MultiConstraint($constraints, $conjunctive).
 func NewMultiConstraint(constraints []ConstraintInterface, conjunctive bool) (*MultiConstraint, error) {
 	if len(constraints) < 2 {
-		return nil, &InvalidArgumentError{Site: phperr.At("MultiConstraint.php", 49), Message: "Must provide at least two constraints for a MultiConstraint. Use " +
+		return nil, &InvalidArgumentError{Message: "Must provide at least two constraints for a MultiConstraint. Use " +
 			"the regular Constraint class for one constraint only or MatchAllConstraint for none. You may use " +
 			"MultiConstraint::create() which optimizes and handles those cases automatically."}
 	}

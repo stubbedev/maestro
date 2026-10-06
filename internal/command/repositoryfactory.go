@@ -7,7 +7,6 @@ package command
 import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	rvcs "github.com/stubbedev/maestro/internal/repository/vcs"
@@ -34,7 +33,7 @@ func defaultReposWithDefaultManager(out io.IO, factory *composer.Factory) (*repo
 		VCS:      rvcs.NewRepository,
 	})
 	if err := out.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
-		return nil, phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, "RepositoryFactory.php", 139)
+		return nil, err
 	}
 
 	return repository.DefaultRepos(out, cfg, rm)

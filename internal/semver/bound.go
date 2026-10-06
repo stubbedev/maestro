@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // positiveInfinityVersion is PHP_INT_MAX.'.0.0.0'.
@@ -50,7 +49,7 @@ func (b Bound) IsPositiveInfinity() bool {
 // higher (">") or lower ("<") than other.
 func (b Bound) CompareTo(other Bound, operator string) (bool, error) {
 	if operator != "<" && operator != ">" {
-		return false, &InvalidArgumentError{Site: phperr.At("Bound.php", 79), Message: "Does not support any other operator other than > or <."}
+		return false, &InvalidArgumentError{Message: "Does not support any other operator other than > or <."}
 	}
 
 	return b.compareTo(other, operator == ">"), nil

@@ -6,10 +6,8 @@ package util
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 )
 
@@ -25,7 +23,6 @@ type RuntimeError struct {
 	// Symfony\Component\Process\Exception\RuntimeException); empty for
 	// \RuntimeException itself.
 	Class string
-	phperr.Site
 }
 
 func (e *RuntimeError) Error() string { return e.Message }
@@ -46,7 +43,6 @@ type InvalidArgumentError struct {
 	// InvalidArgumentException); empty for \InvalidArgumentException
 	// itself.
 	Class string
-	phperr.Site
 }
 
 func (e *InvalidArgumentError) Error() string { return e.Message }
@@ -65,7 +61,6 @@ type LogicError struct {
 	// (symfony/process's Symfony\Component\Process\Exception\LogicException);
 	// empty for \LogicException itself.
 	Class string
-	phperr.Site
 }
 
 func (e *LogicError) Error() string { return e.Message }
@@ -78,56 +73,9 @@ func (e *LogicError) PHPPrevious() error { return e.Prev }
 // directory".
 type ErrorException struct {
 	Message string
-	phperr.Site
 }
 
 func (e *ErrorException) Error() string { return e.Message }
-
-// PHPTrace implements phperr.Traced. ErrorHandler::handle() throws the
-// exception from the handler PHP calls for the warning, so its trace
-// starts with handle()'s frame: called at the warning's site for one the
-// engine raises ("Undefined array key", "foreach() argument must be ..."),
-// or from the internal function raising it, which has no file or line,
-// followed by that function's call at the site ("copy(a): Failed to open
-// stream" is handle() at n/a:n/a, then copy() at the site). An unknown
-// site adds nothing.
-func (e *ErrorException) PHPTrace() []phperr.Frame {
-	frames := e.Site.PHPTrace()
-	if !e.Known() {
-		return frames
-	}
-	handle := phperr.Frame{Function: `Composer\Util\ErrorHandler::handle`, File: e.File, Line: e.Line}
-	if fn := warningFunction(e.Message); fn != "" {
-		return append([]phperr.Frame{
-			{Function: handle.Function},
-			{Function: fn, File: e.File, Line: e.Line},
-		}, frames...)
-	}
-
-	return append([]phperr.Frame{handle}, frames...)
-}
-
-// warningFunction is the internal function or method a warning message
-// names before "(...): " as PHP prefixes the warnings of internal
-// functions ("copy(a): ...", "ZipArchive::close(): ..."), as a trace
-// names its call ("copy", "ZipArchive->close"); "" for the engine's own.
-func warningFunction(message string) string {
-	i := 0
-	for i < len(message) && (message[i] == '_' || message[i] == ':' || message[i] == '\\' ||
-		'a' <= message[i] && message[i] <= 'z' || 'A' <= message[i] && message[i] <= 'Z' || i > 0 && '0' <= message[i] && message[i] <= '9') {
-		i++
-	}
-	name := message[:i]
-	if name == "" || i == len(message) || message[i] != '(' || !strings.Contains(message[i:], "): ") {
-		return ""
-	}
-	switch name {
-	case "foreach", "array", "list", "isset", "empty", "unset":
-		return "" // language constructs
-	}
-
-	return strings.Replace(name, "::", "->", 1)
-}
 
 // IOError is symfony/filesystem's IOException, carrying the path involved,
 // or its subclass FileNotFoundException (Class).
@@ -137,7 +85,6 @@ type IOError struct {
 	// Class is get_class($e) of a subclass of IOException
 	// (ClassFileNotFound); empty for IOException itself.
 	Class string
-	phperr.Site
 }
 
 // The symfony/filesystem, symfony/finder and symfony/process exception
@@ -165,7 +112,6 @@ type UnexpectedValueError struct {
 	// \UnexpectedValueException (symfony/finder's AccessDeniedException);
 	// empty for \UnexpectedValueException itself.
 	Class string
-	phperr.Site
 }
 
 func (e *UnexpectedValueError) Error() string { return e.Message }
@@ -176,7 +122,6 @@ func (e *UnexpectedValueError) PHPPrevious() error { return e.Prev }
 // SecurityError is Composer\Exception\SecurityException.
 type SecurityError struct {
 	Message string
-	phperr.Site
 }
 
 func (e *SecurityError) Error() string { return e.Message }

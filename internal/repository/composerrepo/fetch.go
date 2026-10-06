@@ -16,7 +16,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -37,20 +36,18 @@ var httpURLRegex = php.MustCompile(`{^https?://}i`)
 
 // preFileDownload dispatches PRE_FILE_DOWNLOAD for a metadata URL: the
 // URL and transport options to use. The options are the repository's
-// own (or a listener's): callers clone them before modifying. eventLine is
-// the line of the caller's setTransportOptions($this->options) call,
-// getLine that of its HttpDownloader call: where options that are not an
-// array fail (strict_types).
-func (r *ComposerRepository) preFileDownload(filename string, eventLine, getLine int) (string, *php.Array, error) {
+// own (or a listener's): callers clone them before modifying. getLine is
+// the line of the caller's HttpDownloader call, which names the method
+// options that are not an array fail in (strict_types).
+func (r *ComposerRepository) preFileDownload(filename string, getLine int) (string, *php.Array, error) {
 	if r.eventDispatcher == nil {
 		if r.options == nil {
-			fn, decl := `Composer\Util\HttpDownloader::get`, phperr.At("HttpDownloader.php", 105)
+			fn := `Composer\Util\HttpDownloader::get`
 			if getLine == 2012 {
-				fn, decl = `Composer\Util\HttpDownloader::add`, phperr.At("HttpDownloader.php", 131)
+				fn = `Composer\Util\HttpDownloader::add`
 			}
 
-			return "", nil, pkg.ArgumentTypeError(fn, 2, "options", "array", r.rawOptions).
-				Called(strings.Replace(fn, "::", "->", 1), decl, "ComposerRepository.php", getLine)
+			return "", nil, pkg.ArgumentTypeError(fn, 2, "options", "array", r.rawOptions)
 		}
 
 		return filename, r.options, nil
@@ -58,8 +55,7 @@ func (r *ComposerRepository) preFileDownload(filename string, eventLine, getLine
 
 	event := eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, r.httpDownloader, filename, "metadata", &MetadataContext{Repository: r})
 	if r.options == nil {
-		return "", nil, pkg.ArgumentTypeError(`Composer\Plugin\PreFileDownloadEvent::setTransportOptions`, 1, "options", "array", r.rawOptions).
-			Called(`Composer\Plugin\PreFileDownloadEvent->setTransportOptions`, phperr.At("PreFileDownloadEvent.php", 154), "ComposerRepository.php", eventLine)
+		return "", nil, pkg.ArgumentTypeError(`Composer\Plugin\PreFileDownloadEvent::setTransportOptions`, 1, "options", "array", r.rawOptions)
 	}
 	event.SetTransportOptions(r.options)
 	if _, err := r.eventDispatcher.Dispatch(event.Name(), event); err != nil {
@@ -103,7 +99,7 @@ func cloneOptions(options *php.Array) *php.Array {
 // name.
 func (r *ComposerRepository) fetchFileRelative(filename string) (*php.Array, error) {
 	if filename == "" {
-		return nil, &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 1736), Message: "$filename should not be an empty string"}
+		return nil, &util.InvalidArgumentError{Message: "$filename should not be an empty string"}
 	}
 
 	return r.fetchFile(r.baseURL+"/"+filename, filename, "", false)
@@ -115,7 +111,7 @@ func (r *ComposerRepository) fetchFileRelative(filename string) (*php.Array, err
 // cache when the repository cannot be reached.
 func (r *ComposerRepository) fetchFile(filename, cacheKey, sha256 string, storeLastModifiedTime bool) (*php.Array, error) {
 	if filename == "" {
-		return nil, &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 1736), Message: "$filename should not be an empty string"}
+		return nil, &util.InvalidArgumentError{Message: "$filename should not be an empty string"}
 	}
 
 	// url-encode $ signs in URLs as bad proxies choke on them
@@ -164,13 +160,13 @@ func (r *ComposerRepository) fetchFile(filename, cacheKey, sha256 string, storeL
 		return nil, err
 	}
 
-	return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1831), Message: "ComposerRepository: Undefined $data. Please report at https://github.com/composer/composer/issues/new."}
+	return nil, &util.LogicError{Message: "ComposerRepository: Undefined $data. Please report at https://github.com/composer/composer/issues/new."}
 }
 
 // fetchFileAttempt is one try of fetchFile's loop; retry tells it to
 // continue with the next try.
 func (r *ComposerRepository) fetchFileAttempt(filename *string, cacheKey, sha256 string, storeLastModifiedTime bool, retries int) (*php.Array, bool, error) {
-	processed, options, err := r.preFileDownload(*filename, 1755, 1761)
+	processed, options, err := r.preFileDownload(*filename, 1761)
 	if err != nil {
 		return nil, false, err
 	}
@@ -178,7 +174,7 @@ func (r *ComposerRepository) fetchFileAttempt(filename *string, cacheKey, sha256
 
 	response, err := r.httpDownloader.Get(*filename, options)
 	if err != nil {
-		return nil, false, phperr.Call(err, `Composer\Util\HttpDownloader->get`, "ComposerRepository.php", 1761)
+		return nil, false, err
 	}
 	body := response.Body()
 	if sha256 != "" && sha256 != sha256Hex(body) {
@@ -196,7 +192,7 @@ func (r *ComposerRepository) fetchFileAttempt(filename *string, cacheKey, sha256
 		}
 
 		// TODO use scarier wording once we know for sure it doesn't do false positives anymore
-		return nil, false, &repository.SecurityError{Site: phperr.At("ComposerRepository.php", 1778), Message: "The contents of " + util.SanitizeURL(*filename) + " do not match its signature. This could indicate a man-in-the-middle attack or e.g. antivirus software corrupting files. Try running composer again and report this if you think it is a mistake."}
+		return nil, false, &repository.SecurityError{Message: "The contents of " + util.SanitizeURL(*filename) + " do not match its signature. This could indicate a man-in-the-middle attack or e.g. antivirus software corrupting files. Try running composer again and report this if you think it is a mistake."}
 	}
 
 	if err := r.postFileDownload(pkg.NonEmpty(sha256), *filename, response); err != nil {
@@ -262,7 +258,7 @@ func (r *ComposerRepository) degradedWarning(err error) {
 // the result when the repository cannot be reached.
 func (r *ComposerRepository) fetchFileIfLastModified(filename, cacheKey, lastModifiedTime string) (*php.Array, bool, error) {
 	if filename == "" {
-		return nil, false, &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 1843), Message: "$filename should not be an empty string"}
+		return nil, false, &util.InvalidArgumentError{Message: "$filename should not be an empty string"}
 	}
 
 	data, fresh, err := r.fetchFileIfLastModifiedAttempt(filename, cacheKey, lastModifiedTime)
@@ -279,7 +275,7 @@ func (r *ComposerRepository) fetchFileIfLastModified(filename, cacheKey, lastMod
 }
 
 func (r *ComposerRepository) fetchFileIfLastModifiedAttempt(filename, cacheKey, lastModifiedTime string) (*php.Array, bool, error) {
-	filename, options, err := r.preFileDownload(filename, 1850, 1860)
+	filename, options, err := r.preFileDownload(filename, 1860)
 	if err != nil {
 		return nil, false, err
 	}
@@ -364,7 +360,7 @@ type asyncFetch struct {
 // If-Modified-Since request when lastModifiedTime is not "", null).
 func (r *ComposerRepository) asyncFetchFile(filename, cacheKey, lastModifiedTime string) (*asyncFetch, error) {
 	if filename == "" {
-		return nil, &util.InvalidArgumentError{Site: phperr.At("ComposerRepository.php", 1909), Message: "$filename should not be an empty string"}
+		return nil, &util.InvalidArgumentError{Message: "$filename should not be an empty string"}
 	}
 
 	f := &asyncFetch{filename: filename, cacheKey: cacheKey, lastModified: lastModifiedTime}
@@ -382,7 +378,7 @@ func (r *ComposerRepository) asyncFetchFile(filename, cacheKey, lastModifiedTime
 		return f, nil
 	}
 
-	filename, options, err := r.preFileDownload(filename, 1928, 2012)
+	filename, options, err := r.preFileDownload(filename, 2012)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +547,7 @@ type cachedDownload struct {
 // again.
 func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames []string, slim bool) ([]*cachedDownload, error) {
 	if r.lazyProvidersURL == "" {
-		return nil, &util.LogicError{Site: phperr.At("ComposerRepository.php", 1369), Message: "startCachedAsyncDownload only supports v2 protocol composer repos with a metadata-url"}
+		return nil, &util.LogicError{Message: "startCachedAsyncDownload only supports v2 protocol composer repos with a metadata-url"}
 	}
 
 	downloads := make([]*cachedDownload, len(fileNames))
@@ -667,20 +663,18 @@ func exceptionClass(err error) string {
 type RuntimeError struct {
 	Message  string
 	Previous error
-	phperr.Site
 }
 
-func newRuntimeError(site phperr.Site, message string, previous error) *RuntimeError {
-	return &RuntimeError{Message: message, Previous: previous, Site: site}
+func newRuntimeError(message string, previous error) *RuntimeError {
+	return &RuntimeError{Message: message, Previous: previous}
 }
 
 // PHPPrevious implements phperr.Chained.
 func (e *RuntimeError) PHPPrevious() error { return e.Previous }
 
 // transportErrorAt is new TransportException($message, $code) at site.
-func transportErrorAt(site phperr.Site, message string, code int) *util.TransportError {
+func transportErrorAt(message string, code int) *util.TransportError {
 	e := util.NewTransportError(message, code)
-	e.Site = site
 
 	return e
 }

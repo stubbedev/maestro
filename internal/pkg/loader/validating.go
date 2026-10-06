@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/spdx"
@@ -89,18 +88,15 @@ func (l *ValidatingArrayLoader) Load(config *php.Array, class string) (pkg.Packa
 
 	if len(l.errors) > 0 {
 		e := NewInvalidPackageError(l.errors, l.warnings, config)
-		e.Site = phperr.At("ValidatingArrayLoader.php", 615)
 
 		return nil, e
 	}
 
 	// the inner loader is an ArrayLoader wherever Composer builds one
-	leave := phperr.Push(`Composer\Package\Loader\ArrayLoader->load`, "ValidatingArrayLoader.php", 618)
 	p, err := l.loader.Load(l.config, class)
-	leave()
 	l.config = php.NewArray()
 
-	return p, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->load`, "ValidatingArrayLoader.php", 618)
+	return p, err
 }
 
 func (l *ValidatingArrayLoader) validate(config *php.Array) error {
@@ -109,8 +105,7 @@ func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 	if name := get(config, "name"); name != nil {
 		s, ok := name.(string)
 		if !ok {
-			return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name).
-				Called(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, phperr.At("ValidatingArrayLoader.php", 640), "ValidatingArrayLoader.php", 74)
+			return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name)
 		}
 
 		if msg, bad, err := HasPackageNamingError(s, false); err != nil {
@@ -783,8 +778,7 @@ func (l *ValidatingArrayLoader) validateLinks() error {
 			if linkType == "conflict" && isset(l.config, "replace") {
 				replace, ok := get(l.config, "replace").(*php.Array)
 				if !ok {
-					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", get(l.config, "replace")).
-						Raised("array_intersect_key", "ValidatingArrayLoader.php", 481)
+					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", get(l.config, "replace"))
 				}
 
 				if php.ArrayIntersectKey(replace, links).Len() > 0 {
@@ -1095,7 +1089,7 @@ func filterURL(value any, schemes ...string) (bool, error) {
 
 	s, ok := value.(string)
 	if !ok {
-		return false, pkg.ArgumentTypeError("parse_url", 1, "url", "string", value).Raised("parse_url", "ValidatingArrayLoader.php", 862)
+		return false, pkg.ArgumentTypeError("parse_url", 1, "url", "string", value)
 	}
 
 	bits, ok := util.ParseURL(s)
@@ -1172,7 +1166,7 @@ func ValidatePackage(p pkg.PackageInterface) error {
 	if msg, bad, err := HasPackageNamingError(p.Name(), false); err != nil {
 		return err
 	} else if bad {
-		return &pkg.SecurityError{Site: phperr.At("ValidatingArrayLoader.php", 695), Message: "Invalid package found during dependency resolution, aborting: " + msg}
+		return &pkg.SecurityError{Message: "Invalid package found during dependency resolution, aborting: " + msg}
 	}
 
 	// A url or reference starting with a "-" may be misinterpreted as a command-line option
@@ -1187,7 +1181,7 @@ func ValidatePackage(p pkg.PackageInterface) error {
 		{"dist.reference", p.DistReference()},
 	} {
 		if f.value.Valid && mustMatch(startsWithDash, f.value.S) {
-			return &pkg.SecurityError{Site: phperr.At("ValidatingArrayLoader.php", 708), Message: p.Name() + " has an invalid " + f.field + ", it must not start with a \"-\": " + f.value.S}
+			return &pkg.SecurityError{Message: p.Name() + " has an invalid " + f.field + ", it must not start with a \"-\": " + f.value.S}
 		}
 	}
 
@@ -1195,7 +1189,7 @@ func ValidatePackage(p pkg.PackageInterface) error {
 	// there makes the client execute the rest of the value as a local command instead of
 	// connecting to a server (GHSA-rvx4-ffvw-m9q3), so only accept network endpoints.
 	if sourceURL := p.SourceURL(); p.SourceType() == pkg.Str("perforce") && sourceURL.Valid && !IsValidPerforcePort(sourceURL.S) {
-		return &pkg.SecurityError{Site: phperr.At("ValidatingArrayLoader.php", 717), Message: p.Name() + " has an invalid source.url, it must be a Perforce port of the form [tcp|ssl:][host:]port: " + sourceURL.S}
+		return &pkg.SecurityError{Message: p.Name() + " has an invalid source.url, it must be a Perforce port of the form [tcp|ssl:][host:]port: " + sourceURL.S}
 	}
 
 	// Bin paths are resolved relative to the package install dir and then chmod'd (and
@@ -1204,7 +1198,7 @@ func ValidatePackage(p pkg.PackageInterface) error {
 	for _, v := range p.Binaries().All() {
 		bin := php.ToString(v)
 		if mustMatch(binParentSegment, bin) {
-			return &pkg.SecurityError{Site: phperr.At("ValidatingArrayLoader.php", 725), Message: p.Name() + " has an invalid bin " + bin + ", it must not contain \"..\" path segments"}
+			return &pkg.SecurityError{Message: p.Name() + " has an invalid bin " + bin + ", it must not contain \"..\" path segments"}
 		}
 	}
 

@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -115,7 +114,7 @@ func (l *Link) isSelfVersion() bool { return l.hasPretty && l.prettyConstraint =
 // when the link was built without one.
 func (l *Link) PrettyConstraint() (string, error) {
 	if !l.hasPretty {
-		return "", &util.UnexpectedValueError{Site: phperr.At("Link.php", 125), Message: "Link " + l.String() + " has been misconfigured and had no prettyConstraint given."}
+		return "", &util.UnexpectedValueError{Message: "Link " + l.String() + " has been misconfigured and had no prettyConstraint given."}
 	}
 
 	return l.prettyConstraint, nil
@@ -286,7 +285,6 @@ func LinksListError(setter string, links Links) error {
 
 	return &util.ErrorException{
 		Message: "Package::" + setter + " must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage.",
-		Site:    phperr.At("Package.php", 716),
 	}
 }
 

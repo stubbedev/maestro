@@ -19,7 +19,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/store"
@@ -141,7 +140,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 			util.PutEnv("COMPOSER_DEV_MODE", map[bool]string{true: "1", false: "0"}[g.devMode])
 		}
 
-		if err := g.devModeArg(204); err != nil {
+		if err := g.devModeArg(); err != nil {
 			return nil, err
 		}
 		if _, err := g.eventDispatcher.DispatchScript(PreAutoloadDump, g.devMode, nil, flags); err != nil {
@@ -162,7 +161,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	}
 	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, devFilter(g.devMode, devPackageNames))
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Autoload\AutoloadGenerator->parseAutoloads`, "AutoloadGenerator.php", 264)
+		return nil, err
 	}
 	g.addReleases(packageMap)
 
@@ -199,7 +198,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	}
 
 	if g.runScripts {
-		if err := g.devModeArg(476); err != nil {
+		if err := g.devModeArg(); err != nil {
 			return nil, err
 		}
 		if _, err := g.eventDispatcher.DispatchScript(PostAutoloadDump, g.devMode, nil, flags); err != nil {
@@ -321,16 +320,15 @@ func devFilter(devMode bool, devPackageNames []string) DevFilter {
 }
 
 // devModeArg checks $this->devMode passed to EventDispatcher::dispatchScript
-// (bool $devMode) at line of AutoloadGenerator.php: a value of
+// (bool $devMode) in AutoloadGenerator.php: a value of
 // installed.json's "dev" that is not a bool is the TypeError of
 // strict_types.
-func (g *Generator) devModeArg(line int) error {
+func (g *Generator) devModeArg() error {
 	if g.devModeValue == nil {
 		return nil
 	}
 
-	return pkg.ArgumentTypeError(`Composer\EventDispatcher\EventDispatcher::dispatchScript`, 2, "devMode", "bool", g.devModeValue).
-		Called(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, phperr.At("EventDispatcher.php", 138), "AutoloadGenerator.php", line)
+	return pkg.ArgumentTypeError(`Composer\EventDispatcher\EventDispatcher::dispatchScript`, 2, "devMode", "bool", g.devModeValue)
 }
 
 // scan builds the class map: the classmap rules, plus the PSR-0/4 dirs
@@ -394,8 +392,7 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, scanPsrPackages 
 	scans := make([]psrScan, 0, len(autoloads.Classmap))
 	for i, dir := range autoloads.Classmap {
 		if autoloads.classmapValue != nil && i == autoloads.classmapIndex {
-			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue).
-				Called(`Composer\Autoload\AutoloadGenerator->buildExclusionRegex`, phperr.At("AutoloadGenerator.php", 488), "AutoloadGenerator.php", 329)
+			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue)
 		}
 		scans = append(scans, psrScan{dir, d.exclusions.build(dir, excluded), classmap.Classmap, ""})
 	}
@@ -410,12 +407,7 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, scanPsrPackages 
 
 	for _, s := range scans {
 		if err := gen.ScanPaths(s.dir, s.excluded, s.typ, s.namespace, nil); err != nil {
-			line := 359 // the PSR directories
-			if s.typ == classmap.Classmap {
-				line = 329
-			}
-
-			return nil, phperr.Call(err, `Composer\ClassMapGenerator\ClassMapGenerator->scanPaths`, "AutoloadGenerator.php", line)
+			return nil, err
 		}
 	}
 
@@ -480,7 +472,7 @@ func (g *Generator) suffix(config Config, vendorPath, suffix string, locker Lock
 			}
 			// $locker->getLockData()['content-hash'] is read without isset
 			if !data.Has("content-hash") {
-				return "", &util.ErrorException{Message: `Undefined array key "content-hash"`, Site: phperr.At("AutoloadGenerator.php", 431)}
+				return "", &util.ErrorException{Message: `Undefined array key "content-hash"`}
 			}
 			if hash, ok := data.GetString("content-hash"); ok {
 				if ok, err := reContentHash.IsMatch(hash); err != nil {
@@ -517,7 +509,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 
 	includePathsFile, err := d.includePathsFile(packageMap)
 	if err != nil {
-		return phperr.Call(err, `Composer\Autoload\AutoloadGenerator->getIncludePathsFile`, "AutoloadGenerator.php", 444)
+		return err
 	}
 	if err := putOrRemove(d.targetDir+"/include_paths.php", includePathsFile); err != nil {
 		return err
@@ -532,12 +524,11 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	}
 
 	if g.suffixValue != nil {
-		return pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::getStaticFile`, 1, "suffix", "string", g.suffixValue).
-			Called(`Composer\Autoload\AutoloadGenerator->getStaticFile`, phperr.At("AutoloadGenerator.php", 1152), "AutoloadGenerator.php", 455)
+		return pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::getStaticFile`, 1, "suffix", "string", g.suffixValue)
 	}
 	staticFile, err := d.staticFile(suffix)
 	if err != nil {
-		return phperr.Call(err, `Composer\Autoload\AutoloadGenerator->getStaticFile`, "AutoloadGenerator.php", 455)
+		return err
 	}
 	if err := putIfModified(d.targetDir+"/autoload_static.php", staticFile); err != nil {
 		return err

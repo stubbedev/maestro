@@ -10,7 +10,6 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
@@ -46,12 +45,12 @@ func (d *PathDownloader) download(_ call, p pkg.PackageInterface, path string, _
 
 	url := p.DistURL()
 	if !url.Valid {
-		return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 47), Message: "The package " + p.PrettyName() + " has no dist url configured, cannot download."}
+		return nil, &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot download."}
 	}
 
 	realURL, ok := util.RealpathOK(url.S)
 	if !ok || !isDir(realURL) {
-		return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 51), Message: fmt.Sprintf("Source path \"%s\" is not found for package %s", url.S, p.Name())}
+		return nil, &util.RuntimeError{Message: fmt.Sprintf("Source path \"%s\" is not found for package %s", url.S, p.Name())}
 	}
 
 	realPath, _ := util.RealpathOK(path)
@@ -67,7 +66,7 @@ func (d *PathDownloader) download(_ call, p pkg.PackageInterface, path string, _
 		// https://github.com/composer/composer/pull/6174 for previous
 		// attempts that were shut down because they did not work well
 		// enough or introduced too many risks.
-		return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 67), Message: fmt.Sprintf("Package %s cannot install to \"%s\" inside its source at \"%s\"", p.Name(), realPath, realURL)}
+		return nil, &util.RuntimeError{Message: fmt.Sprintf("Package %s cannot install to \"%s\" inside its source at \"%s\"", p.Name(), realPath, realURL)}
 	}
 
 	return resolved(""), nil
@@ -78,12 +77,12 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 
 	url := p.DistURL()
 	if !url.Valid {
-		return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 86), Message: "The package " + p.PrettyName() + " has no dist url configured, cannot install."}
+		return nil, &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot install."}
 	}
 
 	realURL, ok := util.RealpathOK(url.S)
 	if !ok {
-		return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 90), Message: "Failed to realpath " + url.S}
+		return nil, &util.RuntimeError{Message: "Failed to realpath " + url.S}
 	}
 
 	if realPath, ok := util.RealpathOK(path); ok && realPath == realURL {
@@ -125,7 +124,7 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 			}
 
 			if allowedStrategies&allowMirror == 0 {
-				return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 147), Message: fmt.Sprintf("Symlink from \"%s\" to \"%s\" failed!", realURL, path)}
+				return nil, &util.RuntimeError{Message: fmt.Sprintf("Symlink from \"%s\" to \"%s\" failed!", realURL, path)}
 			}
 
 			if c.output {
@@ -229,7 +228,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 		if removed, err := util.RemoveJunction(path); err != nil || !removed {
 			c.io.WriteError("    <warning>Could not remove junction at "+path+" - is another process locking it?</warning>", true, mio.Normal)
 
-			return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 191), Message: "Could not reliably remove junction for package " + p.Name()}
+			return nil, &util.RuntimeError{Message: "Could not reliably remove junction for package " + p.Name()}
 		}
 
 		return resolved(""), nil
@@ -237,7 +236,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 
 	url := p.DistURL()
 	if !url.Valid {
-		return nil, &util.RuntimeError{Site: phperr.At("PathDownloader.php", 199), Message: "The package " + p.PrettyName() + " has no dist url configured, cannot remove."}
+		return nil, &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot remove."}
 	}
 
 	// ensure that the source path (dist url) is not the same as the install
@@ -301,12 +300,12 @@ func (d *PathDownloader) VcsReference(p pkg.PackageInterface, path string) (pkg.
 func (d *PathDownloader) installOperationAppendix(p pkg.PackageInterface, path string) (string, error) {
 	url := p.DistURL()
 	if !url.Valid {
-		return "", &util.RuntimeError{Site: phperr.At("PathDownloader.php", 246), Message: "The package " + p.PrettyName() + " has no dist url configured, cannot install."}
+		return "", &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot install."}
 	}
 
 	realURL, ok := util.RealpathOK(url.S)
 	if !ok {
-		return "", &util.RuntimeError{Site: phperr.At("PathDownloader.php", 250), Message: "Failed to realpath " + url.S}
+		return "", &util.RuntimeError{Message: "Failed to realpath " + url.S}
 	}
 
 	if realPath, ok := util.RealpathOK(path); ok && realPath == realURL {

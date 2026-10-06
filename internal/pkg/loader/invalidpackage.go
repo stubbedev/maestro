@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // InvalidPackageError ports Composer\Package\Loader\InvalidPackageException.
@@ -14,7 +13,6 @@ type InvalidPackageError struct {
 	errors   []string
 	warnings []string
 	data     *php.Array
-	phperr.Site
 }
 
 // NewInvalidPackageError ports InvalidPackageException::__construct.

@@ -8,7 +8,6 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -61,7 +60,7 @@ func (d *HgDriver) Initialize() error {
 func (d *HgDriver) updateClone() error {
 	cacheDir := php.ToString(d.config.Get("cache-vcs-dir"))
 	if !cache.IsUsable(cacheDir) {
-		return &util.RuntimeError{Site: phperr.At("HgDriver.php", 47), Message: "HgDriver requires a usable cache directory, and it looks like you set it to be disabled"}
+		return &util.RuntimeError{Message: "HgDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 	}
 
 	safeURL, err := util.SanitizeURLChecked(d.url)
@@ -76,7 +75,7 @@ func (d *HgDriver) updateClone() error {
 	}
 
 	if !util.IsWritable(util.Dirname(d.repoDir)) {
-		return &util.RuntimeError{Site: phperr.At("HgDriver.php", 57), Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + cacheDir + `" directory is not writable by the current user.`}
+		return &util.RuntimeError{Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + cacheDir + `" directory is not writable by the current user.`}
 	}
 
 	// Ensure we are allowed to use this URL by config
@@ -148,7 +147,7 @@ func (d *HgDriver) Dist(string) *php.Array { return nil }
 
 // FileContent ports HgDriver::getFileContent.
 func (d *HgDriver) FileContent(file, identifier string) (string, bool, error) {
-	if err := invalidIdentifier(phperr.At("HgDriver.php", 131), "hg", identifier); err != nil {
+	if err := invalidIdentifier("hg", identifier); err != nil {
 		return "", false, err
 	}
 
@@ -166,7 +165,7 @@ func (d *HgDriver) FileContent(file, identifier string) (string, bool, error) {
 
 // ChangeDate ports HgDriver::getChangeDate.
 func (d *HgDriver) ChangeDate(identifier string) (time.Time, bool, error) {
-	if err := invalidIdentifier(phperr.At("HgDriver.php", 150), "hg", identifier); err != nil {
+	if err := invalidIdentifier("hg", identifier); err != nil {
 		return time.Time{}, false, err
 	}
 

@@ -8,7 +8,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -102,7 +101,7 @@ func (d *GitLabDriver) Initialize() error {
 		return err
 	}
 	if !ok {
-		return &util.InvalidArgumentError{Site: phperr.At("GitLabDriver.php", 98), Message: "The GitLab repository URL " + util.SanitizeURL(d.url) + " is invalid. It must be the HTTP URL of a GitLab project."}
+		return &util.InvalidArgumentError{Message: "The GitLab repository URL " + util.SanitizeURL(d.url) + " is invalid. It must be the HTTP URL of a GitLab project."}
 	}
 
 	switch {
@@ -116,7 +115,7 @@ func (d *GitLabDriver) Initialize() error {
 
 	origin, ok := determineOrigin(d.config.Get("gitlab-domains"), p.guessedDomain, &p.urlParts, p.port, p.hasPort)
 	if !ok {
-		return &util.LogicError{Site: phperr.At("GitLabDriver.php", 111), Message: "It should not be possible to create a gitlab driver with an unparsable origin URL (" + util.SanitizeURL(d.url) + ")"}
+		return &util.LogicError{Message: "It should not be possible to create a gitlab driver with an unparsable origin URL (" + util.SanitizeURL(d.url) + ")"}
 	}
 
 	d.originURL = origin
@@ -124,7 +123,7 @@ func (d *GitLabDriver) Initialize() error {
 	if protocol, ok := d.config.Get("gitlab-protocol").(string); ok {
 		// https treated as a synonym for http.
 		if protocol != "git" && protocol != "http" && protocol != "https" {
-			return &util.RuntimeError{Site: phperr.At("GitLabDriver.php", 118), Message: "gitlab-protocol must be one of git, http."}
+			return &util.RuntimeError{Message: "gitlab-protocol must be one of git, http."}
 		}
 
 		d.protocol = "http"
@@ -592,14 +591,14 @@ func (d *GitLabDriver) tryGetContents(url string, fetchingRepoData bool) (*http.
 	if !isset(json, "default_branch") {
 		// GitLab allows you to disable the repository inside a project to use a project only for issues and wiki
 		if arrayPath(json, "repository_access_level") == "disabled" {
-			return nil, transportErrorAt(phperr.At("GitLabDriver.php", 496), "The GitLab repository is disabled in the project", 400)
+			return nil, util.NewTransportError("The GitLab repository is disabled in the project", 400)
 		}
 
 		if php.ToBool(arrayPath(json, "id")) {
 			d.isPrivate = false
 		}
 
-		return nil, transportErrorAt(phperr.At("GitLabDriver.php", 503), "GitLab API seems to not be authenticated as it did not return a default_branch", 401)
+		return nil, util.NewTransportError("GitLab API seems to not be authenticated as it did not return a default_branch", 401)
 	}
 
 	return response, nil

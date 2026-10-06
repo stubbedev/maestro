@@ -10,7 +10,6 @@ import (
 	"github.com/stubbedev/maestro/internal/downloader"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -135,15 +134,16 @@ func (d *vcsDownloader) Class() string { return d.class }
 // InstallationSource is getInstallationSource().
 func (d *vcsDownloader) InstallationSource() string { return "source" }
 
-// missingReference is thrown at VcsDownloader.php line `line`.
-func missingReference(p pkg.PackageInterface, line int) error {
-	return &util.InvalidArgumentError{Message: "Package " + p.PrettyName() + " is missing reference information", Site: phperr.At("VcsDownloader.php", line)}
+// missingReference is the InvalidArgumentException of a package without
+// a reference.
+func missingReference(p pkg.PackageInterface) error {
+	return &util.InvalidArgumentError{Message: "Package " + p.PrettyName() + " is missing reference information"}
 }
 
 // Download is download().
 func (d *vcsDownloader) Download(p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
 	if !php.ToBool(p.SourceReference().S) {
-		return nil, missingReference(p, 66)
+		return nil, missingReference(p)
 	}
 
 	urls := prepareURLs(p.SourceURLs())
@@ -202,7 +202,7 @@ func (d *vcsDownloader) Cleanup(typ string, _ pkg.PackageInterface, path string,
 // Install is install().
 func (d *vcsDownloader) Install(p pkg.PackageInterface, path string) (*downloader.Promise, error) {
 	if !php.ToBool(p.SourceReference().S) {
-		return nil, missingReference(p, 129)
+		return nil, missingReference(p)
 	}
 
 	d.io.WriteError("  - "+operation.FormatInstall(p, false)+": ", false, mio.Normal)
@@ -218,7 +218,7 @@ func (d *vcsDownloader) Install(p pkg.PackageInterface, path string) (*downloade
 // Update is update().
 func (d *vcsDownloader) Update(initial, target pkg.PackageInterface, path string) (*downloader.Promise, error) {
 	if !php.ToBool(target.SourceReference().S) {
-		return nil, missingReference(target, 164)
+		return nil, missingReference(target)
 	}
 
 	msg, err := operation.FormatUpdate(initial, target)
@@ -281,7 +281,7 @@ func (d *vcsDownloader) Remove(p pkg.PackageInterface, path string) (*downloader
 
 	return util.Then(promise, func(result bool) (string, error) {
 		if !result {
-			return "", &util.RuntimeError{Site: phperr.At("VcsDownloader.php", 233), Message: "Could not completely delete " + path + ", aborting."}
+			return "", &util.RuntimeError{Message: "Could not completely delete " + path + ", aborting."}
 		}
 
 		return "", nil
@@ -316,7 +316,7 @@ func (d *vcsDownloader) cleanChanges(p pkg.PackageInterface, path string, _ bool
 	}
 
 	if changes.Valid {
-		return &util.RuntimeError{Site: phperr.At("VcsDownloader.php", 268), Message: "Source directory " + path + " has uncommitted changes."}
+		return &util.RuntimeError{Message: "Source directory " + path + " has uncommitted changes."}
 	}
 
 	return nil
@@ -418,8 +418,8 @@ func realpathCwd(path string) string {
 // failedToExecute is `throw new \RuntimeException('Failed to execute ' .
 // implode(' ', $command) . "\n\n" . $this->process->getErrorOutput())`.
 // site is where the PHP throws it.
-func (d *vcsDownloader) failedToExecute(site phperr.Site, command []string) error {
-	return &util.RuntimeError{Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + d.process.GetErrorOutput(), Site: site}
+func (d *vcsDownloader) failedToExecute(command []string) error {
+	return &util.RuntimeError{Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + d.process.GetErrorOutput()}
 }
 
 // execute runs command, storing its output into output when non-nil.
@@ -433,14 +433,14 @@ func (d *vcsDownloader) execute(command []string, output *string, cwd string) (i
 
 // mustExecute runs command and fails with failedToExecute unless it exits
 // with 0 (thrown at site).
-func (d *vcsDownloader) mustExecute(site phperr.Site, command []string, output *string, cwd string) error {
+func (d *vcsDownloader) mustExecute(command []string, output *string, cwd string) error {
 	code, err := d.execute(command, output, cwd)
 	if err != nil {
 		return err
 	}
 
 	if code != 0 {
-		return d.failedToExecute(site, command)
+		return d.failedToExecute(command)
 	}
 
 	return nil

@@ -7,35 +7,31 @@ package config
 
 import (
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-// jsonConfigSourceFile is the file the fallbacks' writes are in.
-const jsonConfigSourceFile = "JsonConfigSource.php"
-
-// writable is $v used as the array of a write $v[...] = at line
+// writable is $v used as the array of a write $v[...] =
 // (php.WritableArray): the array itself, or a new one (replace true) for
 // null and false, the latter after the deprecation notice Composer's
 // ErrorHandler prints before the write goes on.
-func writable(v any, line int) (arr *php.Array, replace bool, err error) {
+func writable(v any) (arr *php.Array, replace bool, err error) {
 	arr, replace, deprecated, e := php.WritableArray(v)
 	if e != nil {
-		return nil, false, e.Raised("", jsonConfigSourceFile, line)
+		return nil, false, e
 	}
 	if deprecated {
-		util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At(jsonConfigSourceFile, line))
+		util.RaiseDeprecation(php.FalseToArrayDeprecation)
 	}
 
 	return arr, replace, nil
 }
 
-// child is &$a[$key] used as an array at line: the array stored at key,
+// child is &$a[$key] used as an array: the array stored at key,
 // created when the key is missing or holds null or false
 // (auto-vivification).
-func child(a *php.Array, key any, line int) (*php.Array, error) {
+func child(a *php.Array, key any) (*php.Array, error) {
 	v, _ := a.Get(key)
-	c, replace, err := writable(v, line)
+	c, replace, err := writable(v)
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +42,11 @@ func child(a *php.Array, key any, line int) (*php.Array, error) {
 	return c, nil
 }
 
-// setIn is $a[$k1][$k2]...[$kn] = $value at line.
-func setIn(line int, a *php.Array, value any, keys ...any) error {
+// setIn is $a[$k1][$k2]...[$kn] = $value.
+func setIn(a *php.Array, value any, keys ...any) error {
 	for _, k := range keys[:len(keys)-1] {
 		var err error
-		if a, err = child(a, k, line); err != nil {
+		if a, err = child(a, k); err != nil {
 			return err
 		}
 	}
@@ -59,10 +55,10 @@ func setIn(line int, a *php.Array, value any, keys ...any) error {
 	return nil
 }
 
-// unsetIn is unset($a[$k1][$k2]...[$kn]) at line: a missing or null level
+// unsetIn is unset($a[$k1][$k2]...[$kn]): a missing or null level
 // makes it a no-op, as false does after the deprecation notice; other
 // scalars fail as in PHP.
-func unsetIn(line int, a *php.Array, keys ...any) error {
+func unsetIn(a *php.Array, keys ...any) error {
 	for i, k := range keys {
 		if i == len(keys)-1 {
 			a.Delete(k)
@@ -77,15 +73,15 @@ func unsetIn(line int, a *php.Array, keys ...any) error {
 			return nil
 		case bool:
 			if c {
-				return (&php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}).Raised("", jsonConfigSourceFile, line)
+				return &php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}
 			}
-			util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At(jsonConfigSourceFile, line))
+			util.RaiseDeprecation(php.FalseToArrayDeprecation)
 
 			return nil
 		case string:
-			return (&php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}).Raised("", jsonConfigSourceFile, line)
+			return &php.EngineError{Class: "Error", Message: "Cannot unset string offsets"}
 		default:
-			return (&php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}).Raised("", jsonConfigSourceFile, line)
+			return &php.EngineError{Class: "Error", Message: "Cannot unset offset in a non-array variable"}
 		}
 	}
 
@@ -113,13 +109,11 @@ func isEmptyArray(v any) bool {
 	return ok && a.Len() == 0
 }
 
-// arrayIsList is array_is_list($v) at line, with its TypeError for
-// non-arrays.
-func arrayIsList(v any, line int) (bool, error) {
+// arrayIsList is array_is_list($v), with its TypeError for non-arrays.
+func arrayIsList(v any) (bool, error) {
 	a, ok := v.(*php.Array)
 	if !ok {
-		return false, (&php.EngineError{Class: "TypeError", Message: "array_is_list(): Argument #1 ($array) must be of type array, " + zvalName(v) + " given"}).
-			Raised("array_is_list", jsonConfigSourceFile, line)
+		return false, &php.EngineError{Class: "TypeError", Message: "array_is_list(): Argument #1 ($array) must be of type array, " + zvalName(v) + " given"}
 	}
 
 	return a.IsList(), nil

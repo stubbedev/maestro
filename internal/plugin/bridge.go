@@ -149,12 +149,6 @@ func (e *typeError) Error() string { return e.msg }
 // ThrowableClass implements console.Throwable.
 func (*typeError) ThrowableClass() string { return "TypeError" }
 
-// ThrowableFile implements console.Throwable.
-func (*typeError) ThrowableFile() string { return "" }
-
-// ThrowableLine implements console.Throwable.
-func (*typeError) ThrowableLine() int { return 0 }
-
 // ThrowableCode implements console.Throwable.
 func (*typeError) ThrowableCode() int { return 0 }
 
@@ -219,12 +213,6 @@ func (e *unsupportedError) Error() string { return e.msg }
 
 // ThrowableClass implements console.Throwable.
 func (*unsupportedError) ThrowableClass() string { return `Maestro\Shim\UnsupportedApiException` }
-
-// ThrowableFile implements console.Throwable.
-func (*unsupportedError) ThrowableFile() string { return "" }
-
-// ThrowableLine implements console.Throwable.
-func (*unsupportedError) ThrowableLine() int { return 0 }
 
 // ThrowableCode implements console.Throwable.
 func (*unsupportedError) ThrowableCode() int { return 0 }

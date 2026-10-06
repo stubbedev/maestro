@@ -14,7 +14,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -217,19 +216,15 @@ func (h *HttpDownloader) AddCopy(url, to string, options *php.Array) (*util.Prom
 	return h.asyncRequest(url, options, to)
 }
 
-// emptyURLError is the InvalidArgumentException get/copy (line, else
-// copyLine when copying to a file) throw for an empty URL.
-func emptyURLError(copyTo string, line, copyLine int) error {
-	if copyTo != "" {
-		line = copyLine
-	}
-
-	return &util.InvalidArgumentError{Message: "$url must not be an empty string", Site: phperr.At("HttpDownloader.php", line)}
+// emptyURLError is the InvalidArgumentException get/copy throw for an
+// empty URL.
+func emptyURLError() error {
+	return &util.InvalidArgumentError{Message: "$url must not be an empty string"}
 }
 
 func (h *HttpDownloader) syncRequest(url string, options *php.Array, copyTo string) (*Response, error) {
 	if url == "" {
-		return nil, emptyURLError(copyTo, 108, 154)
+		return nil, emptyURLError()
 	}
 
 	h.mu.Lock()
@@ -242,31 +237,12 @@ func (h *HttpDownloader) syncRequest(url string, options *php.Array, copyTo stri
 
 	h.waitJob(job.id)
 
-	response, err := h.response(job.id)
-	if err != nil {
-		// get() (copy()) calls addJob() at line 110 (156), whose promise
-		// runs a RemoteFilesystem request at once; a curl request fails in
-		// the tick of wait() at line 114 (159)
-		addJobLine, waitLine := 110, 114
-		if copyTo != "" {
-			addJobLine, waitLine = 156, 159
-		}
-		if h.canUseCurl(job) {
-			phperr.Calls(err,
-				phperr.Frame{Function: `Composer\Util\Http\CurlDownloader->tick`, File: "HttpDownloader.php", Line: 395},
-				phperr.Frame{Function: `Composer\Util\HttpDownloader->countActiveJobs`, File: "HttpDownloader.php", Line: 366},
-				phperr.Frame{Function: `Composer\Util\HttpDownloader->wait`, File: "HttpDownloader.php", Line: waitLine})
-		} else {
-			phperr.Call(err, `Composer\Util\HttpDownloader->addJob`, "HttpDownloader.php", addJobLine)
-		}
-	}
-
-	return response, err
+	return h.response(job.id)
 }
 
 func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo string) (*util.Promise[*Response], error) {
 	if url == "" {
-		return nil, emptyURLError(copyTo, 134, 179)
+		return nil, emptyURLError()
 	}
 
 	h.mu.Lock()
@@ -275,17 +251,8 @@ func (h *HttpDownloader) asyncRequest(url string, options *php.Array, copyTo str
 	// once) take place here
 	h.unlock()
 
-	// add() (addCopy()) calls addJob() at line 136 (181)
-	line := 136
-	if copyTo != "" {
-		line = 181
-	}
-
-	return util.CallSync(promise, err, `Composer\Util\HttpDownloader->addJob`, "HttpDownloader.php", line)
+	return promise, err
 }
-
-// promisePHP is react/promise's Promise class.
-const promisePHP = "vendor/react/promise/src/Promise.php"
 
 // unlock releases h.mu and runs the settlements decided meanwhile.
 func (h *HttpDownloader) unlock() {
@@ -348,7 +315,7 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 	h.idGen++
 
 	if !sync && !h.allowAsync {
-		return nil, nil, &util.LogicError{Message: `You must use the HttpDownloader instance which is part of a Composer\Loop instance to be able to run async http requests`, Site: phperr.At("HttpDownloader.php", 226)}
+		return nil, nil, &util.LogicError{Message: `You must use the HttpDownloader instance which is part of a Composer\Loop instance to be able to run async http requests`}
 	}
 
 	// capture username/password from URL if there is one
@@ -397,11 +364,7 @@ func (h *HttpDownloader) runRemoteFilesystem(job *httpJob) {
 	// the frames of the promise's resolver, run by its constructor at line
 	// 283 of addJob()
 	resolver := func(err error, call string, line int) error {
-		return phperr.Calls(err,
-			phperr.Frame{Function: `Composer\Util\RemoteFilesystem->` + call, File: "HttpDownloader.php", Line: line},
-			phperr.Frame{Function: `Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}`, File: promisePHP, Line: 284},
-			phperr.Frame{Function: `React\Promise\Promise->call`, File: promisePHP, Line: 41},
-			phperr.Frame{Function: `React\Promise\Promise->__construct`, File: "HttpDownloader.php", Line: 283})
+		return err
 	}
 
 	if job.copyTo != "" {
@@ -436,7 +399,7 @@ func (h *HttpDownloader) cancelJob(job *httpJob) {
 	h.mu.Lock()
 	defer h.unlock()
 
-	err := &util.IrrecoverableDownloadError{Message: "Download of " + util.SanitizeURL(job.url) + " canceled", Site: phperr.At("HttpDownloader.php", 280)}
+	err := &util.IrrecoverableDownloadError{Message: "Download of " + util.SanitizeURL(job.url) + " canceled"}
 
 	switch job.status {
 	case statusQueued:
@@ -473,7 +436,7 @@ func (h *HttpDownloader) startJob(job *httpJob) {
 		if _, ok := path(job.options, "http", "header"); ok && php.Stripos(strings.Join(headerList(job.options), ""), "if-modified-since") >= 0 {
 			job.resolve(NewResponse(job.url, 304, []string{}, ""))
 		} else {
-			e := transportError(phperr.At("HttpDownloader.php", 332), "Network disabled, request canceled: "+util.SanitizeURL(job.url), 499)
+			e := util.NewTransportError("Network disabled, request canceled: "+util.SanitizeURL(job.url), 499)
 			e.StatusCode = 499
 			job.reject(e)
 		}
@@ -642,7 +605,7 @@ func (h *HttpDownloader) response(id int) (*Response, error) {
 
 	job, ok := h.byID[id]
 	if !ok {
-		return nil, &util.LogicError{Message: "Invalid request id", Site: phperr.At("HttpDownloader.php", 420)}
+		return nil, &util.LogicError{Message: "Invalid request id"}
 	}
 
 	if job.status == statusFailed {
@@ -650,7 +613,7 @@ func (h *HttpDownloader) response(id int) (*Response, error) {
 	}
 
 	if job.response == nil {
-		return nil, &util.LogicError{Message: "Response not available yet, call wait() first", Site: phperr.At("HttpDownloader.php", 429)}
+		return nil, &util.LogicError{Message: "Response not available yet, call wait() first"}
 	}
 
 	delete(h.byID, id)

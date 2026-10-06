@@ -15,17 +15,12 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
-
-// pluginManagerFile is the PHP file Composer's PluginManager exceptions are
-// thrown in.
-const pluginManagerFile = "PluginManager.php"
 
 // Manager is Composer\Plugin\PluginManager. It implements
 // composer.PluginManager (and so installer.PluginManager). As a Go object
@@ -220,15 +215,13 @@ func (m *Manager) LoadInstalledPlugins() error {
 
 	if !m.ArePluginsDisabled("local") {
 		repo := m.composer.RepositoryManager().LocalRepository()
-		done := phperr.Enter(pluginManagerClass+"->loadRepository", pluginManagerFile, 106)
-		if err := m.loadRepository(repo, false, m.composer.Package()); done(err) != nil {
+		if err := m.loadRepository(repo, false, m.composer.Package()); err != nil {
 			return err
 		}
 	}
 
 	if m.globalComposer != nil && !m.ArePluginsDisabled("global") {
-		done := phperr.Enter(pluginManagerClass+"->loadRepository", pluginManagerFile, 110)
-		if err := m.loadRepository(m.globalComposer.RepositoryManager().LocalRepository(), true, nil); done(err) != nil {
+		if err := m.loadRepository(m.globalComposer.RepositoryManager().LocalRepository(), true, nil); err != nil {
 			return err
 		}
 	}
@@ -317,7 +310,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		}
 
 		if requiresComposer == nil {
-			return &util.RuntimeError{Message: "Plugin " + p.Name() + " is missing a require statement for a version of the composer-plugin-api package.", Site: phperr.At(pluginManagerFile, 187)}
+			return &util.RuntimeError{Message: "Plugin " + p.Name() + " is missing a require statement for a version of the composer-plugin-api package."}
 		}
 
 		currentPluginAPIVersion := m.pluginAPIVersion()
@@ -370,7 +363,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 	extra := p.Extra()
 	classValue, _ := extra.Get("class")
 	if !php.ToBool(classValue) {
-		return &util.UnexpectedValueError{Message: "Error while installing " + p.PrettyName() + ", composer-plugin packages should have a class defined in their extra key to be usable.", Site: phperr.At(pluginManagerFile, 222)}
+		return &util.UnexpectedValueError{Message: "Error while installing " + p.PrettyName() + ", composer-plugin packages should have a class defined in their extra key to be usable."}
 	}
 	var classes []string
 	if list, ok := classValue.(*php.Array); ok {
@@ -390,14 +383,6 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		return err
 	}
 
-	// the shim's addPlugin() (or, for a legacy composer-installer,
-	// InstallationManager::addInstaller()) is the call in progress while
-	// plugin code runs (phperr.Live); pluginLoadCall locates errors
-	pluginCall := phperr.Frame{Function: pluginManagerClass + "->addPlugin", File: pluginManagerFile, Line: 323}
-	if oldInstallerPlugin {
-		pluginCall = phperr.Frame{Function: `Composer\Installer\InstallationManager->addInstaller`, File: pluginManagerFile, Line: 315}
-	}
-	inPlugin := phperr.Within(pluginCall)
 	res, err := m.r.Call("plugin.load", m.r.framed(php.ArrayOf(
 		"pm", m,
 		"package", m.r.packageObject(p),
@@ -409,7 +394,6 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		"failOnMissing", failOnMissingClasses,
 		"runningInGlobalDir", m.runningInGlobalDir,
 	)))
-	inPlugin()
 	reg := registration{name: p.Name()}
 	if a, ok := res.(*php.Array); ok {
 		if list, ok := a.GetArray("registered"); ok {
@@ -426,7 +410,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		m.registeredPlugins = append(m.registeredPlugins, reg)
 	}
 
-	return pluginLoadCall(err, oldInstallerPlugin)
+	return err
 }
 
 // frame pushes the frame of Composer's PluginManager method on the stack
@@ -445,32 +429,6 @@ func (m *Manager) frame(method string, args ...any) func() {
 
 // pluginManagerClass names PluginManager in the frames of its calls.
 const pluginManagerClass = `Composer\Plugin\PluginManager`
-
-// pluginLoadCall records the call of registerPackage() that a plugin's
-// exception left through (docs/PLUGINS.md §5.12): `new $class()` (a
-// constructor), addPlugin() (activate() and the subscription below it, in
-// the shim's PHP), or, for a legacy composer-installer, `new $class(...)`
-// and InstallationManager::addInstaller().
-func pluginLoadCall(err error, oldInstallerPlugin bool) error {
-	pe, ok := errors.AsType[*rpc.PHPException](err)
-	if !ok {
-		return err
-	}
-	open, ok := pe.OpenFrame()
-	if !ok {
-		return err
-	}
-	switch {
-	case open.Function == "__construct" && oldInstallerPlugin:
-		return phperr.Locate(err, pluginManagerFile, 314)
-	case open.Function == "__construct":
-		return phperr.Locate(err, pluginManagerFile, 322)
-	case oldInstallerPlugin:
-		return phperr.Call(err, `Composer\Installer\InstallationManager->addInstaller`, pluginManagerFile, 315)
-	}
-
-	return phperr.Call(err, pluginManagerClass+"->addPlugin", pluginManagerFile, 323)
-}
 
 var flexVersionPattern = php.MustCompile(`{^[0-9.]+$}`)
 
@@ -559,7 +517,7 @@ func (m *Manager) autoloadPlan(p pkg.PackageInterface) (loader, files *php.Array
 	}
 
 	if len(autoloads) == 0 {
-		return nil, nil, &util.LogicError{Message: "At least the plugin package should always be autoloaded for the code below to work", Site: phperr.At(pluginManagerFile, 271)}
+		return nil, nil, &util.LogicError{Message: "At least the plugin package should always be autoloaded for the code below to work"}
 	}
 
 	parsed, err := generator.ParseAutoloads(autoloads, rootPackage, autoload.NoDevFilter)
@@ -734,12 +692,7 @@ func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRe
 			}
 		}
 
-		line := 533 // composer-plugin
-		if p.Type() == "composer-installer" {
-			line = 536
-		}
-		done := phperr.Enter(pluginManagerClass+"->registerPackage", pluginManagerFile, line)
-		if err := m.RegisterPackage(p, false, isGlobalRepo); done(err) != nil {
+		if err := m.RegisterPackage(p, false, isGlobalRepo); err != nil {
 			return err
 		}
 	}
@@ -806,7 +759,6 @@ func (m *Manager) isPluginAllowed(packageName string, isGlobalPlugin, optional, 
 				Message: "Your composer.lock was generated before the allow-plugins security feature was introduced and your composer.json does not define allow-plugins. " +
 					`Run "composer update --lock" locally and commit the updated composer.lock, then add an explicit allow-plugins section to composer.json. ` +
 					"See https://getcomposer.org/allow-plugins",
-				Site: phperr.At(pluginManagerFile, 746),
 			}
 		}
 
@@ -857,8 +809,7 @@ func (m *Manager) isPluginAllowed(packageName string, isGlobalPlugin, optional, 
 
 			answer, err := m.io.Ask(`Do you trust "<fg=green;options=bold>`+packageName+`</>" to execute code and wish to enable it now? (writes "allow-plugins" to composer.json) [<comment>y,n,d,?</comment>] `, def)
 			if err != nil {
-				// an IO written in PHP left its code through the call
-				return false, phperr.Locate(err, pluginManagerFile, 781)
+				return false, err
 			}
 			switch a, _ := answer.(string); a {
 			case "y", "n", "d":
@@ -937,12 +888,6 @@ func (e *PluginBlockedError) Error() string { return e.Message }
 
 // ThrowableClass implements console.Throwable.
 func (*PluginBlockedError) ThrowableClass() string { return `Composer\Plugin\PluginBlockedException` }
-
-// ThrowableFile implements console.Throwable.
-func (*PluginBlockedError) ThrowableFile() string { return phperr.AbsPath(pluginManagerFile) }
-
-// ThrowableLine implements console.Throwable.
-func (*PluginBlockedError) ThrowableLine() int { return 821 }
 
 // ThrowableCode implements console.Throwable.
 func (*PluginBlockedError) ThrowableCode() int { return 0 }

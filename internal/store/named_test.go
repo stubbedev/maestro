@@ -114,7 +114,7 @@ func TestInsertDirLookupNamed(t *testing.T) {
 	}
 
 	// a fresh Store reads the index from disk
-	s2, err := Open(s.Root(), &Options{Method: Clone})
+	s2, err := Open(s.Root(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // TestTriggerDeprecation checks which deprecation notices ErrorHandler
@@ -32,7 +31,7 @@ func TestTriggerDeprecation(t *testing.T) {
 		ResetErrorHandler()
 
 		// before register($io), notices are not shown
-		TriggerDeprecation("unseen", phperr.At("eh.php", 1))
+		TriggerDeprecation("unseen")
 
 		out, err := io.NewBufferIO("", c.verbosity, nil)
 		if err != nil {
@@ -41,11 +40,9 @@ func TestTriggerDeprecation(t *testing.T) {
 
 		RegisterErrorHandler(out)
 
-		TriggerDeprecation("first", phperr.At("eh.php", 21))
-		leave := phperr.Push("f", "eh.php", 30)
-		TriggerDeprecation("second", phperr.At("eh.php", 22))
-		leave()
-		TriggerDeprecation("third", phperr.At("eh.php", 23))
+		TriggerDeprecation("first")
+		TriggerDeprecation("second")
+		TriggerDeprecation("third")
 
 		got := php.NormalizeEOL(out.Output())
 		for _, want := range c.shown {
@@ -72,8 +69,8 @@ func TestTriggerDeprecationRendering(t *testing.T) {
 		t.Fatal(err)
 	}
 	RegisterErrorHandler(out)
-	TriggerDeprecation("an old API", phperr.At("eh.php", 21))
-	RaiseDeprecation("another old API", phperr.At("eh.php", 22))
+	TriggerDeprecation("an old API")
+	RaiseDeprecation("another old API")
 
 	want := "Deprecated: an old API\nNote: More deprecation notices were hidden, run again with `-v` to show them.\n"
 	if got := php.NormalizeEOL(out.Output()); got != want {

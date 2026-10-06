@@ -17,7 +17,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -228,11 +227,9 @@ var vcsNames = []string{".svn", "_svn", "CVS", "_darcs", ".arch-params", ".monot
 
 // installProjectAt is execute()'s call of installProject (line 155).
 func (c *CreateProjectCommand) installProjectAt(cio io.IO, cfg *config.Config, in console.Input, o InstallProjectOptions) (int, error) {
-	leave := phperr.Push(`Composer\Command\CreateProjectCommand->installProject`, createProjectFile, 155)
 	code, err := c.InstallProject(cio, cfg, in, o)
-	leave()
 
-	return code, phperr.Call(err, `Composer\Command\CreateProjectCommand->installProject`, createProjectFile, 155)
+	return code, err
 }
 
 // InstallProject ports installProject.
@@ -249,18 +246,16 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 	// we need to manually load the configuration to pass the auth credentials to the io interface!
 	if err := cio.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
-		return 0, phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, createProjectFile, 195)
+		return 0, err
 	}
 
 	c.suggestedPackagesReporter = installer.NewSuggestedPackagesReporter(cio)
 
 	installedFromVcs := false
 	if o.PackageName != nil {
-		leave := phperr.Push(`Composer\Command\CreateProjectCommand->installRootPackage`, createProjectFile, 200)
 		installedFromVcs, err = c.installRootPackage(in, cio, cfg, *o.PackageName, platformRequirementFilter, o)
-		leave()
 		if err != nil {
-			return 0, phperr.Call(err, `Composer\Command\CreateProjectCommand->installRootPackage`, "CreateProjectCommand.php", 200)
+			return 0, err
 		}
 	}
 
@@ -375,7 +370,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 		}
 		policyConfig, err := c.CreatePolicyConfig(cfg, in)
 		if err != nil {
-			return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "CreateProjectCommand.php", 276)
+			return 0, err
 		}
 		auditConfig, err := c.CreateAuditConfig(in)
 		if err != nil {
@@ -408,7 +403,6 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 		status, err := inst.Run()
 		if err != nil {
-			phperr.Call(err, `Composer\Installer->run`, "CreateProjectCommand.php", 288)
 			if phpClass(err) == pluginBlockedClass {
 				cwd, _ := util.GetCwd(true)
 				cio.WriteError("<error>Hint: To allow running the config command recommended below before dependencies are installed, run create-project with --no-install.</error>", true, io.Normal)
@@ -671,10 +665,10 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 					if options == nil || mustGet(options, "symlink") == nil {
 						options, created, deprecated, e := php.WritableArray(raw)
 						if e != nil {
-							return false, e.Raised("", createProjectFile, 435)
+							return false, e
 						}
 						if deprecated {
-							util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At(createProjectFile, 435))
+							util.RaiseDeprecation(php.FalseToArrayDeprecation)
 						}
 						options.Set("symlink", false)
 						if created {
@@ -686,7 +680,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 
 			created, err := repository.CreateRepo(repoConfig, rm)
 			if err != nil {
-				return false, phperr.Call(err, `Composer\Repository\RepositoryFactory::createRepo`, createProjectFile, 438)
+				return false, err
 			}
 			if err := repositorySet.AddRepository(created); err != nil {
 				return false, err
@@ -721,7 +715,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 		IO:                        cio,
 	})
 	if err != nil {
-		return false, phperr.Call(err, `Composer\Package\Version\VersionSelector->findBestCandidate`, createProjectFile, 447)
+		return false, err
 	}
 
 	if p == nil {

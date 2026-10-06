@@ -7,7 +7,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -123,7 +122,7 @@ func (s *Svn) executeWithAuthRetry(svnCommand []string, cwd, url, path string, v
 	}
 
 	if !authRelated {
-		return "", &util.RuntimeError{Message: fullOutput, Site: phperr.At("Svn.php", 158)}
+		return "", &util.RuntimeError{Message: fullOutput}
 	}
 
 	if !s.HasAuth() {
@@ -139,7 +138,7 @@ func (s *Svn) executeWithAuthRetry(svnCommand []string, cwd, url, path string, v
 		return s.executeWithAuthRetry(svnCommand, cwd, url, path, verbose)
 	}
 
-	return "", &util.RuntimeError{Message: "wrong credentials provided (" + fullOutput + ")", Site: phperr.At("Svn.php", 171)}
+	return "", &util.RuntimeError{Message: "wrong credentials provided (" + fullOutput + ")"}
 }
 
 // SetCacheCredentials is setCacheCredentials().
@@ -151,7 +150,7 @@ func (s *Svn) SetCacheCredentials(cacheCredentials bool) {
 func (s *Svn) doAuthDance() error {
 	// cannot ask for credentials in non interactive mode
 	if !s.io.IsInteractive() {
-		return &util.RuntimeError{Message: "can not ask for authentication in non interactive mode", Site: phperr.At("Svn.php", 190)}
+		return &util.RuntimeError{Message: "can not ask for authentication in non interactive mode"}
 	}
 
 	s.io.WriteError("The Subversion server ("+util.SanitizeURL(s.url)+") requested credentials:", true, io.Normal)
@@ -218,13 +217,13 @@ func (s *Svn) getCredentialArgs() ([]string, error) {
 	return append(s.getAuthCacheArgs(), "--username", username, "--password", password), nil
 }
 
-func noSvnAuthError(line int) error {
-	return &util.LogicError{Message: "No svn auth detected.", Site: phperr.At("Svn.php", line)}
+func noSvnAuthError() error {
+	return &util.LogicError{Message: "No svn auth detected."}
 }
 
 func (s *Svn) getPassword() (string, error) {
 	if !s.hasCredentials {
-		return "", noSvnAuthError(260)
+		return "", noSvnAuthError()
 	}
 
 	return s.password, nil
@@ -232,7 +231,7 @@ func (s *Svn) getPassword() (string, error) {
 
 func (s *Svn) getUsername() (string, error) {
 	if !s.hasCredentials {
-		return "", noSvnAuthError(274)
+		return "", noSvnAuthError()
 	}
 
 	return s.username, nil

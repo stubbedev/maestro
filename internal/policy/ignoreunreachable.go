@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -44,7 +43,7 @@ func IgnoreUnreachableNone() IgnoreUnreachable { return IgnoreUnreachable{} }
 // With ports IgnoreUnreachable::with: the listed scopes flipped to true.
 func (i IgnoreUnreachable) With(scopes ...string) (IgnoreUnreachable, error) {
 	if len(scopes) == 0 {
-		return i, &util.InvalidArgumentError{Site: phperr.At("IgnoreUnreachable.php", 73), Message: "At least one scope is required."}
+		return i, &util.InvalidArgumentError{Message: "At least one scope is required."}
 	}
 
 	for _, scope := range scopes {
@@ -56,7 +55,7 @@ func (i IgnoreUnreachable) With(scopes ...string) (IgnoreUnreachable, error) {
 		case "update":
 			i.Update = true
 		default:
-			return i, &util.InvalidArgumentError{Site: phperr.At("IgnoreUnreachable.php", 81), Message: `Unknown scope "` + scope + `". Expected one of ` + strings.Join(IgnoreUnreachableScopes[:], ", ") + "."}
+			return i, &util.InvalidArgumentError{Message: `Unknown scope "` + scope + `". Expected one of ` + strings.Join(IgnoreUnreachableScopes[:], ", ") + "."}
 		}
 	}
 

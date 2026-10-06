@@ -5,7 +5,6 @@ package resolver
 import (
 	"slices"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -283,7 +282,7 @@ func (g *RuleSetGenerator) addRulesForRequest(request *Request, filter version.P
 			}
 
 			// otherwise, looks like a bug
-			return &util.LogicError{Site: phperr.At("RuleSetGenerator.php", 275), Message: "Fixed package " + p.PrettyString() + " was not added to solver pool."}
+			return &util.LogicError{Message: "Fixed package " + p.PrettyString() + " was not added to solver pool."}
 		}
 
 		g.addRulesForPackage(p, filter)

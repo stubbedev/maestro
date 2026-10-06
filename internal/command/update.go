@@ -13,7 +13,6 @@ import (
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -153,7 +152,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 		cio.WriteError(`<warning>You are using the deprecated option "--no-suggest". It has no effect and will break in Composer 3.</warning>`, true, io.Normal)
 	}
 
-	comp, err := c.requireComposerAt("UpdateCommand.php", 136)
+	comp, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -222,7 +221,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 		constraint := php.ToString(v)
 		parsedConstraint, err := parser.ParseConstraints(constraint)
 		if err != nil {
-			return 0, phperr.Call(err, `Composer\Package\Version\VersionParser->parseConstraints`, "UpdateCommand.php", 171)
+			return 0, err
 		}
 
 		// handling wildcard packages will only work for root requirements, not for transient dependencies
@@ -401,7 +400,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 	}
 	policyConfig, err := c.CreatePolicyConfig(cfg, in)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "UpdateCommand.php", 297)
+		return 0, err
 	}
 	auditConfig, err := c.CreateAuditConfig(in)
 	if err != nil {
@@ -441,9 +440,8 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 		}
 	}
 
-	done := phperr.Enter(`Composer\Installer->run`, "UpdateCommand.php", 306)
 	result, err := install.Run()
-	if done(err) != nil {
+	if err != nil {
 		return 0, err
 	}
 

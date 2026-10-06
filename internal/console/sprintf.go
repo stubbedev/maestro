@@ -23,12 +23,6 @@ func (e *phpFormatError) Error() string { return e.message }
 // ThrowableClass implements Throwable.
 func (e *phpFormatError) ThrowableClass() string { return e.class }
 
-// ThrowableFile implements Throwable (the PHP caller's file is unknown).
-func (e *phpFormatError) ThrowableFile() string { return "" }
-
-// ThrowableLine implements Throwable.
-func (e *phpFormatError) ThrowableLine() int { return 0 }
-
 // ThrowableCode implements Throwable.
 func (e *phpFormatError) ThrowableCode() int { return 0 }
 

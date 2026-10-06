@@ -14,7 +14,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver"
 )
@@ -85,7 +84,7 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 	}
 
 	if console.BoolOption(in, "unused") {
-		comp, err := c.requireComposerAt("RemoveCommand.php", 96)
+		comp, err := c.RequireComposer(nil, nil)
 		if err != nil {
 			return 0, err
 		}
@@ -318,7 +317,7 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 	if err := c.ResetComposer(); err != nil {
 		return 0, err
 	}
-	comp, err = c.requireComposerAt("RemoveCommand.php", 222)
+	comp, err = c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -415,7 +414,7 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 	}
 	policyConfig, err := c.CreatePolicyConfig(cfg, in)
 	if err != nil {
-		return 0, phperr.Call(err, `Composer\Command\BaseCommand->createPolicyConfig`, "RemoveCommand.php", 288)
+		return 0, err
 	}
 	auditConfig, err := c.CreateAuditConfig(in)
 	if err != nil {
@@ -450,9 +449,8 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 		install.SetUpdateAllowList(packages)
 	}
 
-	done := phperr.Enter(`Composer\Installer->run`, "RemoveCommand.php", 299)
 	status, err := install.Run()
-	if done(err) != nil {
+	if err != nil {
 		return 0, err
 	}
 	if status != 0 {

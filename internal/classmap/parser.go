@@ -12,7 +12,6 @@ import (
 	"syscall"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Parser is PhpFileParser together with the PHP runtime its result depends
@@ -77,7 +76,7 @@ func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error)
 
 		// PHP appends error_get_last() here, which holds whatever error
 		// happened last anywhere in the process; nothing is appended.
-		return nil, newException(parseSite, classRuntime, `File at "`+path+`" could not be parsed as PHP, it may be binary or corrupted`)
+		return nil, newException(classRuntime, `File at "`+path+`" could not be parsed as PHP, it may be binary or corrupted`)
 	}
 
 	// getExtraTypes(): enums are only looked for on PHP >= 8.1.
@@ -153,16 +152,13 @@ func (b *parseBuffers) readFileKey(path string) (n int, key fileKey, keyed bool,
 	return n, key, keyed, nil
 }
 
-// parseSite is where findClasses() throws when the file cannot be read.
-var parseSite = phperr.At("PhpFileParser.php", 58)
-
 // readError builds the exception findClasses() throws when
 // php_strip_whitespace() cannot open the file, with the message
 // error_get_last() returns at that point.
 func readError(path string, err error) error {
 	info, statErr := os.Stat(path)
 	if statErr != nil {
-		return newException(parseSite, classRuntime, `File at "`+path+`" does not exist, check your classmap definitions`+
+		return newException(classRuntime, `File at "`+path+`" does not exist, check your classmap definitions`+
 			helpful("php_strip_whitespace", path, err))
 	}
 	// isReadable() tries file_get_contents() on regular files, which
@@ -172,7 +168,7 @@ func readError(path string, err error) error {
 		fn = "file_get_contents"
 	}
 
-	return newException(parseSite, classRuntime, `File at "`+path+`" is not readable, check its permissions`+helpful(fn, path, err))
+	return newException(classRuntime, `File at "`+path+`" is not readable, check its permissions`+helpful(fn, path, err))
 }
 
 // helpful is the "may be helpful" suffix with PHP's warning for a failed

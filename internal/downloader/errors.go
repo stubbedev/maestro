@@ -7,7 +7,6 @@ package downloader
 import (
 	"errors"
 
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -16,7 +15,6 @@ type FilesystemError struct {
 	Message  string
 	Code     int
 	Previous error
-	phperr.Site
 }
 
 // NewFilesystemError is new FilesystemException($message, $code,

@@ -11,7 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -125,7 +124,7 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 		}
 	}
 
-	c2, err := c.requireComposerAt("RunScriptCommand.php", 120)
+	c2, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -148,10 +147,9 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 
 	util.PutEnv("COMPOSER_DEV_MODE", devModeEnv(devMode))
 
-	done := phperr.Enter(`Composer\EventDispatcher\EventDispatcher->dispatchScript`, runScriptCommandFile, 140)
 	code, err := c2.EventDispatcher().DispatchScript(scriptName, devMode, args, nil)
 
-	return code, done(err)
+	return code, err
 }
 
 // devModeEnv is `$devMode ? '1' : '0'`.
@@ -207,7 +205,7 @@ type scriptInfo struct {
 
 // scripts ports getScripts.
 func (c *RunScriptCommand) scripts() ([]scriptInfo, error) {
-	cmp, err := c.requireComposerAt("RunScriptCommand.php", 167)
+	cmp, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -91,14 +90,13 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 	} else {
 		name, ok := get(config, "name").(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name")).
-				Called(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, phperr.At("ValidatingArrayLoader.php", 640), "RootPackageLoader.php", 87)
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name"))
 		}
 
 		if msg, bad, err := HasPackageNamingError(name, false); err != nil {
 			return nil, err
 		} else if bad {
-			return nil, &util.RuntimeError{Site: phperr.At("RootPackageLoader.php", 88), Message: "Your package name " + msg}
+			return nil, &util.RuntimeError{Message: "Your package name " + msg}
 		}
 	}
 
@@ -107,11 +105,9 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 		return nil, err
 	}
 
-	leave := phperr.Push(`Composer\Package\Loader\ArrayLoader->load`, "RootPackageLoader.php", 134)
 	p, err := l.ArrayLoader.Load(config, class)
-	leave()
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Package\Loader\ArrayLoader->load`, "RootPackageLoader.php", 134)
+		return nil, err
 	}
 
 	var realPackage *pkg.RootPackage
@@ -124,7 +120,7 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 	}
 
 	if realPackage == nil {
-		return nil, &util.LogicError{Site: phperr.At("RootPackageLoader.php", 142), Message: `Expecting a Composer\Package\RootPackage at this point`}
+		return nil, &util.LogicError{Message: `Expecting a Composer\Package\RootPackage at this point`}
 	}
 
 	if autoVersioned {
@@ -136,16 +132,15 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 		// declares no strict_types) and starts with (string) $stability:
 		// a scalar is cast, an array is PHP's "Array to string
 		// conversion" warning, which Composer's ErrorHandler throws
-		const normalizeStability = `Composer\Semver\VersionParser::normalizeStability`
 		if _, ok := ms.(*php.Array); ok {
-			err := &util.ErrorException{Message: "Array to string conversion", Site: phperr.At("VersionParser.php", 89)}
+			err := &util.ErrorException{Message: "Array to string conversion"}
 
-			return nil, phperr.Call(err, normalizeStability, "RootPackageLoader.php", 150)
+			return nil, err
 		}
 
 		normalized, err := semver.NormalizeStability(php.ToString(ms))
 		if err != nil {
-			return nil, phperr.Call(err, normalizeStability, "RootPackageLoader.php", 150)
+			return nil, err
 		}
 
 		realPackage.SetMinimumStability(normalized)
@@ -263,7 +258,7 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 		}
 
 		if name := get(config, "name"); links.Has(name) {
-			return &util.RuntimeError{Site: phperr.At("RootPackageLoader.php", 169), Message: "Root package '" + php.ToString(name) + "' cannot require itself in its composer.json" + php.EOL +
+			return &util.RuntimeError{Message: "Root package '" + php.ToString(name) + "' cannot require itself in its composer.json" + php.EOL +
 				"Did you accidentally name your root package after an external package?"}
 		}
 	}
@@ -276,14 +271,13 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 
 		for k := range links.All() {
 			if k.IsInt() {
-				return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", k.Value()).
-					Called(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, phperr.At("ValidatingArrayLoader.php", 640), "RootPackageLoader.php", 178)
+				return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", k.Value())
 			}
 
 			if msg, bad, err := HasPackageNamingError(k.String(), true); err != nil {
 				return err
 			} else if bad {
-				return &util.RuntimeError{Message: t.Type + "." + msg, Site: phperr.At("RootPackageLoader.php", 179)}
+				return &util.RuntimeError{Message: t.Type + "." + msg}
 			}
 		}
 	}
@@ -336,7 +330,7 @@ func (l *RootPackageLoader) extractAliases(requires, aliases *php.Array) (*php.A
 				"alias_normalized", aliasNormalized,
 			))
 		} else if strings.Contains(reqVersion, " as ") {
-			return nil, &util.UnexpectedValueError{Site: phperr.At("RootPackageLoader.php", 223), Message: "Invalid alias definition in \"" + reqName + "\": \"" + reqVersion +
+			return nil, &util.UnexpectedValueError{Message: "Invalid alias definition in \"" + reqName + "\": \"" + reqVersion +
 				"\". Aliases should be in the form \"exact-version as other-exact-version\"."}
 		}
 	}

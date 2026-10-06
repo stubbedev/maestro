@@ -5,7 +5,6 @@ package command
 import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -38,13 +37,11 @@ func NewScriptAliasCommand(script string, description, aliases any) (cmd *Script
 	case string:
 		desc = d
 	default:
-		return nil, pkg.ArgumentTypeError(ctor, 2, "description", "?string", description).
-			Called(`Composer\Command\ScriptAliasCommand->__construct`, phperr.At("ScriptAliasCommand.php", 37), "src/Composer/Console/Application.php", 428)
+		return nil, pkg.ArgumentTypeError(ctor, 2, "description", "?string", description)
 	}
 	aliasArray, ok := aliases.(*php.Array)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(ctor, 3, "aliases", "array", aliases).
-			Called(`Composer\Command\ScriptAliasCommand->__construct`, phperr.At("ScriptAliasCommand.php", 37), "src/Composer/Console/Application.php", 428)
+		return nil, pkg.ArgumentTypeError(ctor, 3, "aliases", "array", aliases)
 	}
 	aliasList := make([]string, 0, aliasArray.Len())
 	for _, alias := range aliasArray.Values() {
@@ -93,7 +90,7 @@ func (*ScriptAliasCommand) ClassName() string { return `Composer\Command\ScriptA
 
 // Execute ports execute().
 func (c *ScriptAliasCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	cmp, err := c.requireComposerAt("ScriptAliasCommand.php", 79)
+	cmp, err := c.RequireComposer(nil, nil)
 	if err != nil {
 		return 0, err
 	}

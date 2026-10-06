@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // writer is the part of IO the shared BaseIO code dispatches to, like
@@ -112,37 +111,35 @@ func array(v any) *php.Array {
 }
 
 // NewWarning makes the \ErrorException Composer's ErrorHandler throws for
-// a PHP warning raised at site, or nil when the warning is silenced (the
-// code then goes on with null); internal/util, above this package, sets
-// it to its ErrorException.
-var NewWarning = func(message string, site phperr.Site) error { return errors.New(message) }
+// a PHP warning, or nil when the warning is silenced (the code then goes
+// on with null); internal/util, above this package, sets it to its
+// ErrorException.
+var NewWarning = func(message string) error { return errors.New(message) }
 
-const baseIOFile = "BaseIO.php"
-
-// dim is $v[$key] read (not in isset()) at line of BaseIO.php: a missing
+// dim is $v[$key] read (not in isset()) in BaseIO.php: a missing
 // key is the "Undefined array key" warning, a string the TypeError of a
 // string offset, other scalars the "Trying to access array offset"
 // warning.
-func dim(v any, key string, line int) (any, error) {
+func dim(v any, key string) (any, error) {
 	switch c := v.(type) {
 	case *php.Array:
 		f, ok := c.Get(key)
 		if !ok {
-			return nil, NewWarning(`Undefined array key "`+key+`"`, phperr.At(baseIOFile, line)) //nolint:nilnil // null when silenced
+			return nil, NewWarning(`Undefined array key "` + key + `"`) //nolint:nilnil // null when silenced
 		}
 
 		return f, nil
 	case string:
-		return nil, (&php.EngineError{Class: "TypeError", Message: "Cannot access offset of type string on string"}).Raised("", baseIOFile, line)
+		return nil, &php.EngineError{Class: "TypeError", Message: "Cannot access offset of type string on string"}
 	}
 
-	return nil, NewWarning("Trying to access array offset on "+php.ZvalValueName(v), phperr.At(baseIOFile, line))
+	return nil, NewWarning("Trying to access array offset on " + php.ZvalValueName(v))
 }
 
 // authenticate is checkAndSetAuthentication(string $repositoryName,
-// string $username, ?string $password) called at line of BaseIO.php with
-// a configuration's values, whose types strict_types checks.
-func (b *BaseIO) authenticate(domain php.Key, username, password any, line int) error {
+// string $username, ?string $password) called with a configuration's
+// values, whose types strict_types checks.
+func (b *BaseIO) authenticate(domain php.Key, username, password any) error {
 	for i, a := range []struct {
 		name     string
 		v        any
@@ -156,8 +153,7 @@ func (b *BaseIO) authenticate(domain php.Key, username, password any, line int) 
 			typ = "?string"
 		}
 
-		return (&php.EngineError{Class: "TypeError", Message: `Composer\IO\BaseIO::checkAndSetAuthentication(): Argument #` + strconv.Itoa(i+1) + " ($" + a.name + ") must be of type " + typ + ", " + php.ZvalValueName(a.v) + " given"}).
-			Called(`Composer\IO\BaseIO->checkAndSetAuthentication`, phperr.At(baseIOFile, 95), baseIOFile, line)
+		return &php.EngineError{Class: "TypeError", Message: `Composer\IO\BaseIO::checkAndSetAuthentication(): Argument #` + strconv.Itoa(i+1) + " ($" + a.name + ") must be of type " + typ + ", " + php.ZvalValueName(a.v) + " given"}
 	}
 	var pw *string
 	if s, ok := password.(string); ok {
@@ -169,13 +165,13 @@ func (b *BaseIO) authenticate(domain php.Key, username, password any, line int) 
 	return nil
 }
 
-// credentials reads $cred[$k1] and $cred[$k2] at line, in order.
-func credentials(cred any, k1, k2 string, line int) (any, any, error) {
-	v1, err := dim(cred, k1, line)
+// credentials reads $cred[$k1] and $cred[$k2], in order.
+func credentials(cred any, k1, k2 string) (any, any, error) {
+	v1, err := dim(cred, k1)
 	if err != nil {
 		return nil, nil, err
 	}
-	v2, err := dim(cred, k2, line)
+	v2, err := dim(cred, k2)
 
 	return v1, v2, err
 }
@@ -198,11 +194,11 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 	// reload oauth tokens from config if available
 
 	for domain, cred := range bitbucketOauth.All() {
-		key, secret, err := credentials(cred, "consumer-key", "consumer-secret", 131)
+		key, secret, err := credentials(cred, "consumer-key", "consumer-secret")
 		if err != nil {
 			return err
 		}
-		if err := b.authenticate(domain, key, secret, 131); err != nil {
+		if err := b.authenticate(domain, key, secret); err != nil {
 			return err
 		}
 	}
@@ -212,7 +208,7 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 			b.addImplicitDomain(config, "github-domains", domain.String())
 		}
 
-		if err := b.authenticate(domain, token, "x-oauth-basic", 140); err != nil {
+		if err := b.authenticate(domain, token, "x-oauth-basic"); err != nil {
 			return err
 		}
 	}
@@ -224,11 +220,11 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 
 		if _, ok := token.(*php.Array); ok {
 			var err error
-			if token, err = dim(token, "token", 149); err != nil {
+			if token, err = dim(token, "token"); err != nil {
 				return err
 			}
 		}
-		if err := b.authenticate(domain, token, "oauth2", 150); err != nil {
+		if err := b.authenticate(domain, token, "oauth2"); err != nil {
 			return err
 		}
 	}
@@ -241,14 +237,14 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 		var username, password any = token, "private-token"
 		if _, ok := token.(*php.Array); ok {
 			var err error
-			if username, err = dim(token, "username", 159); err != nil {
+			if username, err = dim(token, "username"); err != nil {
 				return err
 			}
-			if password, err = dim(token, "token", 160); err != nil {
+			if password, err = dim(token, "token"); err != nil {
 				return err
 			}
 		}
-		if err := b.authenticate(domain, username, password, 161); err != nil {
+		if err := b.authenticate(domain, username, password); err != nil {
 			return err
 		}
 	}
@@ -256,28 +252,28 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 	for domain, cred := range forgejoToken.All() {
 		b.addImplicitDomain(config, "forgejo-domains", domain.String())
 
-		username, token, err := credentials(cred, "username", "token", 170)
+		username, token, err := credentials(cred, "username", "token")
 		if err != nil {
 			return err
 		}
-		if err := b.authenticate(domain, username, token, 170); err != nil {
+		if err := b.authenticate(domain, username, token); err != nil {
 			return err
 		}
 	}
 
 	// reload http basic credentials from config if available
 	for domain, cred := range httpBasic.All() {
-		username, password, err := credentials(cred, "username", "password", 175)
+		username, password, err := credentials(cred, "username", "password")
 		if err != nil {
 			return err
 		}
-		if err := b.authenticate(domain, username, password, 175); err != nil {
+		if err := b.authenticate(domain, username, password); err != nil {
 			return err
 		}
 	}
 
 	for domain, token := range bearerToken.All() {
-		if err := b.authenticate(domain, token, "bearer", 179); err != nil {
+		if err := b.authenticate(domain, token, "bearer"); err != nil {
 			return err
 		}
 	}
@@ -287,7 +283,7 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 		if headers != nil {
 			// (string) json_encode($headers): "" when encoding fails.
 			encoded, _ := php.JSONEncode(headers, 0)
-			if err := b.authenticate(domain, encoded, "custom-headers", 185); err != nil {
+			if err := b.authenticate(domain, encoded, "custom-headers"); err != nil {
 				return err
 			}
 		}
@@ -307,7 +303,7 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 			continue
 		}
 		encoded, _ := php.JSONEncode(sslOptions, 0)
-		if err := b.authenticate(domain, "client-certificate", encoded, 208); err != nil {
+		if err := b.authenticate(domain, "client-certificate", encoded); err != nil {
 			return err
 		}
 	}
@@ -316,8 +312,7 @@ func (b *BaseIO) LoadConfiguration(config Config, setTimeout func(timeout int)) 
 	timeout := config.Get("process-timeout")
 	n, ok := timeout.(int64)
 	if !ok {
-		return (&php.EngineError{Class: "TypeError", Message: `Composer\Util\ProcessExecutor::setTimeout(): Argument #1 ($timeout) must be of type int, ` + php.ZvalValueName(timeout) + " given"}).
-			Called(`Composer\Util\ProcessExecutor::setTimeout`, phperr.At("ProcessExecutor.php", 458), baseIOFile, 212)
+		return &php.EngineError{Class: "TypeError", Message: `Composer\Util\ProcessExecutor::setTimeout(): Argument #1 ($timeout) must be of type int, ` + php.ZvalValueName(timeout) + " given"}
 	}
 	if setTimeout != nil {
 		setTimeout(int(n))

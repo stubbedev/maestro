@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Command is what ProcessExecutor runs: a shell command line or an
@@ -376,7 +375,7 @@ func (p *ProcessExecutor) ExecuteAsync(command Command, cwd string) (*Promise[*P
 	if !p.allowAsync {
 		p.mu.Unlock()
 
-		return nil, &LogicError{Message: `You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`, Site: phperr.At("ProcessExecutor.php", 226)}
+		return nil, &LogicError{Message: `You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`}
 	}
 
 	job := &asyncJob{status: statusQueued, command: command, cwd: cwd, promise: newPromise[*Process]()}
@@ -416,7 +415,7 @@ func (p *ProcessExecutor) settleJob(job *asyncJob, err error) {
 }
 
 // errAbortedProcess is the RuntimeException a cancelled job rejects with.
-var errAbortedProcess = &RuntimeError{Message: "Aborted process", Site: phperr.At("ProcessExecutor.php", 259)}
+var errAbortedProcess = &RuntimeError{Message: "Aborted process"}
 
 // cancelJob ports the promise canceller of executeAsync. A queued job is
 // dropped; React would leave its promise pending, here it is rejected so

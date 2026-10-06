@@ -353,17 +353,19 @@ func TestShimAPI_ListShapedLinks(t *testing.T) {
 				$out[] = 'no exception';
 			} catch (\ErrorException $e) {
 				$out[] = get_class($e).': '.$e->getMessage();
-				$out[] = substr($e->getFile(), strpos($e->getFile(), '/src/')).':'.$e->getLine();
+				if ($k === 'p') {
+					$out[] = substr($e->getFile(), strpos($e->getFile(), '/src/')).':'.$e->getLine();
+				}
 			}
 		}
 
 		return implode("\n", $out);
 	`, php.ArrayOf("p", rt.packageObject(root), "a", rt.packageObject(alias)))
 
-	// thrown where Composer's Package.php raises the notice
-	msg := "ErrorException: Package::setRequires must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage.\n" +
-		"/src/Composer/Package/Package.php:716"
-	if got != msg+"\n"+msg {
+	// thrown where Composer's Package.php raises the notice (maestro's
+	// RootAliasPackage has no PHP location)
+	msg := "ErrorException: Package::setRequires must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage."
+	if got != msg+"\n/src/Composer/Package/Package.php:716\n"+msg {
 		t.Errorf("got %v", got)
 	}
 	if root.Requires().Len() != 0 {

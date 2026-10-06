@@ -99,7 +99,7 @@ func (c *ArchiveCommand) requireComposer() (*composer.Composer, error) {
 		return c.requireComposerFunc()
 	}
 
-	return c.requireComposerAt("ArchiveCommand.php", 139)
+	return c.RequireComposer(nil, nil)
 }
 
 // nullStringArg is a nullable string argument or option.

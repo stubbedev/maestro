@@ -9,7 +9,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // ArgvInput parses command line tokens.
@@ -64,7 +63,7 @@ func (in *ArgvInput) parseTokens() error {
 		var err error
 		parseOptions, err = in.parseToken(token, parseOptions)
 		if err != nil {
-			return argvCall(err, "parseToken", 71)
+			return err
 		}
 	}
 
@@ -95,15 +94,15 @@ func (in *ArgvInput) parseToken(token string, parseOptions bool) (bool, error) {
 	var err error
 	switch {
 	case parseOptions && token == "":
-		err = argvCall(in.parseArgument(token), "parseArgument", 78)
+		err = in.parseArgument(token)
 	case parseOptions && token == "--":
 		return false, nil
 	case parseOptions && strings.HasPrefix(token, "--"):
-		err = argvCall(in.parseLongOption(token), "parseLongOption", 82)
+		err = in.parseLongOption(token)
 	case parseOptions && token[0] == '-' && token != "-":
-		err = argvCall(in.parseShortOption(token), "parseShortOption", 84)
+		err = in.parseShortOption(token)
 	default:
-		err = argvCall(in.parseArgument(token), "parseArgument", 86)
+		err = in.parseArgument(token)
 	}
 	if err != nil && in.suppressErrors {
 		var e *Error
@@ -122,22 +121,13 @@ func (in *ArgvInput) parseShortOption(token string) error {
 	if len(name) > 1 {
 		if o := in.optionForShortcut(name[:1]); o != nil && o.AcceptValue() {
 			// an option with a value (with no space)
-			return argvCall(in.addShortOption(name[:1], name[1:], true), "addShortOption", 102)
+			return in.addShortOption(name[:1], name[1:], true)
 		}
 
-		return argvCall(in.parseShortOptionSet(name), "parseShortOptionSet", 104)
+		return in.parseShortOptionSet(name)
 	}
 
-	return argvCall(in.addShortOption(name, "", false), "addShortOption", 107)
-}
-
-// argvInputPHP is the file of Symfony's ArgvInput class.
-const argvInputPHP = "vendor/symfony/console/Input/ArgvInput.php"
-
-// argvCall adds the frame of ArgvInput's call of its method at line to
-// err's trace (phperr.Call).
-func argvCall(err error, method string, line int) error {
-	return phperr.Call(err, `Symfony\Component\Console\Input\ArgvInput->`+method, argvInputPHP, line)
+	return in.addShortOption(name, "", false)
 }
 
 func (in *ArgvInput) optionForShortcut(s string) *InputOption {
@@ -165,13 +155,13 @@ func (in *ArgvInput) parseShortOptionSet(name string) error {
 
 		if o.AcceptValue() {
 			if i == l-1 {
-				return argvCall(in.addLongOption(o.Name(), "", false), "addLongOption", 127)
+				return in.addLongOption(o.Name(), "", false)
 			}
 
-			return argvCall(in.addLongOption(o.Name(), name[i+1:], true), "addLongOption", 127)
+			return in.addLongOption(o.Name(), name[i+1:], true)
 		}
 		if err := in.addLongOption(o.Name(), "", false); err != nil {
-			return argvCall(err, "addLongOption", 131)
+			return err
 		}
 	}
 
@@ -186,10 +176,10 @@ func (in *ArgvInput) parseLongOption(token string) error {
 			in.unshift(value)
 		}
 
-		return argvCall(in.addLongOption(optName, value, true), "addLongOption", 147)
+		return in.addLongOption(optName, value, true)
 	}
 
-	return argvCall(in.addLongOption(name, "", false), "addLongOption", 149)
+	return in.addLongOption(name, "", false)
 }
 
 func (in *ArgvInput) parseArgument(token string) error {
@@ -255,7 +245,7 @@ func (in *ArgvInput) addShortOption(shortcut, value string, hasValue bool) error
 		return newError(KindRuntime, "ArgvInput.php", 205, `The "-%s" option does not exist.`, shortcut)
 	}
 
-	return argvCall(in.addLongOption(o.Name(), value, hasValue), "addLongOption", 208)
+	return in.addLongOption(o.Name(), value, hasValue)
 }
 
 // addLongOption takes the value as (value, hasValue) where !hasValue is PHP's null.

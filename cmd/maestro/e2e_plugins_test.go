@@ -14,7 +14,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -135,7 +134,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"run-script", "exit3"}},
 				{args: []string{"run-script", "fatal"}},
 				{args: []string{"run-script", "throws"}},
-				{args: []string{"run-script", "throws", "-v"}, normalize: normalizeComposerTrace},
+				{args: []string{"run-script", "throws", "-v"}},
 				{args: []string{"run-script", "returns-false"}},
 				{args: []string{"run-script", "missing-class"}},
 				{args: []string{"run-script", "missing-method"}},
@@ -159,7 +158,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"hello-command", "--help"}},
 				{args: []string{"hello-command", "you", "--shout", "-v"}},
 				{args: []string{"hello-command", "a", "b"}},
-				{args: []string{"hello-command", "--nope", "-v"}, normalize: normalizeComposerTrace},
+				{args: []string{"hello-command", "--nope", "-v"}},
 				{args: []string{"run-script", "--list"}},
 				{args: []string{"_complete", "-n", "-c1", "--shell=bash", "-icomposer", "-ihello"}},
 				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-ihello-command", "-i--sh"}},
@@ -211,10 +210,10 @@ func pluginScenarios() []scenario {
 				{args: []string{"install", "-v"}, env: []string{"INTERNALS_FRAMES=1"}},
 				// the console's frames in a command written in PHP
 				{args: []string{"internals:throw"}, env: []string{"INTERNALS_FRAMES=1"}},
-				{args: []string{"internals:throw", "-v"}, normalize: normalizeComposerTrace},
-				{args: []string{"internals:throw", "-v"}, env: []string{"INTERNALS_THROW=composer"}, normalize: normalizeComposerTrace},
-				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=listener"}, normalize: normalizeComposerTrace},
-				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=activate"}, normalize: normalizeComposerTrace},
+				{args: []string{"internals:throw", "-v"}},
+				{args: []string{"internals:throw", "-v"}, env: []string{"INTERNALS_THROW=composer"}},
+				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=listener"}},
+				{args: []string{"install", "-v"}, env: []string{"INTERNALS_THROW=activate"}},
 			},
 		},
 		{
@@ -670,25 +669,6 @@ const pluginAPIUnrequired = `{
     }
 }
 `
-
-// composerRoot is the directory Composer's sources are named under in an
-// exception trace: the phar's (phar://.../composer-2.10.3.phar), and the
-// phar maestro's executable stands for (phar://.../maestro, phperr.Root;
-// maestro.exe on Windows).
-var composerRoot = regexp.MustCompile(`phar://\S+?(?:\.phar|[/\\]maestro(?:\.exe)?)/(src|vendor|bin)/`)
-
-// pharMain is the outermost frame of Composer's trace: the phar's stub
-// requiring bin/composer, whose require() call is a line before the one of
-// Composer's source tree that maestro names (as its errors oracle does).
-var pharMain = regexp.MustCompile(`(?m)( Composer\\Console\\Application->run\(\) at @COMPOSER@/bin/composer:)11[23]\r?\n(?: require\(\) at \S+\.phar:\d+\r?\n)?`)
-
-// normalizeComposerTrace keeps the frames of exception traces
-// (docs/PLUGINS.md §5.12: maestro completes them with Composer's frames)
-// and reads Composer's root as @COMPOSER@ for both tools, the phar's stub
-// frame left out.
-func normalizeComposerTrace(s string) string {
-	return pharMain.ReplaceAllString(composerRoot.ReplaceAllString(s, "@COMPOSER@/$1/"), "${1}N\n")
-}
 
 // mergeAlphaUpdated is plugin-merge's modules/alpha with one more
 // requirement.

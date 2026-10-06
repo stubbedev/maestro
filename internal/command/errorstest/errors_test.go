@@ -49,7 +49,6 @@ import (
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/testutil"
 )
 
@@ -60,12 +59,7 @@ var verbosities = []struct{ name, flag string }{
 	{"default", ""}, {"v", "-v"}, {"vv", "-vv"}, {"vvv", "-vvv"},
 }
 
-const (
-	childEnv = "ERRORSTEST_CHILD"
-	// rootEnv is the child's phperr.Root: errors.sh's maestro is
-	// $work/maestro, so it names Composer's files under phar://$work/maestro.
-	rootEnv = "ERRORSTEST_ROOT"
-)
+const childEnv = "ERRORSTEST_CHILD"
 
 func TestMain(m *testing.M) {
 	if os.Getenv(childEnv) == "1" {
@@ -77,7 +71,6 @@ func TestMain(m *testing.M) {
 // childMain is cmd/maestro's main without the plugin runtime: the
 // Application on a new Runtime, run on the process arguments.
 func childMain() int {
-	phperr.SetRoot(os.Getenv(rootEnv))
 	app := command.NewApplication(&composer.Factory{Runtime: composer.NewRuntime("", nil)})
 	app.SetAutoExit(false)
 	code, err := app.Run(nil, nil)
@@ -219,7 +212,6 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 	t.Helper()
 	work := t.TempDir()
 	run := filepath.Join(work, "run")
-	root := "phar://" + filepath.Join(work, "maestro")
 	for _, d := range []string{"home", "cache"} {
 		if err := os.MkdirAll(filepath.Join(run, d), 0o755); err != nil {
 			t.Fatal(err)
@@ -238,7 +230,6 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 
 	env := []string{
 		childEnv + "=1",
-		rootEnv + "=" + root,
 		"PATH=" + os.Getenv("PATH"),
 		"HOME=" + filepath.Join(run, "home"),
 		"COMPOSER_HOME=" + filepath.Join(run, "home"),
@@ -279,8 +270,8 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 	// path anywhere.
 	return result{
 		code:   code,
-		stdout: normalize(php.NormalizeEOL(stdout.String()), run, root, host),
-		stderr: replacePaths(testutil.CompactMessage(stderr.String()), run, root, host),
+		stdout: normalize(php.NormalizeEOL(stdout.String()), run, host),
+		stderr: replacePaths(testutil.CompactMessage(stderr.String()), run, host),
 	}
 }
 
@@ -297,10 +288,9 @@ var normalizers = []struct {
 	{regexp.MustCompile(`(but your php version \()[^)\n]*(\) does not satisfy)`), "${1}@PHPVERSION@${2}"},
 }
 
-// normalize applies errors.sh's normalisation; root is maestro's
-// phperr.Root, under which it names Composer's files.
-func normalize(s, run, root, host string) string {
-	s = replacePaths(s, run, root, host)
+// normalize applies errors.sh's normalisation.
+func normalize(s, run, host string) string {
+	s = replacePaths(s, run, host)
 	for _, n := range normalizers {
 		s = n.re.ReplaceAllString(s, n.repl)
 	}
@@ -308,12 +298,11 @@ func normalize(s, run, root, host string) string {
 	return s
 }
 
-// replacePaths replaces the run's directory, Composer's source root and
-// the server's address with the goldens' placeholders, and so php's
-// version in a compacted solver problem.
-func replacePaths(s, run, root, host string) string {
+// replacePaths replaces the run's directory and the server's address
+// with the goldens' placeholders, and so php's version in a compacted
+// solver problem.
+func replacePaths(s, run, host string) string {
 	s = strings.ReplaceAll(s, run, "@DIR@")
-	s = strings.ReplaceAll(s, root+"/", "@COMPOSER@/")
 	s = strings.ReplaceAll(s, host, "@SERVER@")
 
 	return compactPHPVersion.ReplaceAllString(s, "${1}@PHPVERSION@${2}")

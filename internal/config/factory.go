@@ -14,7 +14,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -42,7 +41,7 @@ func HomeDir() (string, error) {
 	if util.IsWindows() {
 		appData, ok := getEnvTruthy("APPDATA")
 		if !ok {
-			return "", &util.RuntimeError{Site: phperr.At("Factory.php", 67), Message: "The APPDATA or COMPOSER_HOME environment variable must be set for composer to run correctly"}
+			return "", &util.RuntimeError{Message: "The APPDATA or COMPOSER_HOME environment variable must be set for composer to run correctly"}
 		}
 
 		return strings.TrimRight(strings.ReplaceAll(appData, `\`, "/"), "/") + "/Composer", nil
@@ -209,26 +208,25 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 			out.WriteError("Loading config file "+file.Path(), true, io.Debug)
 		}
 		if err := ValidateJSONSchema(out, file, json.LaxSchema, ""); err != nil {
-			return nil, phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 187)
+			return nil, err
 		}
 		data, err := file.Read()
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Json\JsonFile->read`, "Factory.php", 188)
+			return nil, err
 		}
 		a, ok := data.(*php.Array)
 		if !ok {
-			return nil, (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.ZvalValueName(data) + " given"}).
-				Called(`Composer\Config->merge`, phperr.At("Config.php", 199), "Factory.php", 188)
+			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.ZvalValueName(data) + " given"}
 		}
 		if err := config.Merge(a, file.Path()); err != nil {
-			return nil, phperr.Call(err, `Composer\Config->merge`, "Factory.php", 188)
+			return nil, err
 		}
 	}
 	config.SetConfigSource(NewJSONConfigSource(file, false))
 
 	htaccessProtect, err := config.Get("htaccess-protect", 0)
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Config->get`, "Factory.php", 192)
+		return nil, err
 	}
 	if php.ToBool(htaccessProtect) {
 		// Protect directory against web access. Since HOME could be
@@ -262,20 +260,20 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 			out.WriteError("Loading config file "+file.Path(), true, io.Debug)
 		}
 		if err := ValidateJSONSchema(out, file, json.AuthSchema, ""); err != nil {
-			return nil, phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 214)
+			return nil, err
 		}
 		data, err := file.Read()
 		if err != nil {
-			return nil, phperr.Call(err, `Composer\Json\JsonFile->read`, "Factory.php", 215)
+			return nil, err
 		}
 		if err := config.Merge(php.ArrayOf("config", data), file.Path()); err != nil {
-			return nil, phperr.Call(err, `Composer\Config->merge`, "Factory.php", 215)
+			return nil, err
 		}
 	}
 	config.SetAuthConfigSource(NewJSONConfigSource(file, true))
 
 	if err := LoadComposerAuthEnv(config, out); err != nil {
-		return nil, phperr.Call(err, `Composer\Factory::loadComposerAuthEnv`, "Factory.php", 219)
+		return nil, err
 	}
 
 	return config, nil
@@ -288,7 +286,7 @@ func ComposerFile() (string, error) {
 		env = php.Trim(env)
 		if env != "" {
 			if isDir(env) {
-				return "", &util.RuntimeError{Site: phperr.At("Factory.php", 231), Message: "The COMPOSER environment variable is set to " + env + " which is a directory, this variable should point to a composer.json or be left unset."}
+				return "", &util.RuntimeError{Message: "The COMPOSER environment variable is set to " + env + " which is a directory, this variable should point to a composer.json or be left unset."}
 			}
 
 			return env, nil
@@ -328,17 +326,17 @@ func LoadComposerAuthEnv(config *Config, out io.IO) error {
 
 	authData, _ := php.JSONDecode(composerAuthEnv, false)
 	if authData == nil {
-		return &util.UnexpectedValueError{Site: phperr.At("Factory.php", 692), Message: "COMPOSER_AUTH environment variable is malformed, should be a valid JSON object"}
+		return &util.UnexpectedValueError{Message: "COMPOSER_AUTH environment variable is malformed, should be a valid JSON object"}
 	}
 
 	if out != nil {
 		out.WriteError("Loading auth config from COMPOSER_AUTH", true, io.Debug)
 	}
 	if err := ValidateJSONSchema(out, authData, json.AuthSchema, "COMPOSER_AUTH"); err != nil {
-		return phperr.Call(err, `Composer\Factory::validateJsonSchema`, "Factory.php", 698)
+		return err
 	}
 	if authData, _ = php.JSONDecode(composerAuthEnv, true); authData != nil {
-		return phperr.Call(config.Merge(php.ArrayOf("config", authData), "COMPOSER_AUTH"), `Composer\Config->merge`, "Factory.php", 701)
+		return config.Merge(php.ArrayOf("config", authData), "COMPOSER_AUTH")
 	}
 
 	return nil
@@ -361,7 +359,7 @@ func useXdg() bool {
 func userDir() (string, error) {
 	home, ok := getEnvTruthy("HOME")
 	if !ok {
-		return "", &util.RuntimeError{Site: phperr.At("Factory.php", 727), Message: "The HOME or COMPOSER_HOME environment variable must be set for composer to run correctly"}
+		return "", &util.RuntimeError{Message: "The HOME or COMPOSER_HOME environment variable must be set for composer to run correctly"}
 	}
 
 	return strings.TrimRight(strings.ReplaceAll(home, `\`, "/"), "/"), nil
@@ -377,12 +375,12 @@ func ValidateJSONSchema(out io.IO, fileOrData any, schema int, source string) er
 
 	var err error
 	if file, ok := fileOrData.(*json.File); ok {
-		err = phperr.Call(file.ValidateSchema(schema, ""), `Composer\Json\JsonFile->validateSchema`, "Factory.php", 745)
+		err = file.ValidateSchema(schema, "")
 	} else {
 		if source == "" {
-			return &util.InvalidArgumentError{Site: phperr.At("Factory.php", 748), Message: "$source is required to be provided if $fileOrData is arbitrary data"}
+			return &util.InvalidArgumentError{Message: "$source is required to be provided if $fileOrData is arbitrary data"}
 		}
-		err = phperr.Call(json.ValidateJSONSchema(source, fileOrData, schema, ""), `Composer\Json\JsonFile::validateJsonSchema`, "Factory.php", 750)
+		err = json.ValidateJSONSchema(source, fileOrData, schema, "")
 	}
 
 	var ve *json.ValidationError
@@ -396,5 +394,5 @@ func ValidateJSONSchema(out io.IO, fileOrData any, schema int, source string) er
 		return nil
 	}
 
-	return &util.UnexpectedValueError{Site: phperr.At("Factory.php", 757), Message: msg}
+	return &util.UnexpectedValueError{Message: msg}
 }

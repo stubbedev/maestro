@@ -15,7 +15,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -591,7 +590,7 @@ func (c *InitCommand) initRepositories(cio io.IO, repositories []string) error {
 		return err
 	}
 	if err := cio.LoadConfiguration(cfg.ForIO(), util.SetProcessTimeout); err != nil {
-		return phperr.Call(err, `Composer\IO\BaseIO->loadConfiguration`, initFile, 234)
+		return err
 	}
 
 	// RepositoryFactory::manager($io, $config)
@@ -628,7 +627,7 @@ func (c *InitCommand) initRepositories(cio io.IO, repositories []string) error {
 		}
 		created, err := repository.CreateRepo(repoConfig, repoManager)
 		if err != nil {
-			return phperr.Call(err, `Composer\Repository\RepositoryFactory::createRepo`, initFile, 248)
+			return err
 		}
 		repos = append(repos, created)
 	}

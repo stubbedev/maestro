@@ -7,8 +7,6 @@ import (
 	"io"
 	"slices"
 	"strings"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // ZipGetComposerJSON ports Zip::getComposerJson: the root composer.json of
@@ -45,14 +43,14 @@ func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 
 	var topLevelPaths []string
 
-	addTopLevel := func(site phperr.Site, path string) error {
+	addTopLevel := func(path string) error {
 		if slices.Contains(topLevelPaths, path) {
 			return nil
 		}
 
 		topLevelPaths = append(topLevelPaths, path)
 		if len(topLevelPaths) > 1 {
-			return multipleTopLevelDirsError(site, topLevelPaths)
+			return multipleTopLevelDirsError(topLevelPaths)
 		}
 
 		return nil
@@ -72,7 +70,7 @@ func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 
 		// Handle archives with a proper TOC.
 		if dirname == "." {
-			if err := addTopLevel(phperr.At("Zip.php", 81), name); err != nil {
+			if err := addTopLevel(name); err != nil {
 				return nil, err
 			}
 
@@ -82,7 +80,7 @@ func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 		// Handle archives which do not have a TOC record for the directory
 		// itself.
 		if !strings.ContainsAny(dirname, `\/`) {
-			if err := addTopLevel(phperr.At("Zip.php", 90), dirname+"/"); err != nil {
+			if err := addTopLevel(dirname + "/"); err != nil {
 				return nil, err
 			}
 		}
@@ -94,7 +92,7 @@ func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 		}
 	}
 
-	return nil, noComposerJSONError(phperr.At("Zip.php", 99))
+	return nil, noComposerJSONError()
 }
 
 // zipReadName is ZipArchive::locateName without flags (the first entry of

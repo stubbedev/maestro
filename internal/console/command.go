@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Exit codes (Command constants).
@@ -165,13 +164,13 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 	// bind the input against the command specific arguments/options
 	if err := in.Bind(c.Definition()); err != nil {
 		if !IsConsoleException(err) || !c.ignoreValidationErrors {
-			return 0, phperr.Call(err, `Symfony\Component\Console\Input\Input->bind`, commandPHP, 257)
+			return 0, err
 		}
 	}
 
 	impl := c.impl()
 	if h, ok := impl.(Initializer); ok {
-		if _, err := c.call(methodClass(impl, "initialize")+"->initialize", 264, impl, in, out, func() (int, error) { return 0, h.Initialize(in, out) }); err != nil {
+		if _, err := c.call(methodClass(impl, "initialize")+"->initialize", impl, in, out, func() (int, error) { return 0, h.Initialize(in, out) }); err != nil {
 			return 0, err
 		}
 	}
@@ -181,7 +180,7 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 
 	if in.IsInteractive() {
 		if h, ok := impl.(Interactor); ok {
-			if _, err := c.call(methodClass(impl, "interact")+"->interact", 283, impl, in, out, func() (int, error) { return 0, h.Interact(in, out) }); err != nil {
+			if _, err := c.call(methodClass(impl, "interact")+"->interact", impl, in, out, func() (int, error) { return 0, h.Interact(in, out) }); err != nil {
 				return 0, err
 			}
 		}
@@ -195,30 +194,27 @@ func (c *Command) Run(in Input, out Output) (int, error) {
 	}
 
 	if err := in.Validate(); err != nil {
-		return 0, phperr.Call(err, `Symfony\Component\Console\Input\Input->validate`, commandPHP, 293)
+		return 0, err
 	}
 
 	if c.code != nil {
 		return c.code(in, out)
 	}
 	if h, ok := impl.(Executor); ok {
-		return c.call(methodClass(impl, "execute")+"->execute", 298, impl, in, out, func() (int, error) { return h.Execute(in, out) })
+		return c.call(methodClass(impl, "execute")+"->execute", impl, in, out, func() (int, error) { return h.Execute(in, out) })
 	}
 
 	return 0, newError(KindLogic, "Command.php", 208, "You must override the execute() method in the concrete command class.")
 }
 
-// call runs fn as run()'s call of function on the command at line of
-// Command.php (Application.CallOn, or phperr.Call for a command without
-// application).
-func (c *Command) call(function string, line int, impl Commander, in Input, out Output, fn func() (int, error)) (int, error) {
-	f := phperr.Frame{Function: function, File: commandPHP, Line: line}
+// call runs fn as run()'s call of function on the command
+// (Application.CallOn, which tells the CallHook).
+func (c *Command) call(function string, impl Commander, in Input, out Output, fn func() (int, error)) (int, error) {
 	if c.application != nil {
-		return c.application.CallOn(f, impl, []any{in, out}, fn)
+		return c.application.CallOn(function, impl, []any{in, out}, fn)
 	}
-	code, err := fn()
 
-	return code, phperr.Call(err, f.Function, f.File, f.Line)
+	return fn()
 }
 
 // Complete implements Commander; the base command suggests nothing.

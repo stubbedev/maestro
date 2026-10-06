@@ -10,7 +10,6 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -62,7 +61,7 @@ func (d *FossilDriver) Initialize() error {
 		vcsDir := php.ToString(d.config.Get("cache-vcs-dir"))
 
 		if !cache.IsUsable(repoDir) || !cache.IsUsable(vcsDir) {
-			return &util.RuntimeError{Site: phperr.At("FossilDriver.php", 56), Message: "FossilDriver requires a usable cache directory, and it looks like you set it to be disabled"}
+			return &util.RuntimeError{Message: "FossilDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 		}
 
 		localName := replaceInfallible(alnumOnly, "-", d.url)
@@ -93,7 +92,7 @@ func (d *FossilDriver) checkFossil() error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Site: phperr.At("FossilDriver.php", 76), Message: "fossil was not found, check that it is installed and in your PATH env.\n\n" + d.process.GetErrorOutput()}
+		return &util.RuntimeError{Message: "fossil was not found, check that it is installed and in your PATH env.\n\n" + d.process.GetErrorOutput()}
 	}
 
 	return nil
@@ -108,7 +107,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 	}
 
 	if !util.IsWritable(util.Dirname(d.checkoutDir)) {
-		return &util.RuntimeError{Site: phperr.At("FossilDriver.php", 91), Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + d.checkoutDir + `" directory is not writable by the current user.`}
+		return &util.RuntimeError{Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + d.checkoutDir + `" directory is not writable by the current user.`}
 	}
 
 	var output string
@@ -153,7 +152,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Site: phperr.At("FossilDriver.php", 109), Message: "Failed to clone " + util.SanitizeURL(d.url) + " to repository " + d.repoFile + "\n\n" + d.process.GetErrorOutput()}
+		return &util.RuntimeError{Message: "Failed to clone " + util.SanitizeURL(d.url) + " to repository " + d.repoFile + "\n\n" + d.process.GetErrorOutput()}
 	}
 
 	code, err = d.process.Execute(util.Cmd("fossil", "open", "--nested", "--", d.repoFile), &output, d.checkoutDir)
@@ -162,7 +161,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Site: phperr.At("FossilDriver.php", 115), Message: "Failed to open repository " + d.repoFile + " in " + d.checkoutDir + "\n\n" + d.process.GetErrorOutput()}
+		return &util.RuntimeError{Message: "Failed to open repository " + d.repoFile + " in " + d.checkoutDir + "\n\n" + d.process.GetErrorOutput()}
 	}
 
 	return nil
@@ -184,7 +183,7 @@ func (d *FossilDriver) Dist(string) *php.Array { return nil }
 
 // FileContent ports FossilDriver::getFileContent.
 func (d *FossilDriver) FileContent(file, identifier string) (string, bool, error) {
-	if err := invalidIdentifier(phperr.At("FossilDriver.php", 162), "fossil", identifier); err != nil {
+	if err := invalidIdentifier("fossil", identifier); err != nil {
 		return "", false, err
 	}
 

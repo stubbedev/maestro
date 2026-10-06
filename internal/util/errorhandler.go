@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/ui"
 )
 
@@ -28,12 +27,12 @@ var errorHandler struct {
 // The warnings internal/io raises are ErrorHandler's ErrorExceptions,
 // none while Silencer::suppress() is in effect.
 func init() {
-	io.NewWarning = func(message string, site phperr.Site) error {
+	io.NewWarning = func(message string) error {
 		if silenced.Load() > 0 {
 			return nil
 		}
 
-		return &ErrorException{Message: message, Site: site}
+		return &ErrorException{Message: message}
 	}
 }
 
@@ -89,18 +88,18 @@ func ResetErrorHandler() {
 //
 // The IO is called without a lock held: it may be one created in PHP,
 // whose calls read the state (DeprecationNoticeShown) as they sync it.
-func TriggerDeprecation(message string, site phperr.Site) {
-	deprecation(message, site)
+func TriggerDeprecation(message string) {
+	deprecation(message)
 }
 
 // RaiseDeprecation reports an E_DEPRECATED the engine raises at site
 // ("Automatic conversion of false to array is deprecated") as
 // ErrorHandler::handle does, as TriggerDeprecation.
-func RaiseDeprecation(message string, site phperr.Site) {
-	deprecation(message, site)
+func RaiseDeprecation(message string) {
+	deprecation(message)
 }
 
-func deprecation(message string, _ phperr.Site) {
+func deprecation(message string) {
 	errorHandler.mu.Lock()
 	out := errorHandler.io
 	errorHandler.mu.Unlock()

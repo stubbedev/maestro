@@ -22,7 +22,6 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -166,20 +165,6 @@ func (a *Application) RunFrom(file string, line int, in console.Input, out conso
 		out = composer.CreateOutput()
 	}
 
-	// the frames of parent::run() (line 141) and of this run(), above
-	// those of a run in progress (a command running the application again)
-	outer := a.Stack()
-	stack := append([]phperr.Frame{
-		{Function: `Symfony\Component\Console\Application->run`, File: applicationFile, Line: 141},
-		{Function: `Composer\Console\Application->run`, File: file, Line: line},
-	}, outer...)
-	// the run's own two calls are in progress (phperr.Live); the outer
-	// ones are already
-	defer phperr.Within(stack[:2]...)()
-	callers := a.RunCallers()
-	a.SetRunCallers(stack...)
-	defer a.SetRunCallers(callers...)
-
 	return a.Application.Run(in, out)
 }
 
@@ -193,12 +178,12 @@ func (*Application) ClassName() string { return `Composer\Console\Application` }
 // symfony/flex and symfony/thanks find the Application and its input),
 // doRunCommand(), the command's run(), initialize(), interact() and
 // execute() (flex looks for a GlobalCommand).
-func (a *Application) pushCallFrame(f phperr.Frame, object any, args []any) func() {
+func (a *Application) pushCallFrame(function string, object any, args []any) func() {
 	rt := a.Runtime()
 	if rt == nil {
 		return nil
 	}
-	rt.PushFrame(f.Function, object, args...)
+	rt.PushFrame(function, object, args...)
 
 	return rt.PopFrame
 }
@@ -415,7 +400,7 @@ func phpTruthyString(s string) bool { return s != "" && s != "0" }
 func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, commandName string) (string, error) {
 	composerFile, err := composer.GetComposerFile()
 	if err != nil {
-		return "", phperr.Call(err, `Composer\Factory::getComposerFile`, applicationFile, 197)
+		return "", err
 	}
 	if fileExists(composerFile) {
 		return "", nil
@@ -777,7 +762,7 @@ func (a *Application) runCommand(in console.Input, out console.Output, cio *io.C
 		cio.EnableDebugging(startTime)
 	}
 
-	result, err := a.CallOn(phperr.Frame{Function: `Symfony\Component\Console\Application->doRun`, File: applicationFile, Line: 457}, a, []any{in, out}, func() (int, error) {
+	result, err := a.CallOn(`Symfony\Component\Console\Application->doRun`, a, []any{in, out}, func() (int, error) {
 		return a.Application.DoRun(in, out)
 	})
 	if err != nil {
@@ -999,11 +984,8 @@ func (a *Application) getComposer(argc int, required bool, disablePlugins, disab
 		if dp {
 			disable = composer.PluginsDisabled
 		}
-		leave := phperr.Push(`Composer\Factory::create`, applicationFile, 629)
 		c, err := a.factory.Create(out, nil, disable, ds)
-		leave()
 		if err != nil {
-			phperr.Call(err, `Composer\Factory::create`, applicationFile, 629)
 			switch {
 			case isInvalidArgument(err):
 				if required {

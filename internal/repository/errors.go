@@ -4,7 +4,6 @@
 package repository
 
 import (
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -12,7 +11,6 @@ import (
 // a package repository is utterly broken.
 type InvalidRepositoryError struct {
 	Message string
-	phperr.Site
 }
 
 func (e *InvalidRepositoryError) Error() string { return e.Message }
@@ -26,7 +24,6 @@ func (*InvalidRepositoryError) PHPClass() (string, int) {
 // security problem, like a broken or missing signature.
 type SecurityError struct {
 	Message string
-	phperr.Site
 }
 
 func (e *SecurityError) Error() string { return e.Message }

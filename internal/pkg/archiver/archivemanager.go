@@ -12,7 +12,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -147,7 +146,7 @@ func (m *ArchiveManager) PackageFilename(p pkg.CompletePackageInterface) string 
 // fails.
 func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetDir string, fileName pkg.NullString, ignoreFilters bool) (string, error) {
 	if !php.ToBool(format) {
-		return "", &util.InvalidArgumentError{Site: phperr.At("ArchiveManager.php", 150), Message: "Format must be specified"}
+		return "", &util.InvalidArgumentError{Message: "Format must be specified"}
 	}
 
 	// Search for the most appropriate archiver
@@ -164,7 +163,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 	// Checks the format/source type are supported before downloading the
 	// package
 	if usableArchiver == nil {
-		return "", &util.RuntimeError{Site: phperr.At("ArchiveManager.php", 164), Message: "No archiver found to support " + format + " format"}
+		return "", &util.RuntimeError{Message: "No archiver found to support " + format + " format"}
 	}
 
 	filesystem := util.NewFilesystem(nil)
@@ -285,17 +284,16 @@ func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string)
 	// array reads as empty
 	archive := arrayGet(jsonData, "archive")
 
-	// the declarations of setArchiveName() and setArchiveExcludes()
-	class, file, nameDecl, excludesDecl := `Composer\Package\CompletePackage`, "CompletePackage.php", 218, 234
+	// the class declaring setArchiveName() and setArchiveExcludes()
+	class := `Composer\Package\CompletePackage`
 	if _, ok := p.(pkg.Alias); ok {
-		class, file, nameDecl, excludesDecl = `Composer\Package\CompleteAliasPackage`, "CompleteAliasPackage.php", 153, 163
+		class = `Composer\Package\CompleteAliasPackage`
 	}
 
 	if name := arrayGet(archive, "name"); php.ToBool(name) {
 		s, ok := name.(string)
 		if !ok {
-			return pkg.ArgumentTypeError(class+"::setArchiveName", 1, "name", "?string", name).
-				Called(class+"->setArchiveName", phperr.At(file, nameDecl), "ArchiveManager.php", 192)
+			return pkg.ArgumentTypeError(class+"::setArchiveName", 1, "name", "?string", name)
 		}
 
 		p.SetArchiveName(pkg.Str(s))
@@ -304,8 +302,7 @@ func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string)
 	if exclude := arrayGet(archive, "exclude"); php.ToBool(exclude) {
 		a, ok := exclude.(*php.Array)
 		if !ok {
-			return pkg.ArgumentTypeError(class+"::setArchiveExcludes", 1, "excludes", "array", exclude).
-				Called(class+"->setArchiveExcludes", phperr.At(file, excludesDecl), "ArchiveManager.php", 195)
+			return pkg.ArgumentTypeError(class+"::setArchiveExcludes", 1, "excludes", "array", exclude)
 		}
 
 		p.SetArchiveExcludes(a)
@@ -334,8 +331,7 @@ func stringList(a *php.Array) ([]string, error) {
 	for _, v := range a.Values() {
 		s, ok := v.(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Package\Archiver\BaseExcludeFilter::generatePattern`, 1, "rule", "string", v).
-				Called(`Composer\Package\Archiver\BaseExcludeFilter->generatePattern`, phperr.At("BaseExcludeFilter.php", 128), "BaseExcludeFilter.php", 115)
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Archiver\BaseExcludeFilter::generatePattern`, 1, "rule", "string", v)
 		}
 
 		out = append(out, s)

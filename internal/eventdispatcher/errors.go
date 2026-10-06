@@ -3,8 +3,6 @@
 
 package eventdispatcher
 
-import "github.com/stubbedev/maestro/internal/phperr"
-
 // The PHP file the dispatcher's exceptions are thrown from, for the "In
 // EventDispatcher.php line N:" rendering.
 const dispatcherFile = "EventDispatcher.php"
@@ -19,7 +17,6 @@ type ScriptExecutionError struct {
 	// as by a plugin).
 	File string
 	Line int
-	phperr.Frames
 }
 
 func (e *ScriptExecutionError) Error() string { return e.Message }
@@ -28,13 +25,6 @@ func (e *ScriptExecutionError) Error() string { return e.Message }
 func (*ScriptExecutionError) ThrowableClass() string {
 	return `Composer\EventDispatcher\ScriptExecutionException`
 }
-
-// ThrowableFile implements console.Throwable: getFile(), the absolute path
-// of Composer's file (phperr.AbsPath).
-func (e *ScriptExecutionError) ThrowableFile() string { return phperr.AbsPath(e.File) }
-
-// ThrowableLine implements console.Throwable.
-func (e *ScriptExecutionError) ThrowableLine() int { return e.Line }
 
 // ThrowableCode implements console.Throwable.
 func (e *ScriptExecutionError) ThrowableCode() int { return e.Code }
@@ -48,20 +38,12 @@ type Error struct {
 	Class   string
 	Message string
 	Line    int
-	phperr.Frames
 }
 
 func (e *Error) Error() string { return e.Message }
 
 // ThrowableClass implements console.Throwable.
 func (e *Error) ThrowableClass() string { return e.Class }
-
-// ThrowableFile implements console.Throwable: getFile(), the absolute path
-// of Composer's file (phperr.AbsPath).
-func (*Error) ThrowableFile() string { return phperr.AbsPath(dispatcherFile) }
-
-// ThrowableLine implements console.Throwable.
-func (e *Error) ThrowableLine() int { return e.Line }
 
 // ThrowableCode implements console.Throwable.
 func (*Error) ThrowableCode() int { return 0 }

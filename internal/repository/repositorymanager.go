@@ -6,7 +6,6 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -60,7 +59,7 @@ func (m *RepositoryManager) FindPackage(name string, constraint semver.Constrain
 		if err != nil || p != nil {
 			// a repository written in PHP left its code through the call
 			// (docs/PLUGINS.md §5.12)
-			return p, phperr.Locate(err, "RepositoryManager.php", 67)
+			return p, err
 		}
 	}
 
@@ -73,7 +72,7 @@ func (m *RepositoryManager) FindPackages(name string, constraint semver.Constrai
 	for _, repo := range m.repositories {
 		found, err := repo.FindPackages(name, constraint)
 		if err != nil {
-			return nil, phperr.Locate(err, "RepositoryManager.php", 88)
+			return nil, err
 		}
 		packages = append(packages, found...)
 	}
@@ -98,7 +97,7 @@ func (m *RepositoryManager) PrependRepository(repository RepositoryInterface) {
 func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name string) (RepositoryInterface, error) {
 	constructor, ok := m.types.Get(typ)
 	if !ok {
-		return nil, &util.InvalidArgumentError{Site: phperr.At("RepositoryManager.php", 127), Message: "Repository type is not registered: " + typ}
+		return nil, &util.InvalidArgumentError{Message: "Repository type is not registered: " + typ}
 	}
 
 	if v, ok := config.Get("packagist"); ok && v == false {
@@ -117,11 +116,6 @@ func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name
 
 	repository, err := constructor(config, m.deps)
 	if err != nil {
-		if class, ok := repositoryClasses[typ]; ok {
-			// new $class(...) at RepositoryManager.php:141
-			phperr.Call(err, class+"->__construct", "RepositoryManager.php", 141)
-		}
-
 		return nil, err
 	}
 
@@ -130,21 +124,6 @@ func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name
 	}
 
 	return repository, nil
-}
-
-// repositoryClasses are the classes RepositoryFactory::manager() registers
-// for the repository types (the classes their constructors' frames name).
-var repositoryClasses = map[string]string{
-	"composer": `Composer\Repository\ComposerRepository`,
-	"vcs":      `Composer\Repository\VcsRepository`, "git": `Composer\Repository\VcsRepository`,
-	"bitbucket": `Composer\Repository\VcsRepository`, "git-bitbucket": `Composer\Repository\VcsRepository`,
-	"github": `Composer\Repository\VcsRepository`, "gitlab": `Composer\Repository\VcsRepository`,
-	"svn": `Composer\Repository\VcsRepository`, "fossil": `Composer\Repository\VcsRepository`,
-	"perforce": `Composer\Repository\VcsRepository`, "hg": `Composer\Repository\VcsRepository`,
-	"package":  `Composer\Repository\PackageRepository`,
-	"pear":     `Composer\Repository\PearRepository`,
-	"artifact": `Composer\Repository\ArtifactRepository`,
-	"path":     `Composer\Repository\PathRepository`,
 }
 
 func isset(a *php.Array, key string) bool {

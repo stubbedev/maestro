@@ -11,7 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/policy"
@@ -449,12 +448,12 @@ type tableIO interface {
 
 // consoleIO returns out as a ConsoleIO, or the InvalidArgumentException
 // the table format raises for other IOs.
-func consoleIO(out io.IO, line int) (tableIO, error) {
+func consoleIO(out io.IO) (tableIO, error) {
 	if t, ok := out.(tableIO); ok {
 		return t, nil
 	}
 
-	return nil, &util.InvalidArgumentError{Message: "Cannot use table format with " + className(out), Site: phperr.At("Auditor.php", line)}
+	return nil, &util.InvalidArgumentError{Message: "Cannot use table format with " + className(out)}
 }
 
 // className is get_class($io).
@@ -469,7 +468,7 @@ func className(out io.IO) string {
 func outputAdvisories(out io.IO, advisories *Advisories, format string) error {
 	switch format {
 	case FormatTable:
-		t, err := consoleIO(out, 337)
+		t, err := consoleIO(out)
 		if err != nil {
 			return err
 		}
@@ -480,26 +479,24 @@ func outputAdvisories(out io.IO, advisories *Advisories, format string) error {
 	case FormatSummary:
 		return nil
 	default:
-		return &util.InvalidArgumentError{Message: `Invalid format "` + format + `".`, Site: phperr.At("Auditor.php", 350)}
+		return &util.InvalidArgumentError{Message: `Invalid format "` + format + `".`}
 	}
 }
 
 // securityAdvisory is the SecurityAdvisory type check of getSeverity()
 // and the other formatting helpers.
-// line is the line of Auditor.php calling getSeverity().
-func securityAdvisory(advisory Advisory, line int) (*SecurityAdvisory, error) {
+func securityAdvisory(advisory Advisory) (*SecurityAdvisory, error) {
 	if security, ok := AsSecurityAdvisory(advisory); ok {
 		return security, nil
 	}
 
-	return nil, (&pkg.TypeError{Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`}).
-		Called(`Composer\Advisory\Auditor->getSeverity`, phperr.At("Auditor.php", 472), "Auditor.php", line)
+	return nil, &pkg.TypeError{Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`}
 }
 
 func outputAdvisoriesTable(out tableIO, advisories *Advisories) error {
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
-			security, err := securityAdvisory(advisory, 373)
+			security, err := securityAdvisory(advisory)
 			if err != nil {
 				return err
 			}
@@ -557,7 +554,7 @@ func outputAdvisoriesPlain(out io.IO, advisories *Advisories) error {
 	firstAdvisory := true
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
-			security, err := securityAdvisory(advisory, 409)
+			security, err := securityAdvisory(advisory)
 			if err != nil {
 				return err
 			}
@@ -604,7 +601,7 @@ func outputAbandonedPackages(out io.IO, packages []pkg.CompletePackageInterface,
 		return nil
 	}
 
-	t, err := consoleIO(out, 449)
+	t, err := consoleIO(out)
 	if err != nil {
 		return err
 	}
@@ -684,7 +681,7 @@ func outputFilteredPackages(out io.IO, filteredPackages *repository.NameMap[[]*f
 		return nil
 	}
 
-	t, err := consoleIO(out, 537)
+	t, err := consoleIO(out)
 	if err != nil {
 		return err
 	}

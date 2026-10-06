@@ -6,8 +6,6 @@ package util
 
 import (
 	"sync"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Promise is React\Promise\PromiseInterface: a value or an error delivered
@@ -208,7 +206,7 @@ func (p *Promise[T]) subscribe(h func()) {
 // follow settles p as next settles (a callback returned next).
 func (p *Promise[T]) follow(next *Promise[T]) {
 	if next == p {
-		p.reject(&LogicError{Message: "Cannot resolve a promise with itself.", Site: phperr.At("Promise.php", 205)})
+		p.reject(&LogicError{Message: "Cannot resolve a promise with itself."})
 
 		return
 	}
@@ -428,26 +426,4 @@ func AwaitAll(promises []Waitable) error {
 	}
 
 	return rejection()
-}
-
-// CallSync adds the frame of a call returning (p, err) to the trace of the
-// exception the call raised: err, or p's rejection when p was rejected by
-// the time the call returned. PHP constructed such an exception within the
-// call (a RemoteFilesystem download runs in its promise's resolver; a
-// RejectedPromise runs then()'s callback at once), so its trace holds the
-// call's frame. A promise rejected later is rejected from the event loop,
-// whose stack maestro does not reproduce: its exception gets no frame here.
-// The callee may be PHP code (an installer or downloader written in PHP),
-// whose exception then gets the call's location instead (phperr.CallTo).
-func CallSync[T any](p *Promise[T], err error, function, file string, line int) (*Promise[T], error) {
-	if err != nil {
-		return p, phperr.CallTo(err, function, file, line)
-	}
-	if p != nil {
-		if settled, rejection := p.Result(); settled && rejection != nil {
-			phperr.CallTo(rejection, function, file, line)
-		}
-	}
-
-	return p, nil
 }

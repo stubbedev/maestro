@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/ui"
 )
 
@@ -70,76 +69,33 @@ type Application struct {
 	defaultCommand string
 	singleCommand  bool
 	initialized    bool
-	// runCallers are the frames above run() in the PHP stack, innermost
-	// first (SetRunCallers).
-	runCallers []phperr.Frame
-	// stack holds the frames of the calls in progress (Call), outermost
-	// first.
-	stack []phperr.Frame
 }
 
-// The symfony/console files exceptions' traces name.
-const (
-	applicationPHP = "vendor/symfony/console/Application.php"
-	commandPHP     = "vendor/symfony/console/Command/Command.php"
-)
-
-// SetRunCallers sets the frames of the PHP stack above run(), innermost
-// first, which Stack lists below the calls in progress (a subclass's run()
-// calling parent::run(), and the script calling that).
-func (a *Application) SetRunCallers(frames ...phperr.Frame) { a.runCallers = frames }
-
-// RunCallers returns the frames SetRunCallers set.
-func (a *Application) RunCallers() []phperr.Frame { return a.runCallers }
-
-// Call runs fn as PHP's call of f.Function at f.File:f.Line: the frame is
-// on the application's stack while fn runs (Stack), and is added to the
-// trace of the error fn returns (phperr.Call).
-func (a *Application) Call(f phperr.Frame, fn func() (int, error)) (int, error) {
-	return a.CallOn(f, nil, nil, fn)
+// Call runs fn as PHP's call of function (as PHP names it,
+// "Class->method").
+func (a *Application) Call(function string, fn func() (int, error)) (int, error) {
+	return a.CallOn(function, nil, nil, fn)
 }
 
 // CallHook is told of the calls of methods on objects (CallOn) as they
 // start, and returns what to do as they end (nil for nothing): the plugin
 // runtime has the objects on the PHP call stack while plugin code runs
 // under them (docs/PLUGINS.md §5.12).
-type CallHook func(f phperr.Frame, object any, args []any) (end func())
+type CallHook func(function string, object any, args []any) (end func())
 
 // SetCallHook sets the hook CallOn tells of its calls.
 func (a *Application) SetCallHook(h CallHook) { a.callHook = h }
 
 // CallOn is Call of a method of object with args, which the CallHook is
 // told of.
-func (a *Application) CallOn(f phperr.Frame, object any, args []any, fn func() (int, error)) (int, error) {
+func (a *Application) CallOn(function string, object any, args []any, fn func() (int, error)) (int, error) {
 	if a.callHook != nil && object != nil {
-		if end := a.callHook(f, object, args); end != nil {
+		if end := a.callHook(function, object, args); end != nil {
 			defer end()
 		}
 	}
-	n := len(a.stack)
-	a.stack = append(a.stack, f)
-	// popped on a panic too (runGuarded recovers Throwable panics)
-	defer func() { a.stack = a.stack[:n] }()
-	// on the process's stack of calls in progress too, which PHP code
-	// running under it sees (phperr.Live)
-	done := phperr.Enter(f.Function, f.File, f.Line)
-	code, err := fn()
 
-	return code, done(err)
-}
-
-// Stack returns the frames of the PHP stack from the innermost call in
-// progress (Call) up to the script: what the trace of an exception
-// constructed now holds above the caller of the innermost Call. A command
-// running the application again (OutdatedCommand) has the frames of the
-// outer run below those of its run().
-func (a *Application) Stack() []phperr.Frame {
-	frames := make([]phperr.Frame, 0, len(a.stack)+len(a.runCallers))
-	for _, f := range slices.Backward(a.stack) {
-		frames = append(frames, f)
-	}
-
-	return append(frames, a.runCallers...)
+	return fn()
 }
 
 // appClass is the class declaring the application's method: the
@@ -234,7 +190,7 @@ func (a *Application) runGuarded(in Input, out Output) (code int, err error) {
 		doRun = d.DoRun
 	}
 
-	return a.CallOn(phperr.Frame{Function: a.appClass(overrides) + "->doRun", File: applicationPHP, Line: 171}, a.Impl(), []any{in, out}, func() (int, error) {
+	return a.CallOn(a.appClass(overrides)+"->doRun", a.Impl(), []any{in, out}, func() (int, error) {
 		return doRun(in, out)
 	})
 }
@@ -287,8 +243,6 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	// the command name MUST be the first element of the input
 	command, err := a.Find(name)
 	if err != nil {
-		phperr.Call(err, `Symfony\Component\Console\Application->find`, applicationPHP, 259)
-
 		var cnf *Error
 		if !errors.As(err, &cnf) || cnf.Kind != KindCommandNotFound || len(cnf.Alternatives) != 1 || !in.IsInteractive() {
 			return 0, err
@@ -310,7 +264,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 
 		command, err = a.Find(alternative)
 		if err != nil {
-			return 0, phperr.Call(err, `Symfony\Component\Console\Application->find`, applicationPHP, 293)
+			return 0, err
 		}
 	}
 
@@ -319,7 +273,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 	if d, ok := a.self.(AppDoRunCommander); ok {
 		run = d.DoRunCommand
 	}
-	exitCode, err := a.CallOn(phperr.Frame{Function: `Symfony\Component\Console\Application->doRunCommand`, File: applicationPHP, Line: 301}, a.Impl(), []any{command, in, out}, func() (int, error) {
+	exitCode, err := a.CallOn(`Symfony\Component\Console\Application->doRunCommand`, a.Impl(), []any{command, in, out}, func() (int, error) {
 		return run(command, in, out)
 	})
 	if err != nil {
@@ -946,7 +900,7 @@ func (*Application) ConfigureIO(in Input, out Output) {
 
 // DoRunCommand runs a command.
 func (a *Application) DoRunCommand(command Commander, in Input, out Output) (int, error) {
-	return a.CallOn(phperr.Frame{Function: methodClass(command, "run") + "->run", File: applicationPHP, Line: 1040}, command, []any{in, out}, func() (int, error) {
+	return a.CallOn(methodClass(command, "run")+"->run", command, []any{in, out}, func() (int, error) {
 		return command.Run(in, out)
 	})
 }

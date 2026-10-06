@@ -8,7 +8,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -81,7 +80,7 @@ func (b *Bitbucket) requestAccessToken() (bool, error) {
 			if arrayValue(token, "expires_in") == nil || arrayValue(token, "access_token") == nil {
 				encoded, _ := php.JSONEncode(decodedOrNull(token), 0)
 
-				return false, &util.LogicError{Message: "Expected a token configured with expires_in and access_token present, got " + encoded, Site: phperr.At("Bitbucket.php", 102)}
+				return false, &util.LogicError{Message: "Expected a token configured with expires_in and access_token present, got " + encoded}
 			}
 
 			b.token = token
@@ -225,7 +224,7 @@ func (b *Bitbucket) RequestToken(originURL, consumerKey, consumerSecret string) 
 	}
 
 	if arrayValue(b.token, "access_token") == nil {
-		return "", &util.LogicError{Message: "Failed to initialize token above", Site: phperr.At("Bitbucket.php", 209)}
+		return "", &util.LogicError{Message: "Failed to initialize token above"}
 	}
 
 	return php.ToString(arrayValue(b.token, "access_token")), nil
@@ -241,7 +240,7 @@ func (b *Bitbucket) storeInAuthConfig(_ ConfigSource, originURL, consumerKey, co
 	if b.token == nil || arrayValue(b.token, "expires_in") == nil {
 		encoded, _ := php.JSONEncode(decodedOrNull(b.token), 0)
 
-		return &util.LogicError{Message: "Expected a token configured with expires_in present, got " + encoded, Site: phperr.At("Bitbucket.php", 223)}
+		return &util.LogicError{Message: "Expected a token configured with expires_in present, got " + encoded}
 	}
 
 	t := b.time

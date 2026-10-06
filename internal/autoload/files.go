@@ -14,7 +14,6 @@ import (
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -110,16 +109,12 @@ func newDump(config Config, targetDir string) (*dump, error) {
 func realpath(path string, line int) (string, error) {
 	real, ok := util.RealpathOK(path)
 	if !ok {
-		fn, param, decl := "normalizePath", "path", 605
+		fn, param := "normalizePath", "path"
 		if line == 224 {
-			fn, param, decl = "findShortestPathCode", "from", 524
-		}
-		e := &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Filesystem::" + fn + "(): Argument #1 ($" + param + ") must be of type string, false given"}
-		if line > 0 {
-			e.Called(`Composer\Util\Filesystem->`+fn, phperr.At("Filesystem.php", decl), "AutoloadGenerator.php", line)
+			fn, param = "findShortestPathCode", "from"
 		}
 
-		return "", e
+		return "", &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Filesystem::" + fn + "(): Argument #1 ($" + param + ") must be of type string, false given"}
 	}
 
 	return real, nil
@@ -213,8 +208,7 @@ func (d *dump) targetDirLoader(rootPackage pkg.RootPackageInterface) (string, er
 	}
 	rules, ok := psr0.(*php.Array)
 	if !ok {
-		return "", (&php.EngineError{Class: "TypeError", Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(psr0) + " given"}).
-			Raised("array_keys", "AutoloadGenerator.php", 297)
+		return "", &php.EngineError{Class: "TypeError", Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(psr0) + " given"}
 	}
 
 	levels := strings.Count(util.NormalizePath(targetDir.S), "/") + 1
@@ -332,7 +326,7 @@ func (d *dump) includePathsFile(packageMap []PackageMapEntry) (string, error) {
 			str, ok := v.(string)
 			if !ok {
 				// trim(string $string) under strict_types
-				return "", typeError("trim", php.ZvalValueName(v), 694)
+				return "", typeError("trim", php.ZvalValueName(v))
 			}
 			includePath := php.TrimSet(str, "/")
 			if installPath != "" {
@@ -563,7 +557,7 @@ func (d *dump) staticFile(suffix string) (string, error) {
 	}
 	for _, entry := range d.psr4 {
 		if err := loader.SetPsr4(entry.namespace, d.values(entry.paths)); err != nil {
-			return "", phperr.Call(err, `Composer\Autoload\ClassLoader->setPsr4`, "AutoloadGenerator.php", 1175)
+			return "", err
 		}
 	}
 	classMap := php.NewArrayCap(len(d.classes))

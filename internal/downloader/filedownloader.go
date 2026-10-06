@@ -21,7 +21,6 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/comparer"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -234,38 +233,6 @@ type dlState struct {
 	archive *os.File
 	// stagedFromStore: the package was materialized from the store.
 	stagedFromStore bool
-	// callers are the frames of the PHP stack between the $download
-	// closure running now and download() (its call at line 302, and for a
-	// retry the reject closure's call at line 281 or 296 within the
-	// previous attempt's then()), innermost first; nil once an attempt was
-	// rejected from the event loop, whose stack maestro does not
-	// reproduce.
-	callers []phperr.Frame
-	// syncReject is set when the transfer of the attempt running now was
-	// rejected by the time addCopy() returned (a RemoteFilesystem request):
-	// then() runs the reject closure at once (RejectedPromise::then).
-	syncReject bool
-}
-
-// The closures of FileDownloader::download() as PHP names them in traces.
-const (
-	downloadClosure = `Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}`
-	rejectClosure   = `Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}`
-)
-
-// retryCallers are the callers of the $download closure the reject closure
-// calls again at line: the frames of the synchronous rejection of the
-// attempt now running, above its callers.
-func (st *dlState) retryCallers(line int) []phperr.Frame {
-	if !st.syncReject || st.callers == nil {
-		return nil
-	}
-
-	return append([]phperr.Frame{
-		{Function: downloadClosure, File: "FileDownloader.php", Line: line},
-		{Function: rejectClosure, File: "vendor/react/promise/src/Internal/RejectedPromise.php", Line: 73},
-		{Function: `React\Promise\Internal\RejectedPromise->then`, File: "FileDownloader.php", Line: 197},
-	}, st.callers...)
 }
 
 // cacheKey is download()'s $cacheKeyGenerator.
@@ -288,13 +255,12 @@ func (d *FileDownloader) download(c call, p pkg.PackageInterface, path string, _
 // temporary file name and the directories.
 func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path string) (*dlState, error) {
 	if !p.DistURL().Valid {
-		return nil, &util.InvalidArgumentError{Site: phperr.At("FileDownloader.php", 126), Message: "The given package is missing url information"}
+		return nil, &util.InvalidArgumentError{Message: "The given package is missing url information"}
 	}
 
 	distURLs := p.DistURLs()
 	st := &dlState{
 		c: c, p: p, retries: 3, urls: make([]dlURL, 0, len(distURLs)),
-		callers: []phperr.Frame{{Function: downloadClosure, File: "FileDownloader.php", Line: 302}},
 	}
 
 	for _, url := range distURLs {
@@ -375,15 +341,8 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 		}
 
 		transfer, err := d.http.AddCopy(url.processed, st.fileName, p.TransportOptions())
-		// an exception raised within addCopy() (line 196) has the frames
-		// of this closure's callers above it
-		if transfer, err = util.CallSync(transfer, err, `Composer\Util\HttpDownloader->addCopy`, "FileDownloader.php", 196); err != nil {
-			return nil, phperr.Calls(err, st.callers...)
-		}
-		st.syncReject = false
-		if settled, rejection := transfer.Result(); settled && rejection != nil {
-			phperr.Calls(rejection, st.callers...)
-			st.syncReject = true
+		if err != nil {
+			return nil, err
 		}
 
 		result = then(transfer, func(r *http.Response) (*Promise, string, error) {
@@ -405,7 +364,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 		}
 
 		if !fileExists(st.fileName) {
-			return nil, "", &util.UnexpectedValueError{Site: phperr.At("FileDownloader.php", 209), Message: util.SanitizeURL(url.base) + " could not be saved to " + st.fileName + ", make sure the directory is writable and you have internet connectivity"}
+			return nil, "", &util.UnexpectedValueError{Message: util.SanitizeURL(url.base) + " could not be saved to " + st.fileName + ", make sure the directory is writable and you have internet connectivity"}
 		}
 
 		if checksum.S != "" {
@@ -415,7 +374,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			}
 
 			if sum != checksum.S {
-				return nil, "", &util.UnexpectedValueError{Site: phperr.At("FileDownloader.php", 214), Message: "The checksum verification of the file failed (downloaded from " + util.SanitizeURL(url.base) + ")"}
+				return nil, "", &util.UnexpectedValueError{Message: "The checksum verification of the file failed (downloaded from " + util.SanitizeURL(url.base) + ")"}
 			}
 		}
 
@@ -572,8 +531,6 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 		time.Sleep(d.retryDelay)
 		st.retries--
 
-		st.callers = st.retryCallers(281)
-
 		return d.attempt(st)
 	}
 
@@ -594,8 +551,6 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 
 		st.retries = 3
 		time.Sleep(d.nextURLDelay)
-
-		st.callers = st.retryCallers(296)
 
 		return d.attempt(st)
 	}
@@ -799,7 +754,7 @@ func (d *FileDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 
 	return then(promise, func(result bool) (*Promise, string, error) {
 		if !result {
-			return nil, "", &util.RuntimeError{Site: phperr.At("FileDownloader.php", 440), Message: "Could not completely delete " + path + ", aborting."}
+			return nil, "", &util.RuntimeError{Message: "Could not completely delete " + path + ", aborting."}
 		}
 
 		return nil, "", nil

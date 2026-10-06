@@ -15,7 +15,6 @@ import (
 	"golang.org/x/term"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // GetCwd ports Platform::getCwd: the physical working directory (getcwd(3),
@@ -30,7 +29,7 @@ func GetCwd(allowEmpty bool) (string, error) {
 		return "", nil
 	}
 
-	return "", &RuntimeError{Message: "Could not determine the current working directory", Site: phperr.At("Platform.php", 51)}
+	return "", &RuntimeError{Message: "Could not determine the current working directory"}
 }
 
 // Realpath ports Platform::realpath: realpath(3), falling back on path.
@@ -86,7 +85,7 @@ func GetBoolEnv(name string) (value, set bool, err error) {
 		return false, true, nil
 	}
 
-	return false, false, &RuntimeError{Message: "Invalid value for " + name + ": " + v + ". Expected 0, 1, false, true, off, or on.", Site: phperr.At("Platform.php", 106)}
+	return false, false, &RuntimeError{Message: "Invalid value for " + name + ": " + v + ". Expected 0, 1, false, true, off, or on."}
 }
 
 // PutEnv ports Platform::putEnv.
@@ -189,7 +188,7 @@ func GetUserDirectory() (string, error) {
 		return u.HomeDir, nil
 	}
 
-	return "", &RuntimeError{Message: "Could not determine user directory", Site: phperr.At("Platform.php", 200)}
+	return "", &RuntimeError{Message: "Could not determine user directory"}
 }
 
 var (

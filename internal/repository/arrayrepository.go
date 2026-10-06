@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -99,43 +98,6 @@ func (r *ArrayRepository) ensure() error {
 	return r.hooks.initialize()
 }
 
-// ensureAt is ensure() as the method calling $this->initialize() at line
-// of ArrayRepository.php (the frame of its exceptions' traces).
-func (r *ArrayRepository) ensureAt(line int) error {
-	return phperr.Call(r.ensure(), r.initializeClass()+"->initialize", "ArrayRepository.php", line)
-}
-
-// initializeClass is the class declaring the repository's initialize():
-// the subclass overriding it, or ArrayRepository.
-func (r *ArrayRepository) initializeClass() string {
-	if r.outer != nil {
-		switch class := r.outer.Class(); class {
-		case `Composer\Repository\ArtifactRepository`, `Composer\Repository\FilesystemRepository`,
-			`Composer\Repository\PathRepository`, `Composer\Repository\PackageRepository`,
-			`Composer\Repository\VcsRepository`, `Composer\Repository\ComposerRepository`,
-			`Composer\Repository\PlatformRepository`:
-			return class
-		case `Composer\Repository\InstalledFilesystemRepository`:
-			return `Composer\Repository\FilesystemRepository`
-		}
-	}
-
-	return `Composer\Repository\ArrayRepository`
-}
-
-// LoadPackagesClass is the class declaring repo's loadPackages(): the
-// repositories overriding ArrayRepository's (the frame of PoolBuilder's
-// call).
-func LoadPackagesClass(repo RepositoryInterface) string {
-	switch class := repo.Class(); class {
-	case `Composer\Repository\ComposerRepository`, `Composer\Repository\FilterRepository`,
-		`Composer\Repository\CompositeRepository`:
-		return class
-	}
-
-	return `Composer\Repository\ArrayRepository`
-}
-
 // initialize ports ArrayRepository::initialize.
 func (r *ArrayRepository) initialize() error {
 	r.baseInitialize()
@@ -162,7 +124,7 @@ func (r *ArrayRepository) unload() {
 func (r *ArrayRepository) LoadPackages(packageNameMap *ConstraintMap, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded AlreadyLoaded) (LoadResult, error) {
 	packages, err := r.Packages()
 	if err != nil {
-		return LoadResult{}, phperr.Call(err, `Composer\Repository\ArrayRepository->getPackages`, "ArrayRepository.php", 62)
+		return LoadResult{}, err
 	}
 
 	var result []pkg.PackageInterface
@@ -369,7 +331,7 @@ func (r *ArrayRepository) addPackage(p pkg.PackageInterface) error { return r.ad
 
 // addPackageBase is ArrayRepository::addPackage itself (parent::addPackage).
 func (r *ArrayRepository) addPackageBase(p pkg.PackageInterface) error {
-	if err := r.ensureAt(221); err != nil {
+	if err := r.ensure(); err != nil {
 		return err
 	}
 	if err := p.SetRepository(r.outer); err != nil {
@@ -471,7 +433,7 @@ func (r *ArrayRepository) RemovePackage(p pkg.PackageInterface) error {
 // Packages ports ArrayRepository::getPackages. The slice must not be
 // modified.
 func (r *ArrayRepository) Packages() ([]pkg.PackageInterface, error) {
-	if err := r.ensureAt(308); err != nil {
+	if err := r.ensure(); err != nil {
 		return nil, err
 	}
 
@@ -480,7 +442,7 @@ func (r *ArrayRepository) Packages() ([]pkg.PackageInterface, error) {
 
 // Count ports ArrayRepository::count.
 func (r *ArrayRepository) Count() (int, error) {
-	if err := r.ensureAt(326); err != nil {
+	if err := r.ensure(); err != nil {
 		return 0, err
 	}
 

@@ -7,7 +7,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -100,7 +99,7 @@ func (s *VersionSelector) FindBestCandidate(packageName string, opts FindBestCan
 	minPriority, ok := pkg.StabilityValue(preferredStability)
 	if !ok {
 		// If you get this, maybe you are still relying on the Composer 1.x signature where the 3rd arg was the php version
-		return nil, &util.UnexpectedValueError{Site: phperr.At("VersionSelector.php", 75), Message: "Expected a valid stability name as 3rd argument, got " + preferredStability}
+		return nil, &util.UnexpectedValueError{Message: "Expected a valid stability name as 3rd argument, got " + preferredStability}
 	}
 
 	filter := opts.PlatformRequirementFilter
@@ -119,7 +118,7 @@ func (s *VersionSelector) FindBestCandidate(packageName string, opts FindBestCan
 
 	found, err := s.repositorySet.FindPackages(php.Strtolower(packageName), constraint, opts.RepoSetFlags)
 	if err != nil {
-		return nil, phperr.Call(err, `Composer\Repository\RepositorySet->findPackages`, "VersionSelector.php", 86)
+		return nil, err
 	}
 	candidates := append([]pkg.PackageInterface(nil), found...)
 

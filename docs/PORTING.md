@@ -186,7 +186,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | Go package | Ports |
 | --- | --- |
 | `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, `basename`, ...), and its own PCRE2 10.48-compatible regex engine (internal/php/doc.go says why) |
-| `internal/phperr` | throw sites and PHP call stacks of errors, for the stacks plugin code asks for (see "Errors") |
+| `internal/phperr` | an error's PHP previous exception (`Chained`, `PreviousOf`) and the root Composer's sources are reported under (see "Errors") |
 | `internal/semver` | composer/semver |
 | `internal/classmap` | composer/class-map-generator |
 | `internal/spdx` | composer/spdx-licenses (+ its JSON data) |
@@ -285,12 +285,12 @@ Cycle-breaking decisions already made:
   to them both ways. A class `util.PHPClassOf` cannot know is given by a
   `PHPClass()` method; a `$previous` exception goes in the type's previous
   field (`phperr.Chained`, never Unwrap).
-- Throw sites and PHP call stacks (`phperr.Site`, `phperr.At(...)`, frame
-  recording) served rendering errors as PHP does, which is now free (#13)
-  and no longer uses them. New code does not need to add them. Existing ones stay until the
-  errors oracle is re-scoped and the error path simplified (#13 steps 2
-  and 3); the plugin runtime keeps what it needs for the stacks PHP code
-  asks for (`internal/plugin/frames.go`).
+- Errors carry no throw site or PHP call stack: rendering is maestro's
+  own (#13), so Composer's file and line of a `new` expression, the
+  frames of an exception's trace and PHP's TypeError call site (",
+  called in X on line N") are not ported. The plugin runtime keeps the
+  frames PHP code finds with `debug_backtrace()` (`composer.Runtime`'s
+  `PushFrame`, `internal/plugin/frames.go`).
 
 ## Tests
 

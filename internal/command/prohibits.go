@@ -4,7 +4,6 @@ package command
 
 import (
 	"github.com/stubbedev/maestro/internal/console"
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 func init() {
@@ -44,5 +43,5 @@ func (*ProhibitsCommand) ClassName() string { return `Composer\Command\Prohibits
 func (c *ProhibitsCommand) Execute(in console.Input, out console.Output) (int, error) {
 	code, err := c.DoExecute(in, out, true)
 
-	return code, phperr.Call(err, `Composer\Command\BaseDependencyCommand->doExecute`, "ProhibitsCommand.php", 57)
+	return code, err
 }

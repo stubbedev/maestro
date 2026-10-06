@@ -14,7 +14,6 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
@@ -46,12 +45,11 @@ func NewArtifactRepository(repoConfig *php.Array, out mio.IO) (*ArtifactReposito
 	if !set {
 		// $repoConfig['url'] read without isset: the warning Composer's
 		// ErrorHandler throws
-		return nil, &util.ErrorException{Message: `Undefined array key "url"`, Site: phperr.At("ArtifactRepository.php", 50)}
+		return nil, &util.ErrorException{Message: `Undefined array key "url"`}
 	}
 	url, ok := urlValue.(string)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue).
-			Called(`Composer\Util\Platform::expandPath`, phperr.At("Platform.php", 158), "ArtifactRepository.php", 50)
+		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue)
 	}
 	lookup, err := util.ExpandPath(url)
 	if err != nil {
@@ -89,7 +87,7 @@ func (r *ArtifactRepository) scanDirectory(path string) error {
 	}
 	entries, err := util.ReadDirOrder(path)
 	if err != nil {
-		return &util.UnexpectedValueError{Site: phperr.At("ArtifactRepository.php", 76), Message: "RecursiveDirectoryIterator::__construct(" + path + "): Failed to open directory: " + util.Strerror(err)}
+		return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + path + "): Failed to open directory: " + util.Strerror(err)}
 	}
 
 	return r.scanEntries(path, entries, map[string]bool{})
@@ -113,7 +111,7 @@ func (r *ArtifactRepository) scanEntries(dir string, entries []os.DirEntry, acti
 		if info.IsDir() {
 			children, err := util.ReadDirOrder(pathname)
 			if err != nil {
-				return &util.UnexpectedValueError{Site: phperr.At("ArtifactRepository.php", 79), Message: "RecursiveDirectoryIterator::__construct(" + pathname + "): Failed to open directory: " + util.Strerror(err)}
+				return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + pathname + "): Failed to open directory: " + util.Strerror(err)}
 			}
 			if err := r.scanEntries(pathname, children, active); err != nil {
 				return err
@@ -156,7 +154,7 @@ func (r *ArtifactRepository) composerInformation(pathname string) (pkg.PackageIn
 	case ".zip":
 		fileType = "zip"
 	default:
-		return nil, &util.RuntimeError{Site: phperr.At("ArtifactRepository.php", 108), Message: `Files with "` + strings.TrimPrefix(ext, ".") + `" extensions aren't supported. Only ZIP and TAR/TAR.GZ/TGZ archives are supported.`}
+		return nil, &util.RuntimeError{Message: `Files with "` + strings.TrimPrefix(ext, ".") + `" extensions aren't supported. Only ZIP and TAR/TAR.GZ/TGZ archives are supported.`}
 	}
 
 	var content string
@@ -180,7 +178,7 @@ func (r *ArtifactRepository) composerInformation(pathname string) (pkg.PackageIn
 	}
 	data, isArray := decoded.(*php.Array)
 	if !isArray {
-		return nil, &util.ErrorException{Site: phperr.At("ArtifactRepository.php", 126), Message: "Cannot use a scalar value as an array"}
+		return nil, &util.ErrorException{Message: "Cannot use a scalar value as an array"}
 	}
 	shasum, err := sha1File(util.Realpath(pathname))
 	if err != nil {
@@ -194,7 +192,7 @@ func (r *ArtifactRepository) composerInformation(pathname string) (pkg.PackageIn
 
 	p, err := r.loader.Load(data, pkg.ClassCompletePackage)
 	if isUnexpectedValue(err) {
-		return nil, &wrappedError{err: &util.UnexpectedValueError{Site: phperr.At("ArtifactRepository.php", 135), Message: "Failed loading package in " + pathname + ": " + err.Error()}, previous: err}
+		return nil, &wrappedError{err: &util.UnexpectedValueError{Message: "Failed loading package in " + pathname + ": " + err.Error()}, previous: err}
 	}
 
 	return p, err
@@ -216,5 +214,5 @@ func sha1File(path string) (string, error) {
 
 // NewPearRepository ports new PearRepository(): PEAR repositories are gone.
 func NewPearRepository() (RepositoryInterface, error) {
-	return nil, &util.InvalidArgumentError{Site: phperr.At("PearRepository.php", 30), Message: "The PEAR repository has been removed from Composer 2.x"}
+	return nil, &util.InvalidArgumentError{Message: "The PEAR repository has been removed from Composer 2.x"}
 }

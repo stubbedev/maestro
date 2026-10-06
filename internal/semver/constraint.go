@@ -4,8 +4,6 @@ package semver
 
 import (
 	"strings"
-
-	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // ConstraintInterface ports Composer\Semver\Constraint\ConstraintInterface.
@@ -100,9 +98,9 @@ func SupportedOperators() []string {
 }
 
 // invalidOperatorError is the InvalidArgumentException Constraint.php throws
-// at line (100: the constructor, 203: versionCompare).
-func invalidOperatorError(operator string, line int) error {
-	return &InvalidArgumentError{Site: phperr.At("vendor/composer/semver/src/Constraint/Constraint.php", line), Message: "Invalid operator \"" + operator + "\" given, expected one of: " +
+// for an unknown operator (the constructor, versionCompare).
+func invalidOperatorError(operator string) error {
+	return &InvalidArgumentError{Message: "Invalid operator \"" + operator + "\" given, expected one of: " +
 		strings.Join(supportedOperators[:], ", ")}
 }
 
@@ -118,7 +116,7 @@ type Constraint struct {
 func NewConstraint(operator, version string) (*Constraint, error) {
 	op, ok := OperatorConstant(operator)
 	if !ok {
-		return nil, invalidOperatorError(operator, 100)
+		return nil, invalidOperatorError(operator)
 	}
 
 	return NewConstraintOp(op, version), nil
@@ -187,7 +185,7 @@ func isBranch(version string) bool { return strings.HasPrefix(version, "dev-") }
 func (c *Constraint) VersionCompare(a, b, operator string, compareBranches bool) (bool, error) {
 	op, ok := OperatorConstant(operator)
 	if !ok {
-		return false, invalidOperatorError(operator, 203)
+		return false, invalidOperatorError(operator)
 	}
 	aIsBranch, bIsBranch := isBranch(a), isBranch(b)
 	if operator == StrOpNE && (aIsBranch || bIsBranch) {

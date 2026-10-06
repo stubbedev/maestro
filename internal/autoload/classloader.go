@@ -7,7 +7,6 @@ package autoload
 
 import (
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -77,7 +76,7 @@ func (l *ClassLoader) Add(prefix php.Key, paths *php.Array, prepend bool) error 
 		return nil
 	}
 
-	first, err := firstByte(prefix, 199)
+	first, err := firstByte(prefix)
 	if err != nil {
 		return err
 	}
@@ -125,7 +124,7 @@ func (l *ClassLoader) Set(prefix php.Key, paths *php.Array) error {
 		return nil
 	}
 
-	first, err := firstByte(prefix, 283)
+	first, err := firstByte(prefix)
 	if err != nil {
 		return err
 	}
@@ -143,13 +142,13 @@ func (l *ClassLoader) SetPsr4(prefix php.Key, paths *php.Array) error {
 		return nil
 	}
 
-	first, err := firstByte(prefix, 304)
+	first, err := firstByte(prefix)
 	if err != nil {
 		return err
 	}
 	s := prefix.String()
 	if s[len(s)-1] != '\\' {
-		return &util.InvalidArgumentError{Message: "A non-empty PSR-4 prefix must end with a namespace separator.", Site: phperr.At("ClassLoader.php", 305)}
+		return &util.InvalidArgumentError{Message: "A non-empty PSR-4 prefix must end with a namespace separator."}
 	}
 	subArray(l.PrefixLengthsPsr4, first).SetKey(prefix, int64(len(s)))
 	l.PrefixDirsPsr4.SetKey(prefix, paths)
@@ -160,10 +159,10 @@ func (l *ClassLoader) SetPsr4(prefix php.Key, paths *php.Array) error {
 // firstByte is $prefix[0] as an array key. An int prefix (a numeric
 // namespace PHP coerced to an int key) has no offsets: PHP warns, which
 // Composer's error handler turns into an exception (PHP 8.3's message;
-// before 8.3 it read "... on value of type int"), at ClassLoader.php line.
-func firstByte(prefix php.Key, line int) (php.Key, error) {
+// before 8.3 it read "... on value of type int").
+func firstByte(prefix php.Key) (php.Key, error) {
 	if prefix.IsInt() {
-		return php.Key{}, &util.ErrorException{Message: "Trying to access array offset on int", Site: phperr.At("ClassLoader.php", line)}
+		return php.Key{}, &util.ErrorException{Message: "Trying to access array offset on int"}
 	}
 
 	return php.StrKey(prefix.String()[:1]), nil

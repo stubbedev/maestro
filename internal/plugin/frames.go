@@ -19,7 +19,6 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 )
 
@@ -37,13 +36,9 @@ func (r *Runtime) frameRuntime() *composer.Runtime {
 }
 
 // frameBoundary wraps a handler of a PHP → Go call: the frames pushed
-// before it are on PHP's stack already, below the PHP code calling. The
-// call is a mark on the stack of calls in progress (phperr.Callback), which
-// separates what maestro calls for it from what called the PHP code making
-// it.
+// before it are on PHP's stack already, below the PHP code calling.
 func (r *Runtime) frameBoundary(h rpc.Handler) rpc.Handler {
 	return func(v any) (any, error) {
-		defer phperr.Callback()()
 		depth := 0
 		if crt := r.frameRuntime(); crt != nil {
 			depth = len(crt.Frames())

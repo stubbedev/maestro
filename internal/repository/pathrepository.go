@@ -13,7 +13,6 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -47,12 +46,11 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 
 	urlValue, _ := repoConfig.Get("url")
 	if urlValue == nil {
-		return nil, &util.RuntimeError{Site: phperr.At("PathRepository.php", 113), Message: "You must specify the `url` configuration for the path repository"}
+		return nil, &util.RuntimeError{Message: "You must specify the `url` configuration for the path repository"}
 	}
 	rawURL, ok := urlValue.(string)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue).
-			Called(`Composer\Util\Platform::expandPath`, phperr.At("Platform.php", 158), "PathRepository.php", 117)
+		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue)
 	}
 
 	r.loader = loader.NewArrayLoader(nil, true)
@@ -80,10 +78,10 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 		if r.options == nil {
 			arr, _, deprecated, e := php.WritableArray(options)
 			if e != nil {
-				return nil, e.Raised("", "PathRepository.php", 124)
+				return nil, e
 			}
 			if deprecated {
-				util.RaiseDeprecation(php.FalseToArrayDeprecation, phperr.At("PathRepository.php", 124))
+				util.RaiseDeprecation(php.FalseToArrayDeprecation)
 			}
 			r.options = arr
 		}
@@ -132,7 +130,7 @@ func (r *PathRepository) initialize() error {
 			}
 		}
 
-		return &util.RuntimeError{Site: phperr.At("PathRepository.php", 163), Message: "The `url` supplied for the path (" + util.SanitizeURL(r.url) + ") repository does not exist"}
+		return &util.RuntimeError{Message: "The `url` supplied for the path (" + util.SanitizeURL(r.url) + ") repository does not exist"}
 	}
 
 	reference := "auto"
@@ -155,11 +153,11 @@ func (r *PathRepository) initialize() error {
 		jsonContent := string(content)
 		decoded, err := json.ParseJSON(jsonContent, composerFilePath)
 		if err != nil {
-			return phperr.Call(err, `Composer\Json\JsonFile::parseJson`, "PathRepository.php", 175)
+			return err
 		}
 		packageData, ok := decoded.(*php.Array)
 		if !ok {
-			return &util.ErrorException{Site: phperr.At("PathRepository.php", 176), Message: "Cannot use a scalar value as an array"}
+			return &util.ErrorException{Message: "Cannot use a scalar value as an array"}
 		}
 		dist := php.ArrayOf("type", "path", "url", url)
 		packageData.Set("dist", dist)
@@ -231,7 +229,7 @@ func (r *PathRepository) initialize() error {
 			err = r.hooks.addPackage(p)
 		}
 		if err != nil {
-			return &wrappedError{err: &util.RuntimeError{Site: phperr.At("PathRepository.php", 229), Message: "Failed loading the package in " + composerFilePath}, previous: err}
+			return &wrappedError{err: &util.RuntimeError{Message: "Failed loading the package in " + composerFilePath}, previous: err}
 		}
 	}
 
