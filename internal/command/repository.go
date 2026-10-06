@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -89,7 +90,8 @@ func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, er
 	}
 	dataArr, ok := data.(*php.Array)
 	if !ok {
-		return 0, pkg.ArgumentTypeError(`Composer\Config::merge`, 1, "config", "array", data)
+		return 0, pkg.ArgumentTypeError(`Composer\Config::merge`, 1, "config", "array", data).
+			Called(`Composer\Config->merge`, phperr.At("Config.php", 199), "RepositoryCommand.php", 85)
 	}
 	if err := c.Config.Merge(dataArr, c.ConfigFile.Path()); err != nil {
 		return 0, err

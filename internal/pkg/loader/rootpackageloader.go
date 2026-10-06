@@ -91,7 +91,8 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 	} else {
 		name, ok := get(config, "name").(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name"))
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name")).
+				Called(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, phperr.At("ValidatingArrayLoader.php", 640), "RootPackageLoader.php", 87)
 		}
 
 		if msg, bad, err := HasPackageNamingError(name, false); err != nil {
@@ -267,7 +268,8 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 
 		for k := range links.All() {
 			if k.IsInt() {
-				return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", k.Value())
+				return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", k.Value()).
+					Called(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, phperr.At("ValidatingArrayLoader.php", 640), "RootPackageLoader.php", 178)
 			}
 
 			if msg, bad, err := HasPackageNamingError(k.String(), true); err != nil {

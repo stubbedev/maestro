@@ -112,7 +112,12 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 			}
 			s, ok := l.(string)
 			if !ok {
-				return nil, nil, nil, pkg.ArgumentTypeError(`Composer\Spdx\SpdxLicenses::getLicenseByIdentifier`, 1, "identifier", "string", l)
+				// getLicenseByIdentifier($identifier) has no type: the
+				// strtolower() of SpdxLicenses.php (strict) fails
+				e := (&pkg.TypeError{Message: "strtolower(): Argument #1 ($string) must be of type string, " + php.ZvalValueName(l) + " given"}).
+					Raised("strtolower", "vendor/composer/spdx-licenses/src/SpdxLicenses.php", 82)
+
+				return nil, nil, nil, phperr.Call(e, `Composer\Spdx\SpdxLicenses->getLicenseByIdentifier`, "ConfigValidator.php", 108)
 			}
 			info, found := licenseValidator.GetLicenseByIdentifier(s)
 			if !found || !info.Deprecated {
@@ -155,7 +160,8 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	if name, _ := m.Get("name"); php.ToBool(name) {
 		s, ok := name.(string)
 		if !ok {
-			return nil, nil, nil, pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", name)
+			return nil, nil, nil, pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", name).
+				Called(`Composer\Pcre\Preg::isMatch`, phperr.At("vendor/composer/pcre/src/Preg.php", 289), "ConfigValidator.php", 134)
 		}
 		upper, err := cvUpper.IsMatch(s)
 		if err != nil {
@@ -181,7 +187,16 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		require, ok1 := arrayValue(m, "require")
 		requireDev, ok2 := arrayValue(m, "require-dev")
 		if !ok1 || !ok2 {
-			return nil, nil, nil, &pkg.TypeError{Message: "array_intersect_key(): Argument must be of type array"}
+			// array_intersect_key()'s first parameter is named, the
+			// variadic rest is not
+			arg, key := "Argument #1 ($array)", "require"
+			if ok1 {
+				arg, key = "Argument #2", "require-dev"
+			}
+			v, _ := m.Get(key)
+
+			return nil, nil, nil, (&pkg.TypeError{Message: "array_intersect_key(): " + arg + " must be of type array, " + php.ZvalValueName(v) + " given"}).
+				Raised("array_intersect_key", "ConfigValidator.php", 151)
 		}
 		var overrides []string
 		for k := range require.All() {
@@ -212,7 +227,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 				// the warning Composer's ErrorHandler turns into an exception
 				v, _ := m.Get(linkType)
 
-				return nil, nil, nil, &util.ErrorException{Site: phperr.At("ConfigValidator.php", 164), Message: "foreach() argument must be of type array|object, " + zvalValueName(v) + " given"}
+				return nil, nil, nil, &util.ErrorException{Site: phperr.At("ConfigValidator.php", 164), Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(v) + " given"}
 			}
 			reqs, _ := arrayValue(m, requireType)
 			for provide := range links.All() {
@@ -235,12 +250,14 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 
 		// an internal function's TypeError: at the call, whose frame
 		// heads the trace
-		return nil, nil, nil, phperr.Call(&pkg.TypeError{Site: phperr.At("ConfigValidator.php", 177), Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + zvalValueName(v) + " given"}, "array_merge", "ConfigValidator.php", 177)
+		return nil, nil, nil, (&pkg.TypeError{Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + php.ZvalValueName(v) + " given"}).
+			Raised("array_merge", "ConfigValidator.php", 177)
 	}
 	for name, version := range php.ArrayMerge(require, requireDev).All() {
 		s, ok := version.(string)
 		if !ok {
-			return nil, nil, nil, pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", version)
+			return nil, nil, nil, pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", version).
+				Called(`Composer\Pcre\Preg::isMatch`, phperr.At("vendor/composer/pcre/src/Preg.php", 289), "ConfigValidator.php", 179)
 		}
 		// a single literal cannot exceed the match limit
 		if hit, _ := cvHash.IsMatch(s); hit {
@@ -249,13 +266,35 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	}
 
 	// report scripts-descriptions for non-existent scripts
-	scriptsDescriptions, ok1 := arrayOrEmpty(m, "scripts-descriptions")
-	scripts, ok2 := arrayOrEmpty(m, "scripts")
-	if !ok1 || !ok2 {
-		return nil, nil, nil, &pkg.TypeError{Message: "array_key_exists(): Argument #2 ($array) must be of type array"}
+	scripts, scriptsOK := arrayOrEmpty(m, "scripts")
+	// foreach over a non-array warns (the ErrorException Composer's
+	// ErrorHandler throws); array_key_exists() on a non-array $scripts is
+	// a TypeError
+	foreachError := func(key string, line int) error {
+		v, _ := m.Get(key)
+
+		return &util.ErrorException{Site: phperr.At("ConfigValidator.php", line), Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(v) + " given"}
+	}
+	hasScript := func(name php.Key, line int) (bool, error) {
+		if !scriptsOK {
+			v, _ := m.Get("scripts")
+
+			return false, (&pkg.TypeError{Message: "array_key_exists(): Argument #2 ($array) must be of type array, " + php.ZvalValueName(v) + " given"}).
+				Raised("array_key_exists", "ConfigValidator.php", line)
+		}
+
+		return scripts.Has(name), nil
+	}
+	scriptsDescriptions, ok := arrayOrEmpty(m, "scripts-descriptions")
+	if !ok {
+		return nil, nil, nil, foreachError("scripts-descriptions", 190)
 	}
 	for scriptName := range scriptsDescriptions.All() {
-		if !scripts.Has(scriptName) {
+		has, err := hasScript(scriptName, 191)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if !has {
 			warnings = append(warnings, `Description for non-existent script "`+scriptName.String()+`" found in "scripts-descriptions"`)
 		}
 	}
@@ -263,10 +302,14 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	// report scripts-aliases for non-existent scripts
 	scriptAliases, ok := arrayOrEmpty(m, "scripts-aliases")
 	if !ok {
-		return nil, nil, nil, &pkg.TypeError{Message: "foreach() argument must be of type array|object"}
+		return nil, nil, nil, foreachError("scripts-aliases", 201)
 	}
 	for scriptName := range scriptAliases.All() {
-		if !scripts.Has(scriptName) {
+		has, err := hasScript(scriptName, 202)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if !has {
 			warnings = append(warnings, `Aliases for non-existent script "`+scriptName.String()+`" found in "scripts-aliases"`)
 		}
 	}
@@ -332,15 +375,4 @@ func arrayOrEmpty(a *php.Array, k any) (*php.Array, bool) {
 	arr, ok := v.(*php.Array)
 
 	return arr, ok
-}
-
-// zvalValueName ports zend_zval_value_name, the type name PHP's TypeErrors
-// and warnings use: get_debug_type, except that booleans are "true" or
-// "false".
-func zvalValueName(v any) string {
-	if b, ok := v.(bool); ok {
-		return strconv.FormatBool(b)
-	}
-
-	return php.TypeName(v)
 }

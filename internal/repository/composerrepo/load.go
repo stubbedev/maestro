@@ -162,7 +162,7 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 
 			uid := get(data, "uid")
 			if _, ok := uid.(*php.Array); ok {
-				return nil, &pkg.TypeError{Message: "Illegal offset type"}
+				return nil, (&pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}).Raised("", "ComposerRepository.php", 1204)
 			}
 			if v, _ := versionsToLoad.Get(uid); v != nil {
 				continue

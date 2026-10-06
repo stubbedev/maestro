@@ -85,7 +85,12 @@ func (r *PackageRepository) initialize() error {
 		if ok {
 			p, err = validating.Load(data, pkg.ClassCompletePackage)
 		} else {
-			err = pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::load`, 1, "config", "array", definition)
+			err = pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::load`, 1, "config", "array", definition).
+				Called(`Composer\Package\Loader\ValidatingArrayLoader->load`, phperr.At("ValidatingArrayLoader.php", 67), "PackageRepository.php", 68)
+		}
+		if err != nil && isPHPError(err) {
+			// catch (\Exception) does not catch PHP's \Error classes
+			return err
 		}
 		if err != nil {
 			encoded, _ := php.JSONEncode(definition, 0)
@@ -120,13 +125,17 @@ func (r *PackageRepository) SecurityAdvisories(packageConstraintMap *ConstraintM
 		}
 		list, ok := packageAdvisories.(*php.Array)
 		if !ok {
-			return AdvisoryResult{}, pkg.ArgumentTypeError("array_map", 2, "array", "array", packageAdvisories)
+			return AdvisoryResult{}, pkg.ArgumentTypeError("array_map", 2, "array", "array", packageAdvisories).
+				Raised("array_map", "PackageRepository.php", 94)
 		}
 		var matching []Advisory
 		for _, data := range list.All() {
 			advisoryData, ok := data.(*php.Array)
 			if !ok {
-				return AdvisoryResult{}, pkg.ArgumentTypeError(`Composer\Repository\PackageRepository::{closure}`, 1, "data", "array", data)
+				// the closure array_map() calls: no "called in", and
+				// the closure's line is the site
+				return AdvisoryResult{}, pkg.ArgumentTypeError(`Composer\Repository\PackageRepository::{closure:Composer\Repository\PackageRepository::getSecurityAdvisories():94}`, 1, "data", "array", data).
+					Raised("", "PackageRepository.php", 94)
 			}
 			advisory, err := CreatePartialSecurityAdvisory(packageName, advisoryData, parser)
 			if err != nil {
@@ -166,7 +175,8 @@ func (r *PackageRepository) Filter(packageConstraintMap *ConstraintMap, _ []stri
 		for _, data := range entries.All() {
 			entryData, ok := data.(*php.Array)
 			if !ok {
-				return nil, pkg.ArgumentTypeError(`Composer\FilterList\FilterListEntry::create`, 2, "data", "array", data)
+				return nil, pkg.ArgumentTypeError(`Composer\FilterList\FilterListEntry::create`, 2, "data", "array", data).
+					Called(`Composer\FilterList\FilterListEntry::create`, phperr.At("FilterListEntry.php", 80), "PackageRepository.php", 124)
 			}
 			entry, err := CreateFilterListEntry(listName, entryData, parser)
 			if err != nil {

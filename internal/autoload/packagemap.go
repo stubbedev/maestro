@@ -95,7 +95,7 @@ func validatePackage(p pkg.PackageInterface) error {
 	}
 	for k := range rules.All() {
 		if k.IsInt() {
-			return typeError("substr", "int")
+			return typeError("substr", "int", 563)
 		}
 		namespace := k.String()
 		if namespace != "" && namespace[len(namespace)-1] != '\\' {
@@ -212,7 +212,7 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 			var namespace php.Key
 			if typ == typePSR4 || typ == typePSR0 {
 				if k.IsInt() {
-					return typeError("ltrim", "int")
+					return typeError("ltrim", "int", 1279)
 				}
 				// normalize namespaces to ensure "\" becomes "" and others
 				// do not have leading separators as they are not needed
@@ -417,10 +417,12 @@ func castArray(v any) []any {
 // empty is PHP's empty() on a string.
 func empty(s string) bool { return s == "" || s == "0" }
 
-// typeError is the TypeError a strict_types call of fn throws for an
-// argument #1 ($string) of the given type.
-func typeError(fn, given string) error {
-	return &php.EngineError{Class: "TypeError", Message: fn + "(): Argument #1 ($string) must be of type string, " + given + " given"}
+// typeError is the TypeError a strict_types call of fn at line of
+// AutoloadGenerator.php throws for an argument #1 ($string) of the given
+// type.
+func typeError(fn, given string, line int) error {
+	return (&php.EngineError{Class: "TypeError", Message: fn + "(): Argument #1 ($string) must be of type string, " + given + " given"}).
+		Raised(fn, "AutoloadGenerator.php", line)
 }
 
 // foreachError is the warning (an ErrorException under Composer's error

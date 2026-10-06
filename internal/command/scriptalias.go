@@ -5,6 +5,7 @@ package command
 import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -37,11 +38,13 @@ func NewScriptAliasCommand(script string, description, aliases any) (cmd *Script
 	case string:
 		desc = d
 	default:
-		return nil, pkg.ArgumentTypeError(ctor, 2, "description", "?string", description)
+		return nil, pkg.ArgumentTypeError(ctor, 2, "description", "?string", description).
+			Called(`Composer\Command\ScriptAliasCommand->__construct`, phperr.At("ScriptAliasCommand.php", 37), "src/Composer/Console/Application.php", 428)
 	}
 	aliasArray, ok := aliases.(*php.Array)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(ctor, 3, "aliases", "array", aliases)
+		return nil, pkg.ArgumentTypeError(ctor, 3, "aliases", "array", aliases).
+			Called(`Composer\Command\ScriptAliasCommand->__construct`, phperr.At("ScriptAliasCommand.php", 37), "src/Composer/Console/Application.php", 428)
 	}
 	aliasList := make([]string, 0, aliasArray.Len())
 	for _, alias := range aliasArray.Values() {

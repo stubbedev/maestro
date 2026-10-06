@@ -45,7 +45,8 @@ func NewArtifactRepository(repoConfig *php.Array, out mio.IO) (*ArtifactReposito
 	urlValue, _ := repoConfig.Get("url")
 	url, ok := urlValue.(string)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue)
+		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue).
+			Called(`Composer\Util\Platform::expandPath`, phperr.At("Platform.php", 158), "ArtifactRepository.php", 50)
 	}
 	lookup, err := util.ExpandPath(url)
 	if err != nil {

@@ -279,15 +279,17 @@ func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string)
 	// array reads as empty
 	archive := arrayGet(jsonData, "archive")
 
-	class := `Composer\Package\CompletePackage`
+	// the declarations of setArchiveName() and setArchiveExcludes()
+	class, file, nameDecl, excludesDecl := `Composer\Package\CompletePackage`, "CompletePackage.php", 218, 234
 	if _, ok := p.(pkg.Alias); ok {
-		class = `Composer\Package\CompleteAliasPackage`
+		class, file, nameDecl, excludesDecl = `Composer\Package\CompleteAliasPackage`, "CompleteAliasPackage.php", 153, 163
 	}
 
 	if name := arrayGet(archive, "name"); php.ToBool(name) {
 		s, ok := name.(string)
 		if !ok {
-			return pkg.ArgumentTypeError(class+"::setArchiveName", 1, "name", "?string", name)
+			return pkg.ArgumentTypeError(class+"::setArchiveName", 1, "name", "?string", name).
+				Called(class+"->setArchiveName", phperr.At(file, nameDecl), "ArchiveManager.php", 192)
 		}
 
 		p.SetArchiveName(pkg.Str(s))
@@ -296,7 +298,8 @@ func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string)
 	if exclude := arrayGet(archive, "exclude"); php.ToBool(exclude) {
 		a, ok := exclude.(*php.Array)
 		if !ok {
-			return pkg.ArgumentTypeError(class+"::setArchiveExcludes", 1, "excludes", "array", exclude)
+			return pkg.ArgumentTypeError(class+"::setArchiveExcludes", 1, "excludes", "array", exclude).
+				Called(class+"->setArchiveExcludes", phperr.At(file, excludesDecl), "ArchiveManager.php", 195)
 		}
 
 		p.SetArchiveExcludes(a)
@@ -325,7 +328,8 @@ func stringList(a *php.Array) ([]string, error) {
 	for _, v := range a.Values() {
 		s, ok := v.(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Package\Archiver\BaseExcludeFilter::generatePattern`, 1, "rule", "string", v)
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Archiver\BaseExcludeFilter::generatePattern`, 1, "rule", "string", v).
+				Called(`Composer\Package\Archiver\BaseExcludeFilter->generatePattern`, phperr.At("BaseExcludeFilter.php", 128), "BaseExcludeFilter.php", 115)
 		}
 
 		out = append(out, s)

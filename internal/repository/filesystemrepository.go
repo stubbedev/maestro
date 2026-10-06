@@ -113,7 +113,8 @@ func (r *FilesystemRepository) initialize() error {
 	for _, packageData := range packages.All() {
 		data, ok := packageData.(*php.Array)
 		if !ok {
-			return pkg.ArgumentTypeError(`Composer\Package\Loader\ArrayLoader::load`, 1, "config", "array", packageData)
+			return pkg.ArgumentTypeError(`Composer\Package\Loader\ArrayLoader::load`, 1, "config", "array", packageData).
+				Called(`Composer\Package\Loader\ArrayLoader->load`, phperr.At("ArrayLoader.php", 49), "FilesystemRepository.php", 107)
 		}
 		p, err := arrayLoader.Load(data, pkg.ClassCompletePackage)
 		if err != nil {
@@ -141,7 +142,8 @@ func (r *FilesystemRepository) readPackageList() (*php.Array, error) {
 		if v, _ := data.Get("dev-package-names"); v != nil {
 			names, ok := v.(*php.Array)
 			if !ok {
-				return nil, pkg.ArgumentTypeError(`Composer\Repository\WritableArrayRepository::setDevPackageNames`, 1, "devPackageNames", "array", v)
+				return nil, pkg.ArgumentTypeError(`Composer\Repository\WritableArrayRepository::setDevPackageNames`, 1, "devPackageNames", "array", v).
+					Called(`Composer\Repository\WritableArrayRepository->setDevPackageNames`, phperr.At("WritableArrayRepository.php", 45), "FilesystemRepository.php", 92)
 			}
 			r.SetDevPackageNames(stringValues(names))
 		}

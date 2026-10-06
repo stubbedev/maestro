@@ -84,10 +84,13 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 	}
 
 	parser := pkg.NewVersionParser()
-	create := func(data any, name string) (repository.Advisory, error) {
+	// the $create closure, called at line (758 or 796) by the closures
+	// array_map() runs
+	create := func(data any, name string, line int) (repository.Advisory, error) {
 		dataArray, ok := data.(*php.Array)
 		if !ok {
-			return nil, &pkg.TypeError{Message: "Composer\\Advisory\\PartialSecurityAdvisory::create(): Argument #2 ($data) must be of type array, " + php.TypeName(data) + " given"}
+			return nil, pkg.ArgumentTypeError(`Composer\Repository\ComposerRepository::{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, 1, "data", "array", data).
+				Called(`Composer\Repository\ComposerRepository->{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, phperr.At("ComposerRepository.php", 724), "ComposerRepository.php", line)
 		}
 		advisory, err := repository.CreatePartialSecurityAdvisory(name, dataArray, parser)
 		if err != nil {
@@ -101,7 +104,21 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 			return nil, &util.ErrorException{Site: phperr.At("ComposerRepository.php", 729), Message: `Undefined array key "` + name + `"`}
 		}
 		if constraint == nil {
-			return nil, &pkg.TypeError{Message: "Composer\\Semver\\Constraint\\ConstraintInterface::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}
+			// $advisory->affectedVersions->matches(null) at line 729: the
+			// method of the constraint's class
+			class, file, decl := "Constraint", "vendor/composer/semver/src/Constraint/Constraint.php", 134
+			switch advisory.Partial().AffectedVersions.(type) {
+			case *semver.MultiConstraint:
+				class, file, decl = "MultiConstraint", "MultiConstraint.php", 117
+			case *semver.MatchAllConstraint:
+				class, file, decl = "MatchAllConstraint", "MatchAllConstraint.php", 29
+			case *semver.MatchNoneConstraint:
+				class, file, decl = "MatchNoneConstraint", "MatchNoneConstraint.php", 27
+			}
+			fn := `Composer\Semver\Constraint\` + class
+
+			return nil, (&pkg.TypeError{Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}).
+				Called(fn+"->matches", phperr.At(file, decl), "ComposerRepository.php", 729)
 		}
 		if !advisory.Partial().AffectedVersions.Matches(constraint) {
 			return nil, nil
@@ -109,10 +126,10 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 		return advisory, nil
 	}
-	createAll := func(list *php.Array, name string) ([]repository.Advisory, error) {
+	createAll := func(list *php.Array, name string, line int) ([]repository.Advisory, error) {
 		var out []repository.Advisory
 		for _, data := range list.All() {
-			advisory, err := create(data, name)
+			advisory, err := create(data, name, line)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +165,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 				namesFound.Set(name, struct{}{})
 				if list.Len() > 0 {
-					created, err := createAll(list, name)
+					created, err := createAll(list, name, 758)
 					if err != nil {
 						return err
 					}
@@ -190,7 +207,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 				continue
 			}
 			if list := asArray(raw); list.Len() > 0 {
-				created, err := createAll(list, name)
+				created, err := createAll(list, name, 796)
 				if err != nil {
 					return repository.AdvisoryResult{}, err
 				}

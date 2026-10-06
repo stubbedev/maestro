@@ -55,6 +55,21 @@ func TypeName(v any) string {
 	}
 }
 
+// ZvalValueName is zend_zval_value_name(), the type TypeErrors name ("X
+// given", "X returned"): get_debug_type, except that booleans are "true"
+// and "false".
+func ZvalValueName(v any) string {
+	if b, ok := v.(bool); ok {
+		if b {
+			return "true"
+		}
+
+		return "false"
+	}
+
+	return TypeName(v)
+}
+
 // GetType returns gettype($v): "NULL", "boolean", "integer", "double",
 // "string", "array" or "object".
 func GetType(v any) string {

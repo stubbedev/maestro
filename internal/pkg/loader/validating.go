@@ -106,7 +106,8 @@ func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 	if name := get(config, "name"); name != nil {
 		s, ok := name.(string)
 		if !ok {
-			return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name)
+			return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name).
+				Called(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, phperr.At("ValidatingArrayLoader.php", 640), "ValidatingArrayLoader.php", 74)
 		}
 
 		if msg, bad, err := HasPackageNamingError(s, false); err != nil {
@@ -779,7 +780,8 @@ func (l *ValidatingArrayLoader) validateLinks() error {
 			if linkType == "conflict" && isset(l.config, "replace") {
 				replace, ok := get(l.config, "replace").(*php.Array)
 				if !ok {
-					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", get(l.config, "replace"))
+					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", get(l.config, "replace")).
+						Raised("array_intersect_key", "ValidatingArrayLoader.php", 481)
 				}
 
 				if php.ArrayIntersectKey(replace, links).Len() > 0 {
@@ -1090,7 +1092,7 @@ func filterURL(value any, schemes ...string) (bool, error) {
 
 	s, ok := value.(string)
 	if !ok {
-		return false, pkg.ArgumentTypeError("parse_url", 1, "url", "string", value)
+		return false, pkg.ArgumentTypeError("parse_url", 1, "url", "string", value).Raised("parse_url", "ValidatingArrayLoader.php", 862)
 	}
 
 	bits, ok := util.ParseURL(s)

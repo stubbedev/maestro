@@ -51,7 +51,17 @@ func (l *JsonLoader) Load(source any) (pkg.PackageInterface, error) {
 
 	a, ok := config.(*php.Array)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\LoaderInterface::load`, 1, "config", "array", config)
+		// PHP names the method of the loader's class
+		class, file, decl := `Composer\Package\Loader\ArrayLoader`, "ArrayLoader.php", 49
+		switch l.loader.(type) {
+		case *ValidatingArrayLoader:
+			class, file, decl = `Composer\Package\Loader\ValidatingArrayLoader`, "ValidatingArrayLoader.php", 67
+		case *RootPackageLoader:
+			class, file, decl = `Composer\Package\Loader\RootPackageLoader`, "RootPackageLoader.php", 79
+		}
+
+		return nil, pkg.ArgumentTypeError(class+"::load", 1, "config", "array", config).
+			Called(class+"->load", phperr.At(file, decl), "JsonLoader.php", 54)
 	}
 
 	return l.loader.Load(a, pkg.ClassCompletePackage)

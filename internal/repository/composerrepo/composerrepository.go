@@ -180,7 +180,8 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 	}
 	url, ok := rawURL.(string)
 	if !ok {
-		return nil, &pkg.TypeError{Message: "Composer\\Pcre\\Preg::isMatch(): Argument #2 ($subject) must be of type string, " + php.TypeName(rawURL) + " given"}
+		return nil, pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", rawURL).
+			Called(`Composer\Pcre\Preg::isMatch`, phperr.At("vendor/composer/pcre/src/Preg.php", 289), "ComposerRepository.php", 164)
 	}
 	hasScheme, err := schemeRegex.IsMatch(url)
 	if err != nil {

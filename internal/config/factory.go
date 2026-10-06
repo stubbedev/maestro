@@ -217,7 +217,8 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 		}
 		a, ok := data.(*php.Array)
 		if !ok {
-			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + zvalName(data) + " given"}
+			return nil, (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.ZvalValueName(data) + " given"}).
+				Called(`Composer\Config->merge`, phperr.At("Config.php", 199), "Factory.php", 188)
 		}
 		if err := config.Merge(a, file.Path()); err != nil {
 			return nil, phperr.Call(err, `Composer\Config->merge`, "Factory.php", 188)

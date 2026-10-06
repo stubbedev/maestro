@@ -68,11 +68,11 @@ func newDump(config Config, targetDir string) (*dump, error) {
 		return nil, err
 	}
 	d := &dump{}
-	if d.basePath, err = realpath(cwd); err != nil {
+	if d.basePath, err = realpath(cwd, 217); err != nil {
 		return nil, err
 	}
 	d.basePath = util.NormalizePath(d.basePath)
-	if d.vendorPath, err = realpath(vendorDir); err != nil {
+	if d.vendorPath, err = realpath(vendorDir, 218); err != nil {
 		return nil, err
 	}
 	d.vendorPath = util.NormalizePath(d.vendorPath)
@@ -80,7 +80,7 @@ func newDump(config Config, targetDir string) (*dump, error) {
 	if err := util.EnsureDirectoryExists(d.targetDir); err != nil {
 		return nil, err
 	}
-	if d.realTarget, err = realpath(d.targetDir); err != nil {
+	if d.realTarget, err = realpath(d.targetDir, 224); err != nil {
 		return nil, err
 	}
 
@@ -102,11 +102,22 @@ func newDump(config Config, targetDir string) (*dump, error) {
 }
 
 // realpath is realpath(), failing as PHP's strict_types call taking its
-// false result would.
-func realpath(path string) (string, error) {
+// false result would: Filesystem::normalizePath() at line 217 or 218 of
+// AutoloadGenerator.php, findShortestPathCode() at line 224 (0: a call
+// maestro adds).
+func realpath(path string, line int) (string, error) {
 	real, ok := util.RealpathOK(path)
 	if !ok {
-		return "", &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Filesystem::normalizePath(): Argument #1 ($path) must be of type string, bool given"}
+		fn, param, decl := "normalizePath", "path", 605
+		if line == 224 {
+			fn, param, decl = "findShortestPathCode", "from", 524
+		}
+		e := &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Filesystem::" + fn + "(): Argument #1 ($" + param + ") must be of type string, false given"}
+		if line > 0 {
+			e.Called(`Composer\Util\Filesystem->`+fn, phperr.At("Filesystem.php", decl), "AutoloadGenerator.php", line)
+		}
+
+		return "", e
 	}
 
 	return real, nil
@@ -200,7 +211,8 @@ func (d *dump) targetDirLoader(rootPackage pkg.RootPackageInterface) (string, er
 	}
 	rules, ok := psr0.(*php.Array)
 	if !ok {
-		return "", &php.EngineError{Class: "TypeError", Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.TypeName(psr0) + " given"}
+		return "", (&php.EngineError{Class: "TypeError", Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(psr0) + " given"}).
+			Raised("array_keys", "AutoloadGenerator.php", 297)
 	}
 
 	levels := strings.Count(util.NormalizePath(targetDir.S), "/") + 1

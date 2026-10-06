@@ -77,7 +77,8 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 	if !sourcesOK {
 		// realpath() returned false, which ArchivableFilesFinder's string
 		// parameter does not take
-		return "", &pkg.TypeError{Message: `Composer\Package\Archiver\ArchivableFilesFinder::__construct(): Argument #1 ($sources) must be of type string, bool given`, Site: phperr.At("ArchivableFilesFinder.php", 46)}
+		return "", (&pkg.TypeError{Message: `Composer\Package\Archiver\ArchivableFilesFinder::__construct(): Argument #1 ($sources) must be of type string, false given`}).
+			Called(`Composer\Package\Archiver\ArchivableFilesFinder->__construct`, phperr.At("ArchivableFilesFinder.php", 46), "PharArchiver.php", 65)
 	}
 
 	files, err := NewArchivableFilesFinder(sources, excludes, ignoreFilters)

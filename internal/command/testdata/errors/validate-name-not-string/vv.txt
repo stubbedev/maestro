@@ -1,0 +1,24 @@
+
+In Preg.php line 289:
+                                                                               
+  [TypeError]                                                                  
+  Composer\Pcre\Preg::isMatch(): Argument #2 ($subject) must be of type strin  
+  g, int given, called in @COMPOSER@/src/Compo  
+  ser/Util/ConfigValidator.php on line 134                                     
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/vendor/composer/pcre/src/Preg.php:289
+ Composer\Pcre\Preg::isMatch() at @COMPOSER@/src/Composer/Util/ConfigValidator.php:134
+ Composer\Util\ConfigValidator->validate() at @COMPOSER@/src/Composer/Command/ValidateCommand.php:89
+ Composer\Command\ValidateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+validate [--no-check-all] [--check-lock] [--no-check-lock] [--no-check-publish] [--no-check-version] [-A|--with-dependencies] [--strict] [--] [<file>]
+
+exit 1

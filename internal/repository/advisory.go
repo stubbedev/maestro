@@ -90,7 +90,9 @@ var advisoryConstraintPrefix = php.MustCompile(`{(^[>=<^~]*[\d.]+).*}`)
 // parse is cut down to its leading version (<=3.20-test2 becoming <=3.20),
 // or matches nothing.
 func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser ConstraintParser) (Advisory, error) {
-	affectedVersions, err := arrayString(phperr.At("PartialSecurityAdvisory.php", 48), data, "affectedVersions", "PartialSecurityAdvisory::create")
+	affectedVersions, err := arrayString(phperr.At("PartialSecurityAdvisory.php", 48), data, "affectedVersions", func(v any) error {
+		return pkg.ArgumentTypeError("PartialSecurityAdvisory::create", 1, "affectedVersions", "string", v)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +112,17 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 		return nil, err
 	}
 
-	advisoryIDLine := 63 // new self(...); new SecurityAdvisory(...) when the data is complete
+	// new self(...) at line 63 (PartialSecurityAdvisory::__construct,
+	// line 66); new SecurityAdvisory(...) at line 60 when the data is
+	// complete: $advisoryId is argument #2 of either
+	advisoryIDLine, ctor, decl := 63, `Composer\Advisory\PartialSecurityAdvisory`, phperr.At("PartialSecurityAdvisory.php", 66)
 	if issetAll(data, "title", "sources", "reportedAt") {
-		advisoryIDLine = 60
+		advisoryIDLine, ctor, decl = 60, `Composer\Advisory\SecurityAdvisory`, phperr.At("SecurityAdvisory.php", 59)
 	}
-	advisoryID, err := arrayString(phperr.At("PartialSecurityAdvisory.php", advisoryIDLine), data, "advisoryId", "PartialSecurityAdvisory::__construct")
+	advisoryID, err := arrayString(phperr.At("PartialSecurityAdvisory.php", advisoryIDLine), data, "advisoryId", func(v any) error {
+		return pkg.ArgumentTypeError(ctor+"::__construct", 2, "advisoryId", "string", v).
+			Called(ctor+"->__construct", decl, "PartialSecurityAdvisory.php", advisoryIDLine)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -129,15 +137,17 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 
 	titleStr, ok := title.(string)
 	if !ok {
-		return nil, pkg.ArgumentTypeError("SecurityAdvisory::__construct", 4, "title", "string", title)
+		return nil, securityAdvisoryTypeError(4, "title", "string", title)
 	}
 	sourceList, ok := sources.(*php.Array)
 	if !ok {
-		return nil, pkg.ArgumentTypeError("SecurityAdvisory::__construct", 5, "sources", "array", sources)
+		return nil, securityAdvisoryTypeError(5, "sources", "array", sources)
 	}
 	reportedAtStr, ok := reportedAt.(string)
 	if !ok {
-		return nil, pkg.ArgumentTypeError("DateTimeImmutable::__construct", 1, "datetime", "string", reportedAt)
+		// new \DateTimeImmutable($data['reportedAt']) at line 60
+		return nil, pkg.ArgumentTypeError("DateTimeImmutable::__construct", 1, "datetime", "string", reportedAt).
+			Raised("DateTimeImmutable->__construct", "PartialSecurityAdvisory.php", 60)
 	}
 	date, err := loader.ParseDateTime(reportedAtStr)
 	if err != nil {
@@ -155,7 +165,7 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 		case string:
 			*f.dst = pkg.Str(v)
 		default:
-			return nil, pkg.ArgumentTypeError("SecurityAdvisory::__construct", f.pos, f.key, "?string", v)
+			return nil, securityAdvisoryTypeError(f.pos, f.key, "?string", v)
 		}
 	}
 
@@ -175,7 +185,9 @@ type FilterListEntry struct {
 
 // CreateFilterListEntry ports FilterListEntry::create.
 func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintParser) (*FilterListEntry, error) {
-	constraintStr, err := arrayString(phperr.At("FilterListEntry.php", 82), data, "constraint", "Composer\\Semver\\VersionParser::parseConstraints")
+	constraintStr, err := arrayString(phperr.At("FilterListEntry.php", 82), data, "constraint", func(v any) error {
+		return pkg.ArgumentTypeError(`Composer\Semver\VersionParser::parseConstraints`, 1, "constraint", "string", v)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +195,10 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 	if err != nil {
 		return nil, err
 	}
-	packageName, err := arrayString(phperr.At("FilterListEntry.php", 85), data, "package", "Composer\\FilterList\\FilterListEntry::__construct")
+	packageName, err := arrayString(phperr.At("FilterListEntry.php", 85), data, "package", func(v any) error {
+		return pkg.ArgumentTypeError(`Composer\FilterList\FilterListEntry::__construct`, 1, "packageName", "string", v).
+			Called(`Composer\FilterList\FilterListEntry->__construct`, phperr.At("FilterListEntry.php", 59), "FilterListEntry.php", 84)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -199,11 +214,21 @@ func CreateFilterListEntry(listName string, data *php.Array, parser ConstraintPa
 		case string:
 			*f.dst = pkg.Str(v)
 		default:
-			return nil, pkg.ArgumentTypeError("Composer\\FilterList\\FilterListEntry::__construct", f.pos, f.key, "?string", v)
+			// new self(...) at line 84
+			return nil, pkg.ArgumentTypeError(`Composer\FilterList\FilterListEntry::__construct`, f.pos, f.key, "?string", v).
+				Called(`Composer\FilterList\FilterListEntry->__construct`, phperr.At("FilterListEntry.php", 59), "FilterListEntry.php", 84)
 		}
 	}
 
 	return entry, nil
+}
+
+// securityAdvisoryTypeError is the TypeError of argument n of new
+// SecurityAdvisory(...) (SecurityAdvisory.php:59), called in
+// PartialSecurityAdvisory::create at line 60.
+func securityAdvisoryTypeError(n int, param, expected string, given any) error {
+	return pkg.ArgumentTypeError(`Composer\Advisory\SecurityAdvisory::__construct`, n, param, expected, given).
+		Called(`Composer\Advisory\SecurityAdvisory->__construct`, phperr.At("SecurityAdvisory.php", 59), "PartialSecurityAdvisory.php", 60)
 }
 
 // issetAll is isset($data[k1], $data[k2], ...).
@@ -217,17 +242,17 @@ func issetAll(data *php.Array, keys ...string) bool {
 	return true
 }
 
-// arrayString reads the string $data[$key] passed to fn: a missing key is
-// PHP's "Undefined array key" warning (an ErrorException under Composer's
-// error handler), another type a TypeError.
-func arrayString(site phperr.Site, data *php.Array, key, fn string) (string, error) {
+// arrayString reads the string $data[$key]: a missing key is PHP's
+// "Undefined array key" warning (an ErrorException under Composer's error
+// handler), another type the error typeError returns.
+func arrayString(site phperr.Site, data *php.Array, key string, typeError func(v any) error) (string, error) {
 	v, ok := data.Get(key)
 	if !ok {
 		return "", &util.ErrorException{Site: site, Message: `Undefined array key "` + key + `"`}
 	}
 	s, ok := v.(string)
 	if !ok {
-		return "", pkg.ArgumentTypeError(fn, 1, key, "string", v)
+		return "", typeError(v)
 	}
 
 	return s, nil

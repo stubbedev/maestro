@@ -51,7 +51,8 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 	}
 	rawURL, ok := urlValue.(string)
 	if !ok {
-		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue)
+		return nil, pkg.ArgumentTypeError(`Composer\Util\Platform::expandPath`, 1, "path", "string", urlValue).
+			Called(`Composer\Util\Platform::expandPath`, phperr.At("Platform.php", 158), "PathRepository.php", 117)
 	}
 
 	r.loader = loader.NewArrayLoader(nil, true)

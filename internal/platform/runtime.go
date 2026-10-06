@@ -83,6 +83,16 @@ type PHPError struct {
 
 func (e *PHPError) Error() string { return e.Message }
 
+// Called makes e (a TypeError of Runtime::invoke()'s parameter) the error of
+// a call at file:line: PHP appends where the call came from to the
+// message (phperr.CalledIn), and the trace starts with the call of function.
+func (e *PHPError) Called(function, file string, line int) *PHPError {
+	e.Message += phperr.CalledIn(file, line)
+	phperr.Call(e, function, file, line)
+
+	return e
+}
+
 // PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
 func (e *PHPError) PHPClass() (string, int) { return e.Class, 0 }
 

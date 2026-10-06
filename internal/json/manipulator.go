@@ -105,19 +105,8 @@ func foreachable(v any) (*php.Array, error) {
 	return nil, warning("foreach() argument must be of type array|object, " + zvalValueName(v) + " given")
 }
 
-// zvalValueName ports zend_zval_value_name, the type a TypeError names:
-// get_debug_type, except that booleans are "true" or "false".
-func zvalValueName(v any) string {
-	if b, ok := v.(bool); ok {
-		if b {
-			return "true"
-		}
-
-		return "false"
-	}
-
-	return php.TypeName(v)
-}
+// zvalValueName ports zend_zval_value_name, the type a TypeError names.
+func zvalValueName(v any) string { return php.ZvalValueName(v) }
 
 // NewManipulator ports JsonManipulator::__construct.
 func NewManipulator(contents string) (*Manipulator, error) {

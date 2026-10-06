@@ -3,6 +3,7 @@ package config
 import (
 	stdjson "encoding/json"
 	"errors"
+	"regexp"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
@@ -56,6 +57,10 @@ func errorClass(err error) string {
 }
 
 // checkResult compares a Go outcome with a recorded one.
+// calledIn is the suffix the oracle generators drop from TypeErrors
+// (preg_replace('{, called in .* on line \d+$}', ”, ...)).
+var calledIn = regexp.MustCompile(`, called in .* on line \d+$`)
+
 func checkResult(t *testing.T, where string, got any, err error, want oracleResult) {
 	t.Helper()
 	if want.E != nil {
@@ -64,8 +69,11 @@ func checkResult(t *testing.T, where string, got any, err error, want oracleResu
 
 			return
 		}
-		if class := errorClass(err); class != want.E[0] || err.Error() != want.E[1] {
-			t.Errorf("%s: got %s: %s, want %s: %s", where, class, err.Error(), want.E[0], want.E[1])
+		// the generator drops the "called in <path>" of userland
+		// TypeErrors, whose path is the machine's
+		message := calledIn.ReplaceAllString(err.Error(), "")
+		if class := errorClass(err); class != want.E[0] || message != want.E[1] {
+			t.Errorf("%s: got %s: %s, want %s: %s", where, class, message, want.E[0], want.E[1])
 		}
 
 		return

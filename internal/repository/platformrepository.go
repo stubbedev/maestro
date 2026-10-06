@@ -270,20 +270,35 @@ func (r *PlatformRepository) addCompletePackage(name, prettyVersion, description
 	return r.hooks.addPackage(p)
 }
 
+// invoke is $this->runtime->invoke($callable, ...) called at line of
+// PlatformRepository.php: a callable the runtime lacks is Runtime::invoke()'s
+// TypeError, whose message says where the call came from.
+func (r *PlatformRepository) invoke(line int, callable platform.Callable, arguments ...any) (any, error) {
+	v, err := r.runtime.Invoke(callable, arguments...)
+	if e, ok := err.(*platform.PHPError); ok && e.Class == "TypeError" { //nolint:errorlint // the runtime's own error
+		e.Called(`Composer\Platform\Runtime->invoke`, "PlatformRepository.php", line)
+	}
+
+	return v, err
+}
+
 // constantString is $this->runtime->getConstant($name, $class) where a
 // ?string is expected: anything but a string or null is the TypeError
-// strict_types raises.
-func (r *PlatformRepository) constantString(name, class string) (pkg.NullString, error) {
+// strict_types raises in the addLibrary() call at line of
+// PlatformRepository.php (0: unknown).
+func (r *PlatformRepository) constantString(name, class string, line int) (pkg.NullString, error) {
 	v, err := r.runtime.GetConstant(name, class)
 	if err != nil {
 		return pkg.NullString{}, err
 	}
 
-	return nullableString(v)
+	return nullableString(v, line)
 }
 
-// nullableString checks that v can be passed as a ?string.
-func nullableString(v any) (pkg.NullString, error) {
+// nullableString checks that v can be passed as addLibrary()'s ?string
+// $prettyVersion in the call at line of PlatformRepository.php (0:
+// unknown).
+func nullableString(v any, line int) (pkg.NullString, error) {
 	switch v := v.(type) {
 	case nil:
 		return pkg.NullString{}, nil
@@ -291,7 +306,12 @@ func nullableString(v any) (pkg.NullString, error) {
 		return pkg.Str(v), nil
 	}
 
-	return pkg.NullString{}, pkg.ArgumentTypeError(`Composer\Repository\PlatformRepository::addLibrary`, 3, "prettyVersion", "?string", v)
+	e := pkg.ArgumentTypeError(`Composer\Repository\PlatformRepository::addLibrary`, 3, "prettyVersion", "?string", v)
+	if line > 0 {
+		e = e.Called(`Composer\Repository\PlatformRepository->addLibrary`, phperr.At("PlatformRepository.php", 693), "PlatformRepository.php", line)
+	}
+
+	return pkg.NullString{}, e
 }
 
 // addPhpPackages adds php and its flavours.
@@ -355,7 +375,13 @@ func (r *PlatformRepository) addPhpPackages() error {
 	// IPv6 support might still be available.
 	ipv6 := r.runtime.HasConstant("AF_INET6", "")
 	if !ipv6 {
+		// Silencer::call([$this->runtime, 'invoke'], ...) at line 180
+		// calls it at Silencer.php:67 (and catches only \Exception)
 		v, err := r.runtime.Invoke(platform.Func("inet_pton"), "::")
+		if e, ok := err.(*platform.PHPError); ok && e.Class == "TypeError" { //nolint:errorlint // the runtime's own error
+			e.Called(`Composer\Platform\Runtime->invoke`, "Silencer.php", 67)
+			phperr.Call(e, `Composer\Util\Silencer::call`, "PlatformRepository.php", 180)
+		}
 		if err != nil {
 			return err
 		}
@@ -482,7 +508,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		return r.libraryFromInfo(libraries, info, reBz2, name, "")
 
 	case "curl":
-		curlVersion, err := r.runtime.Invoke(platform.Func("curl_version"))
+		curlVersion, err := r.invoke(231, platform.Func("curl_version"))
 		if err != nil {
 			return err
 		}
@@ -490,7 +516,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		if a, ok := curlVersion.(*php.Array); ok {
 			version, _ = a.Get("version")
 		}
-		v, err := nullableString(version)
+		v, err := nullableString(version, 232)
 		if err != nil {
 			return err
 		}
@@ -596,7 +622,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		return r.libraryFromInfo(libraries, info, reLibmagic, name+"-libmagic", "fileinfo libmagic version")
 
 	case "gd":
-		v, err := r.constantString("GD_VERSION", "")
+		v, err := r.constantString("GD_VERSION", "", 298)
 		if err != nil {
 			return err
 		}
@@ -640,10 +666,10 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 
 	case "gmp":
-		return r.addConstantLibrary(libraries, name, "GMP_VERSION", "")
+		return r.addConstantLibrary(libraries, name, "GMP_VERSION", "", 321)
 
 	case "iconv":
-		return r.addConstantLibrary(libraries, name, "ICONV_VERSION", "")
+		return r.addConstantLibrary(libraries, name, "ICONV_VERSION", "", 325)
 
 	case "intl":
 		return r.addIntlLibraries(libraries, name)
@@ -709,7 +735,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 				libxmlProvides = append(libxmlProvides, extension+"-libxml")
 			}
 		}
-		v, err := r.constantString("LIBXML_DOTTED_VERSION", "")
+		v, err := r.constantString("LIBXML_DOTTED_VERSION", "", 385)
 		if err != nil {
 			return err
 		}
@@ -732,7 +758,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 			return err
 		}
 		if php.ToInt(versionID) < 90000 && r.runtime.HasConstant("MB_ONIGURUMA_VERSION", "") {
-			v, err := r.constantString("MB_ONIGURUMA_VERSION", "")
+			v, err := r.constantString("MB_ONIGURUMA_VERSION", "", 398)
 			if err != nil {
 				return err
 			}
@@ -754,7 +780,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		return r.libraryFromInfo(libraries, info, reLibmemcached, name+"-libmemcached", "libmemcached version")
 
 	case "openssl":
-		text, err := r.constantString("OPENSSL_VERSION_TEXT", "")
+		text, err := r.constantString("OPENSSL_VERSION_TEXT", "", 0)
 		if err != nil {
 			return err
 		}
@@ -777,7 +803,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 
 	case "pcre":
-		v, err := r.constantString("PCRE_VERSION", "")
+		v, err := r.constantString("PCRE_VERSION", "", 0)
 		if err != nil {
 			return err
 		}
@@ -819,7 +845,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 
 	case "pgsql", "pdo_pgsql":
 		if name == "pgsql" && r.runtime.HasConstant("PGSQL_LIBPQ_VERSION", "") {
-			return r.addConstantLibrary(libraries, "pgsql-libpq", "PGSQL_LIBPQ_VERSION", "libpq for pgsql")
+			return r.addConstantLibrary(libraries, "pgsql-libpq", "PGSQL_LIBPQ_VERSION", "libpq for pgsql", 460)
 		}
 		// intentional fall-through to next case...
 		info, err := r.extensionInfo(name)
@@ -868,11 +894,11 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 
 	case "libsodium", "sodium":
 		if r.runtime.HasConstant("SODIUM_LIBRARY_VERSION", "") {
-			if err := r.addConstantLibrary(libraries, "libsodium", "SODIUM_LIBRARY_VERSION", ""); err != nil {
+			if err := r.addConstantLibrary(libraries, "libsodium", "SODIUM_LIBRARY_VERSION", "", 502); err != nil {
 				return err
 			}
 
-			return r.addConstantLibrary(libraries, "libsodium", "SODIUM_LIBRARY_VERSION", "")
+			return r.addConstantLibrary(libraries, "libsodium", "SODIUM_LIBRARY_VERSION", "", 503)
 		}
 
 	case "sqlite3", "pdo_sqlite":
@@ -892,7 +918,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		return r.libraryFromInfo(libraries, info, reLibssh2, name+"-libssh2", "")
 
 	case "xsl":
-		v, err := r.constantString("LIBXSLT_DOTTED_VERSION", "")
+		v, err := r.constantString("LIBXSLT_DOTTED_VERSION", "", 525)
 		if err != nil {
 			return err
 		}
@@ -917,7 +943,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 
 	case "zip":
 		if r.runtime.HasConstant("LIBZIP_VERSION", "ZipArchive") {
-			v, err := r.constantString("LIBZIP_VERSION", "ZipArchive")
+			v, err := r.constantString("LIBZIP_VERSION", "ZipArchive", 543)
 			if err != nil {
 				return err
 			}
@@ -927,7 +953,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 
 	case "zlib":
 		if r.runtime.HasConstant("ZLIB_VERSION", "") {
-			return r.addConstantLibrary(libraries, name, "ZLIB_VERSION", "")
+			return r.addConstantLibrary(libraries, name, "ZLIB_VERSION", "", 549)
 		}
 
 		// Linked Version => 1.2.8
@@ -952,7 +978,7 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 	description := "The ICU unicode and globalization support library"
 	// Truthy check is for testing only so we can make the condition fail
 	if r.runtime.HasConstant("INTL_ICU_VERSION", "") {
-		if err := r.addConstantLibrary(libraries, "icu", "INTL_ICU_VERSION", description); err != nil {
+		if err := r.addConstantLibrary(libraries, "icu", "INTL_ICU_VERSION", description, 334); err != nil {
 			return err
 		}
 	} else if err := r.libraryFromInfo(libraries, info, reICU, "icu", description); err != nil {
@@ -976,7 +1002,7 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 
 	// Add a separate version for the CLDR library version
 	if r.runtime.HasClass("ResourceBundle") {
-		resourceBundle, err := r.runtime.Invoke(platform.StaticMethod("ResourceBundle", "create"), "root", "ICUDATA", false)
+		resourceBundle, err := r.invoke(346, platform.StaticMethod("ResourceBundle", "create"), "root", "ICUDATA", false)
 		if err != nil {
 			return err
 		}
@@ -989,7 +1015,7 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 			if err != nil {
 				return err
 			}
-			v, err := nullableString(version)
+			v, err := nullableString(version, 348)
 			if err != nil {
 				return err
 			}
@@ -1000,13 +1026,14 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 	}
 
 	if r.runtime.HasClass("IntlChar") {
-		unicodeVersion, err := r.runtime.Invoke(platform.StaticMethod("IntlChar", "getUnicodeVersion"))
+		unicodeVersion, err := r.invoke(353, platform.StaticMethod("IntlChar", "getUnicodeVersion"))
 		if err != nil {
 			return err
 		}
 		parts, ok := unicodeVersion.(*php.Array)
 		if !ok {
-			return pkg.ArgumentTypeError("array_slice", 1, "array", "array", unicodeVersion)
+			return pkg.ArgumentTypeError("array_slice", 1, "array", "array", unicodeVersion).
+				Raised("array_slice", "PlatformRepository.php", 353)
 		}
 		var version []string
 		for _, v := range php.ArraySlice(parts, 0, 3, false).All() {
@@ -1026,8 +1053,8 @@ func arrayValue(a *php.Array, key string) any {
 }
 
 // addConstantLibrary adds the library whose version is the constant.
-func (r *PlatformRepository) addConstantLibrary(libraries platformLibraries, libName, constant, description string) error {
-	v, err := r.constantString(constant, "")
+func (r *PlatformRepository) addConstantLibrary(libraries platformLibraries, libName, constant, description string, line int) error {
+	v, err := r.constantString(constant, "", line)
 	if err != nil {
 		return err
 	}

@@ -216,9 +216,10 @@ func isset(a *php.Array, k any) bool {
 }
 
 // arrayArgError is the TypeError PHP throws when an array function gets a
-// non-array argument.
-func arrayArgError(fn string, arg int, v any) error {
-	return &php.EngineError{Class: "TypeError", Message: fn + "(): Argument #" + strconv.Itoa(arg) + " must be of type array, " + zvalName(v) + " given"}
+// non-array argument, in the call at line of Config.php.
+func arrayArgError(fn string, arg int, v any, line int) error {
+	return (&php.EngineError{Class: "TypeError", Message: fn + "(): Argument #" + strconv.Itoa(arg) + " must be of type array, " + php.ZvalValueName(v) + " given"}).
+		Raised(fn, "Config.php", line)
 }
 
 var authKeys = [...]string{"bitbucket-oauth", "github-oauth", "gitlab-oauth", "gitlab-token", "http-basic", "bearer", "client-certificate", "forgejo-token"}
@@ -259,7 +260,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 	switch {
 	case isStr && contains(authKeys[:], key) && isset(c.config, key):
 		cur, _ := c.config.Get(key)
-		merged, err := arrayMerge(cur, val)
+		merged, err := arrayMerge(cur, val, 205)
 		if err != nil {
 			return err
 		}
@@ -271,7 +272,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 		cur, _ := c.get(key).(*php.Array)
 		c.config.Set(key, php.ArrayMerge(v, cur, v))
 	case isStr && (key == "gitlab-domains" || key == "github-domains") && isset(c.config, key):
-		merged, err := arrayMerge(c.get(key), val)
+		merged, err := arrayMerge(c.get(key), val, 213)
 		if err != nil {
 			return err
 		}
@@ -296,7 +297,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 			cur = php.ArrayOf("*", s)
 			c.setSource(key+"*", source)
 		}
-		merged, err := arrayMerge(cur, val)
+		merged, err := arrayMerge(cur, val, 224)
 		if err != nil {
 			return err
 		}
@@ -311,7 +312,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 		if audit, ok := c.config.GetArray("audit"); ok {
 			currentIgnores, _ = audit.Get("ignore")
 		}
-		merged, err := arrayMerge(c.get("audit"), val)
+		merged, err := arrayMerge(c.get("audit"), val, 238)
 		if err != nil {
 			return err
 		}
@@ -322,7 +323,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 		if ign, ok := valArr.Get("ignore"); ok && ign != nil {
 			incoming = ign
 		}
-		ignores, err := arrayMerge(currentIgnores, incoming)
+		ignores, err := arrayMerge(currentIgnores, incoming, 240)
 		if err != nil {
 			return err
 		}
@@ -334,7 +335,8 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 	default:
 		c.config.SetKey(k, val)
 		if !isStr {
-			return &php.EngineError{Class: "TypeError", Message: "Composer\\Config::setSourceOfConfigValue(): Argument #2 ($path) must be of type string, int given"}
+			return (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::setSourceOfConfigValue(): Argument #2 ($path) must be of type string, int given"}).
+				Called(`Composer\Config->setSourceOfConfigValue`, phperr.At("Config.php", 596), "Config.php", 299)
 		}
 	}
 
@@ -446,7 +448,8 @@ func (c *Config) mergeRepositories(repos *php.Array, source string) error {
 				u, _ := repo.Get("url")
 				url, ok := u.(string)
 				if !ok {
-					return &php.EngineError{Class: "TypeError", Message: "Composer\\Pcre\\Preg::isMatch(): Argument #2 ($subject) must be of type string, " + zvalName(u) + " given"}
+					return (&php.EngineError{Class: "TypeError", Message: "Composer\\Pcre\\Preg::isMatch(): Argument #2 ($subject) must be of type string, " + php.ZvalValueName(u) + " given"}).
+						Called(`Composer\Pcre\Preg::isMatch`, phperr.At("vendor/composer/pcre/src/Preg.php", 289), "Config.php", 322)
 				}
 				if m, err := packagistURL.IsMatch(url); err != nil {
 					return err
@@ -590,7 +593,8 @@ func (c *Config) Get(key string, flags int) (any, error) {
 		}
 		s, ok := v.(string)
 		if !ok {
-			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Platform::expandPath(): Argument #1 ($path) must be of type string, " + zvalName(v) + " given"}
+			return nil, (&php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Platform::expandPath(): Argument #1 ($path) must be of type string, " + php.ZvalValueName(v) + " given"}).
+				Called(`Composer\Util\Platform::expandPath`, phperr.At("Platform.php", 158), "Config.php", 466)
 		}
 		expanded, err := util.ExpandPath(s)
 		if err != nil {
@@ -758,7 +762,14 @@ func (c *Config) githubProtocols() (any, error) {
 	v := c.get("github-protocols")
 	protos, ok := v.(*php.Array)
 	if !ok {
-		return nil, &php.EngineError{Class: "TypeError", Message: "array_search(): Argument #2 ($haystack) must be of type array, " + zvalName(v) + " given"}
+		// array_search() runs only with secure-http, reset() always
+		if php.ToBool(c.get("secure-http")) {
+			return nil, (&php.EngineError{Class: "TypeError", Message: "array_search(): Argument #2 ($haystack) must be of type array, " + php.ZvalValueName(v) + " given"}).
+				Raised("array_search", "Config.php", 509)
+		}
+
+		return nil, (&php.EngineError{Class: "TypeError", Message: "reset(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(v) + " given"}).
+			Raised("reset", "Config.php", 512)
 	}
 	if php.ToBool(c.get("secure-http")) {
 		if index, found := php.ArraySearch("git", protos, false); found {
@@ -816,7 +827,8 @@ func (c *Config) All(flags int) (*php.Array, error) {
 	cfg := php.NewArrayCap(c.config.Len())
 	for k := range c.config.All() {
 		if k.IsInt() {
-			return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::get(): Argument #1 ($key) must be of type string, int given"}
+			return nil, (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::get(): Argument #1 ($key) must be of type string, int given"}).
+				Called(`Composer\Config->get`, phperr.At("Config.php", 364), "Config.php", 580)
 		}
 		v, err := c.Get(k.String(), flags)
 		if err != nil {
@@ -1075,15 +1087,16 @@ func isArray(v any) bool {
 	return ok
 }
 
-// arrayMerge is array_merge($a, $b) with PHP's TypeError for non-arrays.
-func arrayMerge(a, b any) (*php.Array, error) {
+// arrayMerge is array_merge($a, $b) at line of Config.php, with PHP's
+// TypeError for non-arrays.
+func arrayMerge(a, b any, line int) (*php.Array, error) {
 	x, ok := a.(*php.Array)
 	if !ok {
-		return nil, arrayArgError("array_merge", 1, a)
+		return nil, arrayArgError("array_merge", 1, a, line)
 	}
 	y, ok := b.(*php.Array)
 	if !ok {
-		return nil, arrayArgError("array_merge", 2, b)
+		return nil, arrayArgError("array_merge", 2, b, line)
 	}
 
 	return php.ArrayMerge(x, y), nil
@@ -1101,16 +1114,5 @@ func toString(v any) (string, error) {
 	return php.ToString(v), nil
 }
 
-// zvalName is zend_zval_value_name, the type PHP's TypeErrors name: like
-// get_debug_type, except that booleans are "true" and "false".
-func zvalName(v any) string {
-	if b, ok := v.(bool); ok {
-		if b {
-			return "true"
-		}
-
-		return "false"
-	}
-
-	return php.TypeName(v)
-}
+// zvalName is zend_zval_value_name, the type PHP's TypeErrors name.
+func zvalName(v any) string { return php.ZvalValueName(v) }

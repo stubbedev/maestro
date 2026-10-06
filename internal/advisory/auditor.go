@@ -486,18 +486,20 @@ func outputAdvisories(out io.IO, advisories *Advisories, format string) error {
 
 // securityAdvisory is the SecurityAdvisory type check of getSeverity()
 // and the other formatting helpers.
-func securityAdvisory(advisory Advisory) (*SecurityAdvisory, error) {
+// line is the line of Auditor.php calling getSeverity().
+func securityAdvisory(advisory Advisory, line int) (*SecurityAdvisory, error) {
 	if security, ok := AsSecurityAdvisory(advisory); ok {
 		return security, nil
 	}
 
-	return nil, &pkg.TypeError{Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`, Site: phperr.At("Auditor.php", 472)}
+	return nil, (&pkg.TypeError{Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`}).
+		Called(`Composer\Advisory\Auditor->getSeverity`, phperr.At("Auditor.php", 472), "Auditor.php", line)
 }
 
 func outputAdvisoriesTable(out tableIO, advisories *Advisories) error {
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
-			security, err := securityAdvisory(advisory)
+			security, err := securityAdvisory(advisory, 373)
 			if err != nil {
 				return err
 			}
@@ -555,7 +557,7 @@ func outputAdvisoriesPlain(out io.IO, advisories *Advisories) error {
 	firstAdvisory := true
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
-			security, err := securityAdvisory(advisory)
+			security, err := securityAdvisory(advisory, 409)
 			if err != nil {
 				return err
 			}

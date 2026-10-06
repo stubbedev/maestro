@@ -629,7 +629,9 @@ func (b *ProgressBar) replacePlaceholders() string {
 	if err != nil {
 		// preg_replace_callback() returns null, and buildLine(): string
 		// throws a TypeError returning it.
-		panic(&php.EngineError{Class: "TypeError", Message: "Symfony\\Component\\Console\\Helper\\ProgressBar::buildLine(): Return value must be of type string, null returned"})
+		// raised at the return statement
+		panic((&php.EngineError{Class: "TypeError", Message: "Symfony\\Component\\Console\\Helper\\ProgressBar::buildLine(): Return value must be of type string, null returned"}).
+			Raised("", "vendor/symfony/console/Helper/ProgressBar.php", 605))
 	}
 
 	return line

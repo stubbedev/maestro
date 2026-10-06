@@ -46,6 +46,7 @@ package phperr
 import (
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -342,6 +343,15 @@ func AbsPath(file string) string {
 	}
 
 	return Root() + "/" + Path(file)
+}
+
+// CalledIn is the suffix PHP appends to the message of the TypeError a
+// userland function raises for a wrongly typed argument: where the call
+// came from, ", called in <path> on line <line>", the caller's absolute
+// path (AbsPath). getFile()/getLine() of that TypeError name the
+// function's declaration, and its trace starts with the call.
+func CalledIn(file string, line int) string {
+	return ", called in " + AbsPath(file) + " on line " + strconv.Itoa(line)
 }
 
 // IsAbs reports whether file is an absolute path or a stream URL

@@ -96,7 +96,8 @@ func GetContentHash(composerFileContents string) (string, error) {
 	}
 	content, ok := decoded.(*php.Array)
 	if !ok {
-		return "", &pkg.TypeError{Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.TypeName(decoded) + " given"}
+		return "", (&pkg.TypeError{Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(decoded) + " given"}).
+			Raised("array_keys", "Locker.php", 109)
 	}
 
 	relevantContent := php.NewArray()
@@ -205,7 +206,8 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 	for _, info := range lockedPackages.All() {
 		data, ok := info.(*php.Array)
 		if !ok {
-			return nil, &pkg.TypeError{Message: `Composer\Package\Loader\ArrayLoader::load(): Argument #1 ($config) must be of type array, ` + php.TypeName(info) + " given"}
+			return nil, (&pkg.TypeError{Message: `Composer\Package\Loader\ArrayLoader::load(): Argument #1 ($config) must be of type array, ` + php.ZvalValueName(info) + " given"}).
+				Called(`Composer\Package\Loader\ArrayLoader->load`, phperr.At("ArrayLoader.php", 49), "Locker.php", 183)
 		}
 		p, err := l.loader.Load(data, pkg.ClassCompletePackage)
 		if err != nil {
@@ -229,7 +231,8 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 			}
 			complete, ok := p.(pkg.CompletePackageInterface)
 			if !ok {
-				return nil, &pkg.TypeError{Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.Class() + " given"}
+				return nil, (&pkg.TypeError{Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.Class() + " given"}).
+					Called(`Composer\Package\CompleteAliasPackage->__construct`, phperr.At("CompleteAliasPackage.php", 30), "Locker.php", 195)
 			}
 			aliasPkg := pkg.NewCompleteAliasPackage(complete, alias.AliasNormalized, alias.Alias)
 			aliasPkg.SetRootPackageAlias(true)
@@ -388,7 +391,8 @@ func (l *Locker) LockData() (*php.Array, error) {
 	data, ok := decoded.(*php.Array)
 	if !ok {
 		// a return type error is raised at the return statement
-		return nil, &pkg.TypeError{Message: `Composer\Package\Locker::getLockData(): Return value must be of type array, ` + php.TypeName(decoded) + " returned", Site: phperr.At("Locker.php", 341)}
+		return nil, (&pkg.TypeError{Message: `Composer\Package\Locker::getLockData(): Return value must be of type array, ` + php.ZvalValueName(decoded) + " returned"}).
+			Raised("", "Locker.php", 341)
 	}
 	l.lockDataCache = data
 

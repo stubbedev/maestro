@@ -164,6 +164,13 @@ func (f *Factory) CreateGlobal(out io.IO, disablePlugins, disableScripts bool) (
 	return full, nil
 }
 
+// configMergeTypeError is the TypeError of $config->merge($localConfig,
+// ...) (Factory.php:328) for a local configuration that is not an array.
+func configMergeTypeError(localConfig any) error {
+	return (&php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.ZvalValueName(localConfig) + " given"}).
+		Called(`Composer\Config->merge`, phperr.At("Config.php", 199), "Factory.php", 328)
+}
+
 func isFile(path string) bool {
 	st, err := os.Stat(path)
 
@@ -196,6 +203,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	}
 
 	localConfigSource := config.SourceUnknown
+	var mergeErr error // a local configuration that is not an array
 	composerFile := ""
 	var localConfigArray *php.Array
 	switch lc := localConfig.(type) {
@@ -237,18 +245,18 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 		data, err := file.Read()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, phperr.Call(err, `Composer\Json\JsonFile->read`, "Factory.php", 321)
 		}
 		a, ok := data.(*php.Array)
 		if !ok {
-			return nil, nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.TypeName(data) + " given"}
+			mergeErr = configMergeTypeError(data)
 		}
 		localConfigArray = a
 		localConfigSource = file.Path()
 	case *php.Array:
 		localConfigArray = lc
 	default:
-		return nil, nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.TypeName(localConfig) + " given"}
+		mergeErr = configMergeTypeError(localConfig)
 	}
 
 	// Load config and override with local config/auth config
@@ -262,6 +270,11 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		homePath, homeOK := realpath(php.ToString(home))
 		dirPath, dirOK := realpath(util.Dirname(localConfigSource))
 		isGlobal = homeOK == dirOK && homePath == dirPath
+	}
+	if mergeErr != nil {
+		// $config->merge($localConfig) at line 328, once createConfig()
+		// succeeded
+		return nil, nil, mergeErr
 	}
 	if err := cfg.Merge(localConfigArray, localConfigSource); err != nil {
 		return nil, nil, err

@@ -201,7 +201,8 @@ func createRepos(rm *RepositoryManager, repoConfigs *php.Array) (*NameMap[Reposi
 		}
 		typ, ok := typeValue.(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Repository\RepositoryManager::createRepository`, 1, "type", "string", typeValue)
+			return nil, pkg.ArgumentTypeError(`Composer\Repository\RepositoryManager::createRepository`, 1, "type", "string", typeValue).
+				Called(`Composer\Repository\RepositoryManager->createRepository`, phperr.At("RepositoryManager.php", 124), "RepositoryFactory.php", 168)
 		}
 
 		name := GenerateRepositoryName(index, repo, repos.Has)

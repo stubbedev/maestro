@@ -389,7 +389,8 @@ func (s *JSONConfigSource) RemoveLink(typ, name string) error {
 		v, _ := cfg.Get(typ)
 		a, ok := v.(*php.Array)
 		if !ok {
-			return &php.EngineError{Class: "TypeError", Message: "count(): Argument #1 ($value) must be of type Countable|array, " + zvalName(v) + " given"}
+			return (&php.EngineError{Class: "TypeError", Message: "count(): Argument #1 ($value) must be of type Countable|array, " + php.ZvalValueName(v) + " given"}).
+				Raised("count", "JsonConfigSource.php", 378)
 		}
 		if a.Len() == 0 {
 			cfg.Delete(typ)
@@ -653,7 +654,8 @@ func filterRepositoriesByName(cfg *php.Array, name any) (*php.Array, error) {
 	}
 	list, ok := repos.(*php.Array)
 	if !ok {
-		return nil, &php.EngineError{Class: "TypeError", Message: "array_filter(): Argument #1 ($array) must be of type array, " + zvalName(repos) + " given"}
+		return nil, (&php.EngineError{Class: "TypeError", Message: "array_filter(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(repos) + " given"}).
+			Raised("array_filter", "JsonConfigSource.php", 214)
 	}
 
 	disabled := php.ArrayOf(name, false)

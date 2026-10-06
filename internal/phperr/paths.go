@@ -1,12 +1,10 @@
-// Code generated from the file list of Composer 2.10.3 (src/, vendor/); DO NOT EDIT.
-// TestPaths checks that every basename maestro's phperr.At and phperr.Call
-// sites name is here; regenerate it when one is missing.
-
 package phperr
 
 // paths maps the basenames of the PHP files maestro names to their paths
-// relative to Composer's root; an ambiguous basename maps to the file
-// maestro's sites mean by it (others give the relative path).
+// relative to Composer's root (2.10.3: src/, vendor/, bin/); an ambiguous
+// basename maps to the file maestro's sites mean by it, the others give
+// the relative path. TestPathsCoverSources reports a basename the sources
+// use that is missing here, and checks the paths against .ref/composer.
 var paths = map[string]string{
 	"ApplicationDescription.php":           "vendor/symfony/console/Descriptor/ApplicationDescription.php",
 	"ArchivableFilesFilter.php":            "src/Composer/Package/Archiver/ArchivableFilesFilter.php",
@@ -26,6 +24,7 @@ var paths = map[string]string{
 	"BaseCommand.php":                      "src/Composer/Command/BaseCommand.php",
 	"BaseConfigCommand.php":                "src/Composer/Command/BaseConfigCommand.php",
 	"BaseDependencyCommand.php":            "src/Composer/Command/BaseDependencyCommand.php",
+	"BaseExcludeFilter.php":                "src/Composer/Package/Archiver/BaseExcludeFilter.php",
 	"BasePackage.php":                      "src/Composer/Package/BasePackage.php",
 	"BinaryInstaller.php":                  "src/Composer/Installer/BinaryInstaller.php",
 	"Bitbucket.php":                        "src/Composer/Util/Bitbucket.php",
@@ -41,7 +40,9 @@ var paths = map[string]string{
 	"ClassMapGenerator.php":                "vendor/composer/class-map-generator/src/ClassMapGenerator.php",
 	"Color.php":                            "vendor/symfony/console/Color.php",
 	"Command.php":                          "vendor/symfony/console/Command/Command.php",
+	"CompleteAliasPackage.php":             "src/Composer/Package/CompleteAliasPackage.php",
 	"CompleteCommand.php":                  "vendor/symfony/console/Command/CompleteCommand.php",
+	"CompletePackage.php":                  "src/Composer/Package/CompletePackage.php",
 	"CompletionInput.php":                  "vendor/symfony/console/Completion/CompletionInput.php",
 	"ComposerRepository.php":               "src/Composer/Repository/ComposerRepository.php",
 	"Config.php":                           "src/Composer/Config.php",
@@ -109,6 +110,8 @@ var paths = map[string]string{
 	"Link.php":                             "src/Composer/Package/Link.php",
 	"ListPolicyConfig.php":                 "src/Composer/Policy/ListPolicyConfig.php",
 	"Locker.php":                           "src/Composer/Package/Locker.php",
+	"MatchAllConstraint.php":               "vendor/composer/semver/src/Constraint/MatchAllConstraint.php",
+	"MatchNoneConstraint.php":              "vendor/composer/semver/src/Constraint/MatchNoneConstraint.php",
 	"MetapackageInstaller.php":             "src/Composer/Installer/MetapackageInstaller.php",
 	"MultiConflictRule.php":                "src/Composer/DependencyResolver/MultiConflictRule.php",
 	"MultiConstraint.php":                  "vendor/composer/semver/src/Constraint/MultiConstraint.php",
@@ -170,8 +173,10 @@ var paths = map[string]string{
 	"Runtime.php":                          "src/Composer/Platform/Runtime.php",
 	"ScriptAliasCommand.php":               "src/Composer/Command/ScriptAliasCommand.php",
 	"SearchCommand.php":                    "src/Composer/Command/SearchCommand.php",
+	"SecurityAdvisory.php":                 "src/Composer/Advisory/SecurityAdvisory.php",
 	"SelfUpdateCommand.php":                "src/Composer/Command/SelfUpdateCommand.php",
 	"ShowCommand.php":                      "src/Composer/Command/ShowCommand.php",
+	"Silencer.php":                         "src/Composer/Util/Silencer.php",
 	"Solver.php":                           "src/Composer/DependencyResolver/Solver.php",
 	"SourceValidator.php":                  "src/Composer/FilterList/Source/SourceValidator.php",
 	"SpdxLicenses.php":                     "vendor/composer/spdx-licenses/src/SpdxLicenses.php",
@@ -200,6 +205,7 @@ var paths = map[string]string{
 	"VersionParser.php":                    "vendor/composer/semver/src/VersionParser.php",
 	"VersionSelector.php":                  "src/Composer/Package/Version/VersionSelector.php",
 	"Versions.php":                         "src/Composer/SelfUpdate/Versions.php",
+	"WritableArrayRepository.php":          "src/Composer/Repository/WritableArrayRepository.php",
 	"XzDownloader.php":                     "src/Composer/Downloader/XzDownloader.php",
 	"Zip.php":                              "src/Composer/Util/Zip.php",
 	"ZipArchiver.php":                      "src/Composer/Package/Archiver/ZipArchiver.php",
