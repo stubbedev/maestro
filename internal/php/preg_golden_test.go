@@ -225,6 +225,9 @@ func testPregGolden(t *testing.T, file string) {
 // TestPregGolden runs every pattern Composer uses (collected by
 // tools/oracle/php/preg_collect.php) against PHP's results.
 func TestPregGolden(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays a large golden; skipped in -short mode")
+	}
 	t.Parallel()
 	testPregGolden(t, "testdata/preg/golden.json.gz")
 }
@@ -232,6 +235,9 @@ func TestPregGolden(t *testing.T) {
 // TestPregEngineGolden runs the engine feature corpus of
 // tools/oracle/php/preg_engine.php against PHP's results.
 func TestPregEngineGolden(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays a large golden; skipped in -short mode")
+	}
 	t.Parallel()
 	testPregGolden(t, "testdata/preg/engine_golden.json")
 }

@@ -10,6 +10,9 @@ import (
 
 // Runtime::parseHtmlExtensionInfo uses Preg::matchAll, which throws.
 func TestParseHtmlExtensionInfo_PcreError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs the regex engine up to its backtrack limit; skipped in -short mode")
+	}
 	_, err := ParseHtmlExtensionInfo(`<tr><td class="e">` + strings.Repeat(" ", 3000) + "x")
 	if _, ok := errors.AsType[*php.PcreError](err); !ok {
 		t.Fatalf("got %v, want a *php.PcreError", err)

@@ -76,7 +76,8 @@ func TestErrorRendering(t *testing.T) {
 	}
 
 	server := httptest.NewServer(routerHandler(filepath.Join(dataDir, "_server")))
-	defer server.Close()
+	// Cleanup, not defer: the parallel subtests run after this returns.
+	t.Cleanup(server.Close)
 
 	entries, err := os.ReadDir(dataDir)
 	if err != nil {
@@ -94,6 +95,8 @@ func TestErrorRendering(t *testing.T) {
 				continue
 			}
 			t.Run(name+"/"+v.name, func(t *testing.T) {
+				// Every run is a child process with directories of its own.
+				t.Parallel()
 				got := runScenario(t, filepath.Join(dataDir, name), v.flag, server.URL)
 				if got != string(want) {
 					t.Errorf("output differs from Composer's (%s):\n%s", golden, lineDiff(string(want), got))
@@ -215,8 +218,18 @@ func normalize(s, run, host string) string {
 		s = n.re.ReplaceAllString(s, n.repl)
 	}
 
-	return s
+	// curl's "Failed to connect ... after N ms" depends on the machine's
+	// load; the goldens hold 0 ms. The exception box pads the line, so the
+	// padding takes up the digits' difference.
+	return connectTime.ReplaceAllStringFunc(s, func(m string) string {
+		sub := connectTime.FindStringSubmatch(m)
+		pad := sub[3] + strings.Repeat(" ", len(sub[1])-1)
+
+		return "after 0 ms" + sub[2] + pad
+	})
 }
+
+var connectTime = regexp.MustCompile(`(?m)after ([0-9]+) ms(:[^\n]*?)( *)$`)
 
 // routerHandler ports tools/oracle/errors/router.php.
 func routerHandler(root string) http.Handler {
@@ -313,4 +326,16 @@ func lineDiff(want, got string) string {
 	}
 
 	return b.String()
+}
+
+func TestNormalizeConnectTime(t *testing.T) {
+	for in, want := range map[string]string{
+		"  connect to h:1 after 0 ms: Could not connect   \n": "  connect to h:1 after 0 ms: Could not connect   \n",
+		"  connect to h:1 after 12 ms: Could not connect  \n": "  connect to h:1 after 0 ms: Could not connect   \n",
+		"  connect to h:1 after 105 ms: Could not connect \n": "  connect to h:1 after 0 ms: Could not connect   \n",
+	} {
+		if got := normalize(in, "/nowhere", "nohost"); got != want {
+			t.Errorf("normalize(%q) = %q, want %q", in, got, want)
+		}
+	}
 }

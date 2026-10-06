@@ -145,6 +145,9 @@ func loadJSONManipulator(tb testing.TB) *jsonManipulatorWorkload {
 // patterns on a 66 KB composer.json against PHP, including which of them
 // exhaust the backtrack limit.
 func TestPregJsonManipulatorGolden(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays a large golden; skipped in -short mode")
+	}
 	t.Parallel()
 	w := loadJSONManipulator(t)
 	limits := 0

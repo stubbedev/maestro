@@ -13,7 +13,53 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Every job starts at once and none waits for another: the wall time is the
+# slowest job's. Each restores a Go build cache that rolls forward with
+# every commit (setup-go's own cache is keyed on go.sum alone, so it is
+# saved once and then never refreshed, and every run recompiled most of
+# the tree).
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Go cache paths
+        id: go
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
+
+      - name: Tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --config=.golangci.yml --timeout=10m
+
+  # The whole suite, oracle replays and differential tests included.
   test:
     strategy:
       fail-fast: false
@@ -26,6 +72,23 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          cache: false
+
+      - name: Go cache paths
+        id: go
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
 
       # php drives the plugin shim and script tests (MAESTRO_PHP_TESTS) and
       # the oracle-backed tests that skip without it.
@@ -45,26 +108,50 @@ jobs:
           echo "MAESTRO_TEST_TAR=$(brew --prefix gnu-tar)/bin/gtar" >> "$GITHUB_ENV"
           "$(brew --prefix unzip)/bin/unzip" -v | grep -E 'UnZip 6|UNICODE_SUPPORT'
 
-      - name: Tidy check
-        run: |
-          go mod tidy
-          git diff --exit-code
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Lint
-        if: matrix.os == 'ubuntu-latest'
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.13.2
-          args: --config=.golangci.yml --timeout=10m
-
       - name: Test
+        env:
+          MAESTRO_PHP_TESTS: '1'
+        run: go test ./...
+
+  # The race detector multiplies the cost of the single-threaded oracle
+  # replays and differential tests without finding anything in them; -short
+  # skips those (the test job runs them) and keeps every concurrent path.
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Go cache paths
+        id: go
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          tools: none
+
+      - name: Test with the race detector
         env:
           CGO_ENABLED: '1'
           MAESTRO_PHP_TESTS: '1'
-        run: go test -race ./...
+        run: go test -race -short ./...
 
   # Composer runs on Windows, so maestro must at least build and vet there;
   # the test suite assumes a Unix filesystem and shell.
@@ -91,12 +178,28 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          cache: false
+
+      - name: Go cache paths
+        id: go
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "mod=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ${{ steps.go.outputs.build }}
+            ${{ steps.go.outputs.mod }}
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-${{ github.sha }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.sum') }}-
+            go-${{ runner.os }}-${{ github.job }}-
 
       - name: Build every release target
         env:
           CGO_ENABLED: '0'
         run: |
-          for t in linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64; do
-            echo "== $t"
-            GOOS="${t%/*}" GOARCH="${t#*/}" go build -o /dev/null ./cmd/maestro
-          done
+          go mod download
+          printf '%s\n' linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64 |
+            xargs -P "$(nproc)" -I{} sh -c 't={}; GOOS="${t%/*}" GOARCH="${t#*/}" go build -o /dev/null ./cmd/maestro && echo "ok $t"'

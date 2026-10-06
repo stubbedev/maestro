@@ -57,6 +57,9 @@ func rawList(t *testing.T, raw json.RawMessage) []json.RawMessage {
 }
 
 func TestOracle_LoadPackages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays a large golden; skipped in -short mode")
+	}
 	golden := readGolden(t, "oracle/packages.json.gz")
 
 	for name, versions := range p2Inputs(t) {
@@ -139,6 +142,9 @@ func (c *capturingLoader) Load(config *php.Array, _ string) (pkg.PackageInterfac
 }
 
 func TestOracle_ValidatingArrayLoader(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays a large golden; skipped in -short mode")
+	}
 	golden := readGolden(t, "oracle/validating.json.gz")
 
 	var now int64

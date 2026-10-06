@@ -27,6 +27,9 @@ const interpStartSlack = 50
 // pcre.backtrack_limit, with the JIT and with pcre2_match, against PHP
 // (tools/oracle/php/preg_counts.php).
 func TestPregMatchLimitCounts(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays a large golden; skipped in -short mode")
+	}
 	t.Parallel()
 	data, err := os.ReadFile("testdata/preg/counts.json")
 	if err != nil {

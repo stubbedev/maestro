@@ -82,6 +82,9 @@ func write(t *testing.T, name string, data []byte) string {
 // (archivetest.InfoZip); a case whose names this file system cannot store
 // is left out (archivetest.Unstorable).
 func TestDifferentialZip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("compares with the reference extractors; skipped in -short mode")
+	}
 	unzip := archivetest.NeedInfoZip(t)
 
 	locales := []struct {
@@ -121,6 +124,9 @@ func TestDifferentialZip(t *testing.T) {
 // TestDifferentialPharTar extracts the generated tar corpus, plain and
 // gzip-compressed, with PHP's PharData and with maestro.
 func TestDifferentialPharTar(t *testing.T) {
+	if testing.Short() {
+		t.Skip("compares with the reference extractors; skipped in -short mode")
+	}
 	archivetest.Need(t, "php")
 
 	var c archivetest.Tally
@@ -148,6 +154,9 @@ func TestDifferentialPharTar(t *testing.T) {
 // PharData's extraction of the same tar uncompressed: PHP's bz2 extension
 // is not needed to know what the decompressed tar holds.
 func TestDifferentialPharTarBzip2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("compares with the reference extractors; skipped in -short mode")
+	}
 	archivetest.Need(t, "php", "bzip2")
 
 	var c archivetest.Tally
@@ -176,6 +185,9 @@ func TestDifferentialPharTarBzip2(t *testing.T) {
 // TestDifferentialXz extracts the tar corpus, xz-compressed, with GNU tar
 // and with maestro.
 func TestDifferentialXz(t *testing.T) {
+	if testing.Short() {
+		t.Skip("compares with the reference extractors; skipped in -short mode")
+	}
 	tar := archivetest.NeedGNUTar(t)
 	archivetest.Need(t, "xz")
 
@@ -197,6 +209,9 @@ func TestDifferentialXz(t *testing.T) {
 
 // TestDifferentialGzip decompresses gzip dists with gzip and with maestro.
 func TestDifferentialGzip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("compares with the reference extractors; skipped in -short mode")
+	}
 	archivetest.Need(t, "gzip")
 
 	member := archivetest.Gzip([]byte("hello\n"))

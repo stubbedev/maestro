@@ -177,6 +177,9 @@ func distsDir() string {
 // TestDifferentialRealDists runs the differential test over real package
 // archives, when tools/fetchdists has fetched them.
 func TestDifferentialRealDists(t *testing.T) {
+	if testing.Short() {
+		t.Skip("extracts every real dist; skipped in -short mode")
+	}
 	dir := distsDir()
 
 	names, err := os.ReadDir(dir)
