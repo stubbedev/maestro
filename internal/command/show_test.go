@@ -684,3 +684,59 @@ vendor/somepackage`, gbTrim(appTester))
 vendor/apackage
 vendor/longpackagename`, gbTrim(appTester))
 }
+
+// A type exists in show's listing only once a package is added to it, as
+// PHP's $packages[$type] does: a repository that contributes nothing (no
+// packages, a filter or --direct matching none) leaves no empty type for
+// --format=json to print or for -o/-l to report on.
+func TestShowCommand_TypesWithoutPackagesAreLeftOut(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", gbPackageRepo(
+			gbRepoPackage("name", "vendor/package", "version", "1.0.0"),
+			gbRepoPackage("name", "vendor/dependency", "version", "1.0.0"),
+		),
+		"require", php.ArrayOf("vendor/package", "1.0.0"),
+	), nil, nil, true)
+	commandtest.CreateInstalledJSON(t, gbPkgs(
+		commandtest.GetPackage(t, "vendor/package", "1.0.0"),
+		commandtest.GetPackage(t, "vendor/dependency", "1.0.0"),
+	), nil, true)
+	commandtest.CreateComposerLock(t, gbPkgs(
+		commandtest.GetPackage(t, "vendor/package", "1.0.0"),
+		commandtest.GetPackage(t, "vendor/dependency", "1.0.0"),
+	), nil)
+
+	for _, c := range []struct {
+		params gbKV
+		want   string
+	}{
+		{gbParams("command", "show", "package", "nomatch*", "--format", "json"), "[]"},
+		{gbParams("command", "show", "package", "nomatch*", "--platform", true, "--format", "json"), "[]"},
+		{gbParams("command", "show", "package", "nomatch*", "--locked", true, "--format", "json"), "[]"},
+		{gbParams("command", "show", "package", "nomatch*", "--available", true, "--format", "json"), "[]"},
+		{gbParams("command", "show", "package", "vendor/dep*", "--direct", true, "--format", "json"), "[]"},
+		{gbParams("command", "show", "package", "nomatch/*", "--outdated", true), ""},
+		{gbParams("command", "show", "package", "nomatch/*", "--latest", true), ""},
+		// A package that is added, then skipped as up to date, keeps its
+		// type.
+		{gbParams("command", "outdated", "--format", "json"), "{\n    \"installed\": []\n}"},
+		{gbParams("command", "outdated", "--locked", true, "--format", "json"), "{\n    \"locked\": []\n}"},
+	} {
+		if got := gbTrim(gbRun(t, c.params)); got != c.want {
+			t.Errorf("%v: got %q, want %q", c.params, got, c.want)
+		}
+	}
+}
+
+func TestShowCommand_EmptyProjectListsNoType(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+
+	for _, params := range []gbKV{
+		gbParams("command", "show", "--format", "json"),
+		gbParams("command", "outdated", "--format", "json"),
+	} {
+		if got := gbTrim(gbRun(t, params)); got != "[]" {
+			t.Errorf("%v: got %q, want []", params, got)
+		}
+	}
+}

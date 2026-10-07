@@ -132,6 +132,29 @@ func (l *showList) values() []showEntry {
 	return out
 }
 
+// showLists is $packages: type => showList. As in PHP, a type exists only
+// once an entry is set in it, so a repository that contributes nothing
+// leaves no (empty) type behind.
+type showLists map[string]*showList
+
+// get reads $packages[$type][$name], absent when the type is.
+func (ls showLists) get(typ, name string) (showEntry, bool) {
+	if l := ls[typ]; l != nil {
+		return l.get(name)
+	}
+
+	return showEntry{}, false
+}
+
+// set is $packages[$type][$name] = $entry, creating the type on its first
+// entry.
+func (ls showLists) set(typ, name string, e showEntry) {
+	if ls[typ] == nil {
+		ls[typ] = newShowList()
+	}
+	ls[typ].set(name, e)
+}
+
 // Execute ports ShowCommand::execute.
 func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, error) {
 	c.versionParser = pkg.NewVersionParser()
@@ -564,7 +587,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 	}
 
 	// list packages
-	packages := map[string]*showList{}
+	packages := showLists{}
 	var packageFilterRegex *php.Regexp
 	if hasPackageFilter {
 		if packageFilterRegex, err = php.Compile("{^" + strings.ReplaceAll(php.PregQuote(packageFilter, ""), `\*`, ".*?") + "$}i"); err != nil {
@@ -599,16 +622,13 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		default:
 			typ = "available"
 		}
-		if packages[typ] == nil {
-			packages[typ] = newShowList()
-		}
 		if cr, ok := repo.(*composerrepo.ComposerRepository); ok {
 			names, err := cr.PackageNames(packageFilter)
 			if err != nil {
 				return 0, err
 			}
 			for _, name := range names {
-				packages[typ].set(name, showEntry{name: name})
+				packages.set(typ, name, showEntry{name: name})
 			}
 
 			continue
@@ -618,7 +638,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 			return 0, err
 		}
 		for _, p := range repoPackages {
-			entry, ok := packages[typ].get(p.Name())
+			entry, ok := packages.get(typ, p.Name())
 			if !ok || entry.pkg == nil || semver.VersionCompare(entry.pkg.Version(), p.Version()) < 0 {
 				for {
 					alias, ok := p.(pkg.Alias)
@@ -634,13 +654,13 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 					}
 				}
 				if matches && (!hasListFilter || slices.Contains(packageListFilter, p.Name())) {
-					packages[typ].set(p.Name(), showEntry{pkg: p})
+					packages.set(typ, p.Name(), showEntry{pkg: p})
 				}
 			}
 		}
 		if repo == repository.RepositoryInterface(platformRepo) {
 			for name, p := range platformRepo.DisabledPackages().All() {
-				packages[typ].set(name, showEntry{pkg: p})
+				packages.set(typ, name, showEntry{pkg: p})
 			}
 		}
 	}
