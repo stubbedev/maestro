@@ -245,7 +245,9 @@ These change frozen behaviour on purpose; nothing else may.
    and git worktree on the machine. Files are imported into `vendor/` as
    pnpm's `auto` does: reflink clone where the filesystem can, else
    hardlink, else copy (`MAESTRO_PACKAGE_IMPORT_METHOD=clone|hardlink|copy`
-   forces one method). Composer plugins (`composer-plugin`,
+   forces one method). On Linux, `auto` hard-links the files of a release
+   into the project whose install extracted it, which writes each file
+   once. Composer plugins (`composer-plugin`,
    `composer-installer`) are never hard-linked, since plugins rewrite their
    own files in place. Accepted risk, as with pnpm: a tool that writes in
    place into a hard-linked vendor file changes that file in every project

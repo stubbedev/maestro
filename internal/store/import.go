@@ -22,6 +22,9 @@ var errUnsupported = errors.New("reflinks unsupported")
 // Auto it only ever moves down: clone, hardlink, copy.
 type device struct {
 	method atomic.Int32
+	// noNewLinks: hardlinks from the store to this device fail (Linux's
+	// putImport).
+	noNewLinks atomic.Bool
 }
 
 func (d *device) get() Method {

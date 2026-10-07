@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -283,8 +284,13 @@ func TestInstall(t *testing.T) {
 				t.Errorf("auto settled on %v on a filesystem with hardlinks", s.device(st.dev).get())
 			}
 
+			// On Linux, auto hard-links the objects the install created
+			// itself; src/B.php's object was src/A.php's, there already.
+			newLinked := linked || m == Auto && runtime.GOOS == "linux"
+
 			for _, name := range []string{"composer.json", "bin/tool", "src/A.php", "src/B.php", "ro/f", "zero"} {
-				if st, err := lstat(filepath.Join(dst, name)); err != nil || linked != (st.nlink > 1) {
+				want := newLinked && (name != "src/B.php" || linked)
+				if st, err := lstat(filepath.Join(dst, name)); err != nil || want != (st.nlink > 1) {
 					t.Errorf("%s: method %v but %d links, %v", name, s.device(st.dev).get(), st.nlink, err)
 				}
 			}
@@ -321,8 +327,8 @@ func TestInstall(t *testing.T) {
 				t.Errorf("unexpected stats %+v", stats)
 			}
 
-			if linked != (stats.LinkedBytes > 0) {
-				t.Errorf("linked %v but stats %+v", linked, stats)
+			if newLinked != (stats.LinkedBytes > 0) {
+				t.Errorf("linked %v but stats %+v", newLinked, stats)
 			}
 
 			if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Restamped != 0 || res.Missing != 0 {

@@ -63,7 +63,8 @@
 // destination device and run; clone, hardlink and copy use that method
 // only and fail where the filesystem refuses it. A file the hardlink would
 // give the wrong mode (one its owner may not read) and a file at the
-// filesystem's hardlink limit are copied instead.
+// filesystem's hardlink limit are copied instead. On Linux, auto hardlinks
+// the files of a release the install inserts itself (below).
 //
 // On Windows there is no umask and no reflink: auto hardlinks on NTFS,
 // a file's mode is only its read-only attribute (which hardlinks share, so
@@ -92,13 +93,16 @@
 //
 // Install builds the package directory of a release it inserts while
 // inserting it: each file is created in the directory as soon as its
-// object is written. On Linux a new object is imported from its still
-// open descriptor (a clone or copy from the content in memory, or a
-// hardlink to its name) without checking its stamp again, since no
-// package file links to it yet; an object the store held already is
-// imported as Materialize imports it. A new release's files are so
-// created twice, once in the store and once in the package, and
-// looked up, opened and checked no more.
+// object is written. On Linux a new object is imported without checking
+// its stamp again, since no package file links to it yet. Under auto it is
+// hard-linked into the package wherever the hardlink has the file's mode
+// and the package is not unshared, whatever the filesystem: that project
+// and the store then share the inode, as under hardlink, while later
+// imports of the release clone where the filesystem can. Else it is
+// imported from its still open descriptor by the device's method (a clone,
+// or a copy of the content in memory). An object the store held already
+// is imported as Materialize imports it. A new release's files are so
+// written once and linked into the package by one more call.
 //
 // Inserts and imports running at once share a few goroutines between them
 // (Options.Workers, by default GOMAXPROCS but at most 8): filesystems
@@ -118,15 +122,19 @@
 // package file changes the inode it shares with the store and with every
 // other project linked to it: those projects see the edit until their next
 // install of that release. That is the risk pnpm accepts for the disk it
-// saves, and maestro accepts it too; MAESTRO_PACKAGE_IMPORT_METHOD=copy (or
-// a filesystem with reflinks) avoids it. maestro's own in-place change of a
+// saves, and maestro accepts it too; MAESTRO_PACKAGE_IMPORT_METHOD=copy or
+// clone avoids it. Under auto on a filesystem with reflinks only the
+// project whose install inserted a release links to its objects (every
+// other project gets clones), so an edit there reaches the store alone,
+// which notices it as below. maestro's own in-place change of a
 // package file, Composer's chmod of package binaries, goes through Chmod,
 // which first gives a hard-linked file an inode of its own (Unshare).
 //
 // What the store guarantees is that such an edit never spreads further:
-// no import after it, in any project, gets the edited content. The store's
-// own writes only ever go through a temporary file renamed into place, and
-// every object is stamped: its size and mode are known from the index and
+// no import after it, in any project, gets the edited content. The store
+// never writes into an object it completed (an object is written once,
+// before its stamp is set, and replaced only through a temporary file
+// renamed onto it), and every object is stamped: its size and mode are known from the index and
 // its modification time is derived from its hash (a fixed second between
 // 2000 and 2008, nanoseconds zero, never the time anything wrote it). Any
 // write to an inode, through whichever name, sets its modification time to

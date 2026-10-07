@@ -27,14 +27,16 @@ func (s *Store) putObject(data []byte, sum *[32]byte, perm fs.FileMode) error {
 }
 
 // putImport stores e's content data and creates the package file dst from
-// it. An object it creates is imported from its open descriptor, without
-// checking it against its stamp again: no package file is linked to it
-// yet, so nothing but the store can have written it. An object that is
-// there already is imported as importFile does.
+// it. An object it creates is imported without checking it against its
+// stamp again: no package file is linked to it yet, so nothing but the
+// store can have written it. Under Auto it is hard-linked where it may be
+// (newLink); else it is imported from its open descriptor by the device's
+// method. An object that is there already is imported as importFile does.
 func (s *Store) putImport(dev *device, e *Entry, data []byte, dst string, unshared bool) error {
 	perm := e.Perm(s.umask)
 	objPerm := objectPerm(perm)
 	path := s.objectPath(&e.Hash, objPerm)
+	linkable := objPerm == perm && !unshared
 
 	fd, err := s.createObject(path, data, &e.Hash, objPerm)
 	if errors.Is(err, fs.ErrExist) {
@@ -49,9 +51,22 @@ func (s *Store) putImport(dev *device, e *Entry, data []byte, dst string, unshar
 		return err
 	}
 
+	if linkable && s.method == Auto && !dev.noNewLinks.Load() {
+		err = os.Link(path, dst)
+		if err == nil || !linkUnsupported(err) {
+			if cerr := closeRaw(fd, path); err == nil {
+				err = cerr
+			}
+
+			return err
+		}
+
+		dev.noNewLinks.Store(true)
+	}
+
 	src := newObject{fd: fd, path: path, data: data, umask: s.umask, mtime: stampTime(&e.Hash)}
 
-	err = s.importWith(dev, src, dst, perm, objPerm == perm && !unshared)
+	err = s.importWith(dev, src, dst, perm, linkable)
 	if cerr := closeRaw(fd, path); err == nil {
 		err = cerr
 	}
