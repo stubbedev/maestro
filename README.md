@@ -35,6 +35,15 @@ none. On Apple Silicon, install with the arm64 Homebrew
 (`/opt/homebrew/bin/brew`): an Intel Homebrew in `/usr/local` installs the
 x86_64 binary, which runs under Rosetta.
 
+Install script (Linux, macOS, FreeBSD; picks the binary for the hardware,
+checks it against the release's `checksums.txt`, installs to
+`~/.local/bin` or `$MAESTRO_INSTALL_DIR`, and takes a release tag in
+`$MAESTRO_VERSION`):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/stubbedev/maestro/main/install.sh | sh
+```
+
 Nix (the package also provides `composer`):
 
 ```nix
