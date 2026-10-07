@@ -89,37 +89,47 @@ func processUmask() fs.FileMode {
 // as its modification time, checking the object after the clone.
 // Filesystems that cannot clone, and two different filesystems, fail with
 // errUnsupported, leaving nothing behind.
+//
+// It works on raw descriptors: an *os.File would add, per file, the
+// poller's registration attempts and a switch back to blocking mode for
+// every Fd call (some fifteen syscalls more than the clone needs).
 func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
-	in, err := os.Open(src)
+	in, err := openRaw(src, unix.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = in.Close() }()
+	defer func() { _ = unix.Close(in) }()
 
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	out, err := openRaw(dst, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, uint32(perm))
 	if err != nil {
 		return err
 	}
 
-	err = unix.IoctlFileClone(int(out.Fd()), int(in.Fd()))
+	err = unix.IoctlFileClone(out, in)
 	if err == nil && perm&umask != 0 {
-		err = out.Chmod(perm)
+		if err = ignoringEINTR(func() error { return unix.Fchmod(out, uint32(perm)) }); err != nil {
+			err = &fs.PathError{Op: "chmod", Path: dst, Err: err}
+		}
 	}
 
 	if err == nil {
-		err = setMtime(out, want.mtime)
+		tv := []unix.Timeval{unix.NsecToTimeval(want.mtime * 1e9), unix.NsecToTimeval(want.mtime * 1e9)}
+		err = unix.Futimes(out, tv)
 	}
 
-	if cerr := out.Close(); err == nil {
-		err = cerr
+	if cerr := unix.Close(out); err == nil && cerr != nil {
+		err = &fs.PathError{Op: "close", Path: dst, Err: cerr}
 	}
 
 	if err == nil {
 		// FICLONE locks both inodes: a write through another name of the
 		// object came before the clone (or after it, harmlessly), and
 		// shows in the stamp.
-		if err = checkOpen(in, want); err == nil {
+		var st unix.Stat_t
+		if err = unix.Fstat(in, &st); err != nil {
+			err = &fs.PathError{Op: "fstat", Path: src, Err: err}
+		} else if err = want.check(statOf(&st)); err == nil {
 			return nil
 		}
 
@@ -136,6 +146,30 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 	}
 
 	return err
+}
+
+// openRaw opens path as os.OpenFile does (close-on-exec, EINTR retried,
+// failures as *fs.PathError), returning the descriptor itself.
+func openRaw(path string, flag int, perm uint32) (int, error) {
+	for {
+		fd, err := unix.Open(path, flag|unix.O_CLOEXEC, perm)
+		if err == nil {
+			return fd, nil
+		}
+
+		if err != unix.EINTR {
+			return -1, &fs.PathError{Op: "open", Path: path, Err: err}
+		}
+	}
+}
+
+// ignoringEINTR runs fn until it fails with something other than EINTR.
+func ignoringEINTR(fn func() error) error {
+	for {
+		if err := fn(); !errors.Is(err, unix.EINTR) {
+			return err
+		}
+	}
 }
 
 // widen converts a stat field to int64; the fields are int32 or uint32 on
