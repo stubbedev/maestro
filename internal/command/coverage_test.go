@@ -151,8 +151,12 @@ var coverage = []entry{
 		},
 	}),
 	cover(command.NewSuggestsCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestSuggestsCommand_Suggest))},
-		Pending: 76,
+		Tests: []Proof{
+			Positive(Go(TestSuggestsCommand_Suggest)),
+			Positive(Go(TestSuggestsCommand_Streams)),
+			Positive(E2E("commands", "suggests", "--list")),
+			Positive(E2E("suggests-unlocked", "suggests", "--all")),
+		},
 	}),
 	cover(command.NewRequireCommand, Coverage{
 		Tests: []Proof{

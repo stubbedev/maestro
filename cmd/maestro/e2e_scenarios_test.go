@@ -56,6 +56,11 @@ func fixtureScenarios() []scenario {
 				{args: []string{"suggests"}},
 				{args: []string{"suggests", "--all"}},
 				{args: []string{"suggests", "--by-suggestion"}},
+				{args: []string{"suggests", "--list"}},
+				{args: []string{"suggests", "--list", "--all"}},
+				{args: []string{"suggests", "--by-package", "--by-suggestion"}},
+				{args: []string{"suggests", "symfony/console", "monolog/monolog"}},
+				{args: []string{"suggests", "--no-dev"}},
 				{args: []string{"why", "psr/log"}},
 				{args: []string{"why", "psr/log", "-t"}},
 				{args: []string{"why-not", "psr/log", "4.0"}},
@@ -98,6 +103,18 @@ func fixtureScenarios() []scenario {
 				// _complete swallows: no suggestions, exit 0.
 				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-iwhy", "-i"}, dir: "."},
 				{args: []string{"diagnose"}, setup: installPubKeys, normalize: normalizeDiagnose},
+			},
+		},
+		{
+			// suggests reads the lock file, else the installed packages,
+			// else only the root package.
+			name:    "suggests-unlocked",
+			fixture: "basic",
+			steps: []step{
+				{args: []string{"install", "--no-scripts"}},
+				{args: []string{"suggests", "--all"}, setup: removeAll("project/composer.lock")},
+				{args: []string{"suggests", "--no-dev"}},
+				{args: []string{"suggests"}, setup: removeVendor},
 			},
 		},
 		{
