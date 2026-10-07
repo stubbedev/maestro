@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
@@ -475,6 +476,11 @@ func (r *Runtime) bootArgs() *php.Array {
 		// the directory maestro names Composer's files under, which the
 		// shim's traces name them under too
 		"composerRoot", phperr.Root(),
+		// the size Symfony's Application::run() putenv()s
+		"terminal", php.ArrayOf(
+			"lines", int64(console.Terminal{}.Height()),
+			"columns", int64(console.Terminal{}.Width()),
+		),
 	)
 
 	r.mu.Lock()

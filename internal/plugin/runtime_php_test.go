@@ -9,10 +9,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
@@ -466,6 +468,50 @@ func TestRuntime_EnvSync(t *testing.T) {
 	}
 	if got := get(t, v, "MAESTRO_T_GONE").(*php.Array).Values(); got[0] != false {
 		t.Errorf("PHP sees MAESTRO_T_GONE = %v", got)
+	}
+}
+
+// PHP code sees the terminal size Symfony's Application::run() putenv()s,
+// through getenv() alone: it is in $_SERVER, and so reaches maestro and the
+// processes it starts, only when it was in the environment to begin with.
+func TestRuntime_TerminalSize(t *testing.T) {
+	requirePHP(t)
+
+	for _, startup := range []map[string]string{{}, {"COLUMNS": "120"}} {
+		t.Run(fmt.Sprint(startup), func(t *testing.T) {
+			for _, name := range []string{"LINES", "COLUMNS"} {
+				t.Setenv(name, "")
+				os.Unsetenv(name)
+			}
+			for name, value := range startup {
+				t.Setenv(name, value)
+			}
+			rt, _, _ := newTestRuntime(t)
+			start(t, rt)
+
+			v, err := rt.Call("test.getenv", php.ListOf("LINES", "COLUMNS"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			measured := map[string]int{"LINES": console.Terminal{}.Height(), "COLUMNS": console.Terminal{}.Width()}
+			for _, name := range []string{"LINES", "COLUMNS"} {
+				got := get(t, v, name).(*php.Array).Values()
+				if want := strconv.Itoa(measured[name]); got[0] != want {
+					t.Errorf("PHP's getenv(%s) = %v, want %s", name, got[0], want)
+				}
+				value, inStartup := startup[name]
+				wantServer := any(false)
+				if inStartup {
+					wantServer = value
+				}
+				if got[1] != wantServer {
+					t.Errorf("PHP's $_SERVER[%s] = %v, want %v", name, got[1], wantServer)
+				}
+				if goValue, ok := os.LookupEnv(name); ok != inStartup || goValue != value {
+					t.Errorf("maestro's %s = %q (set: %t), startup had %q", name, goValue, ok, value)
+				}
+			}
+		})
 	}
 }
 

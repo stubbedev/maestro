@@ -77,6 +77,14 @@ final class Server
             $_SERVER[$name] = $value;
         }
 
+        // Symfony's Application::run(): the terminal size, with a bare
+        // putenv(), so getenv() reads it while the processes Composer
+        // starts don't inherit it (Sync::environ).
+        if (isset($a['terminal']) && \function_exists('putenv')) {
+            @putenv('LINES='.$a['terminal']['lines']);
+            @putenv('COLUMNS='.$a['terminal']['columns']);
+        }
+
         // Where maestro names Composer's files (phperr.Root).
         Traces::setRoot(isset($a['composerRoot']) ? (string) $a['composerRoot'] : '');
 

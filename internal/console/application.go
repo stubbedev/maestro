@@ -130,10 +130,15 @@ func (a *Application) Impl() any { return a.self }
 // Run runs the application. Errors are rendered and turned into an exit code
 // unless SetCatchExceptions(false) was called; with auto-exit enabled (the
 // default) the process exits with the code.
+//
+// Symfony's run() starts with putenv('LINES=...') and putenv('COLUMNS=...'):
+// a bare putenv(), which the processes Composer starts don't inherit
+// (Symfony Process passes on getenv() ∩ $_SERVER), and which only makes
+// Terminal read back the size it measured. maestro's environment is what
+// those processes get, so the size stays out of it: Terminal measures once
+// per process, and the plugin shim putenv()s it for PHP code
+// (internal/plugin's boot).
 func (a *Application) Run(in Input, out Output) (exitCode int, err error) {
-	_ = os.Setenv("LINES", strconv.Itoa(a.terminal.Height()))
-	_ = os.Setenv("COLUMNS", strconv.Itoa(a.terminal.Width()))
-
 	if in == nil {
 		argv, _ := NewArgvInput(nil, nil)
 		in = argv

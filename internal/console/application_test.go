@@ -1231,3 +1231,23 @@ func TestApplication_Complete(t *testing.T) {
 		t.Errorf("option suggestions = %d", len(s.OptionSuggestions()))
 	}
 }
+
+// Symfony's run() putenv()s LINES and COLUMNS without $_SERVER, so the
+// processes Composer starts don't inherit them: run() leaves maestro's
+// environment, which is what those processes get, as it was.
+func TestApplication_RunExportsNoTerminalSize(t *testing.T) {
+	for _, name := range []string{"LINES", "COLUMNS"} {
+		t.Setenv(name, "")
+		os.Unsetenv(name)
+	}
+	app := newTestApp()
+	app.SetAutoExit(false)
+	register(t, app, "foo").SetCode(func(_ Input, _ Output) (int, error) { return 0, nil })
+
+	newApplicationTester(app).Run([]Param{PI(0, "foo")}, testerOptions{})
+	for _, name := range []string{"LINES", "COLUMNS"} {
+		if v, ok := os.LookupEnv(name); ok {
+			t.Errorf("run() exported %s=%s", name, v)
+		}
+	}
+}
