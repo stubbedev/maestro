@@ -11,7 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	"github.com/stubbedev/maestro/internal/store"
 )
 
@@ -126,7 +125,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 					return 0, err
 				}
 				if collected {
-					_ = composerrepo.GcDecodedCache(cache.DecodedMetadata(), php.ToNativeInt(ttl))
+					_ = cache.GcDecoded(cache.DecodedMetadata(), php.ToNativeInt(ttl))
 				}
 			case "cache-vcs-dir":
 				ttl, err := get("cache-ttl")
@@ -147,7 +146,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 			case key == "cache-files-dir":
 				pruneStore(0)
 			case key == "cache-repo-dir" && cleared:
-				_ = composerrepo.ClearDecodedCache(cache.DecodedMetadata())
+				_ = cache.ClearDecoded(cache.DecodedMetadata())
 			}
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
 )
 
@@ -52,9 +53,8 @@ func p2Files(t *testing.T) map[string]string {
 func withDecodedCache(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	old := decodedCacheDir.Load()
 	UseDecodedCache(root)
-	t.Cleanup(func() { decodedCacheDir.Store(old) })
+	t.Cleanup(func() { UseDecodedCache("") })
 
 	return filepath.Join(root, decodedVersion)
 }
@@ -153,7 +153,7 @@ func TestDecodedCacheClearAndGc(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := GcDecodedCache(root, 3600); err != nil {
+	if err := cache.GcDecoded(root, 3600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(old); !os.IsNotExist(err) {
@@ -166,13 +166,13 @@ func TestDecodedCacheClearAndGc(t *testing.T) {
 		t.Error("slot not read back after gc")
 	}
 
-	if err := ClearDecodedCache(root); err != nil {
+	if err := cache.ClearDecoded(root); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(root); !os.IsNotExist(err) {
 		t.Errorf("root kept: %v", err)
 	}
-	if err := GcDecodedCache(root, 3600); err != nil {
+	if err := cache.GcDecoded(root, 3600); err != nil {
 		t.Errorf("gc without a cache: %v", err)
 	}
 	if _, store := r.decodeCached("provider-monolog~monolog.json", json); store == nil {

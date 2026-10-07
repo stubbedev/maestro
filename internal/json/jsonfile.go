@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/json/jsonschema"
@@ -68,7 +69,28 @@ type File struct {
 	// content is what the last read decoded (hasContent), for Content.
 	content    string
 	hasContent bool
+	// keepDecoded keeps what the file decodes to between runs.
+	keepDecoded bool
 }
+
+// decodedFiles keeps the files read with KeepDecoded decoded between
+// runs, a slot per file (cache.Decoded), at most decodedFilesSlots.
+var decodedFiles = cache.NewDecoded("maestro-json-v1\n", 4096, decodedFilesSlots)
+
+// decodedFilesSlots is how many files' slots decodedFiles keeps: a slot
+// per project of the machine's most recent ones.
+const decodedFilesSlots = 64
+
+// UseDecodedFiles keeps, in dir (cache.DecodedFiles), what the files read
+// with KeepDecoded decode to, for later runs; "" keeps nothing (the
+// default).
+func UseDecodedFiles(dir string) { decodedFiles.Use(dir) }
+
+// KeepDecoded has the reads of a large local file read on most runs
+// (vendor/composer/installed.json) keep what it decodes to between runs
+// (UseDecodedFiles): a later read of the same content takes it back
+// instead of decoding the JSON again.
+func (f *File) KeepDecoded() { f.keepDecoded = f.httpDownloader == nil }
 
 var httpURL = php.MustCompile(`{^https?://}i`)
 
@@ -135,9 +157,28 @@ func (f *File) decode(json string) (any, error) {
 	}
 	f.indent = indent
 
-	data, err := ParseJSON(json, f.path)
+	data, err := f.parse(json)
 	if err == nil && f.httpDownloader == nil {
 		f.content, f.hasContent = json, true
+	}
+
+	return data, err
+}
+
+// parse is ParseJSON(json), the file's content, kept between runs when
+// the file is read with KeepDecoded.
+func (f *File) parse(json string) (any, error) {
+	parse := func(json string) (any, error) { return ParseJSON(json, f.path) }
+	if !f.keepDecoded {
+		return parse(json)
+	}
+	source := f.path
+	if real, ok := php.Realpath(f.path); ok {
+		source = real
+	}
+	data, store, err := decodedFiles.Decode(source, json, parse)
+	if store != nil {
+		store()
 	}
 
 	return data, err

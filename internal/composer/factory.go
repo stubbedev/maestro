@@ -424,6 +424,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	// initialize repository manager; cached metadata files are kept
 	// decoded between runs (deliberate deviation 3)
 	composerrepo.UseDecodedCache(cache.DecodedMetadata())
+	json.UseDecodedFiles(cache.DecodedFiles())
 	// so is git's version, which the root package's version guess asks
 	vcsutil.UseVersionCache(cache.Dir() + "/git-version")
 	rm := repository.Manager(out, cfg, httpDownloader, dispatcher, process, repository.ExternalTypes{
@@ -691,6 +692,8 @@ func (f *Factory) addLocalRepository(out io.IO, rm *repository.RepositoryManager
 	if err != nil {
 		return err
 	}
+	// read on most runs, and large
+	file.KeepDecoded()
 	repo, err := repository.NewInstalledFilesystemRepository(file, true, root)
 	if err != nil {
 		return err

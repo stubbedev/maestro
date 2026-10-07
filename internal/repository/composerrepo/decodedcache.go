@@ -5,42 +5,26 @@
 package composerrepo
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
-	"io/fs"
-	"os"
 	"path/filepath"
-	"sync/atomic"
-	"time"
 
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
-// decodedCacheDir is where decoded metadata files are kept (nil or "" for
-// nowhere); see UseDecodedCache. It is read from the speculation's
-// goroutines, and a later factory call may set it again.
-var decodedCacheDir atomic.Pointer[string]
+// decodedP2 keeps the decoded metadata files; see UseDecodedCache.
+var decodedP2 = cache.NewDecoded(decodedMagic, decodedMinSize, 0)
 
 // UseDecodedCache keeps, under root (cache.DecodedMetadata), the decoded
 // form of the cached metadata files the repositories decode, for later
-// runs; "" keeps none (the default). Call it before repositories load
-// metadata. ClearDecodedCache and GcDecodedCache clean root up.
-//
-// The decoded form of a file (php.AppendBinary) is stored after a copy of
-// the JSON it was decoded from, and only read back for that exact JSON, so
-// what it gives is what decoding the JSON gives. (Comparing the copy costs
-// far less than hashing the JSON.) Each cached file has one slot,
-// overwritten when its JSON changes.
+// runs (cache.Decoded: each cached file has one slot); "" keeps none (the
+// default). Call it before repositories load metadata.
 func UseDecodedCache(root string) {
 	dir := root
 	if root != "" {
 		dir = filepath.Join(root, decodedVersion)
 	}
-	decodedCacheDir.Store(&dir)
+	decodedP2.Use(dir)
 }
 
 // decodedVersion is the directory, under the root, of the slots of the
@@ -55,82 +39,27 @@ const decodedMagic = "maestro-p2-v1\n"
 // a small file back costs more than decoding it.
 const decodedMinSize = 4096
 
+// errNotArray is a metadata file that does not decode to an array.
+var errNotArray = errors.New("not an array")
+
 // decodeCached is decodeArray(json) for json, the contents of the file
 // cached under cacheKey, read back from the decoded cache when it holds
 // them. Else store (non-nil) stores the decoded file there; call it before
 // anything may change the array.
 func (r *ComposerRepository) decodeCached(cacheKey, json string) (data *php.Array, store func()) {
-	var dir string
-	if p := decodedCacheDir.Load(); p != nil {
-		dir = *p
-	}
-	if dir == "" || len(json) < decodedMinSize || r.cache == nil || r.cache.Root() == "" {
+	if r.cache == nil || r.cache.Root() == "" {
 		return decodeArray(json), nil
 	}
-
-	slot := sha256.Sum256([]byte(r.cache.Root() + "\x00" + cacheKey))
-	path := filepath.Join(dir, hex.EncodeToString(slot[:16])+".bin")
-	// the file: magic, the JSON's length (uvarint), the JSON, its decoded
-	// form
-	header := binary.AppendUvarint([]byte(decodedMagic), uint64(len(json)))
-	if data, err := os.ReadFile(path); err == nil {
-		start := len(header) + len(json)
-		if len(data) > start && bytes.Equal(data[:len(header)], header) && string(data[len(header):start]) == json {
-			if v, err := php.DecodeBinary(data[start:]); err == nil {
-				if a, ok := v.(*php.Array); ok {
-					return a, nil
-				}
-			}
-		}
-	}
-
-	a := decodeArray(json)
-	if a == nil {
-		return nil, nil
-	}
-
-	return a, func() {
-		data := make([]byte, 0, len(header)+2*len(json))
-		data = append(append(data, header...), json...)
-		if data, ok := php.AppendBinary(data, a); ok {
-			_ = fsstate.WriteAtomic(path, data)
-		}
-	}
-}
-
-// ClearDecodedCache removes the decoded cache under root, every version
-// of it: clear-cache does it when it clears the repository cache the
-// slots were decoded from.
-func ClearDecodedCache(root string) error {
-	return os.RemoveAll(root)
-}
-
-// GcDecodedCache removes the files under root not written for ttl
-// seconds: clear-cache --gc does it when it collects the repository
-// cache, whose files Cache.Gc ages from their last write too. A slot is
-// written when its file is first decoded after a change, so it ages with
-// that file; slots of another version are aged the same way.
-func GcDecodedCache(root string, ttl int) error {
-	dir, err := os.OpenRoot(root)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	} else if err != nil {
-		return err
-	}
-	defer func() { _ = dir.Close() }()
-
-	expire := time.Now().Add(-time.Duration(ttl) * time.Second)
-
-	return fs.WalkDir(dir.FS(), ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		if fi, err := d.Info(); err == nil && fi.ModTime().Before(expire) {
-			if err := dir.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return err
-			}
+	v, store, err := decodedP2.Decode(r.cache.Root()+"\x00"+cacheKey, json, func(json string) (any, error) {
+		if a := decodeArray(json); a != nil {
+			return a, nil
 		}
 
-		return nil
+		return nil, errNotArray
 	})
+	if a, ok := v.(*php.Array); ok && err == nil {
+		return a, store
+	}
+
+	return nil, nil
 }
