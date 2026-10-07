@@ -175,7 +175,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		}
 	}
 
-	if typ, _ := m.Get("type"); php.ToBool(typ) && typ == "composer-installer" {
+	if typ, _ := m.Get("type"); php.ToBool(typ) && typ == pkg.InstallerType {
 		warnings = append(warnings, "The package type 'composer-installer' is deprecated. Please distribute your custom installers as plugins from now on. See https://getcomposer.org/doc/articles/plugins.md for plugin documentation.")
 	}
 

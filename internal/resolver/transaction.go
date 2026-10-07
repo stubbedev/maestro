@@ -333,7 +333,7 @@ func movePluginsToFront(operations []operation.Operation) []operation.Operation 
 		}
 
 		modifiesDownloads, _ := p.Extra().Get("plugin-modifies-downloads")
-		isDownloadsModifyingPlugin := p.Type() == "composer-plugin" && modifiesDownloads == true
+		isDownloadsModifyingPlugin := p.Type() == pkg.PluginType && modifiesDownloads == true
 
 		// is this a downloads modifying plugin or a dependency of one?
 		if isDownloadsModifyingPlugin || intersects(p.Names(true), dlModifyingPluginRequires) {
@@ -357,7 +357,7 @@ func movePluginsToFront(operations []operation.Operation) []operation.Operation 
 		}
 
 		// is this package a plugin?
-		isPlugin := p.Type() == "composer-plugin" || p.Type() == "composer-installer"
+		isPlugin := pkg.IsPluginType(p.Type())
 
 		// is this a plugin or a dependency of a plugin?
 		if isPlugin || intersects(p.Names(true), pluginRequires) {

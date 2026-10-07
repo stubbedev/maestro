@@ -20,7 +20,23 @@ const (
 	DisplayDistRef        DisplayMode = 2
 )
 
-// Concrete PHP class names, as Class returns them.
+// The package types Composer acts on; a package's type is any string.
+const (
+	// LibraryType is the type of a package that has none.
+	LibraryType = "library"
+	// PluginType is a plugin's.
+	PluginType = "composer-plugin"
+	// InstallerType is a custom installer's, Composer 1's plugin type.
+	InstallerType = "composer-installer"
+	// MetapackageType is a package without files.
+	MetapackageType = "metapackage"
+)
+
+// IsPluginType reports whether a package of type t is loaded as a plugin:
+// a composer-plugin, or a composer-installer.
+func IsPluginType(t string) bool { return t == PluginType || t == InstallerType }
+
+// Concrete PHP class names, as PHPClass returns them.
 const (
 	ClassPackage              = `Composer\Package\Package`
 	ClassCompletePackage      = `Composer\Package\CompletePackage`

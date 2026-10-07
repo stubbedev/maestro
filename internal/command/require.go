@@ -183,7 +183,7 @@ func (c *RequireCommand) Execute(in console.Input, out console.Output) (code int
 			return 0, err
 		}
 
-		packageType := "library"
+		packageType := pkg.LibraryType
 		if v, _ := cfg.Get("type"); php.ToBool(v) {
 			packageType = php.ToString(v)
 		}

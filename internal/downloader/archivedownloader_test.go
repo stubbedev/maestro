@@ -1175,3 +1175,20 @@ func TestTarDownloader_PharDataNeedsCompressionExtension(t *testing.T) {
 		}
 	}
 }
+
+// The files of every package type PluginInstaller installs are the
+// package's own (deliberate deviation 1): a plugin rewriting them must
+// not change the store's copy. Other packages share the store's.
+func TestFileDownloader_ImportOptionsUnshareThePluginTypes(t *testing.T) {
+	d := &FileDownloader{}
+	for typ, unshared := range map[string]bool{
+		pkg.LibraryType: false, pkg.MetapackageType: false, "symfony-bundle": false,
+		pkg.PluginType: true, pkg.InstallerType: true,
+	} {
+		p := pkg.NewPackage("a/a", "1.0.0.0", "1.0.0")
+		p.SetType(typ)
+		if got := d.importOptions(p).Unshared; got != unshared {
+			t.Errorf("a %s package: unshared = %v, want %v", typ, got, unshared)
+		}
+	}
+}

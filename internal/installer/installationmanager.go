@@ -317,7 +317,7 @@ func (m *Manager) executeBatches(repo repository.InstalledRepositoryInterface, o
 	)
 
 	for index, op := range operations {
-		if p := installedOrUpdatedPackage(op); p != nil && p.Type() == "composer-plugin" {
+		if p := installedOrUpdatedPackage(op); p != nil && p.Type() == pkg.PluginType {
 			if v, ok := p.Extra().Get("plugin-modifies-downloads"); ok && v == true {
 				if len(batch) > 0 {
 					batches = append(batches, batch)
@@ -454,7 +454,7 @@ func (m *Manager) downloadAndExecuteBatch(repo repository.InstalledRepositoryInt
 	)
 
 	for _, iop := range operations {
-		if p := installedOrUpdatedPackage(iop.op); p != nil && (p.Type() == "composer-plugin" || p.Type() == "composer-installer") {
+		if p := installedOrUpdatedPackage(iop.op); p != nil && pkg.IsPluginType(p.Type()) {
 			if len(batch) > 0 {
 				batches = append(batches, batch)
 			}

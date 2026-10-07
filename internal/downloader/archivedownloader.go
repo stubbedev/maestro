@@ -635,9 +635,7 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 // through a hardlink would change the store's object and every other
 // project's copy of the plugin.
 func (d *FileDownloader) importOptions(p pkg.PackageInterface) store.ImportOptions {
-	t := p.Type()
-
-	return store.ImportOptions{Unshared: t == "composer-plugin" || t == "composer-installer"}
+	return store.ImportOptions{Unshared: pkg.IsPluginType(p.Type())}
 }
 
 // isCwd is realpath($path) === Platform::getCwd().

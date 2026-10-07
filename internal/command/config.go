@@ -595,7 +595,7 @@ func (c *ConfigCommand) openEditor(in console.Input) (int, error) {
 
 func (c *ConfigCommand) showValue(in console.Input, settingKey string) (int, error) {
 	propertiesDefaults := php.ArrayOf(
-		"type", "library",
+		"type", pkg.LibraryType,
 		"description", "",
 		"homepage", "",
 		"minimum-stability", "stable",

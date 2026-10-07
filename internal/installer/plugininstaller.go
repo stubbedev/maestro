@@ -24,7 +24,7 @@ var _ Installer = (*PluginInstaller)(nil)
 // $binaryInstaller). The plugin manager is read from the composer
 // (PluginComposer) when first needed.
 func NewPluginInstaller(io mio.IO, composer PartialComposer, fs *util.Filesystem, binaryInstaller Binaries) (*PluginInstaller, error) {
-	l, err := NewLibraryInstaller(io, composer, pkg.Str("composer-plugin"), fs, binaryInstaller)
+	l, err := NewLibraryInstaller(io, composer, pkg.Str(pkg.PluginType), fs, binaryInstaller)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func NewPluginInstaller(io mio.IO, composer PartialComposer, fs *util.Filesystem
 
 // Supports is supports().
 func (*PluginInstaller) Supports(packageType string) (bool, error) {
-	return packageType == "composer-plugin" || packageType == "composer-installer", nil
+	return pkg.IsPluginType(packageType), nil
 }
 
 // DisablePlugins is disablePlugins().

@@ -27,7 +27,7 @@ func NewMetapackageInstaller(io mio.IO) *MetapackageInstaller {
 
 // Supports is supports().
 func (*MetapackageInstaller) Supports(packageType string) (bool, error) {
-	return packageType == "metapackage", nil
+	return packageType == pkg.MetapackageType, nil
 }
 
 // IsInstalled is isInstalled().

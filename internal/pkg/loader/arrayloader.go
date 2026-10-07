@@ -303,7 +303,7 @@ func mustReplace(re *php.Regexp, subject, replacement string) string {
 
 // configureFields sets the Package properties of configureObject.
 func configureFields(p *pkg.CompletePackage, config *php.Array) error {
-	typ := "library"
+	typ := pkg.LibraryType
 
 	if v := config.At("type"); v != nil {
 		s, ok := v.(string)

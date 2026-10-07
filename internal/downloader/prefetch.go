@@ -32,7 +32,7 @@ type copyPrefetcher interface {
 // Download prints "Downloading" and fills the files cache as without it;
 // a guess that turns out wrong costs a request and nothing else.
 func (m *DownloadManager) Prefetch(p, prev pkg.PackageInterface) {
-	if p.Type() == "metapackage" {
+	if p.Type() == pkg.MetapackageType {
 		return
 	}
 

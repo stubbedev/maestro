@@ -123,7 +123,7 @@ func (m *DownloadManager) Downloader(typ string) (Downloader, error) {
 func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Downloader, error) {
 	installationSource := p.InstallationSource()
 
-	if p.Type() == "metapackage" {
+	if p.Type() == pkg.MetapackageType {
 		return nil, nil //nolint:nilnil // PHP's null downloader
 	}
 

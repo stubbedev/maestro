@@ -158,7 +158,7 @@ func (p *Package) RawType() NullString { return p.nullable(setType, p.typ) }
 // Type ports Package::getType: "library" when unset or falsy.
 func (p *Package) Type() string {
 	if !php.Truthy(p.typ) {
-		return "library"
+		return LibraryType
 	}
 
 	return p.typ

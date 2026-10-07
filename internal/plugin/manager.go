@@ -303,7 +303,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		return nil
 	}
 
-	if p.Type() == "composer-plugin" {
+	if p.Type() == pkg.PluginType {
 		var requiresComposer semver.ConstraintInterface
 		for link := range p.Requires().Values() {
 			if link.Target() == "composer-plugin-api" {
@@ -358,7 +358,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		return nil
 	}
 
-	oldInstallerPlugin := p.Type() == "composer-installer"
+	oldInstallerPlugin := p.Type() == pkg.InstallerType
 
 	if _, ok := m.registered(p.Name()); ok {
 		return nil
@@ -663,7 +663,7 @@ func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRe
 
 	weights := map[string]int{}
 	for _, p := range packages {
-		if p.Type() == "composer-plugin" {
+		if p.Type() == pkg.PluginType {
 			v, _ := p.Extra().Get("plugin-modifies-install-path")
 			if p.Name() == "composer/installers" || v == true {
 				weights[p.Name()] = -10000
@@ -682,7 +682,7 @@ func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRe
 			continue
 		}
 
-		if p.Type() != "composer-plugin" && p.Type() != "composer-installer" {
+		if !pkg.IsPluginType(p.Type()) {
 			continue
 		}
 
@@ -721,7 +721,7 @@ func (m *Manager) deactivateRepository(repo repository.RepositoryInterface) erro
 		if _, ok := pkg.AsCompletePackage(p); !ok {
 			continue
 		}
-		if p.Type() == "composer-plugin" || p.Type() == "composer-installer" {
+		if pkg.IsPluginType(p.Type()) {
 			if err := m.DeactivatePackage(p); err != nil {
 				return err
 			}
