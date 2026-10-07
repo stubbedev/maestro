@@ -84,6 +84,13 @@ func runFunctional(t *testing.T, bin, testFile string) {
 	output := out.String()
 
 	if expected, ok := testData["EXPECT"]; ok {
+		if runtime.GOOS == "windows" {
+			// The fixtures are Composer's, written for Unix:
+			// PathDownloader::install() junctions path repositories on
+			// Windows and says "Junctioning from" where Unix gets
+			// "Symlinking from" (installed-versions.test).
+			expected = strings.ReplaceAll(expected, ": Symlinking from ", ": Junctioning from ")
+		}
 		if err := matchExpectation(expected, php.Trim(cleanOutput(output))); err != nil {
 			t.Fatalf("%v\nOutput:\n%s", err, output)
 		}
