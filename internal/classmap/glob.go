@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // globEscape tells whether a backslash quotes the next character of a
@@ -169,7 +170,7 @@ func globInDir(dst []string, dir, prefix, sep, pattern string) []string {
 
 		return dst
 	}
-	f, err := os.Open(dir)
+	f, err := fsstate.Open(dir)
 	if err != nil {
 		return dst
 	}

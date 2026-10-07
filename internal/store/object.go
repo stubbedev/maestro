@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // stampBase is 2000-01-01T00:00:00Z: object modification times lie in the
@@ -88,7 +90,7 @@ var bufPool = sync.Pool{New: func() any {
 // createObjectTemp opens a new temporary file for an object with mode perm.
 func (s *Store) createObjectTemp(perm fs.FileMode) (*os.File, error) {
 	for {
-		f, err := os.OpenFile(tmpName(s.tmp, "o"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+		f, err := fsstate.OpenFile(tmpName(s.tmp, "o"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 		if !errors.Is(err, fs.ErrExist) {
 			return f, err
 		}

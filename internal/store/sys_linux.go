@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"strconv"
+	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -114,8 +115,7 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 	}
 
 	if err == nil {
-		tv := []unix.Timeval{unix.NsecToTimeval(want.mtime * 1e9), unix.NsecToTimeval(want.mtime * 1e9)}
-		err = unix.Futimes(out, tv)
+		err = futimens(out, want.mtime)
 	}
 
 	if cerr := unix.Close(out); err == nil && cerr != nil {
@@ -146,6 +146,30 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 	}
 
 	return err
+}
+
+// setMtime gives an open file the modification time t (whole seconds).
+func setMtime(f *os.File, t int64) error {
+	return futimens(int(f.Fd()), t)
+}
+
+// futimens sets the access and modification times of the open file fd to
+// t (whole seconds): utimensat(fd, NULL, ...), as glibc's futimens. The
+// x/sys Futimes goes through a /proc/self/fd path lookup instead.
+func futimens(fd int, t int64) error {
+	ts := [2]unix.Timespec{unix.NsecToTimespec(t * 1e9), unix.NsecToTimespec(t * 1e9)}
+
+	for {
+		_, _, errno := unix.Syscall6(unix.SYS_UTIMENSAT, uintptr(fd), 0, uintptr(unsafe.Pointer(&ts)), 0, 0, 0) //nolint:gosec // a descriptor is never negative
+		switch errno {
+		case 0:
+			return nil
+		case unix.EINTR:
+			continue
+		}
+
+		return errno
+	}
 }
 
 // openRaw opens path as os.OpenFile does (close-on-exec, EINTR retried,

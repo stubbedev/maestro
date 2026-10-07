@@ -15,6 +15,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util/fspath"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Filesystem ports Composer\Util\Filesystem. Operations that never shell
@@ -64,7 +65,7 @@ func finderIn(dir string) (string, *os.File, error) {
 		return "", nil, &InvalidArgumentError{Class: ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`}
 	}
 
-	f, err := os.Open(dir)
+	f, err := fsstate.Open(dir)
 	if err != nil {
 		// AccessDeniedException, wrapping RecursiveDirectoryIterator's.
 		return "", nil, dirIteratorError(dir, err)
@@ -135,7 +136,7 @@ func (fs *Filesystem) EmptyDirectory(dir string, ensureDirectoryExists bool) err
 // readDir lists dir in directory order (os.ReadDir would sort), the way
 // RecursiveDirectoryIterator with SKIP_DOTS does.
 func readDir(dir string) ([]fs.DirEntry, error) {
-	f, err := os.Open(dir)
+	f, err := fsstate.Open(dir)
 	if err != nil {
 		return nil, dirIteratorError(dir, err)
 	}

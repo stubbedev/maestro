@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // PruneResult is what Prune removed.
@@ -400,7 +401,7 @@ func Unshare(path string) error {
 		return err
 	}
 
-	in, err := os.Open(path)
+	in, err := fsstate.Open(path)
 	if err != nil {
 		return err
 	}
@@ -409,7 +410,7 @@ func Unshare(path string) error {
 
 	tmp := tmpName(filepath.Dir(path), "."+filepath.Base(path)+".maestro-")
 
-	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	out, err := fsstate.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}

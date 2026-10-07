@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // namedMagic opens the identity of every tree inserted from a directory,
@@ -197,7 +198,7 @@ func (s *Store) putFile(root string, e *Entry, h hash.Hash, buf []byte) error {
 		return s.putObject(data, &e.Hash, perm)
 	}
 
-	f, err := os.Open(path)
+	f, err := fsstate.Open(path)
 	if err != nil {
 		return err
 	}

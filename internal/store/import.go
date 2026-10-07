@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // errUnsupported means the filesystem cannot reflink.
@@ -341,7 +342,7 @@ func (s *Store) copyObject(obj, dst string, perm fs.FileMode, want stamp) error 
 
 	defer func() { _ = in.Close() }()
 
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	out, err := fsstate.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
 		return err
 	}

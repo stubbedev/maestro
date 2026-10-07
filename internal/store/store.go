@@ -17,6 +17,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Method is how files get from the store into a package directory.
@@ -374,7 +375,7 @@ func (s *Store) Install(d Dist, path, dst string, opts ImportOptions) error {
 
 // lock takes the store lock, shared or exclusive, and returns its release.
 func (s *Store) lock(exclusive bool) (func(), error) {
-	f, err := os.OpenFile(filepath.Join(s.root, "lock"), os.O_RDWR|os.O_CREATE, 0o644) //nolint:gosec // shared by every user of the store.
+	f, err := fsstate.OpenFile(filepath.Join(s.root, "lock"), os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +393,7 @@ var tmpSeq atomic.Uint64
 
 // tmpName is a fresh name in dir, unique among processes by pid.
 func tmpName(dir, prefix string) string {
-	return dir + string(os.PathSeparator) + prefix + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatUint(tmpSeq.Add(1), 10)
+	return dir + string(os.PathSeparator) + prefix + fsstate.Pid() + "-" + strconv.FormatUint(tmpSeq.Add(1), 10)
 }
 
 // writeAtomic writes data to path through a temporary file in the store,
@@ -400,7 +401,7 @@ func tmpName(dir, prefix string) string {
 func (s *Store) writeAtomic(path string, data []byte) error {
 	tmp := tmpName(s.tmp, "i")
 
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := fsstate.WriteFile(tmp, data, 0o644); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}

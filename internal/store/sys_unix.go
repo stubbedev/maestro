@@ -10,13 +10,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// setMtime gives an open file the modification time t (whole seconds).
-func setMtime(f *os.File, t int64) error {
-	tv := []unix.Timeval{unix.NsecToTimeval(t * 1e9), unix.NsecToTimeval(t * 1e9)}
-
-	return unix.Futimes(int(f.Fd()), tv)
-}
-
 // lockFile takes a shared or exclusive advisory lock on f, waiting for it.
 func lockFile(f *os.File, exclusive bool) error {
 	how := unix.LOCK_SH

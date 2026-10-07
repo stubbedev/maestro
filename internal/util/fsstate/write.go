@@ -75,10 +75,9 @@ var tempSeq atomic.Uint64
 // createTemp creates a new file named TempPrefix plus a unique suffix in
 // dir, 0666 less the umask (os.CreateTemp's are 0600).
 func createTemp(dir string) (*os.File, error) {
-	pid := strconv.Itoa(os.Getpid())
 	for {
 		name := filepath.Join(dir, TempPrefix+pid+"-"+strconv.FormatUint(tempSeq.Add(1), 36))
-		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666) //nolint:gosec // a cache file, as Composer's Cache::write leaves them
+		f, err := OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
 		if !errors.Is(err, fs.ErrExist) {
 			return f, err
 		}

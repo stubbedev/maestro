@@ -103,7 +103,7 @@ func (b *parseBuffers) readFile(path string) (int, error) {
 // readFileKey is readFile, also returning the identity of the file read
 // (keyed false when it has none).
 func (b *parseBuffers) readFileKey(path string) (n int, key fsstate.ID, keyed bool, err error) {
-	f, err := os.Open(path)
+	f, err := fsstate.Open(path)
 	if err != nil {
 		return 0, fsstate.ID{}, false, err
 	}

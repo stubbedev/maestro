@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // statPerm is the permission bits a stat shows for a file created or
@@ -23,7 +25,7 @@ func chmodAfterCreate(perm, umask fs.FileMode) bool {
 // openShared opens a store file for reading; others may rename or delete
 // it meanwhile.
 func openShared(path string) (*os.File, error) {
-	return os.Open(path)
+	return fsstate.Open(path)
 }
 
 // replaceFile renames oldpath onto newpath, replacing it.

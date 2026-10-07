@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // vcsPatterns are Finder::$vcsPatterns, excluded by default.
@@ -161,7 +162,7 @@ type finderWalk struct {
 // errClass is the class of the exception thrown when the directory cannot
 // be opened (an AccessDeniedException below the root).
 func (w *finderWalk) walk(dir, prefix, errClass string) error {
-	f, err := os.Open(dir)
+	f, err := fsstate.Open(dir)
 	if err != nil {
 		// Symfony's iterator constructs the \RecursiveDirectoryIterator at
 		// line 48 and rethrows below the root as AccessDeniedException.
