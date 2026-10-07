@@ -239,7 +239,17 @@ var coverage = []entry{
 	cover(command.NewExecCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestExecCommand_List)),
+			Positive(Go(TestExecCommand_Run)),
+			Positive(Go(TestExecCommand_GlobalRunsInInitialDirectory)),
+			Positive(E2E("path-repositories", "exec", "--list")),
+			Positive(E2E("autoload", "exec", "c-run", "--", "--flag", "a b")),
+			Positive(E2E("autoload", "exec", "-n")),
+			Positive(E2E("autoload", "exec", "-l")),
+			Positive(E2E("autoload", "exec")),
 			Negative(Go(TestExecCommand_ListThrowsIfNoBinariesExist)),
+			Negative(Go(TestExecCommand_Run)),
+			Negative(E2E("autoload", "exec", "c-run")),
+			Negative(E2E("autoload", "exec")),
 		},
 	}),
 	cover(command.NewOutdatedCommand, Coverage{

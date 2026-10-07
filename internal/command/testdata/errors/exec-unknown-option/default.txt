@@ -1,0 +1,8 @@
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+exec [-l|--list] [--] [<binary> [<args>...]]
+
+exit 1

@@ -60,6 +60,11 @@ func TestErrorRendering(t *testing.T) {
 		}
 	}
 
+	const prompt = "Binary to run: \n  [0] a\n  > \n"
+	if got, start := ErrorRendering(prompt + "                \n  Invalid \"zzz\"  \n                \n\n"); !slices.Equal(got, []string{`Invalid"zzz"`}) || start != len(prompt) {
+		t.Errorf("after a prompt: %q from %d", got, start)
+	}
+
 	if got, start := ErrorRendering("Nothing to install\n"); got != nil || start != len("Nothing to install\n") {
 		t.Errorf("no rendering: %q from %d", got, start)
 	}

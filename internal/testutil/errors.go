@@ -26,7 +26,8 @@ var boxTitle = regexp.MustCompile(`^  \[[^\]]+\] *$`)
 // A box is a line of spaces, the message lines (with a "  [Class]" title
 // first at -v) and a line of spaces before an empty line; a line of
 // spaces followed by more box lines is an empty line of the message. Lines
-// may end in "\r" (PHP_EOL on Windows).
+// may end in "\r" (PHP_EOL on Windows). The empty line may instead end
+// the "  > " prompt of a question whose answer was invalid.
 func ErrorRendering(output string) (messages []string, start int) {
 	lines := strings.Split(output, "\n")
 	for i, l := range lines {
@@ -38,7 +39,10 @@ func ErrorRendering(output string) (messages []string, start int) {
 	start = -1
 	for i := 0; i < len(lines); i++ {
 		heading := i > 0 && strings.HasPrefix(lines[i-1], "In ")
-		if !spaces(i) || (i > 0 && lines[i-1] != "" && !heading) {
+		// the empty line ends the prompt of a question whose answer
+		// failed validation (stdin is not echoed)
+		prompt := i > 0 && strings.TrimSpace(lines[i-1]) == ">"
+		if !spaces(i) || (i > 0 && lines[i-1] != "" && !heading && !prompt) {
 			continue
 		}
 		end := i + 1

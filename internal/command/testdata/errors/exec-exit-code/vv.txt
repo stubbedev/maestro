@@ -1,0 +1,5 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+> __exec_command: fail 'a b' 'c'
+fail: a b c
+Script fail handling the __exec_command event returned with error code 3
+exit 3

@@ -1,3 +1,4 @@
 #!/usr/bin/env php
 <?php
-echo "c-run\n";
+echo "c-run ", json_encode(array_slice($argv, 1)), "\n";
+exit((int) getenv('C_RUN_EXIT'));
