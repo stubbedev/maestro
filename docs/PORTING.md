@@ -382,6 +382,30 @@ Cycle-breaking decisions already made:
    PATH finds, there Git for Windows' GNU tar, which takes the drive
    letter of an absolute path for a remote host.
 
+Every command maestro registers (aliases and hidden commands included;
+plugin commands are out of scope) has at least one **positive** test (a
+representative input succeeds; the test asserts the frozen surface) and
+one **negative** test (bad input or an unmet precondition; the test asserts
+the exit code, the stream and the essential message). The guard
+`TestEveryCommandHasPositiveAndNegativeTests` enforces it from the table
+in `internal/command/coverage_test.go`, one entry per command:
+
+- The command is named by its constructor (`cover(command.NewShowCommand,
+  ...)`); its aliases and every registered name are read from the
+  Application, never listed.
+- Tests are `Positive(...)` or `Negative(...)` of `Go(TestX)` (the test
+  function itself, so a rename breaks the build) or `E2E(scenario, args...)`
+  (checked against the literal steps of `cmd/maestro`'s scenarios, and
+  that the step runs the command).
+- Errors-oracle scenarios (`testdata/errors`) are not listed: each counts
+  for the command its `args` run, positive when Composer exited 0 and
+  negative otherwise.
+- A command lacking a kind carries `Pending: <issue>`, its "Tests:
+  <command>" issue (label `testing`). The guard fails on a registered
+  command without an entry, an entry for no command, a command lacking a
+  kind and not pending, and a pending command that has both kinds: remove
+  `Pending` in the change that completes the coverage.
+
 Tests must pass on every CI machine, not just the one that recorded them:
 
 - Compare realpath()ed paths with `testutil.RealTempDir` (on macOS /var is

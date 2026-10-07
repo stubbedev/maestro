@@ -107,6 +107,10 @@ just shell       # a shell in the dev container
 and how tests are ported from Composer's suite and generated from Composer's
 own PHP.
 
+Every command needs a positive and a negative test: a new command, or one
+gaining tests, gets its entry in `internal/command/coverage_test.go` (see
+PORTING.md, Tests), which `go test ./internal/command` checks.
+
 ## License
 
 MIT. maestro is a port of Composer and embeds some of its files; see
