@@ -1,6 +1,7 @@
 package php
 
 import (
+	"reflect"
 	"testing"
 	"unicode/utf8"
 )
@@ -46,6 +47,61 @@ func FuzzJSONRoundTrip(f *testing.F) {
 				t.Fatalf("unstable: %q -> %q -> %q (%v)", enc, enc2, enc3, err)
 			}
 		}
+	})
+}
+
+// FuzzJSONDecodeSpans checks that JSONDecodeSpans decodes what
+// json_decode decodes, and that each value's span decodes to the value,
+// for the arrays and objects of every level.
+func FuzzJSONDecodeSpans(f *testing.F) {
+	for _, s := range []string{
+		`[1,2]`, ` { "a" : [ {"b":1} , "x\"y" , -1.5e3 ] , "c":{"d":null} } `, `{"a":1,"a":2}`, `{"p":{"x":[1],"x":[2]}}`,
+		`{"0":[],"1":{},"":true}`, `[[[[]]]]`, `{"packages":{"a\/b":[{"name":"a\/b"},{"version":"1.0"}]}}`,
+	} {
+		for level := range 3 {
+			f.Add(s, uint8(level))
+		}
+	}
+	f.Fuzz(func(t *testing.T, s string, level uint8) {
+		want, err := JSONDecode(s, true)
+		v, spans, errSpans := JSONDecodeSpans(s, JSONDefaultDepth, int(level%4))
+		if (err == nil) != (errSpans == nil) {
+			t.Fatalf("errors differ: %v, %v", err, errSpans)
+		}
+		if err != nil {
+			return
+		}
+		if !reflect.DeepEqual(v, want) {
+			t.Fatal("decodes to another value")
+		}
+		var walk func(v any, at int)
+		walk = func(v any, at int) {
+			a, ok := v.(*Array)
+			if !ok {
+				return
+			}
+			if at < int(level%4) {
+				for _, e := range a.Values() {
+					walk(e, at+1)
+				}
+
+				return
+			}
+			sp, ok := spans[a]
+			if !ok {
+				return
+			}
+			if len(sp) != a.Len() {
+				t.Fatalf("%d spans for %d values", len(sp), a.Len())
+			}
+			for i, e := range a.Values() {
+				got, err := JSONDecode(s[sp[i].Start:sp[i].End], true)
+				if err != nil || !reflect.DeepEqual(got, e) {
+					t.Fatalf("span %q decodes to another value (%v)", s[sp[i].Start:sp[i].End], err)
+				}
+			}
+		}
+		walk(v, 0)
 	})
 }
 

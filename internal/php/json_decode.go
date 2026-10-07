@@ -29,6 +29,34 @@ func JSONDecodeFlags(data string, flags JSONFlag, depth int) (any, error) {
 		panic("json_decode(): Argument #3 ($depth) must be greater than 0")
 	}
 	d := jsonDecoder{s: data, flags: flags, depth: 1, maxDepth: depth}
+	return d.decode()
+}
+
+// JSONSpan is the bytes [Start, End) of a value in a JSON document.
+type JSONSpan struct{ Start, End int }
+
+// JSONDecodeSpans is JSONDecodeFlags(data, JSONObjectAsArray, depth),
+// which also returns where the values of the arrays and objects level
+// levels below the top (the top is level 0) are in data: their spans, in
+// the order of the values in the *Array the array or object decodes to.
+// Decoding a value's span gives what decoding data gives of the value.
+// An object with a key twice has no spans.
+func JSONDecodeSpans(data string, depth, level int) (any, map[*Array][]JSONSpan, error) {
+	if data == "" {
+		return nil, nil, &JSONError{Code: JSONErrorSyntax}
+	}
+	if depth <= 0 {
+		panic("json_decode(): Argument #3 ($depth) must be greater than 0")
+	}
+	d := jsonDecoder{s: data, flags: JSONObjectAsArray, depth: 1, maxDepth: depth, spanDepth: level + 2, spans: map[*Array][]JSONSpan{}}
+	v, err := d.decode()
+	if err != nil {
+		return nil, nil, err
+	}
+	return v, d.spans, nil
+}
+
+func (d *jsonDecoder) decode() (any, error) {
 	v, ok := d.parse()
 	if !ok {
 		code := d.err
@@ -63,6 +91,12 @@ type jsonDecoder struct {
 	maxDepth int
 	err      int
 	val      any // the scanned scalar
+	// tok is where the last token scanned starts
+	tok int
+	// spans, when set, are the spans of the values of the arrays and
+	// objects at depth spanDepth (JSONDecodeSpans)
+	spans     map[*Array][]JSONSpan
+	spanDepth int
 }
 
 // parse ports the grammar's start rule: value EOI.
@@ -103,19 +137,28 @@ func (d *jsonDecoder) array() (any, bool) {
 		return nil, false
 	}
 	a := NewArray()
+	var spans []JSONSpan
+	keep := d.spans != nil && d.depth == d.spanDepth
 	t := d.scan()
 	if t != tokRBracket && t != tokRBrace {
 		for {
+			start := d.tok
 			v, ok := d.value(t)
 			if !ok {
 				return nil, false
 			}
 			a.Append(v)
+			if keep {
+				spans = append(spans, JSONSpan{start, d.pos})
+			}
 			if t = d.scan(); t != tokComma {
 				break
 			}
 			t = d.scan()
 		}
+	}
+	if keep {
+		d.spans[a] = spans
 	}
 	return a, d.close(t, tokRBracket, tokRBrace)
 }
@@ -139,9 +182,11 @@ func (d *jsonDecoder) object() (any, bool) {
 	}
 	assoc := d.flags&JSONObjectAsArray != 0
 	var (
-		arr *Array
-		obj *Object
+		arr   *Array
+		obj   *Object
+		spans []JSONSpan
 	)
+	keep := assoc && d.spans != nil && d.depth == d.spanDepth
 	if assoc {
 		arr = NewArray()
 	} else {
@@ -159,12 +204,20 @@ func (d *jsonDecoder) object() (any, bool) {
 			if d.scan() != tokColon {
 				return nil, false
 			}
-			v, ok := d.value(d.scan())
+			t = d.scan()
+			start := d.tok
+			v, ok := d.value(t)
 			if !ok {
 				return nil, false
 			}
 			if assoc {
+				n := arr.Len()
 				arr.Set(key, v)
+				if keep {
+					// a key set again keeps its place: no spans
+					spans = append(spans, JSONSpan{start, d.pos})
+					keep = arr.Len() > n
+				}
 			} else {
 				if key != "" && key[0] == 0 {
 					d.err = JSONErrorInvalidPropertyName
@@ -181,6 +234,9 @@ func (d *jsonDecoder) object() (any, bool) {
 	if !d.close(t, tokRBrace, tokRBracket) {
 		return nil, false
 	}
+	if keep {
+		d.spans[arr] = spans
+	}
 	if assoc {
 		return arr, true
 	}
@@ -191,6 +247,7 @@ func (d *jsonDecoder) object() (any, bool) {
 func (d *jsonDecoder) scan() jsonToken {
 	for d.pos < len(d.s) {
 		c := d.s[d.pos]
+		d.tok = d.pos
 		switch c {
 		case ' ', '\t', '\n', '\r':
 			d.pos++
