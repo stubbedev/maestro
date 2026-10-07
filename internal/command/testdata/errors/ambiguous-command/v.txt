@@ -1,0 +1,19 @@
+
+In Application.php line 761:
+                                                                  
+  [Symfony\Component\Console\Exception\CommandNotFoundException]  
+  Command "li" is ambiguous.                                      
+  Did you mean one of these?                                      
+      list     List commands                                      
+      licenses Shows information about licenses of dependencies.  
+                                                                  
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Application.php:761
+ Symfony\Component\Console\Application->find() at @COMPOSER@/vendor/symfony/console/Application.php:259
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+exit 1

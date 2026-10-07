@@ -1,0 +1,9 @@
+
+                                                                  
+  Command "li" is ambiguous.                                      
+  Did you mean one of these?                                      
+      list     List commands                                      
+      licenses Shows information about licenses of dependencies.  
+                                                                  
+
+exit 1

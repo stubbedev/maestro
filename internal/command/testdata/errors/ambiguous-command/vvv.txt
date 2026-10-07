@@ -1,0 +1,22 @@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+
+In Application.php line 761:
+                                                                  
+  [Symfony\Component\Console\Exception\CommandNotFoundException]  
+  Command "li" is ambiguous.                                      
+  Did you mean one of these?                                      
+      list     List commands                                      
+      licenses Shows information about licenses of dependencies.  
+                                                                  
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Application.php:761
+ Symfony\Component\Console\Application->find() at @COMPOSER@/vendor/symfony/console/Application.php:259
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+exit 1

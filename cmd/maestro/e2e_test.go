@@ -46,6 +46,9 @@
 //   - Durations printed at -vv ("... completed in 0.003 seconds").
 //   - The "maestro version X" line `--version` adds on stderr (maestro's
 //     own build, cmd/maestro/main.go).
+//   - The script each tool runs as, Composer's phar or maestro's binary
+//     (maestroScript), by path and by basename (normalizeScript): help
+//     texts and the completion script name it.
 //   - The banner of `list` and a bare run (Composer's logo and long
 //     version, maestro's logo and version; docs/PORTING.md deviation 8),
 //     at the start of the output only: the command list and options after
@@ -166,11 +169,7 @@ func TestE2E(t *testing.T) {
 
 	requireTools(t)
 
-	phar := composerPhar(t)
-	maestro := os.Getenv(switches.E2EBin)
-	if maestro == "" {
-		maestro = buildMaestro(t, t.TempDir())
-	}
+	tools := e2eTools(t)
 
 	base := t.TempDir()
 	if keep := os.Getenv(switches.E2EKeep); keep != "" {
@@ -178,11 +177,6 @@ func TestE2E(t *testing.T) {
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			t.Fatal(err)
 		}
-	}
-
-	tools := map[string][]string{
-		"composer": {"php", phar},
-		"maestro":  {maestro},
 	}
 
 	phases := []string{"cold", "warm"}
@@ -311,17 +305,37 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func buildMaestro(t *testing.T, dir string) string {
+// maestroScript is the name maestro runs as in the end-to-end tests, one
+// that nothing else in the outputs contains ("maestro" is the vendor of
+// fixture packages), so that normalizeScript can replace it where help
+// texts and the completion script name the running script.
+const maestroScript = "e2e-maestro"
+
+// e2eTools is how each tool runs: Composer's phar with php, and maestro
+// (built from this package, or MAESTRO_E2E_BIN) as maestroScript.
+func e2eTools(t *testing.T) map[string][]string {
 	t.Helper()
 
-	bin := filepath.Join(dir, "maestro"+exeSuffix)
+	phar := composerPhar(t)
+	bin := filepath.Join(t.TempDir(), maestroScript+exeSuffix)
 
-	cmd := exec.Command("go", "build", "-o", bin, ".")
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if prebuilt := os.Getenv(switches.E2EBin); prebuilt != "" {
+		data, err := os.ReadFile(prebuilt)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(bin, data, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	} else if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
 		t.Fatalf("building maestro: %v\n%s", err, out)
 	}
 
-	return bin
+	return map[string][]string{
+		"composer": {"php", phar},
+		"maestro":  {bin},
+	}
 }
 
 // runScenario runs every step of sc with one tool in <dir>/run and, with
@@ -522,7 +536,9 @@ func runStep(t *testing.T, root string, env, cmd []string, s step) stepResult {
 		code = ee.ExitCode()
 	}
 
-	return stepResult{code: code, stdout: stdout.String(), stderr: stderr.String(), dur: dur}
+	script := cmd[len(cmd)-1]
+
+	return stepResult{code: code, stdout: normalizeScript(stdout.String(), script), stderr: normalizeScript(stderr.String(), script), dur: dur}
 }
 
 // rootPath is what @ROOT@ stands for in fixtures and arguments: the
@@ -738,9 +754,25 @@ var tmpFile = regexp.MustCompile(`[/\\]tmp-[0-9a-f]+(?: *\r?\n +[0-9a-f]+)?`)
 // Composer's (cmd/maestro's doc): maestro names its own build there.
 var maestroVersion = regexp.MustCompile(`(?m)^maestro version .*\n`)
 
-// banner is the logo and version line heading `list`'s output: lines of
-// ASCII art, then "<name> version ..." (with --ansi, styled).
-var banner = regexp.MustCompile("\\A(?:[ _/\\\\|().,'`-]+\r?\n)+(?:\x1b\\[[0-9;]*m)*(?:Composer|maestro)(?:\x1b\\[[0-9;]*m)* version [^\n]*\n")
+// normalizeScript replaces the script a tool runs as (Composer's phar,
+// maestro's binary as maestroScript) in its output: help texts show it
+// ($_SERVER['PHP_SELF'] for %command.full_name%, also realpath()ed; in
+// JSON with escaped slashes) and the completion script and its help name
+// it by its basename. Its paths become "@SCRIPT@" and then its basename
+// "@SCRIPT_NAME@".
+func normalizeScript(s, script string) string {
+	paths := []string{script}
+	if real, err := filepath.EvalSymlinks(script); err == nil {
+		paths = append(paths, real)
+	}
+
+	for _, p := range paths {
+		escaped := strings.NewReplacer(`\`, `\\`, "/", `\/`).Replace(p)
+		s = strings.NewReplacer(p, "@SCRIPT@", escaped, "@SCRIPT@").Replace(s)
+	}
+
+	return strings.ReplaceAll(s, filepath.Base(script), "@SCRIPT_NAME@")
+}
 
 // normalizeOutput applies the global normalisations (see the file comment).
 func normalizeOutput(s string) string {
@@ -773,7 +805,7 @@ func normalizeOutput(s string) string {
 		return m[:len("/tmp-")] + regexp.MustCompile(`[0-9a-f]`).ReplaceAllString(m[len("/tmp-"):], "x")
 	})
 
-	s = banner.ReplaceAllString(s, "<banner>\n")
+	s = testutil.NormalizeBanner(s)
 
 	return maestroVersion.ReplaceAllString(s, "")
 }
@@ -916,5 +948,20 @@ func TestComposerHints(t *testing.T) {
 	rest, hints, links := composerHints(head)
 	if rest != "Loading composer repositories\r\n" || hints != 1 || !slices.Equal(links, []string{"https://getcomposer.org/doc/06-config.md#process-timeout"}) {
 		t.Errorf("composerHints: %q, %d, %q", rest, hints, links)
+	}
+}
+
+func TestNormalizeScript(t *testing.T) {
+	script := "/x/bin/" + maestroScript
+	for _, c := range []struct{ in, want string }{
+		{script + " completion bash", "@SCRIPT@ completion bash"},
+		{`"<info>\/x\/bin\/e2e-maestro list<\/info>"`, `"<info>@SCRIPT@ list<\/info>"`},
+		{"complete -F _sf_e2e-maestro e2e-maestro\n", "complete -F _sf_@SCRIPT_NAME@ @SCRIPT_NAME@\n"},
+		{"tee /etc/bash_completion.d/e2e-maestro", "tee /etc/bash_completion.d/@SCRIPT_NAME@"},
+		{"maestro/e2e maestro", "maestro/e2e maestro"},
+	} {
+		if got := normalizeScript(c.in, script); got != c.want {
+			t.Errorf("normalizeScript(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

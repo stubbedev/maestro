@@ -1,0 +1,24 @@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+
+In DescriptorHelper.php line 61:
+                                                                  
+  [Symfony\Component\Console\Exception\InvalidArgumentException]  
+  Unsupported format "bogus".                                     
+                                                                  
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Helper/DescriptorHelper.php:61
+ Symfony\Component\Console\Helper\DescriptorHelper->describe() at @COMPOSER@/vendor/symfony/console/Command/ListCommand.php:71
+ Symfony\Component\Console\Command\ListCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+list [--raw] [--format FORMAT] [--short] [--] [<namespace>]
+
+exit 1

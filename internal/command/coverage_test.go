@@ -38,8 +38,15 @@ var coverage = []entry{
 		Pending: 83,
 	}),
 	cover(console.NewListCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestHelp_List)), Positive(E2E("commands", "list"))},
-		Pending: 84,
+		Tests: []Proof{
+			Positive(Go(TestHelp_List)),
+			Positive(Go(TestHelp_ListJSON)),
+			Positive(E2E("commands", "list")),
+			Positive(E2E("commands", "list", "--raw")),
+			Positive(E2E("commands", "list", "--format=json", "--short")),
+			Positive(E2E("scripts", "list", "--format=json")),
+			Positive(E2E("plugin-stubs", "list", "stubs")),
+		},
 	}),
 	cover(newCompleteCommand, Coverage{
 		Tests:   []Proof{Positive(Go(TestCompletionFunctional_Complete))},
@@ -318,6 +325,12 @@ func cover[T console.Commander](ctor func() T, c Coverage) entry {
 }
 
 func TestEveryCommandHasPositiveAndNegativeTests(t *testing.T) {
+	// The goldens of `list` (TestHelp_List, TestHelp_ListJSON) list every
+	// command of getDefaultCommands.
+	if !command.AllCommandsRegistered() {
+		t.Error("a command of getDefaultCommands is not registered")
+	}
+
 	app := commandtest.NewApplication()
 	resolve := func(name string) (string, bool) {
 		cmd, err := app.Find(name)

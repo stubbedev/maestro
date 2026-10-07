@@ -30,11 +30,7 @@ func TestE2EPlugins(t *testing.T) {
 
 	requireTools(t)
 
-	phar := composerPhar(t)
-	maestro := os.Getenv(switches.E2EBin)
-	if maestro == "" {
-		maestro = buildMaestro(t, t.TempDir())
-	}
+	tools := e2eTools(t)
 
 	base := t.TempDir()
 	if keep := os.Getenv(switches.E2EKeep); keep != "" {
@@ -42,11 +38,6 @@ func TestE2EPlugins(t *testing.T) {
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			t.Fatal(err)
 		}
-	}
-
-	tools := map[string][]string{
-		"composer": {"php", phar},
-		"maestro":  {maestro},
 	}
 
 	phases := []string{"cold", "warm"}
@@ -187,6 +178,8 @@ func pluginScenarios() []scenario {
 				{args: []string{"stubs:helpers", "--ignore-platform-reqs"}},
 				{args: []string{"stubs:helpers", "--audit-format=xml"}},
 				{args: []string{"stubs:io"}},
+				{args: []string{"list", "stubs"}},
+				{args: []string{"list", "--format=json"}},
 			},
 		},
 		{

@@ -364,7 +364,7 @@ var normalizers = []struct {
 
 // normalize applies errors.sh's normalisation.
 func normalize(s, run, host string) string {
-	s = replacePaths(s, run, host)
+	s = testutil.NormalizeBanner(replacePaths(s, run, host))
 	for _, n := range normalizers {
 		s = n.re.ReplaceAllString(s, n.repl)
 	}

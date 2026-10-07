@@ -1,0 +1,8 @@
+
+                               
+  Unsupported format "bogus".  
+                               
+
+list [--raw] [--format FORMAT] [--short] [--] [<namespace>]
+
+exit 1

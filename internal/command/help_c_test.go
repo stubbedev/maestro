@@ -58,13 +58,9 @@ func TestHelp_GroupC(t *testing.T) {
 	}
 }
 
-// TestHelp_List compares `list` with Composer's once every command is
-// registered, all but the banner (the logo and version up to the first
+// TestHelp_List compares `list` with Composer's, all but the banner (the logo and version up to the first
 // empty line), which is maestro's own (docs/PORTING.md deviation 8).
 func TestHelp_List(t *testing.T) {
-	if !command.AllCommandsRegistered() {
-		t.Skip("not every command is registered yet")
-	}
 	got, want := runHelp(t, "list", "command", "list")
 	gotBanner, gotRest, _ := strings.Cut(got, "\n\n")
 	_, wantRest, _ := strings.Cut(want, "\n\n")
@@ -77,11 +73,8 @@ func TestHelp_List(t *testing.T) {
 }
 
 // TestHelp_ListJSON compares `list --format=json` (every command's
-// definition) with Composer's once every command is registered.
+// definition) with Composer's.
 func TestHelp_ListJSON(t *testing.T) {
-	if !command.AllCommandsRegistered() {
-		t.Skip("not every command is registered yet")
-	}
 	helpGolden(t, "list.json", "command", "list", "--format", "json")
 }
 

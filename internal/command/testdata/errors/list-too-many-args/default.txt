@@ -1,0 +1,8 @@
+
+                                                                         
+  Too many arguments to "list" command, expected arguments "namespace".  
+                                                                         
+
+list [--raw] [--format FORMAT] [--short] [--] [<namespace>]
+
+exit 1
