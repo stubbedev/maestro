@@ -171,6 +171,11 @@ func TestGzipTarget(t *testing.T) {
 		"https://example.org/a b.gz":                "",
 		"1http://example.org/x.gz":                  "",
 		"https://example.org/x.gz?redirect=/y/z.gz": "x",
+		"C:/Users/me/dists/single.php.gz":           "single.php",
+		`C:\Users\me\dists\single.php.gz`:           "single.php",
+		"c:/a:b/c.gz?x#y":                           "c",
+		"C:/":                                       "",
+		"C:relative.gz":                             "",
 	} {
 		got, ok := gzipTarget(url)
 		if want == "" {

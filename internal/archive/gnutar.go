@@ -347,7 +347,8 @@ func planGzip(f *os.File, size int64, opts *Options, b *builder) (contentReader,
 
 // gzipTarget is pathinfo(parse_url(strtr($url, '\\', '/'), PHP_URL_PATH),
 // PATHINFO_FILENAME) for the URLs whose parsing is unambiguous: an
-// absolute URL with an authority, or a bare absolute path. ok is false for
+// absolute URL with an authority, a scheme followed by an absolute path
+// (a Windows path with a drive letter), or a bare absolute path. ok is false for
 // anything else, and for names that cannot be a file.
 func gzipTarget(url string) (string, bool) {
 	url = strings.ReplaceAll(url, `\`, "/")
@@ -371,6 +372,10 @@ func gzipTarget(url string) (string, bool) {
 		}
 
 		path = rest[i:]
+	} else if scheme, rest, ok := strings.Cut(url, ":"); ok && isScheme(scheme) && strings.HasPrefix(rest, "/") {
+		// a scheme and a path without an authority: what parse_url()
+		// makes of a Windows path with a drive letter, C:/dists/x.gz
+		path = rest
 	} else if !strings.HasPrefix(url, "/") || strings.HasPrefix(url, "//") {
 		return "", false
 	}
