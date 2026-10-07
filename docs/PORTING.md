@@ -328,7 +328,7 @@ as each other cache bounds its own size.
 | Path | Holds | Used while | `clear-cache` |
 | --- | --- | --- | --- |
 | `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
-| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded | the JSON is byte-identical | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
+| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded | the JSON is byte-identical: the cached file's identity is the one a read that could trust it saw (a timestamp tick old), or else a copy of the JSON compares equal | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
 | `decoded` | large local JSON files read on most runs (`vendor/composer/installed.json`), decoded; at most 64 | the JSON is byte-identical | with `cache-dir` |
 | `classmap/v1.bin` | the classes found in each file content seen, by SHA-256 and parser settings, and each file's content hash by its identity | the same maestro binary; the content hash, or the file's identity | with `cache-dir` |
 | `classmap/records` | a project's class map with the identity of every file and directory its scans depended on; at most 64 | the same scans, and every identity unchanged | with `cache-dir` |

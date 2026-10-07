@@ -6,6 +6,7 @@ package cache
 import (
 	"os"
 	"sync"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
@@ -23,6 +24,7 @@ var readMemo = struct {
 
 type memoFile struct {
 	stamp    fsstate.Stamp
+	seen     time.Time
 	contents string
 }
 
@@ -40,10 +42,9 @@ func readFile(path string) (string, error) {
 			if found && memo.stamp.Same(stamp) {
 				return memo.contents, nil
 			}
-			if s, ok := fsstate.ReadStable(path); ok {
-				contents := string(s.Content())
+			if contents, stamp, seen, ok := fsstate.ReadStableString(path); ok {
 				readMemo.Lock()
-				readMemo.files[path] = memoFile{stamp: s.Stamp(), contents: contents}
+				readMemo.files[path] = memoFile{stamp: stamp, seen: seen, contents: contents}
 				readMemo.Unlock()
 
 				return contents, nil
@@ -53,6 +54,30 @@ func readFile(path string) (string, error) {
 	data, err := os.ReadFile(path)
 
 	return string(data), err
+}
+
+// Origin is the file a document was read from, as the read saw it: its
+// identity, and a moment before the read looked at it. The zero Origin is
+// none known.
+type Origin struct {
+	id   fsstate.ID
+	seen time.Time
+	ok   bool
+}
+
+// originOf is the origin of contents when readFile read them from path
+// last, else the zero Origin.
+func originOf(path, contents string) Origin {
+	readMemo.Lock()
+	memo, found := readMemo.files[path]
+	readMemo.Unlock()
+	// the strings are usually the same one, which compares at once
+	if !found || memo.contents != contents {
+		return Origin{}
+	}
+	id, ok := memo.stamp.ID()
+
+	return Origin{id: id, seen: memo.seen, ok: ok}
 }
 
 // forget drops what readFile remembers of path, which this process

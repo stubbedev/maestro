@@ -217,8 +217,10 @@ Metadata and resolution:
   https repositories open while the project loads.
 - **Decoded caches.** p2 metadata files and installed.json are kept
   decoded in a binary form, read back only for byte-identical JSON (3.1 ms
-  instead of 7.5 ms for laravel/framework's file); a metadata file whose
-  identity is unchanged is not read again within a run.
+  instead of 7.5 ms for laravel/framework's file), which a metadata file's
+  unchanged identity tells without a copy of the JSON to compare; a
+  metadata file whose identity is unchanged is not read again within a
+  run.
 - **Parallel CPU work**: the pool optimizer (packages filed by interned
   hash ids, 64 items per work chunk), the advisory filter, cache reads and
   their slim copies, and autoload_classmap.php and autoload_static.php

@@ -118,6 +118,14 @@ func (c *Cache) IsEnabled() bool {
 // Root is getRoot().
 func (c *Cache) Root() string { return c.root }
 
+// OriginOf is the origin of contents when they are what the last read of
+// file (Read, ReadAll, Peek or a Peeker) gave, else the zero Origin. It
+// reads nothing of the cache's state but its root, so any goroutine may
+// call it.
+func (c *Cache) OriginOf(file, contents string) Origin {
+	return originOf(c.root+c.key(file), contents)
+}
+
 // key sanitises a cache file name with the allowlist. The pattern is a
 // single character class, so Preg::replace cannot throw.
 func (c *Cache) key(file string) string {

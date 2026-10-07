@@ -1,8 +1,12 @@
 package fsstate
 
 import (
+	"io"
 	"io/fs"
 	"os"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Stamp is how a file looked when it was stat()ed: its ID where files
@@ -28,6 +32,16 @@ func StatStamp(path string) (Stamp, bool) {
 	}
 
 	return Stamp{ok: true, info: info}, true
+}
+
+// ID is the ID s holds; false where files have none (Known) or for the
+// zero Stamp.
+func (s Stamp) ID() (ID, bool) {
+	if !s.ok || !Known() {
+		return ID{}, false
+	}
+
+	return s.id, true
 }
 
 // IsRegular reports whether s is a regular file.
@@ -76,21 +90,75 @@ type Snapshot struct {
 // keeps the contents only if the file did not change in between. ok is
 // false otherwise, or when it is not a regular file or cannot be read.
 func ReadStable(path string) (s Snapshot, ok bool) {
-	before, ok := StatStamp(path)
-	if !ok || !before.IsRegular() {
-		return Snapshot{}, false
-	}
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return Snapshot{}, false
-	}
-	after, ok := StatStamp(path)
-	if !ok || !before.Same(after) {
+	content, stamp, _, ok := readStable(path, os.ReadFile)
+	if !ok {
 		return Snapshot{}, false
 	}
 
-	return Snapshot{path: path, content: content, stamp: after}, true
+	return Snapshot{path: path, content: content, stamp: stamp}, true
 }
+
+// ReadStableString is ReadStable with the contents read straight into a
+// string, and seen, a moment before the file was first looked at: what
+// the stamp says of the contents can be trusted later when its ID is
+// Trusted at seen.
+func ReadStableString(path string) (content string, stamp Stamp, seen time.Time, ok bool) {
+	return readStable(path, readString)
+}
+
+// readStable is stat, read, stat again: the contents read only if the file
+// is a regular file that did not change in between.
+func readStable[T any](path string, read func(string) (T, error)) (content T, stamp Stamp, seen time.Time, ok bool) {
+	seen = time.Now()
+	before, ok := StatStamp(path)
+	if !ok || !before.IsRegular() {
+		return content, Stamp{}, time.Time{}, false
+	}
+	content, err := read(path)
+	if err != nil {
+		return content, Stamp{}, time.Time{}, false
+	}
+	after, ok := StatStamp(path)
+	if !ok || !before.Same(after) {
+		var zero T
+
+		return zero, Stamp{}, time.Time{}, false
+	}
+
+	return content, after, seen, true
+}
+
+// readString is os.ReadFile as a string, without copying the bytes read.
+func readString(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+
+	var b strings.Builder
+	if info, err := f.Stat(); err == nil && info.Size() > 0 {
+		b.Grow(int(info.Size()))
+	}
+	buf, _ := readBuffers.Get().(*[]byte)
+	defer readBuffers.Put(buf)
+	for {
+		n, err := f.Read(*buf)
+		b.Write((*buf)[:n])
+		if err == io.EOF {
+			return b.String(), nil
+		} else if err != nil {
+			return "", err
+		}
+	}
+}
+
+// readBuffers are readString's buffers, reused.
+var readBuffers = sync.Pool{New: func() any {
+	buf := make([]byte, 64<<10)
+
+	return &buf
+}}
 
 // Content is the file's contents as they were read.
 func (s Snapshot) Content() []byte { return s.content }

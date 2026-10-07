@@ -22,7 +22,7 @@ func TestDecoded_BoundsItsSlots(t *testing.T) {
 	json := `{"a": "` + strings.Repeat("x", 64) + `"}`
 
 	for i, source := range []string{"one", "two", "three"} {
-		_, store, err := d.Decode(source, json, decode)
+		_, store, err := d.Decode(source, Origin{}, json, decode)
 		if err != nil || store == nil {
 			t.Fatalf("%s: store %v, %v", source, store != nil, err)
 		}
@@ -38,10 +38,10 @@ func TestDecoded_BoundsItsSlots(t *testing.T) {
 		t.Fatalf("%d slots, want 2", len(entries))
 	}
 	// "one" went: it is decoded and stored again
-	if _, store, _ := d.Decode("one", json, decode); store == nil {
+	if _, store, _ := d.Decode("one", Origin{}, json, decode); store == nil {
 		t.Error("the oldest slot was kept")
 	}
-	if _, store, _ := d.Decode("three", json, decode); store != nil {
+	if _, store, _ := d.Decode("three", Origin{}, json, decode); store != nil {
 		t.Error("the newest slot was not kept")
 	}
 }

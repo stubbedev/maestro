@@ -75,7 +75,7 @@ type File struct {
 
 // decodedFiles keeps the files read with KeepDecoded decoded between
 // runs, a slot per file (cache.Decoded), at most decodedFilesSlots.
-var decodedFiles = cache.NewDecoded("maestro-json-v1\n", 4096, decodedFilesSlots)
+var decodedFiles = cache.NewDecoded("maestro-json-v2\n", 4096, decodedFilesSlots)
 
 // decodedFilesSlots is how many files' slots decodedFiles keeps: a slot
 // per project of the machine's most recent ones.
@@ -176,7 +176,7 @@ func (f *File) parse(json string) (any, error) {
 	if real, ok := php.Realpath(f.path); ok {
 		source = real
 	}
-	data, store, err := decodedFiles.Decode(source, json, parse)
+	data, store, err := decodedFiles.Decode(source, cache.Origin{}, json, parse)
 	if store != nil {
 		store()
 	}
