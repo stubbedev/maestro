@@ -62,7 +62,10 @@ func (m *DownloadManager) Prefetch(p, prev pkg.PackageInterface) {
 // prefetch is Prefetch for d's own download(): the first URL as the
 // $download closure requests it, unless the files cache answers it or a
 // listener may change the request (PRE_FILE_DOWNLOAD) or a PHP subclass
-// overrides the download.
+// overrides the download. A cached archive's tree is materialized ahead
+// only when no POST_FILE_DOWNLOAD listener waits: Composer extracts after
+// that event, from the file the listener may have changed, and nothing
+// of the package may exist before it.
 func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 	pf, ok := d.http.(copyPrefetcher)
 	if !ok || d.hooks != nil || !p.DistURL().Valid {
@@ -79,6 +82,8 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 		return
 	}
 
+	postListened := false
+
 	if d.events != nil {
 		l, ok := d.events.(listenerChecker)
 		if !ok {
@@ -89,6 +94,8 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 		if l.WillDispatchTo(eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, getter, processed, "package", p)) {
 			return
 		}
+
+		postListened = l.WillDispatchTo(eventdispatcher.NewPostFileDownloadEvent(eventdispatcher.PostFileDownload, pkg.NullString{}, p.DistSha1Checksum(), processed, "package", p))
 	}
 
 	// a cached archive is taken as a hit without hashing it (download()
@@ -101,7 +108,9 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 		}
 
 		if h.Holds(cacheKey(p, processed)) {
-			d.prefetchMaterial(p)
+			if !postListened {
+				d.prefetchMaterial(p)
+			}
 
 			return
 		}

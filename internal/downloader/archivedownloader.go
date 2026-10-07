@@ -5,6 +5,8 @@
 package downloader
 
 import (
+	"crypto/sha1" //nolint:gosec // compares a file before and after an event
+	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -89,7 +91,7 @@ func (a *ArchiveDownloader) download(c call, p pkg.PackageInterface, path string
 
 	result := then(promise, func(file string) (*Promise, string, error) {
 		if !st.stagedFromStore {
-			return a.stageAsync(p, st.fileName), "", nil
+			return a.stageAsync(p, st.fileName, !st.changed), "", nil
 		}
 
 		return nil, file, nil
@@ -429,17 +431,44 @@ func (d *FileDownloader) lookupStore(p pkg.PackageInterface) *store.Release {
 // missing from the store (or were found modified and dropped), the store
 // is healed from the cached archive, opened when the cache was read: it is
 // copied to the temporary file, as copyTo would have, and extracted.
+//
+// POST_FILE_DOWNLOAD fires first, as Composer fires it on the resolved
+// promise of a cache hit before the next download starts and before
+// anything is extracted. Composer copies the cached archive to the
+// temporary file the event names, so it is copied first when a listener
+// may read it; a listener that changed it gets what it left extracted,
+// without the store (whose release is the cached archive's).
 func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullString) *Promise {
 	p := st.p
 	rel, cached := st.release, st.archive
 	st.release, st.archive = nil, nil
-	s := d.newStaged(p)
-	// Composer copies the cached archive to the temporary file that
-	// POST_FILE_DOWNLOAD names; copy it too when a listener may read it.
 	copied := d.postListened(st, url, checksum)
+	sum := ""
+
+	if copied {
+		var err error
+		if sum, err = copyOpenFileSha1(cached, st.fileName); err != nil {
+			_ = cached.Close()
+
+			return rejected(err)
+		}
+	}
+
+	if err := d.dispatchPost(st, url, checksum); err != nil {
+		_ = cached.Close()
+
+		return rejected(err)
+	}
+
+	changed := copied && !sameSha1(st.fileName, sum)
+	s := d.newStaged(p)
 
 	materialized := util.GoBackground(d.process.Scheduler(), func() (string, error) {
 		defer func() { _ = cached.Close() }()
+
+		if changed {
+			return "", d.extractToStore(p, st.fileName, s.dir, false)
+		}
 
 		// Composer extracts the archive on every install, so PharData's
 		// checks apply although the files come from the store.
@@ -449,12 +478,6 @@ func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullStri
 			}
 
 			if err := pharCompressionCheckAt(st.fileName, cached, d.extensionLoaded); err != nil {
-				return "", err
-			}
-		}
-
-		if copied {
-			if err := copyOpenFile(cached, st.fileName); err != nil {
 				return "", err
 			}
 		}
@@ -470,34 +493,37 @@ func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullStri
 			}
 		}
 
-		return "", d.extractToStore(p, st.fileName, s.dir)
+		return "", d.extractToStore(p, st.fileName, s.dir, true)
 	})
 
 	// failures are reported by install(), as an extraction failure would be
-	finish := func(err error) (string, error) {
+	finish := func(err error) string {
 		st.stagedFromStore = true
 		d.finishStage(p, st.fileName, s, err)
 
-		if err := d.dispatchPost(st, url, checksum); err != nil {
-			return "", err
-		}
-
-		return st.fileName, nil
+		return st.fileName
 	}
 
 	return then(materialized, func(string) (*Promise, string, error) {
-		file, err := finish(nil)
-
-		return nil, file, err
+		return nil, finish(nil), nil
 	}, func(err error) (*Promise, string, error) {
-		file, err := finish(err)
-
-		return nil, file, err
+		return nil, finish(err), nil
 	})
 }
 
+// copyOpenFileSha1 is copyOpenFile, returning the sha1 of what it copied.
+func copyOpenFileSha1(src *os.File, target string) (string, error) {
+	h := sha1.New() //nolint:gosec // compared with the file after POST_FILE_DOWNLOAD, not a security check
+
+	if err := copyOpenFile(io.TeeReader(src, h), target); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 // copyOpenFile is copy() from an open file to a new file at target.
-func copyOpenFile(src *os.File, target string) error {
+func copyOpenFile(src io.Reader, target string) error {
 	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // copy()'s mode, the umask applies
 	if err != nil {
 		return err
@@ -521,19 +547,19 @@ func (d *FileDownloader) setStaged(fileName string, s *staged) {
 // a staging directory, recording the outcome for install().
 func (d *FileDownloader) stage(p pkg.PackageInterface, fileName string) *staged {
 	s := d.newStaged(p)
-	d.finishStage(p, fileName, s, d.extractToStore(p, fileName, s.dir))
+	d.finishStage(p, fileName, s, d.extractToStore(p, fileName, s.dir, true))
 
 	return s
 }
 
 // stageAsync is stage for a download: the extraction runs on its own
 // goroutine while the other downloads go on, and the promise resolves to
-// fileName once its outcome is recorded.
-func (d *FileDownloader) stageAsync(p pkg.PackageInterface, fileName string) *Promise {
+// fileName once its outcome is recorded. shared is extractToStore's.
+func (d *FileDownloader) stageAsync(p pkg.PackageInterface, fileName string, shared bool) *Promise {
 	s := d.newStaged(p)
 
 	extracted := util.GoBackground(d.process.Scheduler(), func() (string, error) {
-		return fileName, d.extractToStore(p, fileName, s.dir)
+		return fileName, d.extractToStore(p, fileName, s.dir, shared)
 	})
 
 	return then(extracted, func(string) (*Promise, string, error) {
@@ -566,9 +592,10 @@ func (d *FileDownloader) finishStage(p pkg.PackageInterface, fileName string, s 
 }
 
 // extractToStore inserts the archive into the shared store, or into a
-// temporary one when the shared one must not be written, and materializes
-// it at dir.
-func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir string) error {
+// temporary one when the shared one must not be written or shared is
+// false (an archive a POST_FILE_DOWNLOAD listener changed is not the
+// dist's), and materializes it at dir.
+func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir string, shared bool) error {
 	if d.format == archive.Tar {
 		if err := pharDataCheck(fileName); err != nil {
 			return err
@@ -581,7 +608,7 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 
 	s := d.store
 
-	if _, write := d.storeAccess(); !write {
+	if _, write := d.storeAccess(); !write || !shared {
 		method, err := store.ParseMethod(os.Getenv(store.MethodEnv))
 		if err != nil {
 			return err

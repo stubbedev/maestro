@@ -241,6 +241,9 @@ type dlState struct {
 	archive *os.File
 	// stagedFromStore: the package was materialized from the store.
 	stagedFromStore bool
+	// changed: a POST_FILE_DOWNLOAD listener changed the file, so it is
+	// extracted without the shared store, which keys trees on the dist.
+	changed bool
 }
 
 // cacheKey is download()'s $cacheKeyGenerator.
@@ -375,9 +378,11 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			return nil, "", &util.UnexpectedValueError{Message: util.SanitizeURL(url.base) + " could not be saved to " + st.fileName + ", make sure the directory is writable and you have internet connectivity"}
 		}
 
+		sum := ""
+
 		if checksum.S != "" {
-			sum, err := sha1File(st.fileName)
-			if err != nil {
+			var err error
+			if sum, err = sha1File(st.fileName); err != nil {
 				return nil, "", err
 			}
 
@@ -386,7 +391,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			}
 		}
 
-		if err := d.dispatchPost(st, url, checksum); err != nil {
+		if err := d.dispatchPostWatched(st, url, checksum, sum); err != nil {
 			return nil, "", err
 		}
 
@@ -450,6 +455,39 @@ func (d *FileDownloader) dispatchPost(st *dlState, url dlURL, checksum pkg.NullS
 	_, err := d.events.Dispatch(ev.Name(), ev)
 
 	return err
+}
+
+// dispatchPostWatched is dispatchPost for a file a store-backed
+// downloader extracts afterwards: what a listener leaves at the file
+// name (verified, patched, replaced) is what Composer extracts, so a
+// change to it is recorded in st.changed. sum is the file's sha1 before
+// the event when already known, else "".
+func (d *FileDownloader) dispatchPostWatched(st *dlState, url dlURL, checksum pkg.NullString, sum string) error {
+	if d.format == 0 || !d.postListened(st, url, checksum) {
+		return d.dispatchPost(st, url, checksum)
+	}
+
+	if sum == "" {
+		var err error
+		if sum, err = sha1File(st.fileName); err != nil {
+			return err
+		}
+	}
+
+	if err := d.dispatchPost(st, url, checksum); err != nil {
+		return err
+	}
+
+	st.changed = !sameSha1(st.fileName, sum)
+
+	return nil
+}
+
+// sameSha1 reports whether the file at path still has the sha1 sum.
+func sameSha1(path, sum string) bool {
+	after, err := sha1File(path)
+
+	return err == nil && after == sum
 }
 
 // postListened reports whether dispatchPost would reach a listener, which

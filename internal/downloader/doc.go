@@ -22,18 +22,27 @@
 //     store have lost objects of the release, it is healed from that open
 //     archive (copied to the temporary file, as copyTo would have, and
 //     extracted): the network is never used for a cached archive.
-//     POST_FILE_DOWNLOAD names the temporary file, which is only written
-//     when something listens to that event or the store was healed. The
-//     tar checks of PharData (file name, zlib/bz2 for compressed tars)
-//     still apply. When the store lacks the release, the archive is
-//     copied and extracted as after a download.
+//     POST_FILE_DOWNLOAD fires at once, as on Composer's resolved promise:
+//     before the next download starts and before anything of the package
+//     is materialized. It names the temporary file, which is only written
+//     when something listens to that event (before it fires) or the store
+//     was healed. A listener that changed the file gets what it left
+//     extracted into a temporary store, as Composer extracts it, instead
+//     of the store's release. The tar checks of PharData (file name,
+//     zlib/bz2 for compressed tars) still apply. When the store lacks the
+//     release, the archive is copied and extracted as after a download.
+//     Trees materialized ahead of their downloads (Prefetch) are only
+//     made while no POST_FILE_DOWNLOAD listener waits.
 //   - A miss downloads the archive as Composer does, verifies it against
 //     the dist shasum, copies it into the files cache, and inserts it into
 //     the store (unless the store holds the release already: an archive
 //     the cache's garbage collection removed) or, when the shared store
 //     must not be written (no files cache, or a read-only one), into a
 //     temporary store beside vendor/, and materializes the package into
-//     the staging directory.
+//     the staging directory. An archive a POST_FILE_DOWNLOAD listener
+//     changed is extracted from what the listener left, into a temporary
+//     store: the shared one keys trees on the dist, which it no longer
+//     is.
 //
 // Packages are materialized with the store's import method (pnpm's auto:
 // reflink, else hardlink, else copy), except Composer plugins

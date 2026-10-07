@@ -1440,7 +1440,11 @@ orders them.
     PRE when a download is queued and POST in the promise callback, at loop
     wait. Go dispatches POST in queue order after waiting, which is
     Composer's order whenever the downloads were started in that order.
-    Document any divergence.
+    A cache hit's promise is already resolved, so its POST fires at once,
+    right after its PRE, the store hit included; nothing of the package is
+    materialized before it (no tree made ahead while a POST listener
+    waits), and a file the listener changed is what gets extracted,
+    without the shared store. Document any divergence.
   - `getInstallPath` and `supports` for PHP installers.
   - PHP installer `download`, `prepare`, `install`, `update`, `uninstall`
     and `cleanup`.

@@ -1,12 +1,17 @@
 {
     "name": "maestro-test/download-events",
-    "description": "PRE_FILE_DOWNLOAD and POST_FILE_DOWNLOAD (docs/PLUGINS.md phase 5): a plugin sees the metadata and package downloads, with their context, and changes the transport options and cache key of a package download.",
+    "description": "PRE_FILE_DOWNLOAD and POST_FILE_DOWNLOAD (docs/PLUGINS.md phase 5): a plugin sees the metadata and package downloads, with their context, and changes the transport options and cache key of a package download. Root scripts on both events show their order per package, which warm caches must keep.",
     "repositories": [
         {"type": "path", "url": "plugin", "options": {"symlink": false}}
     ],
     "require": {
         "maestro-test/download-events-plugin": "*",
+        "psr/container": "2.0.2",
         "psr/log": "3.0.2"
+    },
+    "scripts": {
+        "pre-file-download": "echo ev-pre-file-download",
+        "post-file-download": "echo ev-post-file-download"
     },
     "config": {
         "allow-plugins": {"maestro-test/download-events-plugin": true}
