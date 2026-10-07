@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
+	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 )
 
@@ -15,7 +16,14 @@ import (
 // (tools/oracle/command/help.sh).
 func helpGolden(t *testing.T, golden string, args ...any) {
 	t.Helper()
-	want, err := os.ReadFile("testdata/help/" + goldenFile(golden))
+	got, want := runHelp(t, golden, args...)
+	compareHelp(t, golden, got, want)
+}
+
+// runHelp runs args and returns the display and the golden.
+func runHelp(t *testing.T, golden string, args ...any) (got, want string) {
+	t.Helper()
+	data, err := os.ReadFile("testdata/help/" + goldenFile(golden))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,12 +36,18 @@ func helpGolden(t *testing.T, golden string, args ...any) {
 	if code, err := appTester.RunArgs(commandtest.Options{}, args...); err != nil || code != 0 {
 		t.Fatalf("run: %d %v", code, err)
 	}
-	if got := appTester.Display(true); got != string(want) {
+
+	return appTester.Display(true), string(data)
+}
+
+func compareHelp(t *testing.T, golden, got, want string) {
+	t.Helper()
+	if got != want {
 		i := 0
 		for i < len(got) && i < len(want) && got[i] == want[i] {
 			i++
 		}
-		t.Errorf("%s differs at byte %d:\n got %q\nwant %q", golden, i, tail(got, i), tail(string(want), i))
+		t.Errorf("%s differs at byte %d:\n got %q\nwant %q", golden, i, tail(got, i), tail(want, i))
 	}
 }
 
@@ -45,12 +59,21 @@ func TestHelp_GroupC(t *testing.T) {
 }
 
 // TestHelp_List compares `list` with Composer's once every command is
-// registered.
+// registered, all but the banner (the logo and version up to the first
+// empty line), which is maestro's own (docs/PORTING.md deviation 8).
 func TestHelp_List(t *testing.T) {
 	if !command.AllCommandsRegistered() {
 		t.Skip("not every command is registered yet")
 	}
-	helpGolden(t, "list", "command", "list")
+	got, want := runHelp(t, "list", "command", "list")
+	gotBanner, gotRest, _ := strings.Cut(got, "\n\n")
+	_, wantRest, _ := strings.Cut(want, "\n\n")
+	compareHelp(t, "list", gotRest, wantRest)
+
+	// commandtest's runtime is maestro version "test".
+	if wantBanner := command.Logo + "maestro version test (Composer " + composer.GetVersion() + " compatible)"; gotBanner != wantBanner {
+		t.Errorf("banner:\n%s\nwant:\n%s", gotBanner, wantBanner)
+	}
 }
 
 // TestHelp_ListJSON compares `list --format=json` (every command's

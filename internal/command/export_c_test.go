@@ -22,3 +22,6 @@ func AllCommandsRegistered() bool {
 
 	return true
 }
+
+// Logo is the logo heading the banner of `list`.
+const Logo = logo

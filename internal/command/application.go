@@ -28,12 +28,13 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-const logo = `   ______
-  / ____/___  ____ ___  ____  ____  ________  _____
- / /   / __ \/ __ ` + "`" + `__ \/ __ \/ __ \/ ___/ _ \/ ___/
-/ /___/ /_/ / / / / / / /_/ / /_/ (__  )  __/ /
-\____/\____/_/ /_/ /_/ .___/\____/____/\___/_/
-                    /_/
+// logo heads the banner of `list` and a bare run: maestro's own where
+// Composer prints its logo (docs/PORTING.md deviation 8).
+const logo = `                              __
+   ____ ___  ____ ____  _____/ /__________
+  / __ ` + "`" + `__ \/ __ ` + "`" + `/ _ \/ ___/ __/ ___/ __ \
+ / / / / / / /_/ /  __(__  ) /_/ /  / /_/ /
+/_/ /_/ /_/\__,_/\___/____/\__/_/   \____/
 `
 
 // PluginCommandProvider is implemented by a composer.PluginManager that
@@ -769,8 +770,8 @@ func (a *Application) runCommand(in console.Input, out console.Output, cio *io.C
 			cio.WriteError("<info>PHP</info> version <comment>"+snap.Version+"</comment> ("+snap.PHPBinary()+")", true, io.Normal)
 		}
 		cio.WriteError(`Run the "diagnose" command to get more detailed diagnostics output.`, true, io.Normal)
-		if v := a.Runtime().ClientVersion(); v != "" {
-			cio.WriteError("<info>maestro</info> version <comment>"+v+"</comment>", true, io.Normal)
+		if a.Runtime().ClientVersion() != "" {
+			cio.WriteError(a.maestroVersion(), true, io.Normal)
 		}
 	}
 
@@ -1044,8 +1045,22 @@ func (a *Application) IO() io.IO { return a.io }
 // SetIO replaces the IO (what doRun creates); for tests and nested runs.
 func (a *Application) SetIO(out io.IO) { a.io = out }
 
-// Help ports getHelp.
-func (a *Application) Help() string { return logo + a.Application.Help() }
+// Help ports getHelp: the banner of `list` and a bare run is maestro's
+// logo, its version and the Composer release it reproduces, where Composer
+// prints its logo and long version (docs/PORTING.md deviation 8).
+func (a *Application) Help() string {
+	return logo + a.maestroVersion() + " (Composer <comment>" + a.Version() + "</comment> compatible)"
+}
+
+// maestroVersion is "maestro version X", X being cmd/maestro's stamped
+// build version, or just "maestro" when the runtime has none.
+func (a *Application) maestroVersion() string {
+	if v := a.Runtime().ClientVersion(); v != "" {
+		return "<info>maestro</info> version <comment>" + v + "</comment>"
+	}
+
+	return "<info>maestro</info>"
+}
 
 // DefaultCommands ports getDefaultCommands.
 func (a *Application) DefaultCommands() []console.Commander {

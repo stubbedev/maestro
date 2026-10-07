@@ -46,6 +46,10 @@
 //   - Durations printed at -vv ("... completed in 0.003 seconds").
 //   - The "maestro version X" line `--version` adds on stderr (maestro's
 //     own build, cmd/maestro/main.go).
+//   - The banner of `list` and a bare run (Composer's logo and long
+//     version, maestro's logo and version; docs/PORTING.md deviation 8),
+//     at the start of the output only: the command list and options after
+//     it are compared.
 //   - The random APCu prefix in vendor/composer/autoload_real.php
 //     (dump-autoload --apcu without --apcu-prefix: bin2hex(random_bytes(10))).
 //   - Scenario-specific ones, each documented at its step (normalize):
@@ -730,6 +734,10 @@ var tmpFile = regexp.MustCompile(`[/\\]tmp-[0-9a-f]+(?: *\r?\n +[0-9a-f]+)?`)
 // Composer's (cmd/maestro's doc): maestro names its own build there.
 var maestroVersion = regexp.MustCompile(`(?m)^maestro version .*\n`)
 
+// banner is the logo and version line heading `list`'s output: lines of
+// ASCII art, then "<name> version ..." (with --ansi, styled).
+var banner = regexp.MustCompile("\\A(?:[ _/\\\\|().,'`-]+\r?\n)+(?:\x1b\\[[0-9;]*m)*(?:Composer|maestro)(?:\x1b\\[[0-9;]*m)* version [^\n]*\n")
+
 // normalizeOutput applies the global normalisations (see the file comment).
 func normalizeOutput(s string) string {
 	lines := strings.Split(s, "\n")
@@ -760,6 +768,8 @@ func normalizeOutput(s string) string {
 	s = tmpFile.ReplaceAllStringFunc(s, func(m string) string {
 		return m[:len("/tmp-")] + regexp.MustCompile(`[0-9a-f]`).ReplaceAllString(m[len("/tmp-"):], "x")
 	})
+
+	s = banner.ReplaceAllString(s, "<banner>\n")
 
 	return maestroVersion.ReplaceAllString(s, "")
 }

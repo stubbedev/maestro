@@ -18,7 +18,10 @@ Composer exactly; how errors and diagnostics are presented is maestro's own
 
 - **CLI surface.** Commands and their aliases, arguments, options, short
   options, defaults, validation (what is accepted and what is refused),
-  `list`/`help` contents and option suggestions/completion.
+  `help` contents, `list`'s commands, their order and descriptions, every
+  `list --format` and `list --raw` output, and option
+  suggestions/completion. The banner heading `list`'s text output is
+  maestro's (deviation 8).
 - **Exit codes**, for every outcome, including partial ones
   (`outdated --strict`, `audit` with advisories or abandoned packages,
   `validate` with warnings, `check-platform-reqs` failures, script failures
@@ -186,6 +189,13 @@ These change frozen behaviour on purpose; nothing else may.
    depending on the order removals finish. maestro only touches the bin dir
    for packages with binaries: an empty bin dir is never created by a
    removal, and the last binary removed takes it away.
+8. **The `list` banner** (also a bare `maestro`), like deviation 6, says
+   which tool runs: maestro's logo and `maestro version X (Composer
+   2.10.3 compatible)` replace Composer's logo and long version, decorated
+   or not, piped or not. Only the banner changes: the usage, options and
+   commands below it, `list --raw` and `list --format=json|xml|md` stay
+   Composer's (`TestHelp_List` and the e2e tests compare all of it but the
+   banner).
 
 ## Layout
 

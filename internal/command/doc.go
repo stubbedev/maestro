@@ -8,7 +8,9 @@
 // Version: the Application is "Composer" at Composer::getVersion() with
 // Composer's release date, so `--version` prints exactly Composer's first
 // line; Application::doRun's stderr lines follow, plus a last stderr line
-// "maestro version X" (X is cmd/maestro's stamped version).
+// "maestro version X" (X is cmd/maestro's stamped version). The banner of
+// `list` and a bare run is maestro's logo and "maestro version X (Composer
+// V compatible)" instead of Composer's (docs/PORTING.md deviation 8).
 //
 // Plugins: commands of CommandProvider capabilities come from the
 // Composer's PluginManager when it implements PluginCommandProvider, and
