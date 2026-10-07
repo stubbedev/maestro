@@ -3,6 +3,7 @@ package autoload
 import (
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -71,6 +72,14 @@ func TestGenerator_DumpTakesSpeculation(t *testing.T) {
 	}
 }
 
+// anonymize replaces e's working directory in s, as written natively and
+// with forward slashes (the form Composer prints paths in on Windows).
+func (e *env) anonymize(s string) string {
+	s = strings.ReplaceAll(s, e.workingDir, "<dir>")
+
+	return strings.ReplaceAll(s, filepath.ToSlash(e.workingDir), "<dir>")
+}
+
 // generatedFiles are the files a dump of e wrote, by name.
 func (e *env) generatedFiles() map[string]string {
 	e.t.Helper()
@@ -84,7 +93,7 @@ func (e *env) generatedFiles() map[string]string {
 		return paths
 	}()...) {
 		if content, err := os.ReadFile(path); err == nil {
-			files[strings.TrimPrefix(path, e.vendorDir)] = strings.ReplaceAll(string(content), e.workingDir, "<dir>")
+			files[strings.TrimPrefix(path, e.vendorDir)] = e.anonymize(string(content))
 		}
 	}
 
@@ -96,7 +105,7 @@ func (e *env) generatedFiles() map[string]string {
 func TestGenerator_DumpAheadIsTheDump(t *testing.T) {
 	want, p := speculationEnv(t)
 	want.dump(p, true, "_1")
-	wantOut := strings.ReplaceAll(want.io.Output(), want.workingDir, "<dir>")
+	wantOut := want.anonymize(want.io.Output())
 	wantFiles := want.generatedFiles()
 
 	e, p := speculationEnv(t)
@@ -112,7 +121,7 @@ func TestGenerator_DumpAheadIsTheDump(t *testing.T) {
 	e.write(e.vendorDir+"/composer/autoload_psr4.php", "<?php return array( );\n")
 	e.dump(p, true, "_1")
 
-	if got := strings.ReplaceAll(e.io.Output(), e.workingDir, "<dir>"); got != wantOut {
+	if got := e.anonymize(e.io.Output()); got != wantOut {
 		t.Errorf("output %q, want %q", got, wantOut)
 	}
 	if got := e.generatedFiles(); !maps.Equal(got, wantFiles) {
