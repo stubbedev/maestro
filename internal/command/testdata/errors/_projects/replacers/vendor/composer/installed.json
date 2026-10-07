@@ -1,0 +1,39 @@
+{
+    "packages": [
+        {
+            "name": "x/app",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "require": {
+                "x/old": "^1.0"
+            },
+            "type": "metapackage",
+            "install-path": null
+        },
+        {
+            "name": "x/new",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "replace": {
+                "x/old": "1.0.0"
+            },
+            "provide": {
+                "x/api": "1.0.0"
+            },
+            "type": "metapackage",
+            "install-path": null
+        },
+        {
+            "name": "x/user",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "require": {
+                "x/api": "^1.0"
+            },
+            "type": "metapackage",
+            "install-path": null
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

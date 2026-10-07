@@ -1,0 +1,17 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "x/foo": "^1.0"
+    },
+    "config": {
+        "platform": {
+            "php": "8.1.0"
+        }
+    }
+}

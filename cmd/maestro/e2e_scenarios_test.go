@@ -64,6 +64,7 @@ func fixtureScenarios() []scenario {
 				{args: []string{"suggests", "--no-dev"}},
 				{args: []string{"why", "psr/log"}},
 				{args: []string{"why", "psr/log", "-t"}},
+				{args: []string{"depends", "psr/log", "-r"}},
 				{args: []string{"why-not", "psr/log", "4.0"}},
 				{args: []string{"why-not", "php", "9"}},
 				{args: []string{"check-platform-reqs"}},
@@ -104,6 +105,10 @@ func fixtureScenarios() []scenario {
 				// _complete swallows: no suggestions, exit 0.
 				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-iwhy", "-i"}, dir: "."},
 				{args: []string{"diagnose"}, setup: installPubKeys, normalize: normalizeDiagnose},
+				// the lock without the vendor directory
+				{args: []string{"depends", "psr/log", "--locked"}, setup: removeVendor},
+				{args: []string{"depends", "psr/log", "-t", "--locked"}},
+				{args: []string{"depends", "psr/log"}},
 			},
 		},
 		{
@@ -301,7 +306,10 @@ func fixtureScenarios() []scenario {
 				{args: []string{"update"}},
 				{args: []string{"check-platform-reqs"}},
 				{args: []string{"check-platform-reqs", "--lock"}},
+				{args: []string{"depends", "php"}},
+				{args: []string{"depends", "ext-foo"}},
 				{args: []string{"config", "platform.php", "--unset"}},
+				{args: []string{"depends", "php", "--tree"}},
 				{args: []string{"update", "psr/log"}},
 				{args: []string{"require", "ext-nonexistent:*"}},
 				{args: []string{"require", "ext-nonexistent:*", "--ignore-platform-req=ext-nonexistent"}},

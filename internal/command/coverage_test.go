@@ -80,7 +80,15 @@ var coverage = []entry{
 	cover(command.NewDependsCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestBaseDependencyCommandTest_WhyCommandOutputs)),
+			Positive(E2E("commands", "depends", "psr/log", "-r")),
+			Positive(E2E("commands", "depends", "psr/log", "--locked")),
+			Positive(E2E("commands", "depends", "psr/log", "-t", "--locked")),
+			Positive(E2E("platform", "depends", "php")),
+			Positive(E2E("platform", "depends", "php", "--tree")),
 			Negative(Go(TestBaseDependencyCommandTest_ExceptionWhenNoRequiredParameters)),
+			Negative(Go(TestBaseDependencyCommandTest_WarningWhenDependenciesAreNotInstalled)),
+			Negative(E2E("commands", "depends", "psr/log")),
+			Negative(E2E("platform", "depends", "ext-foo")),
 		},
 	}),
 	cover(command.NewProhibitsCommand, Coverage{

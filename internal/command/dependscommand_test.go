@@ -6,6 +6,7 @@ package command_test
 import (
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
@@ -111,10 +112,18 @@ func TestBaseDependencyCommandTest_WarningWhenDependenciesAreNotInstalled(t *tes
 
 			commandtest.CreateComposerLock(t, gbPkgs(required), gbPkgs(devRequired))
 
+			// Composer's test asserts the text; the line also goes to
+			// stdout, not stderr, and the run fails
 			appTester := commandtest.GetApplicationTester(t)
-			_, _ = appTester.Run(gbMerge(gbParams("command", tc.command), tc.parameters, false), commandtest.Options{})
-
+			code, err := appTester.Run(gbMerge(gbParams("command", tc.command), tc.parameters, false), commandtest.Options{CaptureStderrSeparately: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if code != 1 {
+				t.Errorf("status %d, want 1", code)
+			}
 			gbAssertSame(t, "<warning>No dependencies installed. Try running composer install or update, or use --locked.</warning>", gbTrim(appTester))
+			gbAssertSame(t, "", appTester.ErrorOutput(true))
 		})
 	}
 }
@@ -144,57 +153,62 @@ __root__         -     requires vendor1/package3 (2.3.0)
 vendor1/package2 2.3.0 requires vendor1/package3 (^1)`, 0},
 		{"a simple package dev dependency", gbParams("package", "vendor2/package1"), `__root__ - requires (for development) vendor2/package1 (2.*)`, 0},
 	}
+	// Composer runs the why alias: each name depends registers gives the
+	// same output
+	depends := command.NewDependsCommand()
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var pkgName any
-			renderAsTree, renderRecursively := false, false
-			for _, p := range tc.parameters {
-				switch p.Key {
-				case "package":
-					pkgName = p.Value
-				case "--tree":
-					renderAsTree, _ = p.Value.(bool)
-				case "--recursive":
-					renderRecursively, _ = p.Value.(bool)
+		for _, name := range append([]string{depends.Name()}, depends.Aliases()...) {
+			t.Run(tc.name+"/"+name, func(t *testing.T) {
+				var pkgName any
+				renderAsTree, renderRecursively := false, false
+				for _, p := range tc.parameters {
+					switch p.Key {
+					case "package":
+						pkgName = p.Value
+					case "--tree":
+						renderAsTree, _ = p.Value.(bool)
+					case "--recursive":
+						renderRecursively, _ = p.Value.(bool)
+					}
 				}
-			}
 
-			commandtest.InitTempComposer(t, php.ArrayOf(
-				"repositories", gbPackageRepo(
-					gbRepoPackage("name", "vendor1/package1", "version", "1.3.0", "require", php.ArrayOf("vendor1/package2", "^2")),
-					gbRepoPackage("name", "vendor1/package2", "version", "2.3.0", "require", php.ArrayOf("vendor1/package3", "^1")),
-					gbRepoPackage("name", "vendor1/package3", "version", "2.1.0"),
-				),
-				"require", php.ArrayOf(
-					"vendor1/package2", "1.3.0",
-					"vendor1/package3", "2.3.0",
-				),
-				"require-dev", php.ArrayOf("vendor2/package1", "2.*"),
-			), nil, nil, true)
+				commandtest.InitTempComposer(t, php.ArrayOf(
+					"repositories", gbPackageRepo(
+						gbRepoPackage("name", "vendor1/package1", "version", "1.3.0", "require", php.ArrayOf("vendor1/package2", "^2")),
+						gbRepoPackage("name", "vendor1/package2", "version", "2.3.0", "require", php.ArrayOf("vendor1/package3", "^1")),
+						gbRepoPackage("name", "vendor1/package3", "version", "2.1.0"),
+					),
+					"require", php.ArrayOf(
+						"vendor1/package2", "1.3.0",
+						"vendor1/package3", "2.3.0",
+					),
+					"require-dev", php.ArrayOf("vendor2/package1", "2.*"),
+				), nil, nil, true)
 
-			first := commandtest.GetPackage(t, "vendor1/package1", "1.3.0")
-			first.SetRequires(pkg.LinksOf(dependsMatchAllLink("vendor1/package1", "vendor1/package2", "^2")))
-			second := commandtest.GetPackage(t, "vendor1/package2", "2.3.0")
-			second.SetRequires(pkg.LinksOf(dependsMatchAllLink("vendor1/package2", "vendor1/package3", "^1")))
-			third := commandtest.GetPackage(t, "vendor1/package3", "2.1.0")
-			dev := commandtest.GetPackage(t, "vendor2/package1", "1.0.0")
-			commandtest.CreateComposerLock(t, gbPkgs(first, second, third), gbPkgs(dev))
-			commandtest.CreateInstalledJSON(t, gbPkgs(first, second, third), gbPkgs(dev), true)
+				first := commandtest.GetPackage(t, "vendor1/package1", "1.3.0")
+				first.SetRequires(pkg.LinksOf(dependsMatchAllLink("vendor1/package1", "vendor1/package2", "^2")))
+				second := commandtest.GetPackage(t, "vendor1/package2", "2.3.0")
+				second.SetRequires(pkg.LinksOf(dependsMatchAllLink("vendor1/package2", "vendor1/package3", "^1")))
+				third := commandtest.GetPackage(t, "vendor1/package3", "2.1.0")
+				dev := commandtest.GetPackage(t, "vendor2/package1", "1.0.0")
+				commandtest.CreateComposerLock(t, gbPkgs(first, second, third), gbPkgs(dev))
+				commandtest.CreateInstalledJSON(t, gbPkgs(first, second, third), gbPkgs(dev), true)
 
-			appTester := commandtest.GetApplicationTester(t)
-			_, _ = appTester.Run(gbParams(
-				"command", "why",
-				"package", pkgName,
-				"--tree", renderAsTree,
-				"--recursive", renderRecursively,
-				"--locked", true,
-			), commandtest.Options{})
+				appTester := commandtest.GetApplicationTester(t)
+				_, _ = appTester.Run(gbParams(
+					"command", name,
+					"package", pkgName,
+					"--tree", renderAsTree,
+					"--recursive", renderRecursively,
+					"--locked", true,
+				), commandtest.Options{})
 
-			if appTester.StatusCode() != tc.status {
-				t.Errorf("status %d, want %d", appTester.StatusCode(), tc.status)
-			}
-			gbAssertSame(t, php.Trim(tc.expected), commandtest.TrimLines(appTester.Display(true)))
-		})
+				if appTester.StatusCode() != tc.status {
+					t.Errorf("status %d, want %d", appTester.StatusCode(), tc.status)
+				}
+				gbAssertSame(t, php.Trim(tc.expected), commandtest.TrimLines(appTester.Display(true)))
+			})
+		}
 	}
 }
 

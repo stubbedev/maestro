@@ -1,0 +1,4 @@
+depends
+x/foo
+--locked
+-t

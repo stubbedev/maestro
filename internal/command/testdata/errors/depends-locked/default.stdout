@@ -1,0 +1,4 @@
+x/foo 1.0.0 
+|--acme/app (requires x/foo ^1.0)
+`--x/bar 1.0.0 (requires x/foo ^1.0)
+   `--acme/app (requires x/bar ^1.0)

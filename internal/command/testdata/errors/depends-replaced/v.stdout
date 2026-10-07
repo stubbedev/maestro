@@ -1,0 +1,2 @@
+x/app 1.0.0 requires x/old (^1.0)  
+x/new 1.0.0 replaces x/old (1.0.0) 
