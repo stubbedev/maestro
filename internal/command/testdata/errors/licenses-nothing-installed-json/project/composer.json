@@ -1,0 +1,7 @@
+{
+    "name": "acme/app",
+    "license": "MIT",
+    "require": {
+        "x/mit": "^1.0"
+    }
+}

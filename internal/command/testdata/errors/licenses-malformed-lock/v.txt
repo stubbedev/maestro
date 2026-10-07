@@ -1,0 +1,38 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In JsonFile.php line 398:
+                                                                               
+  [Seld\JsonLint\ParsingException]                                             
+  "./composer.lock" does not contain valid JSON                                
+  Parse error on line 1:                                                       
+  {"packages": [                                                               
+  -------------^                                                               
+  Expected one of: 'STRING', 'NUMBER', 'NULL', 'TRUE', 'FALSE', '{', '[', ']'  
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:398
+ Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:363
+ Composer\Json\JsonFile::parseJson() at @COMPOSER@/src/Composer/Json/JsonFile.php:127
+ Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Package/Locker.php:341
+ Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:130
+ Composer\Package\Locker->isLocked() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:692
+ Composer\Plugin\PluginManager->parseAllowedPlugins() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:90
+ Composer\Plugin\PluginManager->__construct() at @COMPOSER@/src/Composer/Factory.php:576
+ Composer\Factory->createPluginManager() at @COMPOSER@/src/Composer/Factory.php:441
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:629
+ Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:129
+ Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:240
+ Composer\Command\BaseCommand->initialize() at @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+licenses [-f|--format FORMAT] [--no-dev] [--locked]
+
+exit 1

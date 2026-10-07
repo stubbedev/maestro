@@ -1,0 +1,25 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "package",
+            "package": [
+                {"name": "x/mit", "version": "1.0.0", "type": "metapackage", "license": "MIT"},
+                {"name": "x/dual", "version": "2.1.0", "type": "metapackage", "license": ["GPL-2.0-only", "MIT"]},
+                {"name": "x/none", "version": "0.3.0", "type": "metapackage"},
+                {"name": "x/tool", "version": "3.0.0", "type": "metapackage", "license": "BSD-3-Clause"}
+            ]
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/mit": "^1.0",
+        "x/dual": "^2.0",
+        "x/none": "^0.3"
+    },
+    "require-dev": {
+        "x/tool": "^3.0"
+    }
+}

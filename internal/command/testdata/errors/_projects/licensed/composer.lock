@@ -1,0 +1,50 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "00000000000000000000000000000000",
+    "packages": [
+        {
+            "name": "x/dual",
+            "version": "2.1.0",
+            "type": "metapackage",
+            "license": [
+                "GPL-2.0-only",
+                "MIT"
+            ]
+        },
+        {
+            "name": "x/mit",
+            "version": "1.0.0",
+            "type": "metapackage",
+            "license": [
+                "MIT"
+            ]
+        },
+        {
+            "name": "x/none",
+            "version": "0.3.0",
+            "type": "metapackage"
+        }
+    ],
+    "packages-dev": [
+        {
+            "name": "x/tool",
+            "version": "3.0.0",
+            "type": "metapackage",
+            "license": [
+                "BSD-3-Clause"
+            ]
+        }
+    ],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": {},
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": {},
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
+}

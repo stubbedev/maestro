@@ -1,0 +1,24 @@
+{
+    "name": "acme/app",
+    "version": "1.0.0+no-version-set",
+    "license": [],
+    "dependencies": {
+        "x/dual": {
+            "version": "2.1.0",
+            "license": [
+                "GPL-2.0-only",
+                "MIT"
+            ]
+        },
+        "x/mit": {
+            "version": "1.0.0",
+            "license": [
+                "MIT"
+            ]
+        },
+        "x/none": {
+            "version": "0.3.0",
+            "license": []
+        }
+    }
+}

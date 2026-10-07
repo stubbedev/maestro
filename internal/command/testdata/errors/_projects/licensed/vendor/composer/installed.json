@@ -1,0 +1,46 @@
+{
+    "packages": [
+        {
+            "name": "x/dual",
+            "version": "2.1.0",
+            "version_normalized": "2.1.0.0",
+            "type": "metapackage",
+            "license": [
+                "GPL-2.0-only",
+                "MIT"
+            ],
+            "install-path": null
+        },
+        {
+            "name": "x/mit",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "type": "metapackage",
+            "license": [
+                "MIT"
+            ],
+            "install-path": null
+        },
+        {
+            "name": "x/none",
+            "version": "0.3.0",
+            "version_normalized": "0.3.0.0",
+            "type": "metapackage",
+            "install-path": null
+        },
+        {
+            "name": "x/tool",
+            "version": "3.0.0",
+            "version_normalized": "3.0.0.0",
+            "type": "metapackage",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "install-path": null
+        }
+    ],
+    "dev": true,
+    "dev-package-names": [
+        "x/tool"
+    ]
+}
