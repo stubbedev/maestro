@@ -156,22 +156,48 @@ func ParseSnapshot(binary string, output []byte) (*Snapshot, error) {
 		return fail("its result is not valid JSON: " + err.Error())
 	}
 
+	s, reason := snapshotOf(binary, decoded)
+	if reason != "" {
+		return fail(reason)
+	}
+
+	return s, nil
+}
+
+// probeResult is the decoded JSON of the probe's output, or nil.
+func probeResult(output []byte) any {
+	i := bytes.LastIndex(output, []byte(probeMarker))
+	if i < 0 {
+		return nil
+	}
+
+	decoded, err := php.JSONDecode(string(output[i+len(probeMarker):]), true)
+	if err != nil {
+		return nil
+	}
+
+	return decoded
+}
+
+// snapshotOf is the snapshot of the probe's decoded result, or why there
+// is none.
+func snapshotOf(binary string, decoded any) (*Snapshot, string) {
 	root, ok := decoded.(*php.Array)
 	if !ok {
-		return fail("its result is not an object")
+		return nil, "its result is not an object"
 	}
 
 	if v, _ := root.Get("format"); v != int64(probeFormat) {
-		return fail("its result has an unknown format")
+		return nil, "its result has an unknown format"
 	}
 
 	s := &Snapshot{Binary: binary}
 
 	if err := s.fill(root); err != nil {
-		return fail(err.Error())
+		return nil, err.Error()
 	}
 
-	return s, nil
+	return s, ""
 }
 
 var errMalformed = errors.New("its result is malformed")

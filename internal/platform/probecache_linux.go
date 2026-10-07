@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/stubbedev/maestro/internal/cache"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // probeCacheMaxAge is how long a cached probe result is used at most,
@@ -26,15 +27,16 @@ const probeCacheMaxAge = 24 * time.Hour
 
 // probeCacheFormat changes whenever what an entry holds or how it is
 // keyed does.
-const probeCacheFormat = "maestro-probe-cache-1"
+const probeCacheFormat = "maestro-probe-cache-2"
 
 // volatileEnv are the environment variables a shell changes from one
 // command to the next, which do not reach php's view of itself; maestro's
 // own (MAESTRO_*) are left out of the key too.
 var volatileEnv = []string{"PWD", "OLDPWD", "SHLVL", "_"}
 
-// probeCacheHeader is the first line of a cache entry; the probe's output
-// follows it.
+// probeCacheHeader is the first line of a cache entry; the probe's result
+// follows it, in php's binary form of decoded JSON (php.AppendBinary),
+// which reads back in a fraction of the time decoding its JSON takes.
 type probeCacheHeader struct {
 	Format  string    `json:"format"`
 	Created time.Time `json:"created"`
@@ -188,8 +190,13 @@ func loadProbeCacheEntry(path, binary string) *Snapshot {
 		}
 	}
 
-	s, err := ParseSnapshot(binary, output)
+	decoded, err := php.DecodeBinary(output)
 	if err != nil {
+		return nil
+	}
+
+	s, reason := snapshotOf(binary, decoded)
+	if reason != "" {
 		return nil
 	}
 
@@ -203,6 +210,11 @@ func loadProbeCacheEntry(path, binary string) *Snapshot {
 // what it mapped.
 func storeProbeCache(key, binary string, s *Snapshot, output []byte) {
 	if !s.hasMappedFiles || len(s.mappedFiles) == 0 {
+		return
+	}
+
+	result, ok := php.AppendBinary(nil, probeResult(output))
+	if !ok {
 		return
 	}
 
@@ -293,7 +305,7 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte) {
 		return
 	}
 
-	_, err = tmp.Write(append(append(line, '\n'), output...))
+	_, err = tmp.Write(append(append(line, '\n'), result...))
 	if cerr := tmp.Close(); err == nil {
 		err = cerr
 	}
