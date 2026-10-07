@@ -134,6 +134,9 @@ type Runtime struct {
 	pendingBegins []int
 	pendingLoader *eventdispatcher.LoaderContents
 	pendingIV     *php.Array
+	// sentLoader is the class loader of makeAutoloader PHP has last
+	// built (autoload.install).
+	sentLoader *eventdispatcher.LoaderContents
 	// parsers is the VersionParser PHP's loaders share (svc_loader.go).
 	parsers versionParsers
 	// frameBases are the depths of the frame stack at the PHP → Go calls

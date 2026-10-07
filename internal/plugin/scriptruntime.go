@@ -187,19 +187,49 @@ func (r *Runtime) InstallAutoloader(loader *eventdispatcher.LoaderContents) erro
 }
 
 func (r *Runtime) installAutoloader(loader *eventdispatcher.LoaderContents) error {
+	r.mu.Lock()
+	sent := loaderParts(r.sentLoader)
+	r.mu.Unlock()
+
+	// A part equal to the one PHP built the previous loader from is
+	// named in `same` instead: makeAutoloader builds the loader again for
+	// an event of another dev mode, which mostly changes the root's
+	// autoload-dev only.
 	a := php.ArrayOf("vendorDir", loader.VendorDir)
-	if loader.Psr0 != nil {
-		a.Set("psr0", loader.Psr0)
+	var same []string
+	for i, part := range loaderParts(loader) {
+		switch {
+		case part == nil:
+		case sent[i] != nil && php.StrictEquals(part, sent[i]):
+			same = append(same, loaderKeys[i])
+		default:
+			a.Set(loaderKeys[i], part)
+		}
 	}
-	if loader.Psr4 != nil {
-		a.Set("psr4", loader.Psr4)
-	}
-	if loader.ClassMap != nil {
-		a.Set("classmap", loader.ClassMap)
+	if same != nil {
+		a.Set("same", php.StringList(same))
 	}
 	_, err := r.Call("autoload.install", a)
+	if err == nil {
+		r.mu.Lock()
+		r.sentLoader = loader
+		r.mu.Unlock()
+	}
 
 	return err
+}
+
+// loaderKeys name the parts of a class loader in autoload.install.
+var loaderKeys = [...]string{"psr0", "psr4", "classmap"}
+
+// loaderParts are the parts of a class loader, as loaderKeys names them
+// (nil for an absent part, all nil for no loader).
+func loaderParts(l *eventdispatcher.LoaderContents) [len(loaderKeys)]*php.Array {
+	if l == nil {
+		return [len(loaderKeys)]*php.Array{}
+	}
+
+	return [...]*php.Array{l.Psr0, l.Psr4, l.ClassMap}
 }
 
 // DispatchBegin implements eventdispatcher.ScriptRuntime. Before PHP runs,

@@ -27,6 +27,9 @@ final class Dispatch
     /** @var ClassLoader|null the loader of makeAutoloader() */
     private static $loader;
 
+    /** @var array<string, mixed>|null what that loader was built from */
+    private static $loaderContents;
+
     /** @var list<array<int, mixed>> spl_autoload_functions() per open dispatch */
     private static $autoloadersBefore = [];
 
@@ -128,12 +131,17 @@ final class Dispatch
     /**
      * `autoload.install`: makeAutoloader's loader replaces the previous
      * one (createLoader() then register(false); `files` are not
-     * required).
+     * required). The parts `same` names are the previous loader's, which
+     * maestro does not send again.
      *
      * @param array<string, mixed> $a
      */
     public static function installAutoloader(array $a): void
     {
+        foreach (isset($a['same']) ? $a['same'] : [] as $key) {
+            $a[$key] = self::$loaderContents[$key];
+        }
+        unset($a['same']);
         if (self::$loader !== null) {
             self::$loader->unregister();
         }
@@ -155,6 +163,8 @@ final class Dispatch
 
         self::$loader = $loader;
         $loader->register(false);
+        // what maestro takes PHP to have once this returns
+        self::$loaderContents = $a;
     }
 
     /**
