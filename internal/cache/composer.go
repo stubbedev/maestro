@@ -29,6 +29,7 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // DefaultAllowlist is Cache's default $allowlist: the characters a cache
@@ -388,7 +389,7 @@ func (c *Cache) Open(file string) (*os.File, error) {
 
 	file = c.key(file)
 
-	f, err := os.Open(c.root + file)
+	f, err := fsstate.Open(c.root + file)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -612,7 +613,7 @@ func (c *Cache) hash(file string, h hash.Hash) (string, bool, error) {
 		return "", false, nil
 	}
 
-	f, err := os.Open(c.root + file)
+	f, err := fsstate.Open(c.root + file)
 	if err != nil {
 		return "", false, err
 	}

@@ -10,6 +10,8 @@ import (
 	"os"
 	"slices"
 	"strconv"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Format is a Composer dist type whose archives maestro extracts.
@@ -301,7 +303,7 @@ type contentReader interface {
 // for format would perform it. It reads the archive's metadata (and, for
 // compressed tars, decompresses it once) but writes nothing.
 func Open(path string, format Format, opts *Options) (*Archive, error) {
-	f, err := os.Open(path)
+	f, err := fsstate.Open(path)
 	if err != nil {
 		return nil, err
 	}

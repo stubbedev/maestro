@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // ArchiveDownloader ports Composer\Downloader\ArchiveDownloader; the
@@ -526,7 +527,7 @@ func copyOpenFileSha1(src *os.File, target string) (string, error) {
 
 // copyOpenFile is copy() from an open file to a new file at target.
 func copyOpenFile(src io.Reader, target string) error {
-	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // copy()'s mode, the umask applies
+	out, err := fsstate.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 	if err != nil {
 		return err
 	}
