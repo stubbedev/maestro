@@ -239,6 +239,18 @@ func DefaultStatics() map[string]rpc.Static {
 			Get: func() any { return int64(util.DeprecationNoticeShown()) },
 			Set: func(v any) { util.SetDeprecationNoticeShown(php.ToNativeInt(v)) },
 		},
+		// Installer::run's gc_disable() and gc_enable() (util.PHPGC),
+		// which only maestro's Installer changes
+		"gc": {
+			Get: func() any {
+				if enabled, touched := util.PHPGC(); touched {
+					return enabled
+				}
+
+				return nil
+			},
+			Set: func(any) {},
+		},
 	}
 }
 

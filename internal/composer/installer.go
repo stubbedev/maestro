@@ -231,6 +231,10 @@ func (i *Installer) Run() (int, error) {
 		defer i.runtime.PopFrame()
 	}
 
+	// Composer's run() disables PHP's cycle collector (plugin code runs
+	// so), until after the post event
+	util.SetPHPGC(false)
+
 	if i.updateAllowList != nil && i.updateMirrors {
 		return 0, &util.RuntimeError{Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
 	}
@@ -501,6 +505,8 @@ func (i *Installer) Run() (int, error) {
 			return 0, err
 		}
 	}
+
+	util.SetPHPGC(true)
 
 	return i.runAudit(lockedRepository, localRepo)
 }

@@ -610,7 +610,12 @@ The same blocks carry other process state:
   `$_ENV`, as `Platform::putEnv` does.
 - **cwd**: `getcwd()` and `os.Getwd()`. The receiver calls `chdir`.
 - **statics**: `Composer::$runningCommand`, `$runningOperation`,
-  `ProcessExecutor` timeout, `Platform` static caches that Composer exposes.
+  `ProcessExecutor` timeout, `Platform` static caches that Composer exposes,
+  and the state of PHP's cycle collector, which `Installer::run` turns off
+  (`gc_collect_cycles(); gc_disable()`) at its start and on again after its
+  post event: maestro's Installer records both, and the shim does them when
+  the static reaches it, so plugin code runs with the collector as in
+  Composer.
 
 Scanning is O(known handles) per transfer. That is a few hundred integer
 compares in normal runs and about 10k during PRE_POOL_CREATE, which is cheap.

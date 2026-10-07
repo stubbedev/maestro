@@ -42,6 +42,9 @@ var PHPStatics = map[string]any{
 	"processTimeout":   int64(300),
 	// ErrorHandler::$hasShownDeprecationNotice
 	"hasShownDeprecationNotice": int64(0),
+	// the cycle collector Installer::run disables (false) and enables
+	// (true); null as PHP's ini has it
+	"gc": nil,
 }
 
 // registration is a PHP-born object Go adopted, announced in the next

@@ -24,12 +24,14 @@ final class Sync
 
     /**
      * Composer's process-wide statics: Composer::$runningCommand,
-     * Composer::$runningOperation, ProcessExecutor::$timeout and
-     * ErrorHandler::$hasShownDeprecationNotice, with PHP's initial values.
+     * Composer::$runningOperation, ProcessExecutor::$timeout,
+     * ErrorHandler::$hasShownDeprecationNotice and the cycle collector
+     * Installer::run disables and enables again (`gc`: null as the ini has
+     * it), with PHP's initial values.
      *
      * @var array<string, mixed>
      */
-    private static $statics = ['runningCommand' => null, 'runningOperation' => null, 'processTimeout' => 300, 'hasShownDeprecationNotice' => 0];
+    private static $statics = ['runningCommand' => null, 'runningOperation' => null, 'processTimeout' => 300, 'hasShownDeprecationNotice' => 0, 'gc' => null];
 
     /** @var array<string, mixed> the statics both sides last agreed on */
     private static $sentStatics = [];
@@ -190,6 +192,15 @@ final class Sync
             foreach ($s['st'] as $name => $value) {
                 self::$statics[$name] = $value;
                 self::$sentStatics[$name] = $value;
+            }
+            // what Installer::run does
+            if (isset($s['st']['gc'])) {
+                if ($s['st']['gc']) {
+                    gc_enable();
+                } else {
+                    gc_collect_cycles();
+                    gc_disable();
+                }
             }
         }
 
