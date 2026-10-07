@@ -10,10 +10,11 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // contentKey names a parse result by the SHA-256 of the file's contents
@@ -248,41 +249,37 @@ func (c *ParseCache) Save() {
 	if len(d.entries) > diskCacheMaxEntries {
 		keep = func(key contentKey) bool { _, ok := d.used[key]; return ok }
 	}
-	if err := os.MkdirAll(filepath.Dir(d.path), 0o755); err != nil {
-		return
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(d.path), ".classmap-*")
-	if err != nil {
-		return
-	}
-	w := bufio.NewWriterSize(tmp, 1<<16)
-	_, _ = w.WriteString(d.header)
-	var buf [binary.MaxVarintLen64]byte
-	// the identity index, dropped wholesale when it outgrows the bound
-	// (this run's files are read again next time, and recorded then)
-	stats := d.stats
-	if len(stats) > diskCacheMaxEntries {
-		stats = nil
-	}
-	_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(stats)))])
-	for key, sum := range stats {
-		for _, v := range [...]uint64{
-			key.dev, key.ino, uint64(key.size), //nolint:gosec // read back as an int64
-			uint64(key.mtimeSec), uint64(key.mtimeNsec), //nolint:gosec // read back as an int64
-			uint64(key.ctimeSec), uint64(key.ctimeNsec), //nolint:gosec // read back as an int64
-		} {
-			_, _ = w.Write(buf[:binary.PutUvarint(buf[:], v)])
+	err := fsstate.WriteAtomicFunc(d.path, func(f io.Writer) error {
+		w := bufio.NewWriterSize(f, 1<<16)
+		_, _ = w.WriteString(d.header)
+		var buf [binary.MaxVarintLen64]byte
+		// the identity index, dropped wholesale when it outgrows the
+		// bound (this run's files are read again next time, and
+		// recorded then)
+		stats := d.stats
+		if len(stats) > diskCacheMaxEntries {
+			stats = nil
 		}
-		_, _ = w.Write(sum[:])
-	}
-	for key, classes := range d.entries {
-		if keep(key) {
-			writeResult(w, key, classes)
+		_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(stats)))])
+		for key, sum := range stats {
+			for _, v := range [...]uint64{
+				key.dev, key.ino, uint64(key.size), //nolint:gosec // read back as an int64
+				uint64(key.mtimeSec), uint64(key.mtimeNsec), //nolint:gosec // read back as an int64
+				uint64(key.ctimeSec), uint64(key.ctimeNsec), //nolint:gosec // read back as an int64
+			} {
+				_, _ = w.Write(buf[:binary.PutUvarint(buf[:], v)])
+			}
+			_, _ = w.Write(sum[:])
 		}
-	}
-	if w.Flush() != nil || tmp.Close() != nil || os.Rename(tmp.Name(), d.path) != nil {
-		_ = os.Remove(tmp.Name())
+		for key, classes := range d.entries {
+			if keep(key) {
+				writeResult(w, key, classes)
+			}
+		}
 
+		return w.Flush()
+	})
+	if err != nil {
 		return
 	}
 	d.added, d.statsChanged, d.racy = 0, false, false

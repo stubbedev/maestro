@@ -19,6 +19,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // probeCacheMaxAge is how long a cached probe result is used at most,
@@ -629,36 +630,12 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.
 // writeProbeCacheEntry replaces the entry at path with data, then prunes
 // the cache.
 func writeProbeCacheEntry(path string, data []byte) {
-	dir := filepath.Dir(path)
-	if os.MkdirAll(dir, 0o755) != nil {
+	if fsstate.WriteAtomic(path, data) != nil {
 		return
 	}
 
-	tmp, err := os.CreateTemp(dir, probeTempPrefix+"*")
-	if err != nil {
-		return
-	}
-
-	_, err = tmp.Write(data)
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-
-	if err != nil || os.Rename(tmp.Name(), path) != nil {
-		_ = os.Remove(tmp.Name())
-
-		return
-	}
-
-	pruneProbeCache(dir)
+	pruneProbeCache(filepath.Dir(path))
 }
-
-// probeTempPrefix starts the name of an entry being written.
-const probeTempPrefix = ".probe-"
-
-// probeTempMaxAge is how old an entry being written is when the process
-// writing it is taken to have died.
-const probeTempMaxAge = 10 * time.Minute
 
 // pruneProbeCache removes the entries in dir unused for probeCacheMaxAge,
 // then the least recently used beyond probeCacheMaxEntries, abandoned
@@ -699,8 +676,8 @@ func pruneProbeCache(dir string) {
 		age := now.Sub(info.ModTime())
 
 		switch {
-		case strings.HasPrefix(e.Name(), probeTempPrefix):
-			if age > probeTempMaxAge {
+		case fsstate.IsTemp(e.Name()):
+			if age > fsstate.TempMaxAge {
 				_ = os.Remove(path)
 			}
 		case age > probeCacheMaxAge:

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // keptGitVersion is where and how GetVersion keeps git's version across
@@ -104,15 +105,5 @@ func storeVersion(path, version string) {
 	if path == "" {
 		return
 	}
-	if os.MkdirAll(filepath.Dir(path), 0o755) != nil {
-		return
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".version-*")
-	if err != nil {
-		return
-	}
-	if _, err := tmp.WriteString(versionCacheHeader + version); err != nil || tmp.Close() != nil || os.Rename(tmp.Name(), path) != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmp.Name())
-	}
+	_ = fsstate.WriteAtomic(path, []byte(versionCacheHeader+version))
 }

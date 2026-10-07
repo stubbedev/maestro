@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // bundledCaCert is composer/ca-bundle's res/cacert.pem (Mozilla's CA
@@ -142,18 +143,8 @@ func BundledCaBundlePath() (string, error) {
 		return path, nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o777); err == nil {
-		tmp, err := os.CreateTemp(filepath.Dir(path), "cacert-*.tmp")
-		if err == nil {
-			_, werr := tmp.Write(bundledCaCert)
-			cerr := tmp.Close()
-
-			if werr == nil && cerr == nil && os.Rename(tmp.Name(), path) == nil {
-				return path, nil
-			}
-
-			_ = os.Remove(tmp.Name())
-		}
+	if fsstate.WriteAtomic(path, bundledCaCert) == nil {
+		return path, nil
 	}
 
 	tmp, err := os.CreateTemp("", "openssl-ca-bundle-")

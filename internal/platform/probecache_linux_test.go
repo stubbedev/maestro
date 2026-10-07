@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // fakeProbeOutput is what probe.php prints for a php of version, which
@@ -337,8 +338,8 @@ func TestProbeCache_Prune(t *testing.T) {
 		"entry3":              3 * time.Hour,
 		"entry4":              2 * time.Hour,
 		"expired":             25 * time.Hour,
-		probeTempPrefix + "1": time.Hour,
-		probeTempPrefix + "2": time.Second,
+		fsstate.TempPrefix + "1": time.Hour,
+		fsstate.TempPrefix + "2": time.Second,
 	}
 
 	for name, age := range files {
@@ -365,7 +366,7 @@ func TestProbeCache_Prune(t *testing.T) {
 		names = append(names, e.Name())
 	}
 
-	want := []string{probeTempPrefix + "2", key, "entry3", "entry4"}
+	want := []string{fsstate.TempPrefix + "2", key, "entry3", "entry4"}
 	slices.Sort(want)
 
 	if !slices.Equal(names, want) {

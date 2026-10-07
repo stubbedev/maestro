@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // decodedCacheDir is where decoded metadata files are kept (nil or "" for
@@ -92,30 +93,8 @@ func (r *ComposerRepository) decodeCached(cacheKey, json string) (data *php.Arra
 		data := make([]byte, 0, len(header)+2*len(json))
 		data = append(append(data, header...), json...)
 		if data, ok := php.AppendBinary(data, a); ok {
-			writeDecoded(dir, path, data)
+			_ = fsstate.WriteAtomic(path, data)
 		}
-	}
-}
-
-// writeDecoded stores data at path, atomically: readers see the old file
-// or the new one. A failure leaves the slot as it was.
-func writeDecoded(dir, path string, data []byte) {
-	if err := os.MkdirAll(dir, 0o777); err != nil {
-		return
-	}
-	f, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return
-	}
-	_, err = f.Write(data)
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	if err == nil {
-		err = os.Rename(f.Name(), path)
-	}
-	if err != nil {
-		_ = os.Remove(f.Name())
 	}
 }
 

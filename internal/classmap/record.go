@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // RecordScan is one ScanPaths call of a recorded set of scans (with no
@@ -277,21 +279,10 @@ func (g *Generator) SaveRecord(rec *Record) {
 		}
 	}
 
-	dir := filepath.Dir(rec.path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if fsstate.WriteAtomic(rec.path, b.Bytes()) != nil {
 		return
 	}
-	tmp, err := os.CreateTemp(dir, ".record-*")
-	if err != nil {
-		return
-	}
-	if _, err := tmp.Write(b.Bytes()); err != nil || tmp.Close() != nil || os.Rename(tmp.Name(), rec.path) != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmp.Name())
-
-		return
-	}
-	pruneRecords(dir)
+	pruneRecords(filepath.Dir(rec.path))
 }
 
 // stampedCtimeNsec is what a record holds as the change time nanoseconds
@@ -335,7 +326,15 @@ func pruneRecords(dir string) {
 	}
 	records := make([]record, 0, len(entries))
 	for _, e := range entries {
-		if info, err := e.Info(); err == nil && info.Mode().IsRegular() {
+		info, err := e.Info()
+		switch {
+		case err != nil || !info.Mode().IsRegular():
+		case fsstate.IsTemp(e.Name()):
+			// a record being written, or abandoned by a writer that died
+			if time.Since(info.ModTime()) > fsstate.TempMaxAge {
+				_ = os.Remove(filepath.Join(dir, e.Name()))
+			}
+		default:
 			records = append(records, record{e.Name(), info.ModTime()})
 		}
 	}
