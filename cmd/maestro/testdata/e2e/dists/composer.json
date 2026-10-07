@@ -4,6 +4,7 @@
     "repositories": [
         {"type": "package", "package": {"name": "acme/zip-nested", "version": "1.0.0", "dist": {"type": "zip", "url": "@ROOT@/dists/zip-nested.zip"}, "bin": ["bin/run"]}},
         {"type": "package", "package": {"name": "acme/zip-flat", "version": "1.0.0", "dist": {"type": "zip", "url": "@ROOT@/dists/zip-flat.zip"}}},
+        {"type": "package", "package": {"name": "acme/zip64", "version": "1.0.0", "dist": {"type": "zip", "url": "@ROOT@/dists/zip64.zip"}}},
         {"type": "package", "package": {"name": "acme/tar-plain", "version": "1.0.0", "dist": {"type": "tar", "url": "@ROOT@/dists/tar-plain.tar"}}},
         {"type": "package", "package": {"name": "acme/tar-gz", "version": "1.0.0", "dist": {"type": "tar", "url": "@ROOT@/dists/tar-gz.tar.gz"}}},
         {"type": "package", "package": {"name": "acme/tar-bz2", "version": "1.0.0", "dist": {"type": "tar", "url": "@ROOT@/dists/tar-bz2.tar.bz2"}}},
@@ -14,6 +15,7 @@
     "require": {
         "acme/zip-nested": "1.0.0",
         "acme/zip-flat": "1.0.0",
+        "acme/zip64": "1.0.0",
         "acme/tar-plain": "1.0.0",
         "acme/tar-gz": "1.0.0",
         "acme/tar-bz2": "1.0.0",

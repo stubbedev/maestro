@@ -1,7 +1,8 @@
 // Reproduces `unzip -qq <file> -d <dir>` (Info-ZIP UnZip 6.0 with the
 // distributions' CVE patches, built for Unix with SYMLINKS, SET_DIR_ATTRIB,
-// UNICODE_SUPPORT, USE_BZIP2 and ZIP64_SUPPORT), from process.c
-// (find_ecrec, process_cdir_file_hdr, getUnicodeData), fileio.c (do_string),
+// UNICODE_SUPPORT, USE_BZIP2, USE_DEFLATE64 and ZIP64_SUPPORT), from
+// process.c (find_ecrec, find_ecrec64, process_cdir_file_hdr,
+// getZip64Data, getUnicodeData), fileio.c (do_string),
 // extract.c (extract_or_test_files, store_info,
 // extract_or_test_entrylist, the overlap "cover"), unix/unix.c (mapattr,
 // mapname, checkdir, close_outfile, set_direc_attribs) and unzpriv.h
@@ -24,6 +25,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/archive/deflate64"
 )
 
 const (
@@ -31,11 +34,14 @@ const (
 	zipSigCentral = 0x02014b50
 	zipSigEnd     = 0x06054b50
 	zipSigLoc64   = 0x07064b50
+	zipSigEnd64   = 0x06064b50
 	zipSigDesc    = 0x08074b50
 
 	zipEndLen     = 22
 	zipCentralLen = 46
 	zipLocalLen   = 30
+	zipLoc64Len   = 20
+	zipEnd64Len   = 56
 
 	// unzip looks for the end record in the last 66000 bytes.
 	zipSearchLen = 66000
@@ -47,9 +53,10 @@ const (
 	// Bounds the central directory read into memory.
 	zipMaxCentral = 256 << 20
 
-	methodStored  = 0
-	methodDeflate = 8
-	methodBzip2   = 12
+	methodStored    = 0
+	methodDeflate   = 8
+	methodDeflate64 = 9
+	methodBzip2     = 12
 
 	// UNZIP_VERSION with ZIP64_SUPPORT and USE_BZIP2.
 	unzipVersion = 46
@@ -90,7 +97,8 @@ type zipFile struct {
 	method    uint16
 }
 
-// zipEntry is a central directory record.
+// zipEntry is a central directory record, its sizes and offset taken from
+// the zip64 extra field where the record saturates them.
 type zipEntry struct {
 	nameRaw []byte
 	extra   []byte
@@ -105,6 +113,9 @@ type zipEntry struct {
 	method  uint16
 	hostNum byte
 	hostVer byte
+	// zip64: unzip may read a data descriptor's sizes as 64-bit ones
+	// (G.zip64, see extract).
+	zip64 bool
 }
 
 type zipPlanner struct {
@@ -115,6 +126,9 @@ type zipPlanner struct {
 	cover  cover
 	size   int64
 	locale Locale
+	// zip64Seen, unipathSeen: an extra field of the archive holds a zip64
+	// field, a Unicode Path field.
+	zip64Seen, unipathSeen bool
 }
 
 func (z *zipPlanner) fail(kind error, code int, entry, reason string, args ...any) *Error {
@@ -141,8 +155,9 @@ func planZip(f *os.File, size int64, locale Locale, b *builder) (contentReader, 
 	return &zipContent{files: z.files}, nil
 }
 
-// readCentral finds the end record (find_ecrec) and reads the central
-// directory, refusing every layout unzip only extracts with a warning.
+// readCentral finds the end record (find_ecrec, find_ecrec64) and reads
+// the central directory, refusing every layout unzip only extracts with a
+// warning.
 func (z *zipPlanner) readCentral() ([]zipEntry, error) {
 	n := min(z.size, zipSearchLen)
 	tail := make([]byte, n)
@@ -167,37 +182,59 @@ func (z *zipPlanner) readCentral() ([]zipEntry, error) {
 
 	end := tail[at:]
 	endOffset := z.size - n + int64(at)
-	disk := binary.LittleEndian.Uint16(end[4:])
-	cdDisk := binary.LittleEndian.Uint16(end[6:])
-	diskEntries := binary.LittleEndian.Uint16(end[8:])
-	total := binary.LittleEndian.Uint16(end[10:])
-	cdSize := int64(binary.LittleEndian.Uint32(end[12:]))
-	cdOffset := int64(binary.LittleEndian.Uint32(end[16:]))
+	ec := zipEnd{
+		disk:        uint64(binary.LittleEndian.Uint16(end[4:])),
+		cdDisk:      uint64(binary.LittleEndian.Uint16(end[6:])),
+		diskEntries: uint64(binary.LittleEndian.Uint16(end[8:])),
+		total:       uint64(binary.LittleEndian.Uint16(end[10:])),
+		cdSize:      uint64(binary.LittleEndian.Uint32(end[12:])),
+		cdOffset:    uint64(binary.LittleEndian.Uint32(end[16:])),
+	}
 	commentLen := int64(binary.LittleEndian.Uint16(end[20:]))
 
-	switch {
-	case endOffset+zipEndLen+commentLen != z.size:
+	if endOffset+zipEndLen+commentLen != z.size {
 		return nil, z.fail(ErrIrreproducible, pkWarn, "", "the archive comment does not end the file")
-	case disk != 0 || cdDisk != 0 || diskEntries != total:
+	}
+
+	// cdEnd is where the central directory must end (real_ecrec_offset),
+	// ecStart where the end records start (ecrec.ec_start).
+	cdEnd, ecStart := endOffset, endOffset
+
+	var ec64 [2]int64
+
+	zip64 := endOffset >= zipLoc64Len && z.uint32At(endOffset-zipLoc64Len) == zipSigLoc64
+	if zip64 {
+		var err error
+		if ec64, err = z.readEnd64(endOffset-zipLoc64Len, &ec); err != nil {
+			return nil, err
+		}
+
+		cdEnd, ecStart = ec64[0], endOffset-zipLoc64Len
+	}
+
+	switch {
+	case ec.disk != 0 || ec.cdDisk != 0 || ec.diskEntries != ec.total:
 		return nil, z.fail(ErrIrreproducible, pkWarn, "", "multi-part archives are not supported")
-	case endOffset >= 20 && z.uint32At(endOffset-20) == zipSigLoc64,
-		total == 0xffff, cdSize == 0xffffffff, cdOffset == 0xffffffff:
-		return nil, z.fail(ErrIrreproducible, 0, "", "zip64 archives are not supported")
-	case cdOffset+cdSize != endOffset:
+	case !zip64 && (ec.total == 0xffff || ec.cdSize == 0xffffffff || ec.cdOffset == 0xffffffff):
+		// unzip would take them as they are; no archive means that.
+		return nil, z.fail(ErrIrreproducible, 0, "", "zip64 placeholders without a zip64 end record")
+	case ec.cdOffset > uint64(cdEnd) || ec.cdSize > uint64(cdEnd) || int64(ec.cdOffset+ec.cdSize) != cdEnd: //nolint:gosec // both are at most cdEnd
 		return nil, z.fail(ErrIrreproducible, pkWarn, "", "extra bytes at beginning or within zipfile")
-	case total == 0:
+	case ec.total == 0:
 		return nil, z.fail(ErrIrreproducible, pkWarn, "", "zipfile is empty")
-	case int(total) > z.b.limits.MaxEntries:
+	case ec.total > uint64(z.b.limits.MaxEntries): //nolint:gosec // MaxEntries is positive
 		return nil, z.fail(ErrLimit, 0, "", "more than %d entries", z.b.limits.MaxEntries)
-	case cdSize > zipMaxCentral:
+	case ec.cdSize > zipMaxCentral:
 		return nil, z.fail(ErrLimit, 0, "", "central directory larger than %d bytes", zipMaxCentral)
 	}
 
-	// The spans unzip seeds its overlap check with: the central directory
-	// and the end record.
+	cdOffset, cdSize := int64(ec.cdOffset), int64(ec.cdSize) //nolint:gosec // bounded by cdEnd above
+
+	// The spans unzip seeds its overlap check with: the central directory,
+	// the zip64 end record and the end record (with the zip64 locator).
 	z.cover.add(cdOffset, cdOffset+cdSize)
 
-	if z.cover.add(endOffset, endOffset+zipEndLen+commentLen) != 0 {
+	if (zip64 && z.cover.add(ec64[0], ec64[1]) != 0) || z.cover.add(ecStart, z.size) != 0 {
 		return nil, z.fail(ErrBomb, pkBomb, "", "invalid zip file with overlapped components (possible zip bomb)")
 	}
 
@@ -206,11 +243,20 @@ func (z *zipPlanner) readCentral() ([]zipEntry, error) {
 		return nil, err
 	}
 
-	entries := make([]zipEntry, total)
+	entries := make([]zipEntry, 0, min(ec.total, uint64(cdSize/zipCentralLen)))
 	pos := 0
 
-	for i := range entries {
-		used, err := z.parseCentral(cd[pos:], &entries[i])
+	// unzip reads records up to the end of the central directory, then
+	// checks their count: the 16-bit one of a plain end record counts
+	// modulo 65536.
+	for pos < len(cd) {
+		if len(entries) == z.b.limits.MaxEntries {
+			return nil, z.fail(ErrLimit, 0, "", "more than %d entries", z.b.limits.MaxEntries)
+		}
+
+		entries = append(entries, zipEntry{})
+
+		used, err := z.parseCentral(cd[pos:], &entries[len(entries)-1])
 		if err != nil {
 			return nil, err
 		}
@@ -218,11 +264,102 @@ func (z *zipPlanner) readCentral() ([]zipEntry, error) {
 		pos += used
 	}
 
-	if pos != len(cd) {
+	count := uint64(len(entries))
+	if !zip64 {
+		count &= 0xffff
+	}
+
+	if count != ec.total {
 		return nil, z.fail(ErrIrreproducible, pkWarn, "", "central directory size does not match its entries")
 	}
 
 	return entries, nil
+}
+
+// zipEnd is what the end records say of the central directory.
+type zipEnd struct {
+	disk, cdDisk, diskEntries, total, cdSize, cdOffset uint64
+}
+
+// readEnd64 is find_ecrec64(): the zip64 end record the locator at loc
+// points at, whose values replace the end record's saturated ones. Every
+// case where unzip would ignore the locator, look for the record elsewhere
+// or fail is refused. It returns the zip64 end record's span.
+func (z *zipPlanner) readEnd64(loc int64, ec *zipEnd) ([2]int64, error) {
+	var none [2]int64
+
+	l := make([]byte, zipLoc64Len)
+	if _, err := z.f.ReadAt(l, loc); err != nil {
+		return none, err
+	}
+
+	recDisk := uint64(binary.LittleEndian.Uint32(l[4:]))
+	recOffset := binary.LittleEndian.Uint64(l[8:])
+	totalDisks := uint64(binary.LittleEndian.Uint32(l[16:]))
+
+	switch {
+	case ec.disk != 0xffff && ec.disk+1 != totalDisks:
+		// unzip takes the archive as a plain one, the locator as junk.
+		return none, z.fail(ErrIrreproducible, pkWarn, "", "zip64 end locator unzip ignores (disk numbers differ)")
+	case recOffset > uint64(loc): //nolint:gosec // loc is not negative
+		return none, z.fail(ErrCorrupt, pkErr, "", "error searching for Zip64 EOCD Record")
+	case recOffset+zipEnd64Len > uint64(loc): //nolint:gosec // loc is not negative
+		return none, z.fail(ErrIrreproducible, pkErr, "", "zip64 end record runs into its locator")
+	}
+
+	start := int64(recOffset) //nolint:gosec // at most loc
+
+	r := make([]byte, zipEnd64Len)
+	if _, err := z.f.ReadAt(r, start); err != nil {
+		return none, err
+	}
+
+	if binary.LittleEndian.Uint32(r) != zipSigEnd64 {
+		// unzip guesses where the record is, with a warning.
+		return none, z.fail(ErrIrreproducible, pkErr, "", "zip64 end record not where its locator says")
+	}
+
+	rec := zipEnd{
+		disk:        uint64(binary.LittleEndian.Uint32(r[16:])),
+		cdDisk:      uint64(binary.LittleEndian.Uint32(r[20:])),
+		diskEntries: binary.LittleEndian.Uint64(r[24:]),
+		total:       binary.LittleEndian.Uint64(r[32:]),
+		cdSize:      binary.LittleEndian.Uint64(r[40:]),
+		cdOffset:    binary.LittleEndian.Uint64(r[48:]),
+	}
+	recLen := binary.LittleEndian.Uint64(r[4:])
+
+	// The record must agree with every end record field it does not
+	// replace, else unzip takes the archive as a plain one.
+	agrees := func(v, sat, v64 uint64) bool { return v == sat || v == v64 }
+	if rec.disk != recDisk || !agrees(ec.cdDisk, 0xffff, rec.cdDisk) || !agrees(ec.diskEntries, 0xffff, rec.diskEntries) ||
+		!agrees(ec.total, 0xffff, rec.total) || !agrees(ec.cdSize, 0xffffffff, rec.cdSize) || !agrees(ec.cdOffset, 0xffffffff, rec.cdOffset) {
+		return none, z.fail(ErrIrreproducible, pkWarn, "", "zip64 end record unzip ignores (it disagrees with the end record)")
+	}
+
+	// Its declared length, which unzip's overlap check covers, must reach
+	// the locator: nothing hides between them.
+	if recLen > uint64(loc-start) || start+12+int64(recLen) != loc { //nolint:gosec // recLen is at most loc-start
+		return none, z.fail(ErrIrreproducible, pkWarn, "", "zip64 end record length does not reach its locator")
+	}
+
+	if totalDisks != 1 || recDisk != 0 {
+		return none, z.fail(ErrIrreproducible, pkWarn, "", "multi-part archives are not supported")
+	}
+
+	replace := func(v *uint64, sat, v64 uint64) {
+		if *v == sat {
+			*v = v64
+		}
+	}
+	replace(&ec.disk, 0xffff, rec.disk)
+	replace(&ec.cdDisk, 0xffff, rec.cdDisk)
+	replace(&ec.diskEntries, 0xffff, rec.diskEntries)
+	replace(&ec.total, 0xffff, rec.total)
+	replace(&ec.cdSize, 0xffffffff, rec.cdSize)
+	replace(&ec.cdOffset, 0xffffffff, rec.cdOffset)
+
+	return [2]int64{start, loc}, nil
 }
 
 func (z *zipPlanner) uint32At(off int64) uint32 {
@@ -256,39 +393,160 @@ func (z *zipPlanner) parseCentral(cd []byte, e *zipEntry) (int, error) {
 	e.flags = binary.LittleEndian.Uint16(cd[8:])
 	e.method = binary.LittleEndian.Uint16(cd[10:])
 	e.crc = binary.LittleEndian.Uint32(cd[16:])
-	csize := binary.LittleEndian.Uint32(cd[20:])
-	usize := binary.LittleEndian.Uint32(cd[24:])
-	diskStart := binary.LittleEndian.Uint16(cd[34:])
+	f := zip64Fields{
+		usize:  uint64(binary.LittleEndian.Uint32(cd[24:])),
+		csize:  uint64(binary.LittleEndian.Uint32(cd[20:])),
+		offset: uint64(binary.LittleEndian.Uint32(cd[42:])),
+		disk:   uint64(binary.LittleEndian.Uint16(cd[34:])),
+	}
 	e.extAttr = binary.LittleEndian.Uint32(cd[38:])
-	offset := binary.LittleEndian.Uint32(cd[42:])
-	e.csize, e.usize, e.offset = int64(csize), int64(usize), int64(offset)
 	e.nameRaw = cd[zipCentralLen : zipCentralLen+nameLen]
 	e.extra = cd[zipCentralLen+nameLen : zipCentralLen+nameLen+extraLen]
 
+	zip64, err := z.readZip64(e.extra, string(e.nameRaw), &f, true)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := z.saturated(string(e.nameRaw), f, true); err != nil {
+		return 0, err
+	}
+
+	z.zip64Seen = z.zip64Seen || zip64
+
+	if e.csize, e.usize, e.offset, err = z.zip64Values(string(e.nameRaw), f); err != nil {
+		return 0, err
+	}
+
 	switch name := e.nameRaw; {
-	case csize == 0xffffffff || usize == 0xffffffff || offset == 0xffffffff || diskStart == 0xffff:
-		return 0, z.fail(ErrIrreproducible, 0, string(name), "zip64 entries are not supported")
-	case diskStart != 0:
+	case f.disk != 0:
 		return 0, z.fail(ErrIrreproducible, pkErr, string(name), "entry starts on another disk")
 	case neededHost == hostVMS:
 		// unzip asks on stdin whether to extract VMS-format files.
 		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "VMS file format")
 	case neededVer > unzipVersion:
 		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "need PK compat. v%d.%d (can do v4.6)", neededVer/10, neededVer%10)
-	case e.method != methodStored && e.method != methodDeflate && e.method != methodBzip2:
-		// Deflate64, shrink and implode are left out; unzip skips the rest.
+	case e.method == 1 || e.method == 6:
+		// unzip unshrinks and explodes; maestro has no decoder for these
+		// methods of 1990s PKZIP.
+		return 0, z.fail(ErrIrreproducible, 0, string(name), "compression method %d (shrink or implode) is not supported by maestro", e.method)
+	case e.method != methodStored && e.method != methodDeflate && e.method != methodDeflate64 && e.method != methodBzip2:
+		// unzip skips the entry.
 		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "unsupported compression method %d", e.method)
 	case e.flags&1 != 0:
 		// unzip would prompt for a password on stdin.
 		return 0, z.fail(ErrIrreproducible, izUnsup, string(name), "encrypted entry")
 	}
 
-	var err error
 	if e.name, e.unipath, err = z.decodeName(e.nameRaw, e.extra, e, false); err != nil {
 		return 0, err
 	}
 
 	return used, nil
+}
+
+// zip64Fields are the header fields the zip64 extra field may replace,
+// those of a local header without offset and disk.
+type zip64Fields struct {
+	usize, csize, offset, disk uint64
+}
+
+// readZip64 is getZip64Data(): the zip64 extended information extra
+// field's values replace, in its order, the saturated sizes, offset and
+// disk (central) or sizes (local). found reports a zip64 field (see
+// extract for what it does to a data descriptor).
+//
+// unzip also replaces a field when the other kind of header it last read
+// (another entry's) saturated it; values that would stay saturated are
+// refused (saturated, zip64Values), so that never happens here. A field
+// too short for the values it must hold (unzip warns) and several zip64
+// fields are refused.
+func (z *zipPlanner) readZip64(extra []byte, entry string, f *zip64Fields, central bool) (found bool, err error) {
+	for len(extra) >= 4 {
+		id := binary.LittleEndian.Uint16(extra)
+		size := int(binary.LittleEndian.Uint16(extra[2:]))
+
+		if size > len(extra)-4 {
+			break
+		}
+
+		z.unipathSeen = z.unipathSeen || id == efUnipath
+
+		if id == efZip64 {
+			if found {
+				return false, z.fail(ErrIrreproducible, 0, entry, "several zip64 extra fields")
+			}
+
+			found = true
+			block := extra[4 : 4+size]
+
+			take := func(v *uint64, sat uint64, n int) error {
+				if *v != sat {
+					return nil
+				}
+
+				if len(block) < n {
+					return z.fail(ErrIrreproducible, pkWarn, entry, "zip64 extra field too short for its values")
+				}
+
+				if n == 8 {
+					*v = binary.LittleEndian.Uint64(block)
+				} else {
+					*v = uint64(binary.LittleEndian.Uint32(block))
+				}
+
+				block = block[n:]
+
+				return nil
+			}
+
+			if err := take(&f.usize, 0xffffffff, 8); err != nil {
+				return false, err
+			}
+
+			if err := take(&f.csize, 0xffffffff, 8); err != nil {
+				return false, err
+			}
+
+			if central {
+				if err := take(&f.offset, 0xffffffff, 8); err != nil {
+					return false, err
+				}
+
+				if err := take(&f.disk, 0xffff, 4); err != nil {
+					return false, err
+				}
+			}
+		}
+
+		extra = extra[4+size:]
+	}
+
+	return found, nil
+}
+
+// saturated refuses a zip64 placeholder no zip64 extra field replaced.
+func (z *zipPlanner) saturated(entry string, f zip64Fields, central bool) error {
+	if f.usize == 0xffffffff || f.csize == 0xffffffff || (central && (f.offset == 0xffffffff || f.disk == 0xffff)) {
+		return z.fail(ErrIrreproducible, pkWarn, entry, "zip64 placeholder without its zip64 extra field value")
+	}
+
+	return nil
+}
+
+// zip64Values converts an entry's sizes and offset, refusing those past
+// the end of the archive and sizes past the limits before they are used.
+func (z *zipPlanner) zip64Values(entry string, f zip64Fields) (csize, usize, offset int64, err error) {
+	switch {
+	case f.csize > uint64(z.size) || f.offset >= uint64(z.size) || f.csize == 0xffffffff: //nolint:gosec // the size is not negative
+		// (a 64-bit value of 0xffffffff would read as saturated to unzip
+		// in the next header it reads)
+		return 0, 0, 0, z.fail(ErrCorrupt, pkErr, entry, "entry size or offset past the end of the archive")
+	case f.usize > uint64(z.b.limits.MaxFileSize): //nolint:gosec // MaxFileSize is positive
+		return 0, 0, 0, z.fail(ErrLimit, 0, entry, "file larger than %d bytes", z.b.limits.MaxFileSize)
+	}
+
+	return int64(f.csize), int64(f.usize), int64(f.offset), nil //nolint:gosec // bounded above
 }
 
 // extract follows one entry through extract_or_test_entrylist(): the local
@@ -314,8 +572,7 @@ func (z *zipPlanner) extract(e *zipEntry) error {
 	flags := binary.LittleEndian.Uint16(hdr[6:])
 	method := binary.LittleEndian.Uint16(hdr[8:])
 	crc := binary.LittleEndian.Uint32(hdr[14:])
-	csize := int64(binary.LittleEndian.Uint32(hdr[18:]))
-	usize := int64(binary.LittleEndian.Uint32(hdr[22:]))
+	lf := zip64Fields{usize: uint64(binary.LittleEndian.Uint32(hdr[22:])), csize: uint64(binary.LittleEndian.Uint32(hdr[18:]))}
 	nameLen := int(binary.LittleEndian.Uint16(hdr[26:]))
 	extraLen := int(binary.LittleEndian.Uint16(hdr[28:]))
 
@@ -337,6 +594,32 @@ func (z *zipPlanner) extract(e *zipEntry) error {
 
 	descriptor := e.flags&8 != 0
 
+	// With a data descriptor, unzip takes the central sizes in the end
+	// (the local ones may stay placeholders), but getZip64Data runs on the
+	// local extra field all the same.
+	zip64, err := z.readZip64(local[nameLen:], e.name, &lf, false)
+	if err != nil {
+		return err
+	}
+
+	if !descriptor {
+		if err := z.saturated(e.name, lf, false); err != nil {
+			return err
+		}
+	}
+
+	// Whether unzip reads a data descriptor's sizes as 64-bit ones
+	// (G.zip64) depends on the build: the CVE-2019-13232 patch sets the
+	// flag in getZip64Data() for a zip64 field, as the AppNote has it,
+	// where its hunk applies there; on builds where it landed elsewhere
+	// (nixpkgs'), a Unicode Path field sets it instead. do_string() skips
+	// both for an empty extra field, leaving the flag of the last one read.
+	// The descriptor is taken as 64-bit whenever one of those builds would,
+	// so the wider span is checked for overlaps: what either build refuses
+	// as a zip bomb is refused.
+	e.zip64 = zip64 || z.unipathSeen || (extraLen == 0 && z.zip64Seen)
+	z.zip64Seen = z.zip64Seen || zip64
+
 	switch {
 	case flags&(1<<11) != e.flags&(1<<11):
 		return z.fail(ErrIrreproducible, pkWarn, e.name, "local and central GPFlags bit 11 differ")
@@ -344,7 +627,7 @@ func (z *zipPlanner) extract(e *zipEntry) error {
 		return z.fail(ErrIrreproducible, pkErr, e.name, "local and central compression methods differ")
 	case flags&8 != e.flags&8:
 		return z.fail(ErrIrreproducible, pkErr, e.name, "local and central data descriptor flags differ")
-	case !descriptor && (crc != e.crc || csize != e.csize || usize != e.usize):
+	case !descriptor && (crc != e.crc || lf.csize != uint64(e.csize) || lf.usize != uint64(e.usize)): //nolint:gosec // e's sizes are not negative
 		// unzip would trust the local header; refuse rather than pick.
 		return z.fail(ErrIrreproducible, pkErr, e.name, "local and central sizes or CRC differ")
 	case e.method == methodStored && e.csize != e.usize:
@@ -403,12 +686,28 @@ func (z *zipPlanner) descriptorEnd(e *zipEntry, off int64) (int64, error) {
 	ulen := binary.LittleEndian.Uint32(buf[8:])
 	end := off + 12
 
-	if crc == zipSigDesc && (e.crc != zipSigDesc ||
-		(clen == zipSigDesc && (e.csize != zipSigDesc || (ulen == zipSigDesc && e.usize != zipSigDesc)))) {
+	// With 64-bit sizes, ulen is the high half of the compressed size.
+	signed := func(high uint64) bool {
+		return crc == zipSigDesc && (e.crc != zipSigDesc ||
+			(clen == zipSigDesc && (uint64(e.csize)&0xffffffff != zipSigDesc || (ulen == zipSigDesc && high != zipSigDesc)))) //nolint:gosec // csize is not negative
+	}
+
+	sig := signed(uint64(e.usize))                     //nolint:gosec // usize is not negative
+	if e.zip64 && sig != signed(uint64(e.csize)>>32) { //nolint:gosec // csize is not negative
+		return 0, z.fail(ErrIrreproducible, 0, e.name, "data descriptor signature ambiguity unzip builds resolve differently")
+	}
+
+	if sig {
 		end += 4
-		if end > z.size {
-			return 0, z.fail(ErrCorrupt, pkErr, e.name, "truncated data descriptor")
-		}
+	}
+
+	if e.zip64 {
+		// "skip eight more for ZIP64"
+		end += 8
+	}
+
+	if end > z.size {
+		return 0, z.fail(ErrCorrupt, pkErr, e.name, "truncated data descriptor")
 	}
 
 	return end, nil
@@ -1024,8 +1323,11 @@ type zipDecoders struct {
 	buf   *bufio.Reader
 	flate io.Reader
 	reset flate.Resetter
-	sec   section
-	chk   checkReader
+	// flate64 and reset64 are Deflate64's (zip method 9).
+	flate64 io.Reader
+	reset64 deflate64.Resetter
+	sec     section
+	chk     checkReader
 }
 
 // section reads [off, end) of a file with pread.
@@ -1055,6 +1357,15 @@ func (s *section) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// buffer points dec.buf, the decompressors' input, at dec.sec.
+func (dec *zipDecoders) buffer() {
+	if dec.buf == nil {
+		dec.buf = bufio.NewReaderSize(&dec.sec, 32<<10)
+	} else {
+		dec.buf.Reset(&dec.sec)
+	}
+}
+
 // newZipReader returns a reader of the entry's checked content, valid
 // until the next call with the same dec (nil: a fresh one).
 func newZipReader(f *os.File, file zipFile, entry string, dec *zipDecoders) (io.Reader, error) {
@@ -1070,18 +1381,27 @@ func newZipReader(f *os.File, file zipFile, entry string, dec *zipDecoders) (io.
 	case methodStored:
 		r = &dec.sec
 	case methodDeflate:
-		if dec.buf == nil {
-			dec.buf = bufio.NewReaderSize(&dec.sec, 32<<10)
+		dec.buffer()
+
+		if dec.flate == nil {
 			fr := flate.NewReader(dec.buf)
 			dec.flate, dec.reset = fr, fr.(flate.Resetter) //nolint:errcheck // flate's reader always is a Resetter.
-		} else {
-			dec.buf.Reset(&dec.sec)
-			if err := dec.reset.Reset(dec.buf, nil); err != nil {
-				return nil, err
-			}
+		} else if err := dec.reset.Reset(dec.buf, nil); err != nil {
+			return nil, err
 		}
 
 		r = dec.flate
+	case methodDeflate64:
+		dec.buffer()
+
+		if dec.flate64 == nil {
+			fr := deflate64.NewReader(dec.buf)
+			dec.flate64, dec.reset64 = fr, fr.(deflate64.Resetter) //nolint:errcheck // deflate64's reader always is a Resetter.
+		} else if err := dec.reset64.Reset(dec.buf, nil); err != nil {
+			return nil, err
+		}
+
+		r = dec.flate64
 	case methodBzip2:
 		r = bzip2.NewReader(&dec.sec)
 	}

@@ -16,6 +16,8 @@ type Case struct {
 	// extractor succeeds, because the result depends on more than the
 	// archive (a distribution's unzip patches, say).
 	MayRefuse bool
+	// Fails marks archives the real extractor is expected to refuse.
+	Fails bool
 }
 
 // ZipCorpus is the generated zip corpus: every unzip rule the archive
@@ -131,6 +133,8 @@ func ZipCorpus() []Case {
 		ZipEntry{Name: "pkg-1a2b3c/b", Data: "", Host: HostUnix, HostVer: 30, Attr: 0o100600 << 16, Deflate: true, Descriptor: true})
 	gh("big", UnixFile("pkg-1a2b3c/big", 0o644, strings.Repeat("0123456789abcdef", 1<<16)))
 
+	cs = append(cs, Zip64Cases()...)
+
 	cs = append(cs, Case{Name: "comment", Data: Zip("a comment", UnixFile("pkg/a", 0o644, "a"))})
 	cs = append(cs, Case{Name: "empty-archive", Data: Zip("")})
 	cs = append(cs, Case{Name: "overlap", Data: Zip("", UnixFile("pkg/a", 0o644, "aaaa"), ZipEntry{Name: "pkg/a", Data: "aaaa", Host: HostUnix, HostVer: 30, Attr: 0o100644 << 16, Deflate: true, Link: 1})})
@@ -145,4 +149,106 @@ func ZipCorpus() []Case {
 // asiExtra is an ASi Unix extra field carrying mode.
 func asiExtra(mode uint16) []byte {
 	return []byte{0x6e, 0x75, 10, 0, 0, 0, 0, 0, byte(mode & 0xff), byte(mode >> 8), 0, 0, 0, 0}
+}
+
+// deflate64Data is content Deflate64 compresses with what Deflate lacks:
+// a repeat further back than 32 KiB and runs longer than 258 bytes.
+func deflate64Data() string {
+	var b strings.Builder
+
+	x := uint32(2463534242)
+	for b.Len() < 40000 {
+		// xorshift: text that does not repeat on its own
+		x ^= x << 13
+		x ^= x >> 17
+		x ^= x << 5
+		b.WriteByte("abcdefghijklmnopqrstuvwxyz \n"[x%28])
+	}
+
+	head := b.String()
+
+	return head + strings.Repeat("\x00", 70000) + head + head[:5000]
+}
+
+// Zip64Cases are zip64 layouts (as Info-ZIP zip -fz, zipstream-php and
+// other streaming writers make them) and Deflate64 entries, part of
+// ZipCorpus.
+func Zip64Cases() []Case {
+	var cs []Case
+
+	add := func(name string, opts ZipOptions, entries ...ZipEntry) {
+		cs = append(cs, Case{Name: name, Data: ZipWith(opts, "", entries...)})
+	}
+
+	z64 := func(e ZipEntry) ZipEntry {
+		e.Zip64 = true
+
+		return e
+	}
+
+	github := []ZipEntry{
+		UnixDir("pkg-1a2b3c/", 0o755),
+		UnixFile("pkg-1a2b3c/composer.json", 0o644, `{"name":"a/b"}`),
+		UnixDir("pkg-1a2b3c/bin/", 0o755),
+		UnixFile("pkg-1a2b3c/bin/tool", 0o755, "#!/usr/bin/env php\n"),
+	}
+
+	zip64 := make([]ZipEntry, len(github))
+	streamed := make([]ZipEntry, len(github))
+
+	for i, e := range github {
+		zip64[i] = z64(e)
+		streamed[i] = z64(e)
+		streamed[i].Descriptor = true
+	}
+
+	add("zip64-end", ZipOptions{End64: true}, github...)
+	add("zip64-end-saturated", ZipOptions{End64: true, Saturate: true}, github...)
+	add("zip64-entries", ZipOptions{End64: true, Saturate: true}, zip64...)
+	add("zip64-entries-plain-end", ZipOptions{}, zip64...)
+	add("zip64-streamed", ZipOptions{End64: true, Saturate: true}, streamed...)
+	add("zip64-streamed-plain-end", ZipOptions{}, streamed...)
+	add("zip64-mixed", ZipOptions{End64: true}, github[0], zip64[1], github[2], streamed[3])
+
+	// a stored entry, its data descriptor last before the central directory
+	add("zip64-streamed-stored", ZipOptions{End64: true}, ZipEntry{Name: "pkg/s", Data: "stored", Host: HostUnix, HostVer: 30, Attr: 0o100644 << 16, Zip64: true, Descriptor: true})
+
+	// a zip64 local field makes unzip read 64-bit descriptor sizes where
+	// the CVE-2019-13232 patch applied as written: a 32-bit descriptor
+	// then overlaps the next entry, which those builds refuse
+	short32 := streamed[1]
+	short32.Descriptor32 = true
+	cs = append(cs, Case{Name: "zip64-streamed-32-bit-descriptor", Data: ZipWith(ZipOptions{End64: true}, "", streamed[0], short32, streamed[2], streamed[3]), MayRefuse: true})
+
+	// placeholders with nothing to replace them: unzip fails
+	cs = append(cs, Case{Name: "end-saturated-without-zip64", Data: ZipWith(ZipOptions{Saturate: true}, "", github...), Fails: true})
+
+	short := UnixFile("pkg/a", 0o644, "a")
+	short.Extra = []byte{0x01, 0x00, 0x08, 0x00, 1, 0, 0, 0, 0, 0, 0, 0}
+	cs = append(cs, Case{Name: "zip64-extra-without-placeholders", Data: Zip("", short)})
+
+	data := deflate64Data()
+	d64 := func(name string, mode fs.FileMode) ZipEntry {
+		return ZipEntry{Name: name, Data: data, Host: HostUnix, HostVer: 30, Attr: (0o100000 | unixBits(mode)) << 16, Deflate64: true}
+	}
+
+	add("deflate64", ZipOptions{},
+		UnixDir("pkg-1a2b3c/", 0o755),
+		d64("pkg-1a2b3c/a.txt", 0o644),
+		ZipEntry{Name: "pkg-1a2b3c/small", Data: "<?php\n", Host: HostUnix, HostVer: 30, Attr: 0o100755 << 16, Deflate64: true},
+		ZipEntry{Name: "pkg-1a2b3c/empty", Host: HostUnix, HostVer: 30, Attr: 0o100644 << 16, Deflate64: true},
+		ZipEntry{Name: "pkg-1a2b3c/link", Data: "a.txt", Host: HostUnix, HostVer: 30, Attr: 0o120777 << 16, Deflate64: true},
+	)
+
+	streamedD64 := z64(d64("pkg/b.txt", 0o600))
+	streamedD64.Descriptor = true
+	add("deflate64-zip64", ZipOptions{End64: true, Saturate: true}, z64(d64("pkg/a.txt", 0o644)), streamedD64)
+
+	bad := d64("pkg/a.txt", 0o644)
+	bad.Data = "abc"
+	badZip := Zip("", bad)
+	badZip[30+len("pkg/a.txt")] ^= 0x06 // the block type: reserved
+	cs = append(cs, Case{Name: "deflate64-corrupt", Data: badZip, Fails: true})
+
+	return cs
 }

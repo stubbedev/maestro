@@ -213,6 +213,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | `internal/resolver/operation` | Composer\DependencyResolver\Operation |
 | `internal/store` | the per-file content-addressed store (deviation 1) |
 | `internal/archive` | native archive extraction (deviation 2) and ArchiveDownloader's choice of package directory |
+| `internal/archive/deflate64` | Deflate64 decompression (zip method 9) for it: Go's compress/flate inflater with Deflate64's window, length and distance codes |
 | `internal/downloader` | Composer\Downloader: DownloadManager, file/archive/path downloaders |
 | `internal/downloader/vcs` | Composer\Downloader\{Git, Hg, Svn, Fossil, Perforce}Downloader |
 | `internal/installer` | Composer\Installer\* (namespace) |

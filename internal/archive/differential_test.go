@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/archive"
@@ -257,4 +258,87 @@ func TestDifferentialGzip(t *testing.T) {
 	}
 
 	c.Log(t, "gzip")
+}
+
+// TestDifferentialZip64 checks that unzip extracts the zip64 and Deflate64
+// cases of the corpus (TestDifferentialZip compares them), and compares
+// archives made by real writers: Info-ZIP zip -fz (a zip64 end record and
+// extra fields; written to a pipe, the archive unzip refuses) and 7-Zip's
+// Deflate64 (dynamic Huffman blocks, distances past 32 KiB).
+func TestDifferentialZip64(t *testing.T) {
+	skipReference(t)
+	unzip := archivetest.NeedInfoZip(t)
+
+	cases := archivetest.Zip64Cases()
+
+	for _, name := range []string{"zip-fz", "deflate64-7z"} {
+		data, err := os.ReadFile(filepath.Join("testdata", name+".zip"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		cases = append(cases, archivetest.Case{Name: name, Data: data})
+	}
+
+	pipe, err := os.ReadFile(filepath.Join("testdata", "zip-fz-pipe.zip"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases = append(cases, archivetest.Case{Name: "zip-fz-pipe", Data: pipe, Fails: true})
+
+	var c archivetest.Tally
+
+	for _, tc := range cases {
+		path := write(t, "dist.zip", tc.Data)
+
+		for _, umask := range archivetest.Umasks {
+			name := fmt.Sprintf("%s/umask-%03o", tc.Name, umask)
+			real := archivetest.Unzip(t, unzip, path, umask, "C.UTF-8")
+
+			if real.OK() == tc.Fails && !tc.MayRefuse {
+				t.Errorf("%s: unzip exit %d, expected it to fail: %v (%s)", name, real.Exit, tc.Fails, strings.TrimSpace(real.Output))
+			}
+
+			got, err := extract(path, archive.Zip, &archive.Options{Locale: archive.LocaleUTF8}, umask)
+			c.Compare(t, name, real, got, err, tc.MayRefuse)
+		}
+	}
+
+	c.Log(t, "zip64 and Deflate64")
+}
+
+// TestDifferentialZipManyEntries compares archives of more than 65535
+// entries: with a zip64 end record, and without one, where unzip counts
+// the entries modulo 65536.
+func TestDifferentialZipManyEntries(t *testing.T) {
+	skipReference(t)
+	unzip := archivetest.NeedInfoZip(t)
+
+	entries := []archivetest.ZipEntry{archivetest.UnixDir("pkg/", 0o755)}
+	for i := range 65537 {
+		entries = append(entries, archivetest.ZipEntry{Name: fmt.Sprintf("pkg/d%d/f%d", i%100, i), Host: archivetest.HostUnix, HostVer: 30, Attr: 0o100644 << 16})
+	}
+
+	var c archivetest.Tally
+
+	for _, tc := range []struct {
+		name string
+		opts archivetest.ZipOptions
+	}{
+		{"zip64", archivetest.ZipOptions{End64: true, Saturate: true}},
+		{"plain-end", archivetest.ZipOptions{}},
+	} {
+		path := write(t, "dist.zip", archivetest.ZipWith(tc.opts, "", entries...))
+		real := archivetest.Unzip(t, unzip, path, 0o022, "C.UTF-8")
+
+		if !real.OK() {
+			t.Errorf("%s: unzip failed: exit %d (%s)", tc.name, real.Exit, strings.TrimSpace(real.Output))
+		}
+
+		got, err := extract(path, archive.Zip, &archive.Options{Locale: archive.LocaleUTF8}, 0o022)
+		c.Compare(t, tc.name, real, got, err, false)
+	}
+
+	c.Log(t, "65537 entries")
 }

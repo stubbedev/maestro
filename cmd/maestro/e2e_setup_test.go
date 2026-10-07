@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/archive/archivetest"
 )
 
 // commit is one commit of a generated git repository.
@@ -263,6 +265,32 @@ func writeZip(t *testing.T, path string, entries []archiveEntry) {
 	}
 }
 
+// zip64Bytes is a zip of entries with a zip64 end record, zip64
+// placeholders and extra fields in every header, and the files' sizes in
+// 64-bit data descriptors.
+func zip64Bytes(entries []archiveEntry) []byte {
+	zes := make([]archivetest.ZipEntry, 0, len(entries))
+
+	for _, e := range entries {
+		var ze archivetest.ZipEntry
+
+		switch {
+		case e.mode&os.ModeDir != 0:
+			ze = archivetest.UnixDir(e.name, e.mode.Perm())
+		case e.mode&os.ModeSymlink != 0:
+			ze = archivetest.UnixLink(e.name, e.content)
+		default:
+			ze = archivetest.UnixFile(e.name, e.mode.Perm(), e.content)
+			ze.Descriptor = true
+		}
+
+		ze.Zip64 = true
+		zes = append(zes, ze)
+	}
+
+	return archivetest.ZipWith(archivetest.ZipOptions{End64: true, Saturate: true}, "", zes...)
+}
+
 func tarBytes(t *testing.T, entries []archiveEntry) []byte {
 	t.Helper()
 
@@ -357,6 +385,9 @@ func distArchives(t *testing.T, root string) {
 	// one top-level directory (stripped) / several entries at the root
 	writeZip(t, filepath.Join(dir, "zip-nested.zip"), distEntries("package-1.0.0/"))
 	writeZip(t, filepath.Join(dir, "zip-flat.zip"), distEntries(""))
+	// zip64 records throughout, sizes in data descriptors, as streaming
+	// writers (zipstream-php, zip -fz) make them
+	write("zip64.zip", zip64Bytes(distEntries("package-1.0.0/")))
 
 	tarEntries := append(distEntries("pkg/"), archiveEntry{name: "pkg/hardlink.php", mode: 0o644, link: "pkg/src/deep/nested/File.php"})
 	plain := tarBytes(t, tarEntries)

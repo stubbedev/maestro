@@ -18,18 +18,39 @@ const (
 // ZipEntry is one member of a crafted zip, written exactly as described:
 // no field is filled in or corrected.
 type ZipEntry struct {
-	Name       string
-	Data       string
-	Extra      []byte
-	Attr       uint32
-	Flags      uint16
-	Host       byte
-	HostVer    byte
-	Deflate    bool
+	Name    string
+	Data    string
+	Extra   []byte
+	Attr    uint32
+	Flags   uint16
+	Host    byte
+	HostVer byte
+	Deflate bool
+	// Deflate64 compresses the data with Deflate64 (method 9) instead.
+	Deflate64  bool
 	Descriptor bool
+	// Zip64 writes the sizes as zip64 placeholders (0xffffffff) with
+	// their values in a zip64 extra field, in the local and the central
+	// header, and the local header's offset too in the central one; a data
+	// descriptor then has 64-bit sizes. With a descriptor, the local
+	// field holds zeros, as streaming writers leave it.
+	Zip64 bool
+	// Descriptor32 writes the data descriptor of a Zip64 entry with 32-bit
+	// sizes all the same.
+	Descriptor32 bool
 	// Link points this central record at the local header of an earlier
 	// entry (index+1), to craft overlapping members.
 	Link int
+}
+
+// ZipOptions shape the end of a crafted zip.
+type ZipOptions struct {
+	// End64 writes a zip64 end record and its locator before the end
+	// record.
+	End64 bool
+	// Saturate writes the end record's counts, size and offset as zip64
+	// placeholders, leaving their values to the zip64 end record.
+	Saturate bool
 }
 
 // UnixFile is a regular file made on Unix with the given mode (permission
@@ -74,6 +95,23 @@ func unixBits(mode fs.FileMode) uint32 {
 // Zip writes a zip archive of the entries, with comment as the archive
 // comment.
 func Zip(comment string, entries ...ZipEntry) []byte {
+	return ZipWith(ZipOptions{}, comment, entries...)
+}
+
+// zip64Extra is a zip64 extended information extra field of values.
+func zip64Extra(values ...uint64) []byte {
+	b := binary.LittleEndian.AppendUint16(nil, 0x0001)
+	b = binary.LittleEndian.AppendUint16(b, uint16(8*len(values))) //nolint:gosec // a few values
+
+	for _, v := range values {
+		b = binary.LittleEndian.AppendUint64(b, v)
+	}
+
+	return b
+}
+
+// ZipWith is Zip with the end shaped by opts.
+func ZipWith(opts ZipOptions, comment string, entries ...ZipEntry) []byte {
 	var out, cd bytes.Buffer
 
 	offsets := make([]uint32, len(entries))
@@ -98,6 +136,15 @@ func Zip(comment string, entries ...ZipEntry) []byte {
 			data, method = z.Bytes(), 8
 		}
 
+		if e.Deflate64 {
+			data, method = Deflate64(data), 9
+		}
+
+		needed := uint16(20)
+		if e.Zip64 {
+			needed = 45
+		}
+
 		flags := e.Flags
 		if e.Descriptor {
 			flags |= 8
@@ -109,32 +156,68 @@ func Zip(comment string, entries ...ZipEntry) []byte {
 			offsets[i] = uint32(out.Len()) //nolint:gosec // test archives are small.
 
 			lcrc, lcsize, lusize := crc, uint32(len(data)), uint32(len(e.Data)) //nolint:gosec // as above.
-			if e.Descriptor {
-				lcrc, lcsize, lusize = 0, 0, 0
+			extra := e.Extra
+
+			if e.Zip64 {
+				lcsize, lusize = 0xffffffff, 0xffffffff
+				extra = append(zip64Extra(uint64(len(e.Data)), uint64(len(data))), extra...)
+
+				if e.Descriptor {
+					extra = append(zip64Extra(0, 0), e.Extra...)
+				}
 			}
 
-			le(&out, uint32(0x04034b50), uint16(20), flags, method, uint16(0), uint16(0x21), lcrc, lcsize, lusize,
-				uint16(len(e.Name)), uint16(len(e.Extra))) //nolint:gosec // as above.
+			if e.Descriptor {
+				lcrc = 0
+				if !e.Zip64 {
+					lcsize, lusize = 0, 0
+				}
+			}
+
+			le(&out, uint32(0x04034b50), needed, flags, method, uint16(0), uint16(0x21), lcrc, lcsize, lusize,
+				uint16(len(e.Name)), uint16(len(extra))) //nolint:gosec // as above.
 			out.WriteString(e.Name)
-			out.Write(e.Extra)
+			out.Write(extra)
 			out.Write(data)
 
 			if e.Descriptor {
-				le(&out, uint32(0x08074b50), crc, uint32(len(data)), uint32(len(e.Data))) //nolint:gosec // as above.
+				if e.Zip64 && !e.Descriptor32 {
+					le(&out, uint32(0x08074b50), crc, uint64(len(data)), uint64(len(e.Data)))
+				} else {
+					le(&out, uint32(0x08074b50), crc, uint32(len(data)), uint32(len(e.Data))) //nolint:gosec // as above.
+				}
 			}
 		}
 
-		le(&cd, uint32(0x02014b50), uint16(e.Host)<<8|uint16(e.HostVer), uint16(20), flags, method, uint16(0), uint16(0x21),
-			crc, uint32(len(data)), uint32(len(e.Data)), uint16(len(e.Name)), uint16(len(e.Extra)), uint16(0), //nolint:gosec // as above.
-			uint16(0), uint16(0), e.Attr, offsets[i])
+		csize, usize, offset, extra := uint32(len(data)), uint32(len(e.Data)), offsets[i], e.Extra //nolint:gosec // as above.
+		if e.Zip64 {
+			extra = append(zip64Extra(uint64(usize), uint64(csize), uint64(offset)), extra...)
+			csize, usize, offset = 0xffffffff, 0xffffffff, 0xffffffff
+		}
+
+		le(&cd, uint32(0x02014b50), uint16(e.Host)<<8|uint16(e.HostVer), needed, flags, method, uint16(0), uint16(0x21),
+			crc, csize, usize, uint16(len(e.Name)), uint16(len(extra)), uint16(0), //nolint:gosec // as above.
+			uint16(0), uint16(0), e.Attr, offset)
 		cd.WriteString(e.Name)
-		cd.Write(e.Extra)
+		cd.Write(extra)
 	}
 
 	cdOffset := out.Len()
 	out.Write(cd.Bytes())
-	le(&out, uint32(0x06054b50), uint16(0), uint16(0), uint16(len(entries)), uint16(len(entries)), //nolint:gosec // as above.
-		uint32(cd.Len()), uint32(cdOffset), uint16(len(comment))) //nolint:gosec // as above.
+
+	if opts.End64 {
+		end64 := out.Len()
+		le(&out, uint32(0x06064b50), uint64(44), uint16(3<<8|45), uint16(45), uint32(0), uint32(0),
+			uint64(len(entries)), uint64(len(entries)), uint64(cd.Len()), uint64(cdOffset)) //nolint:gosec // as above.
+		le(&out, uint32(0x07064b50), uint32(0), uint64(end64), uint32(1)) //nolint:gosec // as above.
+	}
+
+	count, cdSize, cdOff := uint16(len(entries)), uint32(cd.Len()), uint32(cdOffset) //nolint:gosec // as above.
+	if opts.Saturate {
+		count, cdSize, cdOff = 0xffff, 0xffffffff, 0xffffffff
+	}
+
+	le(&out, uint32(0x06054b50), uint16(0), uint16(0), count, count, cdSize, cdOff, uint16(len(comment))) //nolint:gosec // as above.
 	out.WriteString(comment)
 
 	return out.Bytes()
