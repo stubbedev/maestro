@@ -341,6 +341,9 @@ func (i *Installer) Run() (int, error) {
 	if i.update {
 		res, err = i.doUpdate(localRepo, i.install)
 	} else {
+		// the scan doInstall hands over to the dump below goes when Run
+		// returns before the dump takes it
+		defer i.discardAutoloadSpeculation()
 		res, err = i.doInstall(localRepo, false)
 	}
 	if err != nil {
@@ -1014,27 +1017,31 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 
 	// verify that the lock file works with the current platform repository
 	// we can skip this part if we're doing this as the second step after an update
-	var speculation autoloadSpeculator
+	var ahead *aheadWork
+	var early *localRepoTransaction
 	if !alreadySolved {
-		defer i.prefetchDists(lockedRepository, localRepo)()
-		speculation = i.speculateAutoloads(lockedRepository, localRepo)
-		i.prepareLocalRepoWrite(lockedRepository, localRepo)
+		// the work started while the lock is verified ends with doInstall,
+		// whichever way it returns, but the scan a no-op install hands over
+		early = newLocalRepoTransaction(lockedRepository, localRepo)
+		ahead = i.startAhead(localRepo, early.transaction)
+		defer ahead.Discard()
 		if code, err := i.verifyLock(lockedRepository); err != nil || code != 0 {
-			if speculation != nil {
-				speculation.DiscardAutoloadSpeculation()
-			}
-
 			return code, err
 		}
 	}
 
 	// TODO in how far do we need to do anything here to ensure dev packages being updated to latest in lock without version change are treated correctly?
-	localRepoTransaction, err := resolver.NewLocalRepoTransaction(lockedRepository, localRepo)
+	var localRepoTransaction *resolver.Transaction
+	if early != nil {
+		localRepoTransaction, err = early.take()
+	} else {
+		localRepoTransaction, err = resolver.NewLocalRepoTransaction(lockedRepository, localRepo)
+	}
 	if err != nil {
 		return 0, err
 	}
-	if speculation != nil && len(localRepoTransaction.Operations()) != 0 {
-		speculation.DiscardAutoloadSpeculation()
+	if len(localRepoTransaction.Operations()) != 0 {
+		ahead.discardNoOperations()
 	}
 	if _, err := i.eventDispatcher.DispatchInstallerEvent(installerPreOperationsExec, i.devMode, i.executeOperations, localRepoTransaction); err != nil {
 		return 0, err
@@ -1110,6 +1117,8 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 			_ = os.Chtimes(dir, now, now)
 		}
 	}
+	// the dump that follows takes the scan a no-op install started
+	ahead.keepAutoloads()
 
 	return 0, nil
 }
