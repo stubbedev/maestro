@@ -89,7 +89,8 @@ func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, igno
 			return "", &util.ErrorException{Message: "fileperms(): stat failed for " + file.Pathname}
 		}
 
-		entries = append(entries, zipEntry{name: relativePath, source: file.Pathname, mode: fi.Mode(), mtime: fi.ModTime()})
+		mode := fi.Mode()&^fs.ModePerm | statPerms(file.Pathname, fi.Mode(), util.IsWindows())
+		entries = append(entries, zipEntry{name: relativePath, source: file.Pathname, mode: mode, mtime: fi.ModTime()})
 	}
 
 	if len(entries) == 0 {
@@ -248,6 +249,26 @@ func unixMode(m fs.FileMode) uint32 {
 	}
 
 	return mode
+}
+
+// statPerms is the permission bits of the st_mode PHP's stat() gives the
+// file at path (mode being what Go reports for it). On Windows, Go and PHP
+// both derive the read and write bits from the read-only attribute, and
+// PHP also sets the execute bits of a file named *.exe, *.com, *.bat or
+// *.cmd, in any case (php_sys_stat_ex), as Composer's .bat bin proxies
+// are.
+func statPerms(path string, mode fs.FileMode, windows bool) fs.FileMode {
+	perms := mode.Perm()
+	if !windows || !mode.IsRegular() || len(path) < 4 || path[len(path)-4] != '.' {
+		return perms
+	}
+
+	switch strings.ToLower(path[len(path)-3:]) {
+	case "exe", "com", "bat", "cmd":
+		perms |= 0o111
+	}
+
+	return perms
 }
 
 func isASCII(s string) bool {

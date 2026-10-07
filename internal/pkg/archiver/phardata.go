@@ -242,7 +242,7 @@ func (p *pharData) addFile(base, pathname string) error {
 		return &BadMethodCallError{Message: "Entry " + key + ` cannot be created: phar error: invalid path "` + key + `" contains ` + problem}
 	}
 
-	p.set(pharEntry{name: name, perms: uint16(fi.Mode().Perm() & pharPermMask), source: fname})
+	p.set(pharEntry{name: name, perms: uint16(statPerms(fname, fi.Mode(), util.IsWindows()) & pharPermMask), source: fname})
 
 	return nil
 }

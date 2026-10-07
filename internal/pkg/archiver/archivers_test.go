@@ -155,3 +155,26 @@ func assertZipArchive(t *testing.T, order []string, files map[string]string) {
 		t.Errorf("Failed asserting that Zip created with the ZipArchiver contains all files from the repository.\n got %q %q\nwant %q %q", names, contents, order, files)
 	}
 }
+
+func TestStatPerms(t *testing.T) {
+	for _, c := range []struct {
+		path    string
+		mode    os.FileMode
+		windows bool
+		want    os.FileMode
+	}{
+		{`C:\p\vendor\bin\phpunit.bat`, 0o666, true, 0o777},
+		{`C:\p\tool.EXE`, 0o444, true, 0o555},
+		{`C:\p\a.cmd`, 0o666, true, 0o777},
+		{`C:\p\a.com`, 0o666, true, 0o777},
+		{`C:\p\vendor\bin\phpunit`, 0o666, true, 0o666},
+		{`C:\p\bat`, 0o666, true, 0o666},
+		{`C:\p\x.bats`, 0o666, true, 0o666},
+		{`C:\p\dir.bat`, os.ModeDir | 0o777, true, 0o777},
+		{"/p/vendor/bin/phpunit.bat", 0o644, false, 0o644},
+	} {
+		if got := statPerms(c.path, c.mode, c.windows); got != c.want {
+			t.Errorf("statPerms(%q, %v, %v) = %v, want %v", c.path, c.mode, c.windows, got, c.want)
+		}
+	}
+}
