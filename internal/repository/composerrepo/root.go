@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -541,7 +542,7 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 
 	packageInstances, err := r.loader.LoadPackages(packages)
 	if err != nil {
-		if isPHPError(err) {
+		if phperr.InstanceOf(err, "Error") {
 			return nil, err
 		}
 		from := ""
@@ -549,7 +550,7 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 			from = " from " + source
 		}
 
-		return nil, newRuntimeError("Could not load packages in "+r.RepoName()+from+": ["+exceptionClass(err)+"] "+err.Error(), err)
+		return nil, &util.RuntimeError{Message: "Could not load packages in " + r.RepoName() + from + ": [" + phperr.Class(err) + "] " + err.Error(), Prev: err}
 	}
 
 	for _, p := range packageInstances {

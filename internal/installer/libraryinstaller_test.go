@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -242,7 +243,7 @@ func TestLibraryInstaller_Uninstall(t *testing.T) {
 
 	_, err = library.Uninstall(repo, p)
 
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Errorf("err = %v, want InvalidArgumentException", err)
 	}
 }
@@ -351,7 +352,7 @@ func TestLibraryInstaller_WithoutDownloadManager(t *testing.T) {
 
 	_, err = library.Download(newPackage("foo/bar", "1.0.0"), nil)
 
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Errorf("err = %v, want LogicException", err)
 	}
 }

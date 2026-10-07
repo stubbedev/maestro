@@ -490,7 +490,7 @@ func securityAdvisory(advisory Advisory) (*SecurityAdvisory, error) {
 		return security, nil
 	}
 
-	return nil, &pkg.TypeError{Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`}
+	return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`}
 }
 
 func outputAdvisoriesTable(out tableIO, advisories *Advisories) error {

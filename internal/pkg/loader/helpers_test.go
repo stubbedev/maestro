@@ -4,19 +4,17 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
-	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/testutil"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 const jsonFlags = php.JSONUnescapedSlashes | php.JSONUnescapedUnicode | php.JSONPreserveZeroFraction
@@ -72,36 +70,11 @@ func decodePHP(t *testing.T, s string) any {
 
 // phpClass maps a Go error to the PHP exception class it stands for.
 func phpClass(err error) string {
-	var (
-		unexpected  *util.UnexpectedValueError
-		semverUV    *semver.UnexpectedValueError
-		logic       *util.LogicError
-		typeErr     *pkg.TypeError
-		invalid     *loader.InvalidPackageError
-		runtime     *util.RuntimeError
-		invalidArg  *semver.InvalidArgumentError
-		pcre        *php.PatternError
-		invalidArg2 *util.InvalidArgumentError
-	)
-
-	switch {
-	case errors.As(err, &unexpected), errors.As(err, &semverUV):
-		return "UnexpectedValueException"
-	case errors.As(err, &logic):
-		return "LogicException"
-	case errors.As(err, &typeErr):
-		return "TypeError"
-	case errors.As(err, &invalid):
-		return `Composer\Package\Loader\InvalidPackageException`
-	case errors.As(err, &runtime):
-		return "RuntimeException"
-	case errors.As(err, &invalidArg), errors.As(err, &invalidArg2):
-		return "InvalidArgumentException"
-	case errors.As(err, &pcre):
-		return `Composer\Pcre\PcreException`
+	if phperr.Of(err) == nil {
+		return "?"
 	}
 
-	return "?"
+	return phperr.Class(err)
 }
 
 // phpException is the {"e": [class, message]} the oracle records.

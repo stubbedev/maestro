@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -90,7 +91,7 @@ func TestGlobalCommand_CannotCreateHome(t *testing.T) {
 	if err == nil || err.Error() != want {
 		t.Fatalf("err %v, want %q", err, want)
 	}
-	if !util.IsRuntimeException(err) {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Errorf("err %T is not a RuntimeException", err)
 	}
 }

@@ -17,6 +17,9 @@ type OutOfBoundsError struct {
 
 func (e *OutOfBoundsError) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (*OutOfBoundsError) PHPClass() string { return "OutOfBoundsException" }
+
 // SolverBugError ports SolverBugException (a RuntimeException).
 type SolverBugError struct {
 	Message string
@@ -29,10 +32,21 @@ func newSolverBugError(message string) *SolverBugError {
 
 func (e *SolverBugError) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (*SolverBugError) PHPClass() string { return `Composer\DependencyResolver\SolverBugException` }
+
 // ErrorDependencyResolutionFailed is
 // SolverProblemsException::ERROR_DEPENDENCY_RESOLUTION_FAILED, the
 // exception's code.
 const ErrorDependencyResolutionFailed = 2
+
+// PHPClass implements phperr.Exception.
+func (*SolverProblemsError) PHPClass() string {
+	return `Composer\DependencyResolver\SolverProblemsException`
+}
+
+// PHPCode implements phperr.Coded.
+func (*SolverProblemsError) PHPCode() int { return ErrorDependencyResolutionFailed }
 
 // SolverProblemsError ports SolverProblemsException (a RuntimeException
 // with code 2).

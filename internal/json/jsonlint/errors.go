@@ -110,8 +110,8 @@ type ParsingError struct {
 
 func (e *ParsingError) Error() string { return e.Message }
 
-// PHPClass implements util.PHPClasser.
-func (*ParsingError) PHPClass() (string, int) { return `Seld\JsonLint\ParsingException`, 0 }
+// PHPClass implements phperr.Exception.
+func (*ParsingError) PHPClass() string { return `Seld\JsonLint\ParsingException` }
 
 // DuplicateKeyError is Seld\JsonLint\DuplicateKeyException. It unwraps to
 // its *ParsingError, as the PHP class extends ParsingException.
@@ -122,8 +122,8 @@ func (e *DuplicateKeyError) Key() string { return e.Details.Key }
 
 func (e *DuplicateKeyError) Unwrap() error { return &e.ParsingError }
 
-// PHPClass implements util.PHPClasser.
-func (*DuplicateKeyError) PHPClass() (string, int) { return `Seld\JsonLint\DuplicateKeyException`, 0 }
+// PHPClass implements phperr.Exception.
+func (*DuplicateKeyError) PHPClass() string { return `Seld\JsonLint\DuplicateKeyException` }
 
 // InvalidEncodingError is Seld\JsonLint\InvalidEncodingException. It
 // unwraps to its *ParsingError, as the PHP class extends ParsingException.
@@ -134,9 +134,9 @@ func (e *InvalidEncodingError) Key() string { return e.Details.Key }
 
 func (e *InvalidEncodingError) Unwrap() error { return &e.ParsingError }
 
-// PHPClass implements util.PHPClasser.
-func (*InvalidEncodingError) PHPClass() (string, int) {
-	return `Seld\JsonLint\InvalidEncodingException`, 0
+// PHPClass implements phperr.Exception.
+func (*InvalidEncodingError) PHPClass() string {
+	return `Seld\JsonLint\InvalidEncodingException`
 }
 
 // PHPError is a PHP \Error the parser runs into (property names starting
@@ -145,5 +145,8 @@ func (*InvalidEncodingError) PHPClass() (string, int) {
 type PHPError struct {
 	Message string
 }
+
+// PHPClass implements phperr.Exception.
+func (*PHPError) PHPClass() string { return "Error" }
 
 func (e *PHPError) Error() string { return e.Message }

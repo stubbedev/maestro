@@ -1,12 +1,11 @@
 package policy
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Ports tests/Composer/Test/Policy/{IgnoreIdRule,IgnorePackageRule,IgnoreSeverityRule,IgnoreUnreachable}Test.php.
@@ -39,7 +38,7 @@ func TestIgnoreIdRule_ParseIgnoreIdMapWithMultipleMixedEntries(t *testing.T) {
 
 func assertUnexpectedValue(t *testing.T, name string, err error) {
 	t.Helper()
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Errorf("%s: got %v, want UnexpectedValueException", name, err)
 	}
 }
@@ -197,7 +196,7 @@ func TestIgnoreUnreachable_WithAcceptsMultipleScopes(t *testing.T) {
 
 func assertInvalidArgument(t *testing.T, err error) {
 	t.Helper()
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Errorf("got %v, want InvalidArgumentException", err)
 	}
 }

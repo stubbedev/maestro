@@ -3,7 +3,6 @@
 package command_test
 
 import (
-	"errors"
 	"os"
 	"regexp"
 	"strings"
@@ -12,8 +11,8 @@ import (
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // licensesRun runs the tester and fails the test on an exception.
@@ -194,7 +193,7 @@ func TestLicensesCommand_FormatUnknown(t *testing.T) {
 	licensesSetUp(t)
 	appTester := commandtest.GetApplicationTester(t)
 	_, err := appTester.Run([]console.Param{console.P("command", "license"), console.P("--format", "unknown")}, commandtest.Options{})
-	if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Fatalf("expected a RuntimeException, got %v", err)
 	}
 }
@@ -225,11 +224,10 @@ func TestLicensesCommand_LockedWithoutLockFile(t *testing.T) {
 
 	appTester := commandtest.GetApplicationTester(t)
 	_, err := appTester.Run([]console.Param{console.P("command", "license"), console.P("--locked", true)}, commandtest.Options{})
-	e, ok := errors.AsType[*util.UnexpectedValueError](err)
-	if !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected an UnexpectedValueException, got %v", err)
 	}
-	if e.Message != "Valid composer.json and composer.lock files are required to run this command with --locked" {
-		t.Errorf("message %q", e.Message)
+	if err.Error() != "Valid composer.json and composer.lock files are required to run this command with --locked" {
+		t.Errorf("message %q", err.Error())
 	}
 }

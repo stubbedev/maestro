@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -76,7 +77,7 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 	if !sourcesOK {
 		// realpath() returned false, which ArchivableFilesFinder's string
 		// parameter does not take
-		return "", &pkg.TypeError{Message: `Composer\Package\Archiver\ArchivableFilesFinder::__construct(): Argument #1 ($sources) must be of type string, false given`}
+		return "", &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\Archiver\ArchivableFilesFinder::__construct(): Argument #1 ($sources) must be of type string, false given`}
 	}
 
 	files, err := NewArchivableFilesFinder(sources, excludes, ignoreFilters)

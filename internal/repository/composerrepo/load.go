@@ -162,7 +162,7 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 
 			uid := get(data, "uid")
 			if _, ok := uid.(*php.Array); ok {
-				return nil, &pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}
+				return nil, &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type array in isset or empty"}
 			}
 			if v, _ := versionsToLoad.Get(uid); v != nil {
 				continue
@@ -613,7 +613,7 @@ func (r *ComposerRepository) isVersionAcceptable(constraint semver.ConstraintInt
 // Composer's ErrorHandler throws.
 func versionOffsetError(v any) error {
 	if _, ok := v.(string); ok {
-		return &pkg.TypeError{Message: "Cannot access offset of type string on string"}
+		return &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type string on string"}
 	}
 
 	return &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(v)}

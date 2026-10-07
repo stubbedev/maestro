@@ -4,13 +4,6 @@
 
 package util
 
-import (
-	"errors"
-
-	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/semver"
-)
-
 // RuntimeError is PHP's \RuntimeException, or a library's subclass of it
 // (Class).
 type RuntimeError struct {
@@ -26,6 +19,9 @@ type RuntimeError struct {
 }
 
 func (e *RuntimeError) Error() string { return e.Message }
+
+// PHPClass implements phperr.Exception.
+func (e *RuntimeError) PHPClass() string { return orClass(e.Class, "RuntimeException") }
 
 // PHPPrevious implements phperr.Chained.
 func (e *RuntimeError) PHPPrevious() error { return e.Prev }
@@ -47,6 +43,11 @@ type InvalidArgumentError struct {
 
 func (e *InvalidArgumentError) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (e *InvalidArgumentError) PHPClass() string {
+	return orClass(e.Class, "InvalidArgumentException")
+}
+
 // PHPPrevious implements phperr.Chained.
 func (e *InvalidArgumentError) PHPPrevious() error { return e.Prev }
 
@@ -65,6 +66,9 @@ type LogicError struct {
 
 func (e *LogicError) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (e *LogicError) PHPClass() string { return orClass(e.Class, "LogicException") }
+
 // PHPPrevious implements phperr.Chained.
 func (e *LogicError) PHPPrevious() error { return e.Prev }
 
@@ -77,6 +81,9 @@ type ErrorException struct {
 
 func (e *ErrorException) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (*ErrorException) PHPClass() string { return "ErrorException" }
+
 // IOError is symfony/filesystem's IOException, carrying the path involved,
 // or its subclass FileNotFoundException (Class).
 type IOError struct {
@@ -86,6 +93,9 @@ type IOError struct {
 	// (ClassFileNotFound); empty for IOException itself.
 	Class string
 }
+
+// PHPClass implements phperr.Exception.
+func (e *IOError) PHPClass() string { return orClass(e.Class, ClassIOException) }
 
 // The symfony/filesystem, symfony/finder and symfony/process exception
 // classes maestro represents with util's generic error types (their Class).
@@ -116,6 +126,11 @@ type UnexpectedValueError struct {
 
 func (e *UnexpectedValueError) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (e *UnexpectedValueError) PHPClass() string {
+	return orClass(e.Class, "UnexpectedValueException")
+}
+
 // PHPPrevious implements phperr.Chained.
 func (e *UnexpectedValueError) PHPPrevious() error { return e.Prev }
 
@@ -126,89 +141,8 @@ type SecurityError struct {
 
 func (e *SecurityError) Error() string { return e.Message }
 
-// IsRuntimeException reports whether PHP would see err as a
-// \RuntimeException (`catch (\RuntimeException $e)`): RuntimeError,
-// TransportError (and MaxFileSizeExceededError), UnexpectedValueError,
-// SecurityError, IOError, IrrecoverableDownloadError, the process
-// failures and PCRE errors.
-func IsRuntimeException(err error) bool {
-	var (
-		runtime    *RuntimeError
-		transport  *TransportError
-		unexpected *UnexpectedValueError
-		security   *SecurityError
-		ioErr      *IOError
-		irrecov    *IrrecoverableDownloadError
-		timedOut   *ProcessTimedOutError
-		signaled   *ProcessSignaledError
-		pcre       *php.PcreError
-	)
-
-	return errors.As(err, &runtime) || errors.As(err, &transport) || errors.As(err, &unexpected) ||
-		errors.As(err, &security) || errors.As(err, &ioErr) || errors.As(err, &irrecov) ||
-		errors.As(err, &timedOut) || errors.As(err, &signaled) || errors.As(err, &pcre)
-}
-
-// PHPClasser is implemented by error types of packages above util that
-// stand for a PHP exception class PHPClassOf cannot know, such as
-// Composer\Repository\InvalidRepositoryException.
-type PHPClasser interface {
-	error
-	// PHPClass returns get_class($e) and $e->getCode().
-	PHPClass() (class string, code int)
-}
-
-// PHPClassOf names err's PHP exception class and code, as get_class($e) and
-// $e->getCode() show them; errors it does not recognise are
-// RuntimeException.
-func PHPClassOf(err error) (string, int) {
-	var (
-		maxSize          *MaxFileSizeExceededError
-		transport        *TransportError
-		irrecov          *IrrecoverableDownloadError
-		unexpected       *UnexpectedValueError
-		semverUnexpected *semver.UnexpectedValueError
-		invalid          *InvalidArgumentError
-		semverInvalid    *semver.InvalidArgumentError
-		logic            *LogicError
-		runtime          *RuntimeError
-		ioErr            *IOError
-		classer          PHPClasser
-		errExc           *ErrorException
-		engine           *php.EngineError
-	)
-
-	switch {
-	case errors.As(err, &maxSize):
-		return `Composer\Downloader\MaxFileSizeExceededException`, maxSize.Code
-	case errors.As(err, &transport):
-		return `Composer\Downloader\TransportException`, transport.Code
-	case errors.As(err, &irrecov):
-		return `Composer\Exception\IrrecoverableDownloadException`, 0
-	case errors.As(err, &unexpected):
-		return orClass(unexpected.Class, "UnexpectedValueException"), 0
-	case errors.As(err, &semverUnexpected):
-		return "UnexpectedValueException", 0
-	case errors.As(err, &invalid):
-		return orClass(invalid.Class, "InvalidArgumentException"), 0
-	case errors.As(err, &semverInvalid):
-		return "InvalidArgumentException", 0
-	case errors.As(err, &logic):
-		return orClass(logic.Class, "LogicException"), 0
-	case errors.As(err, &classer):
-		return classer.PHPClass()
-	case errors.As(err, &errExc):
-		return "ErrorException", 0
-	case errors.As(err, &engine):
-		return engine.Class, 0
-	case errors.As(err, &ioErr):
-		return orClass(ioErr.Class, ClassIOException), 0
-	case errors.As(err, &runtime):
-		return orClass(runtime.Class, "RuntimeException"), 0
-	}
-
-	return "RuntimeException", 0
-}
+// PHPClass implements phperr.Exception.
+func (*SecurityError) PHPClass() string { return `Composer\Exception\SecurityException` }
 
 // orClass is class, or base when the error is of the base class itself.
 func orClass(class, base string) string {
@@ -218,6 +152,3 @@ func orClass(class, base string) string {
 
 	return base
 }
-
-// PHPClass implements PHPClasser: Composer\Exception\SecurityException.
-func (*SecurityError) PHPClass() (string, int) { return `Composer\Exception\SecurityException`, 0 }

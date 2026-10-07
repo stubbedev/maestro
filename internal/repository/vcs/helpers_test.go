@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	"github.com/stubbedev/maestro/internal/util/http/httpmock"
@@ -166,7 +167,7 @@ func expectError[T error](t *testing.T, err error, msg string) {
 func expectRuntimeError(t *testing.T, err error, msg string) {
 	t.Helper()
 
-	if !util.IsRuntimeException(err) {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Fatalf("got error %v (%T), want a RuntimeException", err, err)
 	}
 

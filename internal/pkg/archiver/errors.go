@@ -7,6 +7,9 @@ type PharError struct {
 	Message string
 }
 
+// PHPClass implements phperr.Exception.
+func (*PharError) PHPClass() string { return "PharException" }
+
 func (e *PharError) Error() string { return e.Message }
 
 // BadMethodCallError is \BadMethodCallException, which PharData throws for
@@ -14,5 +17,8 @@ func (e *PharError) Error() string { return e.Message }
 type BadMethodCallError struct {
 	Message string
 }
+
+// PHPClass implements phperr.Exception.
+func (*BadMethodCallError) PHPClass() string { return "BadMethodCallException" }
 
 func (e *BadMethodCallError) Error() string { return e.Message }

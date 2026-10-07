@@ -3,10 +3,6 @@
 
 package repository
 
-import (
-	"github.com/stubbedev/maestro/internal/util"
-)
-
 // InvalidRepositoryError is Composer\Repository\InvalidRepositoryException:
 // a package repository is utterly broken.
 type InvalidRepositoryError struct {
@@ -15,9 +11,9 @@ type InvalidRepositoryError struct {
 
 func (e *InvalidRepositoryError) Error() string { return e.Message }
 
-// PHPClass implements util.PHPClasser.
-func (*InvalidRepositoryError) PHPClass() (string, int) {
-	return `Composer\Repository\InvalidRepositoryException`, 0
+// PHPClass implements phperr.Exception.
+func (*InvalidRepositoryError) PHPClass() string {
+	return `Composer\Repository\InvalidRepositoryException`
 }
 
 // SecurityError is Composer\Repository\RepositorySecurityException: a
@@ -28,9 +24,9 @@ type SecurityError struct {
 
 func (e *SecurityError) Error() string { return e.Message }
 
-// PHPClass implements util.PHPClasser.
-func (*SecurityError) PHPClass() (string, int) {
-	return `Composer\Repository\RepositorySecurityException`, 0
+// PHPClass implements phperr.Exception.
+func (*SecurityError) PHPClass() string {
+	return `Composer\Repository\RepositorySecurityException`
 }
 
 // wrappedError is a PHP exception created with a previous exception
@@ -49,14 +45,3 @@ func (e *wrappedError) Unwrap() error { return e.err }
 
 // PHPPrevious implements phperr.Chained.
 func (e *wrappedError) PHPPrevious() error { return e.previous }
-
-// isPHPError reports whether err is one of PHP's \Error classes (a
-// TypeError, ...), which `catch (\Exception $e)` does not catch.
-func isPHPError(err error) bool {
-	switch class, _ := util.PHPClassOf(err); class {
-	case "Error", "TypeError", "ValueError", "ArgumentCountError", "ArithmeticError", "DivisionByZeroError":
-		return true
-	}
-
-	return false
-}

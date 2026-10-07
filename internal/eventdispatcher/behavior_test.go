@@ -11,6 +11,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/processmock"
@@ -361,7 +362,7 @@ func TestDispatch_ScriptReferenceFromPlainEvent(t *testing.T) {
 
 	_, err := d.Dispatch("ev", nil)
 	var e *Error
-	if !errors.As(err, &e) || e.Message != `Call to undefined method Composer\EventDispatcher\Event::getComposer()` || !e.IsPHPError() {
+	if !errors.As(err, &e) || e.Message != `Call to undefined method Composer\EventDispatcher\Event::getComposer()` || !phperr.InstanceOf(e, "Error") {
 		t.Fatalf("err = %v", err)
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -446,7 +447,7 @@ func (d *GitLabDriver) attemptCloneFallback() error {
 	// cannot ask for authentication credentials (because we
 	// are not interactive) then we fallback to GitDriver.
 	err := d.setupGitDriver(url)
-	if err != nil && util.IsRuntimeException(err) {
+	if err != nil && phperr.InstanceOf(err, "RuntimeException") {
 		d.gitDriver = nil
 
 		d.io.WriteError("<error>Failed to clone the "+util.SanitizeURL(url)+" repository, try running in interactive mode so that you can enter your credentials</error>", true, io.Normal)

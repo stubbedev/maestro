@@ -4,11 +4,7 @@
 package command
 
 import (
-	"errors"
-
-	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/phperr"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // PHP exception classes used by the commands.
@@ -20,10 +16,9 @@ const (
 )
 
 // Error is a PHP exception thrown by a command or the Application: Class
-// is get_class($e), Code getCode().
-// It unwraps to the util error of the same class (util.RuntimeError,
-// util.InvalidArgumentError, ...), so errors.As works as `catch` would;
-// Prev is getPrevious() (phperr.Chained), which `catch` does not look at.
+// is get_class($e), Code getCode(), Prev getPrevious() (phperr.Chained,
+// which `catch` does not look at). Its catches test its class with
+// phperr.InstanceOf.
 type Error struct {
 	Class   string
 	Message string
@@ -38,39 +33,14 @@ func NewError(class, message string) *Error {
 
 func (e *Error) Error() string { return e.Message }
 
-// Unwrap returns the util error matching the class, for errors.As, or nil.
-func (e *Error) Unwrap() error {
-	switch e.Class {
-	case ClassRuntime:
-		return &util.RuntimeError{Message: e.Message}
-	case ClassInvalidArgument:
-		return &util.InvalidArgumentError{Message: e.Message}
-	case ClassLogic:
-		return &util.LogicError{Message: e.Message}
-	case ClassUnexpectedValue:
-		return &util.UnexpectedValueError{Message: e.Message}
-	}
+// PHPClass implements phperr.Exception.
+func (e *Error) PHPClass() string { return e.Class }
 
-	return nil
-}
-
-// ThrowableClass implements console.Throwable.
-func (e *Error) ThrowableClass() string { return e.Class }
-
-// ThrowableCode implements console.Throwable.
-func (e *Error) ThrowableCode() int { return e.Code }
+// PHPCode implements phperr.Coded.
+func (e *Error) PHPCode() int { return e.Code }
 
 // PHPPrevious implements phperr.Chained.
 func (e *Error) PHPPrevious() error { return e.Prev }
-
-// ThrowablePrevious implements console.Throwable.
-func (e *Error) ThrowablePrevious() error {
-	if e.Prev == nil {
-		return nil
-	}
-
-	return asThrowable(e.Prev, -1)
-}
 
 // ExitCoder is implemented by errors that stand for the end of the
 // process with a status rather than an exception: PHP's exit($code) in
@@ -90,91 +60,37 @@ const uncaughtExitCode = 255
 // catch only takes \Exception). Symfony's run() does not catch \Error
 // either, so PHP ends with "Fatal error: Uncaught ..." and exit status
 // 255. maestro renders it as it renders any error (#13), with that status.
-func uncaught(err error) error { return asThrowable(err, uncaughtExitCode) }
+func uncaught(err error) error { return withExitCode(err, uncaughtExitCode) }
 
-// throwable is how the Application presents an error that is not a
-// console.Throwable to the console: its PHP class (util.PHPClassOf), code
-// and previous exception (phperr.PreviousOf).
-type throwable struct {
-	err   error
-	class string
-	code  int
-	prev  error
+// withExitCode is err with the exception code code: the TransportException
+// code Application::doRun sets through reflection for parent::run() to
+// exit with, or the status of an uncaught \Error. err itself when that is
+// its code already.
+func withExitCode(err error, code int) error {
+	if _, c := phperr.ClassOf(err); c == code {
+		return err
+	}
+
+	return &codeOverride{err: err, code: code}
 }
 
-func (t *throwable) Error() string            { return t.err.Error() }
-func (t *throwable) Unwrap() error            { return t.err }
-func (t *throwable) ThrowableClass() string   { return t.class }
-func (t *throwable) ThrowableCode() int       { return t.code }
-func (t *throwable) ThrowablePrevious() error { return t.prev }
-func (t *throwable) PHPClass() (string, int)  { return t.class, t.code }
-
-// asThrowable gives err the PHP exception details the console's rendering
-// and exit code use. code overrides the exception code when >= 0.
-func asThrowable(err error, code int) error {
-	if t, ok := err.(console.Throwable); ok { //nolint:errorlint // PHP inspects the exception object itself.
-		if code < 0 || t.ThrowableCode() == code {
-			return err
-		}
-
-		return &codeOverride{Throwable: t, code: code}
-	}
-	class, c := util.PHPClassOf(err)
-	if code >= 0 {
-		c = code
-	}
-	t := &throwable{err: err, class: class, code: c}
-	if prev := phperr.PreviousOf(err); prev != nil {
-		t.prev = asThrowable(prev, -1)
-	}
-
-	return t
-}
-
-// codeOverride is a Throwable whose code Application::doRun replaced (the
-// TransportException code set through reflection).
+// codeOverride is an exception whose code was replaced; it is the
+// exception err stands for in every other way (its previous exception
+// too: phperr.PreviousOf looks through a wrapper with err's message).
 type codeOverride struct {
-	console.Throwable
+	err  error
 	code int
 }
 
-func (c *codeOverride) ThrowableCode() int { return c.code }
-func (c *codeOverride) Unwrap() error      { return c.Throwable }
+func (c *codeOverride) Error() string { return c.err.Error() }
 
-// phpClass is get_class($e) for any error.
-func phpClass(err error) string {
-	if t, ok := err.(console.Throwable); ok { //nolint:errorlint // get_class of the object itself.
-		return t.ThrowableClass()
-	}
-	class, _ := util.PHPClassOf(err)
+func (c *codeOverride) Unwrap() error { return c.err }
 
-	return class
-}
+// PHPClass implements phperr.Exception.
+func (c *codeOverride) PHPClass() string { return phperr.Class(c.err) }
 
-// isInvalidArgument is `$e instanceof \InvalidArgumentException`.
-func isInvalidArgument(err error) bool {
-	if errors.Is(err, console.ErrInvalidArgument) {
-		return true
-	}
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); ok {
-		return true
-	}
-	if e, ok := errors.AsType[*Error](err); ok && e.Class == ClassInvalidArgument {
-		return true
-	}
-	class, _ := util.PHPClassOf(err)
+// PHPCode implements phperr.Coded.
+func (c *codeOverride) PHPCode() int { return c.code }
 
-	return class == ClassInvalidArgument
-}
-
-// isPHPError is `$e instanceof \Error` for a class name: PHP's engine
-// errors, which are not Exceptions.
-func isPHPError(class string) bool {
-	switch class {
-	case "Error", "TypeError", "ValueError", "ArgumentCountError", "ArithmeticError", "DivisionByZeroError",
-		"CompileError", "ParseError", "UnhandledMatchError", "AssertionError", "FiberError":
-		return true
-	}
-
-	return false
-}
+// InstanceOf is err's: a code changes no class.
+func (c *codeOverride) InstanceOf(class string) bool { return phperr.InstanceOf(c.err, class) }

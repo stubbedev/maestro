@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/platform"
@@ -583,7 +584,7 @@ const tlsWarning = "<warning>Composer is configured to disable SSL/TLS protectio
 func transportResult(err error) []string {
 	var result []string
 	result = append(result, http.GetExceptionHints(err)...)
-	class, _ := util.PHPClassOf(err)
+	class, _ := phperr.ClassOf(err)
 
 	return append(result, "<error>["+class+"] "+err.Error()+"</error>")
 }
@@ -871,7 +872,7 @@ func (c *DiagnoseCommand) outputResult(result any) {
 	hadError := false
 	hadWarning := false
 	if err, ok := result.(error); ok {
-		class, _ := util.PHPClassOf(err)
+		class, _ := phperr.ClassOf(err)
 		result = "<error>[" + class + "] " + err.Error() + "</error>"
 	}
 

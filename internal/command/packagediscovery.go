@@ -3,7 +3,6 @@
 package command
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -14,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -592,7 +592,7 @@ func (d *PackageDiscovery) findSimilar(name string) ([]string, error) {
 	}
 	results, err := d.repos.Search(name, repository.SearchFulltext, "")
 	if err != nil {
-		if errors.Is(err, console.ErrLogic) || phpClass(err) == ClassLogic {
+		if phperr.InstanceOf(err, ClassLogic) {
 			return nil, err
 		}
 

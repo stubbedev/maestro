@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
@@ -86,7 +87,7 @@ func (r *PackageRepository) initialize() error {
 		} else {
 			err = pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::load`, 1, "config", "array", definition)
 		}
-		if err != nil && isPHPError(err) {
+		if err != nil && phperr.InstanceOf(err, "Error") {
 			// catch (\Exception) does not catch PHP's \Error classes
 			return err
 		}

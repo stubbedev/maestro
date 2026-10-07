@@ -28,9 +28,9 @@ func (e *InvalidPackageError) Error() string {
 	return "Invalid package information: \n" + strings.Join(all, "\n")
 }
 
-// PHPClass implements util.PHPClasser.
-func (*InvalidPackageError) PHPClass() (string, int) {
-	return `Composer\Package\Loader\InvalidPackageException`, 0
+// PHPClass implements phperr.Exception.
+func (*InvalidPackageError) PHPClass() string {
+	return `Composer\Package\Loader\InvalidPackageException`
 }
 
 // Data ports InvalidPackageException::getData.

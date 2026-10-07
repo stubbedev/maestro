@@ -3,12 +3,11 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"reflect"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/testutil"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -62,22 +61,11 @@ var policyEnvVars = []string{
 }
 
 func errorClass(err error) string {
-	var (
-		uve  *util.UnexpectedValueError
-		suve *semver.UnexpectedValueError
-		iae  *util.InvalidArgumentError
-		re   *util.RuntimeError
-	)
-	switch {
-	case errors.As(err, &uve), errors.As(err, &suve):
-		return "UnexpectedValueException"
-	case errors.As(err, &iae):
-		return "InvalidArgumentException"
-	case errors.As(err, &re):
-		return "RuntimeException"
+	if phperr.Of(err) == nil {
+		return "?"
 	}
 
-	return "?"
+	return phperr.Class(err)
 }
 
 // normalise round-trips v through JSON so it compares equal to decoded

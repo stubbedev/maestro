@@ -9,6 +9,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -211,7 +212,7 @@ func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, pre
 	}
 
 	handleError := func(e error) (*Promise, error) {
-		if !util.IsRuntimeException(e) || isIrrecoverable(e) {
+		if !phperr.InstanceOf(e, "RuntimeException") || isIrrecoverable(e) {
 			return nil, e
 		}
 
@@ -327,7 +328,7 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 			return promise, nil
 		}
 
-		if !util.IsRuntimeException(err) || !m.io.IsInteractive() {
+		if !phperr.InstanceOf(err, "RuntimeException") || !m.io.IsInteractive() {
 			return nil, err
 		}
 

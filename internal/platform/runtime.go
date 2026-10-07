@@ -81,8 +81,8 @@ type PHPError struct {
 
 func (e *PHPError) Error() string { return e.Message }
 
-// PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
-func (e *PHPError) PHPClass() (string, int) { return e.Class, 0 }
+// PHPClass implements phperr.Exception: get_class($e).
+func (e *PHPError) PHPClass() string { return e.Class }
 
 var (
 	extensionInfoTitleRe = php.MustCompile(`~<h2>\s*<a[^>]*>([^<]+)</a>\s*</h2>~i`)

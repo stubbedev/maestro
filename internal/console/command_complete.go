@@ -6,7 +6,6 @@ package console
 
 import (
 	_ "embed"
-	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 //go:embed resources/completion.bash
@@ -282,7 +282,7 @@ func (c *CompleteCommand) findCommand(completionInput *CompletionInput) (Command
 
 	cmd, err := c.Application().Find(inputName)
 	if err != nil {
-		if errors.Is(err, ErrCommandNotFound) {
+		if phperr.InstanceOf(err, ClassCommandNotFound) {
 			return nil, nil //nolint:nilnil // CommandNotFoundException is swallowed.
 		}
 

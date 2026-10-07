@@ -7,14 +7,13 @@
 package command_test
 
 import (
-	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // dumpAutoload runs dump-autoload with the "key", value pairs and returns
@@ -57,7 +56,7 @@ func assertOutputMatches(t *testing.T, pattern, output string) {
 
 func assertInvalidArgument(t *testing.T, err error, message string) {
 	t.Helper()
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 	if err.Error() != message {

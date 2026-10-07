@@ -892,14 +892,5 @@ type PluginBlockedError struct {
 
 func (e *PluginBlockedError) Error() string { return e.Message }
 
-// ThrowableClass implements console.Throwable.
-func (*PluginBlockedError) ThrowableClass() string { return `Composer\Plugin\PluginBlockedException` }
-
-// ThrowableCode implements console.Throwable.
-func (*PluginBlockedError) ThrowableCode() int { return 0 }
-
-// ThrowablePrevious implements console.Throwable.
-func (*PluginBlockedError) ThrowablePrevious() error { return nil }
-
-// Unwrap makes errors.As see the UnexpectedValueException it extends.
-func (e *PluginBlockedError) Unwrap() error { return &util.UnexpectedValueError{Message: e.Message} }
+// PHPClass implements phperr.Exception.
+func (*PluginBlockedError) PHPClass() string { return `Composer\Plugin\PluginBlockedException` }

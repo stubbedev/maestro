@@ -76,7 +76,7 @@ func TestOracleFuncs(t *testing.T) {
 
 		if m, ok := c["result"].(map[string]any); ok && m["error"] != nil {
 			e, ok := errors.AsType[*EngineError](err)
-			if !ok || e.Message != m["error"] || e.Class != m["class"] {
+			if !ok || e.Message != m["error"] || string(e.Class) != m["class"] {
 				t.Errorf("%s%q: got %q, %v; want %s: %s", fn, args, got, err, m["class"], m["error"])
 			}
 			continue

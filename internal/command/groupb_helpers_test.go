@@ -5,16 +5,16 @@
 package command_test
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // gbKV is an ordered list of ArrayInput parameters.
@@ -136,8 +136,4 @@ func gbLink(t *testing.T, source, target, version string) *pkg.Link {
 func gbItoa(i int) string { return php.ToString(int64(i)) }
 
 // gbIsInvalidArgument is `$e instanceof \InvalidArgumentException`.
-func gbIsInvalidArgument(err error) bool {
-	var e *util.InvalidArgumentError
-
-	return errors.As(err, &e)
-}
+func gbIsInvalidArgument(err error) bool { return phperr.InstanceOf(err, command.ClassInvalidArgument) }

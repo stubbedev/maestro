@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"crypto/md5"
 	"encoding/hex"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,11 +13,11 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Ports tests/Composer/Test/Package/LockerTest.php.
@@ -104,7 +103,7 @@ func TestLocker_GetNotLockedPackages(t *testing.T) {
 	locker := newLocker(t, file, getJSONContent(nil))
 
 	_, err := locker.LockedRepository(false)
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Fatal(err)
 	}
 	if file.exist != 1 {
@@ -231,7 +230,7 @@ func TestLocker_LockBadPackages(t *testing.T) {
 	package1 := pkg.NewPackage("pkg1", "", "")
 
 	_, err := locker.SetLockData(LockDataInput{Packages: []pkg.PackageInterface{package1}, DevPackages: php.Some([]pkg.PackageInterface{}), MinimumStability: "dev"}, true)
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Fatal(err)
 	}
 }

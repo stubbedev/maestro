@@ -138,22 +138,8 @@ func (a args) nullableString(i int) (string, bool) {
 // errorf is an error of a call PHP made with params maestro cannot take
 // (a bug in the shim or a TypeError PHP would have raised).
 func (a args) errorf(format string, v ...any) error {
-	return &typeError{msg: a.method + ": " + fmt.Sprintf(format, v...)}
+	return &php.EngineError{Class: php.ClassTypeError, Message: a.method + ": " + fmt.Sprintf(format, v...)}
 }
-
-// typeError is a \TypeError thrown back into PHP.
-type typeError struct{ msg string }
-
-func (e *typeError) Error() string { return e.msg }
-
-// ThrowableClass implements console.Throwable.
-func (*typeError) ThrowableClass() string { return "TypeError" }
-
-// ThrowableCode implements console.Throwable.
-func (*typeError) ThrowableCode() int { return 0 }
-
-// ThrowablePrevious implements console.Throwable.
-func (*typeError) ThrowablePrevious() error { return nil }
 
 // receiver returns param 0, the object a method is called on, as a T.
 func receiver[T any](a args) (T, error) {
@@ -211,11 +197,5 @@ func unsupportedf(format string, v ...any) error {
 
 func (e *unsupportedError) Error() string { return e.msg }
 
-// ThrowableClass implements console.Throwable.
-func (*unsupportedError) ThrowableClass() string { return `Maestro\Shim\UnsupportedApiException` }
-
-// ThrowableCode implements console.Throwable.
-func (*unsupportedError) ThrowableCode() int { return 0 }
-
-// ThrowablePrevious implements console.Throwable.
-func (*unsupportedError) ThrowablePrevious() error { return nil }
+// PHPClass implements phperr.Exception.
+func (*unsupportedError) PHPClass() string { return `Maestro\Shim\UnsupportedApiException` }

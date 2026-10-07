@@ -3,24 +3,23 @@
 package command_test
 
 import (
-	"errors"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
-	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // assertRequireInvalidArgument checks a PHP InvalidArgumentException (or a
 // subclass) with the given message.
 func assertRequireInvalidArgument(t *testing.T, err error, message string) {
 	t.Helper()
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok && !errors.Is(err, console.ErrInvalidArgument) {
+	if !phperr.InstanceOf(err, command.ClassInvalidArgument) {
 		t.Fatalf("expected InvalidArgumentException, got %T %v", err, err)
 	}
 	if err.Error() != message {

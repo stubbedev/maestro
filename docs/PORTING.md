@@ -299,15 +299,21 @@ Cycle-breaking decisions already made:
 ### Errors
 
 - Exceptions become Go errors carrying the same information, with
-  Composer's message text by default. Where Composer distinguishes
-  exception classes (callers catch specific ones), use distinct error
-  types and `errors.As`.
+  Composer's message text by default. An error that stands for a PHP
+  exception says which (`phperr.Exception`: a `PHPClass()` method, and
+  `PHPCode()` when its code is not 0); `phperr.ClassOf` and
+  `phperr.InstanceOf` resolve any error, a Go wrapper adding context
+  standing for the exception it wraps and a plain Go error for a
+  `\RuntimeException`. A `catch (X $e)` is `phperr.InstanceOf(err, X)`,
+  which follows PHP's class hierarchy (`internal/phperr`'s class table,
+  checked against PHP and against every class the sources name); use
+  `errors.As` only to read the fields of a specific Go type.
 - Errors that can reach a plugin keep their PHP class: plugins catch
   Composer's exception classes, and docs/PLUGINS.md (D12) maps Go errors
-  to them both ways. A class `util.PHPClassOf` cannot know is given by a
-  `PHPClass()` method; a `$previous` exception goes in the type's previous
-  field (`phperr.Chained`, never Unwrap, which a test in `internal/phperr`
-  checks).
+  to them both ways through the same `phperr.ClassOf`; a `$previous`
+  exception goes in the type's previous field (`phperr.Chained`, never
+  Unwrap, which a test in `internal/phperr` checks). PHP's engine errors
+  (TypeError, ValueError, ...) are `php.EngineError`.
 - Errors carry no throw site or PHP call stack: rendering is maestro's
   own (#13), so Composer's file and line of a `new` expression, the
   frames of an exception's trace and PHP's TypeError call site (",

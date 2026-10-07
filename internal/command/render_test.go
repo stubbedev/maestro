@@ -46,7 +46,7 @@ func TestTransportDiagnostic(t *testing.T) {
 		},
 	} {
 		d := ui.Diagnostic{Message: c.err.Error()}
-		transportDiagnostic(asThrowable(c.err, 100), &d)
+		transportDiagnostic(withExitCode(c.err, 100), &d)
 		if d.Message != c.message || !slices.Equal(d.Details, c.details) {
 			t.Errorf("%q: message %q, details %q; want %q, %q", c.err, d.Message, d.Details, c.message, c.details)
 		}

@@ -4,15 +4,14 @@
 package repository
 
 import (
-	"errors"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/json"
-	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -108,11 +107,12 @@ func (r *FilesystemRepository) initialize() error {
 
 	packages, err := r.readPackageList()
 	if err != nil {
-		if _, ok := errors.AsType[*pkg.TypeError](err); ok {
+		// catch (\Exception $e): a PHP \Error goes through
+		if !phperr.InstanceOf(err, "Exception") {
 			return err
 		}
 
-		return &InvalidRepositoryError{Message: "Invalid repository data in " + r.file.Path() + ", packages could not be loaded: [" + exceptionClass(err) + "] " + err.Error()}
+		return &InvalidRepositoryError{Message: "Invalid repository data in " + r.file.Path() + ", packages could not be loaded: [" + phperr.Class(err) + "] " + err.Error()}
 	}
 
 	arrayLoader := loader.NewArrayLoader(nil, true)
@@ -685,35 +685,4 @@ func stringValues(a *php.Array) []string {
 	}
 
 	return values
-}
-
-// exceptionClass is get_class() of the exception PHP throws for err.
-func exceptionClass(err error) string {
-	var (
-		parsing    *jsonlint.ParsingError
-		unexpected *util.UnexpectedValueError
-		invalid    *util.InvalidArgumentError
-		logic      *util.LogicError
-		errorExc   *util.ErrorException
-		validation *json.ValidationError
-		repository *InvalidRepositoryError
-	)
-	switch {
-	case errors.As(err, &parsing):
-		return `Seld\JsonLint\ParsingException`
-	case errors.As(err, &validation):
-		return `Composer\Json\JsonValidationException`
-	case errors.As(err, &repository):
-		return `Composer\Repository\InvalidRepositoryException`
-	case errors.As(err, &unexpected):
-		return "UnexpectedValueException"
-	case errors.As(err, &invalid):
-		return "InvalidArgumentException"
-	case errors.As(err, &logic):
-		return "LogicException"
-	case errors.As(err, &errorExc):
-		return "ErrorException"
-	}
-
-	return "RuntimeException"
 }

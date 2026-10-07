@@ -3,7 +3,6 @@ package repository
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/processmock"
@@ -46,7 +46,7 @@ func createPathRepo(t *testing.T, options *php.Array) *PathRepository {
 func TestPathRepository_LoadPackageFromFileSystemWithIncorrectPath(t *testing.T) {
 	repo := createPathRepo(t, php.ArrayOf("url", fixturePath(t, "path", "missing")))
 	_, err := repo.Packages()
-	if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Fatalf("%v", err)
 	}
 }
@@ -346,7 +346,7 @@ func TestRepositoryManager_InvalidRepoCreationThrows(t *testing.T) {
 	} {
 		rm := Manager(io.NewNullIO(), config.New(false, ""), nil, nil, nil, ExternalTypes{})
 		_, err := rm.CreateRepository(c.typ, c.options, "")
-		if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+		if !phperr.InstanceOf(err, "InvalidArgumentException") {
 			t.Errorf("%s: %v", c.typ, err)
 		}
 	}

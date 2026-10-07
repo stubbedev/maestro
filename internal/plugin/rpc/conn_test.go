@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -460,13 +461,13 @@ func TestConn_Exceptions(t *testing.T) {
 	if !errors.As(fromPHP, &se) || se.Code != 3 {
 		t.Errorf("errors.As ScriptExecutionError = %v", se)
 	}
-	if !util.IsRuntimeException(fromPHP) {
+	if !phperr.InstanceOf(fromPHP, "RuntimeException") {
 		t.Error("not a RuntimeException")
 	}
-	if _, ok := errors.AsType[*util.LogicError](fromPHP); ok {
+	if phperr.InstanceOf(fromPHP, "LogicException") {
 		t.Error("a RuntimeException is a LogicException")
 	}
-	if pe.IsPHPError() {
+	if phperr.InstanceOf(pe, "Error") {
 		t.Error("an Exception is a \\Error")
 	}
 

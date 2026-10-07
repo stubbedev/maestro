@@ -35,6 +35,12 @@ func NewTransportError(message string, code int) *TransportError {
 
 func (e *TransportError) Error() string { return e.Message }
 
+// PHPClass implements phperr.Exception.
+func (*TransportError) PHPClass() string { return `Composer\Downloader\TransportException` }
+
+// PHPCode implements phperr.Coded.
+func (e *TransportError) PHPCode() int { return e.Code }
+
 // PHPPrevious implements phperr.Chained.
 func (e *TransportError) PHPPrevious() error { return e.Previous }
 
@@ -73,6 +79,11 @@ func NewMaxFileSizeExceededError(message string) *MaxFileSizeExceededError {
 // Unwrap exposes the TransportException part.
 func (e *MaxFileSizeExceededError) Unwrap() error { return e.TransportError }
 
+// PHPClass implements phperr.Exception (not the TransportException's).
+func (*MaxFileSizeExceededError) PHPClass() string {
+	return `Composer\Downloader\MaxFileSizeExceededException`
+}
+
 // IrrecoverableDownloadError is
 // Composer\Exception\IrrecoverableDownloadException, a RuntimeException
 // that stops the download manager from trying other sources.
@@ -81,3 +92,8 @@ type IrrecoverableDownloadError struct {
 }
 
 func (e *IrrecoverableDownloadError) Error() string { return e.Message }
+
+// PHPClass implements phperr.Exception.
+func (*IrrecoverableDownloadError) PHPClass() string {
+	return `Composer\Exception\IrrecoverableDownloadException`
+}

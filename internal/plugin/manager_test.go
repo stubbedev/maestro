@@ -14,7 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // allowTestManager returns a plugin manager whose Composer has the
@@ -106,7 +106,7 @@ func TestManager_IsPluginAllowed_Rules(t *testing.T) {
 		"See https://getcomposer.org/allow-plugins"; err.Error() != want {
 		t.Errorf("message:\n%s", err.Error())
 	}
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Error("PluginBlockedException is not an UnexpectedValueException")
 	}
 

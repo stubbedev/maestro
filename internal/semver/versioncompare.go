@@ -5,6 +5,10 @@
 
 package semver
 
+import (
+	"github.com/stubbedev/maestro/internal/php"
+)
+
 // VersionCompare ports PHP's version_compare($version1, $version2) without
 // an operator: it returns -1, 0 or 1.
 //
@@ -34,7 +38,7 @@ func VersionCompareOp(version1, version2, operator string) (bool, error) {
 		return cmp != 0, nil
 	}
 
-	return false, &ValueError{Message: "version_compare(): Argument #3 ($operator) must be a valid comparison operator"}
+	return false, &php.EngineError{Class: php.ClassValueError, Message: "version_compare(): Argument #3 ($operator) must be a valid comparison operator"}
 }
 
 // versionCompareOp is version_compare() with one of Constraint's operators.

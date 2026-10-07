@@ -16,9 +16,9 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
-	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -133,7 +133,7 @@ func (r *ComposerRepository) fetchFile(filename, cacheKey, sha256 string, storeL
 			return data, nil
 		}
 
-		if isPHPError(err) || isLogic(err) || statusCode(err) == 404 {
+		if phperr.InstanceOf(err, "Error") || phperr.InstanceOf(err, "LogicException") || statusCode(err) == 404 {
 			return nil, err
 		}
 		if _, ok := errors.AsType[*repository.SecurityError](err); ok {
@@ -265,7 +265,7 @@ func (r *ComposerRepository) fetchFileIfLastModified(filename, cacheKey, lastMod
 	if err == nil {
 		return data, fresh, nil
 	}
-	if isPHPError(err) || isLogic(err) || statusCode(err) == 404 {
+	if phperr.InstanceOf(err, "Error") || phperr.InstanceOf(err, "LogicException") || statusCode(err) == 404 {
 		return nil, false, err
 	}
 
@@ -634,48 +634,3 @@ func statusCode(err error) int {
 
 	return 0
 }
-
-// isLogic is $e instanceof \LogicException.
-func isLogic(err error) bool {
-	var logic *util.LogicError
-
-	return errors.As(err, &logic)
-}
-
-// isPHPError reports whether err is a PHP \Error (TypeError, ValueError),
-// which `catch (\Exception $e)` does not catch.
-func isPHPError(err error) bool {
-	var typeErr *pkg.TypeError
-	var valueErr *semver.ValueError
-
-	return errors.As(err, &typeErr) || errors.As(err, &valueErr)
-}
-
-// exceptionClass is get_class($e) for the exceptions package loading
-// raises.
-func exceptionClass(err error) string {
-	class, _ := util.PHPClassOf(err)
-
-	return class
-}
-
-// RuntimeError is the \RuntimeException ComposerRepository raises with a
-// previous exception (package loading failures). errors.As finds a
-// *util.RuntimeError in it, not the previous exception, as PHP's catch
-// blocks do not see it either.
-type RuntimeError struct {
-	Message  string
-	Previous error
-}
-
-func newRuntimeError(message string, previous error) *RuntimeError {
-	return &RuntimeError{Message: message, Previous: previous}
-}
-
-// PHPPrevious implements phperr.Chained.
-func (e *RuntimeError) PHPPrevious() error { return e.Previous }
-
-func (e *RuntimeError) Error() string { return e.Message }
-
-// Unwrap returns the exception as a *util.RuntimeError.
-func (e *RuntimeError) Unwrap() error { return &util.RuntimeError{Message: e.Message} }

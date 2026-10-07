@@ -40,6 +40,9 @@ type DateTimeError struct {
 	Message   string
 }
 
+// PHPClass implements phperr.Exception.
+func (*DateTimeError) PHPClass() string { return "DateMalformedStringException" }
+
 func (e *DateTimeError) Error() string {
 	c := e.Character
 	if c == 0 && e.Position < len(e.Time) {

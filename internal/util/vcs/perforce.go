@@ -800,5 +800,5 @@ type phpException struct {
 
 func (e *phpException) Error() string { return e.Message }
 
-// PHPClass implements util.PHPClasser.
-func (*phpException) PHPClass() (string, int) { return "Exception", 0 }
+// PHPClass implements phperr.Exception.
+func (*phpException) PHPClass() string { return "Exception" }

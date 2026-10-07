@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -260,7 +261,7 @@ func (c *RequireCommand) execute(in console.Input, out console.Output, cio io.IO
 			}
 
 			e := NewError(ClassRuntime, "No composer.json present in the current directory ("+c.file+"), this may be the cause of the following exception.")
-			e.Prev = asThrowable(err, -1)
+			e.Prev = err
 
 			return 0, e
 		}
@@ -408,7 +409,7 @@ func (c *RequireCommand) runUpdate(in console.Input, out console.Output, cio io.
 	if err == nil && result == 0 && len(requirementsToGuess) > 0 {
 		result, err = c.updateRequirementsAfterResolution(requirementsToGuess, requireKey, removeKey, sortPackages, console.BoolOption(in, "dry-run"), console.BoolOption(in, "fixed"))
 	}
-	if err != nil && isPHPException(err) {
+	if err != nil && phperr.InstanceOf(err, "Exception") {
 		if !c.dependencyResolutionCompleted {
 			if rerr := c.revertComposerFile(); rerr != nil {
 				return 0, rerr
@@ -417,14 +418,6 @@ func (c *RequireCommand) runUpdate(in console.Input, out console.Output, cio io.
 	}
 
 	return result, err
-}
-
-// isPHPException is `catch (\Exception $e)`: every error except a PHP
-// \Error (a TypeError, ...), which the catch lets through.
-func isPHPException(err error) bool {
-	class := phpClass(err)
-
-	return class != "TypeError" && class != "ValueError" && class != "Error" && class != "ArgumentCountError"
 }
 
 // suggestDev is the block asking to re-run with --dev when every new

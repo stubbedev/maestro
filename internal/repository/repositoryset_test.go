@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -59,7 +60,7 @@ func TestRepositorySet_FindPackages(t *testing.T) {
 	installed := must(NewInstalledArrayRepository(nil))
 	set = must(NewRepositorySet("dev", nil, nil, nil, nil, nil))
 	noErr(t, set.AddRepository(installed))
-	if _, ok := errors.AsType[*util.LogicError](set.LockForPool()); !ok {
+	if !phperr.InstanceOf(set.LockForPool(), "LogicException") {
 		t.Error("installed repository accepted")
 	}
 	set.AllowInstalledRepositories(true)

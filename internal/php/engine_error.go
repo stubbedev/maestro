@@ -3,17 +3,32 @@
 
 package php
 
-// EngineError is a PHP engine Throwable a ported function throws, such as
-// sprintf()'s ValueError or ArgumentCountError. Class is the PHP class name
-// and Message the exception message, both exactly as PHP reports them.
+// EngineError is a PHP engine \Error a ported function or Composer's
+// strictly typed code raises, such as sprintf()'s ValueError or a
+// TypeError for an argument of the wrong type. Message is exactly as PHP
+// reports it.
 type EngineError struct {
-	Class   string
+	Class   EngineClass
 	Message string
 }
 
+// EngineClass is the class of an EngineError.
+type EngineClass string
+
+// The engine errors maestro raises.
+const (
+	ClassError              EngineClass = "Error"
+	ClassTypeError          EngineClass = "TypeError"
+	ClassValueError         EngineClass = "ValueError"
+	ClassArgumentCountError EngineClass = "ArgumentCountError"
+)
+
 func (e *EngineError) Error() string { return e.Message }
 
-func valueError(msg string) *EngineError { return &EngineError{Class: "ValueError", Message: msg} }
+// PHPClass implements phperr.Exception.
+func (e *EngineError) PHPClass() string { return string(e.Class) }
+
+func valueError(msg string) *EngineError { return &EngineError{Class: ClassValueError, Message: msg} }
 
 // FalseToArrayDeprecation is the E_DEPRECATED PHP 8.1+ raises when a write
 // auto-vivifies an array from false.

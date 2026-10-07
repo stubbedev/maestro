@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -348,7 +349,7 @@ func gitSupports(deps Deps, url string, deep bool) (bool, error) {
 	}
 
 	if err := gitUtil.RunCommands([][]string{{"git", "ls-remote", "--heads", "--", "%url%"}}, url, os.TempDir(), false, nil); err != nil {
-		if util.IsRuntimeException(err) {
+		if phperr.InstanceOf(err, "RuntimeException") {
 			return false, nil
 		}
 

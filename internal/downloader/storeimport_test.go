@@ -2,7 +2,6 @@ package downloader
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"slices"
 	"strings"
@@ -11,8 +10,8 @@ import (
 	"github.com/stubbedev/maestro/internal/archive/archivetest"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // installIn installs p in a fresh project sharing the store and files
@@ -248,7 +247,7 @@ func TestTarDownloader_StoreHitNeedsCompressionExtension(t *testing.T) {
 	})
 	mustContain(t, err, "unable to decompress gzipped phar archive")
 
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Errorf("%T, want an UnexpectedValueException", err)
 	}
 }

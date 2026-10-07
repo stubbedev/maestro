@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 )
@@ -1065,7 +1066,7 @@ return array(
 	dep.SetAutoload(arr("classmap", list("classmap")))
 	_, err := e.generator.Dump(e.config, e.repo, p, e.im, "composer", true, "_19", nil, false)
 	want := `Could not scan for classes inside "` + e.vendorDir + `/dep/a/classmap" which does not appear to be a file nor a folder`
-	if err == nil || err.Error() != want || !isRuntimeException(err) {
+	if err == nil || err.Error() != want || !phperr.InstanceOf(err, "RuntimeException") {
 		t.Errorf("error %v, want RuntimeException %q", err, want)
 	}
 

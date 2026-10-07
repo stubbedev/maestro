@@ -32,9 +32,9 @@ type ProcessTimedOutError struct {
 	Timeout     time.Duration
 }
 
-// PHPClass implements PHPClasser.
-func (*ProcessTimedOutError) PHPClass() (string, int) {
-	return `Symfony\Component\Process\Exception\ProcessTimedOutException`, 0
+// PHPClass implements phperr.Exception.
+func (*ProcessTimedOutError) PHPClass() string {
+	return `Symfony\Component\Process\Exception\ProcessTimedOutException`
 }
 
 func (e *ProcessTimedOutError) Error() string {
@@ -47,9 +47,9 @@ type ProcessSignaledError struct {
 	Signal int
 }
 
-// PHPClass implements PHPClasser.
-func (*ProcessSignaledError) PHPClass() (string, int) {
-	return `Symfony\Component\Process\Exception\ProcessSignaledException`, 0
+// PHPClass implements phperr.Exception.
+func (*ProcessSignaledError) PHPClass() string {
+	return `Symfony\Component\Process\Exception\ProcessSignaledException`
 }
 
 func (e *ProcessSignaledError) Error() string {

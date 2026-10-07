@@ -3,7 +3,6 @@
 package installer
 
 import (
-	"errors"
 	"os"
 	"os/signal"
 	"slices"
@@ -15,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -167,7 +167,7 @@ func (m *Manager) EnsureBinariesPresence(p pkg.PackageInterface) error {
 	if err != nil {
 		// no installer found for the current package type (@see
 		// `getInstaller()`)
-		if _, ok := errors.AsType[*util.InvalidArgumentError](err); ok {
+		if phperr.InstanceOf(err, "InvalidArgumentException") {
 			return nil
 		}
 
@@ -1025,8 +1025,4 @@ func (m *Manager) runCleanup(cl *cleanups) error {
 
 // isException reports whether err is a PHP \Exception (what `catch
 // (\Exception $e)` catches) rather than an \Error.
-func isException(err error) bool {
-	e, ok := err.(eventdispatcher.PHPError) //nolint:errorlint // catch inspects the thrown object itself.
-
-	return !ok || !e.IsPHPError()
-}
+func isException(err error) bool { return phperr.InstanceOf(err, "Exception") }

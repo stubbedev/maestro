@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/testutil"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // The goldens come from tools/oracle/archiver/archiver.php.
@@ -230,24 +230,11 @@ func mustWrite(t *testing.T, path, content string) {
 
 // phpClass names the PHP exception class of an error.
 func phpClass(err error) string {
-	switch err.(type) { //nolint:errorlint // exact classes
-	case *util.RuntimeError:
-		return "RuntimeException"
-	case *util.ErrorException:
-		return "ErrorException"
-	case *util.InvalidArgumentError:
-		return "InvalidArgumentException"
-	case *util.UnexpectedValueError:
-		return "UnexpectedValueException"
-	case *BadMethodCallError:
-		return "BadMethodCallException"
-	case *PharError:
-		return "PharException"
-	case *pkg.TypeError:
-		return "TypeError"
+	if phperr.Of(err) == nil {
+		return "?" + err.Error()
 	}
 
-	return "?" + err.Error()
+	return phperr.Class(err)
 }
 
 // checkResult compares a call's outcome with the golden's.

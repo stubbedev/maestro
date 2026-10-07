@@ -55,8 +55,8 @@ func (e *ValidationError) Error() string { return e.Message }
 // PHPPrevious implements phperr.Chained.
 func (e *ValidationError) PHPPrevious() error { return e.Prev }
 
-// PHPClass implements util.PHPClasser.
-func (*ValidationError) PHPClass() (string, int) { return `Composer\Json\JsonValidationException`, 0 }
+// PHPClass implements phperr.Exception.
+func (*ValidationError) PHPClass() string { return `Composer\Json\JsonValidationException` }
 
 // File is Composer\Json\JsonFile.
 type File struct {

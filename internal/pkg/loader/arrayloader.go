@@ -814,7 +814,7 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 				if _, isArray := c.(*php.Array); isArray {
 					// isset($linkCache[$name][$type][$target][$constraint])
 					// fails before createLink() is called
-					return &pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}
+					return &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type array in isset or empty"}
 				}
 				if !ok {
 					return pkg.ArgumentTypeError(`Composer\Package\Loader\ArrayLoader::createLink`, 5, "prettyConstraint", "string", c)

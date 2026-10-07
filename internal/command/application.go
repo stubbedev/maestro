@@ -22,6 +22,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -202,7 +203,7 @@ func (a *Application) DoRun(in console.Input, out console.Output) (int, error) {
 		return ec.ExitCode(), nil
 	}
 
-	return code, asThrowable(err, -1)
+	return code, err
 }
 
 func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
@@ -251,10 +252,10 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 		switch {
 		case err == nil:
 			commandName = cmd.Base().Name()
-		case errors.Is(err, console.ErrCommandNotFound):
+		case phperr.InstanceOf(err, console.ClassCommandNotFound):
 			// we'll check command validity again later after plugins are loaded
 			commandNameFalse = true
-		case isInvalidArgument(err):
+		case phperr.InstanceOf(err, ClassInvalidArgument):
 		default:
 			return 0, err
 		}
@@ -348,7 +349,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 			if p, ok := cmd.(ProxyCommander); ok && isBaseCommand(cmd) {
 				isProxyCommand = p.IsProxyCommand()
 			}
-		case isInvalidArgument(err):
+		case phperr.InstanceOf(err, ClassInvalidArgument):
 		default:
 			return 0, err
 		}
@@ -365,7 +366,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 	if rawCommandName != "" {
 		if cmd, err := a.Find(rawCommandName); err == nil {
 			a.Runtime().SetRunningCommand(telemetryCommandName(cmd), true)
-		} else if !isInvalidArgument(err) {
+		} else if !phperr.InstanceOf(err, ClassInvalidArgument) {
 			return 0, err
 		}
 	}
@@ -513,7 +514,7 @@ func (a *Application) addPluginCommands(cio *io.ConsoleIO) error {
 
 // isNoSSL is `$e instanceof NoSslException`.
 func isNoSSL(err error) bool {
-	return phpClass(err) == `Composer\Exception\NoSslException`
+	return phperr.InstanceOf(err, `Composer\Exception\NoSslException`)
 }
 
 // pluginCommands ports getPluginCommands(), whose frame is on the stack
@@ -828,11 +829,11 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 
 	// override TransportException's code for the purpose of parent::run() using it as process exit code
 	// as http error codes are all beyond the 255 range of permitted exit codes
-	if _, ok := errors.AsType[*util.TransportError](err); ok {
-		return 0, asThrowable(err, composer.ErrorTransportException)
+	if phperr.InstanceOf(err, `Composer\Downloader\TransportException`) {
+		return 0, withExitCode(err, composer.ErrorTransportException)
 	}
 
-	return 0, asThrowable(err, -1)
+	return 0, err
 }
 
 // hintCommonErrors ports hintCommonErrors: the hints about the likely
@@ -842,15 +843,14 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 // getComposer() raises, which escapes its catch (\Exception): the run ends
 // with that one, uncaught.
 func (a *Application) hintCommonErrors(exception error, out console.Output) (hints []string, fatal error) {
-	class := phpClass(exception)
-	if (class == ClassLogic || isPHPError(class)) && out.Verbosity() < console.VerbosityVerbose {
+	if (phperr.Class(exception) == ClassLogic || phperr.InstanceOf(exception, "Error")) && out.Verbosity() < console.VerbosityVerbose {
 		out.SetVerbosity(console.VerbosityVerbose)
 	}
 
 	util.SilencerSuppress()
 	c, err := a.getComposer(2, false, new(true), nil) // $this->getComposer(false, true)
 	util.SilencerRestore()
-	if err != nil && isPHPError(phpClass(err)) {
+	if err != nil && phperr.InstanceOf(err, "Error") {
 		return nil, err
 	}
 	if err == nil && c != nil {
@@ -901,7 +901,7 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) (hin
 
 	if a.disablePluginsByDefault && isRunningAsRoot() && !a.io.IsInteractive() {
 		hints = append(hints, "Plugins have been disabled automatically as you are running as root, which may be the cause of this error, see https://getcomposer.org/root")
-	} else if errors.Is(exception, console.ErrCommandNotFound) && a.disablePluginsByDefault {
+	} else if phperr.InstanceOf(exception, console.ClassCommandNotFound) && a.disablePluginsByDefault {
 		hints = append(hints, "Plugins have been disabled, which may be why some commands are missing, unless you made a typo.")
 	}
 
@@ -996,7 +996,7 @@ func (a *Application) getComposer(argc int, required bool, disablePlugins, disab
 		c, err := a.factory.Create(out, nil, disable, ds)
 		if err != nil {
 			switch {
-			case isInvalidArgument(err):
+			case phperr.InstanceOf(err, ClassInvalidArgument):
 				if required {
 					a.io.WriteError(err.Error(), true, io.Normal)
 					if a.AreExceptionsCaught() {
@@ -1005,7 +1005,7 @@ func (a *Application) getComposer(argc int, required bool, disablePlugins, disab
 
 					return nil, err
 				}
-			case isJSONValidation(err), util.IsRuntimeException(err):
+			case isJSONValidation(err), phperr.InstanceOf(err, "RuntimeException"):
 				if required {
 					return nil, err
 				}

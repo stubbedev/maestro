@@ -1,15 +1,14 @@
 package repository
 
 import (
-	"errors"
 	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Ports tests/Composer/Test/Repository/CompositeRepositoryTest.php,
@@ -163,7 +162,7 @@ func TestFilterRepository_RepoMatching(t *testing.T) {
 
 func TestFilterRepository_BothFiltersDisallowed(t *testing.T) {
 	_, err := NewFilterRepository(filterFixture(t), filterOptions([]string{}, []string{}, nil))
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("%v", err)
 	}
 }
@@ -237,7 +236,7 @@ func TestInstalledRepository_FindPackagesWithReplacersAndProviders(t *testing.T)
 
 func TestInstalledRepository_AddRepository(t *testing.T) {
 	_, err := NewInstalledRepository([]RepositoryInterface{newArrayRepo(t)})
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Fatalf("%v", err)
 	}
 }

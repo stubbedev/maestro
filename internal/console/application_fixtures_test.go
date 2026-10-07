@@ -21,10 +21,10 @@ func newTestException(message string, code int, prev error) *testException {
 	return &testException{class: "Exception", message: message, file: "/tests/ApplicationTest.php", line: 1, code: code, prev: prev}
 }
 
-func (e *testException) Error() string            { return e.message }
-func (e *testException) ThrowableClass() string   { return e.class }
-func (e *testException) ThrowableCode() int       { return e.code }
-func (e *testException) ThrowablePrevious() error { return e.prev }
+func (e *testException) Error() string      { return e.message }
+func (e *testException) PHPClass() string   { return e.class }
+func (e *testException) PHPCode() int       { return e.code }
+func (e *testException) PHPPrevious() error { return e.prev }
 
 // fixture reads testdata/Fixtures/name.
 func fixture(t *testing.T, name string) string {

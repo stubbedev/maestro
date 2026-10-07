@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -34,7 +35,7 @@ func expectRunError(t *testing.T, class, message string, kv ...any) {
 func isPHPInstance(err error, class string) bool {
 	switch class {
 	case "RuntimeException":
-		return util.IsRuntimeException(err)
+		return phperr.InstanceOf(err, "RuntimeException")
 	case "InvalidArgumentException":
 		got := phpClassOf(err)
 		return got == "InvalidArgumentException" || strings.HasSuffix(got, `\InvalidArgumentException`) || strings.HasSuffix(got, "NotFoundException")

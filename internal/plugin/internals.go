@@ -417,7 +417,7 @@ func (r *Runtime) filterFromPHP(v any) (version.PlatformRequirementFilter, error
 		return r.phpFilter(t), nil
 	}
 
-	return nil, &typeError{msg: fmt.Sprintf("a platform requirement filter is a %T", v)}
+	return nil, &php.EngineError{Class: php.ClassTypeError, Message: fmt.Sprintf("a platform requirement filter is a %T", v)}
 }
 
 // transactionObject is a transaction with Composer's protected

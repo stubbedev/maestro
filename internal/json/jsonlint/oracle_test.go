@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/testutil"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // oracleString is a string the oracle stores as is, or as {"b64": ...}
@@ -76,20 +77,12 @@ func loadOracle(t *testing.T) (parse []oracleCase, utf8 []oracleUTF8) {
 
 // errorClass returns the short PHP class name of an error Parse returns.
 func errorClass(err error) string {
-	switch err.(type) { //nolint:errorlint // the exact class is compared
-	case *ParsingError:
-		return "ParsingException"
-	case *DuplicateKeyError:
-		return "DuplicateKeyException"
-	case *InvalidEncodingError:
-		return "InvalidEncodingException"
-	case *util.InvalidArgumentError:
-		return "InvalidArgumentException"
-	case *PHPError:
-		return "Error"
+	if phperr.Of(err) == nil {
+		return "?"
 	}
+	class := phperr.Class(err)
 
-	return "?"
+	return class[strings.LastIndexByte(class, '\\')+1:]
 }
 
 // checkResult compares the Go outcome (v, err) with the PHP one.

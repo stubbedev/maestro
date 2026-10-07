@@ -66,8 +66,8 @@ type InvalidArgumentError struct {
 
 func (e *InvalidArgumentError) Error() string { return e.Message }
 
-// PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
-func (*InvalidArgumentError) PHPClass() (string, int) { return "InvalidArgumentException", 0 }
+// PHPClass implements phperr.Exception: get_class($e).
+func (*InvalidArgumentError) PHPClass() string { return "InvalidArgumentException" }
 
 // SpdxLicenses ports Composer\Spdx\SpdxLicenses. It is immutable and safe
 // for concurrent use.

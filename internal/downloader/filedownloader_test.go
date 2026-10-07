@@ -3,7 +3,6 @@ package downloader
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -53,7 +53,7 @@ func TestFileDownloader_DownloadForPackageWithoutDistReference(t *testing.T) {
 	d := newTestFileDownloader(t, nil, nil, nil, nil, nil)
 
 	_, err := d.Download(dummyPackage(), "/path", nil)
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 }
@@ -68,7 +68,7 @@ func TestFileDownloader_DownloadToExistingFile(t *testing.T) {
 	d := newTestFileDownloader(t, nil, nil, nil, nil, nil)
 
 	_, err := d.Download(p, path, nil)
-	if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Fatalf("expected RuntimeException, got %v", err)
 	}
 
@@ -172,7 +172,7 @@ func TestFileDownloader_DownloadButFileIsUnsaved(t *testing.T) {
 	d := newTestFileDownloader(t, nil, getConfig(t, "vendor-dir", path+"/vendor"), nil, nil, nil)
 
 	err := await(d.Download(p, path, nil))
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected UnexpectedValueException, got %v", err)
 	}
 
@@ -231,7 +231,7 @@ func TestFileDownloader_DownloadWithCustomProcessedUrl(t *testing.T) {
 	d := newTestFileDownloader(t, nil, config, dispatcher, cache, h)
 
 	err := await(d.Download(p, path, nil))
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected UnexpectedValueException, got %v", err)
 	}
 
@@ -285,7 +285,7 @@ func TestFileDownloader_DownloadWithCustomCacheKey(t *testing.T) {
 	d := newTestFileDownloader(t, nil, config, dispatcher, cache, h)
 
 	err := await(d.Download(p, path, nil))
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected UnexpectedValueException, got %v", err)
 	}
 
@@ -329,7 +329,7 @@ func TestFileDownloader_DownloadFileWithInvalidChecksum(t *testing.T) {
 	writeFile(t, dlFile, nil, 0o644)
 
 	err := await(d.Download(p, path, nil))
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected UnexpectedValueException, got %v", err)
 	}
 

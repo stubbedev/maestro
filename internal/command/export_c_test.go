@@ -8,9 +8,6 @@ func HasScriptAliasCommand() bool { return scriptAliasConstructor != nil }
 // TelemetryCommandName exposes getTelemetryCommandName.
 var TelemetryCommandName = telemetryCommandName
 
-// PHPClass exposes phpClass (get_class of an error).
-var PHPClass = phpClass
-
 // ParseBackupVersion exposes parseBackupVersion.
 var ParseBackupVersion = parseBackupVersion
 

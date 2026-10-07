@@ -16,7 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 const defaultAuthors = `{"name": "John Smith", "email": "john@example.com"}`
@@ -62,7 +62,7 @@ func TestInitCommand_ParseValidAuthorString(t *testing.T) {
 
 func initExpectInvalidArgument(t *testing.T, err error) {
 	t.Helper()
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 }

@@ -116,7 +116,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 			}
 			fn := `Composer\Semver\Constraint\` + class
 
-			return nil, &pkg.TypeError{Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}
+			return nil, &php.EngineError{Class: php.ClassTypeError, Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}
 		}
 		if !advisory.Partial().AffectedVersions.Matches(constraint) {
 			return nil, nil

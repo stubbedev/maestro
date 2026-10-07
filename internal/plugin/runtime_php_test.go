@@ -245,20 +245,38 @@ func TestRuntime_ExceptionsBothWays(t *testing.T) {
 	rt.Handle("go.runtime", func(any) (any, error) { return nil, &util.RuntimeError{Message: "rt"} })
 	rt.Handle("go.transport", func(any) (any, error) { return nil, &util.TransportError{Message: "down", Code: 404} })
 	rt.Handle("go.plain", func(any) (any, error) { return nil, errors.New("plain") })
+	// a plugin catches what Composer would throw: catch (TransportException)
+	// takes the max file size failure, as it extends TransportException
+	rt.Handle("go.maxsize", func(any) (any, error) { return nil, util.NewMaxFileSizeExceededError("too big") })
+	rt.Handle("go.irrecoverable", func(any) (any, error) { return nil, &util.IrrecoverableDownloadError{Message: "gone"} })
+	rt.Handle("go.wrapped", func(any) (any, error) {
+		return nil, fmt.Errorf("fetching: %w", &util.TransportError{Message: "down", Code: 500})
+	})
+	rt.Handle("go.pcre", func(any) (any, error) {
+		return nil, &php.PcreError{Function: "preg_match", Pattern: "/x/", Code: php.PregBacktrackLimitError}
+	})
+	rt.Handle("go.engine", func(any) (any, error) {
+		return nil, &php.EngineError{Class: php.ClassTypeError, Message: "wrong type"}
+	})
 	start(t, rt)
 
 	for method, want := range map[string]string{
-		"go.script":    `Composer\EventDispatcher\ScriptExecutionException|Error Output: boom|3`,
-		"go.runtime":   "RuntimeException|rt|0",
-		"go.transport": `Composer\Downloader\TransportException|down|404`,
-		"go.plain":     "RuntimeException|plain|0",
-		"go.missing":   `Maestro\Shim\UnsupportedApiException|maestro has no handler for go.missing|0`,
+		"go.script":        `Composer\EventDispatcher\ScriptExecutionException|Error Output: boom|3|false`,
+		"go.runtime":       "RuntimeException|rt|0|false",
+		"go.transport":     `Composer\Downloader\TransportException|down|404|true`,
+		"go.plain":         "RuntimeException|plain|0|false",
+		"go.missing":       `Maestro\Shim\UnsupportedApiException|maestro has no handler for go.missing|0|false`,
+		"go.maxsize":       `Composer\Downloader\MaxFileSizeExceededException|too big|400|true`,
+		"go.irrecoverable": `Composer\Exception\IrrecoverableDownloadException|gone|0|false`,
+		"go.wrapped":       `Composer\Downloader\TransportException|fetching: down|500|true`,
+		"go.pcre":          `Composer\Pcre\PcreException|preg_match(): failed executing "/x/": Backtrack limit exhausted|2|false`,
+		"go.engine":        "TypeError|wrong type|0|false",
 	} {
 		v, err := rt.Call("test.catch", php.ArrayOf("m", method))
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := fmt.Sprintf("%v|%v|%v", get(t, v, "class"), get(t, v, "message"), get(t, v, "code"))
+		got := fmt.Sprintf("%v|%v|%v|%v", get(t, v, "class"), get(t, v, "message"), get(t, v, "code"), get(t, v, "transport"))
 		if got != want {
 			t.Errorf("%s: PHP caught %s, want %s", method, got, want)
 		}

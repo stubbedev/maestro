@@ -15,8 +15,8 @@ import (
 )
 
 // The suggestion callbacks run during completion (`composer _complete`).
-// PHP closures throw; here a failure panics with a console.Throwable,
-// which CompleteCommand recovers exactly as Symfony catches the exception.
+// PHP closures throw; here a failure panics with the error, which
+// CompleteCommand recovers exactly as Symfony catches the exception.
 
 func suggestStrings(values []string) []console.Suggestion {
 	out := make([]console.Suggestion, len(values))
@@ -27,10 +27,10 @@ func suggestStrings(values []string) []console.Suggestion {
 	return out
 }
 
-// must panics with err as a Throwable (see above).
+// must panics with err (see above).
 func must[T any](v T, err error) T {
 	if err != nil {
-		panic(asThrowable(err, -1))
+		panic(err)
 	}
 
 	return v

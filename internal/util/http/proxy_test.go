@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -43,7 +44,7 @@ func TestProxyItem_ThrowsOnMalformedUrl(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := NewProxyItem(url, "http_proxy")
-			if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+			if !phperr.InstanceOf(err, "RuntimeException") {
 				t.Fatalf("expected a RuntimeException, got %v", err)
 			}
 		})
@@ -269,7 +270,7 @@ func TestRequestProxy_GetStatusThrowsOnBadFormatSpecifier(t *testing.T) {
 	proxy := NewRequestProxy("http://proxy.com:80", "", nil, "http://proxy.com:80")
 
 	_, err := proxy.StatusFormat("using proxy")
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected an InvalidArgumentException, got %v", err)
 	}
 }

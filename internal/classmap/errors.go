@@ -15,23 +15,11 @@ type Exception struct {
 
 func (e *Exception) Error() string { return e.Message }
 
-// PHPClass is get_class($e) and $e->getCode() (util.PHPClasser).
-func (e *Exception) PHPClass() (string, int) { return e.Class, 0 }
+// PHPClass implements phperr.Exception: get_class($e).
+func (e *Exception) PHPClass() string { return e.Class }
 
 // PHPPrevious implements phperr.Chained.
 func (e *Exception) PHPPrevious() error { return e.Prev }
-
-// IsRuntimeException reports whether the PHP class extends
-// \RuntimeException, which is what AutoloadGenerator::createLoader()
-// catches.
-func (e *Exception) IsRuntimeException() bool {
-	switch e.Class {
-	case classRuntime, classUnexpectedValue, classAccessDenied:
-		return true
-	}
-
-	return false
-}
 
 // The exception classes this package throws.
 const (

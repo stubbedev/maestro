@@ -335,7 +335,7 @@ func TestArchivableFilesFinderExceptions(t *testing.T) {
 	}
 
 	_, err = findFiles(dir+"/missing", nil)
-	if class, _ := util.PHPClassOf(err); class != util.ClassDirectoryNotFound {
+	if class, _ := phperr.ClassOf(err); class != util.ClassDirectoryNotFound {
 		t.Errorf("missing source: %s %v, want %s", class, err, util.ClassDirectoryNotFound)
 	}
 
@@ -352,7 +352,7 @@ func TestArchivableFilesFinderExceptions(t *testing.T) {
 	}
 
 	_, err = NewArchivableFilesFinder(dir, nil, false)
-	if class, _ := util.PHPClassOf(err); class != util.ClassAccessDenied {
+	if class, _ := phperr.ClassOf(err); class != util.ClassAccessDenied {
 		t.Fatalf("unreadable subdirectory: %s %v, want %s", class, err, util.ClassAccessDenied)
 	}
 	want := "RecursiveDirectoryIterator::__construct(" + locked + "): Failed to open directory: Permission denied"
@@ -360,7 +360,7 @@ func TestArchivableFilesFinderExceptions(t *testing.T) {
 		t.Errorf("message %q, want %q", err.Error(), want)
 	}
 	prev := phperr.PreviousOf(err)
-	if class, _ := util.PHPClassOf(prev); class != "UnexpectedValueException" {
+	if class, _ := phperr.ClassOf(prev); class != "UnexpectedValueException" {
 		t.Errorf("previous %s %v, want UnexpectedValueException", class, prev)
 	}
 }

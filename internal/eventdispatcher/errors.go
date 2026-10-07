@@ -13,16 +13,13 @@ type ScriptExecutionError struct {
 
 func (e *ScriptExecutionError) Error() string { return e.Message }
 
-// ThrowableClass implements console.Throwable.
-func (*ScriptExecutionError) ThrowableClass() string {
+// PHPClass implements phperr.Exception.
+func (*ScriptExecutionError) PHPClass() string {
 	return `Composer\EventDispatcher\ScriptExecutionException`
 }
 
-// ThrowableCode implements console.Throwable.
-func (e *ScriptExecutionError) ThrowableCode() int { return e.Code }
-
-// ThrowablePrevious implements console.Throwable.
-func (*ScriptExecutionError) ThrowablePrevious() error { return nil }
+// PHPCode implements phperr.Coded: the script's exit code.
+func (e *ScriptExecutionError) PHPCode() int { return e.Code }
 
 // Error is any other exception the dispatcher throws (RuntimeException,
 // LogicException, PHP's \Error), with its PHP class.
@@ -33,31 +30,8 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Message }
 
-// ThrowableClass implements console.Throwable.
-func (e *Error) ThrowableClass() string { return e.Class }
-
-// ThrowableCode implements console.Throwable.
-func (*Error) ThrowableCode() int { return 0 }
-
-// ThrowablePrevious implements console.Throwable.
-func (*Error) ThrowablePrevious() error { return nil }
-
-// IsPHPError implements PHPError for \Error classes.
-func (e *Error) IsPHPError() bool { return e.Class == "Error" }
-
-// PHPError is implemented by errors that stand for a PHP \Error (TypeError,
-// a call to an undefined method, ...) rather than an \Exception. The
-// dispatcher's `catch (\Exception $e)` blocks do not see those.
-type PHPError interface {
-	error
-	IsPHPError() bool
-}
-
-func isPHPError(err error) bool {
-	e, ok := err.(PHPError) //nolint:errorlint // catch inspects the thrown object itself.
-
-	return ok && e.IsPHPError()
-}
+// PHPClass implements phperr.Exception.
+func (e *Error) PHPClass() string { return e.Class }
 
 func runtimeError(message string) *Error {
 	return &Error{Class: "RuntimeException", Message: message}

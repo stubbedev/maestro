@@ -127,25 +127,18 @@ func traceFrame(f TraceFrame) string {
 	return s
 }
 
-// throwableInfo extracts the PHP exception details of err itself (not of
-// errors it wraps, as PHP only looks at the object it holds): its class,
-// code and previous exception.
+// throwableInfo is the PHP exception details of err: its class, code
+// (phperr.ClassOf) and previous exception (phperr.PreviousOf).
 func throwableInfo(err error) (class string, code int, prev error) {
-	if t, ok := err.(Throwable); ok { //nolint:errorlint // PHP inspects the exception object itself, not what it wraps.
-		return t.ThrowableClass(), t.ThrowableCode(), t.ThrowablePrevious()
-	}
+	class, code = phperr.ClassOf(err)
 
-	return "Exception", 0, phperr.PreviousOf(err)
+	return class, code, phperr.PreviousOf(err)
 }
 
-// isConsoleExceptionValue is "$e instanceof ExceptionInterface", for the
-// console's own errors and for exceptions that know their PHP classes (the
-// plugin runtime's).
+// isConsoleExceptionValue is "$e instanceof ExceptionInterface" for the
+// object err itself, not what it wraps.
 func isConsoleExceptionValue(err error) bool {
-	if i, ok := err.(interface{ InstanceOf(class string) bool }); ok {
-		return i.InstanceOf(`Symfony\Component\Console\Exception\ExceptionInterface`)
-	}
-	e, ok := err.(*Error) //nolint:errorlint // instanceof applies to the object itself.
+	e, ok := err.(phperr.Exception) //nolint:errorlint // instanceof applies to the object itself.
 
-	return ok && e.Is(ErrConsole)
+	return ok && phperr.InstanceOf(e, phperr.ClassConsoleException)
 }

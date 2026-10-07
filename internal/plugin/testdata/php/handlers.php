@@ -177,6 +177,7 @@ Server::register('test.catch', function ($a) {
             'message' => $e->getMessage(),
             'code' => $e->getCode(),
             'previous' => $previous === null ? null : get_class($previous).': '.$previous->getMessage(),
+            'transport' => $e instanceof \Composer\Downloader\TransportException,
         ];
     }
 

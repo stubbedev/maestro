@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -401,7 +402,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 		status, err := inst.Run()
 		if err != nil {
-			if phpClass(err) == pluginBlockedClass {
+			if phperr.InstanceOf(err, pluginBlockedClass) {
 				cwd, _ := util.GetCwd(true)
 				cio.WriteError("<error>Hint: To allow running the config command recommended below before dependencies are installed, run create-project with --no-install.</error>", true, io.Normal)
 				cio.WriteError("<error>You can then cd into "+cwd+", configure allow-plugins, and finally run a composer install to complete the process.</error>", true, io.Normal)

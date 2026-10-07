@@ -8,6 +8,7 @@ import (
 
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -121,7 +122,7 @@ func (d *SvnDownloader) newSvn(baseURL string) *vcsutil.Svn {
 // is unused.
 func (d *SvnDownloader) svnExecute(p pkg.PackageInterface, baseURL string, command []string, url, cwd, path string) error {
 	_, err := d.newSvn(baseURL).Execute(command, url, cwd, path, d.io.IsVerbose())
-	if err != nil && util.IsRuntimeException(err) {
+	if err != nil && phperr.InstanceOf(err, "RuntimeException") {
 		return &util.RuntimeError{Message: p.PrettyName() + " could not be downloaded, " + err.Error()}
 	}
 
@@ -240,7 +241,7 @@ func (d *SvnDownloader) commitLogs(fromReference, toReference, path string) (str
 	command := []string{"svn", "log", "-r", fromRevision + ":" + toRevision, "--incremental"}
 
 	logs, err := d.newSvn(baseURL).ExecuteLocal(command, path, "", d.io.IsVerbose())
-	if err != nil && util.IsRuntimeException(err) {
+	if err != nil && phperr.InstanceOf(err, "RuntimeException") {
 		return "", &util.RuntimeError{Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + err.Error()}
 	}
 

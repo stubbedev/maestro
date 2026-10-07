@@ -113,7 +113,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 			if !ok {
 				// getLicenseByIdentifier($identifier) has no type: the
 				// strtolower() of SpdxLicenses.php (strict) fails
-				e := &pkg.TypeError{Message: "strtolower(): Argument #1 ($string) must be of type string, " + php.ZvalValueName(l) + " given"}
+				e := &php.EngineError{Class: php.ClassTypeError, Message: "strtolower(): Argument #1 ($string) must be of type string, " + php.ZvalValueName(l) + " given"}
 
 				return nil, nil, nil, e
 			}
@@ -192,7 +192,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 			}
 			v, _ := m.Get(key)
 
-			return nil, nil, nil, &pkg.TypeError{Message: "array_intersect_key(): " + arg + " must be of type array, " + php.ZvalValueName(v) + " given"}
+			return nil, nil, nil, &php.EngineError{Class: php.ClassTypeError, Message: "array_intersect_key(): " + arg + " must be of type array, " + php.ZvalValueName(v) + " given"}
 		}
 		var overrides []string
 		for k := range require.All() {
@@ -245,7 +245,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		v, _ := m.Get(key)
 
 		// an internal function's TypeError
-		return nil, nil, nil, &pkg.TypeError{Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + php.ZvalValueName(v) + " given"}
+		return nil, nil, nil, &php.EngineError{Class: php.ClassTypeError, Message: "array_merge(): Argument #" + strconv.Itoa(n) + " must be of type array, " + php.ZvalValueName(v) + " given"}
 	}
 	for name, version := range php.ArrayMerge(require, requireDev).All() {
 		s, ok := version.(string)
@@ -272,7 +272,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		if !scriptsOK {
 			v, _ := m.Get("scripts")
 
-			return false, &pkg.TypeError{Message: "array_key_exists(): Argument #2 ($array) must be of type array, " + php.ZvalValueName(v) + " given"}
+			return false, &php.EngineError{Class: php.ClassTypeError, Message: "array_key_exists(): Argument #2 ($array) must be of type array, " + php.ZvalValueName(v) + " given"}
 		}
 
 		return scripts.Has(name), nil

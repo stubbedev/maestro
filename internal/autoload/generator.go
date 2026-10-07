@@ -10,7 +10,6 @@ package autoload
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/store"
@@ -711,7 +711,7 @@ func (g *Generator) CreateLoader(autoloads *Autoloads, vendorDir string) (*Class
 	for _, dir := range autoloads.Classmap {
 		err := gen.ScanPaths(dir, buildExclusionRegex(dir, autoloads.ExcludeFromClassmap), classmap.Classmap, "", nil)
 		if err != nil {
-			if !isRuntimeException(err) {
+			if !phperr.InstanceOf(err, "RuntimeException") {
 				return nil, err
 			}
 			g.io.WriteError("<warning>"+err.Error()+"</warning>", true, io.Normal)
@@ -726,15 +726,4 @@ func (g *Generator) CreateLoader(autoloads *Autoloads, vendorDir string) (*Class
 	loader.AddClassMap(classes)
 
 	return loader, nil
-}
-
-// isRuntimeException reports whether err is a PHP \RuntimeException: one
-// the class map generator throws as such, or a PcreException.
-func isRuntimeException(err error) bool {
-	if e, ok := errors.AsType[*classmap.Exception](err); ok {
-		return e.IsRuntimeException()
-	}
-	_, ok := errors.AsType[*php.PcreError](err)
-
-	return ok
 }

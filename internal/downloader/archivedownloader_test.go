@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
@@ -663,7 +664,7 @@ func TestArchiveDownloader_ShasumMismatch(t *testing.T) {
 	p.SetDistSha1Checksum(pkg.Str("0000000000000000000000000000000000000000"))
 
 	_, err = pr.install(d, p)
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected UnexpectedValueException, got %v", err)
 	}
 
@@ -847,7 +848,7 @@ func TestXzDownloader_ErrorMessages(t *testing.T) {
 	}
 
 	_, err = pr.install(d, distPackage(srv.URL+"/a.tar.xz", "xz"))
-	if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Fatalf("expected RuntimeException, got %v", err)
 	}
 
@@ -1164,7 +1165,7 @@ func TestTarDownloader_PharDataNeedsCompressionExtension(t *testing.T) {
 			t.Errorf("%s: %v, want %s", c.name, err, c.want)
 		}
 
-		if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+		if !phperr.InstanceOf(err, "UnexpectedValueException") {
 			t.Errorf("%s: %T, want an UnexpectedValueException", c.name, err)
 		}
 

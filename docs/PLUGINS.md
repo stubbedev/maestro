@@ -1151,8 +1151,9 @@ RPC boundary and returns an `err` message (§6.2) with:
   `ParsingException` (details).
 
 Go turns it into `*plugin.PHPException`, which implements
-`console.Throwable` and `console.Tracer`, so the Go Application renders it
-exactly as Symfony's `doRenderThrowable` does. Composer-known classes map to
+`phperr.Exception` (its `instanceof` answered from the class list PHP
+sent) and `console.Tracer`, so the Go Application renders and catches it
+as any other exception. Composer-known classes map to
 the Go error types the ports use (`errors.As` targets):
 
 - `ScriptExecutionException` → `eventdispatcher.ScriptExecutionError`
@@ -1172,8 +1173,8 @@ the Go error types the ports use (`errors.As` targets):
 
 - if it is a `*PHPException` with a handle, PHP rethrows the original
   object (D12);
-- otherwise PHP constructs the mapped class (from the error's
-  `ThrowableClass()`, falling back to `\RuntimeException`) with the same
+- otherwise PHP constructs the mapped class (`phperr.ClassOf`: the
+  class the error stands for, else `\RuntimeException`) with the same
   message, code and previous chain. It is built without its constructor
   (`ReflectionClass::newInstanceWithoutConstructor`, then the properties set
   by reflection), because Composer's exception classes take other
@@ -1772,7 +1773,7 @@ none of them imports `internal/plugin`.
   - `ArgvInput.ExportState() InputState` and `ImportState(InputState)`
     covering tokens, parsed, definition, arguments, options, interactive.
 - `Application.Add`, `Find` and `Has` must accept external commanders.
-- `console.Throwable` and `Tracer` (exist) are implemented by
+- `phperr.Exception` and `console.Tracer` (exist) are implemented by
   `*plugin.PHPException`.
 
 **`internal/eventdispatcher`**

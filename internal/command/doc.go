@@ -20,7 +20,7 @@
 //
 // Divergences:
 //   - Errors render through internal/ui (docs/PORTING.md): their message,
-//     PHP class (util.PHPClassOf) and previous exceptions (phperr.Chained).
+//     PHP class (phperr.ClassOf) and previous exceptions (phperr.Chained).
 //     maestro records neither Composer's throw sites nor PHP's call stack.
 //   - --profile reports Go's memory statistics and timing.
 //   - The xdebug and PHP version warnings follow the PHP Composer would run

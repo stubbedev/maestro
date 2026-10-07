@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 )
 
@@ -16,16 +15,6 @@ func TestTypeErrorMessages(t *testing.T) {
 	if want := `Composer\Pcre\Preg::isMatch(): Argument #2 ($subject) must be of type string, true given`; !strings.HasPrefix(e.Error(), want) {
 		t.Errorf("message %q, want %q", e.Error(), want)
 	}
-
-	i := &php.EngineError{Class: "TypeError", Message: "array_merge(): Argument #2 must be of type array, string given"}
-	if want := "array_merge(): Argument #2 must be of type array, string given"; i.Error() != want {
-		t.Errorf("internal TypeError %q, want %q", i.Error(), want)
-	}
-
-	r := &pkg.TypeError{Message: "x(): Return value must be of type array, false returned"}
-	if want := "x(): Return value must be of type array, false returned"; r.Error() != want {
-		t.Errorf("return type error %q, want %q", r.Error(), want)
-	}
 }
 
 // The TypeError of advisory data that is not an array (the closures
@@ -33,7 +22,7 @@ func TestTypeErrorMessages(t *testing.T) {
 // not the closure or its line in Composer's source (#45).
 func TestAdvisoryDataTypeError(t *testing.T) {
 	e := pkg.AdvisoryDataTypeError("acme/lib", "x")
-	if class, _ := e.PHPClass(); class != "TypeError" {
+	if class := e.PHPClass(); class != "TypeError" {
 		t.Errorf("class %s", class)
 	}
 	for _, want := range []string{"acme/lib", "array", "string given"} {

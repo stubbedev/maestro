@@ -65,6 +65,12 @@ type JSONError struct {
 
 func (e *JSONError) Error() string { return jsonErrorMsg(e.Code) }
 
+// PHPClass implements phperr.Exception.
+func (*JSONError) PHPClass() string { return "JsonException" }
+
+// PHPCode implements phperr.Coded: json_last_error().
+func (e *JSONError) PHPCode() int { return e.Code }
+
 func jsonErrorMsg(code int) string {
 	switch code {
 	case JSONErrorNone:

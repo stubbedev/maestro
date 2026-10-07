@@ -18,8 +18,8 @@ func TestErrorClasses(t *testing.T) {
 		&InvalidRepositoryError{Message: "x"}: `Composer\Repository\InvalidRepositoryException`,
 		&SecurityError{Message: "x"}:          `Composer\Repository\RepositorySecurityException`,
 	} {
-		if got, _ := util.PHPClassOf(err); got != want {
-			t.Errorf("PHPClassOf(%T) = %s, want %s", err, got, want)
+		if got, _ := phperr.ClassOf(err); got != want {
+			t.Errorf("phperr.ClassOf(%T) = %s, want %s", err, got, want)
 		}
 	}
 }
@@ -37,8 +37,8 @@ func TestWrappedErrorKeepsItsClass(t *testing.T) {
 			&wrappedError{err: &util.RuntimeError{Message: "x"}, previous: prev}:         "RuntimeException",
 			&wrappedError{err: &util.UnexpectedValueError{Message: "x"}, previous: prev}: "UnexpectedValueException",
 		} {
-			if got, _ := util.PHPClassOf(err); got != want {
-				t.Errorf("PHPClassOf(%s with previous %T) = %s", want, prev, got)
+			if got, _ := phperr.ClassOf(err); got != want {
+				t.Errorf("phperr.ClassOf(%s with previous %T) = %s", want, prev, got)
 			}
 			if !errors.Is(phperr.PreviousOf(err), prev) {
 				t.Errorf("PreviousOf(%s) = %v, want %v", want, phperr.PreviousOf(err), prev)

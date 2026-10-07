@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/processmock"
@@ -59,14 +60,9 @@ func TestDispatch_NonStringScriptListeners(t *testing.T) {
 			if err.Error() != tc.message {
 				t.Errorf("message %q, want %q", err.Error(), tc.message)
 			}
-			var class string
-			switch e := err.(type) { //nolint:errorlint // the thrown object itself
-			case *util.ErrorException:
-				class = errorException
-			case *php.EngineError:
-				class = e.Class
-			case *Error:
-				class = e.Class
+			class := ""
+			if e, ok := err.(phperr.Exception); ok { //nolint:errorlint // the thrown object itself
+				class = e.PHPClass()
 			}
 			if class != tc.class {
 				t.Errorf("class %q (%T), want %q", class, err, tc.class)

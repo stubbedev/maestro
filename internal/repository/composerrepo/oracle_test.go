@@ -3,7 +3,6 @@ package composerrepo
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -184,18 +184,7 @@ func constraintMap(t *testing.T, m *php.Array) *repository.ConstraintMap {
 func strList(list []string) *php.Array { return php.StringList(list) }
 
 // errorClass names the PHP class of an error the repository returns.
-func errorClass(err error) string {
-	var securityErr *repository.SecurityError
-	var transport *util.TransportError
-	switch {
-	case errors.As(err, &securityErr):
-		return `Composer\Repository\RepositorySecurityException`
-	case errors.As(err, &transport):
-		return `Composer\Downloader\TransportException`
-	}
-
-	return exceptionClass(err)
-}
+func errorClass(err error) string { return phperr.Class(err) }
 
 // runStep is the oracle's run_step().
 func runStep(t *testing.T, r *ComposerRepository, step *php.Array) (any, error) {

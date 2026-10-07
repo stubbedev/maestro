@@ -243,8 +243,8 @@ func TestOracle_ApplicationFind(t *testing.T) {
 
 				break
 			}
-			if e.ThrowableClass() != *c.Error || e.Message != string(c.Message) || !slices.Equal(e.Alternatives, nilIfEmpty(c.Alternatives)) {
-				t.Errorf("%s: Find() error\nwant %s %q %v\ngot  %s %q %v", name, *c.Error, c.Message, c.Alternatives, e.ThrowableClass(), e.Message, e.Alternatives)
+			if e.PHPClass() != *c.Error || e.Message != string(c.Message) || !slices.Equal(e.Alternatives, nilIfEmpty(c.Alternatives)) {
+				t.Errorf("%s: Find() error\nwant %s %q %v\ngot  %s %q %v", name, *c.Error, c.Message, c.Alternatives, e.PHPClass(), e.Message, e.Alternatives)
 			}
 		}
 

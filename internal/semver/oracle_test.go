@@ -6,7 +6,6 @@ package semver
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/testutil"
 )
 
@@ -72,17 +72,7 @@ func jsonEqual(a, b []byte) bool {
 }
 
 func isPHPException(err error, class string) bool {
-	var ok bool
-	switch class {
-	case "UnexpectedValueException":
-		_, ok = errors.AsType[*UnexpectedValueError](err)
-	case "InvalidArgumentException":
-		_, ok = errors.AsType[*InvalidArgumentError](err)
-	case "ValueError":
-		_, ok = errors.AsType[*ValueError](err)
-	}
-
-	return ok
+	return phperr.Class(err) == class
 }
 
 func loadOracle(t *testing.T, name string, rows any) {

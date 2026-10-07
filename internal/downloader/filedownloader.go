@@ -21,6 +21,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/comparer"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -585,7 +586,7 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 	}
 
 	if len(st.urls) > 0 {
-		class, code := util.PHPClassOf(e)
+		class, code := phperr.ClassOf(e)
 		name := st.p.Name()
 
 		if st.c.io.IsDebug() {
@@ -884,7 +885,7 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 			return pkg.NullString{}, e
 		}
 
-		class, _ := util.PHPClassOf(e)
+		class, _ := phperr.ClassOf(e)
 
 		return pkg.Str("Failed to detect changes: [" + class + "] " + e.Error()), nil
 	}

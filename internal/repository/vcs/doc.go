@@ -26,6 +26,6 @@
 // PHP exceptions are the util error types (util.RuntimeError,
 // util.InvalidArgumentError, util.LogicError, util.TransportError,
 // repository.InvalidRepositoryError, ...); `catch (\RuntimeException)` is
-// util.IsRuntimeException. As in the other ports, a PCRE failure of a
+// phperr.InstanceOf(err, "RuntimeException"). As in the other ports, a PCRE failure of a
 // pattern match (only possible on backtracking limits) reads as no match.
 package vcs

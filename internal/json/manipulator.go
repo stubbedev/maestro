@@ -54,13 +54,9 @@ type Manipulator struct {
 	regexps map[string]*php.Regexp
 }
 
-// phpError is a PHP Error (TypeError or Error, not an Exception) raised by
-// code paths of JsonManipulator that PHP itself rejects at run time.
-type phpError struct{ class, msg string }
-
-func (e *phpError) Error() string { return e.msg }
-
-func typeError(msg string) error { return &phpError{class: "TypeError", msg: msg} }
+// typeError is the TypeError PHP raises on a code path of
+// JsonManipulator it rejects at run time.
+func typeError(msg string) error { return &php.EngineError{Class: php.ClassTypeError, Message: msg} }
 
 // The warnings PHP raises on the code paths below, which Composer's
 // ErrorHandler turns into ErrorExceptions.
@@ -1067,21 +1063,21 @@ func unsetNested(a any, k1, k2 string) error {
 
 			return nil
 		case string:
-			return &phpError{class: "Error", msg: "Cannot unset string offsets"}
+			return &php.EngineError{Class: php.ClassError, Message: "Cannot unset string offsets"}
 		case bool:
 			if !c {
 				return nil
 			}
 		}
 	case string:
-		return &phpError{class: "Error", msg: "Cannot unset string offsets"}
+		return &php.EngineError{Class: php.ClassError, Message: "Cannot unset string offsets"}
 	case bool:
 		if !a {
 			return nil
 		}
 	}
 
-	return &phpError{class: "Error", msg: "Cannot unset offset in a non-array variable"}
+	return &php.EngineError{Class: php.ClassError, Message: "Cannot unset offset in a non-array variable"}
 }
 
 // AddListItem ports JsonManipulator::addListItem.

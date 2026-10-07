@@ -1,7 +1,7 @@
 // Ports the PHP exception classes composer/semver throws: \UnexpectedValueException
-// (VersionParser), \InvalidArgumentException (Constraint, MultiConstraint,
-// Bound, VersionParser::normalizeStability) and the \ValueError thrown by
-// version_compare().
+// (VersionParser) and \InvalidArgumentException (Constraint,
+// MultiConstraint, Bound, VersionParser::normalizeStability); the
+// \ValueError version_compare() throws is a php.EngineError.
 
 package semver
 
@@ -21,10 +21,8 @@ type InvalidArgumentError struct {
 
 func (e *InvalidArgumentError) Error() string { return e.Message }
 
-// ValueError is PHP's \ValueError, thrown by version_compare() for an
-// unknown operator.
-type ValueError struct {
-	Message string
-}
+// PHPClass implements phperr.Exception.
+func (*UnexpectedValueError) PHPClass() string { return "UnexpectedValueException" }
 
-func (e *ValueError) Error() string { return e.Message }
+// PHPClass implements phperr.Exception.
+func (*InvalidArgumentError) PHPClass() string { return "InvalidArgumentException" }

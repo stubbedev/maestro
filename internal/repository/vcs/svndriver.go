@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -231,7 +232,7 @@ func (d *SvnDriver) FileContent(file, identifier string) (string, bool, error) {
 
 	output, err := d.execute([]string{"svn", "cat"}, d.baseURL+path+file+rev)
 	if err != nil {
-		if util.IsRuntimeException(err) {
+		if phperr.InstanceOf(err, "RuntimeException") {
 			return "", false, util.NewTransportError(err.Error(), 400)
 		}
 
@@ -439,7 +440,7 @@ func (d *SvnDriver) execute(command []string, url string) (string, error) {
 	}
 
 	output, err := d.util.Execute(command, url, "", "", false)
-	if err == nil || !util.IsRuntimeException(err) {
+	if err == nil || !phperr.InstanceOf(err, "RuntimeException") {
 		return output, err
 	}
 

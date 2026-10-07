@@ -4,15 +4,13 @@
 package command_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
-	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 func TestBaseDependencyCommandTest_ExceptionWhenNoRequiredParameters(t *testing.T) {
@@ -30,7 +28,7 @@ func TestBaseDependencyCommandTest_ExceptionWhenNoRequiredParameters(t *testing.
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := gbRunErr(t, gbMerge(gbParams("command", tc.command), tc.parameters, false))
-			if !errors.Is(err, console.ErrRuntime) {
+			if !phperr.InstanceOf(err, "RuntimeException") {
 				t.Errorf("expected a RuntimeException, got %T: %v", err, err)
 			}
 			gbAssertSame(t, tc.expected, err.Error())
@@ -53,7 +51,7 @@ func TestBaseDependencyCommandTest_ExceptionWhenRunningLockedWithoutLockFile(t *
 			commandtest.InitTempComposer(t, nil, nil, nil, true)
 
 			err := gbRunErr(t, gbMerge(gbMerge(gbParams("command", tc.command), tc.parameters, false), gbParams("--locked", true), false))
-			if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+			if !phperr.InstanceOf(err, "UnexpectedValueException") {
 				t.Errorf("expected an UnexpectedValueException, got %T: %v", err, err)
 			}
 			gbAssertSame(t, "A valid composer.lock file is required to run this command with --locked", err.Error())

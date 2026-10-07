@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -47,7 +48,7 @@ func TestMetapackageInstaller_Update(t *testing.T) {
 
 	_, err := installer.Update(repo, initial, target)
 
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Errorf("err = %v, want InvalidArgumentException", err)
 	}
 }
@@ -70,7 +71,7 @@ func TestMetapackageInstaller_Uninstall(t *testing.T) {
 
 	_, err := installer.Uninstall(repo, p)
 
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Errorf("err = %v, want InvalidArgumentException", err)
 	}
 }

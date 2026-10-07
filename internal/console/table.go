@@ -286,7 +286,7 @@ func (t *Table) SetHorizontal(horizontal bool) *Table {
 func (t *Table) Render() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			e, ok := r.(*phpFormatError)
+			e, ok := r.(*php.EngineError)
 			if !ok {
 				panic(r)
 			}

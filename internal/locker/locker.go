@@ -112,7 +112,7 @@ func GetContentHash(composerFileContents string) (string, error) {
 	}
 	content, ok := decoded.(*php.Array)
 	if !ok {
-		return "", &pkg.TypeError{Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(decoded) + " given"}
+		return "", &php.EngineError{Class: php.ClassTypeError, Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(decoded) + " given"}
 	}
 
 	relevantContent := php.NewArray()
@@ -235,7 +235,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 		}
 		for i, v := range []any{rawPackages, dev} {
 			if _, ok := v.(*php.Array); !ok {
-				return nil, &pkg.TypeError{Message: "array_merge(): Argument #" + strconv.Itoa(i+1) + " must be of type array, " + php.ZvalValueName(v) + " given"}
+				return nil, &php.EngineError{Class: php.ClassTypeError, Message: "array_merge(): Argument #" + strconv.Itoa(i+1) + " must be of type array, " + php.ZvalValueName(v) + " given"}
 			}
 		}
 		a, _ := rawPackages.(*php.Array) // both checked above
@@ -262,7 +262,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 	for _, info := range lockedPackages.All() {
 		data, ok := info.(*php.Array)
 		if !ok {
-			return nil, &pkg.TypeError{Message: `Composer\Package\Loader\ArrayLoader::load(): Argument #1 ($config) must be of type array, ` + php.ZvalValueName(info) + " given"}
+			return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\Loader\ArrayLoader::load(): Argument #1 ($config) must be of type array, ` + php.ZvalValueName(info) + " given"}
 		}
 		p, err := l.loader.Load(data, pkg.ClassCompletePackage)
 		if err != nil {
@@ -290,7 +290,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 				return nil, err
 			}
 			if _, isArray := name.(*php.Array); isArray {
-				return nil, &pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}
+				return nil, &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type array in isset or empty"}
 			}
 			p, ok := packageByName[php.ToKey(name).String()]
 			if !ok {
@@ -313,7 +313,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 			}
 			complete, ok := p.(pkg.CompletePackageInterface)
 			if !ok {
-				return nil, &pkg.TypeError{Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.Class() + " given"}
+				return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.Class() + " given"}
 			}
 			aliasPkg := pkg.NewCompleteAliasPackage(complete, args[0], args[1])
 			aliasPkg.SetRootPackageAlias(true)
@@ -406,7 +406,7 @@ func (l *Locker) MinimumStability() (string, error) {
 // returnTypeError is the TypeError of Locker::<method>() returning a value
 // of the lock file that its return type (under strict_types) rejects.
 func returnTypeError(method, typ string, v any) error {
-	return &pkg.TypeError{Message: `Composer\Package\Locker::` + method + "(): Return value must be of type " + typ + ", " + php.ZvalValueName(v) + " returned"}
+	return &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\Locker::` + method + "(): Return value must be of type " + typ + ", " + php.ZvalValueName(v) + " returned"}
 }
 
 // StabilityFlags ports Locker::getStabilityFlags.
@@ -503,7 +503,7 @@ func (l *Locker) LockData() (*php.Array, error) {
 	data, ok := decoded.(*php.Array)
 	if !ok {
 		// a return type error is raised at the return statement
-		return nil, &pkg.TypeError{Message: `Composer\Package\Locker::getLockData(): Return value must be of type array, ` + php.ZvalValueName(decoded) + " returned"}
+		return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\Locker::getLockData(): Return value must be of type array, ` + php.ZvalValueName(decoded) + " returned"}
 	}
 	l.lockDataCache = data
 
@@ -972,7 +972,7 @@ func lockOffset(entry any, key string) (any, error) {
 
 		return v, nil
 	case string:
-		return nil, &pkg.TypeError{Message: "Cannot access offset of type string on string"}
+		return nil, &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type string on string"}
 	}
 
 	return nil, &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(entry)}

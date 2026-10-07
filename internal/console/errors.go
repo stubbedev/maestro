@@ -3,8 +3,10 @@
 package console
 
 import (
-	"errors"
 	"fmt"
+	"runtime"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // Kind identifies the PHP exception class of an Error.
@@ -26,10 +28,14 @@ const (
 	KindStringInvalidArgument             // Symfony\Component\String\Exception\InvalidArgumentException (symfony/string, via the wrapping formatter)
 )
 
+// ClassCommandNotFound is the class of a command or namespace that
+// cannot be found (KindCommandNotFound, KindNamespaceNotFound).
+const ClassCommandNotFound = `Symfony\Component\Console\Exception\CommandNotFoundException`
+
 var kindClass = [...]string{
 	KindInvalidArgument:   `Symfony\Component\Console\Exception\InvalidArgumentException`,
 	KindInvalidOption:     `Symfony\Component\Console\Exception\InvalidOptionException`,
-	KindCommandNotFound:   `Symfony\Component\Console\Exception\CommandNotFoundException`,
+	KindCommandNotFound:   ClassCommandNotFound,
 	KindNamespaceNotFound: `Symfony\Component\Console\Exception\NamespaceNotFoundException`,
 	KindLogic:             `Symfony\Component\Console\Exception\LogicException`,
 	KindRuntime:           `Symfony\Component\Console\Exception\RuntimeException`,
@@ -40,22 +46,6 @@ var kindClass = [...]string{
 	KindValueError:            `ValueError`,
 	KindStringInvalidArgument: `Symfony\Component\String\Exception\InvalidArgumentException`,
 }
-
-// Sentinels for errors.Is, following the PHP class hierarchy: a
-// NamespaceNotFound error Is ErrCommandNotFound and ErrInvalidArgument, an
-// InvalidOption error Is ErrInvalidArgument, a MissingInput error Is
-// ErrRuntime. ErrConsole matches every error implementing Symfony's
-// ExceptionInterface.
-var (
-	ErrConsole          = errors.New("console exception")
-	ErrInvalidArgument  = errors.New("invalid argument")
-	ErrCommandNotFound  = errors.New("command not found")
-	ErrNamespaceMissing = errors.New("namespace not found")
-	ErrInvalidOption    = errors.New("invalid option")
-	ErrLogic            = errors.New("logic error")
-	ErrRuntime          = errors.New("runtime error")
-	ErrMissingInput     = errors.New("missing input")
-)
 
 // Error is a console exception.
 type Error struct {
@@ -77,56 +67,15 @@ func newError(kind Kind, format string, args ...any) *Error {
 
 func (e *Error) Error() string { return e.Message }
 
-// Is implements the PHP class hierarchy for errors.Is.
-func (e *Error) Is(target error) bool {
-	switch target {
-	case ErrConsole:
-		return e.Kind != KindSPLRuntime && e.Kind != KindSPLLogic && e.Kind != KindStringInvalidArgument && e.Kind != KindValueError
-	case ErrInvalidArgument:
-		return e.Kind == KindInvalidArgument || e.Kind == KindInvalidOption ||
-			e.Kind == KindCommandNotFound || e.Kind == KindNamespaceNotFound || e.Kind == KindStringInvalidArgument
-	case ErrCommandNotFound:
-		return e.Kind == KindCommandNotFound || e.Kind == KindNamespaceNotFound
-	case ErrNamespaceMissing:
-		return e.Kind == KindNamespaceNotFound
-	case ErrInvalidOption:
-		return e.Kind == KindInvalidOption
-	case ErrLogic:
-		return e.Kind == KindLogic || e.Kind == KindSPLLogic
-	case ErrRuntime:
-		return e.Kind == KindRuntime || e.Kind == KindMissingInput || e.Kind == KindSPLRuntime
-	case ErrMissingInput:
-		return e.Kind == KindMissingInput
-	}
-
-	return false
-}
-
-// ThrowableClass implements Throwable.
-func (e *Error) ThrowableClass() string { return kindClass[e.Kind] }
-
-// ThrowableCode implements Throwable.
-func (e *Error) ThrowableCode() int { return 0 }
-
-// ThrowablePrevious implements Throwable.
-func (e *Error) ThrowablePrevious() error { return e.Prev }
+// PHPClass implements phperr.Exception.
+func (e *Error) PHPClass() string { return kindClass[e.Kind] }
 
 // PHPPrevious implements phperr.Chained.
 func (e *Error) PHPPrevious() error { return e.Prev }
 
-// IsConsoleException reports whether err (or anything it wraps) implements
-// Symfony's ExceptionInterface.
-func IsConsoleException(err error) bool { return errors.Is(err, ErrConsole) }
-
-// Throwable is implemented by errors that carry PHP exception details: the
-// class name (get_debug_type), the exception code (the exit code of an uncaught one) and the previous
-// exception. Plain Go errors are an "Exception" with code 0.
-type Throwable interface {
-	error
-	ThrowableClass() string
-	ThrowableCode() int
-	ThrowablePrevious() error
-}
+// IsConsoleException reports whether err stands for an exception
+// implementing Symfony's ExceptionInterface.
+func IsConsoleException(err error) bool { return phperr.InstanceOf(err, phperr.ClassConsoleException) }
 
 // TraceFrame is one frame of a PHP exception trace.
 type TraceFrame struct {
@@ -140,11 +89,12 @@ type Tracer interface {
 	ThrowableTrace() []TraceFrame
 }
 
-// recoverThrowable converts a panic raised with an error value back into an
-// error. Any other panic value is re-raised.
+// recoverThrowable converts a panic raised with an error, the way
+// completion callbacks and sprintf throw, back into the error. Any other
+// panic value, a Go runtime error included, is re-raised.
 func recoverThrowable(r any) error {
 	if err, ok := r.(error); ok {
-		if _, ok := errors.AsType[Throwable](err); ok {
+		if _, isRuntime := err.(runtime.Error); !isRuntime { //nolint:errorlint // the panic value itself
 			return err
 		}
 	}

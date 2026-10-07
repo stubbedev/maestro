@@ -44,14 +44,8 @@ type UnsupportedError struct {
 
 func (e *UnsupportedError) Error() string { return "maestro has no handler for " + e.Method }
 
-// ThrowableClass implements console.Throwable.
-func (*UnsupportedError) ThrowableClass() string { return `Maestro\Shim\UnsupportedApiException` }
-
-// ThrowableCode implements console.Throwable.
-func (*UnsupportedError) ThrowableCode() int { return 0 }
-
-// ThrowablePrevious implements console.Throwable.
-func (*UnsupportedError) ThrowablePrevious() error { return nil }
+// PHPClass implements phperr.Exception.
+func (*UnsupportedError) PHPClass() string { return `Maestro\Shim\UnsupportedApiException` }
 
 // PHPException is an exception PHP code threw, as maestro sees it. H is
 // the PHP object's handle: returned to PHP (unwrapped), the very same
@@ -73,7 +67,11 @@ type PHPException struct {
 	Extra any
 }
 
-var _ phperr.Chained = (*PHPException)(nil)
+var (
+	_ phperr.Exception = (*PHPException)(nil)
+	_ phperr.Coded     = (*PHPException)(nil)
+	_ phperr.Chained   = (*PHPException)(nil)
+)
 
 // PHPPrevious implements phperr.Chained.
 func (e *PHPException) PHPPrevious() error {
@@ -86,30 +84,18 @@ func (e *PHPException) PHPPrevious() error {
 
 func (e *PHPException) Error() string { return e.Message }
 
-// InstanceOf is `$e instanceof $class` (exact names, as PHP reports them).
+// InstanceOf is `$e instanceof $class` (exact names, as PHP reports them),
+// which phperr.InstanceOf asks of it.
 func (e *PHPException) InstanceOf(class string) bool { return slices.Contains(e.Classes, class) }
 
-// ThrowableClass implements console.Throwable.
-func (e *PHPException) ThrowableClass() string { return e.Class }
+// PHPClass implements phperr.Exception.
+func (e *PHPException) PHPClass() string { return e.Class }
 
-// ThrowableCode implements console.Throwable.
-func (e *PHPException) ThrowableCode() int { return e.Code }
-
-// ThrowablePrevious implements console.Throwable.
-func (e *PHPException) ThrowablePrevious() error {
-	if e.Previous == nil {
-		return nil
-	}
-
-	return e.Previous
-}
+// PHPCode implements phperr.Coded.
+func (e *PHPException) PHPCode() int { return e.Code }
 
 // ThrowableTrace implements console.Tracer.
 func (e *PHPException) ThrowableTrace() []console.TraceFrame { return e.Trace }
-
-// IsPHPError implements eventdispatcher.PHPError: a \Error is not caught
-// by `catch (\Exception)`.
-func (e *PHPException) IsPHPError() bool { return e.InstanceOf("Error") }
 
 // As makes errors.As see the Go error types the ports use for the PHP
 // classes they catch (docs/PLUGINS.md §5.10). The result is a copy;
@@ -161,23 +147,4 @@ func (e *PHPException) As(target any) bool {
 	}
 
 	return false
-}
-
-// goErrorClass is the PHP class of an error maestro raises that does not
-// name one itself (console.Throwable), for the Go error types of
-// internal/util.
-func goErrorClass(err error) (class string, code int, ok bool) {
-	switch e := err.(type) { //nolint:errorlint // the error itself, not its chain: a wrapper adds to the message.
-	case *util.RuntimeError, *util.LogicError, *util.InvalidArgumentError,
-		*util.UnexpectedValueError, *util.ErrorException, *util.IOError:
-		// their Class field names a library's subclass (symfony/process's
-		// RuntimeException, ...), which PHPClassOf reads
-		class, _ := util.PHPClassOf(e)
-
-		return class, 0, true
-	case *util.TransportError:
-		return `Composer\Downloader\TransportException`, e.Code, true
-	}
-
-	return "", 0, false
 }

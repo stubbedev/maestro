@@ -1,7 +1,6 @@
 package downloader
 
 import (
-	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -132,7 +132,7 @@ func TestDownloadManager_SetGetDownloader(t *testing.T) {
 	}
 
 	_, err := m.Downloader("unregistered")
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 
@@ -145,7 +145,7 @@ func TestDownloadManager_GetDownloaderForIncorrectlyInstalledPackage(t *testing.
 	m, _ := newManager(t)
 
 	_, err := m.DownloaderForPackage(dmPackage("a/b", false, "", ""))
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 }
@@ -171,7 +171,7 @@ func TestDownloadManager_GetDownloaderForIncorrectlyInstalledDistPackage(t *test
 	m.SetDownloader("git", &fakeDownloader{source: "source"})
 
 	_, err := m.DownloaderForPackage(p)
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Fatalf("expected LogicException, got %v", err)
 	}
 }
@@ -197,7 +197,7 @@ func TestDownloadManager_GetDownloaderForIncorrectlyInstalledSourcePackage(t *te
 	m.SetDownloader("pear", &fakeDownloader{source: "dist"})
 
 	_, err := m.DownloaderForPackage(p)
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Fatalf("expected LogicException, got %v", err)
 	}
 }
@@ -311,7 +311,7 @@ func TestDownloadManager_FullPackageDownloadFailover(t *testing.T) {
 
 func TestDownloadManager_BadPackageDownload(t *testing.T) {
 	_, err := runDownload(t, downloadCase{}, &fakeDownloader{source: "source"}, &fakeDownloader{source: "dist"})
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 }
@@ -358,7 +358,7 @@ func TestDownloadManager_SourceOnlyPackageDownloadWithSourcePreferred(t *testing
 
 func TestDownloadManager_BadPackageDownloadWithSourcePreferred(t *testing.T) {
 	_, err := runDownload(t, downloadCase{preferSource: true}, &fakeDownloader{source: "source"}, &fakeDownloader{source: "dist"})
-	if _, ok := errors.AsType[*util.InvalidArgumentError](err); !ok {
+	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
 }
@@ -439,7 +439,7 @@ func TestDownloadManager_UpdateDoesNotWipeWhenRemovalGuardAborts(t *testing.T) {
 	m.SetDownloader("zip", zip)
 
 	err := await(m.Update(initial, target, bundlePath))
-	if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+	if !phperr.InstanceOf(err, "RuntimeException") {
 		t.Fatalf("expected RuntimeException, got %v", err)
 	}
 

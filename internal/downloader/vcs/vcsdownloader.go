@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/downloader"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/version"
@@ -356,7 +357,7 @@ func (d *vcsDownloader) eachURL(urls []string, run func(url string) error) urlRe
 		}
 
 		if d.io.IsDebug() {
-			class, _ := util.PHPClassOf(r.err)
+			class, _ := phperr.ClassOf(r.err)
 			d.io.WriteError("Failed: ["+class+"] "+r.err.Error(), true, mio.Normal)
 		} else if len(urls) > 0 {
 			d.io.WriteError("    Failed, trying the next URL", true, mio.Normal)

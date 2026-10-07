@@ -3,7 +3,6 @@
 package command
 
 import (
-	"errors"
 	"slices"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -224,7 +224,7 @@ func (c *RunScriptCommand) scripts() ([]scriptInfo, error) {
 		switch {
 		case ferr == nil:
 			description = cmd.Base().Description()
-		case errors.Is(ferr, console.ErrCommandNotFound):
+		case phperr.InstanceOf(ferr, console.ClassCommandNotFound):
 			// ignore scripts that have no command associated, like native Composer script listeners
 		default:
 			return nil, ferr

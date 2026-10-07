@@ -39,6 +39,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 func newTestApp() *Application { return NewApplication("UNKNOWN", "UNKNOWN") }
@@ -571,13 +572,13 @@ func TestApplication_FindAlternativeNamespace(t *testing.T) {
 
 	_, err := app.Find("Unknown-namespace:Unknown-command")
 	e := expectError(t, err, KindNamespaceNotFound, `There are no commands defined in the "Unknown-namespace" namespace.`)
-	if len(e.Alternatives) != 0 || !errors.Is(err, ErrCommandNotFound) {
+	if len(e.Alternatives) != 0 || !phperr.InstanceOf(err, ClassCommandNotFound) {
 		t.Error(e.Alternatives)
 	}
 
 	_, err = app.Find("foo2:command")
 	e = expectError(t, err, KindNamespaceNotFound, `There are no commands defined in the "foo2" namespace.`)
-	if !errors.Is(err, ErrCommandNotFound) {
+	if !phperr.InstanceOf(err, ClassCommandNotFound) {
 		t.Error("NamespaceNotFoundException extends CommandNotFoundException")
 	}
 	if len(e.Alternatives) != 3 || !slices.Contains(e.Alternatives, "foo") || !slices.Contains(e.Alternatives, "foo1") || !slices.Contains(e.Alternatives, "foo3") {
@@ -989,7 +990,7 @@ func TestApplication_AddingAlreadySetDefinitionElementData(t *testing.T) {
 		register(t, app, "foo").SetDefinitionItems(def).SetCode(func(Input, Output) (int, error) { return 0, nil })
 		in, _ := NewArrayInput([]Param{P("command", "foo")}, nil)
 		_, err := app.Run(in, NewNullOutput())
-		if !errors.Is(err, ErrLogic) {
+		if !phperr.InstanceOf(err, "LogicException") {
 			t.Errorf("%T: want a LogicException, got %v", def, err)
 		}
 	}

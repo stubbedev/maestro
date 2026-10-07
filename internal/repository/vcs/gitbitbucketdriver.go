@@ -8,6 +8,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -384,7 +385,7 @@ func (d *GitBitbucketDriver) generateSSHURL() string {
 // on the SSH url.
 func (d *GitBitbucketDriver) attemptCloneFallback() error {
 	err := d.setupFallbackDriver(d.generateSSHURL())
-	if err != nil && util.IsRuntimeException(err) {
+	if err != nil && phperr.InstanceOf(err, "RuntimeException") {
 		d.fallbackDriver = nil
 
 		d.io.WriteError("<error>Failed to clone the "+d.generateSSHURL()+" repository, try running in interactive mode"+

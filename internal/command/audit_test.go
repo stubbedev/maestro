@@ -3,15 +3,14 @@
 package command_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 func TestAuditCommand_SuccessfulResponseCodeWhenNoPackagesAreRequired(t *testing.T) {
@@ -29,7 +28,7 @@ func TestAuditCommand_ErrorAuditingLockFileWhenItIsMissing(t *testing.T) {
 	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "dummy/pkg", "1.0.0")), nil, true)
 
 	err := gbRunErr(t, gbParams("command", "audit", "--locked", true))
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Errorf("expected an UnexpectedValueException, got %T", err)
 	}
 	gbAssertSame(t, "Valid composer.json and composer.lock files are required to run this command with --locked", err.Error())

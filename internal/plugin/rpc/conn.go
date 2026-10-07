@@ -600,8 +600,8 @@ const maxExceptionDepth = 64
 // exceptionValue is the "x" of an error going to PHP (docs/PLUGINS.md
 // §5.10): a PHP exception that comes back unchanged is named by its
 // handle, so PHP rethrows the original object; any other error becomes an
-// instance of the class it names (console.Throwable), or the PHP class of
-// internal/util's error types, or \RuntimeException.
+// instance of the class it stands for (phperr.ClassOf), with its previous
+// exception (phperr.PreviousOf).
 func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 	var x *php.Array
 
@@ -616,22 +616,12 @@ func (c *Conn) exceptionValue(err error, depth int) *php.Array {
 		return x
 	}
 
-	class, code := "RuntimeException", 0
-	var previous error
+	class, code := phperr.ClassOf(err)
+	previous := phperr.PreviousOf(err)
 	if pe, ok := errors.AsType[*PHPException](err); ok {
 		// Go wrapped a PHP exception with context: `new
 		// \RuntimeException($context, 0, $e)`, keeping $e itself.
-		previous = pe
-	} else if t, ok := errors.AsType[console.Throwable](err); ok {
-		class, code, previous = t.ThrowableClass(), t.ThrowableCode(), t.ThrowablePrevious()
-	} else if pc, ok := err.(util.PHPClasser); ok { //nolint:errorlint // the error itself names its class, as goErrorClass's.
-		class, code = pc.PHPClass()
-	} else if cl, cd, ok := goErrorClass(err); ok {
-		class, code = cl, cd
-	}
-
-	if previous == nil {
-		previous = phperr.PreviousOf(err)
+		class, code, previous = phperr.DefaultClass, 0, pe
 	}
 
 	x = php.ArrayOf("class", class, "message", err.Error(), "code", int64(code))

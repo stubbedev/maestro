@@ -76,6 +76,12 @@ func (e *PcreError) Error() string {
 	return e.Function + "(): failed executing \"" + e.Pattern + "\": " + PregErrorMsg(e.Code)
 }
 
+// PHPClass implements phperr.Exception.
+func (*PcreError) PHPClass() string { return `Composer\Pcre\PcreException` }
+
+// PHPCode implements phperr.Coded: preg_last_error().
+func (e *PcreError) PHPCode() int { return e.Code }
+
 // UnexpectedNullMatchError is Composer\Pcre\UnexpectedNullMatchException,
 // returned by the strict-groups variants.
 type UnexpectedNullMatchError struct {
@@ -83,6 +89,11 @@ type UnexpectedNullMatchError struct {
 }
 
 func (e *UnexpectedNullMatchError) Error() string { return e.msg }
+
+// PHPClass implements phperr.Exception.
+func (*UnexpectedNullMatchError) PHPClass() string {
+	return `Composer\Pcre\UnexpectedNullMatchException`
+}
 
 // Match is the result of one successful match.
 type Match struct {

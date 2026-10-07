@@ -8,16 +8,15 @@ import (
 	"bytes"
 	"encoding/base64"
 	stdjson "encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
-	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/testutil"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // mstep is one recorded step: creating a manipulator, calling a method, or
@@ -93,36 +92,12 @@ func convertValue(v any) (any, error) {
 
 // errorClass names the PHP exception class a Go error stands for.
 func errorClass(err error) string {
-	var (
-		invalidArgument *util.InvalidArgumentError
-		logic           *util.LogicError
-		runtime         *util.RuntimeError
-		unexpected      *util.UnexpectedValueError
-		pcre            *php.PcreError
-		parsing         *jsonlint.ParsingError
-		phpErr          *phpError
-		errorException  *util.ErrorException
-	)
-	switch {
-	case errors.As(err, &invalidArgument):
-		return "InvalidArgumentException"
-	case errors.As(err, &logic):
-		return "LogicException"
-	case errors.As(err, &runtime):
-		return "RuntimeException"
-	case errors.As(err, &unexpected):
-		return "UnexpectedValueException"
-	case errors.As(err, &pcre):
-		return "PcreException"
-	case errors.As(err, &parsing):
-		return "ParsingException"
-	case errors.As(err, &phpErr):
-		return phpErr.class
-	case errors.As(err, &errorException):
-		return "ErrorException"
+	if phperr.Of(err) == nil {
+		return fmt.Sprintf("%T", err)
 	}
+	class := phperr.Class(err)
 
-	return fmt.Sprintf("%T", err)
+	return class[strings.LastIndexByte(class, '\\')+1:]
 }
 
 func argInt(v any) int {

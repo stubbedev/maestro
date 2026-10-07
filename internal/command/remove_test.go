@@ -11,8 +11,8 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // readProjectJSON reads a JSON file of the test project as PHP's JsonFile::read.
@@ -122,7 +122,7 @@ func TestRemoveCommand_ExceptionWhenRunningUnusedWithoutLockFile(t *testing.T) {
 
 	appTester := commandtest.GetApplicationTester(t)
 	_, err := appTester.RunArgs(commandtest.Options{}, "command", "remove", "--unused", true)
-	if _, ok := errors.AsType[*util.UnexpectedValueError](err); !ok {
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
 		t.Fatalf("expected UnexpectedValueException, got %v", err)
 	}
 	if err.Error() != "A valid composer.lock file is required to run this command with --unused" {

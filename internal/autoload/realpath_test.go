@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
 // A path realpath() cannot resolve fails with the TypeError PHP throws for
@@ -17,7 +17,7 @@ func TestRealpathFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("no error")
 	}
-	if class, _ := util.PHPClassOf(err); class != "TypeError" {
+	if class, _ := phperr.ClassOf(err); class != "TypeError" {
 		t.Errorf("class %s", class)
 	}
 	if !strings.Contains(err.Error(), missing) {

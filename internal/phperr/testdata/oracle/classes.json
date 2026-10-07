@@ -1,0 +1,495 @@
+{
+    "ArgumentCountError": {
+        "parent": "TypeError",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "ArithmeticError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "AssertionError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "BadFunctionCallException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "BadMethodCallException": {
+        "parent": "BadFunctionCallException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "CompileError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\DependencyResolver\\SolverBugException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\DependencyResolver\\SolverProblemsException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Downloader\\FilesystemException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Downloader\\MaxFileSizeExceededException": {
+        "parent": "Composer\\Downloader\\TransportException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Downloader\\TransportException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\EventDispatcher\\ScriptExecutionException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Exception\\IrrecoverableDownloadException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Exception\\NoSslException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Exception\\SecurityException": {
+        "parent": "UnexpectedValueException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Json\\JsonValidationException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Package\\Loader\\InvalidPackageException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Pcre\\PcreException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Pcre\\UnexpectedNullMatchException": {
+        "parent": "Composer\\Pcre\\PcreException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Plugin\\PluginBlockedException": {
+        "parent": "UnexpectedValueException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Repository\\InvalidRepositoryException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Composer\\Repository\\RepositorySecurityException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "DateException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "DateMalformedStringException": {
+        "parent": "DateException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "DivisionByZeroError": {
+        "parent": "ArithmeticError",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "DomainException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Error": {
+        "parent": null,
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "ErrorException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Exception": {
+        "parent": null,
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "FiberError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "InvalidArgumentException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "JsonException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "LengthException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "LogicException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Maestro\\Shim\\UnsupportedApiException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "OutOfBoundsException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "OutOfRangeException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "OverflowException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "ParseError": {
+        "parent": "CompileError",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "PharException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "RangeException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "ReflectionException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "RuntimeException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Seld\\JsonLint\\DuplicateKeyException": {
+        "parent": "Seld\\JsonLint\\ParsingException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Seld\\JsonLint\\InvalidEncodingException": {
+        "parent": "Seld\\JsonLint\\ParsingException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Seld\\JsonLint\\ParsingException": {
+        "parent": "Exception",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\CommandNotFoundException": {
+        "parent": "InvalidArgumentException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\InvalidArgumentException": {
+        "parent": "InvalidArgumentException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\InvalidOptionException": {
+        "parent": "InvalidArgumentException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\LogicException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\MissingInputException": {
+        "parent": "Symfony\\Component\\Console\\Exception\\RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\NamespaceNotFoundException": {
+        "parent": "Symfony\\Component\\Console\\Exception\\CommandNotFoundException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Console\\Exception\\RuntimeException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Console\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Filesystem\\Exception\\FileNotFoundException": {
+        "parent": "Symfony\\Component\\Filesystem\\Exception\\IOException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Filesystem\\Exception\\ExceptionInterface",
+            "Symfony\\Component\\Filesystem\\Exception\\IOExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Filesystem\\Exception\\IOException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Filesystem\\Exception\\ExceptionInterface",
+            "Symfony\\Component\\Filesystem\\Exception\\IOExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Finder\\Exception\\AccessDeniedException": {
+        "parent": "UnexpectedValueException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Finder\\Exception\\DirectoryNotFoundException": {
+        "parent": "InvalidArgumentException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Process\\Exception\\InvalidArgumentException": {
+        "parent": "InvalidArgumentException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Process\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Process\\Exception\\LogicException": {
+        "parent": "LogicException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Process\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Process\\Exception\\ProcessSignaledException": {
+        "parent": "Symfony\\Component\\Process\\Exception\\RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Process\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Process\\Exception\\ProcessTimedOutException": {
+        "parent": "Symfony\\Component\\Process\\Exception\\RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Process\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\Process\\Exception\\RuntimeException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\Process\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "Symfony\\Component\\String\\Exception\\InvalidArgumentException": {
+        "parent": "InvalidArgumentException",
+        "interfaces": [
+            "Stringable",
+            "Symfony\\Component\\String\\Exception\\ExceptionInterface",
+            "Throwable"
+        ]
+    },
+    "TypeError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "UnderflowException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "UnexpectedValueException": {
+        "parent": "RuntimeException",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "UnhandledMatchError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    },
+    "ValueError": {
+        "parent": "Error",
+        "interfaces": [
+            "Stringable",
+            "Throwable"
+        ]
+    }
+}

@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/util"
@@ -537,7 +538,7 @@ func (d *EventDispatcher) echoPhpScript(event Event, className, methodName strin
 // writeTerminated is the `catch (\Exception $e)` message of PHP scripts
 // and command classes.
 func (d *EventDispatcher) writeTerminated(callable string, event Event, err error) {
-	if isPHPError(err) {
+	if phperr.InstanceOf(err, "Error") {
 		return
 	}
 

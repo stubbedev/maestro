@@ -1,10 +1,11 @@
-// Package phperr holds what maestro's errors keep of the PHP exceptions
-// they stand for beyond their class (util.PHPClassOf): the previous
-// exception ($e->getPrevious()), which errors expose through Chained, and
-// the root Composer's sources are reported under (Root), which the plugin
-// runtime gives the shim. How errors look is maestro's own (internal/ui,
-// docs/PORTING.md, #13); maestro records neither throw sites nor PHP call
-// stacks.
+// Package phperr is what maestro's errors keep of the PHP exceptions they
+// stand for: their class (Exception, ClassOf), its place in PHP's class
+// hierarchy (InstanceOf, the class table), their code (Coded) and the
+// previous exception ($e->getPrevious()), which errors expose through
+// Chained; and the root Composer's sources are reported under (Root),
+// which the plugin runtime gives the shim. How errors look is maestro's
+// own (internal/ui, docs/PORTING.md, #13); maestro records neither throw
+// sites nor PHP call stacks.
 //
 // An exception constructed with a $previous exception keeps it in a field
 // the error type exposes through Chained (not Unwrap: PHP's catch never

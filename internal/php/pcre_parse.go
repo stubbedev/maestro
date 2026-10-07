@@ -127,6 +127,14 @@ type PatternError struct {
 
 func (e *PatternError) Error() string { return e.Msg }
 
+// PHPClass implements phperr.Exception: preg_* warns and fails on the
+// pattern, and Composer\Pcre throws.
+func (*PatternError) PHPClass() string { return `Composer\Pcre\PcreException` }
+
+// PHPCode implements phperr.Coded: preg_last_error() after a pattern
+// that does not compile.
+func (*PatternError) PHPCode() int { return PregInternalError }
+
 // compileError builds a PCRE2 compilation error at offset.
 func compileError(msg string, offset int) *PatternError {
 	return &PatternError{Msg: "Compilation failed: " + msg + " at offset " + strconv.Itoa(offset)}

@@ -99,7 +99,7 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 		// try to keep only the essential part of the constraint to turn invalid ones like <=3.20-test2 into <=3.20 which is better than nothing
 		if raw == nil {
 			// Preg::replace() takes scalars only
-			return nil, &pkg.TypeError{Message: "$subject must be a string, NULL given."}
+			return nil, &php.EngineError{Class: php.ClassTypeError, Message: "$subject must be a string, NULL given."}
 		}
 		var affectedVersion string
 		affectedVersion, _, err = advisoryConstraintPrefix.Replace(php.ToString(raw), "$1", -1)
@@ -150,7 +150,7 @@ func CreatePartialSecurityAdvisory(packageName string, data *php.Array, parser C
 	date, err := loader.ParseDateTime(reportedAtStr)
 	if err != nil {
 		if de, ok := errors.AsType[*loader.DateTimeError](err); ok {
-			return nil, &dateMalformedError{DateTimeError: de}
+			return nil, de
 		}
 
 		return nil, err
@@ -247,7 +247,7 @@ func parseConstraintsValue(parser ConstraintParser, v any) (semver.ConstraintInt
 	case string:
 		return parser.ParseConstraints(c)
 	case *php.Array:
-		err := &pkg.TypeError{Message: "Cannot access offset of type array in isset or empty"}
+		err := &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type array in isset or empty"}
 
 		return nil, err
 	case float64:
@@ -260,15 +260,6 @@ func parseConstraintsValue(parser ConstraintParser, v any) (semver.ConstraintInt
 
 	return parser.ParseConstraints(php.ToString(v))
 }
-
-// dateMalformedError is the DateMalformedStringException (PHP 8.3+) new
-// \DateTimeImmutable() throws for a time string it cannot parse.
-type dateMalformedError struct {
-	*loader.DateTimeError
-}
-
-// PHPClass implements util.PHPClasser.
-func (*dateMalformedError) PHPClass() (string, int) { return "DateMalformedStringException", 0 }
 
 // securityAdvisoryTypeError is the TypeError of argument n of new
 // SecurityAdvisory(...) (SecurityAdvisory.php:59), called in

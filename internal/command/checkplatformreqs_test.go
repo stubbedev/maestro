@@ -3,12 +3,11 @@
 package command_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 func checkPlatformReqsPackages(t *testing.T) (packages, devPackages []pkg.PackageInterface) {
@@ -63,7 +62,7 @@ func TestCheckPlatformReqsCommand_PlatformReqsAreSatisfied(t *testing.T) {
 func TestCheckPlatformReqsCommand_ExceptionThrownIfNoLockfileFound(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	err := gbRunErr(t, gbParams("command", "check-platform-reqs"))
-	if _, ok := errors.AsType[*util.LogicError](err); !ok {
+	if !phperr.InstanceOf(err, "LogicException") {
 		t.Errorf("expected a LogicException, got %T", err)
 	}
 	gbAssertSame(t, "No lockfile found. Unable to read locked packages", err.Error())

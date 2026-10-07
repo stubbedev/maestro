@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/phperr"
 )
 
-// PHPClassOf names the class get_class($e) shows, including the library
-// subclasses util's generic types stand for.
-func TestPHPClassOf(t *testing.T) {
+// The util errors name the class get_class($e) shows, including the
+// library subclasses util's generic types stand for.
+func TestPHPClass(t *testing.T) {
 	cases := []struct {
 		err  error
 		want string
@@ -32,8 +34,8 @@ func TestPHPClassOf(t *testing.T) {
 		{errors.New("plain"), "RuntimeException"},
 	}
 	for _, c := range cases {
-		if got, _ := PHPClassOf(c.err); got != c.want {
-			t.Errorf("PHPClassOf(%T %q) = %s, want %s", c.err, c.err, got, c.want)
+		if got := phperr.Class(c.err); got != c.want {
+			t.Errorf("phperr.Class(%T %q) = %s, want %s", c.err, c.err, got, c.want)
 		}
 	}
 }
@@ -64,11 +66,11 @@ func TestSymfonyExceptionClasses(t *testing.T) {
 
 			continue
 		}
-		if got, _ := PHPClassOf(c.err); got != c.class {
+		if got := phperr.Class(c.err); got != c.class {
 			t.Errorf("%s: class %s, want %s", c.name, got, c.class)
 		}
 		// they extend the SPL classes Composer catches
-		if c.class == ClassProcessRuntime && !IsRuntimeException(c.err) {
+		if c.class == ClassProcessRuntime && !phperr.InstanceOf(c.err, "RuntimeException") {
 			t.Errorf("%s: not a \\RuntimeException", c.name)
 		}
 	}
