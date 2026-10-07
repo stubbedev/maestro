@@ -635,10 +635,11 @@ package mirror arrives in one of two tiers:
 
 PHP requests `pkg.load` the first time a getter of a group it does not
 have runs. One `pkg.load` fetches that group for that package and for the
-core-tier packages still without it that PHP received first, 64 in all at
-most: code that reads a field of one package of a list mostly reads it of
-the others in order, so a list read in full takes a round trip per group
-it reads and 64 packages. symfony/flex's PRE_POOL_CREATE listener reads
+core-tier packages still without it that PHP received in the same message
+nearest to it (those after it first), 64 in all at most: code that reads a
+field of one package of a list mostly reads it of the others in order, so
+a list read in full takes a round trip per group it reads and 64 packages,
+and reading a list fetches none of the packages of other lists. symfony/flex's PRE_POOL_CREATE listener reads
 the extra of most packages of the pool, its transaction of an install the
 provides and replaces (getNames()) of every package. Go
 sends full snapshots when it knows they will be used: local-repository

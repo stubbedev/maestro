@@ -38,6 +38,9 @@ final class Rpc
     /** @var bool whether maestro is gone */
     private static $lost = false;
 
+    /** @var int how many messages PHP received */
+    private static $received = 0;
+
     /**
      * Opens the channel MAESTRO_IPC names: "fd:3,4" (inherited pipes) or
      * "tcp:127.0.0.1:<port>" (loopback socket).
@@ -83,6 +86,15 @@ final class Rpc
      * @param mixed $args
      * @return mixed
      */
+    /**
+     * The number of the message PHP is reading or last read: the values
+     * of one message share it.
+     */
+    public static function received(): int
+    {
+        return self::$received;
+    }
+
     public static function call(string $method, $args = null)
     {
         if (self::$lost) {
@@ -267,6 +279,7 @@ final class Rpc
         }
 
         $json = self::read($n);
+        ++self::$received;
         $msg = Codec::parse($json);
         if (!is_array($msg) || !isset($msg['k'], $msg['id'])) {
             throw new ProtocolException('maestro shim: invalid message');

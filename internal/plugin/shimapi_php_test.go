@@ -195,12 +195,13 @@ func TestShimAPI_LazyPackages(t *testing.T) {
 	rt, _, _ := newTestRuntime(t)
 	start(t, rt)
 
-	loads := 0
+	loads, loaded := 0, 0
 	rt.mu.Lock()
 	load := rt.handlers["pkg.load"]
 	rt.mu.Unlock()
 	rt.Handle("pkg.load", func(v any) (any, error) {
 		loads++
+		loaded += len(argsOf("pkg.load", v).list) - 1
 
 		return load(v)
 	})
@@ -258,6 +259,22 @@ func TestShimAPI_LazyPackages(t *testing.T) {
 	}
 	if loads != 3 {
 		t.Errorf("10 packages took %d pkg.load calls, want 3", loads)
+	}
+
+	// A list that arrived after a long one (a transaction's after
+	// PRE_POOL_CREATE's): reading it fetches its own packages, not the
+	// long list's.
+	_, long := list(500)
+	if got := evalPHP(t, rt, `return count($vars['list']);`, php.ArrayOf("list", long)); got != int64(500) {
+		t.Fatalf("PHP got %v packages", got)
+	}
+	loads, loaded = 0, 0
+	packages2, l2 := list(20)
+	if got := evalPHP(t, rt, readAll, php.ArrayOf("list", l2)); got != want(packages2) {
+		t.Errorf("PHP read %v", got)
+	}
+	if loads != 2 || loaded != 40 {
+		t.Errorf("20 packages after 500 took %d pkg.load calls for %d packages, want 2 for 40", loads, loaded)
 	}
 
 	// A change maestro makes to a fetched package reaches PHP.
