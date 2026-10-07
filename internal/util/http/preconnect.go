@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"net/http"
 	neturl "net/url"
 	"strings"
 	"time"
@@ -136,12 +135,7 @@ func (p *transportPool) preconnect(key transportKey, addr string, connectTimeout
 	go func() {
 		defer close(pc.done)
 
-		var t *http.Transport
-
-		client, failure := p.client(key, connectTimeout)
-		if failure == nil {
-			t, _ = client.Transport.(*http.Transport)
-		}
+		pt, failure := p.transport(key, connectTimeout)
 
 		d := <-plain
 		if d.err != nil {
@@ -150,20 +144,16 @@ func (p *transportPool) preconnect(key transportKey, addr string, connectTimeout
 			return
 		}
 
-		if t == nil || t.DialTLSContext == nil {
+		if failure != nil {
 			_ = d.conn.Close()
 			pc.err = errPreconnUnusable
 
 			return
 		}
 
-		cfg := t.TLSClientConfig.Clone()
-		if key.http1 {
-			cfg.NextProtos = nil
-		} else {
-			// what net/http's HTTP/2 set-up gives the transport's TLS config
-			cfg.NextProtos = []string{"h2", "http/1.1"}
-		}
+		// the configuration the transport's own dials use (its snapshot,
+		// HTTP/2's NextProtos included unless the key is HTTP/1 only)
+		cfg := pt.tls
 
 		pc.conn, pc.err = tlsHandshake(context.Background(), d.conn, addr, cfg, connectTimeout)
 		pc.settled = time.Now()

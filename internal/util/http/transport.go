@@ -136,7 +136,7 @@ type transferResult struct {
 // transportPool builds and caches the transports of a downloader.
 type transportPool struct {
 	mu         sync.Mutex
-	transports map[transportKey]*http.Client
+	transports map[transportKey]*pooledTransport
 	// pre are the connections opened ahead (Preconnect).
 	pre map[preKey]*preconn
 	// ahead are the transfers started ahead (prefetch.go).
@@ -145,12 +145,37 @@ type transportPool struct {
 	first map[firstConnKey]*firstConn
 }
 
+// pooledTransport is a transport of the pool with the TLS configuration
+// its connections are opened with.
+type pooledTransport struct {
+	client *http.Client
+	// tls is a snapshot of the transport's TLS configuration taken once
+	// net/http set it up (HTTP/2's NextProtos added), before the
+	// transport is handed out. It is never written to: connections are
+	// opened from clones of it, and the transport's own TLSClientConfig,
+	// which net/http owns and may write to, is not read once it is in use.
+	tls *tls.Config
+}
+
 func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (*http.Client, *transferResult) {
+	pt, failure := p.transport(key, connectTimeout)
+	if failure != nil {
+		return nil, failure
+	}
+
+	return pt.client, nil
+}
+
+// transport returns the pooled transport for the key, built on first use.
+// It is fully set up, net/http's HTTP/2 configuration included, before
+// it is stored, so goroutines sharing it (transfers, Preconnect) only
+// read what the build wrote.
+func (p *transportPool) transport(key transportKey, connectTimeout time.Duration) (*pooledTransport, *transferResult) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if c, ok := p.transports[key]; ok {
-		return c, nil
+	if pt, ok := p.transports[key]; ok {
+		return pt, nil
 	}
 
 	tlsConfig, failure := buildTLSConfig(key.tls)
@@ -210,6 +235,8 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 		return &headConn{Conn: c}, nil
 	}
 
+	pt := &pooledTransport{}
+
 	t.DialTLSContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
 		var (
 			conn    *tls.Conn
@@ -226,16 +253,16 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 			}
 
 			if conn == nil {
-				conn, err = dialTLS(ctx, dialer, network, addr, t.TLSClientConfig, t.TLSHandshakeTimeout)
+				conn, err = dialTLS(ctx, dialer, network, addr, pt.tls, t.TLSHandshakeTimeout)
 			}
 		case proxyURL.Scheme == "https" && addr == canonicalProxyAddr(proxyURL):
 			// the TLS connection to an https proxy, for http requests;
 			// curl speaks HTTP/1.1 to proxies (CURLPROXY_HTTPS)
-			cfg := t.TLSClientConfig.Clone()
+			cfg := pt.tls.Clone()
 			cfg.NextProtos = nil
 			conn, err = dialTLS(ctx, dialer, network, addr, cfg, t.TLSHandshakeTimeout)
 		default:
-			conn, connect, err = dialTunnel(ctx, dialer, network, proxyURL, key.proxyHeader, addr, t.TLSClientConfig, t.TLSHandshakeTimeout)
+			conn, connect, err = dialTunnel(ctx, dialer, network, proxyURL, key.proxyHeader, addr, pt.tls, t.TLSHandshakeTimeout)
 		}
 
 		if err != nil {
@@ -245,7 +272,14 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 		return recordingTLSConn(conn, connect), nil
 	}
 
-	c := &http.Client{
+	// net/http sets HTTP/2 up (adding "h2" and "http/1.1" to the
+	// NextProtos of TLSClientConfig) on the transport's first use, which
+	// CloseIdleConnections is; done here, before the transport is shared,
+	// that write cannot race with goroutines opening connections for it
+	t.CloseIdleConnections()
+	pt.tls = t.TLSClientConfig.Clone()
+
+	pt.client = &http.Client{
 		Transport: t,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -253,12 +287,12 @@ func (p *transportPool) client(key transportKey, connectTimeout time.Duration) (
 	}
 
 	if p.transports == nil {
-		p.transports = map[transportKey]*http.Client{}
+		p.transports = map[transportKey]*pooledTransport{}
 	}
 
-	p.transports[key] = c
+	p.transports[key] = pt
 
-	return c, nil
+	return pt, nil
 }
 
 // buildTLSConfig turns ssl options into a tls.Config, failing like curl
