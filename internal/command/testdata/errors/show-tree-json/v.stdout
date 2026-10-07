@@ -1,0 +1,25 @@
+{
+    "installed": [
+        {
+            "name": "x/bar",
+            "version": "1.0.0",
+            "description": null,
+            "requires": [
+                {
+                    "name": "x/foo",
+                    "version": "^1.0"
+                }
+            ]
+        },
+        {
+            "name": "x/dev",
+            "version": "1.0.0",
+            "description": null
+        },
+        {
+            "name": "x/foo",
+            "version": "1.0.0",
+            "description": null
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+No composer.json found in the current directory, disabling "latest" option
+name     : composer-plugin-api
+descrip. : The Composer Plugin API
+keywords : 
+versions : * 2.9.0
+type     : library
+homepage : 
+source   : []  
+dist     : []  
+names    : composer-plugin-api
+exit 0

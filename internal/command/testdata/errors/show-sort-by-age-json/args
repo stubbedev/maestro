@@ -1,0 +1,4 @@
+show
+-l
+-A
+--format=json

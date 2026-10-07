@@ -1,0 +1,11 @@
+No composer.json found in the current directory, disabling "latest" option
+name     : composer-plugin-api
+descrip. : The Composer Plugin API
+keywords : 
+versions : * 2.9.0
+type     : library
+homepage : 
+source   : []  
+dist     : []  
+names    : composer-plugin-api
+exit 0

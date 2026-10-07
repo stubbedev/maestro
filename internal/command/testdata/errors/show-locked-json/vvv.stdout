@@ -1,0 +1,31 @@
+{
+    "locked": [
+        {
+            "name": "x/bar",
+            "direct-dependency": true,
+            "homepage": null,
+            "source": null,
+            "version": "1.0.0",
+            "description": null,
+            "abandoned": false
+        },
+        {
+            "name": "x/dev",
+            "direct-dependency": true,
+            "homepage": null,
+            "source": null,
+            "version": "1.0.0",
+            "description": null,
+            "abandoned": false
+        },
+        {
+            "name": "x/foo",
+            "direct-dependency": true,
+            "homepage": null,
+            "source": null,
+            "version": "1.0.0",
+            "description": null,
+            "abandoned": false
+        }
+    ]
+}

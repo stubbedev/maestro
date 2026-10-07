@@ -1,0 +1,10 @@
+name     : x/foo
+descrip. : 
+keywords : 
+versions : * 1.0.0
+type     : metapackage
+homepage : 
+source   : []  
+dist     : []  
+path     : null
+names    : x/foo

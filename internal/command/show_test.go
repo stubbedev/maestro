@@ -3,8 +3,11 @@
 package command_test
 
 import (
+	gojson "encoding/json"
 	"os"
+	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -336,6 +339,24 @@ func TestShowCommand_ShowPlatformWorksWithoutComposerJson(t *testing.T) {
 	if code, err := appTester.Run(gbParams("command", "show", "-p", true, "-f", "json", "package", "php"), commandtest.Options{}); err != nil || code != 0 {
 		t.Fatalf("code %d, err %v", code, err)
 	}
+
+	// listing packages as json: every entry in "platform", as Composer
+	// lists them
+	appTester = commandtest.GetApplicationTester(t)
+	if code, err := appTester.Run(gbParams("command", "show", "-p", true, "-f", "json"), commandtest.Options{CaptureStderrSeparately: true}); err != nil || code != 0 {
+		t.Fatalf("code %d, err %v", code, err)
+	}
+	var listing map[string][]map[string]any
+	if err := gojson.Unmarshal([]byte(appTester.Display(true)), &listing); err != nil || len(listing) != 1 {
+		t.Fatalf("not a platform listing (%v):\n%s", err, appTester.Display(true))
+	}
+	want := map[string]any{
+		"name": "composer-plugin-api", "direct-dependency": false, "homepage": nil, "source": nil,
+		"version": repository.PluginAPIVersion, "description": "The Composer Plugin API", "abandoned": false,
+	}
+	if !slices.ContainsFunc(listing["platform"], func(p map[string]any) bool { return reflect.DeepEqual(p, want) }) {
+		t.Errorf("platform listing lacks %v:\n%s", want, appTester.Display(true))
+	}
 }
 
 func TestShowCommand_OutdatedWithZeroMajor(t *testing.T) {
@@ -445,24 +466,40 @@ vendor/locked2 2.0.0 description of locked2 package`, gbTrim(appTester))
 }
 
 func TestShowCommand_InvalidOptionCombinations(t *testing.T) {
-	appTester := commandtest.GetApplicationTester(t)
-	for _, ps := range []gbKV{
-		gbParams("command", "show", "--direct", true, "--all", true),
-		gbParams("command", "show", "--direct", true, "--available", true),
-		gbParams("command", "show", "--direct", true, "--platform", true),
-		gbParams("command", "show", "--tree", true, "--all", true),
-		gbParams("command", "show", "--tree", true, "--available", true),
-		gbParams("command", "show", "--tree", true, "--latest", true),
-		gbParams("command", "show", "--tree", true, "--path", true),
-		gbParams("command", "show", "--patch-only", true, "--minor-only", true),
-		gbParams("command", "show", "--patch-only", true, "--major-only", true),
-		gbParams("command", "show", "--minor-only", true, "--major-only", true),
-		gbParams("command", "show", "--minor-only", true, "--major-only", true, "--patch-only", true),
-		gbParams("command", "show", "--format", "test"),
+	const (
+		direct = "The --direct (-D) option is not usable in combination with --all, --platform (-p) or --available (-a)"
+		tree   = "The --tree (-t) option is not usable in combination with --all or --available (-a)"
+		latest = "The --tree (-t) option is not usable in combination with --latest (-l)"
+		path   = "The --tree (-t) option is not usable in combination with --path (-P)"
+		only   = "Only one of --major-only, --minor-only or --patch-only can be used at once"
+	)
+	for _, tc := range []struct {
+		params gbKV
+		want   string
+	}{
+		{gbParams("command", "show", "--direct", true, "--all", true), direct},
+		{gbParams("command", "show", "--direct", true, "--available", true), direct},
+		{gbParams("command", "show", "--direct", true, "--platform", true), direct},
+		{gbParams("command", "show", "--tree", true, "--all", true), tree},
+		{gbParams("command", "show", "--tree", true, "--available", true), tree},
+		{gbParams("command", "show", "--tree", true, "--latest", true), latest},
+		{gbParams("command", "show", "--tree", true, "--path", true), path},
+		{gbParams("command", "show", "--patch-only", true, "--minor-only", true), only},
+		{gbParams("command", "show", "--patch-only", true, "--major-only", true), only},
+		{gbParams("command", "show", "--minor-only", true, "--major-only", true), only},
+		{gbParams("command", "show", "--minor-only", true, "--major-only", true, "--patch-only", true), only},
+		{gbParams("command", "show", "--format", "test"), `Unsupported format "test". See help for supported formats.`},
 	} {
-		_, _ = appTester.Run(ps, commandtest.Options{})
+		appTester := commandtest.GetApplicationTester(t)
+		_, _ = appTester.Run(tc.params, commandtest.Options{CaptureStderrSeparately: true})
 		if appTester.StatusCode() != 1 {
-			t.Errorf("%v: status %d, want 1", ps, appTester.StatusCode())
+			t.Errorf("%v: status %d, want 1", tc.params, appTester.StatusCode())
+		}
+		if out := appTester.Display(true); out != "" {
+			t.Errorf("%v: stdout %q, want none", tc.params, out)
+		}
+		if errOut := appTester.ErrorOutput(true); !strings.Contains(errOut, tc.want+"\n") {
+			t.Errorf("%v: stderr lacks %q:\n%s", tc.params, tc.want, errOut)
 		}
 	}
 }

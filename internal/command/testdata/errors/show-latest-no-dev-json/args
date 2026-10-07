@@ -1,0 +1,4 @@
+show
+-l
+--no-dev
+--format=json

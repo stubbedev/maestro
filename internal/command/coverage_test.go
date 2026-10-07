@@ -175,7 +175,9 @@ var coverage = []entry{
 	cover(command.NewShowCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestShowCommand_Show)),
+			Positive(Go(TestShowCommand_ShowPlatformWorksWithoutComposerJson)),
 			Negative(Go(TestShowCommand_NotExistingPackage)),
+			Negative(Go(TestShowCommand_InvalidOptionCombinations)),
 		},
 	}),
 	cover(command.NewSuggestsCommand, Coverage{

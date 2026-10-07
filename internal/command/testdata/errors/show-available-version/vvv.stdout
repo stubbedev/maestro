@@ -1,0 +1,9 @@
+name     : x/foo
+descrip. : 
+keywords : 
+versions : 1.1.0
+type     : metapackage
+homepage : 
+source   : []  
+dist     : []  
+names    : x/foo

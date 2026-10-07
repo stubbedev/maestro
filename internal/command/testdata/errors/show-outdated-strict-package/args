@@ -1,0 +1,4 @@
+show
+-o
+--strict
+x/foo

@@ -1,0 +1,22 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+{
+    "name": "acme/app",
+    "description": null,
+    "keywords": [],
+    "type": "library",
+    "homepage": null,
+    "names": [
+        "acme/app"
+    ],
+    "versions": [
+        "1.0.0+no-version-set"
+    ],
+    "requires": {
+        "x/foo": "^1.0",
+        "x/bar": "^1.0"
+    },
+    "devRequires": {
+        "x/dev": "^1.0"
+    }
+}
+exit 0
