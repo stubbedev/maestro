@@ -10,7 +10,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -76,20 +75,8 @@ func (c *ParseCache) UseFile(path string) {
 
 // diskHeader is the first line of the file: format and binary.
 func diskHeader() string {
-	return "maestro classmap cache 4" + binaryID() + "\n"
+	return "maestro classmap cache 4" + fsstate.BinaryID() + "\n"
 }
-
-// binaryID identifies the running maestro binary (its size and
-// modification time), for headers: " <size> <mtime>", or "" when unknown.
-var binaryID = sync.OnceValue(func() string {
-	if exe, err := os.Executable(); err == nil {
-		if info, err := os.Stat(exe); err == nil {
-			return " " + strconv.FormatInt(info.Size(), 10) + " " + strconv.FormatInt(info.ModTime().UnixNano(), 10)
-		}
-	}
-
-	return ""
-})
 
 // load reads the file: the header, the identity index (a count, then per
 // entry the ID (fsstate.ID.AppendBinary) and the content's SHA-256), then

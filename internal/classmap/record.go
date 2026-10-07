@@ -117,7 +117,7 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 
 // recordHeader is the first line of a record: format and binary.
 func recordHeader() string {
-	return "maestro classmap record 3" + binaryID() + "\n"
+	return "maestro classmap record 3" + fsstate.BinaryID() + "\n"
 }
 
 // recording is what a generator's scans depended on.

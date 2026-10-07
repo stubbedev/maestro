@@ -156,7 +156,8 @@ These change frozen behaviour on purpose; nothing else may.
    ident (the work tree path) are rewritten to what a fresh clone would hold (`internal/downloader/vcs/gitstore.go`).
    The store lives in maestro's own cache directory
    (`MAESTRO_CACHE_DIR`, else `$XDG_CACHE_HOME/maestro`, else the platform
-   cache directory; `internal/cache.Dir`).
+   cache directory; `internal/cache.Dir`). Releases not used for `cache-files-ttl` are pruned, at most once
+   a day, by a command that installed packages, once it is done.
 2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go
    (`internal/archive`), reproducing exactly what Composer's preferred path
    (system `unzip -qq`, `tar`) produces on Unix. In macOS's C locale, unzip

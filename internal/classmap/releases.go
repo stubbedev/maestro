@@ -10,6 +10,8 @@ import (
 	"errors"
 	"io"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // StampedFile is a file of a package tree whose content maestro knows
@@ -70,7 +72,7 @@ type releaseSet struct {
 // releasesHeader starts every release's results: format and binary, as
 // the cache file's (diskHeader).
 func releasesHeader() string {
-	return "maestro classmap release 1" + binaryID() + "\n"
+	return "maestro classmap release 1" + fsstate.BinaryID() + "\n"
 }
 
 // AddReleases tells the cache about package trees installed from the

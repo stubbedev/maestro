@@ -4,6 +4,7 @@
 package json
 
 import (
+	"crypto/sha256"
 	"errors"
 	"os"
 	"path/filepath"
@@ -252,6 +253,8 @@ func (f *File) ValidateSchema(schema int, schemaFile string) error {
 // a JSON round trip first.
 func ValidateJSONSchema(source string, data any, schema int, schemaFile string) error {
 	isComposerSchemaFile := false
+	// Composer's own schemas are embedded: they cannot change on disk
+	ownSchema := schemaFile == ""
 	if schemaFile == "" {
 		if schema == LockSchema {
 			schemaFile = res.LockSchemaURI
@@ -291,6 +294,19 @@ func ValidateJSONSchema(source string, data any, schema int, schemaFile string) 
 	if err != nil {
 		encoded = ""
 	}
+
+	// a document Composer's own schema accepted before is accepted again
+	memo := schemaMemos.Load()
+	if !ownSchema || err != nil {
+		memo = nil
+	}
+	var sum [sha256.Size]byte
+	if memo != nil {
+		if sum = schemaKey(schema, encoded); memo.validated(sum) {
+			return nil
+		}
+	}
+
 	data, _ = php.JSONDecode(encoded, false)
 
 	errs, err := jsonschema.NewValidator(retrieveSchema).Validate(data, schemaData)
@@ -298,6 +314,10 @@ func ValidateJSONSchema(source string, data any, schema int, schemaFile string) 
 		return err
 	}
 	if len(errs) == 0 {
+		if memo != nil {
+			memo.remember(sum)
+		}
+
 		return nil
 	}
 
