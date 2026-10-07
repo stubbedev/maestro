@@ -115,8 +115,9 @@ func ComposerStatics(crt *composer.Runtime) map[string]rpc.Static {
 }
 
 // exportRestartEnv puts the variables of bin/composer's xdebug restart in
-// maestro's environment, as they are in the restarted Composer process
-// (HANDOFF: scripts see them).
+// maestro's environment, as they are in the restarted Composer process,
+// so scripts and other child processes see them too, not only the php
+// child.
 func (r *Runtime) exportRestartEnv() error {
 	r.startMu.Lock()
 	defer r.startMu.Unlock()

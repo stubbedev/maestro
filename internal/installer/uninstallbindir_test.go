@@ -14,7 +14,7 @@ import (
 )
 
 // TestInstallationManager_UninstallBinDirIndependentOfOrder pins deviation
-// 7 (docs/PORTING.md, docs/tasks/binflake.md).
+// 7 (docs/PORTING.md).
 //
 // LibraryInstaller::uninstall calls BinaryInstaller::removeBinaries once the
 // package's directory is gone. Composer's removeBinaries creates the bin dir

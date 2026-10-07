@@ -55,7 +55,7 @@ func ComposerMirrorProcessGitURL(mirrorURL, packageName, url string, typ *string
 	// Preg::isMatch throws a PcreException on these patterns only for URLs
 	// of about a megabyte (the backtrack limit). Package::getSourceUrls and
 	// getDistUrls, which call this, have no error result here, so such a
-	// URL reads as no match (see the regex audit in docs/tasks/HANDOFF.md).
+	// URL reads as no match (docs/PORTING.md "Regular expressions").
 	if m, _ := mirrorGitHub.Match(url); m != nil {
 		url = "gh-" + m.Get(1) + "/" + m.Get(2)
 	} else if m, _ := mirrorBitbucket.Match(url); m != nil {
