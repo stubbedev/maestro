@@ -4,6 +4,7 @@
 package loader
 
 import (
+	"iter"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -15,22 +16,92 @@ import (
 // configureType, configureDefaultBranch, configureAbandoned and
 // GetBranchAlias read of it.
 func SkeletonConfig(config *php.Array) *php.Array {
-	skeleton := php.NewArrayCap(12)
-	for _, key := range [...]string{"name", "version", "version_normalized", "type", "default-branch", "abandoned"} {
-		if v, ok := config.Get(key); ok {
-			skeleton.Set(key, v)
-		}
-	}
-	for _, t := range pkg.SupportedLinkTypes() {
-		if v, ok := config.Get(t.Type); ok {
-			skeleton.Set(t.Type, v)
-		}
-	}
-	if aliases, ok := config.ArrayAt("extra").Get("branch-alias"); ok {
-		skeleton.Set("extra", php.ArrayOf("branch-alias", aliases))
+	skeleton := php.NewArrayCap(len(SkeletonKeys))
+	for key, v := range SkeletonFields(config) {
+		SetSkeletonField(skeleton, key, v)
 	}
 
 	return skeleton
+}
+
+// SkeletonKeys are the keys of a SkeletonConfig, in its order; the links'
+// are in pkg.SupportedLinkTypes' order.
+var SkeletonKeys = [...]string{
+	"name", "version", "version_normalized", "type", "default-branch", "abandoned",
+	"require", "conflict", "provide", "replace", "require-dev", "extra",
+}
+
+// SkeletonExtra is the index of "extra" in SkeletonKeys: a SkeletonConfig
+// holds only the branch-alias of a version's extra.
+const SkeletonExtra = len(SkeletonKeys) - 1
+
+// SkeletonFields yields the keys of SkeletonConfig(config), in its order,
+// as their indexes in SkeletonKeys, and their values (SetSkeletonField
+// sets them): SkeletonExtra's is the branch-alias of config's extra.
+func SkeletonFields(config *php.Array) iter.Seq2[int, any] {
+	return func(yield func(int, any) bool) {
+		// the keys before extra, found in one pass
+		var (
+			values [SkeletonExtra]any
+			found  [SkeletonExtra]bool
+		)
+		for k, v := range config.All() {
+			if key := skeletonKey(k); key >= 0 {
+				values[key], found[key] = v, true
+			}
+		}
+		for key, v := range values {
+			if found[key] && !yield(key, v) {
+				return
+			}
+		}
+		if aliases, ok := config.ArrayAt("extra").Get("branch-alias"); ok {
+			yield(SkeletonExtra, aliases)
+		}
+	}
+}
+
+// skeletonKey is the index in SkeletonKeys of k, a key before extra; -1
+// for any other key.
+func skeletonKey(k php.Key) int {
+	if !k.IsString() {
+		return -1
+	}
+	switch k.String() {
+	case "name":
+		return 0
+	case "version":
+		return 1
+	case "version_normalized":
+		return 2
+	case "type":
+		return 3
+	case "default-branch":
+		return 4
+	case "abandoned":
+		return 5
+	case "require":
+		return 6
+	case "conflict":
+		return 7
+	case "provide":
+		return 8
+	case "replace":
+		return 9
+	case "require-dev":
+		return 10
+	}
+
+	return -1
+}
+
+// SetSkeletonField sets the key at index key in SkeletonKeys of skeleton,
+// a SkeletonConfig, to v, its value as SkeletonFields yields it.
+func SetSkeletonField(skeleton *php.Array, key int, v any) {
+	if key == SkeletonExtra {
+		v = php.ArrayOf("branch-alias", v)
+	}
+	skeleton.Set(SkeletonKeys[key], v)
 }
 
 // LoadSkeleton is Load for a version a SkeletonChecker tells fits, from its
@@ -94,22 +165,15 @@ type SkeletonChecker struct {
 // SkeletonChecker returns a SkeletonChecker for versions loaded with l's
 // parser.
 func (l *ArrayLoader) SkeletonChecker() *SkeletonChecker {
-	strict := NewArrayLoader(l.versionParser, true)
+	plain := NewArrayLoader(l.versionParser, false)
 
-	return &SkeletonChecker{l: strict, batch: strict.Batch()}
+	return &SkeletonChecker{l: plain, batch: plain.Batch()}
 }
 
 // Fits reports whether a version, config (with the notification-url it
 // is loaded with, or any string standing for it), loads as a skeleton.
 func (c *SkeletonChecker) Fits(config *php.Array) bool {
-	if scripts := config.ArrayAt("scripts"); scripts != nil {
-		for _, reserved := range [...]string{"composer", "php", "putenv"} {
-			if scripts.Has(reserved) {
-				return false
-			}
-		}
-	}
-	if !releaseDateIsAbsolute(config) {
+	if !LoadedFits(config) {
 		return false
 	}
 	if _, err := c.batch.Load(config); err != nil {
@@ -120,6 +184,29 @@ func (c *SkeletonChecker) Fits(config *php.Array) bool {
 	}
 
 	return true
+}
+
+// LoadedFits is SkeletonChecker.Fits for a version, config, that a
+// PackageBatch.Load of any loader loaded without error: Load succeeds
+// with it with or without transport options alike but for them (they
+// are configured last), and the version fits unless its transport
+// options fail or loading the rest of it later would not give what
+// loading it now gives.
+func LoadedFits(config *php.Array) bool {
+	if scripts := config.ArrayAt("scripts"); scripts != nil {
+		for _, reserved := range [...]string{"composer", "php", "putenv"} {
+			if scripts.Has(reserved) {
+				return false
+			}
+		}
+	}
+	if config.Isset("transport-options") {
+		if _, err := transportOptions(config); err != nil {
+			return false
+		}
+	}
+
+	return releaseDateIsAbsolute(config)
 }
 
 // releaseDateIsAbsolute reports whether the release date configureFields
@@ -134,6 +221,14 @@ func releaseDateIsAbsolute(config *php.Array) bool {
 		// configureFields fails
 		return false
 	}
+
+	// every field given: Packagist's form
+	return isoWithOffset(s) || parsesAlike(s)
+}
+
+// parsesAlike reports whether the release date configureFields reads
+// from s is the same whatever the current time.
+func parsesAlike(s string) bool {
 	if mustMatch(digitsOnly, s) {
 		s = "@" + s
 	}
@@ -146,4 +241,32 @@ func releaseDateIsAbsolute(config *php.Array) bool {
 	}
 
 	return a.Equal(b) && a.Location().String() == b.Location().String()
+}
+
+// isoWithOffset reports whether s is a date and time with every field
+// and a UTC offset, in the form 2006-01-02T15:04:05+07:00, which parses
+// alike whatever the current time.
+func isoWithOffset(s string) bool {
+	const form = "dddd-dd-ddTdd:dd:dd+dd:dd"
+	if len(s) != len(form) {
+		return false
+	}
+	for i := range len(form) {
+		switch c := s[i]; form[i] {
+		case 'd':
+			if c < '0' || c > '9' {
+				return false
+			}
+		case '+':
+			if c != '+' && c != '-' {
+				return false
+			}
+		default:
+			if c != form[i] {
+				return false
+			}
+		}
+	}
+
+	return true
 }

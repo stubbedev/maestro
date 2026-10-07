@@ -93,3 +93,40 @@ func TestLoadSkeleton(t *testing.T) {
 		t.Error("the completed skeleton is not the package Load builds")
 	}
 }
+
+// skeletonKey tells the index of each key of SkeletonKeys before extra,
+// and the links' are SupportedLinkTypes' in order.
+func TestSkeletonKeys(t *testing.T) {
+	for i, k := range SkeletonKeys {
+		want := i
+		if i == SkeletonExtra {
+			want = -1
+		}
+		if got := skeletonKey(php.StrKey(k)); got != want {
+			t.Errorf("skeletonKey(%q) = %d, want %d", k, got, want)
+		}
+	}
+	for i, lt := range pkg.SupportedLinkTypes() {
+		if SkeletonKeys[6+i] != lt.Type {
+			t.Errorf("link %d: %q, want %q", i, SkeletonKeys[6+i], lt.Type)
+		}
+	}
+	if skeletonKey(php.StrKey("description")) != -1 || skeletonKey(php.StrKey("0")) != -1 {
+		t.Error("another key is a skeleton key")
+	}
+}
+
+// A date in Packagist's form, which LoadedFits takes as absolute without
+// parsing it, parses alike whatever the current time.
+func FuzzISOWithOffset(f *testing.F) {
+	for _, s := range []string{
+		"2024-05-06T07:08:09+00:00", "1999-12-31T23:59:59-12:30", "0000-00-00T00:00:00+00:00", "9999-99-99T99:99:99-99:99",
+	} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		if isoWithOffset(s) && !parsesAlike(s) {
+			t.Fatalf("%q depends on the current time", s)
+		}
+	})
+}

@@ -259,7 +259,7 @@ func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array)
 	}
 
 	if l.loadOptions && config.Isset("transport-options") {
-		options, err := arrayArg(packageClass+"::setTransportOptions", "options", "array", config.At("transport-options"))
+		options, err := transportOptions(config)
 		if err != nil {
 			return nil, err
 		}
@@ -268,6 +268,12 @@ func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array)
 	}
 
 	return l.aliased(p, config)
+}
+
+// transportOptions is what configureObject passes to setTransportOptions
+// for config's transport-options.
+func transportOptions(config *php.Array) (*php.Array, error) {
+	return arrayArg(packageClass+"::setTransportOptions", "options", "array", config.At("transport-options"))
 }
 
 // aliased is the end of configureObject: the package, or its alias when
