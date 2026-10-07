@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/cache"
@@ -65,6 +66,9 @@ type Factory struct {
 	// EnsureComposerBinary extracts the COMPOSER_BINARY launcher before a
 	// script process starts (eventdispatcher.SetEnsureComposerBinary).
 	EnsureComposerBinary func() error
+
+	// rootVersions are the root package versions guessed so far.
+	rootVersions rootVersions
 }
 
 func (f *Factory) runtime() *Runtime {
@@ -83,6 +87,51 @@ func (f *Factory) CreateConfig(out io.IO, cwd string) (*config.Config, error) {
 	}
 
 	return config.CreateConfig(out, cwd)
+}
+
+// rootVersions are root package versions a Factory guessed, by directory
+// and root package configuration: a process loads the same root package
+// more than once (validate: for the application and for the file it
+// validates), and the guess is then the same, its VCS commands run once.
+type rootVersions struct {
+	mu      sync.Mutex
+	guessed map[string]loader.VersionData
+}
+
+// rootVersionGuesser is the VersionGuesser of the root packages a Factory
+// loads, answering from versions.
+type rootVersionGuesser struct {
+	loader.VersionGuesser
+	versions *rootVersions
+}
+
+// GuessVersion implements loader.VersionGuesser.
+func (g rootVersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*loader.VersionData, error) {
+	encoded, err := php.JSONEncode(packageConfig, 0)
+	if err != nil {
+		return g.VersionGuesser.GuessVersion(packageConfig, path)
+	}
+	dir, ok := php.Realpath(path)
+	if !ok {
+		dir = path
+	}
+	key := dir + "\x00" + encoded
+
+	g.versions.mu.Lock()
+	defer g.versions.mu.Unlock()
+	if data, ok := g.versions.guessed[key]; ok {
+		return &data, nil
+	}
+	data, err := g.VersionGuesser.GuessVersion(packageConfig, path)
+	if err != nil || data == nil {
+		return data, err
+	}
+	if g.versions.guessed == nil {
+		g.versions.guessed = map[string]loader.VersionData{}
+	}
+	g.versions.guessed[key] = *data
+
+	return data, nil
 }
 
 // GetComposerFile ports Factory::getComposerFile.
@@ -394,7 +443,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 
 	// load package
 	parser := pkg.NewVersionParser()
-	guesser := version.NewVersionGuesser(version.NewProcessExecutor(process), out)
+	guesser := rootVersionGuesser{version.NewVersionGuesser(version.NewProcessExecutor(process), out), &f.rootVersions}
 	rootLoader := f.loadRootPackage(rm, cfg, parser, guesser, out)
 	loaded, err := rootLoader.LoadIn(localConfigArray, pkg.ClassRootPackage, cwd)
 	if err != nil {
