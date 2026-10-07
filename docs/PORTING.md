@@ -558,8 +558,13 @@ Tests must pass on every CI machine, not just the one that recorded them:
 - Goldens name no machine: an oracle writes placeholders for the paths of
   the machine it runs on (`/home/user`, `/home/oracle`; see
   `tools/oracle/php/preg_anonymize.php`) and leaves PHP's TypeError call
-  sites out. `TestTestdataNamesNoMachine` (`internal/testutil`) fails on a
-  home directory in any testdata.
+  sites out. The errors oracle normalises Composer's runs and maestro's
+  with one definition, `testutil.NormalizeOracle` (errors.sh runs it as
+  `tools/oracle/errors/normalize`), which also replaces the CA bundle,
+  php.ini files, archive tools and php details the machine has.
+  `TestTestdataNamesNoMachine` (`internal/testutil`) fails on a home
+  directory or an installed package's path (`/nix/store/...`, Homebrew's)
+  in any testdata.
 - Where Composer follows readdir order, maestro does too
   (`util.ReadDirOrder`). Tests compare such results without depending on
   order, or build fixtures whose order is fixed. The live PHP oracles stay

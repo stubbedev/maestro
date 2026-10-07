@@ -1,5 +1,6 @@
 // Package testutil holds helpers shared by the tests of several packages.
-// It is imported only from _test.go files.
+// It is imported only from _test.go files and the oracle tools that
+// record their goldens (tools/oracle).
 package testutil
 
 import (

@@ -143,4 +143,13 @@ foreach (PROJECTS as $project) {
         fwrite(STDERR, $project.' '.$variant['name'].": done\n");
     }
 }
+// The php.ini files are the machine's: the golden names placeholders,
+// which the Go test's environment reports as its ini files.
+$iniPaths = array_filter($golden['iniFiles'], static fn (string $f): bool => $f !== '');
+$placeholders = array_map(static fn (int $i): string => $i === 0 ? '@PHPINI@' : "@PHPINI-$i@", array_keys($iniPaths));
+array_walk_recursive($golden, static function (&$v) use ($iniPaths, $placeholders) {
+    if (is_string($v)) {
+        $v = str_replace($iniPaths, $placeholders, $v);
+    }
+});
 write_golden(__DIR__.'/../../../internal/resolver/testdata/oracle/solve.json', $golden);

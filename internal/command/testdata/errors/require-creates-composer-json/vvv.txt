@@ -3,9 +3,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'

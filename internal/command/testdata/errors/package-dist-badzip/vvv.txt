@@ -1,9 +1,7 @@
 Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
@@ -40,22 +38,22 @@ Installs: x/y:1.0.0
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/bad.zip
 [200] http://@SERVER@/bad.zip
-Writing @DIR@/cache/files/x/y/f2d737d04f0532602010eb0ad4bc1e4f33f2253e.zip into cache from @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip
+Writing @DIR@/cache/files/x/y/7a50aac9d4ddeb27257b3c6ab29792ddb16cd246.zip into cache from @DIR@/p/vendor/composer/tmp-@RAND@.zip
   - Installing x/y (1.0.0): Extracting archive
-Executing async command (CWD): '/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip' '-qq' '@DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip' '-d' '@DIR@/p/vendor/composer/cff5842a'
-    Failed to extract x/y: (9) /nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip -qq @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip -d @DIR@/p/vendor/composer/cff5842a
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/vendor/composer/37396933'
+    Failed to extract x/y: (9) @BIN@/unzip -qq @DIR@/p/vendor/composer/tmp-@RAND@.zip -d @DIR@/p/vendor/composer/37396933
 
-[@DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip]
+[@DIR@/p/vendor/composer/tmp-@RAND@.zip]
   End-of-central-directory signature not found.  Either this file is not
   a zipfile, or it constitutes one disk of a multi-part archive.  In the
   latter case the central directory and zipfile comment will be found on
   the last disk(s) of this archive.
-unzip:  cannot find zipfile directory in one of @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip or
-        @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip.zip, and cannot find @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip.ZIP, period.
+unzip:  cannot find zipfile directory in one of @DIR@/p/vendor/composer/tmp-@RAND@.zip or
+        @DIR@/p/vendor/composer/tmp-@RAND@.zip.zip, and cannot find @DIR@/p/vendor/composer/tmp-@RAND@.zip.ZIP, period.
 
     The archive may contain identical file names with different capitalization (which fails on case insensitive filesystems)
     Unzip with unzip command failed, falling back to ZipArchive class
-Executing command (CWD): 'rm' '-rf' '@DIR@/p/vendor/composer/cff5842a'
+Executing command (CWD): 'rm' '-rf' '@DIR@/p/vendor/composer/37396933'
 Executing command (CWD): 'rm' '-rf' '@DIR@/p/vendor/x/y'
     Install of x/y failed
 

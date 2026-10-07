@@ -3,8 +3,8 @@ In Preg.php line 289:
                                                                                
   [TypeError]                                                                  
   Composer\Pcre\Preg::isMatch(): Argument #2 ($subject) must be of type strin  
-  g, int given, called in @COMPOSER@/src/Compo  
-  ser/Util/ConfigValidator.php on line 134                                     
+  g, int given, called in @COMPOSER@/src/Composer/Ut  
+  il/ConfigValidator.php on line 134                                           
                                                                                
 
 Exception trace:

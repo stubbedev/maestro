@@ -1,9 +1,7 @@
 Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
@@ -33,7 +31,7 @@ Your lock file does not contain a compatible set of packages. Please run compose
     - x/ext 1.0.0 requires ext-nonexistent * -> it is missing from your system. Install or enable PHP's nonexistent extension.
 
 To enable extensions, verify that they are enabled in your .ini files:
-    - /nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/lib/php.ini
+    - @PHPINI@
 You can also run `php --ini` in a terminal to see which files are used by PHP in CLI mode.
 Alternatively, you can run Composer with `--ignore-platform-req=ext-nonexistent` to temporarily ignore these required extensions.
 exit 2

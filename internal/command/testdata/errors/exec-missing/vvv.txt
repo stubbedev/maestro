@@ -1,11 +1,7 @@
 Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
-Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
-Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
@@ -19,6 +15,6 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 > __exec_command: nope-bin
 Executing command (CWD): nope-bin
-sh: 1: nope-bin: not found
+sh: line 1: nope-bin: command not found
 Script nope-bin handling the __exec_command event returned with error code 127
 exit 127

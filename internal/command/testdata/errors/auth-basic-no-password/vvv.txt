@@ -9,11 +9,7 @@ Loading config file @DIR@/home/auth.json
 "@DIR@/home/auth.json" does not match the expected JSON schema, this may result in errors and should be resolved:
  - http-basic.example.org.password : The property password is required
 Loading config file ./composer.json (@DIR@/p/composer.json)
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
-Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
-Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'

@@ -1,9 +1,7 @@
 Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
@@ -40,13 +38,13 @@ Installs: x/y:1.0.0
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/ok.zip
 [200] http://@SERVER@/ok.zip
-Writing @DIR@/cache/files/x/y/d326e4fa9facb917f6c012f1a1b78602b4f954e0.zip into cache from @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip
+Writing @DIR@/cache/files/x/y/58d95847abd45a005dba5451dbd569ef3222c3f2.zip into cache from @DIR@/p/vendor/composer/tmp-@RAND@.zip
 
 In FileDownloader.php line 214:
                                                                                
   [UnexpectedValueException]                                                   
   The checksum verification of the file failed (downloaded from http://127.0.  
-  0.1:36977/ok.zip)                                                            
+  0.1:33619/ok.zip)                                                            
                                                                                
 
 Exception trace:

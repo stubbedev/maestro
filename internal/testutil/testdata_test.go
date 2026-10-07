@@ -23,9 +23,22 @@ var homeDir = regexp.MustCompile(`/(?:home|Users)/([A-Za-z0-9_][A-Za-z0-9._-]*)`
 // fixtures and the config factory's oracle).
 var placeholderHomes = []string{"user", "oracle", "me", "cache", "composer"}
 
+// installedSoftware is where a package manager installs a machine's
+// software, a path only that machine has (the php, CA bundle or unzip an
+// oracle ran with): a Nix or Guix store entry, Homebrew's prefixes. The
+// all-zero store hash is the placeholder tools/oracle/php/preg_anonymize.php
+// writes.
+var installedSoftware = regexp.MustCompile(`/(?:nix|gnu)/store/([0-9a-z]{32})-|/opt/homebrew/|/usr/local/Cellar/`)
+
+// pinnedSoftware are the test data recorded from software built from a
+// pin, whose store paths are the same on every machine: the platform
+// oracle's php builds (tools/oracle/platform/generate.sh).
+var pinnedSoftware = []string{"internal/platform/testdata/oracle/"}
+
 // TestTestdataNamesNoMachine: no test data, gzipped goldens included,
-// holds a developer's home directory or the home directory of the machine
-// running the tests, as goldens recorded on a machine pick up its paths.
+// holds a developer's home directory, the home directory of the machine
+// running the tests or the path of software installed on a machine, as
+// goldens recorded on a machine pick up its paths.
 func TestTestdataNamesNoMachine(t *testing.T) {
 	root := moduleRoot(t)
 	home, _ := os.UserHomeDir()
@@ -56,6 +69,14 @@ func TestTestdataNamesNoMachine(t *testing.T) {
 			name := string(m[1])
 			if !strings.HasPrefix(name, ".") && !strings.Contains(name, ".") && !slices.Contains(placeholderHomes, name) {
 				t.Errorf("%s holds the home directory %s: use a placeholder such as /home/user", rel, m[0])
+
+				break
+			}
+		}
+		pinned := slices.ContainsFunc(pinnedSoftware, func(p string) bool { return strings.HasPrefix(filepath.ToSlash(rel), p) })
+		for _, m := range installedSoftware.FindAllSubmatch(data, -1) {
+			if !pinned && (m[1] == nil || strings.Trim(string(m[1]), "0") != "") {
+				t.Errorf("%s holds the machine path %s: normalise it to a placeholder in the oracle that records it", rel, m[0])
 
 				break
 			}

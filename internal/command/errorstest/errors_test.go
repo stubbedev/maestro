@@ -328,6 +328,7 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 	}
 
 	host := strings.TrimPrefix(serverURL, "http://")
+	oracle := testutil.OracleRun{Dir: run, Server: host}
 
 	var files map[string]*string
 	if _, err := os.Stat(filepath.Join(dir, "files")); err == nil {
@@ -340,7 +341,7 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 			case err != nil:
 				t.Fatal(err)
 			default:
-				content := normalize(string(data), run, host)
+				content := testutil.NormalizeOracle(string(data), oracle)
 				files[l] = &content
 			}
 		}
@@ -351,35 +352,10 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 	// path anywhere.
 	return result{
 		code:   code,
-		stdout: normalize(php.NormalizeEOL(stdout.String()), run, host),
+		stdout: testutil.NormalizeOracle(php.NormalizeEOL(stdout.String()), oracle),
 		stderr: replacePaths(testutil.CompactMessage(stderr.String()), run, host),
 		files:  files,
 	}
-}
-
-var normalizers = []struct {
-	re   *regexp.Regexp
-	repl string
-}{
-	{regexp.MustCompile(`(?m)^Running cache garbage collection\n`), ""},
-	{regexp.MustCompile(`(?m)^(Running [^ \n]+ \([^)\n]*\) with PHP ).* on .*$`), "${1}@PHP@ on @OS@"},
-	{regexp.MustCompile(`/tmp/composer_archive[0-9a-f]+`), "/tmp/composer_archive@RAND@"},
-	{regexp.MustCompile(`(?m)^(Memory usage: )[0-9.]+MiB \(peak: [0-9.]+MiB\), time: [0-9.]+s$`), "${1}@PROFILE@"},
-	{regexp.MustCompile(`(?m)^(Analyzed )[0-9]+( (packages|rules) to resolve dependencies)$`), "${1}@N@${2}"},
-	{regexp.MustCompile(`(?m)^(Dependency resolution completed in )[0-9.]+( seconds)$`), "${1}@TIME@${2}"},
-	{regexp.MustCompile(`(?m)^(Pool optimizer completed in )[0-9.]+( seconds)$`), "${1}@TIME@${2}"},
-	{regexp.MustCompile(`(?m)^(Found )[0-9]+( package versions referenced in your dependency graph\. )[0-9]+ \([0-9]+%\)( were optimized away\.)$`), "${1}@N@${2}@N@${3}"},
-	{regexp.MustCompile(`(but your php version \()[^)\n]*(\) does not satisfy)`), "${1}@PHPVERSION@${2}"},
-}
-
-// normalize applies errors.sh's normalisation.
-func normalize(s, run, host string) string {
-	s = testutil.NormalizeBanner(replacePaths(s, run, host))
-	for _, n := range normalizers {
-		s = n.re.ReplaceAllString(s, n.repl)
-	}
-
-	return s
 }
 
 // replacePaths replaces the run's directory and the server's address
@@ -393,8 +369,8 @@ func replacePaths(s, run, host string) string {
 }
 
 // compactRandom are what differs between runs in a message that an error
-// box may wrap anywhere, out of reach of errors.sh's line-wise
-// normalisation: the server's port and the random name of the temporary
+// box may wrap anywhere, out of reach of testutil.NormalizeOracle, which
+// matches lines: the server's port and the random name of the temporary
 // file a dist is downloaded to.
 var compactRandom = []struct {
 	re   *regexp.Regexp

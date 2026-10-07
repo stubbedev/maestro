@@ -9,7 +9,7 @@ Your lock file does not contain a compatible set of packages. Please run compose
     - x/ext 1.0.0 requires ext-nonexistent * -> it is missing from your system. Install or enable PHP's nonexistent extension.
 
 To enable extensions, verify that they are enabled in your .ini files:
-    - /nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/lib/php.ini
+    - @PHPINI@
 You can also run `php --ini` in a terminal to see which files are used by PHP in CLI mode.
 Alternatively, you can run Composer with `--ignore-platform-req=ext-nonexistent` to temporarily ignore these required extensions.
 exit 2

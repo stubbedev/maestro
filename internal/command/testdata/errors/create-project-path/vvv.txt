@@ -2,11 +2,7 @@ Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/foo" project at "./out"
-Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
-Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
-Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
-Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'

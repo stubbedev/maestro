@@ -9,15 +9,15 @@ Package operations: 1 install, 0 updates, 0 removals
   - Downloading x/y (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
   - Installing x/y (1.0.0): Extracting archive
-    Failed to extract x/y: (9) /nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip -qq @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip -d @DIR@/p/vendor/composer/b3bfc642
+    Failed to extract x/y: (9) @BIN@/unzip -qq @DIR@/p/vendor/composer/tmp-@RAND@.zip -d @DIR@/p/vendor/composer/2038f2af
 
-[@DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip]
+[@DIR@/p/vendor/composer/tmp-@RAND@.zip]
   End-of-central-directory signature not found.  Either this file is not
   a zipfile, or it constitutes one disk of a multi-part archive.  In the
   latter case the central directory and zipfile comment will be found on
   the last disk(s) of this archive.
-unzip:  cannot find zipfile directory in one of @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip or
-        @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip.zip, and cannot find @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip.ZIP, period.
+unzip:  cannot find zipfile directory in one of @DIR@/p/vendor/composer/tmp-@RAND@.zip or
+        @DIR@/p/vendor/composer/tmp-@RAND@.zip.zip, and cannot find @DIR@/p/vendor/composer/tmp-@RAND@.zip.ZIP, period.
 
     The archive may contain identical file names with different capitalization (which fails on case insensitive filesystems)
     Unzip with unzip command failed, falling back to ZipArchive class
