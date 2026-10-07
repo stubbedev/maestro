@@ -180,7 +180,7 @@ func Compile(pattern string) (*Regexp, error) {
 // MustCompile is Compile for patterns known to be valid. The pattern is
 // compiled on first use, not by MustCompile: most package-level patterns
 // are never used by a given run, and compiling them all made up most of
-// the program's initialization (#29). It panics on that first use when
+// the program's initialization. It panics on that first use when
 // the pattern is invalid; CheckMustCompiled compiles every pattern given
 // to MustCompile so far, for tests. A pattern given again (by a function
 // called repeatedly) is the same *Regexp.

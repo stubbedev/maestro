@@ -4,7 +4,7 @@
 // previous exception ($e->getPrevious()), which errors expose through
 // Chained; and the root Composer's sources are reported under (Root),
 // which the plugin runtime gives the shim. How errors look is maestro's
-// own (internal/ui, docs/PORTING.md, #13); maestro records neither throw
+// own (internal/ui, docs/PORTING.md); maestro records neither throw
 // sites nor PHP call stacks.
 //
 // An exception constructed with a $previous exception keeps it in a field

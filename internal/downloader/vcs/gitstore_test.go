@@ -272,7 +272,7 @@ func TestRefreshIndexMatchesGit(t *testing.T) {
 		"v2":          nil,
 		"v4":          {{"update-index", "--index-version", "4"}},
 		"v4 skipHash": {{"config", "index.skipHash", "true"}, {"update-index", "--index-version", "4"}},
-		// what clone and reset write under a global feature.manyFiles (#24):
+		// what clone and reset write under a global feature.manyFiles:
 		// v4, skipHash and an empty untracked cache whose ident names the
 		// original work tree, not the copy
 		"manyFiles":      {{"config", "feature.manyFiles", "true"}, {"reset", "-q", "--hard"}},

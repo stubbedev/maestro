@@ -1,4 +1,4 @@
-// Composer's services constructed in PHP (docs/PLUGINS.md §5.3, phase 5's
+// Composer's services constructed in PHP (docs/PLUGINS.md §5.3, tier 5's
 // `<area>.new`): new Config(), new AutoloadGenerator(), new
 // RepositoryManager(), new InstallationManager(), new PluginManager() and
 // new DownloadManager() build maestro's object, as Factory builds a

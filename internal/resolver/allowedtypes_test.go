@@ -7,8 +7,8 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 )
 
-// TestCreatePool_AllowedTypes checks PoolBuilder's ?array $allowedTypes
-// (#67): null loads packages of every type, [] (even a nil slice) loads
+// TestCreatePool_AllowedTypes checks PoolBuilder's ?array $allowedTypes:
+// null loads packages of every type, [] (even a nil slice) loads
 // none, and a list only those types.
 func TestCreatePool_AllowedTypes(t *testing.T) {
 	for _, tc := range []struct {

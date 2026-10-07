@@ -1,5 +1,5 @@
 // HTTP, the event loop, downloads and the cache (docs/PLUGINS.md §4.8,
-// phase 5): maestro's HttpDownloader (`http.*`), RemoteFilesystem
+// tier 5): maestro's HttpDownloader (`http.*`), RemoteFilesystem
 // (`rfs.*`), Loop (`loop.*`), DownloadManager (`dm.*`) and Cache
 // (`cache.*`). Objects PHP constructs become maestro's (Runtime.adopt);
 // promises settle in PHP when maestro's do, which happens while maestro's

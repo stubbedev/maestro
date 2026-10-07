@@ -1,5 +1,5 @@
 // Packages created in PHP (docs/PLUGINS.md §5.3, "PHP-born data objects";
-// phase 5): `new Package(...)`, `new CompletePackage(...)` or a plugin's
+// tier 5): `new Package(...)`, `new CompletePackage(...)` or a plugin's
 // subclass stays PHP's until it first crosses to maestro (added to a
 // repository, returned from an installer, given to a setter). Then maestro
 // builds its own package from the snapshot PHP sends, PHP's object becomes

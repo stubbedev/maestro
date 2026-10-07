@@ -1,4 +1,4 @@
-// The plugins of docs/PLUGINS.md's phase 6 (internals emulation):
+// The plugins of docs/PLUGINS.md's tier 6 (internals emulation):
 // symfony/flex, php-http/discovery, bamarni/composer-bin-plugin,
 // symfony/thanks and vaimo/composer-patches, compared with Composer as
 // TestE2EPlugins compares the others.
@@ -16,7 +16,7 @@ import (
 	"testing"
 )
 
-func phase6PluginScenarios() []scenario {
+func tier6PluginScenarios() []scenario {
 	return []scenario{
 		{
 			// symfony/flex 2.11.0 (docs/PLUGINS.md §5.12): the recipes of a
@@ -96,7 +96,7 @@ func phase6PluginScenarios() []scenario {
 		},
 		{
 			// vaimo/composer-patches 6.0.3 (best effort, docs/PLUGINS.md
-			// phase 6): a clone of the Config, a FileDownloader created in
+			// tier 6): a clone of the Config, a FileDownloader created in
 			// PHP, packages reinstalled through InstallationManager with
 			// its own InstallOperation subclass, its patch commands.
 			name:    "plugin-vaimo",

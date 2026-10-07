@@ -19,7 +19,7 @@ func TestTypeErrorMessages(t *testing.T) {
 
 // The TypeError of advisory data that is not an array (the closures
 // getSecurityAdvisories maps it with) names the package and what it got,
-// not the closure or its line in Composer's source (#45).
+// not the closure or its line in Composer's source.
 func TestAdvisoryDataTypeError(t *testing.T) {
 	e := pkg.AdvisoryDataTypeError("acme/lib", "x")
 	if class := e.PHPClass(); class != "TypeError" {

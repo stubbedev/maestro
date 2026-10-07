@@ -275,8 +275,7 @@ func TestSelfUpdateCommand_UnknownVersion(t *testing.T) {
 	}
 
 	// The 404 is only the previous exception: the InvalidArgumentException
-	// is no TransportException, whose code would take over the exit code
-	// (#44).
+	// is no TransportException, whose code would take over the exit code.
 	appTester.Application.SetCatchExceptions(true)
 	if code, _ := appTester.RunArgs(commandtest.Options{}, "command", "self-update", "version", "9.9.9"); code != 1 {
 		t.Errorf("exit code %d, want 1\n%s", code, appTester.Display(true))

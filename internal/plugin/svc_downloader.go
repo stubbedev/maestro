@@ -1,4 +1,4 @@
-// Downloaders in PHP (docs/PLUGINS.md §4.8; phase 6): maestro's
+// Downloaders in PHP (docs/PLUGINS.md §4.8; tier 6): maestro's
 // downloaders (DownloadManager::getDownloader(), getDownloaderForPackage())
 // serve their methods (`downloader.*`: download, install, getLocalChanges,
 // ...), and `new FileDownloader(...)` (or one of its subclasses without a

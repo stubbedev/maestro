@@ -174,7 +174,7 @@ func TestLocker_SetLockData(t *testing.T) {
 }
 
 // TestLocker_SetLockDataPackagesDev checks that setLockData's ?array
-// $devPackages keeps null and [] apart in the lock file (#67): null
+// $devPackages keeps null and [] apart in the lock file: null
 // (installed without --dev, Locker::setLockData($p, null, ...)) writes
 // "packages-dev": null, and an empty list, even a nil slice, writes [].
 func TestLocker_SetLockDataPackagesDev(t *testing.T) {

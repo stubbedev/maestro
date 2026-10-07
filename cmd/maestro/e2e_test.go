@@ -614,7 +614,7 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 }
 
 // compareStderr compares a step's stderr. How errors are rendered is free
-// (docs/PORTING.md "The contract", #13): where Composer rendered an
+// (docs/PORTING.md "The contract"): where Composer rendered an
 // exception, what it wrote before the rendering must start maestro's stderr
 // as it is, and the rendering must report the messages of Composer's
 // exception and its previous ones (testutil.ErrorRendering, compared
@@ -677,7 +677,7 @@ func compareStderr(t *testing.T, label, want, got string) {
 // composerHint matches a line of Application::hintCommonErrors (and
 // HttpDownloader::getExceptionHints) that Composer writes before rendering
 // an exception. maestro reports them with the error as hints ("Hint: "),
-// in its own wording (#13).
+// in its own wording.
 var composerHint = regexp.MustCompile(`^(?:The following exception |The disk hosting |Check https://getcomposer\.org/|Plugins have been disabled|If you intend to run Composer without connecting to the internet)`)
 
 // hintLink is a link in a hint of Composer's.

@@ -389,7 +389,7 @@ func (r *Runtime) registerRepositories() {
 		return r.value(rm.HTTPDownloader()), nil
 	})
 
-	r.registerRepositoriesPhase5()
+	r.registerRepositoriesTier5()
 	r.registerFilesystemRepositories()
 	r.registerRepositoryFactory()
 }
@@ -424,10 +424,10 @@ func (r *Runtime) dependentsValue(deps []repository.Dependent) *php.Array {
 	return out
 }
 
-// registerRepositoriesPhase5 registers the repository methods of
-// docs/PLUGINS.md's phase 5: platform repositories created in PHP and the
+// registerRepositoriesTier5 registers the repository methods of
+// docs/PLUGINS.md's tier 5: platform repositories created in PHP and the
 // composite repositories of maestro's.
-func (r *Runtime) registerRepositoriesPhase5() {
+func (r *Runtime) registerRepositoriesTier5() {
 	repoMethod := func(method string, fn func(repo repository.RepositoryInterface, a args) (any, error)) {
 		r.Handle("repo."+method, func(v any) (any, error) {
 			a := argsOf("repo."+method, v)

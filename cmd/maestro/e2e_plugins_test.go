@@ -1,5 +1,5 @@
 // The end-to-end comparison of plugins and PHP scripts with real Composer
-// (docs/PLUGINS.md §9.2, §9.3): the plugins of docs/PLUGINS.md's phase 2
+// (docs/PLUGINS.md §9.2, §9.3): the plugins of docs/PLUGINS.md's tier 2
 // and the runtime scenarios, each fixture project run with the official
 // composer.phar 2.10.3 and with maestro, compared as TestE2E compares (it
 // reuses its runner: same directories, environment, normalisations and
@@ -154,7 +154,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"run-script", "missing-command"}},
 				{args: []string{"run-script", "plain-command"}},
 				// The command class as a command of maestro's Application
-				// (docs/PLUGINS.md phase 4): listed, described, completed and
+				// (docs/PLUGINS.md tier 4): listed, described, completed and
 				// run in PHP, with its own errors.
 				{args: []string{"list"}},
 				{args: []string{"help", "hello-command"}},
@@ -168,7 +168,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// Composer API members that were stubs in the shim (issue #1),
+			// Composer API members beyond the surveyed plugins' needs,
 			// through a path repository plugin's commands: Composer's own
 			// commands run from PHP ($app->find()->run(): licenses,
 			// depends, run-script with its interact(), their errors,
@@ -191,7 +191,7 @@ func pluginScenarios() []scenario {
 		},
 		{
 			// What docs/PLUGINS.md §5.12 emulates of Composer's internals
-			// beyond the surveyed plugins' needs (issue #2), through a path
+			// beyond the surveyed plugins' needs, through a path
 			// repository plugin: the frames of Composer's PluginManager and
 			// Installer on the stack (named as Composer's methods, with
 			// their arguments) while it is activated and listens; a process
@@ -280,7 +280,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"install"}},
 				{args: []string{"dump-autoload"}},
 				{args: []string{"install", "--no-dev"}},
-				// Its CommandProvider (docs/PLUGINS.md phase 4).
+				// Its CommandProvider (docs/PLUGINS.md tier 4).
 				{args: []string{"pest:dump-plugins"}, setup: removeFile("project/vendor/pest-plugins.json")},
 				{args: []string{"list"}},
 				{args: []string{"help", "pest:dump-plugins"}},
@@ -357,7 +357,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"update"}},
 				{args: []string{"require", "psr/log:3.0.2"}},
 				{args: []string{"dump-autoload"}},
-				// Its CommandProvider (docs/PLUGINS.md phase 4): the command
+				// Its CommandProvider (docs/PLUGINS.md tier 4): the command
 				// by its alias and by its name.
 				{args: []string{"scaffold"}, setup: removeFile("project/web/robots.txt")},
 				{args: []string{"drupal:scaffold", "-v"}},
@@ -366,7 +366,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// ergebnis/composer-normalize (docs/PLUGINS.md phase 4): a plugin
+			// ergebnis/composer-normalize (docs/PLUGINS.md tier 4): a plugin
 			// command creating its own Composer instance (new Factory()),
 			// then running `update --lock` in a new Application.
 			name:    "plugin-normalize",
@@ -381,7 +381,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// composer/installers (docs/PLUGINS.md phase 3): a LibraryInstaller
+			// composer/installers (docs/PLUGINS.md tier 3): a LibraryInstaller
 			// subclass overriding supports(), getInstallPath() and
 			// uninstall() (whose parent::uninstall() promise it chains), for
 			// framework types from Packagist and path packages:
@@ -484,7 +484,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// wikimedia/composer-merge-plugin (docs/PLUGINS.md phase 5): the
+			// wikimedia/composer-merge-plugin (docs/PLUGINS.md tier 5): the
 			// root package's requires, repositories (createRepository,
 			// prependRepository), autoload, extra and scripts merged before
 			// solving; the first install re-runs the update in-process
@@ -506,7 +506,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// cweagans/composer-patches 1.x (docs/PLUGINS.md phase 5): its
+			// cweagans/composer-patches 1.x (docs/PLUGINS.md tier 5): its
 			// POST_PACKAGE_INSTALL listener applies the patches (git apply,
 			// through ProcessExecutor) and records them with setExtra() on
 			// the local repository's package, which reaches installed.json;
@@ -525,7 +525,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// cweagans/composer-patches 2.x (docs/PLUGINS.md phase 5):
+			// cweagans/composer-patches 2.x (docs/PLUGINS.md tier 5):
 			// patches.lock.json, patches applied from its package event
 			// listeners, its commands: patches-relock (rewrites the lock),
 			// patches-repatch (uninstalls through InstallationManager,
@@ -550,7 +550,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// laminas/laminas-dependency-plugin (docs/PLUGINS.md phase 5):
+			// laminas/laminas-dependency-plugin (docs/PLUGINS.md tier 5):
 			// its PRE_PACKAGE_INSTALL listener finds the laminas successor
 			// of a zendframework package (RepositoryManager::findPackage),
 			// POST_AUTOLOAD_DUMP rewrites composer.json, uninstalls the
@@ -584,7 +584,7 @@ func pluginScenarios() []scenario {
 			},
 		},
 		{
-			// civicrm/composer-downloads-plugin (docs/PLUGINS.md phase 5):
+			// civicrm/composer-downloads-plugin (docs/PLUGINS.md tier 5):
 			// its Package subclass created in PHP goes to the
 			// DownloadManager (download(), install()), whose promises
 			// settle in Loop::wait(); a file download's promise gives the
@@ -600,7 +600,7 @@ func pluginScenarios() []scenario {
 		},
 		{
 			// PRE_FILE_DOWNLOAD and POST_FILE_DOWNLOAD (docs/PLUGINS.md
-			// phase 5) for metadata and a package: the listener changes the
+			// tier 5) for metadata and a package: the listener changes the
 			// transport options and the cache key of the download.
 			name:    "plugin-download-events",
 			fixture: "plugin-download-events",
@@ -611,7 +611,7 @@ func pluginScenarios() []scenario {
 				{args: []string{"update", "-v"}},
 			},
 		},
-	}, phase6PluginScenarios()...)
+	}, tier6PluginScenarios()...)
 }
 
 // removeFile removes a file of the scenario root before a step (so the

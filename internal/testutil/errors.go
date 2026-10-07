@@ -6,7 +6,7 @@ import (
 	"unicode"
 )
 
-// How errors are rendered is free (docs/PORTING.md "The contract", #13):
+// How errors are rendered is free (docs/PORTING.md "The contract"):
 // tests that compare maestro with Composer's recorded or live output check
 // the messages of Composer's exceptions, not its error boxes, exception
 // classes, "In File.php line N:" headings or "Exception trace:" stacks.

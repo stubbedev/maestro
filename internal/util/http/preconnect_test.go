@@ -16,7 +16,7 @@ import (
 // TestTransportPool_PreconnectRacesTransfer: a connection opened ahead
 // while transfers to the same host start on the transport (net/http
 // setting HTTP/2 up on its first use) shares no TLS configuration with
-// them (issue #105, caught under -race), and the transfers still take
+// them (caught under -race), and the transfers still take
 // that connection: one connection, over HTTP/2.
 func TestTransportPool_PreconnectRacesTransfer(t *testing.T) {
 	for range 10 {

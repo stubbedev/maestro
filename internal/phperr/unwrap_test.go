@@ -22,7 +22,7 @@ var previousMethods = []string{"PHPPrevious"}
 // TestNoUnwrapReturnsThePreviousException enforces docs/PORTING.md's rule
 // that a $previous exception is reachable through phperr.Chained and
 // never through Unwrap: PHP's catch and instanceof never look at the
-// previous exception, so errors.As must not either (#44). It fails for
+// previous exception, so errors.As must not either. It fails for
 // every Unwrap method in maestro's sources that reads its receiver's
 // previous field (one named prev/previous, or the one PHPPrevious
 // returns) or calls that method.

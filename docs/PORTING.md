@@ -9,8 +9,8 @@ detection and `exec`.
 
 Compatibility is defined by a contract, not by byte-for-byte output
 everywhere: what tools and people depend on is frozen and must match
-Composer exactly; how errors and diagnostics are presented is maestro's own
-(issue #13). "The contract" below says which is which.
+Composer exactly; how errors and diagnostics are presented is maestro's
+own. "The contract" below says which is which.
 
 ## The contract
 
@@ -73,11 +73,11 @@ Composer exactly; how errors and diagnostics are presented is maestro's own
   frozen.
 
 maestro's own format for errors, warnings, deprecation notices and hints
-is `internal/ui`'s (#13 step 4): a labelled headline with the message,
+is `internal/ui`'s: a labelled headline with the message,
 then its causes (previous errors), hints, the usage of a command given
 wrong input and, at `-v`, debugging details (Go error types, a plugin
 exception's PHP trace, the exit code). Other free output keeps Composer's
-text; it no longer has to match exactly, and nothing new is built only to
+text without having to match it exactly, and nothing is built only to
 reproduce PHP's presentation.
 
 ### Presentation of free output
@@ -104,7 +104,7 @@ bubbles/huh for progress and prompts, ...), under these rules:
   `internal/console`/`internal/io`), not scattered through the ports, so
   ported code keeps reporting information and the renderer decides how it
   looks.
-- One theme (#93). `internal/ui`'s palette is a set of typed roles
+- One theme. `internal/ui`'s palette is a set of typed roles
   (`ui.Role`: success, notice, warning, danger, highlight, accent, muted,
   emphasis, package, version, link, ...) on the 16 ANSI colours, with
   backgrounds only where Composer has them (`<question>`, init's banner).
@@ -122,7 +122,7 @@ bubbles/huh for progress and prompts, ...), under these rules:
   Composer users know them; links stay OSC 8 hyperlinks. No package but
   `internal/ui` and the formatter engine in `internal/console` writes a
   colour or escape sequence of its own, which a test enforces.
-- Progress and prompts on a terminal (#35). When the error output is
+- Progress and prompts on a terminal. When the error output is
   decorated and a terminal (`console.IsStyledTerminal`), the progress
   bar is drawn as a solid line in the theme (`ui.ProgressBar`), and a
   question read from an interactive terminal is marked with an accent
@@ -423,7 +423,7 @@ Cycle-breaking decisions already made:
   curl's or PHP's message. Matching text stays only where the text comes
   from outside maestro (a server, git, PHP), with a comment saying so.
 - Errors carry no throw site or PHP call stack: rendering is maestro's
-  own (#13), so Composer's file and line of a `new` expression, the
+  own, so Composer's file and line of a `new` expression, the
   frames of an exception's trace and PHP's TypeError call site (",
   called in X on line N") are not ported. The plugin runtime keeps the
   frames PHP code finds with `debug_backtrace()` (`composer.Runtime`'s
@@ -625,12 +625,13 @@ PHP calls it:
   would throw. Anything that derives more than a message from a URL (cache
   directory names) uses `util.SanitizeURLChecked`.
 
-## Working alongside other ports
+## Working alongside other changes
 
-Several packages are ported at once in this tree. Build and test only your
-own packages (`go test ./internal/semver/...`), not `./...`. Don't edit
-other packages. If you need something from one that doesn't exist yet, say
-so in your report.
+Several changes are often in flight at once, each in its own worktree.
+Keep a change to the packages its task needs, build and test those
+(`go test ./internal/semver/...`) while working, and rebase on main
+before landing it. If a change needs something another package does not
+provide yet, say so rather than reaching into that package.
 
 Dependencies:
 
@@ -640,9 +641,9 @@ Dependencies:
   (`go mod tidy -diff`); CI's lint job, `just tidy-check` and `just check`
   all run it. When it reports a diff, run `go mod tidy` once and commit the
   result.
-- Run `go mod tidy` on main, not in a worktree other ports share: there
-  several of them edit go.mod at once, and tidying drops the requirements
-  of packages that are not in the tree yet.
+- Run `go mod tidy` on an up-to-date main, not in a tree other changes
+  share: there several of them edit go.mod at once, and tidying drops the
+  requirements of code that is not in the tree yet.
 
 ## Plugin requirements on every package
 

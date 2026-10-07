@@ -85,7 +85,7 @@ func (m *eventMirror) MirrorSnapshot() (*php.Array, error) {
 		s.Set("command", e.Command())
 		s.Set("input", m.r.inputObject(e.Input()))
 	default:
-		m.r.phase5EventFields(s, e)
+		m.r.tier5EventFields(s, e)
 	}
 
 	return s, nil

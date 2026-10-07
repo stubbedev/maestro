@@ -105,7 +105,7 @@ func TestOracle_ApplicationRenderThrowable(t *testing.T) {
 		exceptions[i] = &testException{class: e.Class, message: string(e.Message), file: e.File, line: e.Line, code: e.Code, prev: prev}
 	}
 
-	// How errors are rendered is maestro's own (internal/ui, #13): the
+	// How errors are rendered is maestro's own (internal/ui): the
 	// rendering reports the messages of the exception and its previous
 	// ones that Symfony's does, has escape sequences only when decorated,
 	// and debugging details at -v. Symfony's errors about the terminal
@@ -401,7 +401,7 @@ func TestOracle_ApplicationRun(t *testing.T) {
 // compareStderr compares stderr with PHP's: exactly, except that where PHP
 // rendered an exception what it wrote before must start got as it is, and
 // the rest must report the messages of the exception and its previous
-// ones (testutil.ErrorRendering): their rendering is maestro's (#13).
+// ones (testutil.ErrorRendering): their rendering is maestro's.
 func compareStderr(t *testing.T, name, want, got string) {
 	t.Helper()
 	messages, _ := testutil.ErrorRendering(ansiEscape.ReplaceAllString(want, ""))

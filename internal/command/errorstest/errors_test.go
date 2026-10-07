@@ -2,7 +2,7 @@
 // internal/command/testdata/errors against the reference Composer's runs,
 // recorded by tools/oracle/errors/errors.sh -w, at default, -v, -vv and
 // -vvv verbosity. It checks what docs/PORTING.md's contract freezes and
-// leaves how errors are rendered free (#13):
+// leaves how errors are rendered free:
 //
 //   - the exit code, exactly;
 //   - stdout, exactly (<verbosity>.stdout, empty when absent): it is

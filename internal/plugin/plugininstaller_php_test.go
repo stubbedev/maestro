@@ -363,7 +363,7 @@ func TestPluginInstaller_RegisterPluginOnlyOneTime(t *testing.T) {
 
 // TestPluginInstaller_NonStringClassIsATypeError: PluginManager.php
 // declares strict_types, so class_exists() refuses an extra.class that is
-// not a string, after registering the classes before it (#39).
+// not a string, after registering the classes before it.
 func TestPluginInstaller_NonStringClassIsATypeError(t *testing.T) {
 	requirePHP(t)
 

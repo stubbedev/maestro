@@ -81,7 +81,7 @@ func ResetErrorHandler() {
 // ErrorHandler::handle reports it: the first notice, then later ones only
 // in verbose mode (otherwise a single note that more were hidden).
 //
-// How a notice looks is maestro's (internal/ui, #13): Composer adds the
+// How a notice looks is maestro's (internal/ui): Composer adds the
 // path of its own source file and, in verbose mode, PHP's call stack,
 // which say nothing about maestro, so neither is shown.
 //

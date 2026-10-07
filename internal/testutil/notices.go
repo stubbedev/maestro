@@ -6,7 +6,7 @@ import (
 )
 
 // How deprecation notices and warnings of Composer's ErrorHandler look is
-// free (docs/PORTING.md "The contract", #13): tests that compare maestro
+// free (docs/PORTING.md "The contract"): tests that compare maestro
 // with Composer's output check that maestro reports each notice's text,
 // not Composer's "Deprecation Notice: ... in <file>:<line>" lines or the
 // "Stack trace:" under them at -v.

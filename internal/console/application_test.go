@@ -22,7 +22,7 @@
 // anonymous classes (testRenderAnonymousException,
 // testRenderExceptionStackTraceContainsRootException).
 //
-// How errors are rendered is maestro's own (internal/ui, #13): the
+// How errors are rendered is maestro's own (internal/ui): the
 // renderException tests check the new rendering, with the information
 // Symfony's fixtures show, and those about Symfony's box layout
 // (testRenderExceptionEscapesLines, the double-width box padding) are
@@ -635,7 +635,7 @@ func TestApplication_FindAmbiguousCommandsIfAllAlternativesAreHidden(t *testing.
 }
 
 // assertRendered checks an error's rendering by internal/ui (Symfony's
-// exception boxes are not ported, #13).
+// exception boxes are not ported).
 func assertRendered(t *testing.T, want, got string) {
 	t.Helper()
 	if got = php.NormalizeEOL(got); got != want {

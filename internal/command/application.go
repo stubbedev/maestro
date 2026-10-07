@@ -832,7 +832,7 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 // hintCommonErrors ports hintCommonErrors: the hints about the likely
 // causes of exception, which RenderThrowable shows with it
 // (PresentError). Composer writes them before the exception, as errors;
-// their wording is maestro's (#13). fatal is a PHP \Error its
+// their wording is maestro's. fatal is a PHP \Error its
 // getComposer() raises, which escapes its catch (\Exception): the run ends
 // with that one, uncaught.
 func (a *Application) hintCommonErrors(exception error, out console.Output) (hints []string, fatal error) {

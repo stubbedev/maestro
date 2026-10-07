@@ -9,17 +9,17 @@ each plugin references. Sources for all surveyed versions are in `.ref/plugins/`
 
 Contents:
 
-1. [Goal and constraints](#1-goal-and-constraints)
-2. [Survey summary](#2-survey-summary)
-3. [Key decisions](#3-key-decisions)
-4. [Required API surface](#4-required-api-surface)
-5. [Architecture](#5-architecture)
-6. [IPC message spec](#6-ipc-message-spec)
-7. [Go-side interfaces needed from other packages](#7-go-side-interfaces-needed-from-other-packages)
-8. [Phased implementation plan](#8-phased-implementation-plan)
-9. [Test plan](#9-test-plan)
-10. [Risks](#10-risks)
-11. [Size estimate](#11-size-estimate)
+1. Goal and constraints
+2. Survey summary
+3. Key decisions
+4. Required API surface
+5. Architecture
+6. IPC message spec
+7. Go-side interfaces needed from other packages
+8. Coverage by tier
+9. Tests
+10. Risks
+11. Size
 
 ---
 
@@ -64,7 +64,7 @@ state over IPC. Requirements:
 
 The survey covers 47 package versions of 45 packages: the 25 requested
 packages plus 20 more found on Packagist. 42 of the 45 are plugins. Source: `plugins-survey/packages.tsv` and `plugins.md`. "Tier" is
-the implementation phase (§8) that makes the plugin pass its e2e fixture.
+the API tier (§8) the plugin needs to pass its e2e fixture.
 
 | Plugin (version) | Events (priority) | What it mutates or needs | Hard parts | Tier |
 | --- | --- | --- | --- | --- |
@@ -136,7 +136,7 @@ What the survey shows:
 | D9 | **Custom installers use a virtual-dispatch table.** At `addInstaller`, the shim reports which `InstallerInterface`/`LibraryInstaller` methods the PHP class overrides. Go calls PHP only for those. Inherited behaviour runs natively in Go, and calls back into PHP for overridden hooks such as `getInstallPath`. | `composer/installers` overrides only `supports`, `getInstallPath` and `uninstall`. Downloads and extraction stay native and parallel (deviations 1 and 3). |
 | D10 | **Plugin commands run in PHP** on the vendored Symfony Console: bind, validate, interact, execute. Go's Application lists, describes and dispatches them through proxy commands built from mirrored definitions. | Exact Symfony semantics for plugin code. `list`/`help`/completion output stays in Go's byte-identical console port. |
 | D11 | **Output path.** `IOInterface` calls are RPC'd to Go's single IO. Symfony `OutputInterface` objects in PHP write straight to the inherited fd 1 or 2. Go flushes its output before every transfer to PHP. | One IO state (verbosity, `--profile` prefix, overwrite tracking, authentications). Symfony output objects get the exact behaviour of the vendored library. |
-| D12 | **Exceptions cross both ways with identity.** A PHP exception that crosses Go and comes back into PHP is rethrown as the *same object*. A Go error becomes the mapped PHP class. | Plugins catch their own exception classes around nested calls. Rendering needs class, code, message and previous (since #13 maestro renders errors itself, without throw sites). |
+| D12 | **Exceptions cross both ways with identity.** A PHP exception that crosses Go and comes back into PHP is rethrown as the *same object*. A Go error becomes the mapped PHP class. | Plugins catch their own exception classes around nested calls. Rendering needs class, code, message and previous (maestro renders errors itself, without throw sites). |
 | D13 | **`COMPOSER_BINARY` points to a PHP launcher stub** (`<shim>/bin/composer`), which `proc_open`s maestro with inherited stdio and passes its exit code through. | Plugins and `@composer` scripts run `PHP_BINARY $COMPOSER_BINARY …`. Pointing PHP at the Go binary would fail. |
 | D14 | **No opcache or ini changes beyond what `bin/composer` does.** | `ini_get` and `extension_loaded` stay identical to Composer. Startup cost is controlled by lazy class loading instead (§5.16). |
 
@@ -153,18 +153,18 @@ What the survey shows:
 - **Stub**: present for parity (D7) but throws `UnsupportedApiException`.
 
 **Used by** is the number of distinct surveyed packages that reference the
-symbol (`usage-matrix.tsv`). Method counts match by name only. **Ph** is the
-phase that delivers it. Rows marked **internal** are Composer `@internal` or
+symbol (`usage-matrix.tsv`). Method counts match by name only. **Tier** is the
+tier (§8) it belongs to. Rows marked **internal** are Composer `@internal` or
 implementation detail. They are supported only where a surveyed plugin needs
 them, and refusing them is acceptable elsewhere.
 
-### 4.1 Plugin contract (PHP, phase 2)
+### 4.1 Plugin contract (PHP, tier 2)
 
 | Symbol | Used by | Backing |
 | --- | --- | --- |
 | `Plugin\PluginInterface` (`activate`, `deactivate`, `uninstall`, `PLUGIN_API_VERSION = '2.9.0'`) | 41 | PHP interface |
 | `EventDispatcher\EventSubscriberInterface::getSubscribedEvents` (all 3 shapes: `'m'`, `['m', prio]`, `[['m', prio], …]`) | 35 | PHP interface |
-| `Plugin\Capable::getCapabilities`, `Plugin\Capability\Capability`, `Capability\CommandProvider::getCommands` | 6 | PHP interface (ph 4) |
+| `Plugin\Capable::getCapabilities`, `Plugin\Capability\Capability`, `Capability\CommandProvider::getCommands` | 6 | PHP interface (tier 4) |
 | `Plugin\PluginEvents` constants: INIT, COMMAND, PRE_FILE_DOWNLOAD, POST_FILE_DOWNLOAD, PRE_COMMAND_RUN, PRE_POOL_CREATE | 6 | PHP |
 | `Script\ScriptEvents` (all 14 constants) | 31 | PHP |
 | `Installer\PackageEvents` (6), `Installer\InstallerEvents::PRE_OPERATIONS_EXEC` | 14 / 2 | PHP |
@@ -172,7 +172,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.2 Composer object graph
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `Composer` / `PartialComposer`: `getPackage`, `getConfig`, `getRepositoryManager`, `getInstallationManager`, `getEventDispatcher`, `getLocker`, `getDownloadManager`, `getPluginManager`, `getAutoloadGenerator`, `getLoop`, `getArchiveManager`, `isGlobal` | 42 (`getPackage` 36, `getConfig` 30, `getRepositoryManager` 24) | Proxy. Each getter is an RPC that returns a handle, cached in PHP until a setter or sync invalidates it. | 2 |
 | `Composer::VERSION`, `BRANCH_ALIAS_VERSION`, `RELEASE_DATE`, `SOURCE_VERSION`, `RUNTIME_API_VERSION`, `getVersion()` | 2 | PHP constants (`'2.10.3'`, `''`, `'2026-08-27 13:34:23'`, `''`, `'2.2.2'`) | 2 |
@@ -188,7 +188,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.3 IO
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `IOInterface::write`, `writeError` (string or array, newline, verbosity) | 31 / 19 | RPC to Go IO | 2 |
 | `isVerbose`, `isVeryVerbose`, `isDebug`, `isDecorated`, `isInteractive` | 8 / 1 / 1 / 3 / 3 | Mirror fields of the IO handle (refreshed by sync) | 2 |
@@ -202,7 +202,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.4 Events
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `EventDispatcher\Event` (`getName`, `getArguments`, `getFlags`, `isPropagationStopped`, `stopPropagation`). Same protected props `$name`, `$args`, `$flags`, `$propagationStopped`. Subclassable. | 3 (+1 subclass) | Mirror | 2 |
 | `Script\Event` (`getComposer`, `getIO`, `isDevMode`, `get/setOriginatingEvent`). flex subclasses it and skips the parent constructor. | 26 | Mirror | 2 |
@@ -217,7 +217,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.5 Packages, links, constraints
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `PackageInterface` getters: `getName` 24, `getExtra` 35, `getType` 13, `getVersion` 10, `getPrettyName` 9, `getPrettyVersion` 7, `getRequires` 7, `getAutoload` 11, `getTargetDir`, `getDevRequires`, `getFullPrettyVersion`, `getSourceReference`, `getSourceUrl`, `getDistUrl`, `getBinaries`, `getReplaces`, `getStability`, `getInstallationSource`, `getUniqueName`, `getPrettyString`, `__toString`, `getRepository`, `getReleaseDate`, … (all of them) | 23 | Mirror | 2 |
 | `RootPackageInterface`: `getMinimumStability`, `getStabilityFlags`, `getReferences`, `getAliases`, `getScripts`, `getDevAutoload`, `getSuggests`, `getConfig`, `getRepositories`, `getPreferStable` | 10 | Mirror | 2 |
@@ -234,7 +234,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.6 Repositories
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `RepositoryManager`: `getLocalRepository` 23, `getRepositories` 3, `findPackage` 8, `findPackages`, `createRepository`, `addRepository` 2, `prependRepository`, `setRepositoryClass`, `setLocalRepository` | 24 | Proxy | 2 (local), 5 (the rest) |
 | Local repository (`InstalledFilesystemRepository`): `getPackages` 15, `getCanonicalPackages` 7, `findPackage`, `findPackages`, `hasPackage`, `count`, `search`, `getDevPackageNames`, `setDevPackageNames`, `getDevMode`, `isFresh`, `addPackage` 3, `removePackage` 2, `write` | 23 | Service proxy: every method of a Go-owned repository is an RPC (`repo.*`) to maestro's repository, so queries are Go's port (string constraints parsed by Go), and the packages come back as the same mirrors each time. A repository created in PHP (`new ArrayRepository`) keeps Composer's behaviour locally. | 2 (read and write) |
@@ -246,7 +246,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.7 Installation
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `InstallationManager::getInstallPath` | 14 | RPC. Go calls back into a PHP installer if that installer owns the type. | 2 |
 | `addInstaller` 7, `removeInstaller` 3, `getInstaller` 3, `isPackageInstalled`, `install`, `update`, `uninstall`, `execute`, `ensureBinariesPresence`, `disablePlugins`, `setOutputProgress`, `notifyInstalls` | 7 | RPC. Installers cross as handles plus a vtable (§5.6). | 3 |
@@ -261,7 +261,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.8 Download, HTTP, process, loop
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `Util\ProcessExecutor`: `new ProcessExecutor($io)`, `execute($cmd, &$out, $cwd)` 6, `executeTty`, `executeAsync` (promise), `getErrorOutput` 3, `splitLines`, `escape` (static) 2, `setTimeout`/`getTimeout` (static) | 5 | RPC (Go spawns; streamed output goes straight to the terminal). `escape` and `splitLines` are PHP-local ports. | 2 |
 | `Util\Filesystem` (`new` 14): `normalizePath` 8, `isAbsolutePath` 7, `remove` 7, `ensureDirectoryExists` 6, `findShortestPath` 4, `findShortestPathCode`, `removeDirectory` 3, `rename`, `copy`, `copyThenRemove`, `relativeSymlink`, `filePutContentsIfModified`, `isDirEmpty`, `emptyDirectory`, `size`, `isLocalPath`, `getPlatformPath`, `junction`, `isSymlinkedDirectory`, … | 14 | RPC to `internal/util.Filesystem`. Paths resolve against the **PHP process's cwd**, which travels in every sync. | 2 |
@@ -277,7 +277,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.9 Autoload and InstalledVersions
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `AutoloadGenerator`: `buildPackageMap` 4, `parseAutoloads` 2, `createLoader` 2, `setDevMode`, `setClassMapAuthoritative`, `setApcu`, `setRunScripts`, `setPlatformRequirementFilter`, `dump`; `new AutoloadGenerator($dispatcher)` | 6 | Proxy. Package maps cross as `[[pkg handle, path], …]`. `createLoader` asks Go for the resolved prefixes and classmap (Go does the scanning) and builds a real `ClassLoader` in PHP. | 2 |
 | `Autoload\ClassLoader` (`register`, `unregister`, `loadClass`, `findFile`, `add*`, `getPrefixes*`, `getClassMap`) | 3 | **Verbatim** `ClassLoader.php` (the file maestro writes to `vendor/composer/`) | 2 |
@@ -286,7 +286,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.10 JSON
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `Json\JsonFile`: `new` 8, `read` 8, `write`, `exists` 5, `getPath` 5, `validateSchema` (incl. `LAX_SCHEMA`), static `encode`, `parseJson` 2 | 9 | RPC (Go's byte-identical encoder and seld/jsonlint-compatible errors). Exceptions map to `Seld\JsonLint\ParsingException` and `JsonValidationException`. | 2 |
 | `Json\JsonManipulator` (`new` 3): `addLink`, `removeSubNode`, `addSubNode`, `addMainKey`, `removeMainKey`, `addConfigSetting`, `addRepository`, `addProperty`, `getContents` 4, … | 3 | PHP keeps `$contents`; each mutator is a stateless RPC `(contents, args) → (bool, contents)` | 5 |
@@ -294,7 +294,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.11 Commands and Console
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `Command\BaseCommand` (extended by 7): `getComposer`, `requireComposer` 4, `tryComposer`, `setComposer` 3, `resetComposer`, `getIO`, `setIO`, `isProxyCommand`, `getApplication` 3, `initialize`, `getPreferredInstallOptions`, `formatRequirements`, `normalizeRequirements`, `renderTable`, `getTerminalWidth`, `complete`, `createComposerInstance`, `getPlatformRequirementFilter` | 9 | PHP class extending vendored `Symfony\Component\Console\Command\Command`. Composer-object methods are RPC. | 4 |
 | `Command\GlobalCommand`, `BaseConfigCommand`, every built-in command class | 1 / 1 | PHP classes whose instances mirror Go's built-in commands (for `instanceof`, `find`, `getDefinition`); `run` from PHP is an RPC | 4 (presence), 6 (frames) |
@@ -304,7 +304,7 @@ them, and refusing them is acceptable elsewhere.
 
 ### 4.12 Nested runs and plugin management
 
-| Symbol | Used by | Backing | Ph |
+| Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `Installer::create($io, $composer)`, setters (`setUpdate`, `setUpdateAllowList`, `setDevMode`, `setDumpAutoloader`, `setOptimizeAutoloader`, `setPreferSource/Dist`, `setAudit`, `setPlatformRequirementFilter`, `setSuggestedPackagesReporter`, …), `run()` | 3 | PHP builder object that records settings; `run()` is RPC `installer.run`, executed re-entrantly by Go | 5 |
 | `Installer::__construct` with 9 services, `clone` | 1 (discovery) | Supported through frames (§5.12). **internal** | 6 |
@@ -443,15 +443,15 @@ user's ini, as Composer does.
   ini files concatenated with the xdebug `zend_extension` lines commented
   out) and starts the child with `-n -c <tmp.ini>`. It also sets the env vars
   XdebugHandler sets on restart (`COMPOSER_ORIGINAL_INIS`, and
-  `PHPRC`/`PHP_INI_SCAN_DIR` as its `getRestartSettings` does). Port the
-  logic from `.ref/composer/vendor/composer/xdebug-handler/src/XdebugHandler.php`.
-  (`internal/plugin/xdebug.go`. `mergeLoadedConfig` compares the loaded
+  `PHPRC`/`PHP_INI_SCAN_DIR` as its `getRestartSettings` does), as
+  ported from `.ref/composer/vendor/composer/xdebug-handler/src/XdebugHandler.php`
+  (`internal/plugin/xdebug.go`; `mergeLoadedConfig` compares the loaded
   settings with `parse_ini_string()` of the files; maestro only claims a
   file value equal when it needs no evaluation, so it may write a setting
   again with the value php already loaded, which changes nothing. A test
   checks that `php -n -c <tmp.ini>` has the same extensions and settings as
   plain `php`. As in XdebugHandler, a restart that cannot be prepared leaves
-  xdebug on.)
+  xdebug on).
 - **Env.** Go's current environment (see the env sync in §5.3), plus:
   - `COMPOSER_BINARY=<shimdir>/bin/composer`
   - `MAESTRO_IPC=fd:3,4` (Unix) or `MAESTRO_IPC=tcp:127.0.0.1:<port>` and
@@ -508,7 +508,7 @@ workaround) run at their places in this sequence too.
   own `PHP Fatal error: …` on stderr and gives 255, as in Composer. Go-side
   deferred cleanup still runs, for example InstallationManager's
   `runCleanup`. Composer would not run it on `exit()`, but it produces no
-  output, so the difference is not observable. Document it as such.
+  output, so the difference is not observable.
 - **SIGINT/SIGTERM.** Both processes are in the same process group and
   receive the signal. Go runs Composer's signal-handler behaviour. If the
   child dies of the signal mid-call, Go treats it as above, with exit status
@@ -555,7 +555,7 @@ yields the same PHP object, so `===` and `spl_object_id` stay stable.
   `rpc.DeltaMirror` (changed fields since a revision). PHP-born mirrors are
   built by the `rpc.MirrorFactory` registered for their base.
 
-**How phase 2 uses it.** The package, event, operation, IO and
+**How the mirrors use it.** The package, event, operation, IO and
 PluginManager mirrors never send dirty fields: their setters are RPCs
 (`pkg.setExtra`, `event.stopPropagation`, `pm.disablePlugins`, ...) that
 run maestro's own setter, so Composer's setter semantics (an alias
@@ -564,7 +564,7 @@ fields, `setRepository` refusing a second repository) are maestro's
 code; the changed `Rev` sends the new snapshot with the reply, before the
 setter returns in PHP. Dirty-field sync remains for mirrors whose setters
 are plain fields (tests use it). Snapshots are full, except the core tier
-of PRE_POOL_CREATE's package lists (phase 5, below). Service objects (Composer, Config, the
+of PRE_POOL_CREATE's package lists (below). Service objects (Composer, Config, the
 managers, repositories, the Locker, the AutoloadGenerator) are not mirrors:
 PHP holds an instance of their Composer class built without its
 constructor, whose methods are RPCs; a stub class's methods throw
@@ -600,7 +600,7 @@ The same blocks carry other process state:
 Scanning is O(known handles) per transfer. That is a few hundred integer
 compares in normal runs and about 10k during PRE_POOL_CREATE, which is cheap.
 
-**Lazy snapshot tiers (packages; phase 5, PRE_POOL_CREATE's lists).** A
+**Lazy snapshot tiers (packages, PRE_POOL_CREATE's lists).** A
 package mirror arrives in one of two tiers:
 
 - **core**: id, class, name, prettyName, version, prettyVersion, type,
@@ -613,11 +613,10 @@ the root package, and the operation packages of package events. Go sends
 core snapshots for PRE_POOL_CREATE package lists, which can hold more than
 10k packages.
 
-**PHP-born data objects.** Phase 2 adopts PHP-born events this way (a
+**PHP-born data objects.** PHP-born events are adopted this way (a
 plugin's Event subclass passed to `dispatch()`: Go builds an
 `eventdispatcher.PHPEvent` from its snapshot, and listeners get the very
-same object back); phase 5 adopts packages and operations created in PHP
-the same way.
+same object back), and so are packages and operations created in PHP.
 
 `new Package('dummy/pkg', '1.0.0.0', '1.0.0')`
 stays purely local. composer/installers creates one on every `supports()`
@@ -656,8 +655,8 @@ loader contents, `isGlobal`, `legacyInstaller`, `failOnMissingClasses` and
 mechanically what Composer does:
 
 1. Create a `ClassLoader` from the contents and call `register(false)`.
-2. Require each `files` entry through `composerRequire`, skipping
-   `7e9bd612cc444b3eed788ebbe46263a0`.
+2. Require each `files` entry through `composerRequire`, skipping the
+   one identifier Composer's PluginManager skips.
 3. For each class, if `class_exists($class, false)`, do the eval-rename
    hack: `_composer_tmp<N>`, with `__FILE__`, `__DIR__` and `__CLASS__`
    replaced, and a static counter that persists for the whole process.
@@ -880,7 +879,7 @@ rollback on failure through the Go plugin manager. That re-enters PHP for
 BitrixInstaller's `ask()` from `getInstallPath`) work naturally, because the
 PHP object lives for the whole process and IO calls re-enter Go.
 
-**As implemented (phase 3).** `svc_installer.go`, `promises.go`,
+**Implementation.** `svc_installer.go`, `promises.go`,
 `php/src/Maestro/Shim/Installers.php` and `Promises.php`, and the shim
 classes `LibraryInstaller`, `PluginInstaller`, `MetapackageInstaller`,
 `NoopInstaller`, `ProjectInstaller`, `BinaryInstaller`:
@@ -972,9 +971,9 @@ to Go, and Go's Application renders exceptions (§5.10).
 This is pure PHP: vendored Symfony runs it, and the output object writes to
 fd 1 directly.
 
-**Symfony Console: vendor, don't reimplement** (D6). The alternative, a
-minimal PHP reimplementation of Command/Input/Output, was rejected for these
-reasons:
+**Symfony Console: vendored, not reimplemented** (D6). The shim uses the
+real symfony/console rather than a minimal PHP reimplementation of
+Command/Input/Output, because:
 
 - Plugin commands use the full surface: helpers, `Question`, `Table`,
   `ProgressBar`, `InputOption::VALUE_NEGATABLE`, `SymfonyStyle`,
@@ -985,7 +984,7 @@ reasons:
 
 Cost: about 1.1 MB of embedded source, loaded lazily per class.
 
-**As implemented (phase 4).** `proxy_command.go`, `svc_console.go` and
+**Implementation.** `proxy_command.go`, `svc_console.go` and
 `php/src/Maestro/Shim/Console.php` (with the Input, Output, Command and
 Application adapters, `GoOutput`/`GoConsoleOutput` and `Definitions`), and
 the shim classes `Composer\Console\Application`, `Console\Input\InputOption`,
@@ -1184,7 +1183,7 @@ the Go error types the ports use (`errors.As` targets):
   exception becomes a `\RuntimeException` whose previous is that very
   object.
 
-Go-raised exceptions carry no throw site or trace (#13): the shim gives
+Go-raised exceptions carry no throw site or trace: the shim gives
 them the location and the PHP stack they are thrown into (§5.12). A PHP
 exception going back to PHP carries its own trace.
 
@@ -1295,9 +1294,9 @@ goes to maestro with its frames down to the shim's call into that code,
 which keeps the shim's location; -v shows that trace (`console.Tracer`).
 Thrown back into PHP (a Go error, or a PHP exception passing through
 maestro), an exception's trace is its own frames, if any, then the PHP
-stack it is thrown into. maestro no longer records Composer's frames or
-throw sites for Go errors (#13: errors render through internal/ui, and
-nothing read them). Files PHP code sees are named as Composer's stack
+stack it is thrown into. maestro records no frames or throw sites of
+Composer's for Go errors (errors render through internal/ui, and nothing
+reads them). Files PHP code sees are named as Composer's stack
 names them, under the root maestro sends at boot (`composerRoot`,
 `phperr.Root`): the bundled libraries are Composer's vendor/ files line
 for line; the shim's Composer classes name Composer's line where they call
@@ -1471,10 +1470,11 @@ orders them.
 
 ### 5.16 Startup cost
 
-Targets, measured in the e2e harness:
+Budgets, checked by `internal/plugin`'s runtime tests (a miss fails them
+only with `MAESTRO_PERF_BUDGETS=1`, as wall time depends on machine load):
 
-- under 40 ms added wall time for a run that loads 5 trivial plugins;
-- under 2 ms per trivial `listener.call` round trip.
+- under 40 ms for starting the child and its handshake;
+- under 2 ms per trivial round trip.
 
 How the design meets them:
 
@@ -1485,9 +1485,7 @@ How the design meets them:
 - **Batching.** A plugin load is one round trip. The event mirror is sent
   once per dispatch. Full package snapshots for the local repository are sent
   in one `repo.packages` reply.
-- **No opcache tuning** (D14). If measurements miss the targets, the
-  fallback is to build the shim into a single preloaded file. That still
-  needs no ini changes.
+- **No opcache tuning** (D14).
 
 ---
 
@@ -1645,7 +1643,7 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 
 | Method | Params | Returns |
 | --- | --- | --- |
-| `boot` | `argv`, `server` (`SCRIPT_NAME`, …), `io` (handle, kind, state; `null` until phase 2), `composerVersion` (`"Class::CONST" => value`, a self-test), `ivPending` (phase 2), `require` (files to require last; tests). The cwd and statics come in the sync block: the child starts in maestro's cwd. | `null` |
+| `boot` | `argv`, `server` (`SCRIPT_NAME`, …), `io` (handle, kind, state; `null` for a runtime without an IO), `composerVersion` (`"Class::CONST" => value`, a self-test), `composerRoot` (the directory Composer's files are named under, §5.12), `terminal` (the lines and columns Symfony's Application puts in the environment), `ivPending` (InstalledVersions data waiting for PHP, §5.4), `require` (files to require last; tests). The cwd and statics come in the sync block: the child starts in maestro's cwd. | `null` |
 | `shutdown` | `code` | never returns (the child exits) |
 | `plugin.load` | `pm`, `package`, `classes[]`, `loader` (`{vendorDir, psr0, psr4, classmap}`), `files` (identifier => path), `isGlobal`, `legacyInstaller`, `failOnMissing`, `runningInGlobalDir` | `{registered: [object, …]}` |
 | `plugin.deactivate` / `plugin.uninstall` | `pm`, `objects[]` | `null` |
@@ -1697,9 +1695,9 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `http.*` | HttpDownloader `get`, `add`, `copy`, `addCopy`, `wait`, `getOptions`, `setOptions`, `new`; RemoteFilesystem |
 | `loop.*` | `wait` (promise handles), `getHttpDownloader`, `getProcessExecutor`, `new`; `processExecutorIO` (the IO of the loop's executor) |
 | `ui.diagnostic` | `io`, `kind` (deprecation, note, warning), `message`: a notice or warning of the shim's ErrorHandler, rendered by internal/ui on the IO's error output (§5.12) |
-| `proc.*` | `execute` (cmd string\|array, cwd, io, capture, tty: the PHP ProcessExecutor keeps its error output), `splitLines`, `escape`, `requiresGitDirEnv`; `executeAsync` (phase 5); the timeout is a synced static |
+| `proc.*` | `execute` (cmd string\|array, cwd, io, capture, tty: the PHP ProcessExecutor keeps its error output), `splitLines`, `escape`, `requiresGitDirEnv`; `executeAsync`; the timeout is a synced static |
 | `fs.*` | every `Util\Filesystem` method (no receiver: maestro's Filesystem works on the shared working directory) |
-| `json.*` | `new` (the maestro peer of a PHP JsonFile, which keeps read()'s indentation), `read`, `write`, `validateSchema`, `validateJsonSchema`, `validateSyntax`, `encode`, `parseJson`, `detectIndenting`, `manipulate` (method, contents, args; phase 5) |
+| `json.*` | `new` (the maestro peer of a PHP JsonFile, which keeps read()'s indentation), `read`, `write`, `validateSchema`, `validateJsonSchema`, `validateSyntax`, `encode`, `parseJson`, `detectIndenting`, `manipulate` (method, contents, args) |
 | `locker.*` | `isLocked`, `isFresh`, `getLockData`, `getLockedRepository`, `getContentHash`, `getPlatformRequirements`, `setLockData`, `new`, … |
 | `ag.*` | `buildPackageMap`, `parseAutoloads`, `createLoader` (returns loader contents), `dump`, setters, `new` |
 | `vp.*` | `parseNameVersionPairs`, `isUpgrade`, `normalizeStability` (the Composer-specific VersionParser methods) |
@@ -1714,12 +1712,12 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `callable.go` | `[callable, args]`: calls the Go function a `Maestro\Shim\GoCallable` stands for |
 | `request.new`, `config.new`, `rm.new`, `im.new`, `dm.new`, `pm.new` | Composer's services constructed in PHP, adopted |
 
-Since issue #1 the areas above also serve the protected methods a PHP
+The areas above also serve the protected methods a PHP
 subclass calls on itself (`ed.doDispatch`, `ag.getPlatformCheck`,
 `installer.doUpdate`, `downloader.getFileName`, `rfs.get`, …) and a few
 more members (`io.enableDebugging`, `io.enableTimestamps`,
-`fs.removeEdgeCases`, `factory.getHomeDir`, …); §8 "Remaining stubs"
-lists them.
+`fs.removeEdgeCases`, `factory.getHomeDir`, …); §8 "Beyond the
+surveyed plugins" lists them.
 
 Every method listed in §4 with Backing **RPC** has exactly one handler
 here. An RPC method that is not registered returns `err` with class
@@ -1730,12 +1728,12 @@ set equals the set of shim proxy methods.
 
 ## 7. Go-side interfaces needed from other packages
 
-These are requirements on packages owned by other ports. Names are
-indicative; signatures matter. `internal/plugin` imports all of them, and
-none of them imports `internal/plugin`.
+These are what `internal/plugin` relies on in other packages (PORTING.md
+"Plugin requirements on every package" points here). `internal/plugin`
+imports all of them, and none of them imports `internal/plugin`.
 
 **`internal/php`**
-- JSON encode and decode of `php.Array` with PHP key coercion (exists).
+- JSON encode and decode of `php.Array` with PHP key coercion.
 - A decode hook so the plugin codec can intercept tag objects (`\u0000…`
   first key) without a second pass, or a public walker.
 
@@ -1768,7 +1766,7 @@ none of them imports `internal/plugin`.
   including the newline, and never ahead.
 
 **`internal/console`**
-- `Commander` (exists) is enough for proxy commands. They also need:
+- `Commander` is enough for proxy commands. They also need:
   - `Command.SetNativeDefinition`, or construction from a descriptor;
   - `ArgvInput.ExportState() InputState` and `ImportState(InputState)`
     covering tokens, parsed, definition, arguments, options, interactive.
@@ -1858,132 +1856,118 @@ none of them imports `internal/plugin`.
 **`internal/util`**
 - `PhpBinary()` (shared with platform).
 - `ProcessExecutor` with a static timeout getter and setter.
-- `Filesystem` (exists).
+- `Filesystem`.
 - `TransportError`.
 
 ---
 
-## 8. Phased implementation plan
+## 8. Coverage by tier
 
-Each phase ends green on its e2e fixtures (§9). Phases 1–3 cover the
-plugins in most real projects, including a typical Laravel application's
-pest, stubbedev and Laravel scripts.
+The plugin API is grouped into six tiers by what a plugin needs (the
+**Tier** columns of §2 and §4). Each tier is covered by e2e fixtures that
+compare maestro with Composer 2.10.3 (§9.3) and by in-process tests.
+Tiers 1 to 3 cover the plugins of most real projects, including a typical
+Laravel application's pest, stubbedev and Laravel scripts.
 
-**Phase 1: runtime and protocol (no Composer API yet).**
-- Shim extraction and embed. `bootstrap.php` with the full `bin/composer`
+**Tier 1: runtime and protocol.**
+- Shim extraction and embed; `bootstrap.php` with the full `bin/composer`
   prologue.
-- Transport (both), framing, codec (§6.4), handles, the re-entrant call
-  stack, the sync engine (env, cwd, statics, mirror revisions), exceptions
-  both ways (identity), the exit, fatal and shutdown paths, and the
-  `COMPOSER_BINARY` launcher.
+- Transport (pipes and TCP), framing, codec (§6.4), handles, the
+  re-entrant call stack, the sync engine (env, cwd, statics, mirror
+  revisions), exceptions both ways (identity), the exit, fatal and
+  shutdown paths, and the `COMPOSER_BINARY` launcher.
 - `tools/shimvendor` (vendored libraries plus the drift test) and
   `tools/shimgen` (stubs plus the parity golden).
 - Tests: codec goldens from PHP, a re-entrancy torture test (depth 50,
   alternating), exception identity, `exit()` mid-call, env/cwd sync.
 
-**Phase 2: core plugin API.**
-- The Go `PluginManager` port (policy).
-- PHP `PluginManager` (mechanism, eval-rename).
+**Tier 2: core plugin API.**
+- The Go `PluginManager` port (policy) and the PHP `PluginManager`
+  (mechanism, eval-rename).
 - Composer, Config, IO and EventDispatcher proxies; Event, Script\Event and
   PackageEvent mirrors; the Package family, Link and constraint mirrors;
-  the local repository mirror; `IM::getInstallPath`.
+  the local repository mirror and the repository proxies' write methods;
+  `IM::getInstallPath`.
 - `Util\Filesystem`, `ProcessExecutor`, `Platform`; `JsonFile`;
   `InstalledVersions` reload; `AutoloadGenerator` (`buildPackageMap`,
   `parseAutoloads`, `createLoader`).
-- PHP-callable scripts, `makeAutoloader`, the dispatch bracket, and the
-  native `Config::disableProcessTimeout`.
+- PHP-callable scripts, command-class scripts (`script.commandClass`),
+  `makeAutoloader`, the dispatch bracket, and the native
+  `Config::disableProcessTimeout`.
 - `allow-plugins` with the prompt; `--no-plugins` and `--no-scripts`.
 - In-place mutation of root and local packages (`setAutoload`, `setExtra`,
   `setBinaries`).
-- Fixtures: stubbedev ×5, laravel scripts, pest (event), phpstan, infection,
-  dealerdirect, captainhook, grumphp, symfony/runtime,
-  package-versions-deprecated, tbachert/spi, drupal events, plus the
-  scenario fixtures (§9.2).
+- `BaseCommand` for commands run in PHP (pest's post-autoload-dump runs
+  its command with `setComposer()`), the PHP-born events of `dispatch()`.
+  PluginInstaller needs no PHP peer here: the Go PluginInstaller calls the
+  Go manager.
 
-Status: done. Beyond the list, the phase also has `BaseCommand` for
-commands run in PHP (pest's post-autoload-dump runs its command with
-`setComposer()`), `CommandEvent`/`PreCommandRunEvent` without their
-input and output (drupal's COMMAND listener reads the command name),
-command-class scripts (`script.commandClass`), the PHP-born events of
-`dispatch()`, and the repository proxies' write methods. PluginInstaller
-needs no PHP peer yet: the Go PluginInstaller calls the Go manager.
-The e2e fixtures are `cmd/maestro/testdata/e2e/plugin-*`, run by
-`TestE2EPlugins` (cmd/maestro/e2e_plugins_test.go, MAESTRO_E2E=1, on
-TestE2E's runner); plugin-api, plugin-runtime and plugin-global are
-local, the others come from Packagist at the versions their committed
-composer.lock pins.
+Fixtures (`cmd/maestro/testdata/e2e/plugin-*`, run by `TestE2EPlugins` in
+cmd/maestro/e2e_plugins_test.go): stubbedev, laravel, pest (event),
+phpstan, infection, dealerdirect, captainhook, grumphp, symfony-runtime,
+package-versions, spi, drupal (events), plus plugin-api, plugin-runtime and
+plugin-global, which are local; the others come from Packagist at the
+versions their committed composer.lock pins.
 
-**Phase 3: custom installers.**
-- `InstallerInterface`, the base classes and the Go peers (vtable, override
-  sets).
-- Promises (vendored react/promise; the promise bridge of §5.6).
-- `addInstaller`/`removeInstaller`; PluginInstaller and MetapackageInstaller
-  bases; BinaryInstaller.
-- `Autoload\ClassMapGenerator::createMap`.
-- Fixtures: composer/installers (several framework types, `installer-paths`,
-  `installer-name`), oomphinc, mnsami (all three classes, including the
-  absence of PearInstaller), wordpress-core-installer, yii2-composer.
+**Tier 3: custom installers.**
+- `InstallerInterface`, the base classes (LibraryInstaller,
+  PluginInstaller, MetapackageInstaller, ProjectInstaller, NoopInstaller,
+  BinaryInstaller) and their Go peers (vtable, override sets).
+- Promises (vendored react/promise) and the promise bridge (§5.6):
+  pending promises stay pending on both sides, so callbacks of PHP
+  installers run when Composer runs them. Three removals in one batch
+  print their "Removing" lines, then the installer's callbacks, in the
+  order the removals started, where Composer's is the order its `rm -rf`
+  processes finish, so the e2e fixtures remove one package per step.
+- `addInstaller`/`removeInstaller`; `im.download`/`install`/`update`/
+  `uninstall`/`markAlias*`/`execute`/`reset`.
+- `Autoload\ClassMapGenerator::createMap` and `dump`.
 
-Status: done. The promise bridge replaces `promise.wait` (§5.6): pending
-promises stay pending on both sides, so callbacks of PHP installers run
-when Composer runs them (three removals in one batch print their
-"Removing" lines, then the installer's callbacks; in the order the
-removals started, where Composer's is the order its `rm -rf` processes
-finish, so the e2e fixtures remove one package per step). Beyond the list:
-`ProjectInstaller`/`NoopInstaller` bases, `im.download`/`install`/
-`update`/`uninstall`/`markAlias*`/`execute`/`reset`, and
-`Autoload\ClassMapGenerator::dump`. The e2e fixtures are
-`cmd/maestro/testdata/e2e/plugin-installers` (composer/installers: Packagist
+Fixtures: `plugin-installers` (composer/installers: Packagist
 wordpress-plugins and path packages of drupal, cakephp, moodle, wordpress
 theme and silverstripe types; installer-paths by vendor, type and name;
 installer-name; binaries from a custom path; removals),
 `plugin-installers-extender`, `plugin-custom-directory` (mnsami, with a
 plugin installed and activated by its PluginInstaller subclass from a
-custom path), `plugin-wordpress-core` and `plugin-yii2`, cold and warm;
+custom path), `plugin-wordpress-core` and `plugin-yii2`.
 `TestPlugins_Installers` (MAESTRO_PHP_TESTS=1) covers the interface and
 MetapackageInstaller kinds, a legacy composer-installer, identity through
 add/remove/getInstaller and a rejected promise.
 
-**Phase 4: commands and Symfony Console.**
-- Vendored symfony/console in use.
-- `BaseCommand` and built-in command mirrors.
+**Tier 4: commands and Symfony Console** (§5.7).
+- Vendored symfony/console; `BaseCommand` (with
+  `createComposerInstance`, `getPreferredInstallOptions`,
+  `formatRequirements`, `normalizeRequirements`, `renderTable`,
+  `getTerminalWidth`) and built-in command mirrors.
 - `CommandProvider` and `capability.commands`, with proxy commands in
   `list`, `help` and completion.
-- `command.run`; the Application mirror (`find`, `has`, `add`, `all`, nested
-  `run`); command-class scripts.
+- `command.run`; the Application mirror (`find`, `has`, `add`, `all`,
+  nested `run`); command-class scripts as commands.
 - `CommandEvent` and `PreCommandRunEvent` with the input mirror;
-  `BufferIO`.
-- Fixtures: pest `pest:dump-plugins`, drupal `scaffold`, ergebnis
-  `normalize` (including its nested `update --lock`), command-class script.
+  `BufferIO`; `Factory::create`, `createGlobal`, `createConfig` and
+  `createComposer`.
 
-Status: done (§5.7 "As implemented"). The fixtures are `plugin-pest`
-(`pest:dump-plugins`, `list`, `help`, completion, `--no-plugins`),
-`plugin-drupal` (`scaffold` by its alias and `drupal:scaffold`, `help`,
-`list`), `plugin-normalize` (ergebnis/composer-normalize 2.54.0: `--dry-run
---diff`, `normalize` with its nested `update --lock` in a new Application
-and its own `new Factory()->createComposer()`, `-vvv`, an option error) and
+Fixtures: `plugin-pest` (`pest:dump-plugins`, `list`, `help`, completion,
+`--no-plugins`), `plugin-drupal` (`scaffold` by its alias and
+`drupal:scaffold`, `help`, `list`), `plugin-normalize`
+(ergebnis/composer-normalize 2.54.0: `--dry-run --diff`, `normalize` with
+its nested `update --lock` in a new Application and its own `new
+Factory()->createComposer()`, `-vvv`, an option error) and
 `plugin-runtime`'s command-class script (`hello-command`: listed,
-described, completed, run with arguments and options, its errors), cold and
-warm; the functional fixtures installed-versions, installed-versions2 and
+described, completed, run with arguments and options, its errors). The
+functional fixtures installed-versions, installed-versions2 and
 plugin-autoloading-only-loads-dependencies pass (cmd/maestro
 `TestAllFunctional`), and RunScriptCommandTest's two Symfony-command tests
-run on the plugin runtime (MAESTRO_PHP_TESTS=1). `TestPlugins_Commands`
-(MAESTRO_PHP_TESTS=1) covers a plugin's commands in-process: help,
-completion of a `Composer\Console\Input\InputOption`'s values, the
-Application and maestro's commands as PHP sees them, BaseCommand's helpers,
-BufferIO, a PRE_COMMAND_RUN listener changing a built-in command's input,
-`new Factory()->createComposer()`, nested Applications writing to the
+run on the plugin runtime. `TestPlugins_Commands` (MAESTRO_PHP_TESTS=1)
+covers a plugin's commands in-process: help, completion of a
+`Composer\Console\Input\InputOption`'s values, the Application and
+maestro's commands as PHP sees them, BaseCommand's helpers, BufferIO, a
+PRE_COMMAND_RUN listener changing a built-in command's input, `new
+Factory()->createComposer()`, nested Applications writing to the
 command's output and to a PHP BufferedOutput, and a command-class script.
-Beyond the list: BaseCommand's `createComposerInstance`,
-`getPreferredInstallOptions`, `formatRequirements`, `normalizeRequirements`,
-`renderTable` and `getTerminalWidth`; `Factory::create`, `createGlobal`
-and `createConfig`. Running maestro's own commands from PHP
-(`$app->find('install')->run()`), BaseCommand's audit/policy/platform
-filter helpers and IOs created in PHP given to maestro came later (§8
-"Remaining stubs").
 
-**Phase 5: resolver-time and write APIs.**
-- `PRE_POOL_CREATE` (tiers), `PRE_OPERATIONS_EXEC`.
+**Tier 5: resolver-time and write APIs.**
+- `PRE_POOL_CREATE` (lazy package tiers), `PRE_OPERATIONS_EXEC`.
 - Root package setters before solving; RepositoryManager
   `createRepository`/`prependRepository`; `ArrayLoader`; the
   `JsonManipulator` RPC; `Locker` writes and `setLocker`; local repository
@@ -1993,13 +1977,8 @@ filter helpers and IOs created in PHP given to maestro came later (§8
   `PreFileDownloadEvent`/`PostFileDownloadEvent`; VersionSelector;
   `PlatformRepository`, `InstalledRepository` and `CompositeRepository`
   construction.
-- Fixtures: wikimedia/composer-merge-plugin (including the first-install
-  re-run), cweagans/composer-patches 1.x and 2.x (patch application, the
-  `setExtra` round trip into installed.json, `patches-relock`,
-  `patches-repatch`), laminas-dependency-plugin, laminas-component-installer,
-  civicrm downloads.
 
-Status: done. What crosses and how:
+What crosses and how:
 
 - Objects PHP constructs from maestro's classes become maestro's: the
   constructor calls `<area>.new` with `$this`, maestro builds its object
@@ -2021,7 +2000,7 @@ Status: done. What crosses and how:
   filters, `BaseIO::loadConfiguration` for IOs created in PHP, and
   ProcessExecutor's asynchronous jobs (`executeAsync` runs Symfony Process
   in PHP, as Composer does; maestro's loop waits for them with its own
-  jobs, issue #2, §5.12).
+  jobs, §5.12).
 - `Composer\Installer` records its settings in Composer's properties;
   `run()` (`installer.run`) builds maestro's Installer from them (the
   services, the settings, the platform filter) and runs it re-entrantly.
@@ -2044,45 +2023,35 @@ Status: done. What crosses and how:
   RepositoryInterface's methods (`repo.*`), and `Transaction`'s
   `getOperations()` (tools/shimgen `remoteMethods`).
 
-Fixtures (cmd/maestro e2e_plugins_test.go, cold and warm): `plugin-merge`
-(wikimedia/composer-merge-plugin 2.1.0: includes, a `package` repository
-created and prepended, `replace`, scripts, extra, dev sections, the first
-install's nested update, a changed include), `plugin-patches1`
-(cweagans/composer-patches 1.7.3: patching, `patches_applied` in
-installed.json, the uninstall before solving when the patches change),
-`plugin-patches2` (2.0.0: patches.lock.json, `patches-relock`,
-`patches-repatch`, `patches-doctor`, `help`), `plugin-laminas-dependency`
-(laminas-dependency-plugin 2.7.0's code from a path repository: its
-release requires composer-plugin-api <2.3.0, so Composer 2.10 skips it;
-PRE_POOL_CREATE slipstreaming, composer.json rewrite, nested `update
---lock`), `plugin-laminas-component` (laminas-component-installer 3.8.0),
-`plugin-civicrm` (civicrm/composer-downloads-plugin 4.0.0: file and
-archive downloads, root and package) and `plugin-download-events` (a path
-plugin on PRE/POST_FILE_DOWNLOAD). `TestPlugins_ResolverAPIs`
-(MAESTRO_PHP_TESTS=1) covers the rest in-process.
-
-Known differences: steps whose output a plugin echoes from a child
-process in chunks (cweagans's `-v` patch output) are left out of the
+Fixtures: `plugin-merge` (wikimedia/composer-merge-plugin 2.1.0: includes,
+a `package` repository created and prepended, `replace`, scripts, extra,
+dev sections, the first install's nested update, a changed include),
+`plugin-patches1` (cweagans/composer-patches 1.7.3: patching,
+`patches_applied` in installed.json, the uninstall before solving when the
+patches change), `plugin-patches2` (2.0.0: patches.lock.json,
+`patches-relock`, `patches-repatch`, `patches-doctor`, `help`),
+`plugin-laminas-dependency` (laminas-dependency-plugin 2.7.0's code from a
+path repository: its release requires composer-plugin-api <2.3.0, so
+Composer 2.10 skips it; PRE_POOL_CREATE slipstreaming, composer.json
+rewrite, nested `update --lock`), `plugin-laminas-component`
+(laminas-component-installer 3.8.0), `plugin-civicrm`
+(civicrm/composer-downloads-plugin 4.0.0: file and archive downloads, root
+and package) and `plugin-download-events` (a path plugin on
+PRE/POST_FILE_DOWNLOAD). `TestPlugins_ResolverAPIs` (MAESTRO_PHP_TESTS=1)
+covers the rest in-process. Steps whose output a plugin echoes from a
+child process in chunks (cweagans's `-v` patch output) are left out of the
 fixtures, as the chunk boundaries vary from run to run in Composer as in
-maestro. Not yet: repositories and downloaders implemented in PHP given to
-maestro (`RepositoryManager::addRepository()`/`setRepositoryClass()` with
-a PHP class, `DownloadManager::setDownloader()`), `RepositorySet` pools
-and advisories, `Loop::wait()`'s progress bar counts only maestro's jobs.
+maestro.
 
-**Phase 6: internals emulation.**
+**Tier 6: internals emulation** (§5.12).
 - Backtrace frames.
 - `Composer\Installer` mirror with `clone`/`__construct`.
-- Protected and private property parity list (§5.12).
+- Protected and private property parity list.
 - Transaction with `Closure::bind`.
 - ConsoleIO protected members.
 - `RepositorySet`, `Pool`, `SuggestedPackagesReporter`.
-- Fixtures: symfony/flex (with a local recipes endpoint; `req` alias
-  resolution, recipes install, `symfony.lock`, pack unpacking),
-  php-http/discovery (auto-install path), bamarni/composer-bin-plugin
-  (`bin all install`, forwarding), symfony/thanks, vaimo/composer-patches
-  (best effort).
 
-Status: done. What crosses and how:
+What crosses and how:
 
 - Frames (`frames.go`, `Maestro\Shim\Frames`): the console's method calls
   (`doRun($input, $output)`, the command's hooks), `Installer::run()`,
@@ -2115,8 +2084,10 @@ Status: done. What crosses and how:
   `Config::$baseDir`, `ConsoleIO::$input`/`$output` (the run's input and
   output mirrors) and `$helperSet` (a HelperSet with a QuestionHelper, as
   `Application::doRun()` builds it), `ArgvInput::$tokens` (the input
-  mirror, phase 4), `Transaction::$presentPackages`/`$resultPackageMap`
-  (keyed by spl_object_id, packages in the lazy core tier).
+  mirror), `Transaction::$presentPackages`/`$resultPackageMap`/
+  `$resultPackagesByName` (keyed by spl_object_id, packages in the lazy
+  core tier), and `LockTransaction`'s `$presentMap`, `$unlockableMap` and
+  `$resultPackages`.
 - `new Transaction($present, $result)` (also inside `Closure::bind`)
   keeps Composer's properties and computes its operations with maestro's
   algorithm (`transaction.new`).
@@ -2140,47 +2111,36 @@ Status: done. What crosses and how:
   promises over). maestro's downloaders serve their methods to PHP
   (`downloader.*`, generated into the stubs by tools/shimgen), and `new
   FileDownloader(...)` (or a subclass without a constructor of its own)
-  creates maestro's (`downloader.new`). An operation subclass created in
-  PHP (vaimo's `ResetOperation`) is adopted as the Composer operation it
-  extends.
+  creates maestro's (`downloader.new`). A PHP subclass of FileDownloader
+  (or ZipDownloader, ...) with overrides is maestro's downloader of the
+  class it extends, its overrides called by a DownloadManager it is given
+  to and, through `$this`, by the inherited code (`downloader.Hooks`); its
+  protected helpers are maestro's, and its promise-returning methods
+  return React promises. An operation subclass created in PHP (vaimo's
+  `ResetOperation`) is adopted as the Composer operation it extends.
 - Go errors thrown into PHP have the PHP stack they are thrown into;
   exceptions PHP code throws reach maestro's -v rendering with their PHP
   trace (§5.12, "Exception traces").
-- Maestro's loop drives and counts the processes PHP code started on a
+- maestro's loop drives and counts the processes PHP code started on a
   loop's executor whenever it waits, as Composer's one loop does (§5.12).
 
-Fixtures (cmd/maestro e2e_plugins6_test.go, cold and warm): `plugin-flex`
-(symfony/flex 2.11.0 with a local recipes endpoint served over http from
+Fixtures (cmd/maestro e2e_plugins6_test.go): `plugin-flex` (symfony/flex
+2.11.0 with a local recipes endpoint served over http from
 testdata/e2e/flex-recipes: the first install's re-run, recipes and
 symfony.lock, pack unpacking, `req logger` alias resolution, `recipes`,
 `recipes:install`, `rem`, `-vvv`, `--no-plugins`; flex's random session
 id is normalised), `plugin-discovery` (php-http/discovery 1.20.0's
 auto-install), `plugin-bamarni` (bamarni/composer-bin-plugin 1.9.1: `bin
 all install`, `bin <ns> ...`, forwarding), `plugin-thanks` (symfony/thanks
-1.4.0: its commands, `thanks` without credentials) and `plugin-vaimo`
-(vaimo/composer-patches 6.0.3: patches applied and reapplied, `patch:*`).
-`TestPlugins_Internals` (MAESTRO_PHP_TESTS=1) covers the rest in-process.
+1.4.0: its commands, `thanks` without credentials), `plugin-vaimo`
+(vaimo/composer-patches 6.0.3: patches applied and reapplied, `patch:*`;
+its remote patch downloads, a FileDownloader from PHP, are covered
+in-process) and `plugin-internals` (frames, traces, pools and
+asynchronous processes against Composer). `TestPlugins_Internals`
+(MAESTRO_PHP_TESTS=1) covers the rest in-process.
 
-Known differences and gaps: the gaps this phase left in the internals
-emulation (the PluginManager frame not pushed, frames named after the
-trampoline closures and exception traces showing them, a Go error's file
-in PHP being the basename of Composer's, `Pool`s without the security and
-filter-list removals, asynchronous PHP processes making progress only
-while PHP waited) were closed by issue #2 (§5.12); the e2e fixture
-plugin-internals compares them with Composer. What remained then (the
-frames of methods the bundled Symfony Console declares, ErrorHandler's -v
-"Stack trace:" listing `debug_backtrace()` as PHP has it, the shim's
-location for maestro's calls of installers, repositories, downloaders and
-IOs written in PHP, ErrorHandler's state apart from maestro's) was closed
-since (§5.12). vaimo/composer-patches passes its fixture; its remote patch downloads (FileDownloader from PHP) are
-covered only in-process. (A PHP subclass of FileDownloader with its own
-overrides, LockTransaction's own properties and
-`Transaction::$resultPackagesByName`, gaps of this phase, were closed
-later: see "Remaining stubs".)
-
-**Remaining stubs (issue #1).** After phase 6 the hand-written shim
-(`php/src`) still had members no surveyed plugin needed throwing
-`UnsupportedApiException`, plus the known gaps above. Implemented since:
+**Beyond the surveyed plugins.** The shim also implements members no
+surveyed plugin needs:
 
 - maestro's own commands run from PHP (`$app->find('install')->run()`,
   §5.7): Symfony's `Command::run()` runs in PHP; `initialize()`,
@@ -2227,17 +2187,9 @@ later: see "Remaining stubs".)
   proxy code generators and installers), AutoloadGenerator (all of
   them; after a dump its file generators reproduce maestro's files),
   Installer (`doUpdate()`, `doInstall()`). maestro's own code does not
-  call a subclass's overrides of these, except FileDownloader's (below).
-- A PHP subclass of FileDownloader (or ZipDownloader, ...) with
-  overrides: maestro's downloader of the class it extends, its overrides
-  called by a DownloadManager it is given to and, through `$this`, by the
-  inherited code (`downloader.Hooks`); its protected helpers are
-  maestro's. The stubs' promise-returning downloader methods now return
-  React promises.
-- `LockTransaction` (hand-written) crosses with `$presentMap`,
-  `$unlockableMap` and `$resultPackages`; every transaction with
-  `$resultPackagesByName` (uasort()'s keys). `getAliases()` is Composer's
-  code, `getNewLockPackages()` and `setNonDevPackages()` maestro's.
+  call a subclass's overrides of these, except FileDownloader's (tier 6).
+- `LockTransaction::getAliases()` is Composer's code,
+  `getNewLockPackages()` and `setNonDevPackages()` maestro's.
 - Composer's exception classes `TransportException` (with the response's
   headers, body and status of one maestro throws), `FilesystemException`,
   `JsonValidationException` (with its errors), `InvalidPackageException`,
@@ -2246,7 +2198,13 @@ later: see "Remaining stubs".)
 - `ConsoleOutput::section()` of a maestro output that is not its console
   (a `maestro-output://` stream).
 
-What stays a stub in `php/src`, and why:
+`TestShimStubs_*` (`internal/plugin/stubs_*_php_test.go`,
+MAESTRO_PHP_TESTS=1) cover these in-process; the `plugin-stubs` e2e
+fixture compares with Composer 2.10.3 Composer's commands run from PHP,
+BaseCommand's helpers given to an Installer and IOs created in PHP.
+
+**Remaining stubs.** These members of the hand-written shim (`php/src`)
+throw `UnsupportedApiException`, and why:
 
 - `Installer::extractDevPackages()`: it takes the solver's
   `PolicyInterface`; `DefaultPolicy` is presence-only, as its methods
@@ -2279,49 +2237,44 @@ What stays a stub in `php/src`, and why:
 - `Maestro\Shim\Server`'s "no handler" error is a protocol mismatch
   between maestro and its shim, not an API member.
 
-Known limits of the above: `AutoloadGenerator::getAutoloadRealFile()`
-takes `$prependAutoloader` as `'true'` or anything else. (A
-`ProcessExecutor` or `Filesystem` given to a service created in PHP is
-honoured, and the calls of maestro's parallel work reach an IO created in
-PHP in Composer's order: §5.12, §5.14.)
+Known limits: `AutoloadGenerator::getAutoloadRealFile()` takes
+`$prependAutoloader` as `'true'` or anything else. (A `ProcessExecutor` or
+`Filesystem` given to a service created in PHP is honoured, and the calls
+of maestro's parallel work reach an IO created in PHP in Composer's order:
+§5.12, §5.14.)
 
-`TestShimStubs_*` (`internal/plugin/stubs_*_php_test.go`,
-MAESTRO_PHP_TESTS=1) cover these in-process; the `plugin-stubs` e2e
-fixture (cmd/maestro e2e_plugins_test.go, MAESTRO_E2E=1, cold and warm)
-compares with Composer 2.10.3 Composer's commands run from PHP,
-BaseCommand's helpers given to an Installer and IOs created in PHP.
-
-**Ongoing.** The generated stubs (`php/stubs`: VCS drivers, SelfUpdate,
-the solver's internals, `Util\*` helpers such as `Url` or
-`PackageSorter`, ...) are presence-only (D7) and stay so until an e2e
-fixture or a user report needs them. `UnsupportedApiException` messages
-name the exact method, so these reports are actionable.
+The generated stubs (`php/stubs`: VCS drivers, SelfUpdate, the solver's
+internals, `Util\*` helpers such as `Url` or `PackageSorter`, ...) are
+presence-only (D7), implemented when an e2e fixture or a user report needs
+them. `UnsupportedApiException` messages name the exact method, so these
+reports are actionable.
 
 ---
 
-## 9. Test plan
+## 9. Tests
 
 ### 9.1 Unit and integration tests (Go, `go test`)
 
-- **Codec.** Golden round-trips. Run `tools/oracle/plugin/codec.php` in the
-  dev shell to write `internal/plugin/rpc/testdata/codec/*.json` from PHP
-  values covering:
+- **Codec.** Golden round-trips. `tools/oracle/plugin/codec.php` (run in
+  the dev shell) writes `internal/plugin/rpc/testdata/codec/*.json` from
+  PHP values covering:
   - int and string key coercion, nested lists and maps, empty arrays;
   - binary strings, INF/NAN, floats such as `1.0`, `0.1` and `1e100`;
   - stdClass, and NUL-prefixed keys.
 
   Go decodes them, re-encodes, and compares bytes. Goldens are committed.
-- **Sync engine.** Simulated peers (a Go fake of the PHP side) that check
-  revision bookkeeping, no echo, the `reg` remap and full-snapshot fallback.
-- **Plugin manager policy.** Port `PluginManager`-relevant tests from
+- **Sync engine.** Simulated peers (a Go fake of the PHP side) check
+  revision bookkeeping, no echo, the `reg` remap and the full-snapshot
+  fallback.
+- **Plugin manager policy.** The `PluginManager`-relevant tests of
   `.ref/composer/tests/Composer/Test/Plugin/PluginInstallerTest.php`
   (allow-plugins rules, API version checks, ordering and weights, global vs
-  local) against a recording fake runtime, with the exact message texts.
-  Port `EventDispatcherTest.php` fully into `internal/eventdispatcher`, with
-  the PHP callable listener cases against the fake runtime.
+  local) are ported against a recording fake runtime, with the exact
+  message texts, and `EventDispatcherTest.php` is ported into
+  `internal/eventdispatcher`, with the PHP callable listener cases against
+  the fake runtime.
 - **Handler coverage.** The set of `svc_*` handlers equals the set of RPC
-  methods referenced by the shim proxies, extracted from the shim source by
-  a tiny parser.
+  methods the shim proxies reference, extracted from the shim source.
 
 ### 9.2 Shim tests (require php: `MAESTRO_PHP_TESTS=1`, run in CI)
 
@@ -2332,13 +2285,13 @@ name the exact method, so these reports are actionable.
   return type, static and visibility; constants with values (a string below
   the declaring file's directory as `__DIR__ . '/…'`, so the golden does
   not hold the checkout's path and the shim matches it on any machine). The
-  test reflects the shim in a real php and requires an exact match, except for an
-  explicit allowlist (for example `Compiler`). It also requires that no
-  extra `Composer\*` classes exist.
+  test reflects the shim in a real php and requires an exact match, except
+  for an explicit allowlist (for example `Compiler`). It also requires that
+  no extra `Composer\*` classes exist.
 - **Vendored drift.** The vendored library versions equal
   `.ref/composer/composer.lock`.
-- **Runtime.** Start the real child against a scripted Go peer:
-  - handshake under 40 ms;
+- **Runtime.** The real child against a scripted Go peer:
+  - the handshake and round-trip budgets (§5.16);
   - re-entrancy depth;
   - `exit(3)` mid-listener gives maestro exit 3;
   - a fatal error gives 255 and the PHP message;
@@ -2347,91 +2300,40 @@ name the exact method, so these reports are actionable.
     script, a plain `putenv` of a new variable is not (as in Composer,
     whose child processes get Symfony Process's default environment);
   - `chdir` in a listener affects `Filesystem::isAbsolutePath` resolution.
-- **PHP version matrix.** CI runs the shim tests on PHP 7.2, 7.4, 8.1, 8.4
-  and 8.5 (nix provides them).
+- **PHP versions.** CI runs the PHP-backed plugin and command tests on PHP
+  8.4 and on 7.2 (§1).
 
 ### 9.3 End-to-end fixtures (`MAESTRO_E2E=1`)
 
-**Harness additions to `cmd/maestro`'s e2e:**
+The plugin fixtures run on `cmd/maestro`'s e2e harness (`TestE2EPlugins`
+in e2e_plugins_test.go and e2e_plugins6_test.go, on `TestE2E`'s runner):
 
-- **Local Composer repository.** Network-free and deterministic. An
-  `httptest` server serves `packages.json` (v2 metadata) and dist zips for
-  every package the fixtures need. Dists are mirrored once from Packagist
-  into the test cache (`tools/e2emirror` pins the version and sha256) and
-  served from there. Fixtures set
-  `"repositories": [{"type": "composer", "url": "<server>"}, {"packagist.org": false}]`
-  and `"secure-http": false`. Real Composer 2.10.3 and maestro run against
-  the same server.
-- **Mock endpoints** for plugins that use the network:
-  - stubbedev binary URL: the server serves a fake binary when its env
-    override exists. Otherwise the test asserts the identical offline warning
-    path.
-  - flex recipes: `SYMFONY_ENDPOINT` points to a fixture recipe index.
-  - symfony/thanks: a GitHub GraphQL stub through `github-domains` config.
-- **Each scenario runs twice, in fresh copies of the fixture:** once with
-  `php composer.phar …` and once with `maestro …`. The same env is used,
-  with `COMPOSER_HOME` and `COMPOSER_CACHE_DIR` isolated per run.
-- **Compared:**
-  - exit code;
-  - stdout and stderr bytes, after normalising timings, the temp dir path,
-    the binary path in `COMPOSER_BINARY`-derived text, and memory figures;
-  - `composer.json` and `composer.lock` bytes;
-  - the full vendor tree (paths, contents, modes, symlink targets, ignoring
-    mtimes);
-  - every file changed outside vendor (the project tree is diffed before and
-    after: `.mcp.json`, `symfony.lock`, `config/*`, `bootstrap/cache`,
-    patches results, `.htaccess`, …).
-- **Verbosity variants.** Every scenario runs at default verbosity and with
-  `-vvv`. The `-vvv` comparison masks file/line pairs inside exception
-  traces (§10, risk 3) and nothing else.
-- **TTY variants.** Selected scenarios run under a pty (`github.com/creack/pty`
-  in tests only) for prompts and decoration: allow-plugins y/n/d/?,
-  laminas' prompt, flex's prompts, captainhook `--ansi`.
+- **Fixtures.** Each is a project in
+  `cmd/maestro/testdata/e2e/plugin-<name>/` (composer.json and, for
+  Packagist plugins, the composer.lock pinning their versions); its steps
+  (one command each, with optional setup, input and normalisation) are
+  listed in the test. Local plugins come from path repositories in the
+  fixture; flex's recipes come from a local endpoint
+  (`testdata/e2e/flex-recipes`).
+- **Each scenario runs with both tools,** real Composer 2.10.3 (the pinned
+  phar) and maestro, in fresh copies of the fixture with isolated
+  `COMPOSER_HOME` and caches, cold (empty caches) and then warm (the
+  caches the cold phase left).
+- **Compared:** the exit code; stdout and stderr (after normalising
+  timings, temporary paths and other run-specific values; errors and
+  deprecation notices by the information they carry, as docs/PORTING.md
+  "Tests" describes); and the whole scenario tree after every step:
+  `composer.json`, `composer.lock`, the vendor tree (paths, contents,
+  modes, symlink targets; mtimes ignored) and every file a plugin writes
+  outside vendor (`.mcp.json`, `symfony.lock`, `config/*`,
+  `bootstrap/cache`, patch results, `.htaccess`, …).
 
-**Per-plugin fixtures.** Each lives in
-`cmd/maestro/testdata/e2e/plugins/<name>/`, with `composer.json`, optional
-committed `composer.lock`, `scenarios.txt` (one command per line) and
-expectations of extra files. The baseline scenarios for every plugin are:
-
-1. `install` from lock.
-2. `update`, and `update <pkg>`.
-3. `require <pkg>` / `remove <pkg>`.
-4. `dump-autoload` and `dump-autoload -o`.
-5. `install --no-plugins`, `install --no-scripts`.
-6. The plugin not in allow-plugins, non-interactive: the blocked error.
-7. The plugin removed from require while still installed: the "not required
-   anymore" warning.
-
-Plugin-specific scenarios:
-
-| Fixture | Extra scenarios |
-| --- | --- |
-| stubbedev-mcp (all 5 together) | the offline and online binary paths; `.mcp.json` content; `InstalledVersions` version in output |
-| laravel-scripts | Laravel's `post-autoload-dump` with `@php artisan package:discover` against a minimal Laravel skeleton; `Composer\Config::disableProcessTimeout` script |
-| pest-plugin 4 and 5 | `pest:dump-plugins`; `list` shows it; `help pest:dump-plugins` |
-| phpstan / infection extension-installer | GeneratedConfig contents with 2 extensions |
-| dealerdirect | phpcs `installed_paths` set; phpcs ≥ 3 constraint string |
-| captainhook | hook install with and without `--no-ansi`; failure exit code |
-| grumphp | install, uninstall (`git:deinit` during PRE_PACKAGE_UNINSTALL) inside a git repo |
-| symfony/runtime | `autoload_runtime.php` |
-| package-versions-deprecated | `Versions.php`; never activated as a plugin, even with allow-plugins true |
-| tbachert/spi | generated provider file; root autoload change visible in `autoload_files.php` |
-| drupal-scaffold (+project-message, +vendor-hardening) | `scaffold` command; custom `pre-drupal-scaffold-cmd` script; `.htaccess`; binaries removed by `setBinaries` |
-| composer/installers | 5 framework types, `installer-paths` with `{$name}`/`type:`/`vendor:`, `installer-name`, uninstall |
-| oomphinc + composer/installers | `installer-types` custom type |
-| mnsami | type `library` override paths; plugin type through the PluginInstaller subclass (the plugin really activates) |
-| cweagans-patches 1.x | patch applied, `patches_applied` in installed.json, re-patch on change (uninstall before solve) |
-| cweagans-patches 2.x | `patches.lock.json`, `patches-relock`, `patches-repatch`, `patches-doctor` |
-| merge-plugin | include globs, `merge-dev`, `replace`; first-install re-run (`Installer::create()->run()` nested) |
-| ergebnis-normalize | `normalize --dry-run --diff`; `normalize` followed by its nested `update --lock` |
-| bamarni-bin | `bin tools require x`, `bin all install`, forward on install |
-| php-http-discovery | missing implementation auto-install (POST_UPDATE_CMD re-run) |
-| symfony/flex | `req orm` alias, recipe install, `symfony.lock`, `recipes`, `symfony:dump-env`, `extra.symfony.require` pool filtering |
-| private-app-shape | A reduced copy of a private Laravel application's composer.json (read-only source, copied into the fixture): pest, stubbedev, Laravel scripts and php-http/discovery set to `false`. This is the user's real-world gate. |
-
-**Exit criterion per phase:** all its fixtures green in CI on Linux.
-macOS runs nightly. Windows starts with the phase 1 runtime tests and the
-tier 2 fixtures, once Windows e2e exists.
+Each fixture's steps cover, as the plugin allows: `install` from the lock
+and `update`; `require` and `remove`; `dump-autoload` with and without
+`-o`; `--no-plugins` and `--no-scripts`; `-vvv`; the plugin's own commands
+with `list`, `help` and completion; and, for plugin-api, a plugin not in
+`allow-plugins` (the blocked error) and one no longer required (the
+warning). §8 lists the fixtures of each tier.
 
 ---
 
@@ -2439,42 +2341,33 @@ tier 2 fixtures, once Windows e2e exists.
 
 | # | Risk | Likelihood / impact | Mitigation |
 | --- | --- | --- | --- |
-| 1 | **Internals-dependent plugins** (flex, discovery, bamarni, vaimo) rely on stack frames, private and protected props, clone and re-construct, and `Closure::bind`. Any upstream refactor on their side or a gap in our emulation breaks them. | High / high (flex is among the most installed plugins) | Phase 6 with explicit per-plugin fixtures; the property parity list (§5.12); unsupported paths throw a named `UnsupportedApiException` instead of misbehaving silently |
-| 2 | **Output interleaving** between two processes: unflushed Go buffers, PHP `ob_*` buffers, `overwrite()` and progress bars spanning both sides | Medium / high (byte-identical output is a hard goal) | Flush before every transfer (D11); IO methods all go through Go; e2e compares exact bytes, including under pty |
-| 3 | **Exception file and line in `-v` and `-vvv` output** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | Since #13 error rendering and deprecation notices are maestro's own (no locations or stacks shown), and maestro no longer records Composer's throw sites or frames for Go errors; this only matters to plugins reading `getFile()`, `getLine()` or `getTrace()`, which see the shim's locations for exceptions maestro raised; the shim's own throw sites and raised errors name Composer's line |
-| 4 | **Promise timing.** `then()` callbacks of PHP installers run immediately instead of at loop wait, and parallel Go ops change completion order | Medium / low | PHP-installer ops run sequentially in op order; fixtures for magento-style and yii2 `->then()` installers |
-| 5 | **stdin sharing** when stdin is a pipe and the run is still interactive (`SHELL_INTERACTIVE`): PHP's STDIN buffer can swallow lines meant for Go | Low / medium | Go reads unbuffered; documented; pty tests; if needed later, a stdin relay that hands stdin to PHP only while PHP runs a prompt |
+| 1 | **Internals-dependent plugins** (flex, discovery, bamarni, vaimo) rely on stack frames, private and protected props, clone and re-construct, and `Closure::bind`. Any upstream refactor on their side or a gap in the emulation breaks them. | High / high (flex is among the most installed plugins) | Tier 6 emulation with per-plugin fixtures; the property parity list (§5.12); unsupported paths throw a named `UnsupportedApiException` instead of misbehaving silently |
+| 2 | **Output interleaving** between two processes: unflushed Go buffers, PHP `ob_*` buffers, `overwrite()` and progress bars spanning both sides | Medium / high (byte-identical output is a hard goal) | Flush before every transfer (D11); IO methods all go through Go; e2e compares exact bytes |
+| 3 | **Exception file and line** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | Error rendering and deprecation notices are maestro's own (no locations or stacks shown), and maestro records no throw sites or frames of Composer's for Go errors; this only matters to plugins reading `getFile()`, `getLine()` or `getTrace()`, which see the shim's locations for exceptions maestro raised; the shim's own throw sites and raised errors name Composer's line |
+| 4 | **Promise timing.** `then()` callbacks of PHP installers, and parallel Go operations, change completion order | Medium / low | The promise bridge (§5.6) keeps promises pending on both sides until Composer would run their callbacks; fixtures for `->then()` installers (composer/installers, yii2) |
+| 5 | **stdin sharing** when stdin is a pipe and the run is still interactive (`SHELL_INTERACTIVE`): PHP's STDIN buffer can swallow lines meant for Go | Low / medium | Go reads unbuffered; a stdin relay that hands stdin to PHP only while PHP runs a prompt would close it |
 | 6 | **Re-entrancy of Go ports.** Nested `Installer::run`, `Factory::create` and Application runs from inside events require every Go port to be free of package-level state | Medium / high | Requirement in §7; e2e for merge-plugin, discovery, ergebnis, laminas |
-| 7 | **Performance.** PRE_POOL_CREATE with large pools, chatty plugins (`getInstallPath` per package, many Filesystem calls), and PHP startup on every command in plugin projects | Medium / medium | Lazy tiers, batching, measured budgets (§5.16); fallback to a PHP-local implementation of hot pure helpers if profiling shows it |
+| 7 | **Performance.** PRE_POOL_CREATE with large pools, chatty plugins (`getInstallPath` per package, many Filesystem calls), and PHP startup on every command in plugin projects | Medium / medium | Lazy tiers, batching, measured budgets (§5.16) |
 | 8 | **API parity drift.** A shim signature differs from Composer's, so a plugin that extends a class gets a fatal "Declaration must be compatible" | Medium / high | Generated parity test with exact signatures (§9.2) |
-| 9 | **PHP version spread.** The shim must parse and run on 7.2.5 to 8.5; deprecations show up as Composer-style deprecation notices | Medium / medium | CI PHP matrix; the shim follows Composer's own PHP style rules |
-| 10 | **fd leakage to grandchildren** (Unix) and corruption of the channel | Low / high | Process-exit detection, not EOF; framing validation kills the child on garbage; documented |
-| 11 | **Xdebug restart parity** (env vars, ini contents) | Low / low | Port of XdebugHandler's ini building, tested with xdebug installed in CI |
-| 12 | **Windows transport** (TCP, `proc_open` quoting in the launcher stub) | Medium / medium | Phase 1 abstraction; Windows tests when Windows e2e exists |
+| 9 | **PHP version spread.** The shim must parse and run on 7.2.5 to 8.5; deprecations show up as Composer-style deprecation notices | Medium / medium | CI on PHP 7.2 and 8.4; the shim follows Composer's own PHP style rules |
+| 10 | **fd leakage to grandchildren** (Unix) and corruption of the channel | Low / high | Process-exit detection, not EOF; framing validation kills the child on garbage |
+| 11 | **Xdebug restart parity** (env vars, ini contents) | Low / low | Port of XdebugHandler's ini building, with a test that the restart ini loads what plain `php` loads |
+| 12 | **Windows transport** (TCP, `proc_open` quoting in the launcher stub) | Medium / medium | The transport abstraction (D5); CI's Windows plugin shard and the Windows e2e run |
 | 13 | **Vendored library precedence.** A project shipping a newer symfony/console could expect its own classes, but the shim's win. This is the same as with Composer's phar, so it is correct, but surprising. | Low / low | Matches Composer; no action |
 
 ---
 
-## 11. Size estimate
+## 11. Size
 
-Hand-written code, excluding vendored libraries and generated stubs:
+Approximate line counts:
 
-| Part | Lines (approx.) |
+| Part | Lines |
 | --- | --- |
-| `internal/plugin` runtime, transport, codec, handles, sync | 3,000 |
-| `internal/plugin` PluginManager port, mirrors, proxies | 3,500 |
-| `internal/plugin` service handlers (~300 RPC methods) | 5,500 |
-| PHP shim runtime (`Maestro\*`) | 2,000 |
-| PHP shim Composer classes (~160 working classes) | 9,000 |
-| `tools/shimgen`, `tools/shimvendor`, `tools/e2emirror`, oracle scripts | 1,200 |
-| Hooks required in other packages (§7: revisions, virtuals, input state, re-entrancy, frame stack) | 1,500 |
-| Go tests, unit and integration | 6,000 |
-| E2E harness additions (local repository server, mocks, pty) and ~30 fixtures | 3,000 |
-| **Total** | **~35,000** |
+| `internal/plugin` and its subpackages, Go (runtime, transport, codec, sync, PluginManager port, mirrors, proxies, service handlers) | 18,000 |
+| Their Go tests | 6,500 |
+| PHP shim, hand-written (`php/src`: the `Maestro\*` runtime about 5,500, Composer's classes about 12,000) | 17,500 |
+| `tools/shimgen`, `tools/shimvendor`, `internal/plugin/shimbuild` | 1,200 |
 
-There is also about 75k lines of vendored PHP and about 25k lines of
-generated stubs, both produced by tools.
-
-Effort split by phase: 1 = 15%, 2 = 25%, 3 = 12%, 4 = 15%, 5 = 18%,
-6 = 15%. Phases 1–3 (about half) make maestro usable for the large majority
-of real projects.
+Besides these, the shim embeds about 76,000 lines of vendored PHP
+(`php/lib`) and 8,000 lines of generated stubs (`php/stubs`), both
+produced by tools. The plugin e2e fixtures number 35.

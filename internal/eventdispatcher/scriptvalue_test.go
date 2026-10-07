@@ -1,5 +1,5 @@
 // composer.json listeners that are not strings, which doDispatch takes for
-// callables (#39).
+// callables.
 
 package eventdispatcher
 

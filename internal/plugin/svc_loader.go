@@ -1,4 +1,4 @@
-// Package loading and dumping (docs/PLUGINS.md §4.5, phase 5):
+// Package loading and dumping (docs/PLUGINS.md §4.5, tier 5):
 // ArrayLoader's methods (`loader.*`) load maestro's packages, which come
 // back as mirrors; ArrayDumper::dump is `dumper.dump`.
 

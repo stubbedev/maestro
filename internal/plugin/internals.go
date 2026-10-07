@@ -1,4 +1,4 @@
-// Internals emulation (docs/PLUGINS.md §5.12; phase 6): the protected and
+// Internals emulation (docs/PLUGINS.md §5.12; tier 6): the protected and
 // private properties of Composer's services that plugins read by array
 // cast, Closure::bind or reflection, and the running Composer\Installer
 // as a PHP object.

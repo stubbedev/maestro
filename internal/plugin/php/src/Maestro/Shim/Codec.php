@@ -29,7 +29,7 @@ final class Codec
 
     /**
      * Decoders of value tags other packages define (constraints and links
-     * from phase 2 on), by tag key.
+     * from tier 2 on), by tag key.
      *
      * @var array<string, callable(array): mixed>
      */

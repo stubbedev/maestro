@@ -10,7 +10,7 @@ import (
 
 // A path realpath() cannot resolve fails with the TypeError PHP throws for
 // the false Filesystem then receives, naming the path rather than
-// AutoloadGenerator's line (#45).
+// AutoloadGenerator's line.
 func TestRealpathFailure(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing")
 	_, err := realpath(missing)

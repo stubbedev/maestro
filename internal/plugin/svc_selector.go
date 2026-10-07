@@ -1,5 +1,5 @@
 // RepositorySet and VersionSelector created in PHP (docs/PLUGINS.md §4.5,
-// §4.6; phase 5): both are maestro's (`reposet.*`, `selector.*`).
+// §4.6; tier 5): both are maestro's (`reposet.*`, `selector.*`).
 
 package plugin
 

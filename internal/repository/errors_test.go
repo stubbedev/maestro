@@ -26,7 +26,7 @@ func TestErrorClasses(t *testing.T) {
 
 // An exception created with a previous one keeps its own class, whatever
 // the previous one is (PathRepository.php:229, ArtifactRepository.php's
-// catch): get_class() and catch never look at getPrevious() (#44).
+// catch): get_class() and catch never look at getPrevious().
 func TestWrappedErrorKeepsItsClass(t *testing.T) {
 	for _, prev := range []error{
 		loader.NewInvalidPackageError([]string{"bad"}, nil, php.NewArray()),

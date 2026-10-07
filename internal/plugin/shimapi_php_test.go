@@ -277,7 +277,7 @@ func TestShimAPI_Utilities(t *testing.T) {
 
 // TestShimAPI_SchemaPaths: JsonFile::COMPOSER_SCHEMA_PATH and
 // LOCK_SCHEMA_PATH name Composer's schemas in the extracted shim, as they
-// name the phar's res/ files (issue #38), so a plugin that reads them, as
+// name the phar's res/ files, so a plugin that reads them, as
 // ConfigCommand does, gets internal/json's schemas byte for byte.
 func TestShimAPI_SchemaPaths(t *testing.T) {
 	requirePHP(t)
@@ -432,8 +432,8 @@ func TestShimAPI_ListShapedLinks(t *testing.T) {
 
 // Composer has one ErrorHandler: a deprecation notice plugin code raises
 // after one maestro's code raised is hidden below -v (the static
-// $hasShownDeprecationNotice is shared). How notices look is maestro's
-// (#13): internal/ui renders them as maestro's own, without Composer's
+// $hasShownDeprecationNotice is shared). How notices look is maestro's:
+// internal/ui renders them as maestro's own, without Composer's
 // source paths or PHP stacks, on an IO created in PHP as on maestro's
 // (styled when its error output is decorated).
 func TestShimAPI_ErrorHandler(t *testing.T) {

@@ -3,7 +3,7 @@
 # diff; it rewrites nothing. CI's lint job, `just tidy-check` and
 # `just check` all run this script, so they cannot disagree. To fix a
 # reported diff, run `go mod tidy` on main and commit the result
-# (docs/PORTING.md, "Working alongside other ports").
+# (docs/PORTING.md, "Working alongside other changes").
 #
 # Usage (from the repo root; `just tidy-check` runs it in the dev container):
 #   tools/tidycheck/check.sh

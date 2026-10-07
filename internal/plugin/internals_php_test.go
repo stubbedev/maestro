@@ -11,7 +11,7 @@ import (
 )
 
 // TestPlugins_Internals runs a plugin using Composer's internals as
-// docs/PLUGINS.md's phase 6 emulates them, in-process: the Installer found
+// docs/PLUGINS.md's tier 6 emulates them, in-process: the Installer found
 // with debug_backtrace() (its protected properties by array cast, a setter
 // reaching maestro's Installer, a clone __construct()ed with a new
 // Composer and run, nested frames), EventDispatcher::$runScripts,

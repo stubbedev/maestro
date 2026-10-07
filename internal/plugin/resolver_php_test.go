@@ -12,7 +12,7 @@ import (
 )
 
 // TestPlugins_ResolverAPIs runs a plugin using the API of docs/PLUGINS.md's
-// phase 5 in-process: root package changes before solving, PRE_POOL_CREATE
+// tier 5 in-process: root package changes before solving, PRE_POOL_CREATE
 // (a package created in PHP joins the pool), PRE_OPERATIONS_EXEC, the
 // ArrayLoader and ArrayDumper, a package created in PHP added to the local
 // repository, repositories built in PHP (platform, installed, composite),

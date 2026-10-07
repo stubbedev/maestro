@@ -204,7 +204,7 @@ type walkSwaps []walkSwap
 // Finder and does not sort it: like the port's os.File.ReadDir walk, it keeps
 // the order the file system returns entries in. Which of two files found in
 // one walk wins (s367: legacy/f132.php and legacy/a/f20.php) therefore
-// depends on the file system, in PHP as in Go (btrfs and tmpfs differ, #15),
+// depends on the file system, in PHP as in Go (btrfs and tmpfs differ),
 // and either order is Composer's behaviour. Ambiguities across separate
 // scans are ordered by the generator and still have to match exactly.
 func walkOrderSwaps(want, got string, dirs []string) walkSwaps {

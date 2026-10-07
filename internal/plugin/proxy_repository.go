@@ -1,5 +1,5 @@
 // Repositories and downloaders written in PHP (docs/PLUGINS.md §4.6, §4.8;
-// phase 6): a repository object created in PHP handed to maestro
+// tier 6): a repository object created in PHP handed to maestro
 // (RepositoryManager::addRepository(), prependRepository(),
 // RepositorySet::addRepository()) or created from a class a plugin
 // registered (RepositoryManager::setRepositoryClass()), and a downloader

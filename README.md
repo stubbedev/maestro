@@ -2,9 +2,13 @@
 
 Composer, natively. maestro is a line-by-line port of
 [Composer](https://getcomposer.org) 2.10.3 to Go, and a drop-in replacement
-for the `composer` command: same commands, options, output, exit codes and
-files written (`composer.lock`, `vendor/composer/*`, `vendor/bin` proxies),
-byte for byte. It never runs or ships `composer.phar`.
+for the `composer` command. What tools and scripts depend on is identical
+to Composer's, byte for byte: commands and options, exit codes,
+machine-readable output, questions, scripts and events, and the files
+written (`composer.json`, `composer.lock`, `vendor/composer/*`,
+`vendor/bin` proxies, the installed packages). Errors, warnings and
+progress are presented in maestro's own way. It never runs or ships
+`composer.phar`.
 
 What you get on top:
 
@@ -76,17 +80,24 @@ wikimedia/composer-merge-plugin, cweagans/composer-patches,
 ergebnis/composer-normalize, drupal's scaffold and Laravel's package
 discovery scripts. See [docs/PLUGINS.md](docs/PLUGINS.md).
 
-The deliberate differences from Composer are listed in
-[docs/PORTING.md](docs/PORTING.md#deliberate-deviations-the-only-ones):
+[docs/PORTING.md](docs/PORTING.md#the-contract) says exactly what is
+identical and what is maestro's own, and lists the
+[deliberate deviations](docs/PORTING.md#deliberate-deviations); the ones
+you may notice:
 
 - packages are imported from the shared store, so file modification times
-  in `vendor/` are not the archive's, and hardlinked files are shared
-  between projects (plugin packages are always copied);
+  in `vendor/` are not the archive's, and hard-linked files are shared
+  between projects (plugin packages are never hard-linked);
 - `self-update` updates maestro;
-- `--version` adds a `maestro version` line on stderr.
+- `--version` adds a `maestro version` line on stderr, and the `list`
+  banner names maestro.
 
 Set `MAESTRO_PACKAGE_IMPORT_METHOD` to `clone`, `hardlink` or `copy` to
-force an import method (default `auto`: reflink, else hardlink, else copy).
+force an import method (default: reflink, else hardlink, else copy).
+
+maestro keeps its store and its other caches in `MAESTRO_CACHE_DIR`
+(default `$XDG_CACHE_HOME/maestro`, else the platform cache directory);
+`maestro clear-cache` clears them along with Composer's caches.
 
 ## Development
 
@@ -96,20 +107,17 @@ Composer sources being ported into `.ref/`. Tests, vet and lint run in a
 Docker dev container (`compose.yaml`), which the justfile drives:
 
 ```sh
-just check       # vet, lint, test, build
+just check       # every gate CI runs: vet, lint, deadcode, tidy-check, test, build
 just test        # the test suite, php-driven tests included (args go to go test)
 just test-race   # race detector, plus the php-driven tests
 just e2e         # compare against the real Composer phar (network, slow)
 just shell       # a shell in the dev container
 ```
 
-[docs/PORTING.md](docs/PORTING.md) is the porting contract: layout, rules,
-and how tests are ported from Composer's suite and generated from Composer's
-own PHP.
-
-Every command needs a positive and a negative test: a new command, or one
-gaining tests, gets its entry in `internal/command/coverage_test.go` (see
-PORTING.md, Tests), which `go test ./internal/command` checks.
+[docs/PORTING.md](docs/PORTING.md) is the porting contract: what must match
+Composer, the layout, the rules every port follows, how tests are ported
+from Composer's suite and generated from Composer's own PHP, and the test
+switches. [docs/PLUGINS.md](docs/PLUGINS.md) specifies the plugin runtime.
 
 ## License
 

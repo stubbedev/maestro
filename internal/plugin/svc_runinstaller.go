@@ -1,5 +1,5 @@
 // Composer\Installer and its SuggestedPackagesReporter (docs/PLUGINS.md
-// §4.12, §5.11; phase 5): a plugin's `Installer::create($io,
+// §4.12, §5.11; tier 5): a plugin's `Installer::create($io,
 // $composer)->...->run()` runs maestro's Installer with the services and
 // settings the PHP object recorded (`installer.run`), re-entrantly, from
 // inside whatever maestro was doing (merge-plugin re-runs the update from

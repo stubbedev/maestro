@@ -1,4 +1,4 @@
-// Backtrace frames (docs/PLUGINS.md §5.12; phase 6): plugins look for
+// Backtrace frames (docs/PLUGINS.md §5.12; tier 6): plugins look for
 // objects on Composer's PHP call stack with debug_backtrace() (symfony/flex
 // and symfony/thanks for the Application and its ArgvInput, flex and
 // php-http/discovery for the running Composer\Installer, flex for a

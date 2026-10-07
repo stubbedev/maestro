@@ -154,7 +154,7 @@ func TestPlugins_API(t *testing.T) {
 		"process: captured",
 		"locked: true",
 		// JsonFile::COMPOSER_SCHEMA_PATH and LOCK_SCHEMA_PATH name the
-		// schemas, wherever the shim is (issue #38).
+		// schemas, wherever the shim is.
 		"schemas: " + sha256Hex(res.ComposerSchema()) + " " + sha256Hex(res.LockSchema()),
 	} {
 		if !strings.Contains(output, want) {

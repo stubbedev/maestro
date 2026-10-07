@@ -1,6 +1,6 @@
 package plugin
 
-// Commands and the Symfony Console (docs/PLUGINS.md phase 4): a plugin's
+// Commands and the Symfony Console (docs/PLUGINS.md tier 4): a plugin's
 // CommandProvider commands in maestro's Application (listed, described,
 // completed, run in PHP), the Application and maestro's commands as PHP
 // sees them, an input change of a PRE_COMMAND_RUN listener reaching the

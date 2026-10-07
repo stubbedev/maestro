@@ -1,6 +1,6 @@
 // How the Application shows an uncaught error. Symfony renders exceptions
 // in boxes with their PHP classes, throw sites and call stacks; how errors
-// look is maestro's own (docs/PORTING.md "The contract", #13), so the
+// look is maestro's own (docs/PORTING.md "The contract"), so the
 // information goes to internal/ui, which renders it.
 
 package console

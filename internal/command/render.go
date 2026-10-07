@@ -1,6 +1,6 @@
 // How the Application presents the errors it knows more about than the
 // console does. Their wording is maestro's own (docs/PORTING.md "The
-// contract", #13); the errors themselves, which plugins see, keep
+// contract"); the errors themselves, which plugins see, keep
 // Composer's messages.
 
 package command

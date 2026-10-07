@@ -1,5 +1,5 @@
 // Package ui is maestro's own presentation of the free surface
-// (docs/PORTING.md "The contract" and "Presentation of free output", #13):
+// (docs/PORTING.md "The contract" and "Presentation of free output"):
 // how errors, warnings, deprecation notices and hints look. Ported code
 // reports the information (a Diagnostic); this package alone decides the
 // layout and the styling, with lipgloss.

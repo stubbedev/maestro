@@ -80,7 +80,7 @@ func TestInline(t *testing.T) {
 // Symfony's inline styles and style constructors, lipgloss colours.
 var rawStyleRe = regexp.MustCompile(`\\x1b\[|\\033\[|\\u001b\[|\\e\[|[<"';](fg|bg|options)=|MustStyle\(|NewOutputFormatterStyle\(|lipgloss\.Color\(|termenv\.`)
 
-// Every styled surface of maestro takes its look from a Role (#93): no
+// Every styled surface of maestro takes its look from a Role: no
 // package but internal/ui (the palette) and internal/console (the ported
 // formatter engine and Symfony's own styles) writes colours or escape
 // sequences of its own.

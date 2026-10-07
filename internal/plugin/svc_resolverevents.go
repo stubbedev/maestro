@@ -1,4 +1,4 @@
-// The events of docs/PLUGINS.md's phase 5 (§4.4, §5.8): PRE_POOL_CREATE
+// The events of docs/PLUGINS.md's tier 5 (§4.4, §5.8): PRE_POOL_CREATE
 // with its Request, PRE_FILE_DOWNLOAD and POST_FILE_DOWNLOAD. Their
 // setters are maestro's (`event.*`), so the pool is built from, and the
 // download made with, what PHP set.
@@ -67,9 +67,9 @@ func (r *Runtime) downloadContext(ctx any) any {
 	return nil
 }
 
-// phase5EventFields adds the fields of the phase 5 events to an event's
+// tier5EventFields adds the fields of the tier 5 events to an event's
 // snapshot.
-func (r *Runtime) phase5EventFields(s *php.Array, e eventdispatcher.Event) {
+func (r *Runtime) tier5EventFields(s *php.Array, e eventdispatcher.Event) {
 	switch e := e.(type) {
 	case *eventdispatcher.PrePoolCreateEvent:
 		repos := php.NewArrayCap(len(e.Repositories()))

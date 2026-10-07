@@ -239,7 +239,7 @@ func fixtureScenarios() []scenario {
 		},
 		{
 			// PHP-callable scripts run in the plugin runtime's PHP process
-			// (docs/PLUGINS.md), which plugin phase 2 wires into the
+			// (docs/PLUGINS.md), which plugin tier 2 wires into the
 			// dispatcher.
 			name:    "scripts-php-callable",
 			fixture: "scripts",

@@ -122,7 +122,7 @@ func TestFactory_CreateComposerMessagesUseWindowsEOL(t *testing.T) {
 
 // TestPluginAPIBefore22 checks parseAllowedPlugins' version_compare() of
 // the lock file's plugin-api-version, which strict_types refuses unless it
-// is a string (#39).
+// is a string.
 func TestPluginAPIBefore22(t *testing.T) {
 	for api, want := range map[string]bool{"1.1.0": true, "2.1.9": true, "2.2.0": false, "2.9.0": false} {
 		if got, err := PluginAPIBefore22(api); err != nil || got != want {

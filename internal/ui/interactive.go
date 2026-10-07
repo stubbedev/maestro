@@ -2,7 +2,7 @@ package ui
 
 import "strings"
 
-// What decorated output on a terminal adds to progress and prompts (#35):
+// What decorated output on a terminal adds to progress and prompts:
 // formatter markup that only the caller's decorated, terminal output
 // receives. Undecorated, or not on a terminal, progress and prompts are
 // Composer's, so nothing here is used.

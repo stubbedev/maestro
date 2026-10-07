@@ -1,6 +1,6 @@
 // maestro's theme for formatter tags: Composer's tags and the roles of
 // internal/ui's palette render as the palette says (docs/PORTING.md
-// "Presentation of free output", #93), not with Symfony's colours.
+// "Presentation of free output"), not with Symfony's colours.
 
 package console
 

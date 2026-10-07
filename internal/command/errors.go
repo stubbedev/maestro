@@ -59,7 +59,7 @@ const uncaughtExitCode = 255
 // in doRun before its try, or raised again by hintCommonErrors (whose
 // catch only takes \Exception). Symfony's run() does not catch \Error
 // either, so PHP ends with "Fatal error: Uncaught ..." and exit status
-// 255. maestro renders it as it renders any error (#13), with that status.
+// 255. maestro renders it as it renders any error, with that status.
 func uncaught(err error) error { return withExitCode(err, uncaughtExitCode) }
 
 // withExitCode is err with the exception code code: the TransportException

@@ -25,8 +25,7 @@ var placeholderHomes = []string{"user", "oracle", "me", "cache", "composer"}
 
 // TestTestdataNamesNoMachine: no test data, gzipped goldens included,
 // holds a developer's home directory or the home directory of the machine
-// running the tests, as goldens recorded on a machine pick up its paths
-// (#104).
+// running the tests, as goldens recorded on a machine pick up its paths.
 func TestTestdataNamesNoMachine(t *testing.T) {
 	root := moduleRoot(t)
 	home, _ := os.UserHomeDir()

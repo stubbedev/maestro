@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\DependencyResolver\Pool (docs/PLUGINS.md
- * §4.12; phase 6). A PHP-local container with Composer's behaviour: `new
+ * §4.12; tier 6). A PHP-local container with Composer's behaviour: `new
  * Pool($packages)` (php-http/discovery's pre-RepositorySet path) and the
  * pools RepositorySet::createPool*() build in maestro, which come back as
  * their packages (each with the id maestro's pool gave it) and the

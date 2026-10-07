@@ -13,7 +13,7 @@ import (
 )
 
 // TestShimAPI_SetLockDataNullDevPackages: Locker::setLockData's ?array
-// $devPackages reaches the lock file as PHP passed it (#67): null writes
+// $devPackages reaches the lock file as PHP passed it: null writes
 // "packages-dev": null, [] an empty list.
 func TestShimAPI_SetLockDataNullDevPackages(t *testing.T) {
 	requirePHP(t)

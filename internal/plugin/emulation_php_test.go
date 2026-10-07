@@ -1,7 +1,7 @@
 package plugin
 
 // The internals emulation of docs/PLUGINS.md §5.12 beyond the surveyed
-// plugins' needs (issue #2): what a Pool from maestro holds, asynchronous
+// plugins' needs: what a Pool from maestro holds, asynchronous
 // processes of PHP code on maestro's loop, Composer's call stack in the
 // exceptions crossing between maestro and PHP, and the frames
 // debug_backtrace() shows.

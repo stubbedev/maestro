@@ -2,7 +2,7 @@
 // Composer plugins and PHP-callable scripts run through (deviation 5 in
 // docs/PORTING.md; docs/PLUGINS.md is the specification).
 //
-// The runtime and its protocol (phase 1):
+// The runtime and its protocol (tier 1):
 //
 //   - shim.go embeds the PHP shim (php/: bootstrap.php, the Maestro\Shim
 //     runtime, the hand-written Composer classes of php/src, the
@@ -18,7 +18,7 @@
 //   - rpc/ is the channel itself: framing, the value codec, handles, the
 //     re-entrant call stack, the sync engine and exceptions both ways.
 //
-// The core Composer API (phase 2):
+// The core Composer API (tier 2):
 //
 //   - manager.go ports PluginManager's policy (load order, allow-plugins
 //     with its prompt, the plugin API check, global plugins, the autoload
@@ -34,7 +34,7 @@
 //     classes call (api.go registers them; coverage_test.go checks the
 //     set against the shim's source).
 //
-// Custom installers (phase 3):
+// Custom installers (tier 3):
 //
 //   - svc_installer.go gives the shim's installer base classes their Go
 //     peers and holds the proxies maestro's InstallationManager calls:
@@ -44,7 +44,7 @@
 //   - promises.go bridges maestro's promises and PHP's React promises
 //     both ways, pending ones included.
 //
-// Commands and the Symfony Console (phase 4):
+// Commands and the Symfony Console (tier 4):
 //
 //   - proxy_command.go holds the proxies maestro's Application lists,
 //     describes, completes and runs for commands written in PHP (the
@@ -62,7 +62,7 @@
 //     created in PHP is adopted when it first crosses.
 //   - php/src/Maestro/Shim/Console.php is the PHP half.
 //
-// Resolver-time and write APIs (phase 5):
+// Resolver-time and write APIs (tier 5):
 //
 //   - adopt_package.go and Runtime.adopt make objects PHP creates
 //     maestro's: packages and operations when they first cross, services
@@ -77,7 +77,7 @@
 //     Locker, JSON and config source handlers of svc_repo.go,
 //     svc_composer.go and svc_util.go.
 //
-// Internals emulation (phase 6):
+// Internals emulation (tier 6):
 //
 //   - frames.go gives PHP code the frames Composer's stack would hold
 //     (the Application, the running command, the Installer):
@@ -91,7 +91,7 @@
 //     written in PHP; svc_downloader.go serves maestro's downloaders to
 //     PHP and creates the ones PHP constructs.
 //
-// The remaining stubs (issue #1, docs/PLUGINS.md §8 "Remaining stubs"):
+// The remaining stubs (docs/PLUGINS.md §8 "Remaining stubs"):
 //
 //   - svc_builtin.go runs maestro's own commands' hooks when PHP runs one
 //     of them (`builtin.*`).
