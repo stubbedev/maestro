@@ -67,8 +67,9 @@ func DecodedFiles() string { return path(decodedFilesPath) }
 // contents (autoload.Generator.UseParseCacheFile).
 func ClassMapParse() string { return path(classMapParsePath) }
 
-// ClassMapRecords is the directory of the class maps of earlier scans, one
-// record per project (autoload.Generator.UseScanRecords).
+// ClassMapRecords is the directory of the class maps of earlier scans,
+// records of a project's dumps and class loaders
+// (autoload.Generator.UseScanRecords).
 func ClassMapRecords() string { return path(classMapRecordsPath) }
 
 // PlatformProbes is the directory of php's probed platform, one entry per

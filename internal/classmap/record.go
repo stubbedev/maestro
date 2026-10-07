@@ -56,7 +56,7 @@ type Record struct {
 
 // recordMaxFiles bounds the records kept in a directory: past it, the
 // least recently written are removed.
-const recordMaxFiles = 64
+const recordMaxFiles = 128
 
 // NewRecord returns the record of these scans, by a generator with parser
 // p and the given extensions, kept in dir under a name derived from id
@@ -118,7 +118,12 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 
 // recordFormat is the version of the records, and of the scans that
 // build their class maps; its Header starts every record.
-var recordFormat = fsstate.Format{Name: "classmap-record", Version: 1}
+var recordFormat = fsstate.Format{Name: "classmap-record", Version: 2}
+
+// SetMargin sets how old a file must be for its identity to be recorded
+// and, recorded, trusted (zero: fsstate.DefaultMargin; tests trust
+// identities however recent with a negative one).
+func (rec *Record) SetMargin(m fsstate.Margin) { rec.trust = m }
 
 // recording is what a generator's scans depended on.
 type recording struct {

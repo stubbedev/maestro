@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // classLoaderPHP is the path of the embedded ClassLoader.php.
@@ -215,5 +217,73 @@ func TestGenerator_CreateLoader(t *testing.T) {
 	}
 	if _, err := os.Stat(e.vendorDir + "/composer"); err == nil {
 		t.Error("CreateLoader wrote files")
+	}
+}
+
+// A loader's scans are recorded (UseScanRecords): the next loader of the
+// same packages, in a fresh process, takes their class map from the
+// record. Scans that warned are not recorded.
+func TestGenerator_CreateLoaderRecord(t *testing.T) {
+	if !fsstate.Known() {
+		t.Skip("no file identities here")
+	}
+	e := setUp(t)
+	e.mkdir(e.workingDir + "/cm")
+	e.write(e.workingDir+"/cm/a.php", `<?php class CmA {}`)
+	records := t.TempDir()
+	newGenerator := func() *Generator {
+		g := NewGenerator(e.dispatcher, e.io)
+		g.UseScanRecords(records)
+		g.recordMargin = fsstate.Margin(-time.Hour)
+
+		return g
+	}
+	classMap := func(dirs ...string) string {
+		t.Helper()
+		l, err := newGenerator().CreateLoader(&Autoloads{PSR0: php.NewArray(), PSR4: php.NewArray(), Classmap: dirs, Files: php.NewArray()}, e.vendorDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return php.VarExport(l.ClassMap)
+	}
+	recordFiles := func() []string {
+		t.Helper()
+		entries, err := os.ReadDir(records)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var names []string
+		for _, e := range entries {
+			names = append(names, filepath.Join(records, e.Name()))
+		}
+
+		return names
+	}
+
+	want := "array (\n  'CmA' => '" + filepath.ToSlash(e.workingDir) + "/cm/a.php',\n)"
+	if got := classMap("cm"); got != want {
+		t.Fatalf("classMap %s, want %s", got, want)
+	}
+	files := recordFiles()
+	if len(files) != 1 {
+		t.Fatalf("records %q, want one", files)
+	}
+	// a record taken is not written again
+	old := time.Now().Add(-10 * time.Minute)
+	if err := os.Chtimes(files[0], old, old); err != nil {
+		t.Fatal(err)
+	}
+	if got := classMap("cm"); got != want {
+		t.Errorf("classMap from the record %s, want %s", got, want)
+	}
+	if info, err := os.Stat(files[0]); err != nil || !info.ModTime().Equal(old) {
+		t.Error("the second loader scanned instead of taking the record")
+	}
+	// another set of directories has a record of its own, unless a scan
+	// warned
+	classMap("cm", "missing")
+	if got := recordFiles(); len(got) != 1 {
+		t.Errorf("records %q after a scan that warned", got)
 	}
 }

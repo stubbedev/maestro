@@ -8,6 +8,8 @@
 package autoload
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"strconv"
 	"strings"
@@ -23,6 +25,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Generator is Composer\Autoload\AutoloadGenerator.
@@ -55,8 +58,9 @@ type Generator struct {
 	// parseAhead is the aheadMode ParseAhead set.
 	parseAhead atomic.Int32
 	// recordDir keeps the class maps of the scans (UseScanRecords), ""
-	// for none.
-	recordDir string
+	// for none; recordMargin is the records' fsstate.Margin.
+	recordDir    string
+	recordMargin fsstate.Margin
 }
 
 // NewGenerator ports new AutoloadGenerator($eventDispatcher, $io); a nil
@@ -239,11 +243,12 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 func (g *Generator) UseParseCacheFile(path string) { g.parseCache.UseFile(path) }
 
 // UseScanRecords makes the generator keep the class map of its scans in
-// dir, one record per project, and take it from there instead of scanning
-// when the scans are the same and none of the files and directories they
-// depend on changed since (deliberate deviation 3, speed;
-// classmap.Record). The ambiguous classes and PSR violations are kept
-// with it and reported as after a scan.
+// dir, one record per project for its dumps and one per set of
+// directories its class loaders scan (CreateLoader), and take it from
+// there instead of scanning when the scans are the same and none of the
+// files and directories they depend on changed since (deliberate
+// deviation 3, speed; classmap.Record). The ambiguous classes and PSR
+// violations are kept with it and reported as after a scan.
 func (g *Generator) UseScanRecords(dir string) { g.recordDir = dir }
 
 // Warm starts parsing, in the background, the files a Dump with these
@@ -437,13 +442,23 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, packageMap []Pac
 	if scanPsrPackages {
 		scans = append(scans, d.psrScans(autoloads, excluded)...)
 	}
-	record, recorded := g.scanRecord(d, scans, scanPsrPackages)
+	record, recorded := g.scanRecord(d, scans, strconv.FormatBool(scanPsrPackages))
+
+	return g.recordedScans(scans, packageMap[1:], record, recorded, func(err error) error { return err })
+}
+
+// recordedScans runs scans and returns their class map, taken from their
+// record instead when it is still valid. The releases of packages are
+// looked up only for a scan. failed decides what a scan's error does:
+// the error it returns ends the scans, nil goes on with the next scan
+// (and keeps no record).
+func (g *Generator) recordedScans(scans []psrScan, packages []PackageMapEntry, record *classmap.Record, recorded bool, failed func(error) error) (*classmap.ClassMap, error) {
 	if recorded {
 		if classMap, ok := record.Load(); ok {
 			return classMap, nil
 		}
 	}
-	g.addReleases(packageMap[1:])
+	g.addReleases(packages)
 	gen := g.newClassMapGenerator()
 	if recorded {
 		gen.StartRecording()
@@ -455,12 +470,16 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, packageMap []Pac
 	}
 	gen.Prefetch(requests)
 
+	complete := true
 	for _, s := range scans {
 		if err := gen.ScanPaths(s.dir, s.excluded, s.typ, s.namespace, nil); err != nil {
-			return nil, err
+			if err := failed(err); err != nil {
+				return nil, err
+			}
+			complete = false
 		}
 	}
-	if recorded {
+	if recorded && complete {
 		gen.SaveRecord(record)
 	}
 
@@ -468,8 +487,8 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, packageMap []Pac
 }
 
 // scanRecord is the record of these scans (UseScanRecords), ok false
-// without one.
-func (g *Generator) scanRecord(d *dump, scans []psrScan, scanPsrPackages bool) (*classmap.Record, bool) {
+// without one; kind tells it from the other records of the project.
+func (g *Generator) scanRecord(d *dump, scans []psrScan, kind string) (*classmap.Record, bool) {
 	if g.recordDir == "" {
 		return nil, false
 	}
@@ -477,9 +496,13 @@ func (g *Generator) scanRecord(d *dump, scans []psrScan, scanPsrPackages bool) (
 	for i, s := range scans {
 		recordScans[i] = classmap.RecordScan{Path: s.dir, Excluded: s.excluded, Type: s.typ, Namespace: s.namespace}
 	}
-	id := string(d.basePath) + "\x00" + strconv.FormatBool(scanPsrPackages)
+	id := string(d.basePath) + "\x00" + kind
+	rec, ok := classmap.NewRecord(g.recordDir, id, []string{string(d.basePath), string(d.vendorPath)}, g.Parser, classMapExtensions, recordScans)
+	if ok {
+		rec.SetMargin(g.recordMargin)
+	}
 
-	return classmap.NewRecord(g.recordDir, id, []string{string(d.basePath), string(d.vendorPath)}, g.Parser, classMapExtensions, recordScans)
+	return rec, ok
 }
 
 var (
@@ -676,6 +699,24 @@ func vendorDirConfig(config Config) (string, error) {
 	return php.ToString(v), nil
 }
 
+// loaderRecord is the record of a class loader's scans (UseScanRecords),
+// one per set of scanned directories, ok false without one.
+func (g *Generator) loaderRecord(scans []psrScan, vendorDir string) (*classmap.Record, bool) {
+	if g.recordDir == "" || len(scans) == 0 {
+		return nil, false
+	}
+	basePath, vendorPath, err := basePaths(vendorDir)
+	if err != nil {
+		return nil, false
+	}
+	h := sha256.New()
+	for _, s := range scans {
+		h.Write([]byte(s.dir + "\x00"))
+	}
+
+	return g.scanRecord(&dump{basePath: basePath, vendorPath: vendorPath}, scans, "loader "+hex.EncodeToString(h.Sum(nil)))
+}
+
 // CreateLoader ports createLoader: a class loader registering the PSR-0,
 // PSR-4 and (scanned) classmap rules of autoloads. Classmap paths that
 // cannot be scanned are reported as warnings.
@@ -696,22 +737,27 @@ func (g *Generator) CreateLoader(autoloads *Autoloads, vendorDir string) (*Class
 		}
 	}
 
-	// the scan reads the results the dumps kept with the store releases,
-	// and keeps what it parsed for the next loader or dump
-	g.addReleases(autoloads.classmapPackages)
+	// the scans, or their record when it is still valid (a loader of the
+	// same packages); a scan reads the results the dumps kept with the
+	// store releases, and keeps what it parsed for the next loader or dump
+	scans := make([]psrScan, len(autoloads.Classmap))
+	for i, dir := range autoloads.Classmap {
+		scans[i] = psrScan{dir, buildExclusionRegex(dir, autoloads.ExcludeFromClassmap), classmap.Classmap, ""}
+	}
+	record, recorded := g.loaderRecord(scans, vendorDir)
 	defer g.parseCache.Save()
-	gen := g.newClassMapGenerator()
-	for _, dir := range autoloads.Classmap {
-		err := gen.ScanPaths(dir, buildExclusionRegex(dir, autoloads.ExcludeFromClassmap), classmap.Classmap, "", nil)
-		if err != nil {
-			if !phperr.InstanceOf(err, "RuntimeException") {
-				return nil, err
-			}
-			g.io.WriteError("<warning>"+err.Error()+"</warning>", true, io.Normal)
+	m, err := g.recordedScans(scans, autoloads.classmapPackages, record, recorded, func(err error) error {
+		if !phperr.InstanceOf(err, "RuntimeException") {
+			return err
 		}
+		g.io.WriteError("<warning>"+err.Error()+"</warning>", true, io.Normal)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	m := gen.ClassMap()
 	classes := php.NewArrayCap(m.Count())
 	for class, path := range m.Map() {
 		classes.Set(class, path)

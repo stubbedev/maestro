@@ -83,6 +83,13 @@ func resolveBasePaths(config Config, create bool) (basePath, vendorPath slashPat
 			return "", "", err
 		}
 	}
+
+	return basePaths(vendorDir)
+}
+
+// basePaths is the project dir (the working directory) and vendorDir,
+// realpath()ed and normalized.
+func basePaths(vendorDir string) (basePath, vendorPath slashPath, err error) {
 	cwd, err := util.GetCwd(false)
 	if err != nil {
 		return "", "", err
