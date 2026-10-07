@@ -1056,6 +1056,12 @@ func TestUnshareAndChmod(t *testing.T) {
 		t.Errorf("after Chmod: %d links, mode %o", st.nlink, st.mode)
 	}
 
+	// The file of its own keeps the stamp: it holds the release's content.
+	sum := sha256.Sum256([]byte(`{"name":"a/b"}`))
+	if st.mtime != stampTime(&sum) || st.mtimeNs != 0 {
+		t.Errorf("after Chmod: modified %d.%09d, want the stamp %d", st.mtime, st.mtimeNs, stampTime(&sum))
+	}
+
 	if got, _ := os.ReadFile(bin); string(got) != `{"name":"a/b"}` {
 		t.Errorf("content changed: %q", got)
 	}

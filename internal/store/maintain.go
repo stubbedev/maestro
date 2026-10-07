@@ -399,7 +399,8 @@ func remove(path string) error {
 // Unshare gives the regular file at path an inode of its own if it shares
 // one (a hardlink to a store object), so that it can be changed in place
 // without changing the store or other projects: the file is copied next
-// to itself and the copy renamed over it. The copy keeps the mode.
+// to itself and the copy renamed over it. The copy keeps the mode and the
+// modification time (a package file's stamp: it holds the same content).
 func Unshare(path string) error {
 	st, err := lstat(path)
 	if err != nil || !st.regular || st.nlink <= 1 {
@@ -431,6 +432,11 @@ func Unshare(path string) error {
 
 	// Windows replaces no file that is open without FILE_SHARE_DELETE.
 	_ = in.Close()
+
+	if err == nil {
+		mtime := time.Unix(st.mtime, st.mtimeNs)
+		err = os.Chtimes(tmp, mtime, mtime)
+	}
 
 	if err == nil {
 		err = os.Rename(tmp, path)
