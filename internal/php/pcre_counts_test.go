@@ -79,7 +79,7 @@ func TestPregMatchLimitCounts(t *testing.T) {
 		wg.Go(func() {
 			for i := range next {
 				c := cases[i]
-				re := MustCompile(c.pattern)
+				re := MustCompile(c.pattern).compiled()
 				if re.utf && !utf8.ValidString(c.subject) {
 					results[i].code = [2]int{-1, -1}
 					continue

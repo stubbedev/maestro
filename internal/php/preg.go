@@ -300,6 +300,7 @@ func (m *machine) each(start int, fn func(caps []int) bool) int {
 // MatchAt ports preg_match($pattern, $subject, $m, PREG_UNMATCHED_AS_NULL,
 // $offset). It returns nil when there is no match.
 func (re *Regexp) MatchAt(subject string, offset int) (*Match, error) {
+	re = re.compiled()
 	m, start, err := re.begin("preg_match", subject, offset)
 	if err != nil {
 		return nil, err
@@ -322,6 +323,7 @@ func (re *Regexp) Match(subject string) (*Match, error) { return re.MatchAt(subj
 
 // IsMatch ports Preg::isMatch.
 func (re *Regexp) IsMatch(subject string) (bool, error) {
+	re = re.compiled()
 	m, _, err := re.begin("preg_match", subject, 0)
 	if err != nil {
 		return false, err
@@ -352,6 +354,7 @@ func (re *Regexp) MatchStrictGroups(subject string) (*Match, error) {
 // MatchAllAt ports preg_match_all from offset, returning the matches in
 // set order.
 func (re *Regexp) MatchAllAt(subject string, offset int) ([]*Match, error) {
+	re = re.compiled()
 	m, start, err := re.begin("preg_match_all", subject, offset)
 	if err != nil {
 		return nil, err
@@ -400,6 +403,7 @@ func (re *Regexp) MatchArray(subject string, flags PregFlag, offset int) (int, *
 // MatchAllArray ports preg_match_all($pattern, $subject, $matches, $flags,
 // $offset) with PREG_PATTERN_ORDER (the default) or PREG_SET_ORDER.
 func (re *Regexp) MatchAllArray(subject string, flags PregFlag, offset int) (int, *Array, error) {
+	re = re.compiled()
 	ms, err := re.MatchAllAt(subject, offset)
 	if err != nil {
 		return 0, nil, err
@@ -444,6 +448,7 @@ func (re *Regexp) Replace(subject, replacement string, limit int) (string, int, 
 
 // ReplaceCallback ports Preg::replaceCallback.
 func (re *Regexp) ReplaceCallback(subject string, fn func(*Match) string, limit int) (string, int, error) {
+	re = re.compiled()
 	return re.replace("preg_replace_callback", subject, limit, func(b []byte, caps []int, _ int) []byte {
 		return append(b, fn(re.newMatch(subject, caps))...)
 	})
@@ -451,6 +456,7 @@ func (re *Regexp) ReplaceCallback(subject string, fn func(*Match) string, limit 
 
 // replace ports php_pcre_replace_impl.
 func (re *Regexp) replace(fn, subject string, limit int, add func(b []byte, caps []int, count int) []byte) (string, int, error) {
+	re = re.compiled()
 	if limit == 0 {
 		return subject, 0, nil
 	}
@@ -571,6 +577,7 @@ func (re *Regexp) Split(subject string, limit int, flags PregFlag) ([]string, er
 // SplitWithOffsets ports Preg::splitWithOffsets (php_pcre_split_impl with
 // PREG_SPLIT_OFFSET_CAPTURE).
 func (re *Regexp) SplitWithOffsets(subject string, limit int, flags PregFlag) ([]SplitPiece, error) {
+	re = re.compiled()
 	noEmpty := flags&PregSplitNoEmpty != 0
 	delim := flags&PregSplitDelimCapture != 0
 	var out []SplitPiece
@@ -640,6 +647,7 @@ func (re *Regexp) SplitWithOffsets(subject string, limit int, flags PregFlag) ([
 // kept. Like PHP it stops at the first matching error and returns what it
 // has, which Preg::grep does not report.
 func (re *Regexp) Grep(input *Array, flags PregFlag) *Array {
+	re = re.compiled()
 	out := NewArray()
 	invert := flags&PregGrepInvert != 0
 	for k, v := range input.All() {

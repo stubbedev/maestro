@@ -8,6 +8,8 @@
 package php
 
 import (
+	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -91,6 +93,9 @@ type jitIter struct {
 // concurrent use.
 type Regexp struct {
 	pattern string
+	// lazy is set on a pattern from MustCompile, which is compiled on
+	// first use; every exported method works on lazy.get() instead.
+	lazy *lazyRegexp
 	// The program for each count model: progJIT counts as the PCRE2 JIT
 	// (every ordinary match in PHP), progInterp as pcre2_match (the
 	// anchored retry after an empty match).
@@ -172,14 +177,80 @@ func Compile(pattern string) (*Regexp, error) {
 	return re, nil
 }
 
-// MustCompile is Compile for patterns known to be valid; it panics on
-// error.
+// MustCompile is Compile for patterns known to be valid. The pattern is
+// compiled on first use, not by MustCompile: most package-level patterns
+// are never used by a given run, and compiling them all made up most of
+// the program's initialization (#29). It panics on that first use when
+// the pattern is invalid; CheckMustCompiled compiles every pattern given
+// to MustCompile so far, for tests. A pattern given again (by a function
+// called repeatedly) is the same *Regexp.
 func MustCompile(pattern string) *Regexp {
-	re, err := Compile(pattern)
-	if err != nil {
-		panic("php: " + err.Error() + " in " + pattern)
+	lazyPatterns.Lock()
+	defer lazyPatterns.Unlock()
+	if re, ok := lazyPatterns.m[pattern]; ok {
+		return re
+	}
+	if lazyPatterns.m == nil {
+		// some 300 package-level patterns
+		lazyPatterns.m = make(map[string]*Regexp, 512)
+	}
+	re := &Regexp{pattern: pattern, lazy: &lazyRegexp{pattern: pattern}}
+	lazyPatterns.m[pattern] = re
+
+	return re
+}
+
+type lazyRegexp struct {
+	pattern string
+	once    sync.Once
+	re      *Regexp
+	err     error
+}
+
+func (l *lazyRegexp) compile() {
+	l.once.Do(func() { l.re, l.err = Compile(l.pattern) })
+}
+
+func (l *lazyRegexp) get() *Regexp {
+	l.compile()
+	if l.err != nil {
+		panic("php: " + l.err.Error() + " in " + l.pattern)
+	}
+	return l.re
+}
+
+// lazyPatterns are the patterns given to MustCompile.
+var lazyPatterns struct {
+	sync.Mutex
+	m map[string]*Regexp
+}
+
+// compiled returns the compiled form of re: re itself, or for a pattern
+// from MustCompile, the pattern compiled on first use.
+func (re *Regexp) compiled() *Regexp {
+	if re.lazy != nil {
+		return re.lazy.get()
 	}
 	return re
+}
+
+// CheckMustCompiled compiles every pattern given to MustCompile so far
+// and returns the first error.
+func CheckMustCompiled() error {
+	lazyPatterns.Lock()
+	patterns := slices.Sorted(maps.Keys(lazyPatterns.m))
+	list := make([]*lazyRegexp, len(patterns))
+	for i, pattern := range patterns {
+		list[i] = lazyPatterns.m[pattern].lazy
+	}
+	lazyPatterns.Unlock()
+	for _, l := range list {
+		l.compile()
+		if l.err != nil {
+			return fmt.Errorf("%w in %s", l.err, l.pattern)
+		}
+	}
+	return nil
 }
 
 // String returns the pattern literal.
