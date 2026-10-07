@@ -59,6 +59,10 @@ func init() {
 //     so it audits composer/composer at Composer::getVersion() only.
 //   - ioncube_loader_version() is derived from the probed
 //     ioncube_loader_iversion().
+//   - Without a php on PATH (maestro runs without one; PHP code needs it)
+//     "Checking PHP" fails in place of the lines describing the PHP and
+//     of "Checking platform settings", and allow_url_fopen, which only
+//     gates PHP's own streams, skips no network check.
 type DiagnoseCommand struct {
 	*BaseCommand
 
@@ -72,6 +76,7 @@ type DiagnoseCommand struct {
 	process        *util.ProcessExecutor
 	exitCode       int
 	view           *platform.Snapshot
+	noPHP          bool
 }
 
 // NewDiagnoseCommand ports new DiagnoseCommand().
@@ -160,8 +165,12 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	}
 	cio := c.IO()
 	rt := c.runtime()
-	if view, _, verr := rt.ComposerView(); verr == nil {
+	view, _, verr := rt.ComposerView()
+	switch {
+	case verr == nil:
 		c.view = view
+	case errors.Is(verr, platform.ErrPHPNotFound):
+		c.noPHP = true
 	}
 
 	var cfg *config.Config
@@ -212,43 +221,12 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	cio.Write("Checking Composer and its dependencies for vulnerabilities: ", false, io.Normal)
 	c.outputResult(c.checkComposerAudit(cfg))
 
-	platformOverrides, err := cfg.Get("platform", 0)
-	if err != nil {
+	if c.noPHP {
+		cio.Write("Checking PHP: ", false, io.Normal)
+		c.outputResult("<error>No php binary was found in PATH. maestro runs PHP code (platform detection, plugins, scripts) with the php first on PATH: install PHP or put it on PATH.</error>")
+	} else if err := c.writePHP(cfg, rt); err != nil {
 		return 0, err
 	}
-	overrides, _ := platformOverrides.(*php.Array)
-	opts, err := rt.PlatformOptions(c.process)
-	if err != nil {
-		return 0, err
-	}
-	platformRepo, err := repository.NewPlatformRepository(nil, overrides, opts)
-	if err != nil {
-		return 0, err
-	}
-	phpPkg, err := platformRepo.FindPackage("php", nil)
-	if err != nil {
-		return 0, err
-	}
-	phpVersion := ""
-	if phpPkg != nil {
-		phpVersion = phpPkg.PrettyVersion()
-		if cp, ok := phpPkg.(pkg.CompletePackageInterface); ok && strings.Contains(cp.Description().S, "overridden") {
-			phpVersion += " - " + cp.Description().S
-		}
-	}
-
-	cio.Write("PHP version: <comment>"+phpVersion+"</comment>", true, io.Normal)
-
-	if v, ok := c.constant("PHP_BINARY"); ok {
-		cio.Write("PHP binary path: <comment>"+php.ToString(v)+"</comment>", true, io.Normal)
-	}
-
-	openssl := "<error>missing</error>"
-	if v, ok := c.constant("OPENSSL_VERSION_TEXT"); ok {
-		openssl = "<comment>" + php.ToString(v) + "</comment>"
-	}
-	cio.Write("OpenSSL version: "+openssl, true, io.Normal)
-	cio.Write("curl version: "+c.curlVersion(), true, io.Normal)
 
 	finder := util.NewExecutableFinder()
 	_, hasSystemUnzip := finder.Find("unzip")
@@ -314,8 +292,10 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 		}
 	}
 
-	cio.Write("Checking platform settings: ", false, io.Normal)
-	c.outputResult(c.checkPlatform())
+	if !c.noPHP {
+		cio.Write("Checking platform settings: ", false, io.Normal)
+		c.outputResult(c.checkPlatform())
+	}
 
 	cio.Write("Checking git settings: ", false, io.Normal)
 	gitResult, err := c.checkGit()
@@ -406,6 +386,52 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	c.outputResult(disk)
 
 	return c.exitCode, nil
+}
+
+// writePHP writes the lines describing the PHP Composer runs on: its
+// version, binary, OpenSSL and curl.
+func (c *DiagnoseCommand) writePHP(cfg *config.Config, rt *composer.Runtime) error {
+	cio := c.IO()
+
+	platformOverrides, err := cfg.Get("platform", 0)
+	if err != nil {
+		return err
+	}
+	overrides, _ := platformOverrides.(*php.Array)
+	opts, err := rt.PlatformOptions(c.process)
+	if err != nil {
+		return err
+	}
+	platformRepo, err := repository.NewPlatformRepository(nil, overrides, opts)
+	if err != nil {
+		return err
+	}
+	phpPkg, err := platformRepo.FindPackage("php", nil)
+	if err != nil {
+		return err
+	}
+	phpVersion := ""
+	if phpPkg != nil {
+		phpVersion = phpPkg.PrettyVersion()
+		if cp, ok := phpPkg.(pkg.CompletePackageInterface); ok && strings.Contains(cp.Description().S, "overridden") {
+			phpVersion += " - " + cp.Description().S
+		}
+	}
+
+	cio.Write("PHP version: <comment>"+phpVersion+"</comment>", true, io.Normal)
+
+	if v, ok := c.constant("PHP_BINARY"); ok {
+		cio.Write("PHP binary path: <comment>"+php.ToString(v)+"</comment>", true, io.Normal)
+	}
+
+	openssl := "<error>missing</error>"
+	if v, ok := c.constant("OPENSSL_VERSION_TEXT"); ok {
+		openssl = "<comment>" + php.ToString(v) + "</comment>"
+	}
+	cio.Write("OpenSSL version: "+openssl, true, io.Normal)
+	cio.Write("curl version: "+c.curlVersion(), true, io.Normal)
+
+	return nil
 }
 
 // releaseBuild is the running maestro's version when it is a release
@@ -1097,7 +1123,7 @@ func (c *DiagnoseCommand) checkPlatform() any {
 
 // checkConnectivity ports checkConnectivity: true, or the SKIP message.
 func (c *DiagnoseCommand) checkConnectivity() any {
-	if v := c.iniGet("allow_url_fopen"); !php.Truthy(v) {
+	if v := c.iniGet("allow_url_fopen"); !c.noPHP && !php.Truthy(v) {
 		return "<info>SKIP</> <comment>Because allow_url_fopen is missing.</>"
 	}
 

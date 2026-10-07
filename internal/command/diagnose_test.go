@@ -193,6 +193,44 @@ func TestDiagnoseCommand_ConfigureCommandWarnings(t *testing.T) {
 	}
 }
 
+// TestDiagnoseCommand_NoPHP runs diagnose with no php on PATH: "Checking
+// PHP" fails in place of the PHP's lines and its platform settings, the
+// network checks run (allow_url_fopen only gates PHP's streams), and the
+// exit code is 2.
+func TestDiagnoseCommand_NoPHP(t *testing.T) {
+	requirePackagist(t)
+	commandtest.InitTempComposer(t, `{"name": "foo/bar", "description": "test pkg", "license": "MIT"}`, nil, nil, true)
+
+	detector := &platform.Detector{FindPHP: func() (string, bool) { return "", false }}
+	app := command.NewApplication(&composer.Factory{Runtime: composer.NewRuntime("test", detector)})
+	app.SetAutoExit(false)
+	app.SetCatchExceptions(false)
+	appTester := commandtest.NewApplicationTester(t, app)
+	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "diagnose"); err != nil {
+		t.Fatal(err)
+	}
+
+	output := appTester.Display(true)
+	if appTester.StatusCode() != 2 {
+		t.Errorf("status %d, want 2\n%s", appTester.StatusCode(), output)
+	}
+	for _, want := range []string{
+		"Checking Composer and its dependencies for vulnerabilities: OK\n",
+		"Checking PHP: FAIL\nNo php binary was found in PATH. maestro runs PHP code (platform detection, plugins, scripts) with the php first on PATH: install PHP or put it on PATH.\nzip: ",
+		"Checking composer.json: OK\n",
+		"Checking http connectivity to packagist: OK\nChecking https connectivity to packagist: OK\n",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output lacks %q:\n%s", want, output)
+		}
+	}
+	for _, unwanted := range []string{"PHP version:", "OpenSSL version:", "curl version:", "Checking platform settings:"} {
+		if strings.Contains(output, unwanted) {
+			t.Errorf("output has %q:\n%s", unwanted, output)
+		}
+	}
+}
+
 // TestDiagnoseCommand_PlatformWarningsWindowsEOL checks that checkPlatform
 // builds its messages with PHP_EOL, "\r\n" on Windows, as the output's own
 // line endings are.
