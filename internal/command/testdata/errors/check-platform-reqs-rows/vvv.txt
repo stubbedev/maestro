@@ -1,0 +1,22 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading ./composer.lock (@DIR@/p/composer.lock)
+No vendor dir present, checking platform requirements from the lock file
+ext-devonly  n/a   x/devtool requires ext-devonly ([>= 1.0.0.0-dev < 2.0.0.0-dev]) x/devtool requires ext-devonly (^1.0) missing                    
+ext-oldfill  0.1.0 __root__ requires ext-oldfill ([>= 1.0.0.0-dev < 2.0.0.0-dev])  __root__ requires ext-oldfill (^1.0)  failed provided by x/old   
+ext-polyfill 1.2.0                                                                                                       success provided by x/poly 
+exit 2

@@ -1,0 +1,33 @@
+[
+    {
+        "name": "ext-devonly",
+        "version": "n/a",
+        "status": "missing",
+        "failed_requirement": {
+            "source": "x/devtool",
+            "type": "requires",
+            "target": "ext-devonly",
+            "constraint": "^1.0"
+        },
+        "provider": null
+    },
+    {
+        "name": "ext-oldfill",
+        "version": "0.1.0",
+        "status": "failed",
+        "failed_requirement": {
+            "source": "__root__",
+            "type": "requires",
+            "target": "ext-oldfill",
+            "constraint": "^1.0"
+        },
+        "provider": "provided by x/old"
+    },
+    {
+        "name": "ext-polyfill",
+        "version": "1.2.0",
+        "status": "success",
+        "failed_requirement": null,
+        "provider": "provided by x/poly"
+    }
+]

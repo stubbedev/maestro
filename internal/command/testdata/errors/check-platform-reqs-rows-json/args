@@ -1,0 +1,3 @@
+check-platform-reqs
+--lock
+--format=json

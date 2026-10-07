@@ -1,0 +1,8 @@
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+check-platform-reqs [--no-dev] [--lock] [-f|--format FORMAT]
+
+exit 1

@@ -244,7 +244,14 @@ var coverage = []entry{
 	cover(command.NewCheckPlatformReqsCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestCheckPlatformReqsCommand_PlatformReqsAreSatisfied)),
+			Positive(Go(TestCheckPlatformReqsCommand_Rows)),
+			Positive(E2E("platform", "check-platform-reqs", "--lock")),
+			Positive(E2E("platform", "check-platform-reqs", "--lock", "--no-dev")),
 			Negative(Go(TestCheckPlatformReqsCommand_ExceptionThrownIfNoLockfileFound)),
+			Negative(Go(TestCheckPlatformReqsCommand_FailedPlatformRequirement)),
+			Negative(Go(TestCheckPlatformReqsCommand_Rows)),
+			Negative(E2E("platform", "check-platform-reqs", "--format=json")),
+			Negative(E2E("platform", "check-platform-reqs", "--no-dev", "-f", "json")),
 		},
 	}),
 	cover(command.NewFundCommand, Coverage{

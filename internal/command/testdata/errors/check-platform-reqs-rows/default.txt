@@ -1,0 +1,5 @@
+No vendor dir present, checking platform requirements from the lock file
+ext-devonly  n/a   x/devtool requires ext-devonly ([>= 1.0.0.0-dev < 2.0.0.0-dev]) x/devtool requires ext-devonly (^1.0) missing                    
+ext-oldfill  0.1.0 __root__ requires ext-oldfill ([>= 1.0.0.0-dev < 2.0.0.0-dev])  __root__ requires ext-oldfill (^1.0)  failed provided by x/old   
+ext-polyfill 1.2.0                                                                                                       success provided by x/poly 
+exit 2

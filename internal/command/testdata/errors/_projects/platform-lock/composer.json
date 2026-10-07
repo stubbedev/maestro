@@ -1,0 +1,6 @@
+{
+    "require": {
+        "ext-polyfill": "^1.0",
+        "ext-oldfill": "^1.0"
+    }
+}
