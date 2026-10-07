@@ -39,8 +39,6 @@ type dump struct {
 	// with autoload_classmap.php (classmap), "" when staticFile exports
 	// it.
 	staticClassMap string
-
-	exclusions exclusionRegexes
 }
 
 // dumpPaths are a dump's paths and the codes for them: everything
@@ -491,7 +489,7 @@ func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 					dirExcluded = append(slices.Clip(excluded), string(d.vendorPath)+"/")
 				}
 
-				scans = append(scans, psrScan{dir, d.exclusions.build(dir, dirExcluded), group.typ, namespace.String()})
+				scans = append(scans, psrScan{dir, buildExclusionRegex(dir, dirExcluded), group.typ, namespace.String()})
 			}
 		}
 	}

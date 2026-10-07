@@ -13,31 +13,11 @@ import (
 	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
-// {^(([^.+*?\[^\]$(){}=!<>|:\\#-]+|\\[.+*?\[^\]$(){}=!<>|:#-])*).*}: the
-// constant prefix of a pattern, up to its first unescaped special character.
-var reConstantPrefix = php.MustCompile(`{^(([^.+*?\[^\]$(){}=!<>|:\\#-]+|\\[.+*?\[^\]$(){}=!<>|:#-])*).*}`)
-
 // buildExclusionRegex ports buildExclusionRegex: the exclude-from-classmap
-// patterns that can apply below dir, as one regex (nil for none).
+// patterns that can apply below dir, as one regex (nil for none). The
+// regex of a pattern list is compiled once per process (php.Compile's
+// cache, as PHP's).
 func buildExclusionRegex(dir string, excluded []string) classmap.Matcher {
-	return (&exclusionRegexes{}).build(dir, excluded)
-}
-
-// exclusionRegexes builds the exclusion regexes of one dump: what the
-// rules share (the patterns' constant prefixes, the regexes compiled from
-// the same patterns) is worked out once (deliberate deviation 3, speed).
-type exclusionRegexes struct {
-	prefixes map[string]prefixResult
-	compiled map[string]classmap.Matcher
-}
-
-type prefixResult struct {
-	prefix string
-	err    error
-}
-
-// build is buildExclusionRegex.
-func (c *exclusionRegexes) build(dir string, excluded []string) classmap.Matcher {
 	if len(excluded) == 0 {
 		return nil
 	}
@@ -68,10 +48,7 @@ func (c *exclusionRegexes) build(dir string, excluded []string) classmap.Matcher
 		for _, pattern := range excluded {
 			// extract the constant string prefix of the pattern here, until
 			// we reach a non-escaped regex special character
-			prefix, err := c.constantPrefix(pattern)
-			if err != nil {
-				return errMatcher{err}
-			}
+			prefix := constantPrefix(pattern)
 			// if the pattern is not a subset or superset of $dir, it is
 			// unrelated and we skip it
 			if related(prefix, dirMatch) || (isSymlink && related(prefix, dirMatchNormalized)) {
@@ -85,40 +62,50 @@ func (c *exclusionRegexes) build(dir string, excluded []string) classmap.Matcher
 		return nil
 	}
 
-	pattern := "{(" + strings.Join(excluded, "|") + ")}"
-	if m, ok := c.compiled[pattern]; ok {
-		return m
-	}
-	var m classmap.Matcher
-	re, err := php.Compile(pattern)
+	re, err := php.Compile("{(" + strings.Join(excluded, "|") + ")}")
 	if err != nil {
 		// preg_match() warns about a pattern that does not compile, which
 		// Composer's error handler turns into an exception at the first
 		// match (in composer/pcre's Preg::pregMatch).
-		m = errMatcher{&util.ErrorException{Message: "preg_match(): " + err.Error()}}
-	} else {
-		m = re
+		return errMatcher{&util.ErrorException{Message: "preg_match(): " + err.Error()}}
 	}
-	if c.compiled == nil {
-		c.compiled = map[string]classmap.Matcher{}
-	}
-	c.compiled[pattern] = m
 
-	return m
+	return re
 }
 
-// constantPrefix is a pattern's constant prefix (reConstantPrefix).
-func (c *exclusionRegexes) constantPrefix(pattern string) (string, error) {
-	if r, ok := c.prefixes[pattern]; ok {
-		return r.prefix, r.err
+// constantPrefix is what Composer's
+//
+//	Preg::replace('{^(([^.+*?\[^\]$(){}=!<>|:\\\\#-]+|\\\\[.+*?\[^\]$(){}=!<>|:#-])*).*}', '$1', $pattern)
+//
+// leaves of pattern, without running the regex (it cost a script
+// dispatch's class loader ~10 ms): the run of bytes that are not special
+// and of escaped special characters that pattern starts with, then what
+// follows the first newline after that run, which `.*` stops at.
+func constantPrefix(pattern string) string {
+	i := 0
+	for i < len(pattern) {
+		if c := pattern[i]; c == '\\' {
+			if i+1 == len(pattern) || !isPrefixSpecial(pattern[i+1]) {
+				break
+			}
+			i += 2
+		} else if isPrefixSpecial(c) {
+			break
+		} else {
+			i++
+		}
 	}
-	prefix, _, err := reConstantPrefix.Replace(pattern, "$1", -1)
-	if c.prefixes == nil {
-		c.prefixes = map[string]prefixResult{}
+	if nl := strings.IndexByte(pattern[i:], '\n'); nl >= 0 {
+		return pattern[:i] + pattern[i+nl:]
 	}
-	c.prefixes[pattern] = prefixResult{prefix, err}
 
-	return prefix, err
+	return pattern[:i]
+}
+
+// isPrefixSpecial reports whether c ends constantPrefix's run unescaped:
+// the regex's class [.+*?\[^\]$(){}=!<>|:#-].
+func isPrefixSpecial(c byte) bool {
+	return strings.IndexByte(`.+*?[^]$(){}=!<>|:#-`, c) >= 0
 }
 
 // errMatcher is a matcher that fails.
