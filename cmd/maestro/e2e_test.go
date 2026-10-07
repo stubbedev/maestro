@@ -44,7 +44,7 @@
 //   - The name of a dist's temporary file in messages
 //     (vendor/composer/tmp-<md5 including spl_object_hash()>).
 //   - Durations printed at -vv ("... completed in 0.003 seconds").
-//   - The "maestro version X" line `--version` adds on stderr (maestro's
+//   - The "Maestro version X" line `--version` adds on stderr (maestro's
 //     own build, cmd/maestro/main.go).
 //   - The script each tool runs as, Composer's phar or maestro's binary
 //     (maestroScript), by path and by basename (normalizeScript): help
@@ -752,7 +752,7 @@ var tmpFile = regexp.MustCompile(`[/\\]tmp-[0-9a-f]+(?: *\r?\n +[0-9a-f]+)?`)
 
 // maestroVersion is the line `maestro --version` adds on stderr after
 // Composer's (cmd/maestro's doc): maestro names its own build there.
-var maestroVersion = regexp.MustCompile(`(?m)^maestro version .*\n`)
+var maestroVersion = regexp.MustCompile(`(?m)^Maestro version .*\n`)
 
 // normalizeScript replaces the script a tool runs as (Composer's phar,
 // maestro's binary as maestroScript) in its output: help texts show it

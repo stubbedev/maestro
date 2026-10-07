@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // helpGolden runs args and compares the display with testdata/<golden>,
@@ -95,7 +95,7 @@ func TestHelp_List(t *testing.T) {
 	compareHelp(t, "list.txt", gotRest, wantRest)
 
 	// commandtest's runtime is maestro version "test".
-	if wantBanner := command.Logo + "maestro version test (Composer " + composer.GetVersion() + " compatible)"; gotBanner != wantBanner {
+	if wantBanner := ui.LogoText() + "\nMaestro version test (Composer " + composer.GetVersion() + " compatible)"; gotBanner != wantBanner {
 		t.Errorf("banner:\n%s\nwant:\n%s", gotBanner, wantBanner)
 	}
 }

@@ -54,7 +54,8 @@
 # pool, rule and pool optimizer counts, which include one platform package
 # per loaded extension), the resolution and pool optimizer times, where
 # Composer's sources are (@COMPOSER@), and the banner (logo and version
-# line) heading the output of `list`, Composer's or maestro's
+# line) heading the output of `list`, Composer's or maestro's: lines
+# without letters or digits, then the version line
 # (docs/PORTING.md deviation 8; as testutil.NormalizeBanner).
 set -uo pipefail
 root=$(pwd)
@@ -118,7 +119,7 @@ normalize() {
 		-e 's/^(Pool optimizer completed in )[0-9.]+( seconds)$/\1@TIME@\2/' \
 		-e 's/^(Found )[0-9]+( package versions referenced in your dependency graph\. )[0-9]+ \([0-9]+%\)( were optimized away\.)$/\1@N@\2@N@\3/' \
 		-e 's/(but your php version \()[^)]*(\) does not satisfy)/\1@PHPVERSION@\2/' |
-		sed -z -E "s#^([ _/\\\\|().,'\`-]+\n)+(Composer|maestro)[^\n]*\n#<banner>\n#"
+		sed -z -E 's#^([^A-Za-z0-9\n]+\n)+(Composer|Maestro)[^\n]*\n#<banner>\n#'
 }
 
 # run name bin out verbosity separate: runs the scenario and writes <out>.n,

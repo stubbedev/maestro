@@ -6,7 +6,7 @@
 // Version: `maestro --version` prints exactly Composer's first line
 // ("Composer version 2.10.3 2026-08-27 13:34:23"), so tools parsing
 // `composer --version` keep working, followed on stderr by Composer's PHP
-// line and one maestro line ("maestro version X"). Signals: like PHP
+// line and one maestro line ("Maestro version X"). Signals: like PHP
 // without pcntl handlers, SIGINT/SIGTERM/SIGHUP end the process unless a
 // step installed Composer's SignalHandler (process execution, the
 // installation manager), which then handles them as Composer does.

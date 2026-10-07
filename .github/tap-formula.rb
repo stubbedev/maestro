@@ -47,7 +47,7 @@ class Maestro < Formula
   end
 
   def test
-    assert_match "maestro version #{version}", shell_output("#{bin}/maestro --version 2>&1")
+    assert_match "Maestro version #{version}", shell_output("#{bin}/maestro --version 2>&1")
   end
 
   def asset

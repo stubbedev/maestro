@@ -3,11 +3,13 @@ package testutil
 import "regexp"
 
 // banner is the logo and version line heading the output of `list` and a
-// bare run: lines of ASCII art, then "Composer version ..." or
-// "maestro version ..." ("maestro (...)" for a build without a version;
-// with --ansi, styled). Composer's and maestro's differ (docs/PORTING.md
-// deviation 8).
-var banner = regexp.MustCompile("\\A(?:[ _/\\\\|().,'`-]+\r?\n)+(?:\x1b\\[[0-9;]*m)*(?:Composer|maestro)[^\n]*\n")
+// bare run: lines of art without letters or digits (Composer's ASCII art,
+// maestro's block letters or ASCII art; with --ansi, styled), then
+// "Composer version ..." or "Maestro version ..." ("Maestro (...)" for a
+// build without a version). Composer's and maestro's differ
+// (docs/PORTING.md deviation 8); tools/oracle/errors/errors.sh matches
+// the same lines.
+var banner = regexp.MustCompile("\\A(?:(?:\x1b\\[[0-9;]*m|[^A-Za-z0-9\n\x1b])+\r?\n)+(?:\x1b\\[[0-9;]*m)*(?:Composer|Maestro)[^\n]*\n")
 
 // BannerPlaceholder is what NormalizeBanner leaves of a banner.
 const BannerPlaceholder = "<banner>\n"

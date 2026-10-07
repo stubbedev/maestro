@@ -236,7 +236,7 @@ These change frozen behaviour on purpose; nothing else may.
 5. **Plugins** run in maestro's own PHP shim (`internal/plugin/php`), which
    reimplements Composer's public PHP plugin API, not Composer's code.
 6. **`--version`** prints Composer's exact lines, then one extra stderr
-   line, `maestro version X`, so people can tell which tool they run;
+   line, `Maestro version X`, so people can tell which tool they run;
    anything parsing stdout or the first line sees Composer's output.
 7. **No stray empty `vendor/bin`.** Composer's
    `BinaryInstaller::removeBinaries` creates the bin dir even when the
@@ -245,7 +245,7 @@ These change frozen behaviour on purpose; nothing else may.
    for packages with binaries: an empty bin dir is never created by a
    removal, and the last binary removed takes it away.
 8. **The `list` banner** (also a bare `maestro`), like deviation 6, says
-   which tool runs: maestro's logo and `maestro version X (Composer
+   which tool runs: maestro's logo and `Maestro version X (Composer
    2.10.3 compatible)` replace Composer's logo and long version, decorated
    or not, piped or not. Only the banner changes: the usage, options and
    commands below it, `list --raw` and `list --format=json|xml|md` stay

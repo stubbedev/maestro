@@ -89,7 +89,7 @@ you may notice:
   in `vendor/` are not the archive's, and hard-linked files are shared
   between projects (plugin packages are never hard-linked);
 - `self-update` updates maestro;
-- `--version` adds a `maestro version` line on stderr, and the `list`
+- `--version` adds a `Maestro version` line on stderr, and the `list`
   banner names maestro.
 
 Set `MAESTRO_PACKAGE_IMPORT_METHOD` to `clone`, `hardlink` or `copy` to

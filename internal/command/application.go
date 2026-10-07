@@ -28,15 +28,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-// logo heads the banner of `list` and a bare run: maestro's own where
-// Composer prints its logo (docs/PORTING.md deviation 8).
-const logo = `                              __
-   ____ ___  ____ ____  _____/ /__________
-  / __ ` + "`" + `__ \/ __ ` + "`" + `/ _ \/ ___/ __/ ___/ __ \
- / / / / / / /_/ /  __(__  ) /_/ /  / /_/ /
-/_/ /_/ /_/\__,_/\___/____/\__/_/   \____/
-`
-
 // PluginCommandProvider is implemented by a composer.PluginManager that
 // loads plugins (the plugin runtime): the commands of every
 // CommandProvider capability, as Application::getPluginCommands collects
@@ -1049,17 +1040,17 @@ func (a *Application) SetIO(out io.IO) { a.io = out }
 // logo, its version and the Composer release it reproduces, where Composer
 // prints its logo and long version (docs/PORTING.md deviation 8).
 func (a *Application) Help() string {
-	return logo + a.maestroVersion() + " (Composer <comment>" + a.Version() + "</comment> compatible)"
+	return ui.Logo() + a.maestroVersion() + " (Composer <comment>" + a.Version() + "</comment> compatible)"
 }
 
-// maestroVersion is "maestro version X", X being cmd/maestro's stamped
-// build version, or just "maestro" when the runtime has none.
+// maestroVersion is "Maestro version X", X being cmd/maestro's stamped
+// build version, or just "Maestro" when the runtime has none.
 func (a *Application) maestroVersion() string {
 	if v := a.Runtime().ClientVersion(); v != "" {
-		return "<info>maestro</info> version <comment>" + v + "</comment>"
+		return "<info>Maestro</info> version <comment>" + v + "</comment>"
 	}
 
-	return "<info>maestro</info>"
+	return "<info>Maestro</info>"
 }
 
 // DefaultCommands ports getDefaultCommands.
