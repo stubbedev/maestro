@@ -258,14 +258,6 @@ const (
 	KindNegative
 )
 
-func (k Kind) String() string {
-	if k == KindPositive {
-		return "positive"
-	}
-
-	return "negative"
-}
-
 // Proof is one test of a command and its kind.
 type Proof struct {
 	Kind Kind
