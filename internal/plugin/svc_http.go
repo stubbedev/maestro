@@ -360,7 +360,9 @@ func (r *Runtime) registerDownloadManager() {
 			return nil, err
 		}
 
-		return dm.ResolvePackageInstallPreference(p)
+		source, err := dm.ResolvePackageInstallPreference(p)
+
+		return string(source), err
 	})
 	dmMethod("setPreferDist", func(dm *downloader.DownloadManager, a args) (any, error) {
 		dm.SetPreferDist(a.boolean(1))

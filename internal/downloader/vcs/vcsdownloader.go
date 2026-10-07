@@ -131,7 +131,7 @@ var (
 func (d *vcsDownloader) PHPClass() string { return d.class }
 
 // InstallationSource is getInstallationSource().
-func (d *vcsDownloader) InstallationSource() string { return "source" }
+func (d *vcsDownloader) InstallationSource() pkg.InstallationSource { return pkg.FromSource }
 
 // missingReference is the InvalidArgumentException of a package without
 // a reference.

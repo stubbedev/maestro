@@ -27,8 +27,8 @@ type Promise = util.Promise[string]
 type Downloader interface {
 	// PHPClass is get_class($downloader).
 	php.Classer
-	// InstallationSource is getInstallationSource(): "dist" or "source".
-	InstallationSource() string
+	// InstallationSource is getInstallationSource().
+	InstallationSource() pkg.InstallationSource
 	Download(p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
 	Prepare(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
 	Install(p pkg.PackageInterface, path string) (*Promise, error)

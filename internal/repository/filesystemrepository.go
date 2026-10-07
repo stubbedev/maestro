@@ -566,8 +566,8 @@ func generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths
 // dumpInstalledPackage ports FilesystemRepository::dumpInstalledPackage.
 func dumpInstalledPackage(p pkg.PackageInterface, installPaths map[string]pkg.NullString, repoDir string, devPackages map[string]struct{}) (*php.Array, error) {
 	var reference pkg.NullString
-	if source := p.InstallationSource(); php.ToBool(source.S) {
-		if source.S == "source" {
+	if source := p.InstallationSource(); php.Truthy(source.S) {
+		if source.S == pkg.FromSource {
 			reference = p.SourceReference()
 		} else {
 			reference = p.DistReference()

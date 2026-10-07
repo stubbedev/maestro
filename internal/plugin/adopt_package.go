@@ -169,7 +169,7 @@ func fillPackage(p *pkg.Package, s *php.Array) error {
 		p.SetType(t.S)
 	}
 	p.SetTargetDir(snapshotString(s, "targetDir"))
-	p.SetInstallationSource(snapshotString(s, "installationSource"))
+	p.SetInstallationSource(pkg.NullAs[pkg.InstallationSource](snapshotString(s, "installationSource")))
 	p.SetSourceType(snapshotString(s, "sourceType"))
 	p.SetSourceURL(snapshotString(s, "sourceUrl"))
 	p.SetSourceReference(snapshotString(s, "sourceReference"))

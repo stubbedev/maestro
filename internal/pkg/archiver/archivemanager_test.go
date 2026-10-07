@@ -37,8 +37,8 @@ func (syncLoop) Await(promise http.Waitable, err error) error {
 // cloneDownloader installs a git source by cloning it.
 type cloneDownloader struct{}
 
-func (cloneDownloader) InstallationSource() string { return "source" }
-func (cloneDownloader) PHPClass() string           { return "Mock_DownloaderInterface" }
+func (cloneDownloader) InstallationSource() pkg.InstallationSource { return pkg.FromSource }
+func (cloneDownloader) PHPClass() string                           { return "Mock_DownloaderInterface" }
 
 func (cloneDownloader) Download(pkg.PackageInterface, string, pkg.PackageInterface) (*downloader.Promise, error) {
 	return util.Resolved(""), nil

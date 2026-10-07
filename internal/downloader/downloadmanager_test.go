@@ -20,7 +20,7 @@ import (
 
 // fakeDownloader is a DownloaderInterface mock recording its calls.
 type fakeDownloader struct {
-	source   string
+	source   pkg.InstallationSource
 	download func() (*Promise, error)
 	prepare  func() (*Promise, error)
 	remove   func(path string) *Promise
@@ -32,7 +32,7 @@ type fakeDownloader struct {
 	name string
 }
 
-func (f *fakeDownloader) InstallationSource() string { return f.source }
+func (f *fakeDownloader) InstallationSource() pkg.InstallationSource { return f.source }
 
 // PHPClass is the class of PHPUnit's mock.
 func (*fakeDownloader) PHPClass() string { return "Mock_DownloaderInterface" }
@@ -126,7 +126,7 @@ func newManager(t *testing.T) (*DownloadManager, *mio.BufferIO) {
 }
 
 func TestDownloadManager_SetGetDownloader(t *testing.T) {
-	d := &fakeDownloader{source: "dist"}
+	d := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 
 	m.SetDownloader("test", d)
@@ -156,9 +156,9 @@ func TestDownloadManager_GetDownloaderForIncorrectlyInstalledPackage(t *testing.
 
 func TestDownloadManager_GetDownloaderForCorrectlyInstalledDistPackage(t *testing.T) {
 	p := dmPackage("a/b", false, "", "pear")
-	p.SetInstallationSource(pkg.Str("dist"))
+	p.SetInstallationSource(pkg.Some(pkg.FromDist))
 
-	d := &fakeDownloader{source: "dist"}
+	d := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("pear", d)
 
@@ -169,10 +169,10 @@ func TestDownloadManager_GetDownloaderForCorrectlyInstalledDistPackage(t *testin
 
 func TestDownloadManager_GetDownloaderForIncorrectlyInstalledDistPackage(t *testing.T) {
 	p := dmPackage("a/b", false, "", "git")
-	p.SetInstallationSource(pkg.Str("dist"))
+	p.SetInstallationSource(pkg.Some(pkg.FromDist))
 
 	m, _ := newManager(t)
-	m.SetDownloader("git", &fakeDownloader{source: "source"})
+	m.SetDownloader("git", &fakeDownloader{source: pkg.FromSource})
 
 	_, err := m.DownloaderForPackage(p)
 	if !phperr.InstanceOf(err, "LogicException") {
@@ -182,9 +182,9 @@ func TestDownloadManager_GetDownloaderForIncorrectlyInstalledDistPackage(t *test
 
 func TestDownloadManager_GetDownloaderForCorrectlyInstalledSourcePackage(t *testing.T) {
 	p := dmPackage("a/b", false, "git", "")
-	p.SetInstallationSource(pkg.Str("source"))
+	p.SetInstallationSource(pkg.Some(pkg.FromSource))
 
-	d := &fakeDownloader{source: "source"}
+	d := &fakeDownloader{source: pkg.FromSource}
 	m, _ := newManager(t)
 	m.SetDownloader("git", d)
 
@@ -195,10 +195,10 @@ func TestDownloadManager_GetDownloaderForCorrectlyInstalledSourcePackage(t *test
 
 func TestDownloadManager_GetDownloaderForIncorrectlyInstalledSourcePackage(t *testing.T) {
 	p := dmPackage("a/b", false, "pear", "")
-	p.SetInstallationSource(pkg.Str("source"))
+	p.SetInstallationSource(pkg.Some(pkg.FromSource))
 
 	m, _ := newManager(t)
-	m.SetDownloader("pear", &fakeDownloader{source: "dist"})
+	m.SetDownloader("pear", &fakeDownloader{source: pkg.FromDist})
 
 	_, err := m.DownloaderForPackage(p)
 	if !phperr.InstanceOf(err, "LogicException") {
@@ -255,23 +255,23 @@ func runDownload(t *testing.T, c downloadCase, git, pear *fakeDownloader) (*pkg.
 	return p, err
 }
 
-func expectDownloaded(t *testing.T, c downloadCase, wantSource string) {
+func expectDownloaded(t *testing.T, c downloadCase, wantSource pkg.InstallationSource) {
 	t.Helper()
 
-	git := &fakeDownloader{source: "source"}
-	pear := &fakeDownloader{source: "dist"}
+	git := &fakeDownloader{source: pkg.FromSource}
+	pear := &fakeDownloader{source: pkg.FromDist}
 
 	p, err := runDownload(t, c, git, pear)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got := p.InstallationSource(); got != pkg.Str(wantSource) {
+	if got := p.InstallationSource(); got != pkg.Some(wantSource) {
 		t.Fatalf("installation source %v, want %s", got, wantSource)
 	}
 
 	used, unused := pear, git
-	if wantSource == "source" {
+	if wantSource == pkg.FromSource {
 		used, unused = git, pear
 	}
 
@@ -288,8 +288,8 @@ func TestDownloadManager_FullPackageDownload(t *testing.T) {
 }
 
 func TestDownloadManager_FullPackageDownloadFailover(t *testing.T) {
-	git := &fakeDownloader{source: "source"}
-	pear := &fakeDownloader{source: "dist", download: func() (*Promise, error) {
+	git := &fakeDownloader{source: pkg.FromSource}
+	pear := &fakeDownloader{source: pkg.FromDist, download: func() (*Promise, error) {
 		return nil, &util.RuntimeError{Message: "Foo"}
 	}}
 
@@ -308,13 +308,13 @@ func TestDownloadManager_FullPackageDownloadFailover(t *testing.T) {
 	pear.expectCalls(t, "download")
 	git.expectCalls(t, "download")
 
-	if p.InstallationSource() != pkg.Str("source") {
+	if p.InstallationSource() != pkg.Some(pkg.FromSource) {
 		t.Fatalf("installation source %v", p.InstallationSource())
 	}
 }
 
 func TestDownloadManager_BadPackageDownload(t *testing.T) {
-	_, err := runDownload(t, downloadCase{}, &fakeDownloader{source: "source"}, &fakeDownloader{source: "dist"})
+	_, err := runDownload(t, downloadCase{}, &fakeDownloader{source: pkg.FromSource}, &fakeDownloader{source: pkg.FromDist})
 	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
@@ -333,14 +333,14 @@ func TestDownloadManager_MetapackagePackageDownload(t *testing.T) {
 	p.SetType("metapackage")
 
 	m, _ := newManager(t)
-	git := &fakeDownloader{source: "source"}
+	git := &fakeDownloader{source: pkg.FromSource}
 	m.SetDownloader("git", git)
 
 	if err := await(m.Download(p, "target_dir", nil)); err != nil {
 		t.Fatal(err)
 	}
 
-	if p.InstallationSource() != pkg.Str("source") {
+	if p.InstallationSource() != pkg.Some(pkg.FromSource) {
 		t.Fatalf("installation source %v", p.InstallationSource())
 	}
 
@@ -361,7 +361,7 @@ func TestDownloadManager_SourceOnlyPackageDownloadWithSourcePreferred(t *testing
 }
 
 func TestDownloadManager_BadPackageDownloadWithSourcePreferred(t *testing.T) {
-	_, err := runDownload(t, downloadCase{preferSource: true}, &fakeDownloader{source: "source"}, &fakeDownloader{source: "dist"})
+	_, err := runDownload(t, downloadCase{preferSource: true}, &fakeDownloader{source: pkg.FromSource}, &fakeDownloader{source: pkg.FromDist})
 	if !phperr.InstanceOf(err, "InvalidArgumentException") {
 		t.Fatalf("expected InvalidArgumentException, got %v", err)
 	}
@@ -369,8 +369,8 @@ func TestDownloadManager_BadPackageDownloadWithSourcePreferred(t *testing.T) {
 
 const bundlePath = "vendor/bundles/FOS/UserBundle"
 
-func installed(p *pkg.Package, source string) *pkg.Package {
-	p.SetInstallationSource(pkg.Str(source))
+func installed(p *pkg.Package, source pkg.InstallationSource) *pkg.Package {
+	p.SetInstallationSource(pkg.Some(source))
 
 	return p
 }
@@ -379,7 +379,7 @@ func TestDownloadManager_UpdateDistWithEqualTypes(t *testing.T) {
 	initial := installed(dmPackage("a/b", false, "", "zip"), "dist")
 	target := installed(dmPackage("a/b", false, "", "zip"), "dist")
 
-	zip := &fakeDownloader{source: "dist"}
+	zip := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("zip", zip)
 
@@ -394,8 +394,8 @@ func TestDownloadManager_UpdateDistWithNotEqualTypes(t *testing.T) {
 	initial := installed(dmPackage("a/b", false, "", "xz"), "dist")
 	target := installed(dmPackage("a/b", false, "", "zip"), "dist")
 
-	xz := &fakeDownloader{source: "dist"}
-	zip := &fakeDownloader{source: "dist"}
+	xz := &fakeDownloader{source: pkg.FromDist}
+	zip := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("xz", xz)
 	m.SetDownloader("zip", zip)
@@ -412,8 +412,8 @@ func TestDownloadManager_UpdateRunsRemovalGuardWhenDownloaderTypeChanges(t *test
 	initial := installed(dmPackage("a/b", false, "git", ""), "source")
 	target := installed(dmPackage("a/b", false, "", "zip"), "dist")
 
-	git := &fakeDownloader{source: "source"}
-	zip := &fakeDownloader{source: "dist"}
+	git := &fakeDownloader{source: pkg.FromSource}
+	zip := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("git", git)
 	m.SetDownloader("zip", zip)
@@ -434,10 +434,10 @@ func TestDownloadManager_UpdateDoesNotWipeWhenRemovalGuardAborts(t *testing.T) {
 	initial := installed(dmPackage("a/b", false, "git", ""), "source")
 	target := installed(dmPackage("a/b", false, "", "zip"), "dist")
 
-	git := &fakeDownloader{source: "source", prepare: func() (*Promise, error) {
+	git := &fakeDownloader{source: pkg.FromSource, prepare: func() (*Promise, error) {
 		return nil, &util.RuntimeError{Message: "Source directory has uncommitted changes."}
 	}}
-	zip := &fakeDownloader{source: "dist"}
+	zip := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("git", git)
 	m.SetDownloader("zip", zip)
@@ -453,28 +453,28 @@ func TestDownloadManager_UpdateDoesNotWipeWhenRemovalGuardAborts(t *testing.T) {
 
 func TestDownloadManager_GetAvailableSourcesUpdateSticksToSameSource(t *testing.T) {
 	cases := []struct {
-		prevPkgSource   string
+		prevPkgSource   pkg.InstallationSource
 		prevPkgIsDev    bool
 		targetAvailable []string
 		targetIsDev     bool
-		expected        []string
+		expected        []pkg.InstallationSource
 	}{
 		// updates keep previous source as preference
-		{"source", false, []string{"source", "dist"}, false, []string{"source", "dist"}},
-		{"dist", false, []string{"source", "dist"}, false, []string{"dist", "source"}},
+		{"source", false, []string{"source", "dist"}, false, []pkg.InstallationSource{"source", "dist"}},
+		{"dist", false, []string{"source", "dist"}, false, []pkg.InstallationSource{"dist", "source"}},
 		// updates do not keep previous source if target package does not have it
-		{"source", false, []string{"dist"}, false, []string{"dist"}},
-		{"dist", false, []string{"source"}, false, []string{"source"}},
+		{"source", false, []string{"dist"}, false, []pkg.InstallationSource{"dist"}},
+		{"dist", false, []string{"source"}, false, []pkg.InstallationSource{"source"}},
 		// updates do not keep previous source if target is dev and prev wasn't dev and installed from dist
-		{"source", false, []string{"source", "dist"}, true, []string{"source", "dist"}},
-		{"dist", false, []string{"source", "dist"}, true, []string{"source", "dist"}},
+		{"source", false, []string{"source", "dist"}, true, []pkg.InstallationSource{"source", "dist"}},
+		{"dist", false, []string{"source", "dist"}, true, []pkg.InstallationSource{"source", "dist"}},
 		// install picks the right default
-		{"", false, []string{"source", "dist"}, true, []string{"source", "dist"}},
-		{"", false, []string{"dist"}, true, []string{"dist"}},
-		{"", false, []string{"source"}, true, []string{"source"}},
-		{"", false, []string{"source", "dist"}, false, []string{"dist", "source"}},
-		{"", false, []string{"dist"}, false, []string{"dist"}},
-		{"", false, []string{"source"}, false, []string{"source"}},
+		{"", false, []string{"source", "dist"}, true, []pkg.InstallationSource{"source", "dist"}},
+		{"", false, []string{"dist"}, true, []pkg.InstallationSource{"dist"}},
+		{"", false, []string{"source"}, true, []pkg.InstallationSource{"source"}},
+		{"", false, []string{"source", "dist"}, false, []pkg.InstallationSource{"dist", "source"}},
+		{"", false, []string{"dist"}, false, []pkg.InstallationSource{"dist"}},
+		{"", false, []string{"source"}, false, []pkg.InstallationSource{"source"}},
 	}
 
 	for i, c := range cases {
@@ -519,7 +519,7 @@ func TestDownloadManager_UpdateMetapackage(t *testing.T) {
 func TestDownloadManager_Remove(t *testing.T) {
 	p := installed(dmPackage("a/b", false, "", "pear"), "dist")
 
-	pear := &fakeDownloader{source: "dist"}
+	pear := &fakeDownloader{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("pear", pear)
 
@@ -579,8 +579,8 @@ func TestDownloadManager_InstallPreferenceWithMatchDist(t *testing.T) {
 
 func failingThenSucceeding(failing string) (git, pear *fakeDownloader) {
 	fail := func() (*Promise, error) { return nil, &util.RuntimeError{Message: "Foo"} }
-	git = &fakeDownloader{source: "source"}
-	pear = &fakeDownloader{source: "dist"}
+	git = &fakeDownloader{source: pkg.FromSource}
+	pear = &fakeDownloader{source: pkg.FromDist}
 
 	if failing == "dist" {
 		pear.download = fail
@@ -646,7 +646,7 @@ func TestDownloadManager_DownloadFallsBackWhenEnabled(t *testing.T) {
 		t.Fatalf("output %q, want %q", got, want)
 	}
 
-	if p.InstallationSource() != pkg.Str("source") {
+	if p.InstallationSource() != pkg.Some(pkg.FromSource) {
 		t.Fatalf("installation source %v", p.InstallationSource())
 	}
 }
@@ -684,7 +684,7 @@ func TestDownloadManager_UpdateFailurePromptsReinstall(t *testing.T) {
 	initial := installed(dmPackage("a/b", false, "", "zip"), "dist")
 	target := installed(dmPackage("a/b", false, "", "zip"), "dist")
 
-	zip := &updateFailing{source: "dist"}
+	zip := &updateFailing{source: pkg.FromDist}
 	m, _ := newManager(t)
 	m.SetDownloader("zip", zip)
 
@@ -716,8 +716,8 @@ func TestDownloadManager_UpdateTypeChangeRunsInline(t *testing.T) {
 		initial := installed(dmPackage("a/b", false, "git", ""), "source")
 		target := installed(dmPackage("a/b", false, "", "zip"), "dist")
 
-		git := &fakeDownloader{source: "source", log: &log, name: "git"}
-		zip := &fakeDownloader{source: "dist", log: &log, name: "zip"}
+		git := &fakeDownloader{source: pkg.FromSource, log: &log, name: "git"}
+		zip := &fakeDownloader{source: pkg.FromDist, log: &log, name: "zip"}
 		m, _ := newManager(t)
 		m.SetDownloader("git", git)
 		m.SetDownloader("zip", zip)
@@ -749,14 +749,14 @@ func TestDownloadManager_UpdateTypeChangeAfterAsyncRemoval(t *testing.T) {
 	sched := util.NewScheduler()
 	delays := map[string]time.Duration{"vendor/a": 20 * time.Millisecond, "vendor/b": 0}
 
-	git := &fakeDownloader{source: "source", log: &log, name: "git", remove: func(path string) *Promise {
+	git := &fakeDownloader{source: pkg.FromSource, log: &log, name: "git", remove: func(path string) *Promise {
 		return util.Go(sched, func() (string, error) {
 			time.Sleep(delays[path])
 
 			return "", nil
 		})
 	}}
-	zip := &fakeDownloader{source: "dist", log: &log, name: "zip"}
+	zip := &fakeDownloader{source: pkg.FromDist, log: &log, name: "zip"}
 	m, _ := newManager(t)
 	m.SetDownloader("git", git)
 	m.SetDownloader("zip", zip)

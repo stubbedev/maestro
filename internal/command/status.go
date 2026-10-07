@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/script"
@@ -164,9 +165,9 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 			if ref.Valid && php.ToBool(ref.S) {
 				var previousRef string
 				switch src := p.InstallationSource(); {
-				case src.Valid && src.S == "source":
+				case src.Is(pkg.FromSource):
 					previousRef = p.SourceReference().S
-				case src.Valid && src.S == "dist":
+				case src.Is(pkg.FromDist):
 					previousRef = p.DistReference().S
 				}
 

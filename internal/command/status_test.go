@@ -44,7 +44,7 @@ func TestStatusCommand_LocallyModifiedPackages(t *testing.T) {
 		composerJSON       string
 		commandFlags       []console.Param
 		pkgName, version   string
-		installationSource string
+		installationSource pkg.InstallationSource
 		typ, url, ref      string
 	}{
 		{
@@ -52,7 +52,7 @@ func TestStatusCommand_LocallyModifiedPackages(t *testing.T) {
 			composerJSON:       `{"require": {"composer/class-map-generator": "^1.0"}}`,
 			pkgName:            "composer/class-map-generator",
 			version:            "1.1",
-			installationSource: "source",
+			installationSource: pkg.FromSource,
 			typ:                "git",
 			url:                "https://github.com/composer/class-map-generator.git",
 			ref:                "953cc4ea32e0c31f2185549c7d216d7921f03da9",
@@ -63,7 +63,7 @@ func TestStatusCommand_LocallyModifiedPackages(t *testing.T) {
 			commandFlags:       []console.Param{console.P("--verbose", true)},
 			pkgName:            "composer/ca-bundle",
 			version:            "1.5.12",
-			installationSource: "dist",
+			installationSource: pkg.FromDist,
 			typ:                "zip",
 			url:                "https://api.github.com/repos/composer/ca-bundle/zipball/00a2f4201641d5c53f7fc0195e6c8d9fcc321a78",
 			ref:                "00a2f4201641d5c53f7fc0195e6c8d9fcc321a78",
@@ -74,8 +74,8 @@ func TestStatusCommand_LocallyModifiedPackages(t *testing.T) {
 			commandtest.InitTempComposer(t, tc.composerJSON, nil, nil, true)
 
 			p := commandtest.GetPackage(t, tc.pkgName, tc.version)
-			p.SetInstallationSource(pkg.Str(tc.installationSource))
-			if tc.installationSource == "source" {
+			p.SetInstallationSource(pkg.Some(tc.installationSource))
+			if tc.installationSource == pkg.FromSource {
 				p.SetSourceType(pkg.Str(tc.typ))
 				p.SetSourceURL(pkg.Str(tc.url))
 				p.SetSourceReference(pkg.Str(tc.ref))

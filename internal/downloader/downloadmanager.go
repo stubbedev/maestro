@@ -133,9 +133,9 @@ func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Download
 	)
 
 	switch {
-	case installationSource.Valid && installationSource.S == "dist":
+	case installationSource.Is(pkg.FromDist):
 		d, err = m.Downloader(p.DistType().S)
-	case installationSource.Valid && installationSource.S == "source":
+	case installationSource.Is(pkg.FromSource):
 		d, err = m.Downloader(p.SourceType().S)
 	default:
 		return nil, &util.InvalidArgumentError{Message: "Package " + p.String() + " does not have an installation source set"}
@@ -147,7 +147,7 @@ func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Download
 
 	if installationSource.S != d.InstallationSource() {
 		return nil, &util.LogicError{Message: fmt.Sprintf("Downloader \"%s\" is a %s type downloader and can not be used to download %s for package %s",
-			d.PHPClass(), d.InstallationSource(), installationSource.S, p.String())}
+			d.PHPClass(), string(d.InstallationSource()), string(installationSource.S), p.String())}
 	}
 
 	return d, nil
@@ -184,15 +184,15 @@ func (m *DownloadManager) Download(p pkg.PackageInterface, targetDir string, pre
 }
 
 // download is download()'s $download closure.
-func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface, sources *[]string, retry bool) (*Promise, error) {
+func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface, sources *[]pkg.InstallationSource, retry bool) (*Promise, error) {
 	source := (*sources)[0]
 	*sources = (*sources)[1:]
 
 	if retry {
-		m.io.WriteError("    <warning>Now trying to download from "+source+"</warning>", true, mio.Normal)
+		m.io.WriteError("    <warning>Now trying to download from "+string(source)+"</warning>", true, mio.Normal)
 	}
 
-	p.SetInstallationSource(pkg.Str(source))
+	p.SetInstallationSource(pkg.Some(source))
 
 	d, err := m.DownloaderForPackage(p)
 	if err != nil {
@@ -208,26 +208,21 @@ func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, pre
 			return nil, e
 		}
 
-		nextSource := ""
-		if len(*sources) > 0 {
-			nextSource = (*sources)[0]
-		}
-
 		// Only fallback from dist to source is gated by the sourceFallback
 		// flag, as it can silently switch to less-trusted code or cause
 		// other issues where people rely on dists. Falling back the other
 		// way around (source -> dist) is always allowed.
-		blocked := nextSource == "source" && !m.sourceFallback
-		if nextSource == "" || blocked {
+		blocked := len(*sources) > 0 && (*sources)[0] == pkg.FromSource && !m.sourceFallback
+		if len(*sources) == 0 || blocked {
 			if blocked {
-				m.io.WriteError("    <warning>Failed to download "+p.PrettyName()+" from "+source+": "+e.Error()+"</warning>", true, mio.Normal)
+				m.io.WriteError("    <warning>Failed to download "+p.PrettyName()+" from "+string(source)+": "+e.Error()+"</warning>", true, mio.Normal)
 				m.io.WriteError("    <warning>Source fallback is disabled. Not trying alternative sources.</warning>", true, mio.Normal)
 			}
 
 			return nil, e
 		}
 
-		m.io.WriteError("    <warning>Failed to download "+p.PrettyName()+" from "+source+": "+e.Error()+"</warning>", true, mio.Normal)
+		m.io.WriteError("    <warning>Failed to download "+p.PrettyName()+" from "+string(source)+": "+e.Error()+"</warning>", true, mio.Normal)
 
 		return m.download(p, targetDir, prev, sources, true)
 	}
@@ -393,47 +388,48 @@ func (m *DownloadManager) Cleanup(typ operation.Type, p pkg.PackageInterface, ta
 
 // ResolvePackageInstallPreference is resolvePackageInstallPreference() for
 // the plugin shim (a subclass's call of the protected method).
-func (m *DownloadManager) ResolvePackageInstallPreference(p pkg.PackageInterface) (string, error) {
+func (m *DownloadManager) ResolvePackageInstallPreference(p pkg.PackageInterface) (pkg.InstallationSource, error) {
 	return m.resolvePackageInstallPreference(p)
 }
 
 // resolvePackageInstallPreference is resolvePackageInstallPreference():
-// "dist" or "source", or the PcreException Preg::isMatch throws.
-func (m *DownloadManager) resolvePackageInstallPreference(p pkg.PackageInterface) (string, error) {
+// the installation source preferred for p, or the PcreException
+// Preg::isMatch throws.
+func (m *DownloadManager) resolvePackageInstallPreference(p pkg.PackageInterface) (pkg.InstallationSource, error) {
 	for _, pref := range m.packagePreferences {
 		ok, err := pref.pattern.IsMatch(p.Name())
 		if err != nil {
 			return "", err
 		}
 		if ok {
-			if pref.preference == "dist" || (!p.IsDev() && pref.preference == "auto") {
-				return "dist", nil
+			if pref.preference == string(pkg.FromDist) || (!p.IsDev() && pref.preference == "auto") {
+				return pkg.FromDist, nil
 			}
 
-			return "source", nil
+			return pkg.FromSource, nil
 		}
 	}
 
 	if p.IsDev() {
-		return "source", nil
+		return pkg.FromSource, nil
 	}
 
-	return "dist", nil
+	return pkg.FromDist, nil
 }
 
 // availableSources is getAvailableSources().
-func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]string, error) {
+func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]pkg.InstallationSource, error) {
 	sourceType := p.SourceType()
 	distType := p.DistType()
 
 	// add source before dist by default
-	sources := make([]string, 0, 2)
+	sources := make([]pkg.InstallationSource, 0, 2)
 	if php.ToBool(sourceType.Value()) {
-		sources = append(sources, "source")
+		sources = append(sources, pkg.FromSource)
 	}
 
 	if php.ToBool(distType.Value()) {
-		sources = append(sources, "dist")
+		sources = append(sources, pkg.FromDist)
 	}
 
 	if len(sources) == 0 {
@@ -447,7 +443,7 @@ func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]stri
 		// previously installed package (if available in the new one) unless
 		// the previous package was stable dist (by default) and the new
 		// package is dev, then we allow the new default to take over
-		if prevSource.Valid && slices.Contains(sources, prevSource.S) && (prev.IsDev() || prevSource.S != "dist" || !p.IsDev()) {
+		if prevSource.Valid && slices.Contains(sources, prevSource.S) && (prev.IsDev() || prevSource.S != pkg.FromDist || !p.IsDev()) {
 			if sources[0] != prevSource.S {
 				slices.Reverse(sources)
 			}
@@ -464,7 +460,7 @@ func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]stri
 			if err != nil {
 				return nil, err
 			}
-			preferDist = preference == "dist"
+			preferDist = preference == pkg.FromDist
 		}
 		if preferDist {
 			slices.Reverse(sources)

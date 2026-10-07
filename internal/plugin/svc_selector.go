@@ -116,7 +116,7 @@ func (r *Runtime) registerSelectors() {
 		}
 		out := php.NewArrayCap(len(providers))
 		for _, p := range providers {
-			out.Set(p.Name, php.ArrayOf("name", p.Name, "description", nullable(p.Description), "type", p.Type))
+			out.Set(p.Name, php.ArrayOf("name", p.Name, "description", p.Description.Value(), "type", p.Type))
 		}
 
 		return out, nil
@@ -453,9 +453,9 @@ func advisoryValue(adv repository.Advisory) *php.Array {
 		out.Set("title", full.Title)
 		out.Set("sources", full.Sources)
 		out.Set("reportedAt", full.ReportedAt.Format(time.RFC3339))
-		out.Set("cve", nullable(full.CVE))
-		out.Set("link", nullable(full.Link))
-		out.Set("severity", nullable(full.Severity))
+		out.Set("cve", full.CVE.Value())
+		out.Set("link", full.Link.Value())
+		out.Set("severity", full.Severity.Value())
 	}
 
 	return out

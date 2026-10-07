@@ -68,7 +68,7 @@ func searchResults(results []repository.SearchResult) *php.Array {
 
 			continue
 		}
-		item := php.ArrayOf("name", res.Name, "description", nullable(res.Description))
+		item := php.ArrayOf("name", res.Name, "description", res.Description.Value())
 		if res.Abandoned != nil {
 			item.Set("abandoned", res.Abandoned)
 		}
@@ -202,7 +202,7 @@ func (r *Runtime) registerRepositories() {
 		}
 		out := php.NewArrayCap(len(providers))
 		for _, p := range providers {
-			out.Set(p.Name, php.ArrayOf("name", p.Name, "description", nullable(p.Description), "type", p.Type))
+			out.Set(p.Name, php.ArrayOf("name", p.Name, "description", p.Description.Value(), "type", p.Type))
 		}
 
 		return out, nil

@@ -37,7 +37,7 @@ func (m *DownloadManager) Prefetch(p, prev pkg.PackageInterface) {
 	}
 
 	sources, err := m.availableSources(p, prev)
-	if err != nil || len(sources) == 0 || sources[0] != "dist" {
+	if err != nil || len(sources) == 0 || sources[0] != pkg.FromDist {
 		return
 	}
 

@@ -718,7 +718,7 @@ func (l *Locker) lockPackages(packages []pkg.PackageInterface) (*php.Array, erro
 		// always move time to the end of the package definition
 		t, _ := spec.Get("time")
 		spec.Delete("time")
-		if p.IsDev() && p.InstallationSource().S == "source" {
+		if p.IsDev() && p.InstallationSource().S == pkg.FromSource {
 			// use the exact commit time of the current reference if it's a dev package
 			packageTime, err := l.packageTime(p)
 			if err != nil {

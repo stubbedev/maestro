@@ -95,13 +95,13 @@ func (r *Runtime) phase5EventFields(s *php.Array, e eventdispatcher.Event) {
 		}
 		s.Set("httpDownloader", downloader)
 		s.Set("processedUrl", e.ProcessedURL())
-		s.Set("customCacheKey", nullable(e.CustomCacheKey()))
+		s.Set("customCacheKey", e.CustomCacheKey().Value())
 		s.Set("type", e.Type())
 		s.Set("context", r.downloadContext(e.Context()))
 		s.Set("transportOptions", orEmptyArray(e.TransportOptions()))
 	case *eventdispatcher.PostFileDownloadEvent:
-		s.Set("fileName", nullable(e.FileName()))
-		s.Set("checksum", nullable(e.Checksum()))
+		s.Set("fileName", e.FileName().Value())
+		s.Set("checksum", e.Checksum().Value())
 		s.Set("url", e.URL())
 		s.Set("context", r.downloadContext(e.Context()))
 		s.Set("type", e.Type())

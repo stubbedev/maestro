@@ -212,7 +212,7 @@ func (e *eventRecorder) DispatchPackageEvent(eventName string, _ bool, _ pkg.Rep
 func installedPackage(name, version, typ string) *pkg.Package {
 	p := newPackage(name, version)
 	p.SetType(typ)
-	p.SetInstallationSource(pkg.Str("dist"))
+	p.SetInstallationSource(pkg.Some(pkg.FromDist))
 
 	return p
 }

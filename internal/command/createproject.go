@@ -787,8 +787,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	// collect suggestions
 	c.suggestedPackagesReporter.AddSuggestionsFromPackage(p)
 
-	source := p.InstallationSource()
-	installedFromVcs := source.Valid && source.S == "source"
+	installedFromVcs := p.InstallationSource().Is(pkg.FromSource)
 
 	cio.WriteError("<info>Created project in "+directory+"</info>", true, io.Normal)
 	if err := os.Chdir(directory); err != nil {

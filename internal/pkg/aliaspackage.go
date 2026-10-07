@@ -193,10 +193,14 @@ func (a *AliasPackage) TargetDir() NullString { return a.aliasOf.TargetDir() }
 func (a *AliasPackage) Extra() *php.Array { return a.aliasOf.Extra() }
 
 // SetInstallationSource ports AliasPackage::setInstallationSource.
-func (a *AliasPackage) SetInstallationSource(typ NullString) { a.aliasOf.SetInstallationSource(typ) }
+func (a *AliasPackage) SetInstallationSource(source Null[InstallationSource]) {
+	a.aliasOf.SetInstallationSource(source)
+}
 
 // InstallationSource ports AliasPackage::getInstallationSource.
-func (a *AliasPackage) InstallationSource() NullString { return a.aliasOf.InstallationSource() }
+func (a *AliasPackage) InstallationSource() Null[InstallationSource] {
+	return a.aliasOf.InstallationSource()
+}
 
 // SourceType ports AliasPackage::getSourceType.
 func (a *AliasPackage) SourceType() NullString { return a.aliasOf.SourceType() }

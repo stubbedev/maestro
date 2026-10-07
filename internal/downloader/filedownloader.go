@@ -207,7 +207,7 @@ func (d *FileDownloader) collectGarbage() error {
 func (d *FileDownloader) PHPClass() string { return d.class }
 
 // InstallationSource is getInstallationSource().
-func (d *FileDownloader) InstallationSource() string { return "dist" }
+func (d *FileDownloader) InstallationSource() pkg.InstallationSource { return pkg.FromDist }
 
 // Download is download($package, $path, $prevPackage).
 func (d *FileDownloader) Download(p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error) {

@@ -100,7 +100,7 @@ func GetType(v any) string {
 }
 
 // Truthy is (bool) $s for a string: neither "" nor "0".
-func Truthy(s string) bool { return s != "" && s != "0" }
+func Truthy[T ~string](s T) bool { return s != "" && s != "0" }
 
 // ToBool converts a value as (bool) does: null, false, 0, 0.0, -0.0, "",
 // "0" and the empty array are false; everything else, including NaN and

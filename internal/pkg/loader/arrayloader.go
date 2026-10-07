@@ -344,7 +344,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 			return err
 		}
 
-		p.SetInstallationSource(source)
+		p.SetInstallationSource(pkg.NullAs[pkg.InstallationSource](source))
 	}
 
 	if config.At("default-branch") == true {

@@ -142,7 +142,7 @@ func TestFilesystemRepository_RepositoryWritesInstalledPhp(t *testing.T) {
 	configureLinks(t, p, map[string][][2]string{"provide": {{"foo/impl", "self.version"}, {"foo/impl2", "2.0"}}})
 	p.SetSourceReference(pkg.Str("sourceref"))
 	p.SetDistReference(pkg.Str("distref-as-installed-from-dist"))
-	p.SetInstallationSource(pkg.Str("dist"))
+	p.SetInstallationSource(pkg.Some(pkg.FromDist))
 	noErr(t, repo.AddPackage(p))
 
 	noErr(t, repo.AddPackage(getAliasPackage(t, p, "1.4")))

@@ -32,6 +32,17 @@ const (
 	MetapackageType = "metapackage"
 )
 
+// InstallationSource is how a package is installed
+// (getInstallationSource()): from its dist or from its source. A package
+// loaded from installed.json may name another, which no downloader takes.
+type InstallationSource string
+
+// The installation sources.
+const (
+	FromDist   InstallationSource = "dist"
+	FromSource InstallationSource = "source"
+)
+
 // IsPluginType reports whether a package of type t is loaded as a plugin:
 // a composer-plugin, or a composer-installer.
 func IsPluginType(t string) bool { return t == PluginType || t == InstallerType }
@@ -73,8 +84,8 @@ type PackageInterface interface {
 	Type() string
 	TargetDir() NullString
 	Extra() *php.Array
-	SetInstallationSource(typ NullString)
-	InstallationSource() NullString
+	SetInstallationSource(source Null[InstallationSource])
+	InstallationSource() Null[InstallationSource]
 	SourceType() NullString
 	SourceURL() NullString
 	SourceURLs() []string

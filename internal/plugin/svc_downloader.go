@@ -179,7 +179,7 @@ func (r *Runtime) registerDownloaders() {
 	}
 	pathValue := func(path string) any { return path }
 
-	method("getInstallationSource", func(d downloader.Downloader, _ args) (any, error) { return d.InstallationSource(), nil })
+	method("getInstallationSource", func(d downloader.Downloader, _ args) (any, error) { return string(d.InstallationSource()), nil })
 	method("download", func(d downloader.Downloader, a args) (any, error) {
 		p, err := packageParam(a, 1)
 		if err != nil {

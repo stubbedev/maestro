@@ -40,7 +40,7 @@ func (s *subclassDownloader) overrides(method string) bool {
 func (s *subclassDownloader) PHPClass() string { return s.php.obj.Class }
 
 // InstallationSource implements downloader.Downloader.
-func (s *subclassDownloader) InstallationSource() string {
+func (s *subclassDownloader) InstallationSource() pkg.InstallationSource {
 	if s.overrides("getInstallationSource") {
 		return s.php.InstallationSource()
 	}

@@ -60,7 +60,7 @@ type Package struct {
 
 	typ                string
 	targetDir          string
-	installationSource string
+	installationSource InstallationSource
 	sourceType         string
 	sourceURL          string
 	sourceReference    string
@@ -109,11 +109,11 @@ func (p *Package) init(name, version, prettyVersion string) {
 	p.stability = parseStability(version)
 }
 
-func (p *Package) nullable(bit uint16, s string) NullString {
-	return NullString{S: s, Valid: p.set&bit != 0}
+func nullable[T ~string](p *Package, bit uint16, s T) Null[T] {
+	return Null[T]{S: s, Valid: p.set&bit != 0}
 }
 
-func (p *Package) setNullable(bit uint16, dst *string, v NullString) {
+func setNullable[T ~string](p *Package, bit uint16, dst *T, v Null[T]) {
 	*dst = v.S
 	if v.Valid {
 		p.set |= bit
@@ -150,10 +150,10 @@ func (p *Package) Clone() *Package {
 func (p *Package) IsDev() bool { return p.stability == stabilityIndexDev }
 
 // SetType ports Package::setType.
-func (p *Package) SetType(typ string) { p.setNullable(setType, &p.typ, Str(typ)) }
+func (p *Package) SetType(typ string) { setNullable(p, setType, &p.typ, Str(typ)) }
 
 // RawType returns the type as stored, null when never set.
-func (p *Package) RawType() NullString { return p.nullable(setType, p.typ) }
+func (p *Package) RawType() NullString { return nullable(p, setType, p.typ) }
 
 // Type ports Package::getType: "library" when unset or falsy.
 func (p *Package) Type() string {
@@ -169,13 +169,13 @@ func (p *Package) Stability() string { return stabilityNames[p.stability] }
 
 // SetTargetDir ports Package::setTargetDir.
 func (p *Package) SetTargetDir(targetDir NullString) {
-	p.setNullable(setTargetDir, &p.targetDir, targetDir)
+	setNullable(p, setTargetDir, &p.targetDir, targetDir)
 }
 
 var targetDirDots = php.MustCompile(`{ (?:^|[\\/]+) \.\.? (?:[\\/]+|$) (?:\.\.? (?:[\\/]+|$) )*}x`)
 
 // RawTargetDir returns the target dir as set.
-func (p *Package) RawTargetDir() NullString { return p.nullable(setTargetDir, p.targetDir) }
+func (p *Package) RawTargetDir() NullString { return nullable(p, setTargetDir, p.targetDir) }
 
 // TargetDir ports Package::getTargetDir: the target dir with . and ..
 // segments removed.
@@ -213,35 +213,35 @@ func (p *Package) SetBinaries(binaries *php.Array) {
 func (p *Package) Binaries() *php.Array { return orEmpty(p.binaries) }
 
 // SetInstallationSource ports Package::setInstallationSource.
-func (p *Package) SetInstallationSource(typ NullString) {
-	p.setNullable(setInstallationSource, &p.installationSource, typ)
+func (p *Package) SetInstallationSource(source Null[InstallationSource]) {
+	setNullable(p, setInstallationSource, &p.installationSource, source)
 }
 
 // InstallationSource ports Package::getInstallationSource.
-func (p *Package) InstallationSource() NullString {
-	return p.nullable(setInstallationSource, p.installationSource)
+func (p *Package) InstallationSource() Null[InstallationSource] {
+	return nullable(p, setInstallationSource, p.installationSource)
 }
 
 // SetSourceType ports Package::setSourceType.
-func (p *Package) SetSourceType(typ NullString) { p.setNullable(setSourceType, &p.sourceType, typ) }
+func (p *Package) SetSourceType(typ NullString) { setNullable(p, setSourceType, &p.sourceType, typ) }
 
 // SourceType ports Package::getSourceType.
-func (p *Package) SourceType() NullString { return p.nullable(setSourceType, p.sourceType) }
+func (p *Package) SourceType() NullString { return nullable(p, setSourceType, p.sourceType) }
 
 // SetSourceURL ports Package::setSourceUrl.
-func (p *Package) SetSourceURL(url NullString) { p.setNullable(setSourceURL, &p.sourceURL, url) }
+func (p *Package) SetSourceURL(url NullString) { setNullable(p, setSourceURL, &p.sourceURL, url) }
 
 // SourceURL ports Package::getSourceUrl.
-func (p *Package) SourceURL() NullString { return p.nullable(setSourceURL, p.sourceURL) }
+func (p *Package) SourceURL() NullString { return nullable(p, setSourceURL, p.sourceURL) }
 
 // SetSourceReference ports Package::setSourceReference.
 func (p *Package) SetSourceReference(reference NullString) {
-	p.setNullable(setSourceReference, &p.sourceReference, reference)
+	setNullable(p, setSourceReference, &p.sourceReference, reference)
 }
 
 // SourceReference ports Package::getSourceReference.
 func (p *Package) SourceReference() NullString {
-	return p.nullable(setSourceReference, p.sourceReference)
+	return nullable(p, setSourceReference, p.sourceReference)
 }
 
 // SetSourceMirrors ports Package::setSourceMirrors; nil is null.
@@ -255,7 +255,7 @@ func (p *Package) SourceMirrors() *php.Array { return p.sourceMirrors }
 
 // SourceURLs ports Package::getSourceUrls.
 func (p *Package) SourceURLs() []string {
-	return p.urls(p.SourceURL(), p.sourceMirrors, p.SourceReference(), p.SourceType(), "source")
+	return p.urls(p.SourceURL(), p.sourceMirrors, p.SourceReference(), p.SourceType(), FromSource)
 }
 
 // SetDistType ports Package::setDistType: "" is stored as null.
@@ -264,11 +264,11 @@ func (p *Package) SetDistType(typ NullString) {
 		typ = NullString{}
 	}
 
-	p.setNullable(setDistType, &p.distType, typ)
+	setNullable(p, setDistType, &p.distType, typ)
 }
 
 // DistType ports Package::getDistType.
-func (p *Package) DistType() NullString { return p.nullable(setDistType, p.distType) }
+func (p *Package) DistType() NullString { return nullable(p, setDistType, p.distType) }
 
 // SetDistURL ports Package::setDistUrl: "" is stored as null.
 func (p *Package) SetDistURL(url NullString) {
@@ -276,28 +276,28 @@ func (p *Package) SetDistURL(url NullString) {
 		url = NullString{}
 	}
 
-	p.setNullable(setDistURL, &p.distURL, url)
+	setNullable(p, setDistURL, &p.distURL, url)
 }
 
 // DistURL ports Package::getDistUrl.
-func (p *Package) DistURL() NullString { return p.nullable(setDistURL, p.distURL) }
+func (p *Package) DistURL() NullString { return nullable(p, setDistURL, p.distURL) }
 
 // SetDistReference ports Package::setDistReference.
 func (p *Package) SetDistReference(reference NullString) {
-	p.setNullable(setDistReference, &p.distReference, reference)
+	setNullable(p, setDistReference, &p.distReference, reference)
 }
 
 // DistReference ports Package::getDistReference.
-func (p *Package) DistReference() NullString { return p.nullable(setDistReference, p.distReference) }
+func (p *Package) DistReference() NullString { return nullable(p, setDistReference, p.distReference) }
 
 // SetDistSha1Checksum ports Package::setDistSha1Checksum.
 func (p *Package) SetDistSha1Checksum(sha1checksum NullString) {
-	p.setNullable(setDistSha1Checksum, &p.distSha1Checksum, sha1checksum)
+	setNullable(p, setDistSha1Checksum, &p.distSha1Checksum, sha1checksum)
 }
 
 // DistSha1Checksum ports Package::getDistSha1Checksum.
 func (p *Package) DistSha1Checksum() NullString {
-	return p.nullable(setDistSha1Checksum, p.distSha1Checksum)
+	return nullable(p, setDistSha1Checksum, p.distSha1Checksum)
 }
 
 // SetDistMirrors ports Package::setDistMirrors; nil is null.
@@ -311,7 +311,7 @@ func (p *Package) DistMirrors() *php.Array { return p.distMirrors }
 
 // DistURLs ports Package::getDistUrls.
 func (p *Package) DistURLs() []string {
-	return p.urls(p.DistURL(), p.distMirrors, p.DistReference(), p.DistType(), "dist")
+	return p.urls(p.DistURL(), p.distMirrors, p.DistReference(), p.DistType(), FromDist)
 }
 
 // TransportOptions ports Package::getTransportOptions.
@@ -445,12 +445,12 @@ func (p *Package) PhpExt() *php.Array { return p.phpExt }
 
 // SetNotificationURL ports Package::setNotificationUrl.
 func (p *Package) SetNotificationURL(notificationURL string) {
-	p.setNullable(setNotificationURL, &p.notificationURL, Str(notificationURL))
+	setNullable(p, setNotificationURL, &p.notificationURL, Str(notificationURL))
 }
 
 // NotificationURL ports Package::getNotificationUrl.
 func (p *Package) NotificationURL() NullString {
-	return p.nullable(setNotificationURL, p.notificationURL)
+	return nullable(p, setNotificationURL, p.notificationURL)
 }
 
 // SetIsDefaultBranch ports Package::setIsDefaultBranch.
@@ -508,13 +508,13 @@ func (p *Package) ReplaceVersion(version, prettyVersion string) {
 }
 
 // urls ports Package::getUrls.
-func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, urlType string) []string {
+func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, urlType InstallationSource) []string {
 	if !php.ToBool(url.Value()) {
 		return []string{}
 	}
 
 	u := url.S
-	if urlType == "dist" && strings.Contains(u, "%") {
+	if urlType == FromDist && strings.Contains(u, "%") {
 		u = util.ComposerMirrorProcessURL(u, p.name, p.version, ref.ptr(), typ.ptr(), &p.prettyVersion)
 	}
 
@@ -527,11 +527,11 @@ func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, 
 			var mirrorURL string
 
 			switch {
-			case urlType == "dist":
+			case urlType == FromDist:
 				mirrorURL = util.ComposerMirrorProcessURL(arrayString(mirror, "url"), p.name, p.version, ref.ptr(), typ.ptr(), &p.prettyVersion)
-			case urlType == "source" && typ == Str("git"):
+			case urlType == FromSource && typ == Str("git"):
 				mirrorURL = util.ComposerMirrorProcessGitURL(arrayString(mirror, "url"), p.name, u, typ.ptr())
-			case urlType == "source" && typ == Str("hg"):
+			case urlType == FromSource && typ == Str("hg"):
 				mirrorURL = util.ComposerMirrorProcessHgURL(arrayString(mirror, "url"), p.name, u, typ.S)
 			default:
 				continue
@@ -548,14 +548,6 @@ func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, 
 	}
 
 	return urls
-}
-
-func (n NullString) ptr() *string {
-	if !n.Valid {
-		return nil
-	}
-
-	return &n.S
 }
 
 // arrayString returns (string) $a[$k].

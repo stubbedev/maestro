@@ -358,10 +358,10 @@ func (d *proxyDownloader) pkgValue(p pkg.PackageInterface) any {
 }
 
 // InstallationSource implements downloader.Downloader.
-func (d *proxyDownloader) InstallationSource() string {
+func (d *proxyDownloader) InstallationSource() pkg.InstallationSource {
 	v, _ := d.r.callObject(d.obj, "getInstallationSource")
 
-	return php.ToString(v)
+	return pkg.InstallationSource(php.ToString(v))
 }
 
 // Download implements downloader.Downloader.

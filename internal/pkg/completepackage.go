@@ -91,19 +91,21 @@ func (p *CompletePackage) Authors() *php.Array { return orEmpty(p.authors) }
 
 // SetDescription ports CompletePackage::setDescription.
 func (p *CompletePackage) SetDescription(description NullString) {
-	p.setNullable(setDescription, &p.description, description)
+	setNullable(&p.Package, setDescription, &p.description, description)
 }
 
 // Description ports CompletePackage::getDescription.
-func (p *CompletePackage) Description() NullString { return p.nullable(setDescription, p.description) }
+func (p *CompletePackage) Description() NullString {
+	return nullable(&p.Package, setDescription, p.description)
+}
 
 // SetHomepage ports CompletePackage::setHomepage.
 func (p *CompletePackage) SetHomepage(homepage NullString) {
-	p.setNullable(setHomepage, &p.homepage, homepage)
+	setNullable(&p.Package, setHomepage, &p.homepage, homepage)
 }
 
 // Homepage ports CompletePackage::getHomepage.
-func (p *CompletePackage) Homepage() NullString { return p.nullable(setHomepage, p.homepage) }
+func (p *CompletePackage) Homepage() NullString { return nullable(&p.Package, setHomepage, p.homepage) }
 
 // SetSupport ports CompletePackage::setSupport.
 func (p *CompletePackage) SetSupport(support *php.Array) {
@@ -147,11 +149,13 @@ func (p *CompletePackage) ReplacementPackage() NullString {
 
 // SetArchiveName ports CompletePackage::setArchiveName.
 func (p *CompletePackage) SetArchiveName(name NullString) {
-	p.setNullable(setArchiveName, &p.archiveName, name)
+	setNullable(&p.Package, setArchiveName, &p.archiveName, name)
 }
 
 // ArchiveName ports CompletePackage::getArchiveName.
-func (p *CompletePackage) ArchiveName() NullString { return p.nullable(setArchiveName, p.archiveName) }
+func (p *CompletePackage) ArchiveName() NullString {
+	return nullable(&p.Package, setArchiveName, p.archiveName)
+}
 
 // SetArchiveExcludes ports CompletePackage::setArchiveExcludes.
 func (p *CompletePackage) SetArchiveExcludes(excludes *php.Array) {

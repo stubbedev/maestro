@@ -62,7 +62,7 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 			"prettyName", p.PrettyName(),
 			"version", p.Version(),
 			"prettyVersion", p.PrettyVersion(),
-			"type", nullable(rawType(p)),
+			"type", rawType(p).Value(),
 			"stability", p.Stability(),
 			"dev", p.IsDev(),
 			"lazy", true,
@@ -87,17 +87,17 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 		return s, nil
 	}
 
-	s.Set("type", nullable(rawType(p)))
-	s.Set("targetDir", nullable(p.TargetDir()))
-	s.Set("installationSource", nullable(p.InstallationSource()))
-	s.Set("sourceType", nullable(p.SourceType()))
-	s.Set("sourceUrl", nullable(p.SourceURL()))
-	s.Set("sourceReference", nullable(p.SourceReference()))
+	s.Set("type", rawType(p).Value())
+	s.Set("targetDir", p.TargetDir().Value())
+	s.Set("installationSource", p.InstallationSource().Value())
+	s.Set("sourceType", p.SourceType().Value())
+	s.Set("sourceUrl", p.SourceURL().Value())
+	s.Set("sourceReference", p.SourceReference().Value())
 	s.Set("sourceMirrors", nullArray(p.SourceMirrors()))
-	s.Set("distType", nullable(p.DistType()))
-	s.Set("distUrl", nullable(p.DistURL()))
-	s.Set("distReference", nullable(p.DistReference()))
-	s.Set("distSha1Checksum", nullable(p.DistSha1Checksum()))
+	s.Set("distType", p.DistType().Value())
+	s.Set("distUrl", p.DistURL().Value())
+	s.Set("distReference", p.DistReference().Value())
+	s.Set("distSha1Checksum", p.DistSha1Checksum().Value())
 	s.Set("distMirrors", nullArray(p.DistMirrors()))
 	s.Set("version", p.Version())
 	s.Set("prettyVersion", p.PrettyVersion())
@@ -110,7 +110,7 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 	s.Set("binaries", p.Binaries())
 	s.Set("dev", p.IsDev())
 	s.Set("stability", p.Stability())
-	s.Set("notificationUrl", nullable(p.NotificationURL()))
+	s.Set("notificationUrl", p.NotificationURL().Value())
 	setLinks(s, p)
 	s.Set("suggests", p.Suggests())
 	s.Set("autoload", p.Autoload())
@@ -125,13 +125,13 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 		s.Set("license", c.License())
 		s.Set("keywords", c.Keywords())
 		s.Set("authors", c.Authors())
-		s.Set("description", nullable(c.Description()))
-		s.Set("homepage", nullable(c.Homepage()))
+		s.Set("description", c.Description().Value())
+		s.Set("homepage", c.Homepage().Value())
 		s.Set("scripts", c.Scripts())
 		s.Set("support", c.Support())
 		s.Set("funding", c.Funding())
 		s.Set("abandoned", c.Abandoned())
-		s.Set("archiveName", nullable(c.ArchiveName()))
+		s.Set("archiveName", c.ArchiveName().Value())
 		s.Set("archiveExcludes", c.ArchiveExcludes())
 	}
 
@@ -162,15 +162,6 @@ func rawType(p pkg.PackageInterface) pkg.NullString {
 	}
 
 	return pkg.Str(p.Type())
-}
-
-// nullable is a ?string as PHP holds it.
-func nullable(s pkg.NullString) any {
-	if !s.Valid {
-		return nil
-	}
-
-	return s.S
 }
 
 // nullArray is a ?array: a nil *php.Array is null.
@@ -387,7 +378,7 @@ func (r *Runtime) registerPackages() {
 	r.Handle("pkg.urls", func(v any) (any, error) {
 		a := argsOf("pkg.urls", v)
 		p := pkg.NewPackage(a.str(5), a.str(6), a.str(7))
-		if a.str(4) == "dist" {
+		if pkg.InstallationSource(a.str(4)) == pkg.FromDist {
 			p.SetDistURL(nullString(a, 0))
 			p.SetDistMirrors(a.array(1))
 			p.SetDistReference(nullString(a, 2))
@@ -405,7 +396,7 @@ func (r *Runtime) registerPackages() {
 
 	// PackageInterface setters (aliases forward them to their package).
 	setter("setInstallationSource", func(p pkg.PackageInterface, a args) error {
-		p.SetInstallationSource(nullString(a, 1))
+		p.SetInstallationSource(pkg.NullAs[pkg.InstallationSource](nullString(a, 1)))
 		return nil
 	})
 	setter("setSourceReference", func(p pkg.PackageInterface, a args) error {
