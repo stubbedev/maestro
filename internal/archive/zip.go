@@ -14,7 +14,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/bzip2"
-	"compress/flate"
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
@@ -25,6 +24,8 @@ import (
 	"slices"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/klauspost/compress/flate"
 
 	"github.com/stubbedev/maestro/internal/archive/deflate64"
 )

@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"compress/bzip2"
-	"compress/gzip"
 	"errors"
 	"io"
 	"os"
 
+	"github.com/klauspost/compress/gzip"
 	"github.com/ulikunitz/xz"
 )
 
