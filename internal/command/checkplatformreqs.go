@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 func init() {
@@ -31,7 +32,7 @@ func NewCheckPlatformReqsCommand() *CheckPlatformReqsCommand {
 	c.SetDefinitionItems(
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables checking of require-dev packages requirements.", nil),
 		console.MustOption("lock", "", console.OptionValueNone, "Checks requirements only from the lock file, not from installed packages.", nil),
-		optionWithSuggestions("format", "f", console.OptionValueRequired, "Format of the output: text or json", "text", "json", "text"),
+		formatOption("Format of the output: text or json", "text", jsonTextFormats),
 	)
 	c.SetHelp(`Checks that your PHP and extensions versions match the platform requirements of the installed packages.
 
@@ -277,8 +278,13 @@ func (c *CheckPlatformReqsCommand) printTable(out console.Output, results []plat
 		return nil
 	}
 
+	surface := jsonTextFormats.Surface(format)
 	rows := make([]any, 0, len(results))
 	for _, r := range results {
+		provider := r.provider
+		if provider != "" && surface == ui.Free {
+			provider = surface.Style(ui.RoleMuted, php.StripTags(provider))
+		}
 		var link any
 		description := ""
 		if r.link != nil {
@@ -294,7 +300,7 @@ func (c *CheckPlatformReqsCommand) printTable(out console.Output, results []plat
 			r.version,
 			link,
 			description,
-			php.Rtrim(r.status + " " + r.provider),
+			php.Rtrim(r.status + " " + provider),
 		})
 	}
 

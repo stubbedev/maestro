@@ -84,6 +84,10 @@ func (r *SuggestedPackagesReporter) Output(mode int, installedRepo *repository.I
 	php.Ksort(suggesters, php.SortRegular)
 	php.Ksort(suggested, php.SortRegular)
 
+	// The list is names scripts read, frozen; the grouped views are for
+	// people.
+	const grouped = ui.Free
+
 	// Simple mode
 	if mode&ModeList != 0 {
 		for _, name := range suggested.Keys() {
@@ -96,12 +100,12 @@ func (r *SuggestedPackagesReporter) Output(mode int, installedRepo *repository.I
 	// Grouped by package
 	if mode&ModeByPackage != 0 {
 		for suggester, suggestions := range suggesters.All() {
-			r.io.Write("<comment>"+suggester.String()+"</comment> suggests:", true, mio.Normal)
+			r.io.Write(grouped.Style(ui.RoleAccent, suggester.String())+" suggests:", true, mio.Normal)
 
 			byTarget, _ := suggestions.(*php.Array)
 
 			for suggestion, reason := range byTarget.All() {
-				line, err := suggestionLine(suggestion.String(), php.ToString(reason))
+				line, err := suggestionLine(grouped, suggestion.String(), php.ToString(reason))
 				if err != nil {
 					return err
 				}
@@ -121,12 +125,12 @@ func (r *SuggestedPackagesReporter) Output(mode int, installedRepo *repository.I
 		}
 
 		for suggestion, suggestersOf := range suggested.All() {
-			r.io.Write("<comment>"+suggestion.String()+"</comment> is suggested by:", true, mio.Normal)
+			r.io.Write(grouped.Style(ui.RoleAccent, suggestion.String())+" is suggested by:", true, mio.Normal)
 
 			bySource, _ := suggestersOf.(*php.Array)
 
 			for suggester, reason := range bySource.All() {
-				line, err := suggestionLine(suggester.String(), php.ToString(reason))
+				line, err := suggestionLine(grouped, suggester.String(), php.ToString(reason))
 				if err != nil {
 					return err
 				}
@@ -153,8 +157,9 @@ func (r *SuggestedPackagesReporter) Output(mode int, installedRepo *repository.I
 }
 
 // suggestionLine is sprintf(' - <info>%s</info>' . ($reason ? ': %s' :
-// ”), $name, $this->escapeOutput($reason)).
-func suggestionLine(name, reason string) (string, error) {
+// ”), $name, $this->escapeOutput($reason)), the reason muted on the free
+// surface.
+func suggestionLine(surface ui.Surface, name, reason string) (string, error) {
 	escaped, err := escapeOutput(reason)
 	if err != nil {
 		return "", err
@@ -164,7 +169,7 @@ func suggestionLine(name, reason string) (string, error) {
 		return " - <info>" + name + "</info>", nil
 	}
 
-	return " - <info>" + name + "</info>: " + escaped, nil
+	return " - <info>" + name + "</info>: " + surface.Style(ui.RoleMuted, escaped), nil
 }
 
 // nested is `$a[$key]`, created as an empty array when missing.

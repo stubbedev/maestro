@@ -133,6 +133,21 @@ bubbles/huh for progress and prompts, ...), under these rules:
   over the terminal. Glyphs (`ui.Glyph`) fall back to ASCII on a Windows
   console without the UTF-8 code page or a non-UTF-8 locale. The texts,
   defaults, answers and streams are Composer's.
+- Reports for people, colour only. Every `--format` value a command
+  offers is classified once, with its surface (`ui.Formats` of
+  `ui.Format{Name, Surface}`; `ui.Frozen` or `ui.Free`), and the option's
+  suggestions are built from that table, so no format exists
+  unclassified; a test checks every such option against the contract
+  (`text` and `table` free, `json`, `plain`, `summary` and any other
+  frozen). Free text output is styled through `Surface.Style(role,
+  text)`, which leaves frozen output alone: the same characters in the
+  same columns as undecorated, with colour added (licences by OSI
+  approval, fund's vendors and links, check-platform-reqs' providers,
+  suggests' packages and reasons, show's descriptions and tree
+  constraints). `suggests --list` stays Composer's, as do `depends`,
+  `prohibits` and every frozen format. A test strips the escape
+  sequences of each command's decorated text output and compares it
+  with the undecorated output.
 - The install/update summary. Each operation line's bullet is a
   mark (`ui.Mark`, through `operation.Item`/`InstallItem`/...): "-"
   undecorated, decorated a glyph in a role (`+` install, `↑` upgrade,

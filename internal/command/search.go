@@ -30,7 +30,7 @@ func NewSearchCommand() *SearchCommand {
 		console.MustOption("only-name", "N", console.OptionValueNone, "Search only in package names", nil),
 		console.MustOption("only-vendor", "O", console.OptionValueNone, `Search only for vendor / organization names, returns only "vendor" as result`, nil),
 		console.MustOption("type", "t", console.OptionValueRequired, "Search for a specific package type", nil),
-		optionWithSuggestions("format", "f", console.OptionValueRequired, "Format of the output: text or json", "text", "json", "text"),
+		formatOption("Format of the output: text or json", "text", jsonTextFormats),
 		console.MustArgument("tokens", console.ArgumentIsArray|console.ArgumentRequired, "tokens to search for", nil),
 	)
 	c.SetHelp(`The search command searches for packages by its name

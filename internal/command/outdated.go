@@ -30,7 +30,7 @@ func NewOutdatedCommand() *OutdatedCommand {
 		console.MustOption("minor-only", "m", console.OptionValueNone, "Show only packages that have minor SemVer-compatible updates.", nil),
 		console.MustOption("patch-only", "p", console.OptionValueNone, "Show only packages that have patch SemVer-compatible updates.", nil),
 		console.MustOption("sort-by-age", "A", console.OptionValueNone, "Displays the installed version's age, and sorts packages oldest first.", nil),
-		optionWithSuggestions("format", "f", console.OptionValueRequired, "Format of the output: text or json", "text", "json", "text"),
+		formatOption("Format of the output: text or json", "text", jsonTextFormats),
 		optionWithSuggestFunc("ignore", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore specified package(s). Can contain wildcards (*). Use it if you don't want to be informed about new versions of some packages.", nil, c.SuggestInstalledPackage(false, false)),
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables search in require-dev packages.", nil),
 		console.MustOption("ignore-platform-req", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore a specific platform requirement (php & ext- packages). Use with the --outdated option", nil),

@@ -86,7 +86,7 @@ func NewRequireCommand() *RequireCommand {
 			console.MustOption("no-update", "", console.OptionValueNone, "Disables the automatic update of the dependencies (implies --no-install).", nil),
 			console.MustOption("no-install", "", console.OptionValueNone, "Skip the install step after updating the composer.lock file.", nil),
 			console.MustOption("no-audit", "", console.OptionValueNone, "Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).", nil),
-			optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json", or "summary".`, advisory.FormatSummary, advisory.Formats[:]...),
+			optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json", or "summary".`, advisory.FormatSummary, advisory.Formats.Names()...),
 			console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
 			console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
 			console.MustOption("update-no-dev", "", console.OptionValueNone, "Run the dependency update with the --no-dev option.", nil),

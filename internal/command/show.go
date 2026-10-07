@@ -36,6 +36,8 @@ type ShowCommand struct {
 	repositorySet *repository.RepositorySet
 	// treePackages are the packages addTree found in this execution.
 	treePackages map[treePackageKey]pkg.CompletePackageInterface
+	// surface is the surface of this execution's --format.
+	surface ui.Surface
 }
 
 // treePackageKey is a getPackage lookup of addTree: the package name and
@@ -74,7 +76,7 @@ func NewShowCommand() *ShowCommand {
 		console.MustOption("sort-by-age", "A", console.OptionValueNone, "Displays the installed version's age, and sorts packages oldest first. Use with the --latest or --outdated option.", nil),
 		console.MustOption("direct", "D", console.OptionValueNone, "Shows only packages that are directly required by the root package", nil),
 		console.MustOption("strict", "", console.OptionValueNone, "Return a non-zero exit code when there are outdated packages", nil),
-		optionWithSuggestions("format", "f", console.OptionValueRequired, "Format of the output: text or json", "text", "json", "text"),
+		formatOption("Format of the output: text or json", "text", jsonTextFormats),
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables search in require-dev packages.", nil),
 		console.MustOption("ignore-platform-req", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore a specific platform requirement (php & ext- packages). Use with the --outdated option", nil),
 		console.MustOption("ignore-platform-reqs", "", console.OptionValueNone, "Ignore all platform requirements (php & ext- packages). Use with the --outdated option", nil),
@@ -226,6 +228,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 	}
 
 	format := console.StringOption(input, "format")
+	c.surface = jsonTextFormats.Surface(format)
 	if format != "text" && format != "json" {
 		io.WriteError(`Unsupported format "`+format+`". See help for supported formats.`, true, mio.Normal)
 
@@ -1163,7 +1166,7 @@ func (c *ShowCommand) printPackages(io mio.IO, packages []*php.Array, o printOpt
 				}
 			}
 
-			io.Write(" "+description, false, mio.Normal)
+			io.Write(" "+c.surface.Style(ui.RoleMuted, description), false, mio.Normal)
 		}
 		if v, ok := p.Get("path"); ok {
 			if s, isString := v.(string); isString {
@@ -1761,7 +1764,7 @@ func (c *ShowCommand) displayPackageTree(arrayTree []*treeNode) {
 		io.Write(" "+p.version, false, mio.Normal)
 		if p.hasDescription && p.description.Valid {
 			tok, _ := strtok(p.description.S)
-			io.Write(" "+tok, true, mio.Normal)
+			io.Write(" "+c.surface.Style(ui.RoleMuted, tok), true, mio.Normal)
 		} else {
 			// output newline
 			io.Write("", true, mio.Normal)
@@ -1775,7 +1778,7 @@ func (c *ShowCommand) displayPackageTree(arrayTree []*treeNode) {
 			}
 			level := 1
 			color := c.colors[level]
-			c.writeTreeLine(treeBar + "──<" + color + ">" + require.name + "</" + color + "> " + require.version)
+			c.writeTreeLine(treeBar + "──<" + color + ">" + require.name + "</" + color + "> " + c.surface.Style(ui.RoleMuted, require.version))
 
 			treeBar = strings.ReplaceAll(treeBar, "└", " ")
 			packagesInTree := []string{p.name, require.name}
@@ -1853,7 +1856,7 @@ func (c *ShowCommand) displayTree(p *treeNode, packagesInTree []string, previous
 		if slices.Contains(currentTree, require.name) {
 			circularWarn = "(circular dependency aborted here)"
 		}
-		info := php.Rtrim(treeBar + "──<" + color + ">" + require.name + "</" + color + "> " + require.version + " " + circularWarn)
+		info := php.Rtrim(treeBar + "──<" + color + ">" + require.name + "</" + color + "> " + c.surface.Style(ui.RoleMuted, require.version) + " " + circularWarn)
 		c.writeTreeLine(info)
 
 		treeBar = strings.ReplaceAll(treeBar, "└", " ")

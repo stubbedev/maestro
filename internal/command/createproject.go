@@ -69,7 +69,7 @@ func NewCreateProjectCommand() *CreateProjectCommand {
 		console.MustOption("remove-vcs", "", console.OptionValueNone, "Whether to force deletion of the vcs folder without prompting.", nil),
 		console.MustOption("no-install", "", console.OptionValueNone, "Whether to skip installation of the package dependencies.", nil),
 		console.MustOption("no-audit", "", console.OptionValueNone, "Whether to skip auditing of the installed package dependencies (can also be set via the COMPOSER_NO_AUDIT=1 env var).", nil),
-		optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json" or "summary".`, advisory.FormatSummary, advisory.Formats[:]...),
+		optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json" or "summary".`, advisory.FormatSummary, advisory.Formats.Names()...),
 		console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
 		console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
 		console.MustOption("ignore-platform-req", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore a specific platform requirement (php & ext- packages).", nil),

@@ -486,7 +486,7 @@ func (*BaseCommand) AuditFormat(in console.Input, optName string) (string, error
 
 	val, _ := in.Option(optName).(string)
 	for _, f := range advisory.Formats {
-		if in.Option(optName) == f {
+		if in.Option(optName) == f.Name {
 			return val, nil
 		}
 	}
@@ -494,7 +494,7 @@ func (*BaseCommand) AuditFormat(in console.Input, optName string) (string, error
 	return "", NewError(ClassInvalidArgument, "--"+optName+" must be one of "+joinFormats()+".")
 }
 
-func joinFormats() string { return strings.Join(advisory.Formats[:], ", ") }
+func joinFormats() string { return strings.Join(advisory.Formats.Names(), ", ") }
 
 // CreatePolicyConfig ports createPolicyConfig; in may be nil.
 func (*BaseCommand) CreatePolicyConfig(cfg *config.Config, in console.Input) (*policy.PolicyConfig, error) {

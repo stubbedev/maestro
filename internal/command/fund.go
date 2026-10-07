@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 func init() {
@@ -28,7 +29,7 @@ func NewFundCommand() *FundCommand {
 	c.SetName("fund")
 	c.SetDescription("Discover how to help fund the maintenance of your dependencies")
 	c.SetDefinitionItems(
-		optionWithSuggestions("format", "f", console.OptionValueRequired, "Format of the output: text or json", "text", "text", "json"),
+		formatOption("Format of the output: text or json", "text", fundFormats),
 	)
 
 	return c
@@ -101,6 +102,7 @@ func (c *FundCommand) Execute(in console.Input, _ console.Output) (int, error) {
 	cio := c.IO()
 
 	format := in.Option("format")
+	surface := fundFormats.Surface(format)
 	if format != "text" && format != "json" {
 		cio.WriteError(`Unsupported format "`+php.ToString(format)+`". See help for supported formats.`, true, io.Normal)
 
@@ -116,7 +118,7 @@ func (c *FundCommand) Execute(in console.Input, _ console.Output) (int, error) {
 
 		for vendor, links := range fundings.All() {
 			cio.Write("", true, io.Normal)
-			cio.Write("<comment>"+vendor.String()+"</comment>", true, io.Normal)
+			cio.Write(surface.Style(ui.RoleAccent, vendor.String()), true, io.Normal)
 			byURL, _ := links.(*php.Array)
 			for url, packages := range byURL.All() {
 				names, _ := packages.(*php.Array)
@@ -127,7 +129,7 @@ func (c *FundCommand) Execute(in console.Input, _ console.Output) (int, error) {
 					prev, hasPrev = line, true
 				}
 
-				cio.Write("    <href="+console.Escape(url.String())+">"+url.String()+"</>", true, io.Normal)
+				cio.Write("    <href="+console.Escape(url.String())+">"+surface.Style(ui.RoleLink, url.String())+"</>", true, io.Normal)
 			}
 		}
 

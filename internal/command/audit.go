@@ -31,7 +31,7 @@ func NewAuditCommand() *AuditCommand {
 	c.SetDescription("Checks for security vulnerability advisories for installed packages")
 	c.SetDefinitionItems(
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables auditing of require-dev packages.", nil),
-		optionWithSuggestions("format", "f", console.OptionValueRequired, `Output format. Must be "table", "plain", "json", or "summary".`, advisory.FormatTable, advisory.Formats[:]...),
+		formatOption(`Output format. Must be "table", "plain", "json", or "summary".`, advisory.FormatTable, advisory.Formats),
 		console.MustOption("locked", "", console.OptionValueNone, "Audit based on the lock file instead of the installed packages.", nil),
 		optionWithSuggestions("abandoned", "", console.OptionValueRequired, `Behavior on abandoned packages. Must be "ignore", "report", or "fail".`, nil, policy.Audits[:]...),
 		optionWithSuggestions("ignore-severity", "", console.OptionValueIsArray|console.OptionValueRequired, "Ignore advisories of a certain severity level.", []any{}, "low", "medium", "high", "critical"),

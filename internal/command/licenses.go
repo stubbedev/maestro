@@ -3,6 +3,8 @@
 package command
 
 import (
+	"strings"
+
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
@@ -10,6 +12,8 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/spdx"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 func init() {
@@ -26,7 +30,7 @@ func NewLicensesCommand() *LicensesCommand {
 	c.SetName("licenses")
 	c.SetDescription("Shows information about licenses of dependencies")
 	c.SetDefinitionItems(
-		optionWithSuggestions("format", "f", console.OptionValueRequired, "Format of the output: text, json or summary", "text", "text", "json", "summary"),
+		formatOption("Format of the output: text, json or summary", "text", licensesFormats),
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables search in require-dev packages.", nil),
 		console.MustOption("locked", "", console.OptionValueNone, "Shows licenses from the lock file instead of installed packages.", nil),
 	)
@@ -54,6 +58,27 @@ func licensesOf(p pkg.PackageInterface) *php.Array {
 	}
 
 	return php.NewArray()
+}
+
+// styleLicenses is the licenses' identifiers joined by ", ", or "none"
+// (implodeComma's): on the free surface an OSI-approved licence in the
+// success role, any other in the notice role and "none" in the danger
+// role.
+func styleLicenses(surface ui.Surface, spdxLicenses *spdx.SpdxLicenses, licenses *php.Array) string {
+	if licenses == nil || licenses.Len() == 0 {
+		return surface.Style(ui.RoleDanger, "none")
+	}
+	parts := make([]string, 0, licenses.Len())
+	for _, v := range licenses.All() {
+		id := php.ToString(v)
+		role := ui.RoleNotice
+		if spdxLicenses.IsOsiApprovedByIdentifier(id) {
+			role = ui.RoleSuccess
+		}
+		parts = append(parts, surface.Style(role, id))
+	}
+
+	return strings.Join(parts, ", ")
 }
 
 // Execute ports execute().
@@ -99,16 +124,16 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 	packages = pkg.SortPackagesAlphabetically(packages)
 	cio := c.IO()
 
-	switch format := in.Option("format"); format {
+	format := in.Option("format")
+	surface := licensesFormats.Surface(format)
+	switch format {
 	case "text":
-		rootLicenses := implodeComma(root.License())
-		if rootLicenses == "" {
-			rootLicenses = "none"
-		}
-		cio.Write("Name: <comment>"+root.PrettyName()+"</comment>", true, io.Normal)
-		cio.Write("Version: <comment>"+root.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>", true, io.Normal)
-		cio.Write("Licenses: <comment>"+rootLicenses+"</comment>", true, io.Normal)
-		cio.Write("Dependencies:", true, io.Normal)
+		spdxLicenses := spdx.New()
+		label := func(s string) string { return surface.Style(ui.RoleMuted, s) }
+		cio.Write(label("Name:")+" <comment>"+root.PrettyName()+"</comment>", true, io.Normal)
+		cio.Write(label("Version:")+" <comment>"+root.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>", true, io.Normal)
+		cio.Write(label("Licenses:")+" <comment>"+styleLicenses(surface, spdxLicenses, root.License())+"</comment>", true, io.Normal)
+		cio.Write(label("Dependencies:"), true, io.Normal)
 		cio.Write("", true, io.Normal)
 
 		table := console.NewTable(out)
@@ -122,14 +147,10 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 				name = "<href=" + console.Escape(link.S) + ">" + p.PrettyName() + "</>"
 			}
 
-			licenses := implodeComma(licensesOf(p))
-			if licenses == "" {
-				licenses = "none"
-			}
 			if err := table.AddRow([]any{
 				name,
 				p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev),
-				licenses,
+				styleLicenses(surface, spdxLicenses, licensesOf(p)),
 			}); err != nil {
 				return 0, err
 			}

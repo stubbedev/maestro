@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -26,8 +27,14 @@ const (
 	FormatSummary = "summary"
 )
 
-// Formats is Auditor::FORMATS. Treat it as read-only.
-var Formats = [...]string{FormatTable, FormatPlain, FormatJSON, FormatSummary}
+// Formats is Auditor::FORMATS and the surface each is on: the table is
+// for people, the others are parsed. Treat it as read-only.
+var Formats = ui.Formats{
+	{Name: FormatTable, Surface: ui.Free},
+	{Name: FormatPlain, Surface: ui.Frozen},
+	{Name: FormatJSON, Surface: ui.Frozen},
+	{Name: FormatSummary, Surface: ui.Frozen},
+}
 
 // Auditor::ABANDONED_* (deprecated aliases of the policy.Audit* values).
 const (
