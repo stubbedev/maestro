@@ -10,7 +10,9 @@ import (
 	"io/fs"
 	nethttp "net/http"
 	"os"
+	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -52,7 +54,8 @@ const (
 // channel is remembered in <home>/maestro-update-channel. Downloads are
 // verified against the release's checksums.txt (there are no signing keys,
 // so --update-keys only says so). Backups go to data-dir as
-// <date>-<version>-old, which --rollback restores.
+// <date>-<version>-old, which --rollback restores once the backup matches
+// the checksums.txt of that version's release.
 type SelfUpdateCommand struct {
 	*BaseCommand
 
@@ -201,7 +204,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 	}
 
 	if console.BoolOption(in, "rollback") {
-		return c.rollback(rollbackDir, localFilename)
+		return c.rollback(httpDownloader, rollbackDir, localFilename, tmpDir)
 	}
 
 	if in.Argument("command") == "self" && in.Argument("version") == "update" {
@@ -270,6 +273,8 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 	}
 	ioi.WriteError("   ", false, io.Normal)
 	if _, err := httpDownloader.Copy(asset, tempFilename, nil); err != nil {
+		_ = os.Remove(tempFilename)
+
 		return 0, err
 	}
 	ioi.WriteError("", true, io.Normal)
@@ -292,10 +297,8 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 		cleanBackups(rollbackDir, "")
 	}
 
-	if !c.setLocalBinary(localFilename, tempFilename, backupFile) {
-		_ = os.Remove(tempFilename)
-
-		return 1, nil
+	if err := c.setLocalBinary(localFilename, tempFilename, backupFile); err != nil {
+		return 0, err
 	}
 
 	if fileExists(backupFile) {
@@ -470,52 +473,74 @@ func verifyChecksum(file, checksums, name string) error {
 }
 
 // setLocalBinary ports setLocalPhar: it keeps a backup of localFilename
-// and moves newFilename into its place.
-func (c *SelfUpdateCommand) setLocalBinary(localFilename, newFilename, backupTarget string) bool {
-	ioi := c.IO()
+// in backupTarget (none when "", a rollback) and moves newFilename into
+// its place. newFilename is gone afterwards unless it took that place.
+func (c *SelfUpdateCommand) setLocalBinary(localFilename, newFilename, backupTarget string) error {
 	perm := fs.FileMode(0o755)
 	if st, err := os.Stat(localFilename); err == nil {
 		perm = st.Mode().Perm()
 	}
-	if err := os.Chmod(newFilename, perm); err != nil {
-		ioi.WriteError("<error>"+err.Error()+"</error>", true, io.Normal)
+	action := "Composer update"
+	if backupTarget == "" {
+		action = "Composer rollback"
+	}
+	fail := func(err error) error {
+		_ = os.Remove(newFilename)
 
-		return false
+		return NewError(`Composer\Downloader\FilesystemException`, action+` failed: "`+localFilename+`" could not be written.`+php.EOL+err.Error())
+	}
+	if err := os.Chmod(newFilename, perm); err != nil {
+		return fail(err)
 	}
 
-	// copy current file into backups dir
+	// copy current file into backups dir; a partial copy is no backup
 	if backupTarget != "" {
 		if err := os.MkdirAll(filepath.Dir(backupTarget), 0o777); err == nil {
-			_, _ = util.Copy(localFilename, backupTarget)
+			if ok, err := util.Copy(localFilename, backupTarget); !ok || err != nil {
+				_ = os.Remove(backupTarget)
+			}
 		}
 	}
 
 	if err := replaceFile(newFilename, localFilename); err != nil {
-		ioi.WriteError("<error>Composer update failed: \""+localFilename+"\" could not be written.", true, io.Normal)
-		ioi.WriteError(err.Error()+"</error>", true, io.Normal)
-
-		return false
+		return fail(err)
 	}
 
-	return true
+	return nil
 }
 
-// replaceFile moves src over dst; a running Windows binary is moved aside
-// first.
+// replaceFile moves src over dst. Windows can not replace a running
+// binary but can rename it, so there dst is moved aside to dst.old first
+// and moved back when src can not take its place; the .old file of a
+// binary still running is removed by the next update.
 func replaceFile(src, dst string) error {
-	if runtime.GOOS == "windows" {
-		old := dst + ".old"
-		_ = os.Remove(old)
-		if err := os.Rename(dst, old); err != nil {
-			return err
-		}
+	if runtime.GOOS != "windows" {
+		return os.Rename(src, dst)
 	}
+	old := dst + ".old"
+	_ = os.Remove(old)
+	if err := os.Rename(dst, old); err != nil {
+		return err
+	}
+	if err := os.Rename(src, dst); err != nil {
+		_ = os.Rename(old, dst)
 
-	return os.Rename(src, dst)
+		return err
+	}
+	_ = os.Remove(old)
+
+	return nil
 }
 
-// rollback ports rollback.
-func (c *SelfUpdateCommand) rollback(rollbackDir, localFilename string) (int, error) {
+// rollback ports rollback. The backup is verified like a download before
+// it replaces the binary: a backup of a tagged release against the sha256
+// that release publishes in checksums.txt (a mismatch, or a release or
+// checksums file that can not be fetched, refuses the rollback); a backup
+// of anything else, which no release covers, is restored after a warning
+// and, interactively, a confirmation. The backup is copied first and the
+// copy is what is verified and installed, so it can not change in
+// between.
+func (c *SelfUpdateCommand) rollback(d *http.HttpDownloader, rollbackDir, localFilename, tmpDir string) (int, error) {
 	rollbackVersion := lastBackupVersion(rollbackDir)
 	if rollbackVersion == "" {
 		return 0, NewError(ClassUnexpectedValue, `Composer rollback failed: no installation to roll back to in "`+rollbackDir+`"`)
@@ -531,20 +556,126 @@ func (c *SelfUpdateCommand) rollback(rollbackDir, localFilename string) (int, er
 	}
 
 	ioi := c.IO()
-	ioi.WriteError("Rolling back to version <info>"+parseBackupVersion(rollbackVersion)+"</info>.", true, io.Normal)
+	ioi.WriteError("Rolling back to version <info>"+rollbackVersion+"</info>.", true, io.Normal)
 
-	tmp := localFilename + "-rollback"
-	if _, err := util.Copy(oldFile, tmp); err != nil {
+	// The backup about to be installed over the binary must be trustworthy. If its directory or
+	// the file itself is owned by another user or writable by others, it may have been tampered
+	// with, so warn and ask for confirmation before trusting it.
+	untrusted := warnIfUntrustedPath(ioi, rollbackDir, "data-dir")
+	untrusted = warnIfUntrustedPath(ioi, oldFile, "backup file") || untrusted
+	if untrusted {
+		if ok, err := confirmRollback(ioi, "Do you want to roll back to this backup despite the warning above? [<comment>y/N</comment>] "); err != nil || !ok {
+			return 1, err
+		}
+	}
+
+	tmpFile, err := os.CreateTemp(tmpDir, filepath.Base(localFilename)+"-rollback*")
+	if err != nil {
 		return 0, err
 	}
-	if !c.setLocalBinary(localFilename, tmp, "") {
-		_ = os.Remove(tmp)
+	tmp := tmpFile.Name()
+	_ = tmpFile.Close()
+	defer func() { _ = os.Remove(tmp) }()
+	if ok, err := util.Copy(oldFile, tmp); err != nil {
+		return 0, err
+	} else if !ok {
+		return 0, NewError(`Composer\Downloader\FilesystemException`, `Composer rollback failed: "`+oldFile+`" could not be read`)
+	}
 
-		return 1, nil
+	version, isTag := parseBackupVersion(rollbackVersion)
+	if !isTag {
+		// Snapshot/dev builds are not released so no checksum is published for them.
+		ioi.WriteError(`<warning>The signature of "`+rollbackVersion+`" can not be verified as no signature is published for snapshot/dev builds. Make sure your data-dir ("`+rollbackDir+`") is not writable by untrusted users.</warning>`, true, io.Normal)
+		if ok, err := confirmRollback(ioi, "Do you want to roll back to this unverified backup anyway? [<comment>y/N</comment>] "); err != nil || !ok {
+			return 1, err
+		}
+	} else if err := c.verifyBackup(d, version, tmp); err != nil {
+		// refused before setLocalBinary installs the backup
+		return 0, err
+	}
+
+	if err := c.setLocalBinary(localFilename, tmp, ""); err != nil {
+		return 0, err
 	}
 	_ = os.Remove(oldFile)
 
 	return 0, nil
+}
+
+// confirmRollback asks question when interactive (yes otherwise) and
+// says the rollback is aborted on no.
+func confirmRollback(ioi io.IO, question string) (bool, error) {
+	if !ioi.IsInteractive() {
+		return true, nil
+	}
+	ok, err := ioi.AskConfirmation(question, false)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		ioi.WriteError("<warning>Rollback aborted.</warning>", true, io.Normal)
+	}
+
+	return ok, nil
+}
+
+// verifyBackup checks file, a backup of release version, against the
+// checksums.txt of that release, as a download of it is checked.
+func (c *SelfUpdateCommand) verifyBackup(d *http.HttpDownloader, version, file string) error {
+	const unverified = ", aborting to avoid installing an unverified maestro binary."
+	rel, err := releaseSource(c.APIBase).fetch(d, "/releases/tags/v"+version)
+	if err != nil {
+		if te, ok := errors.AsType[*util.TransportError](err); ok && te.StatusCode == nethttp.StatusNotFound {
+			return &Error{Class: ClassRuntime, Message: `Composer rollback failed: no release "v` + version + `" is published to verify the backup against` + unverified, Prev: err}
+		}
+
+		return &Error{Class: ClassRuntime, Message: "Composer rollback failed: could not download the release v" + version + " to verify the backup" + unverified + " Retry once you are online.", Prev: err}
+	}
+	sumURL, ok := rel.assets[checksumsAsset]
+	if !ok {
+		return NewError(ClassRuntime, `Composer rollback failed: the release "v`+version+`" publishes no `+checksumsAsset+` to verify the backup against`+unverified)
+	}
+	resp, err := d.Get(sumURL, nil)
+	if err != nil {
+		return &Error{Class: ClassRuntime, Message: "Composer rollback failed: could not download the checksums from " + sumURL + " to verify the backup" + unverified + " Retry once you are online.", Prev: err}
+	}
+	if strings.TrimSpace(resp.Body()) == "" {
+		return NewError(ClassRuntime, "Composer rollback failed: an empty checksums file was downloaded from "+sumURL)
+	}
+
+	return verifyChecksum(file, resp.Body(), assetName())
+}
+
+// warnIfUntrustedPath ports warnIfUntrustedDir: it warns when path is
+// owned by another user than the one running maestro or is writable by
+// group or others, and reports whether it did. Like Composer without the
+// POSIX functions, it checks nothing on Windows.
+func warnIfUntrustedPath(ioi io.IO, path, label string) bool {
+	if runtime.GOOS == "windows" {
+		return false
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	untrusted := false
+	if uid, ok := fileOwner(st); ok && uid != os.Geteuid() {
+		me, err1 := user.LookupId(strconv.Itoa(os.Geteuid()))
+		owner, err2 := user.LookupId(strconv.Itoa(uid))
+		if err1 == nil && err2 == nil && me.Username != owner.Username {
+			ioi.WriteError(`<warning>You are running Composer as "`+me.Username+`", while "`+path+`" (`+label+`) is owned by "`+owner.Username+`"</warning>`, true, io.Normal)
+			untrusted = true
+		}
+	}
+
+	// group- or world-writable paths let other users tamper with files that maestro trusts there
+	if st.Mode().Perm()&0o022 != 0 {
+		ioi.WriteError(`<warning>The `+label+` "`+path+`" is writable by other users, which is a security risk as another user could tamper with the files Composer trusts there. Make sure it is only writable by the user running Composer.</warning>`, true, io.Normal)
+		untrusted = true
+	}
+
+	return untrusted
 }
 
 // backups are the backup names (without the -old suffix) in rollbackDir,
@@ -584,12 +715,21 @@ func cleanBackups(rollbackDir, except string) {
 	}
 }
 
-// parseBackupVersion is parseBackupVersion's version part: the backup name
-// without its "<date>-" prefix.
-func parseBackupVersion(rollbackVersion string) string {
-	if len(rollbackVersion) > 20 && rollbackVersion[19] == '-' && rollbackVersion[4] == '-' && rollbackVersion[10] == '_' {
-		return rollbackVersion[20:]
+// backupNameRe and snapshotRe are parseBackupVersion's patterns.
+var (
+	backupNameRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-(.+)$`)
+	snapshotRe   = regexp.MustCompile(`^[0-9a-f]{7}$`)
+)
+
+// parseBackupVersion ports parseBackupVersion: the version a backup name
+// holds (the name without its "<date>-" prefix) and whether it is a
+// tagged release; names it does not recognise are returned whole,
+// untagged.
+func parseBackupVersion(rollbackVersion string) (version string, isTag bool) {
+	m := backupNameRe.FindStringSubmatch(rollbackVersion)
+	if m == nil {
+		return rollbackVersion, false
 	}
 
-	return rollbackVersion
+	return m[1], !snapshotRe.MatchString(m[1])
 }
