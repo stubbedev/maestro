@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command"
@@ -51,7 +52,9 @@ func TestSelfUpdateCommand_ParseBackupVersion(t *testing.T) {
 // releaseServer serves a fake GitHub API for stubbedev/maestro: the
 // releases latest and prerelase (binary, listed in checksums.txt as
 // checksum) and the older releases in old (tag => binary, listed with its
-// real sha256). Releases in noChecksums publish no checksums.txt.
+// real sha256). Releases in noChecksums publish no checksums.txt, those
+// in noAsset no build for this platform; answers replace the answer to a
+// path. requests counts the requests served.
 type releaseServer struct {
 	*httptest.Server
 	binary      string
@@ -60,6 +63,9 @@ type releaseServer struct {
 	prerelase   string
 	old         map[string]string
 	noChecksums map[string]bool
+	noAsset     map[string]bool
+	answers     map[string]nethttp.HandlerFunc
+	requests    atomic.Int32
 }
 
 func sha256Hex(s string) string {
@@ -68,29 +74,45 @@ func sha256Hex(s string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func newReleaseServer(t *testing.T, latest, binary string) *releaseServer {
-	t.Helper()
-	rs := &releaseServer{binary: binary, checksum: sha256Hex(binary), latest: latest, old: map[string]string{}, noChecksums: map[string]bool{}}
+// releaseAsset is the name of this platform's build in a release.
+func releaseAsset() string {
 	asset := "maestro_" + runtime.GOOS + "_" + runtime.GOARCH
 	if runtime.GOOS == "windows" {
 		asset += ".exe"
 	}
+
+	return asset
+}
+
+func newReleaseServer(t *testing.T, latest, binary string) *releaseServer {
+	t.Helper()
+	rs := &releaseServer{
+		binary: binary, checksum: sha256Hex(binary), latest: latest, old: map[string]string{},
+		noChecksums: map[string]bool{}, noAsset: map[string]bool{}, answers: map[string]nethttp.HandlerFunc{},
+	}
+	asset := releaseAsset()
 	releaseJSON := func(tag string) string {
-		sums := fmt.Sprintf(`,
-			{"name": "checksums.txt", "browser_download_url": "%s/download/%s/checksums.txt"}`, rs.URL, tag)
-		if rs.noChecksums[tag] {
-			sums = ""
+		var assets []string
+		if !rs.noAsset[tag] {
+			assets = append(assets, fmt.Sprintf(`{"name": %q, "browser_download_url": "%s/download/%s/bin"}`, asset, rs.URL, tag))
+		}
+		if !rs.noChecksums[tag] {
+			assets = append(assets, fmt.Sprintf(`{"name": "checksums.txt", "browser_download_url": "%s/download/%s/checksums.txt"}`, rs.URL, tag))
 		}
 
-		return fmt.Sprintf(`{"tag_name": "v%s", "draft": false, "assets": [
-			{"name": %q, "browser_download_url": "%s/download/%s/bin"}%s
-		]}`, tag, asset, rs.URL, tag, sums)
+		return fmt.Sprintf(`{"tag_name": "v%s", "draft": false, "assets": [%s]}`, tag, strings.Join(assets, ","))
 	}
 	tagOf := func(p string) string {
 		return strings.Split(strings.TrimPrefix(p, "/download/"), "/")[0]
 	}
 	rs.Server = httptest.NewServer(nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		rs.requests.Add(1)
 		p := r.URL.Path
+		if answer, ok := rs.answers[p]; ok {
+			answer(w, r)
+
+			return
+		}
 		switch {
 		case p == "/repos/stubbedev/maestro/releases/latest":
 			fmt.Fprint(w, releaseJSON(rs.latest))
@@ -459,4 +481,317 @@ func TestSelfUpdateCommand_RollbackWarnsAboutWritableBackup(t *testing.T) {
 	if got := readFile(t, bin); got != "OLD" {
 		t.Errorf("binary = %q", got)
 	}
+}
+
+// selfUpdateRun is a self-update run against a release server whose latest
+// stable release is 1.2.0: the name it is run by (self-update when
+// empty), the running version (1.0.0 when empty), the server's preview
+// release, a setup (the server's switches, a stored channel, backups),
+// the arguments, and what the run gives: an exception whose message holds
+// err, or a status code and a display holding display; the binary
+// afterwards ("OLD" is the one replaced, "NEW" the latest release's), the
+// stored channel ("" leaves it unchecked), the suffixes of the backups
+// left (nil leaves them unchecked), and, with offline, that the server
+// was asked nothing.
+type selfUpdateRun struct {
+	name      string
+	command   string
+	current   string
+	prerelase string
+	setup     func(t *testing.T, rs *releaseServer, su *command.SelfUpdateCommand, bin, home string)
+	args      []any
+	err       string
+	code      int
+	display   []string
+	binary    string
+	channel   string
+	backups   []string
+	offline   bool
+}
+
+// writeChannel stores channel as the one self-update remembers.
+func writeChannel(t *testing.T, home, channel string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(home, "maestro-update-channel"), []byte(channel+"\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// backupNames are the backups in home, without their -old suffix.
+func backupNames(t *testing.T, home string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, e := range entries {
+		if name, ok := strings.CutSuffix(e.Name(), "-old"); ok {
+			names = append(names, name)
+		}
+	}
+
+	return names
+}
+
+func runSelfUpdate(t *testing.T, runs []selfUpdateRun) {
+	t.Helper()
+	for _, tc := range runs {
+		t.Run(tc.name, func(t *testing.T) {
+			rs := newReleaseServer(t, "1.2.0", "NEW")
+			rs.prerelase = tc.prerelase
+			current := tc.current
+			if current == "" {
+				current = "1.0.0"
+			}
+			appTester, bin, home := selfUpdateTester(t, rs, current)
+			found, err := appTester.Application.Find("self-update")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.setup != nil {
+				tc.setup(t, rs, found.(*command.SelfUpdateCommand), bin, home)
+			}
+
+			name := tc.command
+			if name == "" {
+				name = "self-update"
+			}
+			code, err := appTester.RunArgs(commandtest.Options{}, append([]any{"command", name}, tc.args...)...)
+			display := appTester.Display(true)
+			switch {
+			case tc.err != "" && (err == nil || !strings.Contains(err.Error(), tc.err)):
+				t.Fatalf("exception %v, want one holding %q (display:\n%s)", err, tc.err, display)
+			case tc.err == "" && err != nil:
+				t.Fatalf("unexpected exception: %v (display:\n%s)", err, display)
+			case tc.err == "" && code != tc.code:
+				t.Errorf("status %d, want %d (display:\n%s)", code, tc.code, display)
+			}
+			for _, s := range tc.display {
+				if !strings.Contains(display, s) {
+					t.Errorf("display lacks %q:\n%s", s, display)
+				}
+			}
+			if got := readFile(t, bin); got != tc.binary {
+				t.Errorf("binary %q, want %q", got, tc.binary)
+			}
+			if entries, _ := os.ReadDir(filepath.Dir(bin)); len(entries) != 1 {
+				t.Errorf("the binary's directory holds %v, want the binary alone", entries)
+			}
+			if tc.channel != "" {
+				if got := readFile(t, filepath.Join(home, "maestro-update-channel")); got != tc.channel+"\n" {
+					t.Errorf("stored channel %q, want %q", got, tc.channel)
+				}
+			}
+			if tc.backups != nil {
+				got := backupNames(t, home)
+				if len(got) != len(tc.backups) {
+					t.Fatalf("backups %v, want %v", got, tc.backups)
+				}
+				for i, suffix := range tc.backups {
+					if !strings.HasSuffix(got[i], suffix) {
+						t.Errorf("backup %q, want one ending in %q", got[i], suffix)
+					}
+				}
+			}
+			if n := rs.requests.Load(); tc.offline && n != 0 {
+				t.Errorf("%d requests, want none", n)
+			}
+		})
+	}
+}
+
+// TestSelfUpdateCommand_Runs runs self-update's names, versions, channels
+// and options against the fake GitHub API.
+func TestSelfUpdateCommand_Runs(t *testing.T) {
+	const upgraded = "Upgrading to version 1.2.0 (stable channel)."
+	planted := func(names ...string) func(*testing.T, *releaseServer, *command.SelfUpdateCommand, string, string) {
+		return func(t *testing.T, _ *releaseServer, _ *command.SelfUpdateCommand, _, home string) {
+			for _, name := range names {
+				plantBackup(t, home, name, "BACKUP")
+			}
+		}
+	}
+	older := func(t *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+		rs.old["1.1.0"] = "V110"
+	}
+	runs := []selfUpdateRun{
+		{name: "the latest stable release", display: []string{upgraded}, binary: "NEW", backups: []string{"-1.0.0"}},
+		{name: "the selfupdate alias", command: "selfupdate", display: []string{upgraded}, binary: "NEW"},
+		{name: "self update in two words", command: "self", args: []any{"version", "update"}, display: []string{upgraded}, binary: "NEW"},
+		{name: "a version", setup: older, args: []any{"version", "1.1.0"}, display: []string{"Upgrading to version 1.1.0 (stable channel)."}, binary: "V110"},
+		{name: "a version with its v", setup: older, args: []any{"version", "v1.1.0"}, display: []string{"Upgrading to version 1.1.0 (stable channel)."}, binary: "V110"},
+		{name: "an older version", current: "1.2.0", setup: older, args: []any{"version", "1.1.0"}, display: []string{"Upgrading to version 1.1.0 (stable channel)."}, binary: "V110"},
+		{
+			name:    "a newer build than the latest release",
+			current: "1.3.0",
+			display: []string{"You are already using the latest available Composer version 1.3.0 (stable channel)."},
+			binary:  "OLD",
+		},
+		{name: "--snapshot", prerelase: "1.3.0-RC1", args: []any{"--snapshot", true}, display: []string{"Upgrading to version 1.3.0-RC1 (snapshot channel)."}, binary: "NEW", channel: "snapshot"},
+		{
+			name:      "--stable after preview",
+			prerelase: "1.3.0-RC1",
+			setup: func(t *testing.T, _ *releaseServer, _ *command.SelfUpdateCommand, _, home string) {
+				writeChannel(t, home, "preview")
+			},
+			args:    []any{"--stable", true},
+			display: []string{upgraded},
+			binary:  "NEW",
+			channel: "stable",
+		},
+		{
+			name:      "the stored channel",
+			prerelase: "1.3.0-RC1",
+			setup: func(t *testing.T, _ *releaseServer, _ *command.SelfUpdateCommand, _, home string) {
+				writeChannel(t, home, "preview")
+			},
+			display: []string{"Upgrading to version 1.3.0-RC1 (preview channel)."},
+			binary:  "NEW",
+			channel: "preview",
+		},
+		{name: "--set-channel-only", args: []any{"--set-channel-only", true, "--preview", true}, binary: "OLD", channel: "preview", offline: true},
+		{
+			name:    "--update-keys",
+			args:    []any{"--update-keys", true},
+			display: []string{"there are no public keys to update"},
+			binary:  "OLD",
+			offline: true,
+		},
+		{name: "--no-progress", args: []any{"--no-progress", true}, display: []string{upgraded}, binary: "NEW"},
+		{
+			name:    "--clean-backups on update",
+			setup:   planted("2024-01-01_00-00-00-0.8.0", "2024-02-01_00-00-00-0.9.0"),
+			args:    []any{"--clean-backups", true},
+			display: []string{upgraded},
+			binary:  "NEW",
+			backups: []string{"-1.0.0"},
+		},
+		{
+			name:    "--clean-backups when up to date",
+			current: "1.2.0",
+			setup:   planted("2024-01-01_00-00-00-0.8.0", "2024-02-01_00-00-00-0.9.0"),
+			args:    []any{"--clean-backups", true},
+			binary:  "OLD",
+			backups: []string{"-0.9.0"},
+		},
+	}
+	for _, major := range []string{"1", "2", "2.2"} {
+		runs = append(runs, selfUpdateRun{
+			name:    "--" + major,
+			args:    []any{"--" + major, true},
+			display: []string{"maestro has no " + major + ".x channel, the stable channel is used.", "Upgrading to version 1.2.0 (" + major + ".x channel)."},
+			binary:  "NEW",
+			channel: major,
+		})
+	}
+	runSelfUpdate(t, runs)
+}
+
+// TestSelfUpdateCommand_Failures runs self-update where the release, the
+// GitHub API or the binary's location fails it: the binary stays as it
+// was and no temporary file is left next to it.
+func TestSelfUpdateCommand_Failures(t *testing.T) {
+	answer := func(status int, body string) nethttp.HandlerFunc {
+		return func(w nethttp.ResponseWriter, _ *nethttp.Request) {
+			w.WriteHeader(status)
+			fmt.Fprint(w, body)
+		}
+	}
+	latest := "/repos/stubbedev/maestro/releases/latest"
+	runs := []selfUpdateRun{
+		{name: "--rollback without backups", args: []any{"--rollback", true}, err: "Composer rollback failed: no installation to roll back to in ", binary: "OLD"},
+		{
+			name: "no build for this platform",
+			setup: func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+				rs.noAsset["1.2.0"] = true
+			},
+			err:    `Version "1.2.0" has no build for ` + runtime.GOOS + "/" + runtime.GOARCH + ".",
+			binary: "OLD",
+		},
+		{
+			name: "no checksums.txt",
+			setup: func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+				rs.noChecksums["1.2.0"] = true
+			},
+			code:    1,
+			display: []string{"The download of the new composer version failed for an unexpected reason"},
+			binary:  "OLD",
+		},
+		{
+			name: "no checksum for this platform",
+			setup: func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+				rs.answers["/download/1.2.0/checksums.txt"] = answer(nethttp.StatusOK, sha256Hex("NEW")+"  other\n")
+			},
+			err:    "The phar signature did not match",
+			binary: "OLD",
+		},
+		{
+			name: "the API answers 500",
+			setup: func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+				rs.answers[latest] = answer(500, "oops")
+			},
+			err:    "500",
+			binary: "OLD",
+		},
+		{
+			name: "the API answers no JSON",
+			setup: func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+				rs.answers[latest] = answer(200, "{nope")
+			},
+			err:    "JSON",
+			binary: "OLD",
+		},
+		{
+			name:   "the API refuses the connection",
+			setup:  func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) { rs.Close() },
+			err:    "Failed to connect",
+			binary: "OLD",
+		},
+		{
+			name: "no preview release",
+			setup: func(_ *testing.T, rs *releaseServer, _ *command.SelfUpdateCommand, _, _ string) {
+				rs.answers["/repos/stubbedev/maestro/releases"] = answer(200, `[{"tag_name": "v1.3.0", "draft": true, "assets": []}]`)
+			},
+			args:   []any{"--preview", true},
+			err:    "No release found for the preview channel",
+			binary: "OLD",
+		},
+		{
+			name: "a binary under /nix/store",
+			setup: func(_ *testing.T, _ *releaseServer, su *command.SelfUpdateCommand, _, _ string) {
+				su.Executable = func() (string, error) { return "/nix/store/abc-maestro/bin/maestro", nil }
+			},
+			code:    1,
+			display: []string{"This instance of Composer does not have the self-update command."},
+			binary:  "OLD",
+			offline: true,
+		},
+		{
+			name: "a missing binary",
+			setup: func(_ *testing.T, _ *releaseServer, su *command.SelfUpdateCommand, bin, _ string) {
+				su.Executable = func() (string, error) { return bin + "-gone", nil }
+			},
+			err:    `Composer update failed: the "`,
+			binary: "OLD",
+		},
+	}
+	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
+		runs = append(runs, selfUpdateRun{
+			name: "no writable directory for the download",
+			setup: func(t *testing.T, _ *releaseServer, _ *command.SelfUpdateCommand, bin, _ string) {
+				cache := t.TempDir()
+				t.Setenv("COMPOSER_CACHE_DIR", cache)
+				for _, dir := range []string{cache, filepath.Dir(bin)} {
+					if err := os.Chmod(dir, 0o555); err != nil {
+						t.Fatal(err)
+					}
+					t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+				}
+			},
+			err:    "directory used to download the temp file could not be written",
+			binary: "OLD",
+		})
+	}
+	runSelfUpdate(t, runs)
 }

@@ -362,7 +362,9 @@ var coverage = []entry{
 	cover(command.NewSelfUpdateCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestSelfUpdateCommand_SuccessfulUpdateAndRollback)),
+			Positive(Go(TestSelfUpdateCommand_Runs)),
 			Negative(Go(TestSelfUpdateCommand_UpdateWithInvalidOptionThrowsException)),
+			Negative(Go(TestSelfUpdateCommand_Failures)),
 		},
 	}),
 }

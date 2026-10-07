@@ -1,0 +1,8 @@
+
+                                                                              
+  Too many arguments to "self-update" command, expected arguments "version".  
+                                                                              
+
+self-update [-r|--rollback] [--clean-backups] [--no-progress] [--update-keys] [--stable] [--preview] [--snapshot] [--1] [--2] [--2.2] [--set-channel-only] [--] [<version>]
+
+exit 1
