@@ -187,8 +187,11 @@ var coverage = []entry{
 		},
 	}),
 	cover(command.NewStatusCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestStatusCommand_NoLocalChanges))},
-		Pending: 102,
+		Tests: []Proof{
+			Positive(Go(TestStatusCommand_NoLocalChanges)),
+			Positive(E2E("status", "status")),
+			Positive(E2E("status-symlink", "status", "-v")),
+		},
 	}),
 	cover(command.NewArchiveCommand, Coverage{
 		Tests: []Proof{

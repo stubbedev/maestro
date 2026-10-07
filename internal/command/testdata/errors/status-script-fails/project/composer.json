@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "scripts": {
+        "pre-status-cmd": "exit 3"
+    }
+}

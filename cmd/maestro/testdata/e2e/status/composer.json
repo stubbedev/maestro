@@ -1,0 +1,16 @@
+{
+    "name": "maestro/e2e-status",
+    "description": "status on a git source install, with the status events' scripts.",
+    "repositories": [
+        {"type": "vcs", "url": "@ROOT@/repos/lib"},
+        {"type": "git", "url": "@ROOT@/repos/tool"}
+    ],
+    "require": {
+        "acme/lib": "^1.0",
+        "acme/tool": "dev-main"
+    },
+    "scripts": {
+        "pre-status-cmd": "echo pre-status-cmd",
+        "post-status-cmd": "echo post-status-cmd"
+    }
+}

@@ -28,6 +28,36 @@ type commit struct {
 	branch string
 }
 
+// runGit runs git in dir as the generated repositories are written: no
+// system or global configuration and a fixed author, plus env. It returns
+// the trimmed output.
+func runGit(t *testing.T, dir string, env []string, args ...string) string {
+	t.Helper()
+
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(append(os.Environ(),
+		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_AUTHOR_NAME=Maestro E2E", "GIT_AUTHOR_EMAIL=e2e@example.org",
+		"GIT_COMMITTER_NAME=Maestro E2E", "GIT_COMMITTER_EMAIL=e2e@example.org",
+	), env...)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
+// gitIn is a setup running git in the directory rel of the scenario root.
+func gitIn(rel string, args ...string) func(*testing.T, string) {
+	return func(t *testing.T, root string) {
+		t.Helper()
+		runGit(t, filepath.Join(root, rel), nil, args...)
+	}
+}
+
 // gitRepo creates (or extends) a git repository at dir with fixed authors
 // and dates, so that both tools see the same commit hashes.
 func gitRepo(t *testing.T, dir string, commits ...commit) {
@@ -40,20 +70,7 @@ func gitRepo(t *testing.T, dir string, commits ...commit) {
 	git := func(args ...string) string {
 		t.Helper()
 
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		cmd.Env = append(os.Environ(),
-			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
-			"GIT_AUTHOR_NAME=Maestro E2E", "GIT_AUTHOR_EMAIL=e2e@example.org",
-			"GIT_COMMITTER_NAME=Maestro E2E", "GIT_COMMITTER_EMAIL=e2e@example.org",
-		)
-
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-
-		return strings.TrimSpace(string(out))
+		return runGit(t, dir, nil, args...)
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
@@ -113,18 +130,8 @@ func gitRepo(t *testing.T, dir string, commits ...commit) {
 
 		git("add", "-A")
 
-		cmd := exec.Command("git", "commit", "-q", "-m", fmt.Sprintf("commit %d", n))
-		cmd.Dir = dir
-		cmd.Env = append(os.Environ(),
-			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
-			"GIT_AUTHOR_NAME=Maestro E2E", "GIT_AUTHOR_EMAIL=e2e@example.org",
-			"GIT_COMMITTER_NAME=Maestro E2E", "GIT_COMMITTER_EMAIL=e2e@example.org",
-			"GIT_AUTHOR_DATE="+date, "GIT_COMMITTER_DATE="+date,
-		)
-
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git commit: %v\n%s", err, out)
-		}
+		runGit(t, dir, []string{"GIT_AUTHOR_DATE=" + date, "GIT_COMMITTER_DATE=" + date},
+			"commit", "-q", "-m", fmt.Sprintf("commit %d", n))
 
 		if c.tag != "" {
 			git("tag", c.tag)

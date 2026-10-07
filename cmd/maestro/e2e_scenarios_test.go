@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -226,6 +227,41 @@ func fixtureScenarios() []scenario {
 				{args: []string{"require", "acme/lib:dev-develop", "--prefer-source"}, setup: removeVendor},
 				{args: []string{"require", "acme/lib:dev-develop", "--prefer-install=source"}, setup: removeVendor},
 				{args: []string{"install", "--prefer-dist"}, setup: removeVendor},
+			},
+		},
+		{
+			// status's exit code is a bit field: 1 local changes, 2
+			// unpushed changes, 4 version variations. acme/tool is a git
+			// source install with two upstream commits.
+			name:    "status",
+			fixture: "status",
+			setup:   setups(vcsRepos, vcsReposNext),
+			steps: []step{
+				{args: []string{"update"}},
+				{args: []string{"status"}},
+				{args: []string{"status", "-v"}, setup: gitIn(statusTool, "checkout", "-q", "HEAD~1")},
+				{args: []string{"status", "-v"}, setup: writeFile(statusTool+"/composer.json", "{}\n")},
+				{
+					args: []string{"status"},
+					setup: setups(gitIn(statusTool, "checkout", "-q", "--", "."), gitIn(statusTool, "checkout", "-q", "main"),
+						func(t *testing.T, root string) {
+							t.Helper()
+							gitRepo(t, filepath.Join(root, statusTool), commit{files: map[string]string{"src/Local.php": "<?php\n"}})
+						}),
+				},
+				{args: []string{"status", "-v"}},
+			},
+		},
+		{
+			// A change-reporting install that is a symbolic link is
+			// reported as such (no symlinks on Windows without privileges).
+			name:    "status-symlink",
+			fixture: "status",
+			setup:   vcsRepos,
+			skip:    unixOnly,
+			steps: []step{
+				{args: []string{"update"}},
+				{args: []string{"status", "-v"}, setup: symlinkInstall(statusTool)},
 			},
 		},
 		{
@@ -837,6 +873,37 @@ func vcsRepos(t *testing.T, root string) {
 			"bin/tool": "#!/usr/bin/env php\n<?php\necho \"tool\\n\";\n",
 		}},
 	)
+}
+
+// statusTool is acme/tool's source install in the status scenarios.
+const statusTool = "project/vendor/acme/tool"
+
+// unixOnly skips a scenario on Windows.
+func unixOnly() string {
+	if runtime.GOOS == "windows" {
+		return "needs symbolic links"
+	}
+
+	return ""
+}
+
+// symlinkInstall moves the install at rel next to the project and leaves
+// a symbolic link to it in its place.
+func symlinkInstall(rel string) func(*testing.T, string) {
+	return func(t *testing.T, root string) {
+		t.Helper()
+
+		dir := filepath.Join(root, rel)
+		moved := filepath.Join(root, "linked-"+filepath.Base(rel))
+
+		if err := os.Rename(dir, moved); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.Symlink(moved, dir); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // vcsReposNext adds a release to repos/lib and a commit to repos/tool.
