@@ -1,0 +1,8 @@
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+about
+
+exit 1

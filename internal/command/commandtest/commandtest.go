@@ -121,11 +121,10 @@ func encode(t testing.TB, data any) []byte {
 	return []byte(s)
 }
 
-// InitTempComposer ports initTempComposer: it writes composer.json and
-// auth.json (and composer.lock when lock is not empty) into a new temp
-// directory, sets COMPOSER_HOME into it and changes into it. Everything is
-// restored when the test ends. The arguments are as ToArray takes them.
-func InitTempComposer(t testing.TB, composerJSON, authJSON, composerLock any, setupRepositories bool) string {
+// InitTempDir is initTempComposer without its files: it changes into a
+// new empty temp directory with COMPOSER_HOME inside it, for commands run
+// without a project. Everything is restored when the test ends.
+func InitTempDir(t testing.TB) string {
 	t.Helper()
 	dir := UniqueTmpDirectory(t)
 
@@ -142,6 +141,20 @@ func InitTempComposer(t testing.TB, composerJSON, authJSON, composerLock any, se
 	util.PutEnv("COMPOSER_HOME", dir+"/composer-home")
 	util.PutEnv("COMPOSER_DISABLE_XDEBUG_WARN", "1")
 
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	return dir
+}
+
+// InitTempComposer ports initTempComposer: it writes composer.json and
+// auth.json (and composer.lock when lock is not empty) into a new temp
+// directory, sets COMPOSER_HOME into it and changes into it. Everything is
+// restored when the test ends. The arguments are as ToArray takes them.
+func InitTempComposer(t testing.TB, composerJSON, authJSON, composerLock any, setupRepositories bool) string {
+	t.Helper()
+	dir := InitTempDir(t)
 	cj := ToArray(t, composerJSON)
 	aj := ToArray(t, authJSON)
 
@@ -158,9 +171,6 @@ func InitTempComposer(t testing.TB, composerJSON, authJSON, composerLock any, se
 		}
 	}
 
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
 	var cjData, ajData any = cj, aj
 	if cj.Len() == 0 {
 		cjData = php.NewObject()

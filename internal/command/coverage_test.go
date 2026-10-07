@@ -49,8 +49,7 @@ var coverage = []entry{
 		Pending: 53,
 	}),
 	cover(command.NewAboutCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestAboutCommand_About))},
-		Pending: 55,
+		Tests: []Proof{Positive(Go(TestAboutCommand_About)), Positive(E2E("commands", "about"))},
 	}),
 	cover(command.NewConfigCommand, Coverage{
 		Tests: []Proof{

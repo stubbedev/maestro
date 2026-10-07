@@ -71,6 +71,7 @@ func fixtureScenarios() []scenario {
 				{args: []string{"show", "-a", "psr/log"}},
 				{args: []string{"run-script", "--list"}},
 				{args: []string{"list"}},
+				{args: []string{"about"}},
 				{args: []string{"diagnose"}, setup: installPubKeys, normalize: normalizeDiagnose},
 			},
 		},

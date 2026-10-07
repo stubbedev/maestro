@@ -98,6 +98,23 @@ func (a *ApplicationTester) RunArgs(o Options, kv ...any) (int, error) {
 	return a.Run(params, o)
 }
 
+// Streams is a run with stderr captured separately: its status code, the
+// exception run() let through, and stdout and stderr (PHP_EOL normalised).
+type Streams struct {
+	Code   int
+	Err    error
+	Stdout string
+	Stderr string
+}
+
+// RunStreams is RunArgs with CaptureStderrSeparately, for tests that
+// assert which stream each line goes to.
+func (a *ApplicationTester) RunStreams(kv ...any) Streams {
+	code, err := a.RunArgs(Options{CaptureStderrSeparately: true}, kv...)
+
+	return Streams{Code: code, Err: err, Stdout: a.Display(true), Stderr: a.ErrorOutput(true)}
+}
+
 // Display ports getDisplay($normalize): the captured output.
 func (a *ApplicationTester) Display(normalize bool) string {
 	if a.output == nil {

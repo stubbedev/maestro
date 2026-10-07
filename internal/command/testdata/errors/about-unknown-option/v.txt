@@ -1,0 +1,24 @@
+
+In ArgvInput.php line 220:
+                                                          
+  [Symfony\Component\Console\Exception\RuntimeException]  
+  The "--nope" option does not exist.                     
+                                                          
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:220
+ Symfony\Component\Console\Input\ArgvInput->addLongOption() at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:149
+ Symfony\Component\Console\Input\ArgvInput->parseLongOption() at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:82
+ Symfony\Component\Console\Input\ArgvInput->parseToken() at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:71
+ Symfony\Component\Console\Input\ArgvInput->parse() at @COMPOSER@/vendor/symfony/console/Input/Input.php:55
+ Symfony\Component\Console\Input\Input->bind() at @COMPOSER@/vendor/symfony/console/Command/Command.php:257
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+about
+
+exit 1

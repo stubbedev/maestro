@@ -1,0 +1,8 @@
+
+                                                           
+  No arguments expected for "about" command, got "extra".  
+                                                           
+
+about
+
+exit 1

@@ -37,20 +37,18 @@ func xdebugWarnOff(t *testing.T) {
 	t.Cleanup(func() { util.ClearEnv("COMPOSER_DISABLE_XDEBUG_WARN") })
 }
 
+// TestAboutCommand_About ports AboutCommandTest::testAbout, asserting
+// the whole of stdout (Composer writes the three lines with IO::write)
+// and an empty stderr, in a directory without composer.json: about never
+// loads the project.
 func TestAboutCommand_About(t *testing.T) {
-	composerVersion := composer.GetVersion()
-	appTester := commandtest.GetApplicationTester(t)
-	if code, err := appTester.RunArgs(commandtest.Options{}, "command", "about"); err != nil || code != 0 {
-		t.Fatalf("run: %d %v", code, err)
-	}
-	for _, want := range []string{
-		"Composer - Dependency Manager for PHP - version " + composerVersion,
-		"Composer is a dependency manager tracking local dependencies of your projects and libraries.",
-		"See https://getcomposer.org/ for more information.",
-	} {
-		if !strings.Contains(appTester.Display(false), want) {
-			t.Errorf("display %q lacks %q", appTester.Display(false), want)
-		}
+	commandtest.InitTempDir(t)
+	got := commandtest.GetApplicationTester(t).RunStreams("command", "about")
+	want := "Composer - Dependency Manager for PHP - version " + composer.GetVersion() + "\n" +
+		"Composer is a dependency manager tracking local dependencies of your projects and libraries.\n" +
+		"See https://getcomposer.org/ for more information.\n"
+	if got != (commandtest.Streams{Stdout: want}) {
+		t.Errorf("about: %+v, want stdout %q only", got, want)
 	}
 }
 
