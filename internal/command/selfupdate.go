@@ -347,13 +347,24 @@ func backupStamp(path string) string {
 	return t.UTC().Format("2006-01-02_15-04-05")
 }
 
-// setChannel ports Versions::setChannel: it stores the channel.
+// setChannel ports Versions::setChannel: it stores the channel, the
+// numeric major channels ("1", "2") as stable, and says so when the stored
+// channel changes.
 func setChannel(home, channel string, ioi io.IO) error {
 	if err := os.MkdirAll(home, 0o777); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(home, channelFile), []byte(channel+php.EOL), 0o666); err != nil {
+	stored := channel
+	if majorChannelRe.MatchString(channel) {
+		stored = "stable"
+	}
+	file := filepath.Join(home, channelFile)
+	previous, readErr := os.ReadFile(file)
+	if err := os.WriteFile(file, []byte(stored+php.EOL), 0o666); err != nil {
 		return err
+	}
+	if readErr != nil || strings.TrimSpace(string(previous)) != stored {
+		ioi.WriteError(`Storing "<info>`+stored+`</info>" as default update channel for the next self-update run.`, true, io.Normal)
 	}
 	if channel != "stable" && channel != "preview" && channel != "snapshot" {
 		ioi.WriteError("<warning>maestro has no "+channel+".x channel, the stable channel is used.</warning>", true, io.Normal)
@@ -361,6 +372,10 @@ func setChannel(home, channel string, ioi io.IO) error {
 
 	return nil
 }
+
+// majorChannelRe matches a major-version channel, which Versions::setChannel
+// stores as stable.
+var majorChannelRe = regexp.MustCompile(`^\d+$`)
 
 // readChannel ports Versions::getChannel.
 func readChannel(home string) string {

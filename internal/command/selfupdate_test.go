@@ -650,7 +650,7 @@ func TestSelfUpdateCommand_Runs(t *testing.T) {
 			binary:  "NEW",
 			channel: "preview",
 		},
-		{name: "--set-channel-only", args: []any{"--set-channel-only", true, "--preview", true}, binary: "OLD", channel: "preview", offline: true},
+		{name: "--set-channel-only", args: []any{"--set-channel-only", true, "--preview", true}, display: []string{`Storing "preview" as default update channel for the next self-update run.`}, binary: "OLD", channel: "preview", offline: true},
 		{
 			name:    "--update-keys",
 			args:    []any{"--update-keys", true},
@@ -676,13 +676,19 @@ func TestSelfUpdateCommand_Runs(t *testing.T) {
 			backups: []string{"-0.9.0"},
 		},
 	}
-	for _, major := range []string{"1", "2", "2.2"} {
+	// A major channel is stored as stable, an LTS one ("2.2") as itself,
+	// as Versions::setChannel does.
+	for major, stored := range map[string]string{"1": "stable", "2": "stable", "2.2": "2.2"} {
 		runs = append(runs, selfUpdateRun{
-			name:    "--" + major,
-			args:    []any{"--" + major, true},
-			display: []string{"maestro has no " + major + ".x channel, the stable channel is used.", "Upgrading to version 1.2.0 (" + major + ".x channel)."},
+			name: "--" + major,
+			args: []any{"--" + major, true},
+			display: []string{
+				`Storing "` + stored + `" as default update channel for the next self-update run.`,
+				"maestro has no " + major + ".x channel, the stable channel is used.",
+				"Upgrading to version 1.2.0 (" + major + ".x channel).",
+			},
 			binary:  "NEW",
-			channel: major,
+			channel: stored,
 		})
 	}
 	runSelfUpdate(t, runs)
