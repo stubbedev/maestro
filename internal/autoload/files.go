@@ -48,10 +48,10 @@ type dump struct {
 // a speculation built are taken only by a dump with equal dumpPaths
 // (speculation.takeClassmap). A field dump.classmap reads goes here.
 type dumpPaths struct {
-	basePath   string // the project dir
-	vendorPath string
-	targetDir  string // vendorPath/targetDir
-	realTarget string // realpath(targetDir), the __DIR__ of its files
+	basePath   slashPath // the project dir
+	vendorPath slashPath
+	targetDir  slashPath // vendorPath/targetDir
+	realTarget string    // realpath(targetDir), the __DIR__ of its files
 
 	vendorPathCode            string
 	vendorPathToTargetDirCode string
@@ -60,6 +60,89 @@ type dumpPaths struct {
 	// vendorDir and baseDir are what $vendorDir and $baseDir evaluate to
 	// in the generated files.
 	vendorDir, baseDir string
+}
+
+// slashPath is a path in normalizePath's form (forward slashes, no
+// trailing one), the form getPathCode and the vendor prefix check compare
+// paths in; normalized is the only way to make one, so that a native
+// Windows path cannot reach them.
+type slashPath string
+
+// normalized is $filesystem->normalizePath($path).
+func normalized(path string) slashPath { return slashPath(fspath.NormalizePath(path)) }
+
+// resolveBasePaths is the start of AutoloadGenerator::dump: the project
+// and vendor dirs, realpath()ed and normalized. create says whether
+// vendor-dir is created first (ensureDirectoryExists, as dump() does); a
+// look ahead creates nothing, and a vendor-dir that does not exist fails.
+func resolveBasePaths(config Config, create bool) (basePath, vendorPath slashPath, err error) {
+	vendorDir, err := vendorDirConfig(config)
+	if err != nil {
+		return "", "", err
+	}
+	if create {
+		if err := util.EnsureDirectoryExists(vendorDir); err != nil {
+			return "", "", err
+		}
+	}
+	cwd, err := util.GetCwd(false)
+	if err != nil {
+		return "", "", err
+	}
+	base, err := realpath(cwd)
+	if err != nil {
+		return "", "", err
+	}
+	vendor, err := realpath(vendorDir)
+	if err != nil {
+		return "", "", err
+	}
+
+	return normalized(base), normalized(vendor), nil
+}
+
+// lookAheadDump is the dump a look ahead (Warm, Speculate) scans with:
+// the base and vendor paths alone, without creating anything.
+func lookAheadDump(config Config) (*dump, error) {
+	basePath, vendorPath, err := resolveBasePaths(config, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dump{basePath: basePath, vendorPath: vendorPath}, nil
+}
+
+// pathsFor is the rest of dump()'s path setup for vendor-dir/targetDir:
+// the target dir (created when create is set, else it must exist), its
+// realpath and the codes the generated files reach the dirs by, in
+// AutoloadGenerator.php's order.
+func pathsFor(basePath, vendorPath slashPath, targetDir string, create bool) (dumpPaths, error) {
+	p := dumpPaths{basePath: basePath, vendorPath: vendorPath, targetDir: vendorPath + "/" + slashPath(targetDir)}
+	if create {
+		if err := util.EnsureDirectoryExists(string(p.targetDir)); err != nil {
+			return dumpPaths{}, err
+		}
+	}
+	var err error
+	if p.realTarget, err = realpath(string(p.targetDir)); err != nil {
+		return dumpPaths{}, err
+	}
+
+	if p.vendorPathCode, err = util.FindShortestPathCode(p.realTarget, string(p.vendorPath), true, false, false); err != nil {
+		return dumpPaths{}, err
+	}
+	if p.vendorPathToTargetDirCode, err = util.FindShortestPathCode(string(p.vendorPath), p.realTarget, true, false, false); err != nil {
+		return dumpPaths{}, err
+	}
+	if p.appBaseDirCode, err = util.FindShortestPathCode(string(p.vendorPath), string(p.basePath), true, false, false); err != nil {
+		return dumpPaths{}, err
+	}
+	p.appBaseDirCode = strings.ReplaceAll(p.appBaseDirCode, "__DIR__", "$vendorDir")
+
+	p.vendorDir = evalPathCode(p.vendorPathCode, p.realTarget, "")
+	p.baseDir = evalPathCode(p.appBaseDirCode, "", p.vendorDir)
+
+	return p, nil
 }
 
 // namespacePaths is one entry of autoload_namespaces.php or
@@ -72,50 +155,16 @@ type namespacePaths struct {
 // newDump creates vendor-dir and vendor-dir/targetDir and works out the
 // paths of a dump.
 func newDump(config Config, targetDir string) (*dump, error) {
-	vendorDir, err := vendorDirConfig(config)
+	basePath, vendorPath, err := resolveBasePaths(config, true)
 	if err != nil {
 		return nil, err
 	}
-	if err := util.EnsureDirectoryExists(vendorDir); err != nil {
-		return nil, err
-	}
-
-	cwd, err := util.GetCwd(false)
+	paths, err := pathsFor(basePath, vendorPath, targetDir, true)
 	if err != nil {
 		return nil, err
 	}
-	d := &dump{}
-	if d.basePath, err = realpath(cwd); err != nil {
-		return nil, err
-	}
-	d.basePath = fspath.NormalizePath(d.basePath)
-	if d.vendorPath, err = realpath(vendorDir); err != nil {
-		return nil, err
-	}
-	d.vendorPath = fspath.NormalizePath(d.vendorPath)
-	d.targetDir = d.vendorPath + "/" + targetDir
-	if err := util.EnsureDirectoryExists(d.targetDir); err != nil {
-		return nil, err
-	}
-	if d.realTarget, err = realpath(d.targetDir); err != nil {
-		return nil, err
-	}
 
-	if d.vendorPathCode, err = util.FindShortestPathCode(d.realTarget, d.vendorPath, true, false, false); err != nil {
-		return nil, err
-	}
-	if d.vendorPathToTargetDirCode, err = util.FindShortestPathCode(d.vendorPath, d.realTarget, true, false, false); err != nil {
-		return nil, err
-	}
-	if d.appBaseDirCode, err = util.FindShortestPathCode(d.vendorPath, d.basePath, true, false, false); err != nil {
-		return nil, err
-	}
-	d.appBaseDirCode = strings.ReplaceAll(d.appBaseDirCode, "__DIR__", "$vendorDir")
-
-	d.vendorDir = evalPathCode(d.vendorPathCode, d.realTarget, "")
-	d.baseDir = evalPathCode(d.appBaseDirCode, "", d.vendorDir)
-
-	return d, nil
+	return &dump{dumpPaths: paths}, nil
 }
 
 // realpath is realpath() of a path AutoloadGenerator::dump hands to
@@ -358,7 +407,7 @@ func (d *dump) targetDirLoader(rootPackage pkg.RootPackageInterface) (string, er
 	for prefix := range rules.All() {
 		prefixes = append(prefixes, php.VarExport(prefix.Value()))
 	}
-	baseDirFromTargetDirCode, err := util.FindShortestPathCode(d.targetDir, d.basePath, true, false, false)
+	baseDirFromTargetDirCode, err := util.FindShortestPathCode(string(d.targetDir), string(d.basePath), true, false, false)
 	if err != nil {
 		return "", err
 	}
@@ -428,7 +477,7 @@ func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 			for _, v := range group.paths.Values() {
 				dir := php.ToString(v)
 				if !fspath.IsAbsolutePath(dir) {
-					dir = d.basePath + "/" + dir
+					dir = string(d.basePath) + "/" + dir
 				}
 				dir = fspath.NormalizePath(dir)
 				if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
@@ -438,8 +487,8 @@ func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 				// if the vendor dir is contained within a psr-0/psr-4 dir
 				// being scanned we exclude it
 				dirExcluded := excluded
-				if strings.Contains(d.vendorPath, dir+"/") {
-					dirExcluded = append(slices.Clip(excluded), d.vendorPath+"/")
+				if strings.Contains(string(d.vendorPath), dir+"/") {
+					dirExcluded = append(slices.Clip(excluded), string(d.vendorPath)+"/")
 				}
 
 				scans = append(scans, psrScan{dir, d.exclusions.build(dir, dirExcluded), group.typ, namespace.String()})
@@ -791,10 +840,10 @@ func (d *dump) staticReplacements() (map[string]string, error) {
 		absolute, to string
 		phar         bool
 	}{
-		{absoluteCode(d.vendorDir), d.vendorPath, false},
-		{absoluteCode("phar://" + d.vendorDir), d.vendorPath, true},
-		{absoluteCode(d.baseDir), d.basePath, false},
-		{absoluteCode("phar://" + d.baseDir), d.basePath, true},
+		{absoluteCode(d.vendorDir), string(d.vendorPath), false},
+		{absoluteCode("phar://" + d.vendorDir), string(d.vendorPath), true},
+		{absoluteCode(d.baseDir), string(d.basePath), false},
+		{absoluteCode("phar://" + d.baseDir), string(d.basePath), true},
 	} {
 		code, err := staticCode(r.to, r.phar)
 		if err != nil {

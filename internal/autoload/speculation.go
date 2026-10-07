@@ -5,13 +5,11 @@ package autoload
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
-	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
@@ -22,7 +20,7 @@ type speculation struct {
 	// devMode is installed.json's "dev" as the speculation read it, from
 	// the file installedJSON stamps (the zero Stamp when it was not
 	// read, or changed while it was read).
-	devMode       bool
+	devMode       devMode
 	installedPath string
 	installedJSON fsstate.Stamp
 }
@@ -39,7 +37,12 @@ type scanKey struct {
 type scanInputs struct {
 	parser                           classmap.Parser
 	scanPsrPackages, strictAmbiguous bool
-	basePath, vendorPath             string
+	basePath, vendorPath             slashPath
+}
+
+// scanKey is the key of the scan of autoloads for the dump d.
+func (g *Generator) scanKey(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool) scanKey {
+	return scanKey{scanInputs{g.Parser, scanPsrPackages, strictAmbiguous, d.basePath, d.vendorPath}, autoloads}
 }
 
 // same reports whether a and b give the same scan.
@@ -78,42 +81,28 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 	devMode := g.devMode
 	var installedPath string
 	var installedJSON fsstate.Stamp
-	if !g.devModeSet {
-		var value any
+	if !devMode.known {
 		var err error
-		if devMode, value, installedPath, installedJSON, err = installedDevModeStamped(config); err != nil || value != nil {
+		if devMode, installedPath, installedJSON, err = installedDevModeStamped(config); err != nil || devMode.raw != nil {
 			return
 		}
 	}
-	vendorDir, err := vendorDirConfig(config)
+	d, err := lookAheadDump(config)
 	if err != nil {
 		return
 	}
-	cwd, err := util.GetCwd(false)
-	if err != nil {
-		return
-	}
-	d := &dump{}
-	if d.basePath, err = realpath(cwd); err != nil {
-		return
-	}
-	d.basePath = fspath.NormalizePath(d.basePath)
-	if d.vendorPath, err = realpath(vendorDir); err != nil {
-		return
-	}
-	d.vendorPath = fspath.NormalizePath(d.vendorPath)
 
 	packageMap, err := g.BuildPackageMap(im, rootPackage, localRepo.CanonicalPackages())
 	if err != nil {
 		return
 	}
-	autoloads, err := g.parseAutoloads(packageMap, rootPackage, devFilter(devMode, localRepo.DevPackageNames()), devMode)
+	autoloads, err := g.parseAutoloads(packageMap, rootPackage, devFilter(devMode.on, localRepo.DevPackageNames()), devMode.on)
 	if err != nil {
 		return
 	}
 
 	ahead := aheadDump(d, "composer")
-	key := scanKey{scanInputs{parser: g.Parser, scanPsrPackages: scanPsrPackages, basePath: d.basePath, vendorPath: d.vendorPath}, autoloads}
+	key := g.scanKey(d, autoloads, scanPsrPackages, false)
 	g.speculation = &speculation{
 		scan: util.StartAheadFunc(key, scanKey.same, func() (*scanResult, error) {
 			s := &scanResult{}
@@ -121,7 +110,7 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 			if s.classMap, err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages); err != nil {
 				return nil, err
 			}
-			if s.warnings, err = analyseClassMap(s.classMap, d.vendorPath, false); err != nil {
+			if s.warnings, err = analyseClassMap(s.classMap, string(d.vendorPath), false); err != nil {
 				return nil, err
 			}
 			if ahead != nil && ahead.classmap(s.classMap) == nil {
@@ -141,26 +130,12 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 // vendor paths of d, when vendor-dir/targetDir exists (newDump would
 // create it); nil otherwise.
 func aheadDump(d *dump, targetDir string) *dump {
-	ahead := &dump{basePath: d.basePath, vendorPath: d.vendorPath, targetDir: d.vendorPath + "/" + targetDir}
-	var ok bool
-	if ahead.realTarget, ok = php.Realpath(ahead.targetDir); !ok {
+	paths, err := pathsFor(d.basePath, d.vendorPath, targetDir, false)
+	if err != nil {
 		return nil
 	}
-	var err error
-	if ahead.vendorPathCode, err = util.FindShortestPathCode(ahead.realTarget, ahead.vendorPath, true, false, false); err != nil {
-		return nil
-	}
-	if ahead.vendorPathToTargetDirCode, err = util.FindShortestPathCode(ahead.vendorPath, ahead.realTarget, true, false, false); err != nil {
-		return nil
-	}
-	if ahead.appBaseDirCode, err = util.FindShortestPathCode(ahead.vendorPath, ahead.basePath, true, false, false); err != nil {
-		return nil
-	}
-	ahead.appBaseDirCode = strings.ReplaceAll(ahead.appBaseDirCode, "__DIR__", "$vendorDir")
-	ahead.vendorDir = evalPathCode(ahead.vendorPathCode, ahead.realTarget, "")
-	ahead.baseDir = evalPathCode(ahead.appBaseDirCode, "", ahead.vendorDir)
 
-	return ahead
+	return &dump{dumpPaths: paths}
 }
 
 // readCurrent reads the files of d a dump writes with putIfModified, for
@@ -174,9 +149,9 @@ func readCurrent(d *dump) map[string]fsstate.Snapshot {
 		}
 	}
 	for _, name := range dumpFiles {
-		read(d.targetDir + "/" + name)
+		read(string(d.targetDir) + "/" + name)
 	}
-	read(d.vendorPath + "/autoload.php")
+	read(string(d.vendorPath + "/autoload.php"))
 
 	return current
 }
@@ -208,21 +183,21 @@ func (s *scanResult) takeClassmap(d *dump) bool {
 // installedDevModeStamped is installedDevMode, also returning the path of
 // installed.json and its stamp when it was there and did not change while
 // it was read (the zero Stamp otherwise).
-func installedDevModeStamped(config Config) (devMode bool, value any, path string, stamp fsstate.Stamp, err error) {
+func installedDevModeStamped(config Config) (dev devMode, path string, stamp fsstate.Stamp, err error) {
 	vendorDir, err := vendorDirConfig(config)
 	if err != nil {
-		return false, nil, "", fsstate.Stamp{}, err
+		return devMode{}, "", fsstate.Stamp{}, err
 	}
 	path = vendorDir + "/composer/installed.json"
 	before, _ := fsstate.StatStamp(path)
-	if devMode, value, err = installedDevMode(config); err != nil {
-		return devMode, value, path, fsstate.Stamp{}, err
+	if dev, err = installedDevMode(config); err != nil {
+		return dev, path, fsstate.Stamp{}, err
 	}
 	if after, _ := fsstate.StatStamp(path); before.Same(after) {
 		stamp = after
 	}
 
-	return devMode, value, path, stamp, nil
+	return dev, path, stamp, nil
 }
 
 // takeSpeculatedDevMode sets devMode as detectDevMode would, from what the
@@ -241,7 +216,7 @@ func (g *Generator) takeSpeculatedDevMode(config Config) bool {
 	if !s.installedJSON.Unchanged(s.installedPath) {
 		return false
 	}
-	g.devModeSet, g.devMode, g.devModeValue = true, s.devMode, nil
+	g.devMode = s.devMode
 
 	return true
 }
@@ -263,7 +238,7 @@ func (g *Generator) takeSpeculation(d *dump, autoloads *Autoloads, scanPsrPackag
 		return nil
 	}
 	g.speculation = nil
-	taken, _ := s.scan.Take(scanKey{scanInputs{g.Parser, scanPsrPackages, strictAmbiguous, d.basePath, d.vendorPath}, autoloads})
+	taken, _ := s.scan.Take(g.scanKey(d, autoloads, scanPsrPackages, strictAmbiguous))
 
 	return taken
 }

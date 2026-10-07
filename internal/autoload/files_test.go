@@ -17,7 +17,7 @@ func TestClassmapChunks(t *testing.T) {
 			t.Run(strconv.Quote(base)+"/"+strconv.Itoa(n), func(t *testing.T) {
 				vendor := base + "/vendor"
 				d := &dump{
-					basePath: base, vendorPath: vendor, realTarget: vendor + "/composer",
+					basePath: normalized(base), vendorPath: normalized(vendor), realTarget: vendor + "/composer",
 					vendorDir: vendor, baseDir: base,
 					vendorPathCode: "__DIR__ . '/..'", appBaseDirCode: "dirname($vendorDir)",
 				}

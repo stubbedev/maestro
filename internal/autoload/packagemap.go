@@ -115,7 +115,7 @@ func validatePackage(p pkg.PackageInterface) error {
 // of a package map (from BuildPackageMap; its first entry is the root
 // package if it is a RootPackageInterface).
 func (g *Generator) ParseAutoloads(packageMap []PackageMapEntry, rootPackage pkg.PackageInterface, filter DevFilter) (*Autoloads, error) {
-	return g.parseAutoloads(packageMap, rootPackage, filter, g.devMode)
+	return g.parseAutoloads(packageMap, rootPackage, filter, g.devMode.on)
 }
 
 // parseAutoloads is ParseAutoloads with the root package's autoload-dev

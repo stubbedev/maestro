@@ -22,7 +22,6 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
-	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // Generator is Composer\Autoload\AutoloadGenerator.
@@ -37,12 +36,7 @@ type Generator struct {
 	io              io.IO
 	parseCache      *classmap.ParseCache
 	store           *store.Store
-	devMode         bool
-	devModeSet      bool
-	// devModeValue is a $devMode that is not a bool (installed.json's
-	// "dev", stored in the untyped property as is); devMode is its
-	// truthiness
-	devModeValue any
+	devMode         devMode
 	// suffixValue is a configured autoloader-suffix that is not a string
 	suffixValue               any
 	classMapAuthoritative     bool
@@ -84,8 +78,24 @@ type ignoreNothing struct{}
 func (ignoreNothing) IsIgnored(string) bool { return false }
 
 // SetDevMode ports setDevMode.
-func (g *Generator) SetDevMode(devMode bool) {
-	g.devMode, g.devModeSet, g.devModeValue = devMode, true, nil
+func (g *Generator) SetDevMode(on bool) { g.devMode = devModeOf(on) }
+
+// devMode is $this->devMode: unknown until set or detected. raw is a
+// value that is not a bool (installed.json's "dev", stored in the untyped
+// property as is), whose truthiness on is.
+type devMode struct {
+	known, on bool
+	raw       any
+}
+
+// devModeOf is the devMode $this->devMode = $dev sets.
+func devModeOf(dev any) devMode {
+	switch dev := dev.(type) {
+	case bool:
+		return devMode{known: true, on: dev}
+	default:
+		return devMode{known: true, on: php.ToBool(dev), raw: dev}
+	}
 }
 
 // SetClassMapAuthoritative ports setClassMapAuthoritative: whether the
@@ -132,7 +142,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	g.parseCache.Wait()
 
 	// auto-set devMode based on whether dev dependencies are installed or not
-	if !g.devModeSet && !g.takeSpeculatedDevMode(config) {
+	if !g.devMode.known && !g.takeSpeculatedDevMode(config) {
 		if err := g.detectDevMode(config); err != nil {
 			return nil, err
 		}
@@ -143,13 +153,13 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		// set COMPOSER_DEV_MODE in case not set yet so it is available in
 		// the dump-autoload event listeners
 		if _, ok := util.GetEnv("COMPOSER_DEV_MODE"); !ok {
-			util.PutEnv("COMPOSER_DEV_MODE", map[bool]string{true: "1", false: "0"}[g.devMode])
+			util.PutEnv("COMPOSER_DEV_MODE", map[bool]string{true: "1", false: "0"}[g.devMode.on])
 		}
 
 		if err := g.devModeArg(); err != nil {
 			return nil, err
 		}
-		if _, err := g.eventDispatcher.DispatchScript(PreAutoloadDump, g.devMode, nil, flags); err != nil {
+		if _, err := g.eventDispatcher.DispatchScript(PreAutoloadDump, g.devMode.on, nil, flags); err != nil {
 			return nil, err
 		}
 	}
@@ -165,7 +175,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return nil, err
 	}
-	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, devFilter(g.devMode, devPackageNames))
+	autoloads, err := g.ParseAutoloads(packageMap, rootPackage, devFilter(g.devMode.on, devPackageNames))
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +205,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	defer func() { g.ahead = nil }()
 
 	g.suffixValue = nil
-	if suffix, err = g.suffix(config, d.vendorPath, suffix, locker); err != nil {
+	if suffix, err = g.suffix(config, string(d.vendorPath), suffix, locker); err != nil {
 		return nil, err
 	}
 
@@ -211,7 +221,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		if err := g.devModeArg(); err != nil {
 			return nil, err
 		}
-		if _, err := g.eventDispatcher.DispatchScript(PostAutoloadDump, g.devMode, nil, flags); err != nil {
+		if _, err := g.eventDispatcher.DispatchScript(PostAutoloadDump, g.devMode.on, nil, flags); err != nil {
 			return nil, err
 		}
 	}
@@ -243,23 +253,10 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	if g.classMapAuthoritative {
 		scanPsrPackages = true
 	}
-	vendorDir, err := vendorDirConfig(config)
+	d, err := lookAheadDump(config)
 	if err != nil {
 		return
 	}
-	cwd, err := util.GetCwd(false)
-	if err != nil {
-		return
-	}
-	d := &dump{}
-	if d.basePath, err = realpath(cwd); err != nil {
-		return
-	}
-	d.basePath = fspath.NormalizePath(d.basePath)
-	if d.vendorPath, err = realpath(vendorDir); err != nil {
-		return
-	}
-	d.vendorPath = fspath.NormalizePath(d.vendorPath)
 
 	packageMap, err := g.BuildPackageMap(im, rootPackage, localRepo.CanonicalPackages())
 	if err != nil {
@@ -286,41 +283,36 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 // false if no vendor dir is present or it is too old to contain dev
 // information.
 func (g *Generator) detectDevMode(config Config) error {
-	g.devModeSet = true
 	var err error
-	g.devMode, g.devModeValue, err = installedDevMode(config)
+	g.devMode, err = installedDevMode(config)
 
 	return err
 }
 
-// installedDevMode is the devMode and devModeValue detectDevMode reads.
-func installedDevMode(config Config) (devMode bool, value any, err error) {
+// installedDevMode is the devMode detectDevMode reads; it is known even
+// when it fails.
+func installedDevMode(config Config) (devMode, error) {
+	notDev := devModeOf(false)
 	vendorDir, err := vendorDirConfig(config)
 	if err != nil {
-		return false, nil, err
+		return notDev, err
 	}
 
 	installedJSON, err := json.NewFile(vendorDir+"/composer/installed.json", nil, nil)
 	if err != nil || !installedJSON.Exists() {
-		return false, nil, err
+		return notDev, err
 	}
 	data, err := installedJSON.Read()
 	if err != nil {
-		return false, nil, err
-	}
-	a, ok := data.(*php.Array)
-	if !ok {
-		return false, nil, nil
+		return notDev, err
 	}
 	// if (isset($installedJson['dev'])) $this->devMode = $installedJson['dev'];
-	switch dev, _ := a.Get("dev"); dev := dev.(type) {
-	case nil:
-		return false, nil, nil
-	case bool:
-		return dev, nil, nil
-	default:
-		return php.ToBool(dev), dev, nil
+	a, _ := data.(*php.Array)
+	if dev := a.At("dev"); dev != nil {
+		return devModeOf(dev), nil
 	}
+
+	return notDev, nil
 }
 
 // devFilter is the dev packages a dump leaves out: none in dev mode,
@@ -342,11 +334,11 @@ func devFilter(devMode bool, devPackageNames []string) DevFilter {
 // installed.json's "dev" that is not a bool is the TypeError of
 // strict_types.
 func (g *Generator) devModeArg() error {
-	if g.devModeValue == nil {
+	if g.devMode.raw == nil {
 		return nil
 	}
 
-	return pkg.ArgumentTypeError(`Composer\EventDispatcher\EventDispatcher::dispatchScript`, 2, "devMode", "bool", g.devModeValue)
+	return pkg.ArgumentTypeError(`Composer\EventDispatcher\EventDispatcher::dispatchScript`, 2, "devMode", "bool", g.devMode.raw)
 }
 
 // scan builds the class map: the classmap rules, plus the PSR-0/4 dirs
@@ -365,7 +357,7 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapE
 	if err != nil {
 		return nil, err
 	}
-	warnings, err := analyseClassMap(classMap, d.vendorPath, strictAmbiguous)
+	warnings, err := analyseClassMap(classMap, string(d.vendorPath), strictAmbiguous)
 	for _, msg := range warnings {
 		g.io.WriteError(msg, true, io.Normal)
 	}
@@ -479,9 +471,9 @@ func (g *Generator) scanRecord(d *dump, scans []psrScan, scanPsrPackages bool) (
 	for i, s := range scans {
 		recordScans[i] = classmap.RecordScan{Path: s.dir, Excluded: s.excluded, Type: s.typ, Namespace: s.namespace}
 	}
-	id := d.basePath + "\x00" + strconv.FormatBool(scanPsrPackages)
+	id := string(d.basePath) + "\x00" + strconv.FormatBool(scanPsrPackages)
 
-	return classmap.NewRecord(g.recordDir, id, []string{d.basePath, d.vendorPath}, g.Parser, classMapExtensions, recordScans)
+	return classmap.NewRecord(g.recordDir, id, []string{string(d.basePath), string(d.vendorPath)}, g.Parser, classMapExtensions, recordScans)
 }
 
 var (
@@ -559,13 +551,13 @@ func (g *Generator) suffix(config Config, vendorPath, suffix string, locker Lock
 
 // write writes the autoloader files.
 func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, autoloads *Autoloads, devPackageNames []string, targetDirLoader, suffix string) error {
-	if err := g.put(d.targetDir+"/autoload_namespaces.php", d.namespacesFile); err != nil {
+	if err := g.put(string(d.targetDir)+"/autoload_namespaces.php", d.namespacesFile); err != nil {
 		return err
 	}
-	if err := g.put(d.targetDir+"/autoload_psr4.php", d.psr4File); err != nil {
+	if err := g.put(string(d.targetDir)+"/autoload_psr4.php", d.psr4File); err != nil {
 		return err
 	}
-	if err := g.put(d.targetDir+"/autoload_classmap.php", d.classmapFile); err != nil {
+	if err := g.put(string(d.targetDir)+"/autoload_classmap.php", d.classmapFile); err != nil {
 		return err
 	}
 
@@ -573,7 +565,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	if err != nil {
 		return err
 	}
-	if err := g.putOrRemove(d.targetDir+"/include_paths.php", includePathsFile); err != nil {
+	if err := g.putOrRemove(string(d.targetDir)+"/include_paths.php", includePathsFile); err != nil {
 		return err
 	}
 
@@ -581,7 +573,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	if err != nil {
 		return err
 	}
-	if err := g.putOrRemove(d.targetDir+"/autoload_files.php", includeFilesFile); err != nil {
+	if err := g.putOrRemove(string(d.targetDir)+"/autoload_files.php", includeFilesFile); err != nil {
 		return err
 	}
 
@@ -592,7 +584,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	if err != nil {
 		return err
 	}
-	if err := g.put(d.targetDir+"/autoload_static.php", staticFile); err != nil {
+	if err := g.put(string(d.targetDir)+"/autoload_static.php", staticFile); err != nil {
 		return err
 	}
 
@@ -611,11 +603,11 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 		}
 		checkPlatform = platformCheckContent != ""
 	}
-	if err := g.putOrRemove(d.targetDir+"/platform_check.php", platformCheckContent); err != nil {
+	if err := g.putOrRemove(string(d.targetDir)+"/platform_check.php", platformCheckContent); err != nil {
 		return err
 	}
 
-	if err := g.put(d.vendorPath+"/autoload.php", autoloadFile(d.vendorPathToTargetDirCode, suffix)); err != nil {
+	if err := g.put(string(d.vendorPath)+"/autoload.php", autoloadFile(d.vendorPathToTargetDirCode, suffix)); err != nil {
 		return err
 	}
 
@@ -628,15 +620,15 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 		return err
 	}
 	realFile := g.autoloadRealFile(includePathsFile != "", targetDirLoader, includeFilesFile != "", suffix, php.ToBool(useGlobalIncludePath), prependAutoloader != false, checkPlatform)
-	if err := g.put(d.targetDir+"/autoload_real.php", realFile); err != nil {
+	if err := g.put(string(d.targetDir)+"/autoload_real.php", realFile); err != nil {
 		return err
 	}
 
-	if err := g.put(d.targetDir+"/ClassLoader.php", ClassLoaderPHP); err != nil {
+	if err := g.put(string(d.targetDir)+"/ClassLoader.php", ClassLoaderPHP); err != nil {
 		return err
 	}
 
-	return g.put(d.targetDir+"/LICENSE", License)
+	return g.put(string(d.targetDir)+"/LICENSE", License)
 }
 
 // putIfModified is Filesystem::filePutContentsIfModified.

@@ -222,7 +222,7 @@ func TestGenerator_DumpRereadsChangedInstalledDevMode(t *testing.T) {
 
 	e.generator.Speculate(e.config, e.repo, p, e.im, false)
 	e.speculated()
-	if s := e.generator.speculation; !s.installedJSON.Unchanged(s.installedPath) || !s.devMode {
+	if s := e.generator.speculation; !s.installedJSON.Unchanged(s.installedPath) || s.devMode != devModeOf(true) {
 		t.Fatalf("the speculation did not keep installed.json's dev mode: %v", s.devMode)
 	}
 	e.write(e.vendorDir+"/composer/installed.json", `{"packages": [], "dev": false, "dev-package-names": []}`)
@@ -249,7 +249,7 @@ func TestGenerator_WarmReadsRootDevRules(t *testing.T) {
 	if !slices.ContainsFunc(autoloads.Classmap, func(dir string) bool { return dir == "dev/" }) {
 		t.Errorf("the root's autoload-dev classmap is missing: %v", autoloads.Classmap)
 	}
-	if e.generator.devMode {
+	if e.generator.devMode.on {
 		t.Error("parseAutoloads set the dev mode")
 	}
 }

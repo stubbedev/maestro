@@ -22,7 +22,7 @@ func SortPackageMap(packageMap []PackageMapEntry) []PackageMapEntry {
 // them.
 func (g *Generator) ParseAutoloadsType(packageMap []PackageMapEntry, typ string, rootPackage pkg.PackageInterface) (*Autoloads, error) {
 	a := &Autoloads{PSR0: php.NewArray(), PSR4: php.NewArray(), Files: php.NewArray()}
-	if err := g.parseAutoloadsType(packageMap, autoloadType(typ), rootPackage, a, g.devMode); err != nil {
+	if err := g.parseAutoloadsType(packageMap, autoloadType(typ), rootPackage, a, g.devMode.on); err != nil {
 		return nil, err
 	}
 

@@ -30,18 +30,18 @@ type pathRef struct {
 }
 
 // pathRefOf ports getPathCode's decisions for path.
-func pathRefOf(basePath, vendorPath, path string) (pathRef, error) {
+func pathRefOf(basePath, vendorPath slashPath, path string) (pathRef, error) {
 	if !fspath.IsAbsolutePath(path) {
-		path = basePath + "/" + path
+		path = string(basePath) + "/" + path
 	}
-	path = fspath.NormalizePath(path)
+	normal := normalized(path)
 
 	var ref pathRef
-	if isPathPrefix(path, vendorPath) {
+	if isPathPrefix(normal, vendorPath) {
 		ref.base = baseVendor
-		ref.path = path[len(vendorPath):]
+		ref.path = string(normal[len(vendorPath):])
 	} else {
-		shortest, err := util.FindShortestPath(basePath, path, true, false)
+		shortest, err := util.FindShortestPath(string(basePath), string(normal), true, false)
 		if err != nil {
 			return pathRef{}, err
 		}
@@ -92,8 +92,8 @@ func (r pathRef) value(vendorDir, baseDir string) string {
 }
 
 // isPathPrefix is strpos($path.'/', $prefix.'/') === 0.
-func isPathPrefix(path, prefix string) bool {
-	return strings.HasPrefix(path, prefix) && (len(path) == len(prefix) || path[len(prefix)] == '/')
+func isPathPrefix(path, prefix slashPath) bool {
+	return strings.HasPrefix(string(path), string(prefix)) && (len(path) == len(prefix) || path[len(prefix)] == '/')
 }
 
 // isPharPath is Preg::isMatch('{\.phar([\\/]|$)}', $path): ".phar" followed
