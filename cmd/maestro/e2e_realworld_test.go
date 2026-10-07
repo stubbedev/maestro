@@ -31,6 +31,12 @@ func realWorldScenarios() []scenario {
 				{args: with("dump-autoload", "-o"), dir: "app"},
 				{args: with("show"), dir: "app"},
 				{args: with("update", "--dry-run"), dir: "app"},
+				// the latest versions: looked up one after another, their
+				// requests started at once
+				{args: with("outdated"), dir: "app"},
+				{args: with("outdated", "--format=json"), dir: "app"},
+				{args: with("outdated", "--strict"), dir: "app"},
+				{args: with("show", "-l"), dir: "app"},
 			},
 		},
 		{
@@ -45,6 +51,12 @@ func realWorldScenarios() []scenario {
 				{args: with("why", "-t", "psr/container"), dir: "app"},
 				{args: with("why-not", "-t", "symfony/http-kernel", "8.0"), dir: "app"},
 				{args: with("show", "-t"), dir: "app"},
+				// the latest versions: looked up one after another, their
+				// requests started at once
+				{args: with("outdated"), dir: "app"},
+				{args: with("outdated", "--format=json"), dir: "app"},
+				{args: with("outdated", "--strict"), dir: "app"},
+				{args: with("show", "-l"), dir: "app"},
 			},
 		},
 		{

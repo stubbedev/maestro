@@ -136,6 +136,18 @@ func (r *FilterRepository) LoadPackages(packageNameMap *ConstraintMap, acceptabl
 	return result, nil
 }
 
+// PrefetchPackages implements MetadataPrefetcher: the names loadPackages
+// passes on.
+func (r *FilterRepository) PrefetchPackages(names []string, acceptableStabilities, stabilityFlags *php.Array) {
+	allowed := make([]string, 0, len(names))
+	for _, name := range names {
+		if ok, err := r.isAllowed(name); ok && err == nil {
+			allowed = append(allowed, name)
+		}
+	}
+	PrefetchPackages([]RepositoryInterface{r.repo}, allowed, acceptableStabilities, stabilityFlags)
+}
+
 // Search ports FilterRepository::search.
 func (r *FilterRepository) Search(query string, mode int, typ string) ([]SearchResult, error) {
 	found, err := r.repo.Search(query, mode, typ)

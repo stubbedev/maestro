@@ -1693,12 +1693,6 @@ type asyncNotifier interface {
 	NotifyInstallsAsync(out io.IO) (waitFor func())
 }
 
-// metadataPrefetcher is a repository that can start its metadata requests
-// ahead (composerrepo.ComposerRepository.PrefetchPackages).
-type metadataPrefetcher interface {
-	PrefetchPackages(names []string, acceptableStabilities, stabilityFlags *php.Array)
-}
-
 // prefetchMetadata starts, ahead of the pool builder's waves of requests,
 // the metadata requests of the packages an update will almost certainly
 // load: the root's requirements and the locked packages (deliberate
@@ -1727,11 +1721,7 @@ func (i *Installer) prefetchMetadata(set *repository.RepositorySet, locked *repo
 		}
 	}
 
-	for _, repo := range set.Repositories() {
-		if p, ok := repo.(metadataPrefetcher); ok {
-			p.PrefetchPackages(names, set.AcceptableStabilities(), set.StabilityFlags())
-		}
-	}
+	repository.PrefetchPackages(set.Repositories(), names, set.AcceptableStabilities(), set.StabilityFlags())
 }
 
 // filterSummaryPrefetcher is a repository that can start its filter list

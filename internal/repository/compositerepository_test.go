@@ -285,3 +285,31 @@ func TestRepositoryUtils_FilterRequiredPackages(t *testing.T) {
 		}
 	}
 }
+
+// prefetchRecorder is a repository recording the names it was asked to
+// prefetch.
+type prefetchRecorder struct {
+	*ArrayRepository
+	names []string
+}
+
+func (r *prefetchRecorder) PrefetchPackages(names []string, _, _ *php.Array) {
+	r.names = append(r.names, names...)
+}
+
+// The wrappers prefetch what their loadPackages would load: a composite
+// in every repository, a filter only the names it lets through.
+func TestPrefetchPackages_ReachesWhatLoadPackagesLoads(t *testing.T) {
+	plain, filtered := &prefetchRecorder{ArrayRepository: filterFixture(t)}, &prefetchRecorder{ArrayRepository: filterFixture(t)}
+	filter := must(NewFilterRepository(filtered, filterOptions([]string{"foo/*"}, nil, nil)))
+	composite := must(NewCompositeRepository([]RepositoryInterface{plain, filter, filterFixture(t)}))
+
+	PrefetchPackages([]RepositoryInterface{composite}, []string{"foo/aaa", "bar/xxx", "foo/bbb"}, nil, nil)
+
+	if want := []string{"foo/aaa", "bar/xxx", "foo/bbb"}; !slices.Equal(plain.names, want) {
+		t.Errorf("the plain repository prefetched %q, want %q", plain.names, want)
+	}
+	if want := []string{"foo/aaa", "foo/bbb"}; !slices.Equal(filtered.names, want) {
+		t.Errorf("the filtered repository prefetched %q, want %q", filtered.names, want)
+	}
+}

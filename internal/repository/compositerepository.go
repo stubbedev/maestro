@@ -77,6 +77,12 @@ func (r *CompositeRepository) repoNames() string {
 // Repositories ports getRepositories: the wrapped repositories.
 func (r *CompositeRepository) Repositories() []RepositoryInterface { return r.repositories }
 
+// PrefetchPackages implements MetadataPrefetcher: loadPackages loads
+// names from every repository.
+func (r *CompositeRepository) PrefetchPackages(names []string, acceptableStabilities, stabilityFlags *php.Array) {
+	PrefetchPackages(r.repositories, names, acceptableStabilities, stabilityFlags)
+}
+
 // HasPackage ports CompositeRepository::hasPackage.
 func (r *CompositeRepository) HasPackage(p pkg.PackageInterface) (bool, error) {
 	for _, repo := range r.repositories {

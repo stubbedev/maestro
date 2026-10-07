@@ -92,6 +92,24 @@ type RepositoryInterface interface {
 	Count() (int, error)
 }
 
+// MetadataPrefetcher is a repository that can start, ahead and without
+// output, the metadata requests that loading names with these
+// stabilities will make, for the loads to find them answered
+// (composerrepo.ComposerRepository; deliberate deviation 3).
+type MetadataPrefetcher interface {
+	PrefetchPackages(names []string, acceptableStabilities, stabilityFlags *php.Array)
+}
+
+// PrefetchPackages has every repository of repos that can
+// (MetadataPrefetcher) start the metadata requests of names.
+func PrefetchPackages(repos []RepositoryInterface, names []string, acceptableStabilities, stabilityFlags *php.Array) {
+	for _, repo := range repos {
+		if p, ok := repo.(MetadataPrefetcher); ok {
+			p.PrefetchPackages(names, acceptableStabilities, stabilityFlags)
+		}
+	}
+}
+
 // InstallationManager is the part of Composer\Installer\InstallationManager
 // the repositories and the Locker use.
 type InstallationManager interface {

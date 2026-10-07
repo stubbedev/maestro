@@ -705,10 +705,11 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		return 0, err
 	}
 
-	for _, t := range []struct {
-		typ         string
-		showVersion bool
-	}{{"platform", true}, {"locked", true}, {"available", false}, {"installed", true}} {
+	if showLatest {
+		c.prefetchLatest(packages, comp, ignoredPackagesRegex, showMajorOnly)
+	}
+
+	for _, t := range showListTypes {
 		typ := t.typ
 		list := packages[typ]
 		if list == nil {
@@ -1974,6 +1975,43 @@ var (
 	showMajorPattern = php.MustCompile(`{^(?P<zero_major>(?:0\.)+)?(?P<first_meaningful>\d+)\.}`)
 	showTrailingZero = php.MustCompile(`{(\.0)+$}D`)
 )
+
+// showListTypes are the lists show prints, in order; it looks up the
+// latest version of the packages of those that show versions.
+var showListTypes = []struct {
+	typ         string
+	showVersion bool
+}{{"platform", true}, {"locked", true}, {"available", false}, {"installed", true}}
+
+// prefetchLatest starts at once the metadata requests the lookups of the
+// packages' latest versions (findLatestPackage) make one after another,
+// for exactly the packages looked up (deliberate deviation 3: the lookups
+// run and print as before, and find the requests answered).
+func (c *ShowCommand) prefetchLatest(packages showLists, comp *composer.Composer, ignored *php.Regexp, majorOnly bool) {
+	set, err := c.getRepositorySet(comp)
+	if err != nil {
+		return
+	}
+	var names []string
+	for _, t := range showListTypes {
+		if list := packages[t.typ]; list != nil && t.showVersion {
+			for _, entry := range list.values() {
+				if entry.pkg == nil {
+					continue
+				}
+				if skip, err := ignored.IsMatch(entry.pkg.PrettyName()); skip || err != nil {
+					continue
+				}
+				// a dev branch has no newer major version to look up
+				if majorOnly && strings.HasPrefix(entry.pkg.Version(), "dev-") {
+					continue
+				}
+				names = append(names, entry.pkg.Name())
+			}
+		}
+	}
+	repository.PrefetchPackages(set.Repositories(), names, set.AcceptableStabilities(), set.StabilityFlags())
+}
 
 // findLatestPackage ports ShowCommand::findLatestPackage.
 func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.Composer, platformRepo *repository.PlatformRepository, majorOnly, minorOnly, patchOnly bool, platformReqFilter version.PlatformRequirementFilter) (pkg.PackageInterface, error) {
