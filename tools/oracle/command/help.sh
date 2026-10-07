@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Writes the reference Composer's command list and help texts into
 # internal/command/testdata, which TestHelp_List, TestHelp_ListJSON and
-# TestHelp_All compare maestro with:
+# TestHelp_All compare maestro with (and TestCompletion_Dump with the
+# completion script):
 #
 #   list.txt, list.json   `composer list` and `composer list --format=json`
+#   completion.bash       `composer completion bash`
 #   help/<command>.txt    `composer help <command>`, for each command given,
 #                         by default every command `composer list --raw`
 #                         lists
@@ -32,6 +34,7 @@ composer() {
 
 real=$(realpath "$root/.ref/composer/bin/composer")
 composer list > "$out/list.txt"
+composer completion bash > "$out/completion.bash"
 composer list --format=json | sed "s#$(printf '%s' "$real" | sed 's#/#\\\\/#g')#composer#g" > "$out/list.json"
 
 if [ $# -eq 0 ]; then

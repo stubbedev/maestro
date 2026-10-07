@@ -16,7 +16,8 @@
 //     recorded output too. Messages are compared without whitespace (box
 //     padding and wrapping, indentation and line breaks don't matter),
 //     box-drawing characters and PHP's TypeError call site
-//     (", called in X on line N");
+//     (", called in X on line N"). Where Composer failed writing nothing
+//     at all, stderr must be empty;
 //   - where the scenario has a files list, the content those files of the
 //     working directory have after the run (after/<path>, absent when
 //     Composer's run left no such file).
@@ -131,7 +132,7 @@ func TestErrors(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s.txt: %v", golden, err)
 			}
-			if want.code != 0 && len(want.messages) == 0 {
+			if want.code != 0 && len(want.messages) == 0 && !want.silent {
 				t.Fatalf("%s.txt: Composer failed without an error box; list the lines that report the error in %s",
 					golden, filepath.Join(dir, "messages"))
 			}
@@ -155,6 +156,10 @@ type expected struct {
 	code     int
 	stdout   string
 	messages []string
+	// silent: Composer wrote nothing at all (a failure it reports by its
+	// exit code alone, such as _complete's), so maestro's stderr must be
+	// empty too.
+	silent bool
 }
 
 // result is a normalised run of maestro: its exit code, stdout, and
@@ -196,6 +201,9 @@ func compare(t *testing.T, golden string, want expected, got result) {
 	if got.stdout != want.stdout {
 		t.Errorf("stdout differs from Composer's (%s.stdout):\n%s", golden, lineDiff(want.stdout, got.stdout))
 	}
+	if want.silent && got.stderr != "" {
+		t.Errorf("stderr not empty, Composer wrote nothing (%s.txt): %q", golden, got.stderr)
+	}
 	stdout := testutil.CompactMessage(got.stdout)
 	for _, m := range want.messages {
 		switch {
@@ -223,7 +231,7 @@ func readGolden(recorded string, listed []string) (expected, error) {
 	}
 	code, _ := strconv.Atoi(recorded[m[2]:m[3]])
 	output := recorded[:m[0]]
-	want := expected{code: code}
+	want := expected{code: code, silent: output == ""}
 	if listed == nil {
 		want.messages, _ = testutil.ErrorRendering(output)
 		for i, m := range want.messages {

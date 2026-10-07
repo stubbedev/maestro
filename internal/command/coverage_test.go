@@ -55,11 +55,17 @@ var coverage = []entry{
 		},
 	}),
 	cover(newCompleteCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestCompletionFunctional_Complete))},
-		Pending: 53,
+		Tests: []Proof{
+			Positive(Go(TestCompletionFunctional_Complete)),
+			Positive(E2E("commands", "_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-iwhy", "-i")),
+		},
 	}),
 	cover(console.NewDumpCompletionCommand, Coverage{
-		Pending: 53,
+		Tests: []Proof{
+			Positive(Go(TestCompletion_Dump)),
+			Negative(Go(TestCompletion_DumpUnsupportedShell)),
+			Positive(E2E("commands", "completion", "bash")),
+		},
 	}),
 	cover(command.NewAboutCommand, Coverage{
 		Tests: []Proof{Positive(Go(TestAboutCommand_About)), Positive(E2E("commands", "about"))},

@@ -1,0 +1,4 @@
+_complete
+--shell=bash
+-cx
+-icomposer

@@ -1,0 +1,2 @@
+Shell not detected, Symfony shell completion only supports "bash").
+exit 2

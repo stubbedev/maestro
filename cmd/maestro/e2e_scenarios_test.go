@@ -89,6 +89,14 @@ func fixtureScenarios() []scenario {
 				{args: []string{"help", "u"}},
 				{args: []string{"help", "instal"}},
 				{args: []string{"about"}},
+				{args: []string{"completion", "bash"}},
+				{args: []string{"_complete", "-n", "-c1", "--shell=bash", "-icomposer", "-irequ"}},
+				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-ishow", "-i--fo"}},
+				{args: []string{"_complete", "-n", "-c3", "--shell=bash", "-icomposer", "-ishow", "-i--format", "-i"}},
+				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-iwhy", "-i"}},
+				// Without a project the suggestion callback fails, which
+				// _complete swallows: no suggestions, exit 0.
+				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-iwhy", "-i"}, dir: "."},
 				{args: []string{"diagnose"}, setup: installPubKeys, normalize: normalizeDiagnose},
 			},
 		},

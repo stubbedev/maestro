@@ -1,0 +1,8 @@
+
+                                                                           
+  Too many arguments to "completion" command, expected arguments "shell".  
+                                                                           
+
+completion [--debug] [--] [<shell>]
+
+exit 1

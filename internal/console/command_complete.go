@@ -294,14 +294,14 @@ func (c *CompleteCommand) findCommand(completionInput *CompletionInput) (Command
 	return cmd, nil
 }
 
+// scriptBasename is basename($_SERVER['argv'][0]), the name of the
+// running script, which names the completion function and debug log
+// (phpSelf's basename: its $PATH lookup keeps it).
+func scriptBasename() string { return php.Basename(phpSelf(), "") }
+
 // completionLogFile is sys_get_temp_dir().'/sf_'.basename($_SERVER['argv'][0]).'.log'.
 func completionLogFile() string {
-	name := ""
-	if len(os.Args) > 0 {
-		name = php.Basename(os.Args[0], "")
-	}
-
-	return php.SysGetTempDir() + "/sf_" + name + ".log"
+	return php.SysGetTempDir() + "/sf_" + scriptBasename() + ".log"
 }
 
 func (c *CompleteCommand) log(messages ...string) {
@@ -334,7 +334,7 @@ func NewDumpCompletionCommand() *DumpCompletionCommand {
 	c.SetDescription("Dump the shell completion script")
 
 	fullCommand := phpSelf()
-	commandName := php.Basename(fullCommand, "")
+	commandName := scriptBasename()
 	if real, ok := php.Realpath(fullCommand); ok {
 		fullCommand = real
 	}
@@ -389,13 +389,8 @@ func supportedShells() []string {
 
 // Execute implements Executor.
 func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
-	commandName := ""
-	if len(os.Args) > 0 {
-		commandName = php.Basename(os.Args[0], "")
-	}
-
 	if BoolOption(in, "debug") {
-		tailDebugLog(commandName, out)
+		tailDebugLog(out)
 
 		return 0, nil
 	}
@@ -427,15 +422,15 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 		return 2, nil
 	}
 
-	out.Write(strings.NewReplacer("{{ COMMAND_NAME }}", commandName, "{{ VERSION }}", c.Application().Version()).Replace(script), false, OutputNormal)
+	out.Write(strings.NewReplacer("{{ COMMAND_NAME }}", scriptBasename(), "{{ VERSION }}", c.Application().Version()).Replace(script), false, OutputNormal)
 
 	return 0, nil
 }
 
 // tailDebugLog runs `tail -f` on the completion debug log, forwarding its
 // output. Like Process::run(), a failing tail is not an error.
-func tailDebugLog(commandName string, out Output) {
-	debugFile := php.SysGetTempDir() + "/sf_" + commandName + ".log"
+func tailDebugLog(out Output) {
+	debugFile := completionLogFile()
 	if _, err := os.Stat(debugFile); err != nil {
 		if f, err := os.OpenFile(debugFile, os.O_CREATE|os.O_WRONLY, 0o666); err == nil { //nolint:gosec // touch() creates files with mode 0666 & ~umask.
 			_ = f.Close()

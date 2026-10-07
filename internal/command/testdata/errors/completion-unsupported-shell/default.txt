@@ -1,0 +1,2 @@
+Detected shell "fish", which is not supported by Symfony shell completion (supported shells: "bash").
+exit 2

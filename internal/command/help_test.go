@@ -8,7 +8,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/composer"
-	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/ui"
 )
 
@@ -28,9 +27,7 @@ func runHelp(t *testing.T, golden string, args ...any) (got, want string) {
 	if err != nil {
 		t.Fatalf("%v (write it with tools/oracle/command/help.sh)", err)
 	}
-	prev := console.ScriptName
-	console.ScriptName = "composer"
-	t.Cleanup(func() { console.ScriptName = prev })
+	commandtest.RunAs(t, "composer")
 	commandtest.InitTempDir(t)
 
 	appTester := commandtest.GetApplicationTester(t)

@@ -19,6 +19,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
@@ -119,6 +120,16 @@ func encode(t testing.TB, data any) []byte {
 	}
 
 	return []byte(s)
+}
+
+// RunAs makes the running script ($_SERVER['PHP_SELF'], which help texts
+// and the completion script show) name until the test ends, as the
+// goldens recorded from Composer run as "composer".
+func RunAs(t testing.TB, name string) {
+	t.Helper()
+	prev := console.ScriptName
+	console.ScriptName = name
+	t.Cleanup(func() { console.ScriptName = prev })
 }
 
 // InitTempDir is initTempComposer without its files: it changes into a
