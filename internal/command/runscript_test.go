@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin"
@@ -303,26 +304,93 @@ class MyCommandWithDefinitions extends Command
 	}
 }
 
-// Beyond RunScriptCommandTest: the error paths of execute().
-func TestRunScriptCommand_Errors(t *testing.T) {
-	commandtest.InitTempComposer(t, `{"scripts": {"test": "echo hi"}}`, nil, nil, true)
+// runScriptProject is the project of the run-script cases beyond
+// RunScriptCommandTest: a described script, one printing the dev mode,
+// one outlasting the one-second process-timeout, and an event script.
+func runScriptProject(t *testing.T) {
+	commandtest.InitTempComposer(t, `{
+		"scripts": {
+			"hello": "echo hello",
+			"mode": "echo dev=$COMPOSER_DEV_MODE",
+			"slow": "sleep 2",
+			"post-install-cmd": "echo installed"
+		},
+		"scripts-descriptions": {"hello": "Says hello."},
+		"config": {"process-timeout": 1}
+	}`, nil, nil, true)
+}
 
-	for _, tc := range []struct {
-		args []any
-		want string
-	}{
-		{[]any{"script", "PRE_INSTALL_CMD"}, `Script "PRE_INSTALL_CMD" cannot be run with this command`},
-		{[]any{"script", "nope"}, `Script "nope" is not defined in this package`},
-		{[]any{"script", "test", "--timeout", "1.5"}, "Timeout value must be numeric and positive if defined, or 0 for forever"},
-		{nil, `Missing required argument "script"`},
-	} {
-		tester := commandtest.GetApplicationTester(t)
-		args := append([]any{"command", "run-script", "--no-interaction", true}, tc.args...)
-		_, err := tester.RunArgs(commandtest.Options{}, args...)
-		if err == nil || err.Error() != tc.want {
-			t.Errorf("%v: err %v, want %q", tc.args, err, tc.want)
-		}
+// Beyond RunScriptCommandTest: the interactive select, the options and the
+// arguments of a run.
+func TestRunScriptCommand_Runs(t *testing.T) {
+	skipShellScripts(t)
+	runScript := func(kv ...any) []console.Param { return cmd("run-script", kv...) }
+	runCommandCases(t, runScriptProject, []commandCase{
+		{
+			name:     "the select runs the chosen script",
+			inputs:   []string{"hello"},
+			params:   runScript(),
+			contains: []string{"Script to run: ", "[hello", "Says hello.", "> echo hello\nhello\n"},
+		},
+		{
+			// the select's choices are keyed by name: a description
+			// answers for its name
+			name:     "the select takes a script's description",
+			inputs:   []string{"Says hello."},
+			params:   runScript(),
+			contains: []string{"> echo hello\nhello\n"},
+		},
+		{name: "--dev wins over --no-dev", params: runScript("script", "mode", "--dev", true, "--no-dev", true), contains: []string{"dev=1\n"}},
+		{name: "--no-dev", params: runScript("script", "mode", "--no-dev", true), contains: []string{"dev=0\n"}},
+		{name: "arguments without --", params: runScript("script", "hello", "args", []string{"extra", "args"}), contains: []string{"hello extra args\n"}},
+		{name: "--timeout=0 lifts process-timeout", params: runScript("script", "slow", "--timeout", "0")},
+		{name: "COMPOSER_PROCESS_TIMEOUT", env: map[string]string{"COMPOSER_PROCESS_TIMEOUT": "5"}, params: runScript("script", "slow")},
+		{name: "an event script", params: runScript("script", "post-install-cmd"), contains: []string{"installed\n"}},
+	})
+}
+
+// Beyond RunScriptCommandTest: the error paths of interact() and
+// execute().
+func TestRunScriptCommand_Errors(t *testing.T) {
+	skipShellScripts(t)
+	const badTimeout = "Timeout value must be numeric and positive if defined, or 0 for forever"
+	cannotRun := func(s string) string { return `Script "` + s + `" cannot be run with this command` }
+	undefined := func(s string) string { return `Script "` + s + `" is not defined in this package` }
+	runScript := func(kv ...any) []console.Param { return cmd("run-script", kv...) }
+	cases := []commandCase{
+		{name: "an index is no script name", inputs: []string{"1"}, params: runScript(), err: `Invalid script name "1"`},
+		{name: "an unknown name in the select", inputs: []string{"nope"}, params: runScript(), err: `Invalid script name "nope"`},
+		{name: "no script without interaction", params: runScript("--no-interaction", true), err: `Missing required argument "script"`},
+		{name: "an unknown script", params: runScript("script", "nope"), err: undefined("nope")},
+		{name: "an event that runs no scripts", params: runScript("script", "post-package-install"), err: undefined("post-package-install")},
+		{name: "an event script not defined", params: runScript("script", "pre-install-cmd"), err: undefined("pre-install-cmd")},
+		{name: "--no-scripts", params: runScript("script", "hello", "--no-scripts", true), err: undefined("hello")},
+		{
+			name:   "the process-timeout",
+			params: runScript("script", "slow"),
+			err:    `The process "sleep 2" exceeded the timeout of 1 seconds.`,
+		},
+		{
+			name:   "--timeout overrides process-timeout",
+			env:    map[string]string{"COMPOSER_PROCESS_TIMEOUT": "5"},
+			params: runScript("script", "slow", "--timeout", "1"),
+			err:    `The process "sleep 2" exceeded the timeout of 1 seconds.`,
+		},
 	}
+	for _, spelling := range []string{"PRE_INSTALL_CMD", "pre_install_cmd"} {
+		cases = append(cases, commandCase{name: "the constant " + spelling, params: runScript("script", spelling), err: cannotRun(spelling)})
+	}
+	for _, timeout := range []string{"1.5", "-1", "abc", ""} {
+		cases = append(cases, commandCase{name: "--timeout=" + timeout, params: runScript("script", "hello", "--timeout", timeout), err: badTimeout, excludes: []string{"hello"}})
+	}
+	runCommandCases(t, runScriptProject, cases)
+}
+
+// Beyond RunScriptCommandTest: --list without scripts writes nothing.
+func TestRunScriptCommand_ListWithoutScripts(t *testing.T) {
+	runCommandCases(t, func(t *testing.T) { commandtest.InitTempComposer(t, nil, nil, nil, true) }, []commandCase{
+		{name: "--list", params: cmd("run-script", "--list", true), streams: &streams{}},
+	})
 }
 
 // Beyond RunScriptCommandTest: a script alias runs its script and passes

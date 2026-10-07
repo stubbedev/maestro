@@ -1,0 +1,13 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+> sleep 3
+The following exception is caused by a process timeout
+Check https://getcomposer.org/doc/06-config.md#process-timeout for details
+
+In Process.php line 1205:
+                                                            
+  The process "sleep 3" exceeded the timeout of 1 seconds.  
+                                                            
+
+run-script [--timeout TIMEOUT] [--dev] [--no-dev] [-l|--list] [--] [<script> [<args>...]]
+
+exit 1

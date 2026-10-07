@@ -28,9 +28,17 @@ type commandCase struct {
 	contains []string
 	// excludes are ones it must not.
 	excludes []string
+	// streams, when set, captures stderr apart from stdout: the run's
+	// stdout and stderr must equal it, and contains and excludes look at
+	// both.
+	streams *streams
 	// check, when set, checks the run's files afterwards.
 	check func(t *testing.T)
 }
+
+// streams are what a run writes to stdout and to stderr (PHP_EOL
+// normalised).
+type streams struct{ stdout, stderr string }
 
 // runCommandCases runs each case on a project setup builds (in the
 // test's temporary composer directory, commandtest.InitTempComposer).
@@ -43,7 +51,7 @@ func runCommandCases(t *testing.T, setup func(t *testing.T), cases []commandCase
 				t.Setenv(k, v)
 			}
 			appTester := commandtest.GetApplicationTester(t)
-			var o commandtest.Options
+			o := commandtest.Options{CaptureStderrSeparately: tc.streams != nil}
 			if tc.inputs != nil {
 				appTester.SetInputs(tc.inputs...)
 				interactive := true
@@ -61,6 +69,13 @@ func runCommandCases(t *testing.T, setup func(t *testing.T), cases []commandCase
 				t.Errorf("status %d, want %d (display:\n%s)", code, tc.code, appTester.Display(true))
 			}
 			display := appTester.Display(true)
+			if tc.streams != nil {
+				got := streams{stdout: display, stderr: appTester.ErrorOutput(true)}
+				if got != *tc.streams {
+					t.Errorf("stdout %q, stderr %q; want stdout %q, stderr %q", got.stdout, got.stderr, tc.streams.stdout, tc.streams.stderr)
+				}
+				display = got.stderr + got.stdout
+			}
 			for _, s := range tc.contains {
 				if !strings.Contains(display, s) {
 					t.Errorf("display lacks %q:\n%s", s, display)

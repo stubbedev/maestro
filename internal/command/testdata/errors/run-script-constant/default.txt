@@ -1,0 +1,10 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In RunScriptCommand.php line 116:
+                                                            
+  Script "pre_install_cmd" cannot be run with this command  
+                                                            
+
+run-script [--timeout TIMEOUT] [--dev] [--no-dev] [-l|--list] [--] [<script> [<args>...]]
+
+exit 1

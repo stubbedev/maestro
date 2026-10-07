@@ -222,7 +222,15 @@ var coverage = []entry{
 	cover(command.NewRunScriptCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestRunScriptCommand_CanListScripts)),
+			Positive(Go(TestRunScriptCommand_Runs)),
+			Positive(Go(TestRunScriptCommand_ListWithoutScripts)),
+			Positive(E2E("scripts", "run", "hello")),
+			Positive(E2E("scripts", "run-script", "hello", "--dev", "--no-dev")),
+			Positive(E2E("scripts", "run-script", "hello", "--no-dev")),
+			Positive(E2E("scripts", "run-script", "args", "extra", "more")),
 			Negative(Go(TestRunScriptCommand_Errors)),
+			Negative(E2E("scripts", "run-script", "fail")),
+			Negative(E2E("scripts", "run-script", "nonexistent")),
 		},
 	}),
 	cover(command.NewLicensesCommand, Coverage{

@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "scripts": {
+        "install": "echo mine"
+    }
+}
