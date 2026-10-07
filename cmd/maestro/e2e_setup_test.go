@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -366,4 +367,51 @@ func distArchives(t *testing.T, root string) {
 	write("xz.tar.xz", compressWith(t, "xz", plain))
 	write("single.php.gz", gzipBytes(t, []byte("<?php\necho 'single';\n")))
 	write("tool.phar", []byte("#!/usr/bin/env php\n<?php\necho 'tool';\n"))
+}
+
+// dropXzOnWindows takes acme/xz out of the dists project on Windows, where
+// Composer cannot be the reference for it: XzDownloader runs
+// `tar -xJf C:\...\tmp-<hash>.xz -C C:\...` with whatever tar PATH finds,
+// and Git for Windows' GNU tar, the one the job's bash finds, reads
+// "C:" as a remote host ("Cannot connect to C: resolve failed"). maestro
+// extracts xz natively, as tar does on Unix (deviation 2), which the
+// Linux run compares.
+func dropXzOnWindows(t *testing.T, root string) {
+	t.Helper()
+
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	path := filepath.Join(root, "project", "composer.json")
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// the fixture has acme/xz on two lines of its own (its repository
+	// and its requirement), neither of them last in its list
+	var (
+		kept    []string
+		dropped int
+	)
+
+	for line := range strings.Lines(string(data)) {
+		if strings.Contains(line, `"acme/xz"`) {
+			dropped++
+
+			continue
+		}
+
+		kept = append(kept, line)
+	}
+
+	if dropped != 2 {
+		t.Fatalf("%s: %d lines name acme/xz, want 2", path, dropped)
+	}
+
+	if err := os.WriteFile(path, []byte(strings.Join(kept, "")), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }

@@ -321,7 +321,10 @@ Cycle-breaking decisions already made:
    Linux and on Windows (`.github/workflows/e2e.yml`, weekly and on
    demand), where both tools run natively: junctions are compared by
    target, modes are what the read-only attribute gives, and `"\r\n"`
-   endings are compared as they are.
+   endings are compared as they are. The Windows run leaves the xz dist
+   out of the dists scenario: Composer extracts it with whatever `tar`
+   PATH finds, there Git for Windows' GNU tar, which takes the drive
+   letter of an absolute path for a remote host.
 
 Opt-in test switches:
 

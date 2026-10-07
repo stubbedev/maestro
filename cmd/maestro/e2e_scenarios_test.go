@@ -481,7 +481,7 @@ func fixtureScenarios() []scenario {
 		{
 			name:    "dists",
 			fixture: "dists",
-			setup:   distArchives,
+			setup:   setups(distArchives, dropXzOnWindows),
 			steps: []step{
 				{args: []string{"update"}},
 				{args: []string{"install"}, setup: removeVendor},
