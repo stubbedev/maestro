@@ -91,6 +91,9 @@ func TestValidateCommand_ValidateOnFileIssues(t *testing.T) {
 
 	appTester := gbRun(t, gbParams("command", "validate"))
 	gbAssertSame(t, "./composer.json not found.", gbTrim(appTester))
+	if appTester.StatusCode() != 3 {
+		t.Errorf("status %d, want 3", appTester.StatusCode())
+	}
 }
 
 func TestValidateCommand_WithComposerLock(t *testing.T) {
@@ -107,6 +110,9 @@ This usually happens when composer files are incorrectly merged or the composer.
 Read more about correctly resolving merge conflicts https://getcomposer.org/doc/articles/resolving-merge-conflicts.md
 and prefer using the "require" command over editing the composer.json file directly https://getcomposer.org/doc/03-cli.md#require-r`
 	gbAssertSame(t, expected, gbTrim(appTester))
+	if appTester.StatusCode() != 2 {
+		t.Errorf("status %d, want 2", appTester.StatusCode())
+	}
 }
 
 func TestValidateCommand_UnaccessibleFile(t *testing.T) {

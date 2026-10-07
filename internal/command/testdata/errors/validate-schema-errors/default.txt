@@ -1,0 +1,11 @@
+
+In Factory.php line 317:
+                                                                               
+  "./composer.json" does not match the expected JSON schema:                   
+   - name : Does not match the regex pattern ^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z  
+  0-9](([_.]|-{1,2})?[a-z0-9]+)*$                                              
+                                                                               
+
+validate [--no-check-all] [--check-lock] [--no-check-lock] [--no-check-publish] [--no-check-version] [-A|--with-dependencies] [--strict] [--] [<file>]
+
+exit 1

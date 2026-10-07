@@ -1,0 +1,6 @@
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "require": {}
+}

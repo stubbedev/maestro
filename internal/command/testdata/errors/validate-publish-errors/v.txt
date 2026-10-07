@@ -1,0 +1,8 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.json is valid for simple usage with Composer but has
+strict errors that make it unable to be published as a package
+See https://getcomposer.org/doc/04-schema.md for details on the schema
+# Publish errors
+- The property foo is not defined and the definition does not allow additional properties
+exit 2

@@ -1,0 +1,2 @@
+# General warnings
+- require.x/y : unbound version constraints (*) should be avoided

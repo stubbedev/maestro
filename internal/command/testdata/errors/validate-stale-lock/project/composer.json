@@ -1,0 +1,23 @@
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "package",
+            "package": [
+                {"name": "x/foo", "version": "1.0.0", "type": "metapackage"},
+                {"name": "x/bar", "version": "1.0.0", "type": "metapackage", "require": {"x/foo": "^1.0"}},
+                {"name": "x/dev", "version": "1.0.0", "type": "metapackage"}
+            ]
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/foo": "^1.0",
+        "x/bar": "^1.0",
+        "x/dev": "^1.0"
+    }
+}

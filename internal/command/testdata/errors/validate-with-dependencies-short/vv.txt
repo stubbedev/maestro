@@ -1,0 +1,14 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.json is valid
+x/y is invalid, the following errors/warnings were found:
+# General errors
+- name : Does not match the regex pattern ^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$
+- name : x/Y is invalid, it should not contain uppercase characters. We suggest using x/y instead.
+# Publish errors
+- Name "x/Y" does not match the best practice (e.g. lower-cased/with-dashes). We suggest using "x/y" instead. As such you will not be able to submit it to Packagist.
+# General warnings
+- License "not-a-license" is not a valid SPDX license identifier, see https://spdx.org/licenses/ if you use an open license.
+If the software is closed-source, you may use "proprietary" as license.
+- require.x/z : unbound version constraints (*) should be avoided
+exit 2

@@ -1,0 +1,3 @@
+validate
+--no-check-lock
+--strict

@@ -1,0 +1,2 @@
+# General errors
+- name : x/Y is invalid, it should not contain uppercase characters. We suggest using x/y instead.

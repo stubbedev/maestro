@@ -1,0 +1,6 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.lock is present but ignored as the "lock" config option is disabled.
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.lock is present but ignored as the "lock" config option is disabled.
+./composer.json is valid
+exit 0

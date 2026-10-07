@@ -1,0 +1,8 @@
+{
+    "name": "x/Y",
+    "description": "A dependency",
+    "license": "not-a-license",
+    "require": {
+        "x/z": "*"
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "packages": [
+        {
+            "name": "x/y",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "type": "library",
+            "install-path": "../x/y"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

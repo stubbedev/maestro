@@ -1,0 +1,17 @@
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "pkg/y"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/y": "^1.0"
+    }
+}

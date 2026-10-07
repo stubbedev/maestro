@@ -158,6 +158,7 @@ var coverage = []entry{
 		Tests: []Proof{
 			Positive(Go(TestValidateCommand_Validate)),
 			Negative(Go(TestValidateCommand_ValidateOnFileIssues)),
+			Negative(Go(TestValidateCommand_WithComposerLock)),
 		},
 	}),
 	cover(command.NewAuditCommand, Coverage{

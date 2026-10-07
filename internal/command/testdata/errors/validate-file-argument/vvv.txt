@@ -1,0 +1,20 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Reading sub/composer.json (@DIR@/p/sub/composer.json)
+Reading sub/composer.json (@DIR@/p/sub/composer.json)
+Loading config file sub/composer.json (@DIR@/p/sub/composer.json)
+Checked CA file @CAFILE@: valid
+Executing command (CWD): 'git' '--version'
+Executing command (sub): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (sub): 'git' 'describe' '--exact-match' '--tags'
+Executing command (sub): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (sub): 'hg' 'branch'
+Executing command (sub): 'fossil' 'branch' 'list'
+Executing command (sub): 'fossil' 'tag' 'list'
+Executing command (sub): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+sub/composer.json is valid
+exit 0
