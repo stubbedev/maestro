@@ -5,6 +5,7 @@ package http
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"sync"
 )
@@ -48,13 +49,21 @@ func (w *connWaiter) release() {
 // it). Over HTTP/1, or when the first transfer failed, they go ahead
 // together.
 //
-// The transfer calls connected once it has its connection, with whether
-// that speaks HTTP/2, sent once it sent its request or starts opening a
-// connection of its own, and done when it ends.
-func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u *url.URL) (connected func(h2 bool), sent, done func()) {
+// The transfer calls connected once it has its connection, with that
+// connection when it speaks HTTP/2 (nil otherwise), sent once it sent its
+// request or starts opening a connection of its own, and done when it
+// ends.
+//
+// The requests released one after the other over HTTP/2 leave in as few
+// TCP segments as they fit in (holdWrites, until the last of them was
+// sent), as curl's do, which writes the frames of all of them at once: a
+// new connection may send about ten segments before the server
+// acknowledges them, and a segment per request would hold the requests
+// after the first few back for a round trip.
+func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u *url.URL) (connected func(h2 net.Conn), sent, done func()) {
 	noop := func() {}
 	if u.Scheme != "https" || key.proxy != "" || key.http1 || key.fresh {
-		return func(bool) {}, noop, noop
+		return func(net.Conn) {}, noop, noop
 	}
 
 	port := u.Port()
@@ -77,7 +86,7 @@ func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u 
 		p.mu.Unlock()
 
 		var once sync.Once
-		settle := func(h2 bool) {
+		settle := func(h2 net.Conn) {
 			once.Do(func() {
 				p.mu.Lock()
 				fc.settled = true
@@ -85,7 +94,7 @@ func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u 
 				fc.waiters = nil
 				p.mu.Unlock()
 
-				if !h2 {
+				if h2 == nil {
 					for _, w := range waiters {
 						w.release()
 					}
@@ -93,23 +102,34 @@ func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u 
 					return
 				}
 
+				if len(waiters) == 0 {
+					return
+				}
+
+				// the last waiter releases the writes held back
+				end := &connWaiter{ready: make(chan struct{})}
+				flush := holdWrites(h2)
+				go func() {
+					<-end.ready
+					flush()
+				}()
+
+				waiters = append(waiters, end)
 				for i := 1; i < len(waiters); i++ {
 					waiters[i-1].next = waiters[i]
 				}
 
-				if len(waiters) > 0 {
-					waiters[0].release()
-				}
+				waiters[0].release()
 			})
 		}
 
-		return settle, noop, func() { settle(false) }
+		return settle, noop, func() { settle(nil) }
 	}
 
 	if fc.settled {
 		p.mu.Unlock()
 
-		return func(bool) {}, noop, noop
+		return func(net.Conn) {}, noop, noop
 	}
 
 	w := &connWaiter{ready: make(chan struct{})}
@@ -126,14 +146,14 @@ func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u 
 			w.next.release()
 		}()
 
-		return func(bool) {}, noop, noop
+		return func(net.Conn) {}, noop, noop
 	}
 
 	var once sync.Once
 	releaseNext := func() { once.Do(func() { w.next.release() }) }
 
-	return func(h2 bool) {
-		if !h2 {
+	return func(h2 net.Conn) {
+		if h2 == nil {
 			releaseNext()
 		}
 	}, releaseNext, releaseNext

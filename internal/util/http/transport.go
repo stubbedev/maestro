@@ -578,8 +578,11 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		GotConn: func(info httptrace.GotConnInfo) {
 			connected.Store(true)
 
-			_, isH2 := info.Conn.(*h2HeadConn)
-			firstConnected(isH2)
+			if hc, ok := info.Conn.(*h2HeadConn); ok {
+				firstConnected(hc)
+			} else {
+				firstConnected(nil)
+			}
 
 			if idle != nil {
 				idle.Reset(r.readTimeout)

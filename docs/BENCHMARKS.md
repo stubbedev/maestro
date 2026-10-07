@@ -218,8 +218,13 @@ Metadata and resolution:
   symfony update builds, about 120 are ever loaded in full.
 - **One connection per host**: transfers to an https host wait for the
   first one's connection and share its HTTP/2 connection, sending in
-  request order, as curl's CURLOPT_PIPEWAIT does. Connections to the first
-  https repositories open while the project loads.
+  request order, as curl's CURLOPT_PIPEWAIT does. On Linux the requests
+  released together leave in full TCP segments (TCP_CORK until the last
+  is written), as curl writes the frames of all its requests at once: a
+  new connection sends about ten segments in its first round trip, which
+  one segment per request would spend on the first eight requests.
+  Connections to the first https repositories open while the project
+  loads.
 - **Decoded caches.** p2 metadata files and installed.json are kept
   decoded in a binary form, read back only for byte-identical JSON, which
   a metadata file's unchanged identity tells without a copy of the JSON

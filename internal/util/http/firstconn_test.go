@@ -69,7 +69,9 @@ func TestAwaitFirstConn_HTTP2ReleasesInOrder(t *testing.T) {
 	case <-time.After(20 * time.Millisecond):
 	}
 
-	connected(true)
+	h2, peer := net.Pipe()
+	t.Cleanup(func() { _ = h2.Close(); _ = peer.Close() })
+	connected(h2)
 
 	for want := range 3 {
 		w := <-released
@@ -104,7 +106,7 @@ func TestAwaitFirstConn_FailureOrHTTP1ReleasesAll(t *testing.T) {
 		if h2 {
 			done() // the first transfer failed
 		} else {
-			connected(false)
+			connected(nil)
 		}
 
 		for range 3 {
