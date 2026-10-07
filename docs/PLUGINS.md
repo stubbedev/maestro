@@ -801,7 +801,9 @@ local packages plus `/dev`, and `setDevMode`. When the hash changes, Go
 computes the package map and parse result and sends `autoload.install`
 with the loader contents. PHP unregisters the previous dispatcher loader,
 creates a new `ClassLoader` and calls `register(false)`. It does not require
-`files`, matching `createLoader`.
+`files`, matching `createLoader`. The classmap paths are scanned as a
+dump scans them: the results kept with the store releases and in the parse
+cache are read, and what the scan parsed is kept there.
 
 **The `finally` block.** Composer snapshots `spl_autoload_functions()`
 before the listeners and re-appends prepended autoloaders after them. Go

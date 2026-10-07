@@ -269,7 +269,7 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	if err != nil {
 		return
 	}
-	g.addReleases(packageMap)
+	g.addReleases(packageMap[1:])
 	requests := make([]classmap.ScanRequest, 0, len(autoloads.Classmap))
 	for _, dir := range autoloads.Classmap {
 		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: buildExclusionRegex(dir, autoloads.ExcludeFromClassmap)})
@@ -443,7 +443,7 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, packageMap []Pac
 			return classMap, nil
 		}
 	}
-	g.addReleases(packageMap)
+	g.addReleases(packageMap[1:])
 	gen := g.newClassMapGenerator()
 	if recorded {
 		gen.StartRecording()
@@ -696,6 +696,10 @@ func (g *Generator) CreateLoader(autoloads *Autoloads, vendorDir string) (*Class
 		}
 	}
 
+	// the scan reads the results the dumps kept with the store releases,
+	// and keeps what it parsed for the next loader or dump
+	g.addReleases(autoloads.classmapPackages)
+	defer g.parseCache.Save()
 	gen := g.newClassMapGenerator()
 	for _, dir := range autoloads.Classmap {
 		err := gen.ScanPaths(dir, buildExclusionRegex(dir, autoloads.ExcludeFromClassmap), classmap.Classmap, "", nil)

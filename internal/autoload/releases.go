@@ -25,17 +25,17 @@ func (g *Generator) UseStore(s *store.Store) { g.store = s }
 const releaseResults = "classmap"
 
 // addReleases tells the parse cache, in the background, the store
-// releases of the packages in packageMap (the root package is never one).
-func (g *Generator) addReleases(packageMap []PackageMapEntry) {
-	if g.store == nil || len(packageMap) < 2 {
+// releases of packages (package map entries without the root package,
+// which is never one).
+func (g *Generator) addReleases(packages []PackageMapEntry) {
+	if g.store == nil || len(packages) == 0 {
 		return
 	}
-	g.parseCache.AddReleasesAsync(func() []classmap.Release { return g.findReleases(packageMap) })
+	g.parseCache.AddReleasesAsync(func() []classmap.Release { return g.findReleases(packages) })
 }
 
 // findReleases looks the releases of the packages up in the store.
-func (g *Generator) findReleases(packageMap []PackageMapEntry) []classmap.Release {
-	packages := packageMap[1:]
+func (g *Generator) findReleases(packages []PackageMapEntry) []classmap.Release {
 	found := make([]classmap.Release, len(packages))
 	var (
 		next int

@@ -41,6 +41,9 @@ type Autoloads struct {
 	// passes it to buildExclusionRegex(string $dir)
 	classmapValue any
 	classmapIndex int
+	// classmapPackages are the packages (not the root) with Classmap
+	// paths, whose store releases CreateLoader's scan looks up.
+	classmapPackages []PackageMapEntry
 }
 
 // DevFilter is parseAutoloads' $filteredDevPackages: which packages to
@@ -302,6 +305,9 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 						a.classmapValue, a.classmapIndex = rawRelative, len(a.Classmap)
 					}
 					a.Classmap = append(a.Classmap, relativePath)
+					if p != rootPackage && (len(a.classmapPackages) == 0 || a.classmapPackages[len(a.classmapPackages)-1].Package != p) {
+						a.classmapPackages = append(a.classmapPackages, item)
+					}
 				default:
 					psr := a.PSR0
 					if typ == typePSR4 {

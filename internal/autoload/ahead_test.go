@@ -144,6 +144,64 @@ func TestGenerator_DumpOfParsedAhead(t *testing.T) {
 	}
 }
 
+// A script's class loader (CreateLoader, in a fresh process each run)
+// reads and keeps the class map results of the classmap paths with their
+// store releases, as dumps do: the next loader reads them instead of
+// parsing.
+func TestGenerator_CreateLoaderKeepsResultsWithReleases(t *testing.T) {
+	zip := archivetest.Zip("",
+		archivetest.UnixDir("pkg/", 0o755),
+		archivetest.UnixFile("pkg/lib/A.php", 0o644, "<?php class LibA {}\n"),
+	)
+	e := setUp(t)
+	root := newRoot("root/a")
+	root.SetRequires(links(link("root/a", "a/b")))
+	p := newPackage("a/b")
+	p.SetAutoload(arr("classmap", list("lib/")))
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str("https://example.org/b.zip"))
+	p.SetDistReference(pkg.Str("abc"))
+	e.packages(p)
+	s := openTestStore(t)
+	e.generator.UseStore(s)
+	path := filepath.Join(t.TempDir(), "dist.zip")
+	if err := os.WriteFile(path, zip, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dst := e.vendorDir + "/a/b"
+	e.mkdir(filepath.Dir(dst))
+	d := store.Dist{Name: "a/b", Type: "zip", URL: "https://example.org/b.zip", Reference: "abc"}
+	if err := s.Install(d, path, dst, store.ImportOptions{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.Lookup(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kept, _ := s.ReadDerived(r, releaseResults); kept != nil {
+		t.Fatal("results kept before any scan")
+	}
+
+	packageMap, err := e.generator.BuildPackageMap(e.im, root, []pkg.PackageInterface{p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	autoloads, err := e.generator.ParseAutoloads(packageMap, root, NoDevFilter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := e.generator.CreateLoader(autoloads, e.vendorDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := php.VarExport(l.ClassMap), "array (\n  'LibA' => '"+filepath.ToSlash(dst)+"/lib/A.php',\n)"; got != want {
+		t.Errorf("classMap %s, want %s", got, want)
+	}
+	if kept, err := s.ReadDerived(r, releaseResults); err != nil || kept == nil {
+		t.Errorf("the loader kept no results with the release: %v", err)
+	}
+}
+
 func openTestStore(t *testing.T) *store.Store {
 	t.Helper()
 	s, err := store.Open(t.TempDir(), nil)
