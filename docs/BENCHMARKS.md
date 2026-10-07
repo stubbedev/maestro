@@ -1,5 +1,70 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## No-op install: start-up and the work after the revalidation (#29, 2026-10-07)
+
+"before" is cd6b2a7, "after" is f78ff7a (the four commits below). Same
+projects and method as the section below: `install --no-plugins
+--no-scripts -q`, COMPOSER_TEST_SUITE=1, Composer 2.10.3 (phar) and the
+two binaries interleaved run by run (order reversed every other round),
+2 untimed warm-ups, medians of wall time, CPU (user + system) and peak
+RSS from wait4; each binary with its own copy of MAESTRO_CACHE_DIR
+(after's probe cache entries have a new format). CPU profile
+`performance`; the 1-minute load average was 0.7 to 1.3 during the
+series.
+
+| Project | Command | Composer | before | after | speed-up before → after |
+|---|---|---:|---:|---:|---:|
+| laravel | no-op install (20 rounds) | 1.27 s | 102.6 ms | 90.6 ms | 12.4x → 14.0x |
+| symfony | no-op install (20) | 623 ms | 98.9 ms | 91.1 ms | 6.3x → 6.8x |
+| laravel | warm install (12) | | 211.0 ms | 207.3 ms | |
+| symfony | warm install (12) | | 235.9 ms | 231.5 ms | |
+
+CPU: laravel's no-op 130 → 124 ms, symfony's 92 → 91 ms; peak RSS
+within 1.5 MB. Vendor trees and verbose output are identical between
+the two binaries on laravel and symfony no-op installs, also after
+removing or changing autoload_static.php, autoload_classmap.php,
+autoload_psr4.php (touched), installed.json, installed.php,
+vendor/autoload.php or all of vendor/composer; a `-race` build ran both
+no-op installs without a report.
+
+Timing marks (not committed; laravel, ms since exec): main 2.0 (was
+4.5), revalidation responses at ~84, then before: local repository
+write ~3.5, dump ~8.3 (of which class map analysis ~1.2, class map files
+~4.4, reading files to compare ~1.4), exit ~97; after: repository write
+~0.4, dump ~1.4, exit ~87.7.
+
+- **Lazy package-level regexes** (1e57436): `php.MustCompile` compiles
+  on first use (through the regex cache, one *Regexp per pattern);
+  `GODEBUG=inittrace=1` sums package init at 3.5 → 0.9 ms of clock,
+  the last init finishing at ~1.6 instead of ~4.2 ms. A test compiles
+  every registered pattern, since a bad one now panics on first use.
+  What is left of init is mostly third-party (klauspost/compress's
+  snapref table 0.15 ms, xz, brotli, go-runewidth, 0.05 ms each).
+- **Binary probe cache** (41021cb): the cached platform probe result is
+  stored decoded, in php's binary form of decoded JSON; reading it and
+  building the snapshot take ~0.8 instead of ~1.7 ms (benchmark, hot).
+  A test checks it reads back === to the JSON and gives the same
+  snapshot.
+- **Dump built during the wait** (3a346b9): the speculation also
+  analyses its scan (warnings kept and printed by the dump at the same
+  point), builds the class map files, and reads the files the dump
+  writes; the dump takes the built files when its paths match, and
+  skips writing a file whose contents are those read while its
+  description (file, size, mode, mtime) is unchanged.
+- **Local repository write built ahead** (f78ff7a): under the same
+  conditions as the speculation, installed.json and installed.php are
+  built while the lock is verified; the write uses them when the same
+  package objects, dev mode, dev package names, root package and
+  directory are given and the install paths (looked up again) match,
+  with the same unchanged-file skip. Both paths share the builder.
+
+Left: the ~73 ms of TCP, TLS and the two conditional requests; before
+the dial, the application and configuration (~3 ms) and the probe
+snapshot (~0.8 ms, could be decoded lazily per section, but the
+platform check reads most sections); after the responses ~3.5 ms (pool
+and solver ~2, the package map and autoload rules ~0.7 to 1.2, the
+static file ~0.4, exit ~0.6).
+
 ## No-op and warm install: store imports during the revalidation (#29, 2026-10-07)
 
 "before" is 84b0087, "after" is 4a4f0cf (the four commits below). Same
