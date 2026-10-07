@@ -47,7 +47,7 @@
     clone() { # repo tag dir
       [ -d ".ref/$3" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "$2" "https://github.com/$1" ".ref/$3"
     }
-    clone composer/composer 2.10.3 composer
+    clone composer/composer "$(tools/upstream/composer-version.sh)" composer
     clone composer/semver 3.4.4 semver
     clone composer/class-map-generator 1.7.3 class-map-generator
     clone composer/spdx-licenses 1.6.0 spdx-licenses

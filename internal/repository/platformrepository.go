@@ -12,13 +12,14 @@ import (
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/http"
 )
 
 // Versions of Composer's own platform packages: Composer::VERSION,
 // PluginInterface::PLUGIN_API_VERSION and Composer::RUNTIME_API_VERSION
 // of the Composer release maestro reproduces.
 const (
-	ComposerVersion   = "2.10.3"
+	ComposerVersion   = http.ComposerVersion
 	PluginAPIVersion  = "2.9.0"
 	RuntimeAPIVersion = "2.2.2"
 )

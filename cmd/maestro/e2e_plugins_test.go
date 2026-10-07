@@ -19,12 +19,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/switches"
 )
 
 func TestE2EPlugins(t *testing.T) {
 	if !switches.On(switches.E2E) {
-		t.Skip("set MAESTRO_E2E=1 to compare maestro's plugins with Composer 2.10.3 (php, git, unzip and the network)")
+		t.Skip("set MAESTRO_E2E=1 to compare maestro's plugins with Composer " + composer.Version + " (php, git, unzip and the network)")
 	}
 
 	requireTools(t)

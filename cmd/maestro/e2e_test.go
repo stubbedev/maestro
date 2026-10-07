@@ -86,14 +86,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/testutil"
 )
 
-// The official composer.phar 2.10.3 and the sha256 getcomposer.org
-// publishes for it (https://getcomposer.org/download/2.10.3/composer.phar.sha256sum).
+// The official composer.phar of the release maestro ports and the sha256
+// getcomposer.org publishes for it (composerPharURL + ".sha256sum"). The
+// checksum is pinned here: bumping composer.Version without it fails the
+// download's check.
 const (
-	composerPharURL    = "https://getcomposer.org/download/2.10.3/composer.phar"
+	composerPharURL    = "https://getcomposer.org/download/" + composer.Version + "/composer.phar"
 	composerPharSHA256 = "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6"
 )
 
@@ -158,7 +161,7 @@ type timing struct {
 
 func TestE2E(t *testing.T) {
 	if !switches.On(switches.E2E) {
-		t.Skip("set MAESTRO_E2E=1 to compare maestro with Composer 2.10.3 (php, git, unzip and the network)")
+		t.Skip("set MAESTRO_E2E=1 to compare maestro with Composer " + composer.Version + " (php, git, unzip and the network)")
 	}
 
 	requireTools(t)
@@ -261,7 +264,7 @@ func composerPhar(t *testing.T) string {
 	}
 
 	dir := filepath.Join(cacheDir, "maestro-e2e")
-	path := filepath.Join(dir, "composer-2.10.3.phar")
+	path := filepath.Join(dir, "composer-"+composer.Version+".phar")
 
 	if sum, err := fileSHA256(path); err == nil && sum == composerPharSHA256 {
 		return path

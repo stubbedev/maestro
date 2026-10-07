@@ -149,6 +149,22 @@ including its quirks, ordering, messages and edge cases, and do not
 free surface, the PHP decides what information is reported and when, not
 its exact presentation.
 
+## Following upstream
+
+maestro tracks the latest stable Composer. The release it ports is named
+in one place, `ComposerVersion` in `internal/util/http/runtime.go`:
+Composer::VERSION, the platform package, the user agent, the e2e phar and
+`ref-sync` read it from there (`tools/upstream/composer-version.sh` for
+scripts), and only the phar's checksum, the release date and the shim's
+`Composer::VERSION` and `RELEASE_DATE` are bumped with it (a test checks
+the shim's `VERSION` against it).
+`.github/workflows/upstream-composer.yml` checks Composer's releases daily
+and opens an `upstream` issue for each newer one (pre-releases included,
+titled as such) with its release notes, the compare link, a diffstat of
+the paths that matter, the bundled libraries its composer.lock changes
+(semver, class-map-generator, spdx-licenses, jsonlint, ...) and the
+checklist of a bump; that issue is the trigger to port it.
+
 ## Deliberate deviations
 
 These change frozen behaviour on purpose; nothing else may.
@@ -521,6 +537,7 @@ docs/BENCHMARKS.md shows what they found.
 | `tools/fetchdists` | downloads real dist archives for the store's differential test |
 | `tools/deadcode` | fails on functions nothing reaches (`just deadcode`, CI) |
 | `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |
+| `tools/upstream` | prints the Composer release maestro ports; opens an issue per newer one ("Following upstream") |
 
 ## Tooling hazard: `\u` escapes
 
