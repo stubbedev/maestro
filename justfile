@@ -1,9 +1,9 @@
 # maestro dev tasks.
 #
-# vet, lint, test, build, check, test-race, e2e and shell run in the dev
-# container (compose.yaml), so they depend on nothing of this machine and
-# leave nothing on it; extra arguments go to the command, e.g.
-# `just test ./internal/config -run TestFactory`.
+# vet, lint, deadcode, tidy-check, test, build, check, test-race, e2e and
+# shell run in the dev container (compose.yaml), so they depend on nothing
+# of this machine and leave nothing on it; extra arguments go to the
+# command, e.g. `just test ./internal/config -run TestFactory`.
 
 # The container runs as you, so what it writes to the checkout is yours.
 export MAESTRO_UID := `id -u`
@@ -15,7 +15,7 @@ compose := "docker compose run --rm --build --quiet-build"
 default:
     @just --list
 
-# Run every release gate in order: vet, lint, deadcode, test, build.
+# Run every release gate in order: vet, lint, deadcode, tidy-check, test, build.
 check:
     {{ compose }} check
 
@@ -32,6 +32,10 @@ lint *args:
 # Fail on functions nothing reaches, not even a test (tools/deadcode).
 deadcode:
     {{ compose }} lint tools/deadcode/check.sh
+
+# Fail when `go mod tidy` would change go.mod or go.sum (tools/tidycheck).
+tidy-check:
+    {{ compose }} lint tools/tidycheck/check.sh
 
 # Run the test suite for every package, the php-driven tests included.
 [positional-arguments]

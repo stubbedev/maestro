@@ -47,9 +47,7 @@ jobs:
             go-${{ runner.os }}-${{ github.job }}-
 
       - name: Tidy check
-        run: |
-          go mod tidy
-          git diff --exit-code
+        run: tools/tidycheck/check.sh
 
       - name: Vet
         run: go vet ./...

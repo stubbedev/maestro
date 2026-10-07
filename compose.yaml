@@ -1,8 +1,8 @@
 # The dev container the tests run in, so a run depends on nothing of the
 # machine it runs on (its user, home directory, umask, locale, time zone,
 # php, unzip, tar or caches) and leaves nothing behind on it. The justfile
-# drives it: `just test`, `just test-race`, `just lint`, `just check`,
-# `just e2e`, `just shell`. Each profile is one task:
+# drives it: `just test`, `just test-race`, `just lint`, `just tidy-check`,
+# `just check`, `just e2e`, `just shell`. Each profile is one task:
 #
 #   docker compose --profile test run --rm test [go test args...]
 #
@@ -75,7 +75,7 @@ services:
   check:
     <<: *dev
     profiles: [check]
-    command: [sh, -c, "go vet ./... && golangci-lint run && tools/deadcode/check.sh && go test ./... && go build -o /dev/null ./..."]
+    command: [sh, -c, "go vet ./... && golangci-lint run && tools/deadcode/check.sh && tools/tidycheck/check.sh && go test ./... && go build -o /dev/null ./..."]
 
   e2e:
     <<: *dev

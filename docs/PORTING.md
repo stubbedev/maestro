@@ -409,10 +409,12 @@ per task), so a run depends on nothing of the machine it runs on (user,
 home directory, umask, locale, php, unzip, tar, caches) and leaves nothing
 on it. The justfile drives it: `just test` (with `MAESTRO_PHP_TESTS=1`;
 arguments go to `go test`, e.g. `just test ./internal/config -run X`),
-`just vet`, `just lint`, `just deadcode`, `just build`, `just check`
-(vet, lint, deadcode, test, build), `just test-race`, `just e2e` and `just shell`. Oracles that run
-Composer's PHP from `.ref/` and other tools run in the devenv shell
-(`devenv shell -- bash -c '...'` from the repo root). A port is done when `go vet`, `golangci-lint run` and `go test -race` with
+`just vet`, `just lint`, `just deadcode`, `just tidy-check`, `just build`,
+`just check` (vet, lint, deadcode, tidy-check, test, build),
+`just test-race`, `just e2e` and `just shell`. Oracles that run Composer's
+PHP from `.ref/` and other tools run in the devenv shell
+(`devenv shell -- bash -c '...'` from the repo root). A port is done when
+`go vet`, `golangci-lint run` and `go test -race` with
 `MAESTRO_PHP_TESTS=1` pass for its packages (`CGO_ENABLED=1` for `-race`).
 CI (`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
 Windows in shards.
@@ -425,6 +427,8 @@ Windows in shards.
 | `tools/shimvendor` | vendors the PHP libraries Composer's phar ships into the shim (`internal/plugin/php/lib`) |
 | `tools/shimgen` | generates the shim's API-parity stubs and golden from Composer's `src/` |
 | `tools/fetchdists` | downloads real dist archives for the store's differential test |
+| `tools/deadcode` | fails on functions nothing reaches (`just deadcode`, CI) |
+| `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |
 
 ## Tooling hazard: `\u` escapes
 
@@ -466,10 +470,21 @@ PHP calls it:
 ## Working alongside other ports
 
 Several packages are ported at once in this tree. Build and test only your
-own packages (`go test ./internal/semver/...`), not `./...`. Add a
-dependency with `go get module@version` only; never run `go mod tidy`.
-Don't edit other packages. If you need something from one that doesn't
-exist yet, say so in your report.
+own packages (`go test ./internal/semver/...`), not `./...`. Don't edit
+other packages. If you need something from one that doesn't exist yet, say
+so in your report.
+
+Dependencies:
+
+- Add one with `go get module@version`.
+- Before pushing, `go mod tidy` must leave go.mod and go.sum unchanged.
+  `tools/tidycheck/check.sh` checks that without rewriting anything
+  (`go mod tidy -diff`); CI's lint job, `just tidy-check` and `just check`
+  all run it. When it reports a diff, run `go mod tidy` once and commit the
+  result.
+- Run `go mod tidy` on main, not in a worktree other ports share: there
+  several of them edit go.mod at once, and tidying drops the requirements
+  of packages that are not in the tree yet.
 
 ## Plugin requirements on every package
 
