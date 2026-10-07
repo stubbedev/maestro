@@ -257,7 +257,12 @@ var coverage = []entry{
 	cover(command.NewBumpCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestBumpCommand_Bump)),
+			Positive(E2E("require-remove", "bump")),
+			Negative(Go(TestBumpCommand_Bump)),
 			Negative(Go(TestBumpCommand_BumpFailsOnNonExistingComposerFile)),
+			Negative(Go(TestBumpCommand_BumpFailsOnNonExistingComposerEnvFile)),
+			Negative(Go(TestBumpCommand_BumpFailsOnWriteErrorToComposerFile)),
+			Negative(E2E("require-remove", "bump", "--dry-run")),
 		},
 	}),
 	cover(command.NewRepositoryCommand, Coverage{

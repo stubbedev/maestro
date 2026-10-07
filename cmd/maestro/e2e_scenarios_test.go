@@ -142,8 +142,14 @@ func fixtureScenarios() []scenario {
 				{args: []string{"remove", "--dev", "psr/container"}},
 				{args: []string{"remove", "not/required"}},
 				{args: []string{"remove", "psr/link", "--no-update"}},
+				// the lock is stale: both refuse
 				{args: []string{"bump"}},
 				{args: []string{"bump", "--dry-run"}},
+				// fresh again: the listing, then the rewrite of composer.json
+				// and of the lock's content-hash
+				{args: []string{"update"}},
+				{args: []string{"bump", "--dry-run"}},
+				{args: []string{"bump"}},
 			},
 		},
 		{

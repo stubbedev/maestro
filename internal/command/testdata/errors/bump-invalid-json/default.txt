@@ -1,0 +1,13 @@
+
+In JsonFile.php line 398:
+                                                                          
+  "./composer.json" does not contain valid JSON                           
+  Parse error on line 3:                                                  
+  ... "require": {"x/y": }}                                               
+  ----------------------^                                                 
+  Expected one of: 'STRING', 'NUMBER', 'NULL', 'TRUE', 'FALSE', '{', '['  
+                                                                          
+
+bump [-D|--dev-only] [-R|--no-dev-only] [--dry-run] [--] [<packages>...]
+
+exit 1

@@ -1,0 +1,9 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+bump [-D|--dev-only] [-R|--no-dev-only] [--dry-run] [--] [<packages>...]
+
+exit 1
