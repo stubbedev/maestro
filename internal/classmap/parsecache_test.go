@@ -7,6 +7,8 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 func scanWithCache(t *testing.T, cache *ParseCache, dir string) []string {
@@ -96,7 +98,7 @@ func TestParseCache_IdentityIndex(t *testing.T) {
 	scan := func(trust time.Duration) int64 {
 		t.Helper()
 		cache := readCache(cacheFile)
-		cache.trust = trustMargin(trust)
+		cache.trust = fsstate.Margin(trust)
 		if got := scanWithCache(t, cache, dir); !slices.Equal(got, []string{"Foo"}) {
 			t.Fatalf("scan: %q", got)
 		}
@@ -313,7 +315,7 @@ func TestParseCache_RacyEntriesRewriteTheFile(t *testing.T) {
 	// the file's times are not a minute older than the cache file's (an
 	// hour in the past now): racy, read again, and the cache file saved
 	later := readCache(cacheFile)
-	later.trust = trustMargin(time.Minute)
+	later.trust = fsstate.Margin(time.Minute)
 	scanWithCache(t, later, dir)
 	later.Save()
 	info, err := os.Stat(cacheFile)

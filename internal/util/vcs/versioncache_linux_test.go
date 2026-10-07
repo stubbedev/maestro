@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 	"github.com/stubbedev/maestro/internal/util/processmock"
 )
 
@@ -36,7 +37,7 @@ func useVersionCache(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	// as UseVersionCache, trusting fakeGit's fresh times
-	keptGitVersion.Store(&versionCacheConfig{dir: dir, trust: -time.Hour})
+	keptGitVersion.Store(&versionCacheConfig{dir: dir, trust: fsstate.Margin(-time.Hour)})
 	SetVersion("", false)
 	t.Cleanup(func() {
 		UseVersionCache("")
@@ -91,20 +92,20 @@ func TestVersionCache_NotForMocks(t *testing.T) {
 // that are not scripts get one.
 func TestVersionCache_Key(t *testing.T) {
 	git := fakeGit(t)
-	limit := time.Now().Add(time.Hour)
-	key := gitBinaryKey(git, limit)
+	trustAll, trustNone := fsstate.Margin(-time.Hour), fsstate.Margin(time.Hour)
+	key := gitBinaryKey(git, time.Now(), trustAll)
 	if key == "" {
 		t.Fatal("no key for a git binary")
 	}
-	if gitBinaryKey(git, time.Now().Add(-time.Hour)) != "" {
-		t.Error("a key for a binary changed after the limit")
+	if gitBinaryKey(git, time.Now(), trustNone) != "" {
+		t.Error("a key for a binary changed within the margin")
 	}
 
 	time.Sleep(10 * time.Millisecond)
 	if err := os.Chmod(git, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if gitBinaryKey(git, limit) == key {
+	if gitBinaryKey(git, time.Now(), trustAll) == key {
 		t.Error("the key did not change with the binary")
 	}
 
@@ -113,7 +114,7 @@ func TestVersionCache_Key(t *testing.T) {
 	if err := os.WriteFile(script, []byte("#!/bin/sh\necho git version 1.0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if gitBinaryKey(script, limit) != "" {
+	if gitBinaryKey(script, time.Now(), trustAll) != "" {
 		t.Error("a key for a script")
 	}
 	multi := filepath.Join(dir, "snap")
@@ -124,7 +125,7 @@ func TestVersionCache_Key(t *testing.T) {
 	if err := os.Symlink(multi, link); err != nil {
 		t.Fatal(err)
 	}
-	if gitBinaryKey(link, limit) != "" {
+	if gitBinaryKey(link, time.Now(), trustAll) != "" {
 		t.Error("a key for a binary not named git")
 	}
 }

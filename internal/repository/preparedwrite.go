@@ -4,7 +4,6 @@
 package repository
 
 import (
-	"io/fs"
 	"os"
 	"slices"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // encodingFile is a JSONFile that tells what its Write writes
@@ -29,7 +29,7 @@ type prepared struct {
 	installPaths []pkg.NullString // of the key's canonical packages
 	out          *writeOutput
 	// installed.json and installed.php as they were once out was built
-	current [2]currentFile
+	current [2]fsstate.Snapshot
 }
 
 // writeKey is the state a write's input is in: the input, and the
@@ -68,48 +68,6 @@ func (a writeKey) same(b writeKey) bool {
 		slices.EqualFunc(a.in.repoPackages, b.in.repoPackages, samePackage) &&
 		slices.Equal(a.in.devPackageNames, b.in.devPackageNames) &&
 		slices.Equal(a.revs, b.revs)
-}
-
-// currentFile is a file's contents, and its description from before and
-// after they were read; info is nil when the file could not be read.
-type currentFile struct {
-	path    string
-	content []byte
-	info    fs.FileInfo
-}
-
-func readCurrentFile(path string) currentFile {
-	before, err := os.Stat(path)
-	if err != nil || !before.Mode().IsRegular() {
-		return currentFile{}
-	}
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return currentFile{}
-	}
-	after, err := os.Stat(path)
-	if err != nil || !sameFileStamp(before, after) {
-		return currentFile{}
-	}
-
-	return currentFile{path, content, after}
-}
-
-// holds reports whether the file holds content, as it was read, and did
-// not change since.
-func (f currentFile) holds(content string) bool {
-	if f.info == nil || string(f.content) != content {
-		return false
-	}
-	now, err := os.Stat(f.path)
-
-	return err == nil && sameFileStamp(f.info, now)
-}
-
-// sameFileStamp reports whether a and b describe the same file with the
-// same size, mode and modification time.
-func sameFileStamp(a, b fs.FileInfo) bool {
-	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) && a.Mode() == b.Mode()
 }
 
 // PrepareWrite builds, in the background, the files a later Write with
@@ -167,9 +125,9 @@ func (r *FilesystemRepository) PrepareWrite(devMode bool, im InstallationManager
 		}); err != nil {
 			return nil, err
 		}
-		pw.current[0] = readCurrentFile(jsonPath)
+		pw.current[0], _ = fsstate.ReadStable(jsonPath)
 		if in.dumpVersions {
-			pw.current[1] = readCurrentFile(repoDir + "/installed.php")
+			pw.current[1], _ = fsstate.ReadStable(repoDir + "/installed.php")
 		}
 
 		return pw, nil
@@ -205,8 +163,8 @@ func (r *FilesystemRepository) takePreparedWrite(in writeInput, im InstallationM
 	}
 	out := p.out
 	out.unchangedFns = [2]func() bool{
-		func() bool { return out.encodedOK && p.current[0].holds(out.encoded) },
-		func() bool { return p.current[1].holds(out.code) },
+		func() bool { return out.encodedOK && p.current[0].Holds(out.encoded) },
+		func() bool { return p.current[1].Holds(out.code) },
 	}
 
 	return out

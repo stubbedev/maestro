@@ -32,7 +32,7 @@ const diskCacheMaxEntries = 1 << 19
 // file contents seen by earlier runs of this maestro binary, by content
 // hash, so that a run reads and hashes files it has seen before (in any
 // project) instead of parsing them; and the content hash of the files
-// those runs read, by file identity (fileKey), so that a file unchanged
+// those runs read, by file identity (fsstate.ID), so that a file unchanged
 // since is not even read.
 type diskCache struct {
 	path, header string
@@ -48,33 +48,13 @@ type diskCache struct {
 	// file was saved: an identity whose times are not safely before it
 	// may belong to a file changed again within the same clock tick
 	// (git's "racily clean" entries), so it is not trusted.
-	stats        map[fileKey][32]byte
+	stats        map[fsstate.ID][32]byte
 	written      time.Time
 	statsChanged bool
 	// racy is set when an identity was too recent to trust: saving the
 	// file again (with a later modification time) lets the next run trust
 	// it, as git rewrites an index holding racily clean entries.
 	racy bool
-}
-
-// statTrustMargin is how much older than the cache file (or record) a
-// file's modification and change times must be for its recorded identity
-// to be trusted: more than the coarsest timestamp granularity in use
-// (FAT's two seconds).
-const statTrustMargin = 3 * time.Second
-
-// trustMargin is the margin a ParseCache or Record trusts identities
-// with; the zero value is statTrustMargin.
-type trustMargin time.Duration
-
-// before returns the time a file's times must be older than for its
-// identity, recorded at t, to be trusted.
-func (m trustMargin) before(t time.Time) time.Time {
-	if m == 0 {
-		return t.Add(-statTrustMargin)
-	}
-
-	return t.Add(-time.Duration(m))
 }
 
 // UseFile makes the cache keep its results in the file at path across
@@ -96,7 +76,7 @@ func (c *ParseCache) UseFile(path string) {
 
 // diskHeader is the first line of the file: format and binary.
 func diskHeader() string {
-	return "maestro classmap cache 3" + binaryID() + "\n"
+	return "maestro classmap cache 4" + binaryID() + "\n"
 }
 
 // binaryID identifies the running maestro binary (its size and
@@ -112,12 +92,12 @@ var binaryID = sync.OnceValue(func() string {
 })
 
 // load reads the file: the header, the identity index (a count, then per
-// entry the fileKey's fields as varints and the content's SHA-256), then
+// entry the ID (fsstate.ID.AppendBinary) and the content's SHA-256), then
 // the parse results up to the end. Anything malformed loads as empty.
-func (d *diskCache) load() (map[contentKey][]string, map[fileKey][32]byte, time.Time) {
-	entries, stats := map[contentKey][]string{}, map[fileKey][32]byte{}
-	empty := func() (map[contentKey][]string, map[fileKey][32]byte, time.Time) {
-		return map[contentKey][]string{}, map[fileKey][32]byte{}, time.Time{}
+func (d *diskCache) load() (map[contentKey][]string, map[fsstate.ID][32]byte, time.Time) {
+	entries, stats := map[contentKey][]string{}, map[fsstate.ID][32]byte{}
+	empty := func() (map[contentKey][]string, map[fsstate.ID][32]byte, time.Time) {
+		return map[contentKey][]string{}, map[fsstate.ID][32]byte{}, time.Time{}
 	}
 	f, err := os.Open(d.path)
 	if err != nil {
@@ -138,21 +118,10 @@ func (d *diskCache) load() (map[contentKey][]string, map[fileKey][32]byte, time.
 		return empty()
 	}
 	for range count {
-		var (
-			key    fileKey
-			fields [7]uint64
-		)
-		for i := range fields {
-			if fields[i], err = binary.ReadUvarint(r); err != nil {
-				return empty()
-			}
+		key, err := fsstate.ReadBinary(r)
+		if err != nil {
+			return empty()
 		}
-		key.dev, key.ino = fields[0], fields[1]
-		key.size = int64(fields[2])      //nolint:gosec // written from an int64
-		key.mtimeSec = int64(fields[3])  //nolint:gosec // written from an int64
-		key.mtimeNsec = int64(fields[4]) //nolint:gosec // written from an int64
-		key.ctimeSec = int64(fields[5])  //nolint:gosec // written from an int64
-		key.ctimeNsec = int64(fields[6]) //nolint:gosec // written from an int64
 		var sum [32]byte
 		if _, err := io.ReadFull(r, sum[:]); err != nil {
 			return empty()
@@ -173,7 +142,7 @@ func (d *diskCache) load() (map[contentKey][]string, map[fileKey][32]byte, time.
 
 // statSum returns the content hash recorded for a file identity, if it
 // can be trusted (see diskCache.stats).
-func (d *diskCache) statSum(key fileKey, trust trustMargin) ([32]byte, bool) {
+func (d *diskCache) statSum(key fsstate.ID, trust fsstate.Margin) ([32]byte, bool) {
 	<-d.loaded
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -181,8 +150,7 @@ func (d *diskCache) statSum(key fileKey, trust trustMargin) ([32]byte, bool) {
 	if !ok || d.written.IsZero() {
 		return sum, false
 	}
-	limit := trust.before(d.written)
-	if !time.Unix(key.mtimeSec, key.mtimeNsec).Before(limit) || !time.Unix(key.ctimeSec, key.ctimeNsec).Before(limit) {
+	if !key.Trusted(d.written, trust) {
 		d.racy = true
 
 		return sum, false
@@ -192,7 +160,7 @@ func (d *diskCache) statSum(key fileKey, trust trustMargin) ([32]byte, bool) {
 }
 
 // putStat records the content hash of a file this run read.
-func (d *diskCache) putStat(key fileKey, sum [32]byte) {
+func (d *diskCache) putStat(key fsstate.ID, sum [32]byte) {
 	<-d.loaded
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -261,14 +229,10 @@ func (c *ParseCache) Save() {
 			stats = nil
 		}
 		_, _ = w.Write(buf[:binary.PutUvarint(buf[:], uint64(len(stats)))])
+		var id []byte
 		for key, sum := range stats {
-			for _, v := range [...]uint64{
-				key.dev, key.ino, uint64(key.size), //nolint:gosec // read back as an int64
-				uint64(key.mtimeSec), uint64(key.mtimeNsec), //nolint:gosec // read back as an int64
-				uint64(key.ctimeSec), uint64(key.ctimeNsec), //nolint:gosec // read back as an int64
-			} {
-				_, _ = w.Write(buf[:binary.PutUvarint(buf[:], v)])
-			}
+			id = key.AppendBinary(id[:0])
+			_, _ = w.Write(id)
 			_, _ = w.Write(sum[:])
 		}
 		for key, classes := range d.entries {

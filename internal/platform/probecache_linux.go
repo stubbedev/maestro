@@ -28,20 +28,12 @@ const probeCacheMaxAge = 24 * time.Hour
 
 // probeCacheMaxEntries is how many entries the cache keeps: storing one
 // removes the least recently used beyond it (and any unused for
-// probeCacheMaxAge). An entry is about 180 KB. A variable for tests.
-var probeCacheMaxEntries = 64
-
-// probeTrustMargin is how much older than the probe a file's modification
-// and change times must be for its recorded signature to be trusted: a
-// file changed while php ran, or within a timestamp tick of it, may have
-// been read as it was before while the signature describes it after
-// (git's "racily clean" index entries). More than the coarsest timestamp
-// granularity in use (FAT's two seconds). A variable for tests.
-var probeTrustMargin = 3 * time.Second
+// probeCacheMaxAge). An entry is about 180 KB.
+const probeCacheMaxEntries = 64
 
 // probeCacheFormat changes whenever what an entry holds or how it is
 // keyed does.
-const probeCacheFormat = "maestro-probe-cache-3"
+const probeCacheFormat = "maestro-probe-cache-4"
 
 // probeEnvPrefixes and probeEnvNames are the environment variables that
 // may change what probe.php reports whatever php is probed, and so key
@@ -149,38 +141,21 @@ type probeCacheHeader struct {
 type fileSig struct {
 	Path   string `json:"path"`
 	Exists bool   `json:"exists,omitempty"`
-	Dev    uint64 `json:"dev,omitempty"`
-	Ino    uint64 `json:"ino,omitempty"`
-	Mode   uint32 `json:"mode,omitempty"`
-	Size   int64  `json:"size,omitempty"`
-	Mtime  int64  `json:"mtime,omitempty"`
-	Ctime  int64  `json:"ctime,omitempty"`
+	fsstate.ID
 }
 
 func statSig(path string) fileSig {
-	var st unix.Stat_t
-	if unix.Stat(path, &st) != nil {
-		return fileSig{Path: path}
-	}
+	id, ok := fsstate.Stat(path)
 
-	return fileSig{
-		Path:   path,
-		Exists: true,
-		Dev:    st.Dev,
-		Ino:    st.Ino,
-		Mode:   st.Mode,
-		Size:   st.Size,
-		Mtime:  st.Mtim.Nano(),
-		Ctime:  st.Ctim.Nano(),
-	}
+	return fileSig{Path: path, Exists: ok, ID: id}
 }
 
 // trustedAt reports whether the signature may be recorded for a probe
-// started at start: the file did not change since probeTrustMargin before.
+// started at start: a file changed while php ran, or within a timestamp
+// tick of it, may have been read as it was before while the signature
+// describes it after (fsstate.Margin).
 func (f fileSig) trustedAt(start time.Time) bool {
-	limit := start.Add(-probeTrustMargin).UnixNano()
-
-	return !f.Exists || f.Mtime < limit && f.Ctime < limit
+	return !f.Exists || f.Trusted(start, 0)
 }
 
 // unameString is php_uname()'s fields, which the snapshot records.
@@ -211,11 +186,11 @@ func probeCacheKey(binary string) string {
 		return ""
 	}
 
-	head := make([]byte, 2)
-	_, err = io.ReadFull(f, head)
+	script, err := fsstate.IsScript(f)
+	id, known := fsstate.Fstat(f)
 	_ = f.Close()
 
-	if err != nil || string(head) == "#!" {
+	if err != nil || script || !known {
 		return ""
 	}
 
@@ -226,22 +201,16 @@ func probeCacheKey(binary string) string {
 	})
 	slices.Sort(env)
 
-	h := sha256.New()
+	k := fsstate.NewKeyHash()
 	for _, part := range [...]string{probeCacheFormat, probeScript, binary, resolved} {
-		h.Write([]byte(part))
-		h.Write([]byte{0})
+		k.String(part)
 	}
-
-	sig, _ := json.Marshal(statSig(resolved))
-	h.Write(sig)
-	h.Write([]byte{0})
-
+	k.ID(id)
 	for _, kv := range env {
-		h.Write([]byte(kv))
-		h.Write([]byte{0})
+		k.String(kv)
 	}
 
-	return hex.EncodeToString(h.Sum(nil))
+	return hex.EncodeToString(k.Sum(nil))
 }
 
 // envFold is name upper-cased with everything but letters and digits
@@ -634,16 +603,16 @@ func writeProbeCacheEntry(path string, data []byte) {
 		return
 	}
 
-	pruneProbeCache(filepath.Dir(path))
+	pruneProbeCache(filepath.Dir(path), probeCacheMaxEntries)
 }
 
 // pruneProbeCache removes the entries in dir unused for probeCacheMaxAge,
-// then the least recently used beyond probeCacheMaxEntries, abandoned
+// then the least recently used beyond maxEntries, abandoned
 // temporary files and an earlier format's subdirectories. Other processes
 // may read, write and prune at the same time: removing an entry costs at
 // most a probe, never a wrong result, and a temporary file is removed only
 // long after its writer would have renamed it.
-func pruneProbeCache(dir string) {
+func pruneProbeCache(dir string, maxEntries int) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -687,13 +656,13 @@ func pruneProbeCache(dir string) {
 		}
 	}
 
-	if len(kept) <= probeCacheMaxEntries {
+	if len(kept) <= maxEntries {
 		return
 	}
 
 	slices.SortFunc(kept, func(a, b entry) int { return b.mtime.Compare(a.mtime) })
 
-	for _, e := range kept[probeCacheMaxEntries:] {
+	for _, e := range kept[maxEntries:] {
 		_ = os.Remove(e.path)
 	}
 }

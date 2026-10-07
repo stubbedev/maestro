@@ -5,6 +5,10 @@
 
 package vcs
 
-import "time"
+import (
+	"time"
 
-func gitBinaryKey(string, time.Time) string { return "" }
+	"github.com/stubbedev/maestro/internal/util/fsstate"
+)
+
+func gitBinaryKey(string, time.Time, fsstate.Margin) string { return "" }

@@ -3,22 +3,16 @@
 package classmap
 
 import (
+	"os"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
-// fileKey identifies a file's content as the file system describes it:
-// device, inode, size, and modification and change times (nanoseconds).
-// Writing to the file changes its times; replacing it changes the inode.
-type fileKey struct {
-	dev, ino            uint64
-	size                int64
-	mtimeSec, mtimeNsec int64
-	ctimeSec, ctimeNsec int64
-}
-
 type cacheKey struct {
-	file   fileKey
+	file   fsstate.ID
 	parser parserKey
 }
 
@@ -56,7 +50,47 @@ type ParseCache struct {
 	reads atomic.Int64
 	// trust is how old a file must be for the cache file's identity of
 	// it to be trusted.
-	trust trustMargin
+	trust fsstate.Margin
+}
+
+// statKey is the ID of the regular file at path, symlinks followed.
+func statKey(path string) (fsstate.ID, bool) {
+	id, ok := fsstate.Stat(path)
+
+	return id, ok && id.IsRegular()
+}
+
+// fstatKey is the ID of an open regular file.
+func fstatKey(f *os.File) (fsstate.ID, bool) {
+	id, ok := fsstate.Fstat(f)
+
+	return id, ok && id.IsRegular()
+}
+
+// releaseStamp is what a release file's stamp is compared with: the size
+// and modification second of the file with ID id, when its modification
+// time has no fraction of a second.
+func releaseStamp(id fsstate.ID) (size, mtime int64, ok bool) {
+	if id.Mtime%int64(time.Second) != 0 {
+		return 0, 0, false
+	}
+
+	return id.Size, id.Mtime / int64(time.Second), true
+}
+
+// statStamp is releaseStamp for platforms without IDs (fsstate.Known):
+// the size and modification time of the regular file at path, symlinks
+// followed.
+func statStamp(path string) (size, mtime int64, ok bool) {
+	if fsstate.Known() {
+		return 0, 0, false
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return 0, 0, false
+	}
+
+	return releaseStamp(fsstate.ID{Size: info.Size(), Mtime: info.ModTime().UnixNano()})
 }
 
 // NewParseCache returns an empty cache.
@@ -94,8 +128,8 @@ func (c *ParseCache) lookupByIdentity(p Parser, path string) (classes []string, 
 			return classes, true, nil
 		}
 	}
-	if releases && key.mtimeNsec == 0 {
-		if cand, ok := c.releases.stamped(path, key.size, key.mtimeSec); ok {
+	if size, mtime, whole := releaseStamp(key); releases && whole {
+		if cand, ok := c.releases.stamped(path, size, mtime); ok {
 			classes, ok := c.releases.result(cand, contentKey{sum: cand.sum, parser: p.key()})
 			if ok {
 				c.store(p, key, classes)
@@ -125,7 +159,7 @@ func (c *ParseCache) inMemory() bool {
 }
 
 // lookupKey is lookup for a file whose identity is known.
-func (c *ParseCache) lookupKey(p Parser, key fileKey) ([]string, bool) {
+func (c *ParseCache) lookupKey(p Parser, key fsstate.ID) ([]string, bool) {
 	v, ok := c.m.Load(cacheKey{key, p.key()})
 	if !ok {
 		return nil, false
@@ -135,7 +169,7 @@ func (c *ParseCache) lookupKey(p Parser, key fileKey) ([]string, bool) {
 	return classes, true
 }
 
-func (c *ParseCache) store(p Parser, key fileKey, classes []string) {
+func (c *ParseCache) store(p Parser, key fsstate.ID, classes []string) {
 	// only a warm-up's results are ever looked up by identity in memory
 	if c == nil || !c.warmed.Load() {
 		return

@@ -44,7 +44,7 @@ func fakeProbeOutputWith(t *testing.T, extra map[string]any, version string, map
 // trustedStart is a probe start time the files a test just wrote are
 // old enough for.
 func trustedStart() time.Time {
-	return time.Now().Add(probeTrustMargin + time.Second)
+	return time.Now().Add(fsstate.DefaultMargin + time.Second)
 }
 
 func writeFile(t *testing.T, path, content string) {
@@ -305,7 +305,7 @@ func TestProbeCache_Racy(t *testing.T) {
 		}
 	}
 
-	start := time.Now().Add(probeTrustMargin - time.Second)
+	start := time.Now().Add(fsstate.DefaultMargin - time.Second)
 
 	if err := os.Remove(filepath.Join(dir, "php.ini")); err != nil {
 		t.Fatal(err)
@@ -322,9 +322,6 @@ func TestProbeCache_Racy(t *testing.T) {
 func TestProbeCache_Prune(t *testing.T) {
 	t.Setenv("MAESTRO_CACHE_DIR", t.TempDir())
 
-	probeCacheMaxEntries = 3
-	t.Cleanup(func() { probeCacheMaxEntries = 64 })
-
 	dir := probeCacheDir()
 	if err := os.MkdirAll(filepath.Join(dir, "ab"), 0o755); err != nil {
 		t.Fatal(err)
@@ -332,12 +329,12 @@ func TestProbeCache_Prune(t *testing.T) {
 
 	now := time.Now()
 	files := map[string]time.Duration{
-		"ab/legacy":           time.Minute,
-		"entry1":              5 * time.Hour,
-		"entry2":              4 * time.Hour,
-		"entry3":              3 * time.Hour,
-		"entry4":              2 * time.Hour,
-		"expired":             25 * time.Hour,
+		"ab/legacy":              time.Minute,
+		"entry1":                 5 * time.Hour,
+		"entry2":                 4 * time.Hour,
+		"entry3":                 3 * time.Hour,
+		"entry4":                 2 * time.Hour,
+		"expired":                25 * time.Hour,
 		fsstate.TempPrefix + "1": time.Hour,
 		fsstate.TempPrefix + "2": time.Second,
 	}
@@ -351,26 +348,36 @@ func TestProbeCache_Prune(t *testing.T) {
 		}
 	}
 
-	// a store prunes
+	names := func() []string {
+		t.Helper()
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+
+		return names
+	}
+
+	// a store prunes what is too old (the bound is far)
 	binary := filepath.Join(t.TempDir(), "php")
 	writeFile(t, binary, "\x7fELF php")
 	key := storeFake(t, binary, nil, binary)
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var names []string
-	for _, e := range entries {
-		names = append(names, e.Name())
-	}
-
-	want := []string{fsstate.TempPrefix + "2", key, "entry3", "entry4"}
+	want := []string{fsstate.TempPrefix + "2", key, "entry1", "entry2", "entry3", "entry4"}
 	slices.Sort(want)
+	if got := names(); !slices.Equal(got, want) {
+		t.Errorf("left %q, want %q", got, want)
+	}
 
-	if !slices.Equal(names, want) {
-		t.Errorf("left %q, want %q", names, want)
+	// and the least recently used beyond the bound
+	pruneProbeCache(dir, 3)
+	want = []string{fsstate.TempPrefix + "2", key, "entry3", "entry4"}
+	slices.Sort(want)
+	if got := names(); !slices.Equal(got, want) {
+		t.Errorf("left %q, want %q", got, want)
 	}
 
 	// using an entry makes it recent

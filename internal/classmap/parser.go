@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Parser is PhpFileParser together with the PHP runtime its result depends
@@ -101,15 +102,15 @@ func (b *parseBuffers) readFile(path string) (int, error) {
 
 // readFileKey is readFile, also returning the identity of the file read
 // (keyed false when it has none).
-func (b *parseBuffers) readFileKey(path string) (n int, key fileKey, keyed bool, err error) {
+func (b *parseBuffers) readFileKey(path string) (n int, key fsstate.ID, keyed bool, err error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return 0, fileKey{}, false, err
+		return 0, fsstate.ID{}, false, err
 	}
 	defer f.Close()
 	size := 0
 	if key, keyed = fstatKey(f); keyed {
-		size = int(key.size)
+		size = int(key.Size)
 	} else if info, err := f.Stat(); err == nil && info.Mode().IsRegular() {
 		size = int(info.Size())
 	}
@@ -135,10 +136,10 @@ func (b *parseBuffers) readFileKey(path string) (n int, key fileKey, keyed bool,
 		if err != nil {
 			if errors.Is(err, syscall.EISDIR) {
 				// A directory opens but reads nothing.
-				return 0, fileKey{}, false, nil
+				return 0, fsstate.ID{}, false, nil
 			}
 
-			return 0, fileKey{}, false, err
+			return 0, fsstate.ID{}, false, err
 		}
 	}
 	clear(src[n : n+stripPadding])

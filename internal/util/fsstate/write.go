@@ -78,7 +78,7 @@ func createTemp(dir string) (*os.File, error) {
 	pid := strconv.Itoa(os.Getpid())
 	for {
 		name := filepath.Join(dir, TempPrefix+pid+"-"+strconv.FormatUint(tempSeq.Add(1), 36))
-		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666) //nolint:gosec // a cache file, as Composer's Cache::write leaves them
 		if !errors.Is(err, fs.ErrExist) {
 			return f, err
 		}

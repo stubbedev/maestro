@@ -222,7 +222,7 @@ func TestGenerator_DumpRereadsChangedInstalledDevMode(t *testing.T) {
 
 	e.generator.Speculate(e.config, e.repo, p, e.im, false)
 	e.speculated()
-	if s := e.generator.speculation; s.installedJSON == nil || !s.devMode {
+	if s := e.generator.speculation; !s.installedJSON.Unchanged(s.installedPath) || !s.devMode {
 		t.Fatalf("the speculation did not keep installed.json's dev mode: %v", s.devMode)
 	}
 	e.write(e.vendorDir+"/composer/installed.json", `{"packages": [], "dev": false, "dev-package-names": []}`)

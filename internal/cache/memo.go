@@ -4,9 +4,10 @@
 package cache
 
 import (
-	"io/fs"
 	"os"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // readMemo holds the contents of the cache files this process read, by
@@ -21,47 +22,37 @@ var readMemo = struct {
 }{files: map[string]memoFile{}}
 
 type memoFile struct {
-	id       fileIdentity
+	stamp    fsstate.Stamp
 	contents string
 }
 
-// readFile is os.ReadFile(path) as a string. When path's identity is
-// known (Stat: device, inode, size, modification and change times; not
-// on Windows), the contents read last time are returned while it stays
-// the same.
+// readFile is os.ReadFile(path) as a string. Where files have identities
+// (fsstate.Known: device, inode, mode, size, modification and change
+// times; not on Windows), the contents read last time are returned while
+// the file's stays the same. Contents are only remembered when the file
+// did not change while they were read.
 func readFile(path string) (string, error) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		data, err := os.ReadFile(path)
+	if fsstate.Known() {
+		if stamp, ok := fsstate.StatStamp(path); ok && stamp.IsRegular() {
+			readMemo.Lock()
+			memo, found := readMemo.files[path]
+			readMemo.Unlock()
+			if found && memo.stamp.Same(stamp) {
+				return memo.contents, nil
+			}
+			if s, ok := fsstate.ReadStable(path); ok {
+				contents := string(s.Content())
+				readMemo.Lock()
+				readMemo.files[path] = memoFile{stamp: s.Stamp(), contents: contents}
+				readMemo.Unlock()
 
-		return string(data), err
+				return contents, nil
+			}
+		}
 	}
-	id, ok := identityOf(fi)
-	if !ok {
-		data, err := os.ReadFile(path)
-
-		return string(data), err
-	}
-
-	readMemo.Lock()
-	memo, found := readMemo.files[path]
-	readMemo.Unlock()
-	if found && memo.id == id {
-		return memo.contents, nil
-	}
-
 	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	contents := string(data)
-	// the file may have been replaced after Stat: then its identity
-	// differs from id, and the next read reads it again
-	readMemo.Lock()
-	readMemo.files[path] = memoFile{id: id, contents: contents}
-	readMemo.Unlock()
 
-	return contents, nil
+	return string(data), err
 }
 
 // forget drops what readFile remembers of path, which this process
@@ -70,14 +61,4 @@ func forget(path string) {
 	readMemo.Lock()
 	delete(readMemo.files, path)
 	readMemo.Unlock()
-}
-
-// identityOf is fi's identity for readFile; false when there is none to
-// tell a changed file by.
-func identityOf(fi fs.FileInfo) (fileIdentity, bool) {
-	if !fi.Mode().IsRegular() {
-		return fileIdentity{}, false
-	}
-
-	return sysIdentity(fi)
 }

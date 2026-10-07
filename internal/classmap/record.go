@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -30,13 +31,13 @@ type RecordScan struct {
 }
 
 // Record is the class map a set of scans built, kept in a file across
-// runs with the identity (fileKey) of every file and directory the scans
+// runs with the identity (fsstate.ID) of every file and directory the scans
 // depended on: each directory the Finder listed and its ancestors, and
 // each file with a scanned extension. A later run doing the same scans
 // takes the class map from it, with its ambiguous classes and PSR
 // violations, instead of scanning, when all of them still have the
 // identity recorded (as git trusts its index: an identity too close to
-// the time the record was written is not trusted, see statTrustMargin).
+// the time the record was written is not trusted, see fsstate.Margin).
 //
 // A file the scan took for a store release's file by its stamp
 // (AddReleases) is recorded without its change time, which changes
@@ -49,7 +50,7 @@ type Record struct {
 	anchors []string
 	// trust is how old a file must be for its identity to be recorded
 	// and, recorded, trusted.
-	trust trustMargin
+	trust fsstate.Margin
 }
 
 // recordMaxFiles bounds the records kept in a directory: past it, the
@@ -67,7 +68,7 @@ const recordMaxFiles = 64
 // exclusion matcher whose pattern is unknown, a glob, a working directory
 // that cannot be resolved, or a platform without file identities.
 func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, scans []RecordScan) (*Record, bool) {
-	if dir == "" || !identitiesKnown() {
+	if dir == "" || !fsstate.Known() {
 		return nil, false
 	}
 	cwd, err := getCwd()
@@ -78,12 +79,8 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 	if err != nil {
 		return nil, false
 	}
-	h := sha256.New()
-	var buf [binary.MaxVarintLen64]byte
-	put := func(s string) {
-		h.Write(buf[:binary.PutUvarint(buf[:], uint64(len(s)))])
-		h.Write([]byte(s))
-	}
+	h := fsstate.NewKeyHash()
+	put := h.String
 	pk := p.key()
 	put(recordHeader())
 	put(id)
@@ -120,14 +117,7 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 
 // recordHeader is the first line of a record: format and binary.
 func recordHeader() string {
-	return "maestro classmap record 2" + binaryID() + "\n"
-}
-
-// identitiesKnown reports whether files have identities here (statAnyKey).
-func identitiesKnown() bool {
-	_, ok := statAnyKey(".")
-
-	return ok
+	return "maestro classmap record 3" + binaryID() + "\n"
 }
 
 // recording is what a generator's scans depended on.
@@ -200,14 +190,14 @@ func (g *Generator) SaveRecord(rec *Record) {
 	// a record holding an identity too recent to trust would never be
 	// used (Load): it is not written (after an install, the next dump
 	// writes one)
-	keys := make([]fileKey, len(paths))
+	keys := make([]fsstate.ID, len(paths))
 	stamped := make([]bool, len(paths))
-	limit := rec.trust.before(time.Now())
+	now := time.Now()
 	var failed atomic.Bool
 	parallel(len(paths), func(i int) {
-		k, ok := statAnyKey(paths[i])
+		k, ok := fsstate.Stat(paths[i])
 		stamped[i] = ok && files[paths[i]] && g.cache.isStamped(paths[i], k)
-		if !ok || !trusted(k, stamped[i], limit) {
+		if !ok || !trusted(k, stamped[i], now, rec.trust) {
 			failed.Store(true)
 		}
 		keys[i] = k
@@ -229,15 +219,9 @@ func (g *Generator) SaveRecord(rec *Record) {
 		prev = p
 		k := keys[i]
 		if stamped[i] {
-			k.ctimeSec, k.ctimeNsec = 0, stampedCtimeNsec
+			k.Ctime = stampedCtime
 		}
-		for _, v := range [...]uint64{
-			k.dev, k.ino, uint64(k.size), //nolint:gosec // read back as an int64
-			uint64(k.mtimeSec), uint64(k.mtimeNsec), //nolint:gosec // read back as an int64
-			uint64(k.ctimeSec), uint64(k.ctimeNsec), //nolint:gosec // read back as an int64
-		} {
-			w.uint(v)
-		}
+		w.id(k)
 	}
 	index := make(map[string]int, len(paths))
 	for i, p := range paths {
@@ -285,32 +269,36 @@ func (g *Generator) SaveRecord(rec *Record) {
 	pruneRecords(filepath.Dir(rec.path))
 }
 
-// stampedCtimeNsec is what a record holds as the change time nanoseconds
-// of a stamped file (see Record), whose change time it does not record:
-// no change time has it.
-const stampedCtimeNsec = 1_000_000_000
+// stampedCtime is what a record holds as the change time of a stamped
+// file (see Record), whose change time it does not record: no change time
+// is it.
+const stampedCtime = math.MinInt64
 
 // isStamped reports whether the file at path with identity k is a release
 // file by its stamp (lookupByIdentity), as the scan took it.
-func (c *ParseCache) isStamped(path string, k fileKey) bool {
-	if c == nil || k.mtimeNsec != 0 {
+func (c *ParseCache) isStamped(path string, k fsstate.ID) bool {
+	size, mtime, whole := releaseStamp(k)
+	if c == nil || !whole {
 		return false
 	}
 	c.releasesPending.Wait()
 	if !c.stampedAny.Load() {
 		return false
 	}
-	_, ok := c.releases.stamped(path, k.size, k.mtimeSec)
+	_, ok := c.releases.stamped(path, size, mtime)
 
 	return ok
 }
 
-// trusted reports whether identity k is old enough, compared with limit,
-// to be trusted: its modification time and, unless the file is stamped,
-// its change time.
-func trusted(k fileKey, stamped bool, limit time.Time) bool {
-	return time.Unix(k.mtimeSec, k.mtimeNsec).Before(limit) &&
-		(stamped || time.Unix(k.ctimeSec, k.ctimeNsec).Before(limit))
+// trusted reports whether identity k, seen at t, is old enough to be
+// trusted: its modification time and, unless the file is stamped (whose
+// change time is not recorded), its change time.
+func trusted(k fsstate.ID, stamped bool, t time.Time, margin fsstate.Margin) bool {
+	if stamped {
+		k.Ctime = k.Mtime
+	}
+
+	return k.Trusted(t, margin)
 }
 
 // pruneRecords removes the least recently written records past
@@ -362,6 +350,8 @@ type recordWriter struct {
 
 func (w *recordWriter) uint(v uint64) { w.b.Write(w.buf[:binary.PutUvarint(w.buf[:], v)]) }
 
+func (w *recordWriter) id(id fsstate.ID) { w.b.Write(id.AppendBinary(w.buf[:0])) }
+
 // int writes a count or an index.
 func (w *recordWriter) int(n int) { w.uint(uint64(n)) } //nolint:gosec // never negative
 
@@ -375,6 +365,28 @@ type recordReader struct {
 	b   []byte
 	off int
 	bad bool
+}
+
+// ReadByte reads a byte, for fsstate.ReadBinary.
+func (r *recordReader) ReadByte() (byte, error) {
+	if r.bad || r.off >= len(r.b) {
+		r.bad = true
+
+		return 0, io.ErrUnexpectedEOF
+	}
+	c := r.b[r.off]
+	r.off++
+
+	return c, nil
+}
+
+func (r *recordReader) id() fsstate.ID {
+	id, err := fsstate.ReadBinary(r)
+	if err != nil {
+		r.bad = true
+	}
+
+	return id
 }
 
 func (r *recordReader) uint() uint64 {
@@ -451,7 +463,7 @@ func (rec *Record) Load() (*ClassMap, bool) {
 	// the paths, built one after the other in one buffer
 	n := r.count(len(r.b))
 	ends := make([]int, n)
-	keys := make([]fileKey, n)
+	keys := make([]fsstate.ID, n)
 	arena := make([]byte, 0, len(data)*2)
 	prevStart := 0
 	for i := range n {
@@ -464,15 +476,7 @@ func (rec *Record) Load() (*ClassMap, bool) {
 		arena = append(arena, arena[prevStart:prevStart+shared]...)
 		arena = append(arena, suffix...)
 		ends[i], prevStart = len(arena), start
-		var v [7]uint64
-		for j := range v {
-			v[j] = r.uint()
-		}
-		keys[i] = fileKey{
-			dev: v[0], ino: v[1], size: int64(v[2]), //nolint:gosec // written from an int64
-			mtimeSec: int64(v[3]), mtimeNsec: int64(v[4]), //nolint:gosec // written from an int64
-			ctimeSec: int64(v[5]), ctimeNsec: int64(v[6]), //nolint:gosec // written from an int64
-		}
+		keys[i] = r.id()
 	}
 	if r.bad {
 		return nil, false
@@ -496,18 +500,18 @@ func (rec *Record) Load() (*ClassMap, bool) {
 	}()
 
 	// every identity as recorded, and old enough to trust
-	limit := rec.trust.before(info.ModTime())
+	written := info.ModTime()
 	var changed atomic.Bool
 	parallel(n, func(i int) {
 		if changed.Load() {
 			return
 		}
-		k, ok := statAnyKey(paths[i])
-		stamped := keys[i].ctimeNsec == stampedCtimeNsec
+		k, ok := fsstate.Stat(paths[i])
+		stamped := keys[i].Ctime == stampedCtime
 		if stamped {
-			k.ctimeSec, k.ctimeNsec = keys[i].ctimeSec, keys[i].ctimeNsec
+			k.Ctime = stampedCtime
 		}
-		if !ok || k != keys[i] || !trusted(k, stamped, limit) {
+		if !ok || k != keys[i] || !trusted(k, stamped, written, rec.trust) {
 			changed.Store(true)
 		}
 	})

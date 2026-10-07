@@ -21,8 +21,9 @@ var keptGitVersion atomic.Pointer[versionCacheConfig]
 type versionCacheConfig struct {
 	dir string
 	// trust is how much older than an entry the binary's modification
-	// and change times must be for the entry to be written.
-	trust time.Duration
+	// and change times must be for the entry to be written: a binary
+	// replaced within the timestamps' granularity may not show it.
+	trust fsstate.Margin
 }
 
 // UseVersionCache makes GetVersion keep the version of git in dir for
@@ -36,7 +37,7 @@ type versionCacheConfig struct {
 // macOS /usr/bin/git is a shim running the selected Xcode's git, and on
 // Windows git.exe is often a shim too).
 func UseVersionCache(dir string) {
-	keptGitVersion.Store(&versionCacheConfig{dir: dir, trust: versionTrustMargin})
+	keptGitVersion.Store(&versionCacheConfig{dir: dir})
 }
 
 // versionCacheMaxAge is how long a kept git version is used at most,
@@ -45,11 +46,6 @@ const versionCacheMaxAge = 24 * time.Hour
 
 // versionCacheHeader starts an entry; the version follows it.
 const versionCacheHeader = "maestro git version 1\n"
-
-// versionTrustMargin is how much older than an entry the binary's
-// modification and change times must be for the entry to be written: a
-// binary replaced within the timestamps' granularity may not show it.
-const versionTrustMargin = 3 * time.Second
 
 // executor is a Process that runs commands with a *util.ProcessExecutor
 // (VersionGuesser's adapter).
@@ -71,7 +67,7 @@ func versionCachePath(process Process) string {
 	if !ok || p == nil || p.LogsCommands() {
 		return ""
 	}
-	key := gitBinaryKey(util.DirectToolPath("git"), time.Now().Add(-c.trust))
+	key := gitBinaryKey(util.DirectToolPath("git"), time.Now(), c.trust)
 	if key == "" {
 		return ""
 	}

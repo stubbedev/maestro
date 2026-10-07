@@ -6,13 +6,15 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // recordFixture is a directory with a classmap rule (lib/, holding an
 // ambiguous class) and a PSR-4 rule (src/, holding a violation).
 func recordFixture(t *testing.T) (dir string, scans []RecordScan) {
 	t.Helper()
-	if !identitiesKnown() {
+	if !fsstate.Known() {
 		t.Skip("files have no identities here (Windows): nothing is recorded")
 	}
 	dir = t.TempDir()
@@ -44,14 +46,14 @@ func recordFixture(t *testing.T) (dir string, scans []RecordScan) {
 // identities with.
 type recordStore struct {
 	dir   string
-	trust trustMargin
+	trust fsstate.Margin
 }
 
 // trustAll trusts identities however recent; trustNone none written in
 // the last hour.
 const (
-	trustAll  = trustMargin(-time.Hour)
-	trustNone = trustMargin(time.Hour)
+	trustAll  = fsstate.Margin(-time.Hour)
+	trustNone = fsstate.Margin(time.Hour)
 )
 
 func recorded(t *testing.T, records recordStore, id, anchor string, scans []RecordScan) (m *ClassMap, hit bool) {

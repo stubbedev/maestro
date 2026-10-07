@@ -197,6 +197,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | `internal/util` | Composer\Util (filesystem, ProcessExecutor, Platform, Url, Zip/Tar, Loop, ...) |
 | `internal/util/http` | Composer\Util\{HttpDownloader, RemoteFilesystem, AuthHelper, GitHub, GitLab, Bitbucket, Forgejo, StreamContextFactory, ProxyManager, Http\*}, composer/ca-bundle |
 | `internal/util/vcs` | Composer\Util\{Git, Hg, Svn, Perforce} |
+| `internal/util/fsstate` | nothing: how maestro's own caches (deviation 3) tell a file changed (`ID`, `Stamp`, the racy-timestamp `Margin`), read a file as it was at one moment (`ReadStable`), name entries (`KeyHash`) and replace files atomically (`WriteAtomic`) |
 | `internal/json` | Composer\Json + res/*.json schemas |
 | `internal/json/jsonlint` | seld/jsonlint |
 | `internal/json/jsonschema` | the justinrainbow/json-schema format validators Composer's schema uses |

@@ -4,8 +4,6 @@
 package autoload
 
 import (
-	"io/fs"
-	"os"
 	"slices"
 	"strings"
 
@@ -13,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // speculation is a class map scan started by Speculate.
@@ -20,11 +19,11 @@ type speculation struct {
 	scan *util.Ahead[scanKey, *scanResult]
 
 	// devMode is installed.json's "dev" as the speculation read it, from
-	// the file installedJSON describes (nil when it was not read, or
-	// changed while it was read).
+	// the file installedJSON stamps (the zero Stamp when it was not
+	// read, or changed while it was read).
 	devMode       bool
 	installedPath string
-	installedJSON fs.FileInfo
+	installedJSON fsstate.Stamp
 }
 
 // scanKey is what a class map scan is made of: the Dump that takes a
@@ -57,7 +56,7 @@ type scanResult struct {
 	// files built (dump.classmap), nil without one; current are the
 	// files the dump writes as they were then (readCurrent).
 	ahead   *dump
-	current map[string]currentFile
+	current map[string]fsstate.Snapshot
 }
 
 // Speculate starts, in the background, the class map scan of the Dump
@@ -77,7 +76,7 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 	}
 	devMode := g.devMode
 	var installedPath string
-	var installedJSON fs.FileInfo
+	var installedJSON fsstate.Stamp
 	if !g.devModeSet {
 		var value any
 		var err error
@@ -163,29 +162,14 @@ func aheadDump(d *dump, targetDir string) *dump {
 	return ahead
 }
 
-// currentFile is a file's contents, and its description from before and
-// after they were read.
-type currentFile struct {
-	content []byte
-	info    fs.FileInfo
-}
-
 // readCurrent reads the files of d a dump writes with putIfModified, for
 // it to compare them with what it writes without reading them again
 // while they did not change (unchanged).
-func readCurrent(d *dump) map[string]currentFile {
-	current := make(map[string]currentFile, len(dumpFiles)+1)
+func readCurrent(d *dump) map[string]fsstate.Snapshot {
+	current := make(map[string]fsstate.Snapshot, len(dumpFiles)+1)
 	read := func(path string) {
-		before, err := os.Stat(path)
-		if err != nil || !before.Mode().IsRegular() {
-			return
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return
-		}
-		if after, err := os.Stat(path); err == nil && sameFileStamp(before, after) {
-			current[path] = currentFile{content, after}
+		if s, ok := fsstate.ReadStable(path); ok {
+			current[path] = s
 		}
 	}
 	for _, name := range dumpFiles {
@@ -203,12 +187,8 @@ var dumpFiles = []string{"autoload_namespaces.php", "autoload_psr4.php", "autolo
 // it, when it did not change since.
 func (s *scanResult) unchanged(path, content string) bool {
 	f, ok := s.current[path]
-	if !ok || string(f.content) != content {
-		return false
-	}
-	now, err := os.Stat(path)
 
-	return err == nil && sameFileStamp(f.info, now)
+	return ok && f.Holds(content)
 }
 
 // takeClassmap sets d's class map files to those the speculation built,
@@ -225,29 +205,23 @@ func (s *scanResult) takeClassmap(d *dump) bool {
 }
 
 // installedDevModeStamped is installedDevMode, also returning the path of
-// installed.json and its file's description when it was there and did not
-// change while it was read.
-func installedDevModeStamped(config Config) (devMode bool, value any, path string, info fs.FileInfo, err error) {
+// installed.json and its stamp when it was there and did not change while
+// it was read (the zero Stamp otherwise).
+func installedDevModeStamped(config Config) (devMode bool, value any, path string, stamp fsstate.Stamp, err error) {
 	vendorDir, err := vendorDirConfig(config)
 	if err != nil {
-		return false, nil, "", nil, err
+		return false, nil, "", fsstate.Stamp{}, err
 	}
 	path = vendorDir + "/composer/installed.json"
-	before, beforeErr := os.Stat(path)
+	before, _ := fsstate.StatStamp(path)
 	if devMode, value, err = installedDevMode(config); err != nil {
-		return devMode, value, path, nil, err
+		return devMode, value, path, fsstate.Stamp{}, err
 	}
-	if after, afterErr := os.Stat(path); beforeErr == nil && afterErr == nil && sameFileStamp(before, after) {
-		info = after
+	if after, _ := fsstate.StatStamp(path); before.Same(after) {
+		stamp = after
 	}
 
-	return devMode, value, path, info, nil
-}
-
-// sameFileStamp reports whether a and b describe the same file with the
-// same size, mode and modification time.
-func sameFileStamp(a, b fs.FileInfo) bool {
-	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) && a.Mode() == b.Mode()
+	return devMode, value, path, stamp, nil
 }
 
 // takeSpeculatedDevMode sets devMode as detectDevMode would, from what the
@@ -256,15 +230,14 @@ func sameFileStamp(a, b fs.FileInfo) bool {
 // JSON for symfony's); false when it cannot.
 func (g *Generator) takeSpeculatedDevMode(config Config) bool {
 	s := g.speculation
-	if s == nil || s.installedJSON == nil {
+	if s == nil {
 		return false
 	}
 	vendorDir, err := vendorDirConfig(config)
 	if err != nil || vendorDir+"/composer/installed.json" != s.installedPath {
 		return false
 	}
-	now, err := os.Stat(s.installedPath)
-	if err != nil || !sameFileStamp(s.installedJSON, now) {
+	if !s.installedJSON.Unchanged(s.installedPath) {
 		return false
 	}
 	g.devModeSet, g.devMode, g.devModeValue = true, s.devMode, nil
