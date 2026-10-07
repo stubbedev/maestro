@@ -112,7 +112,7 @@ func (a *ArchiveDownloader) installOperationAppendix(pkg.PackageInterface, strin
 
 func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+operation.FormatInstall(p, false)+": Extracting archive", true, mio.Normal)
+		c.io.WriteError(operation.InstallItem(p, false)+": Extracting archive", true, mio.Normal)
 	}
 
 	// clean up the target directory, unless it contains the vendor dir, as

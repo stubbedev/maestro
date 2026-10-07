@@ -133,6 +133,16 @@ bubbles/huh for progress and prompts, ...), under these rules:
   over the terminal. Glyphs (`ui.Glyph`) fall back to ASCII on a Windows
   console without the UTF-8 code page or a non-UTF-8 locale. The texts,
   defaults, answers and streams are Composer's.
+- The install/update summary. Each operation line's bullet is a
+  mark (`ui.Mark`, through `operation.Item`/`InstallItem`/...): "-"
+  undecorated, decorated a glyph in a role (`+` install, `↑` upgrade,
+  `↓` downgrade, `−` removal). "Lock file operations"/"Package
+  operations" are a tally (`ui.Tally`) whose zero counts are muted; the
+  "Nothing to ..." lines, "Generating autoload files", the funding and
+  suggestion pointers are muted. The text, lines, streams and verbosity
+  are Composer's. maestro's tags (`<maestro-...>`) never reach a PHP IO
+  or output a plugin hands maestro: `ui.Foreign` turns them into
+  Composer's inline styles first.
 
 ## Reference sources
 

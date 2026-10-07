@@ -510,12 +510,12 @@ func (m *Manager) executeBatch(repo repository.InstalledRepositoryInterface, ope
 			// output alias ops in debug verbosity as they have no output
 			// otherwise
 			if m.io.IsDebug() {
-				show, err := op.Show(false)
+				show, err := operation.Item(op, false)
 				if err != nil {
 					return err
 				}
 
-				m.io.WriteError("  - "+show, true, mio.Normal)
+				m.io.WriteError(show, true, mio.Normal)
 			}
 
 			if _, err := m.executeOperation(repo, op); err != nil {

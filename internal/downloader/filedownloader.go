@@ -656,7 +656,7 @@ func (d *FileDownloader) Cleanup(_ operation.Type, p pkg.PackageInterface, path 
 
 func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+operation.FormatInstall(p, false), true, mio.Normal)
+		c.io.WriteError(operation.InstallItem(p, false), true, mio.Normal)
 	}
 
 	// clean up the target directory, unless it contains the vendor dir, as
@@ -765,7 +765,7 @@ func (d *FileDownloader) removeCleanupPath(p pkg.PackageInterface, path string) 
 
 // Update is update($initial, $target, $path).
 func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path string) (*Promise, error) {
-	msg, err := operation.FormatUpdate(initial, target)
+	msg, err := operation.UpdateItem(initial, target)
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +775,7 @@ func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path strin
 		return nil, err
 	}
 
-	d.io.WriteError("  - "+msg+appendix, true, mio.Normal)
+	d.io.WriteError(msg+appendix, true, mio.Normal)
 
 	promise, err := d.self.remove(call{d.io, false}, initial, path)
 	if err != nil {
@@ -791,7 +791,7 @@ func (d *FileDownloader) Update(initial, target pkg.PackageInterface, path strin
 
 func (d *FileDownloader) remove(c call, p pkg.PackageInterface, path string) (*Promise, error) {
 	if c.output {
-		c.io.WriteError("  - "+operation.FormatUninstall(p), true, mio.Normal)
+		c.io.WriteError(operation.UninstallItem(p), true, mio.Normal)
 	}
 
 	promise, err := d.fs.RemoveDirectoryAsync(path)

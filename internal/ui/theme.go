@@ -196,13 +196,14 @@ func (r Role) Inline() string {
 	return strings.Join(parts, ";")
 }
 
-// SGR is the escape sequence that starts text in the role and the one
-// that ends it. Render writes them, and internal/console renders the
-// role's formatter tags with them, so tags and diagnostics look the same.
-func (r Role) SGR() (set, reset string) {
+// Styled is text between the escape sequence that starts text in the
+// role and the one that ends it (an empty text too). Render writes it,
+// and internal/console renders the role's formatter tags with it, so tags
+// and diagnostics look the same.
+func (r Role) Styled(text string) string {
 	seq := sgr()[r]
 
-	return seq[0], seq[1]
+	return seq[0] + text + seq[1]
 }
 
 // Render styles text in the role when decorated; undecorated, or for an
@@ -211,9 +212,8 @@ func (r Role) Render(text string, decorated bool) string {
 	if !decorated || text == "" {
 		return text
 	}
-	set, reset := r.SGR()
 
-	return set + text + reset
+	return r.Styled(text)
 }
 
 // sgr is the SGR() of every role: lipgloss's rendering of the role, in

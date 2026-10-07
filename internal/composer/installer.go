@@ -32,6 +32,7 @@ import (
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -419,9 +420,9 @@ func (i *Installer) Run() (int, error) {
 	if i.dumpAutoloader {
 		// write autoloader
 		if i.optimizeAutoloader {
-			i.io.WriteError("<info>Generating optimized autoload files</info>", true, io.Normal)
+			i.io.WriteError(ui.RoleMuted.Wrap("Generating optimized autoload files"), true, io.Normal)
 		} else {
-			i.io.WriteError("<info>Generating autoload files</info>", true, io.Normal)
+			i.io.WriteError(ui.RoleMuted.Wrap("Generating autoload files"), true, io.Normal)
 		}
 
 		i.autoloadGenerator.SetClassMapAuthoritative(i.classMapAuthoritative)
@@ -476,8 +477,8 @@ func (i *Installer) Run() (int, error) {
 				s, verb = "", "is"
 			}
 			i.io.WriteErrorMessages([]string{
-				fmt.Sprintf("<info>%d package%s you are using %s looking for funding.</info>", fundingCount, s, verb),
-				"<info>Use the `composer fund` command to find out more!</info>",
+				ui.RoleMuted.Wrap(fmt.Sprintf("%d package%s you are using %s looking for funding.", fundingCount, s, verb)),
+				ui.RoleMuted.Wrap("Use the `composer fund` command to find out more!"),
 			}, true, io.Normal)
 		}
 	}
@@ -712,7 +713,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 	i.io.WriteError("Analyzed "+strconv.Itoa(ruleSetSize)+" rules to resolve dependencies", true, io.Verbose)
 
 	if len(i.lockTransaction.Operations()) == 0 {
-		i.io.WriteError("Nothing to modify in lock file", true, io.Normal)
+		i.io.WriteError(ui.RoleMuted.Wrap("Nothing to modify in lock file"), true, io.Normal)
 
 		if i.minimalUpdate && i.updateAllowList == nil {
 			fresh, err := i.locker.IsFresh()
@@ -766,11 +767,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 			return 0, err
 		}
 		if lock {
-			i.io.WriteError(fmt.Sprintf("<info>Lock file operations: %d install%s, %d update%s, %d removal%s</info>",
-				len(installNames), plural(len(installNames)),
-				len(updateNames), plural(len(updateNames)),
-				len(uninstalls), plural(len(uninstalls)),
-			), true, io.Normal)
+			i.io.WriteError(operationTally("Lock file operations", len(installNames), len(updateNames), len(uninstalls)), true, io.Normal)
 			if len(installNames) > 0 {
 				i.io.WriteError("Installs: "+strings.Join(installNames, ", "), true, io.Verbose)
 			}
@@ -805,11 +802,11 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 					sourceRepo = " from " + repo.RepoName()
 				}
 			}
-			shown, err := op.Show(true)
+			shown, err := operation.Item(op, true)
 			if err != nil {
 				return 0, err
 			}
-			i.io.WriteError("  - "+shown+sourceRepo, true, io.Normal)
+			i.io.WriteError(shown+sourceRepo, true, io.Normal)
 		}
 	}
 
@@ -863,12 +860,10 @@ func (i *Installer) setLockData(platformReqs, platformDevReqs, aliases *php.Arra
 	return nil
 }
 
-func plural(n int) string {
-	if n == 1 {
-		return ""
-	}
-
-	return "s"
+// operationTally is Composer's "<info>label: N installs, N updates, N
+// removals</info>", with zero counts muted when decorated (ui.Tally).
+func operationTally(label string, installs, updates, removals int) string {
+	return ui.Tally(label, ui.Count{N: installs, Noun: "install"}, ui.Count{N: updates, Noun: "update"}, ui.Count{N: removals, Noun: "removal"})
 }
 
 func boolString(b bool) string {
@@ -1060,13 +1055,9 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	}
 
 	if len(installs) == 0 && len(updates) == 0 && len(uninstalls) == 0 {
-		i.io.WriteError("Nothing to install, update or remove", true, io.Normal)
+		i.io.WriteError(ui.RoleMuted.Wrap("Nothing to install, update or remove"), true, io.Normal)
 	} else {
-		i.io.WriteError(fmt.Sprintf("<info>Package operations: %d install%s, %d update%s, %d removal%s</info>",
-			len(installs), plural(len(installs)),
-			len(updates), plural(len(updates)),
-			len(uninstalls), plural(len(uninstalls)),
-		), true, io.Normal)
+		i.io.WriteError(operationTally("Package operations", len(installs), len(updates), len(uninstalls)), true, io.Normal)
 		if len(installs) > 0 {
 			i.io.WriteError("Installs: "+strings.Join(installs, ", "), true, io.Verbose)
 		}
@@ -1082,11 +1073,11 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 		for _, op := range operations {
 			// output op, but alias op only in debug verbosity
 			if !op.OperationType().IsAlias() || i.io.IsDebug() {
-				shown, err := op.Show(false)
+				shown, err := operation.Item(op, false)
 				if err != nil {
 					return 0, err
 				}
-				i.io.WriteError("  - "+shown, true, io.Normal)
+				i.io.WriteError(shown, true, io.Normal)
 			}
 		}
 

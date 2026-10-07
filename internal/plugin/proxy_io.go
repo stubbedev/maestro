@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // phpIO is an IO created in PHP as maestro uses it. maestro's parallel
@@ -95,24 +96,35 @@ func (p *phpIO) IsDebug() bool { return p.flag("isDebug") }
 // IsDecorated implements io.IO.
 func (p *phpIO) IsDecorated() bool { return p.flag("isDecorated") }
 
+// foreignAll is ui.Foreign of each message: the PHP IO's formatter knows
+// Composer's tags, not maestro's.
+func foreignAll(messages []string) []string {
+	out := make([]string, len(messages))
+	for i, m := range messages {
+		out[i] = ui.Foreign(m)
+	}
+
+	return out
+}
+
 // Write implements io.IO.
 func (p *phpIO) Write(message string, newline bool, verbosity io.Verbosity) {
-	p.do("write", message, newline, int64(verbosity))
+	p.do("write", ui.Foreign(message), newline, int64(verbosity))
 }
 
 // WriteMessages implements io.IO.
 func (p *phpIO) WriteMessages(messages []string, newline bool, verbosity io.Verbosity) {
-	p.do("write", php.StringList(messages), newline, int64(verbosity))
+	p.do("write", php.StringList(foreignAll(messages)), newline, int64(verbosity))
 }
 
 // WriteError implements io.IO.
 func (p *phpIO) WriteError(message string, newline bool, verbosity io.Verbosity) {
-	p.do("writeError", message, newline, int64(verbosity))
+	p.do("writeError", ui.Foreign(message), newline, int64(verbosity))
 }
 
 // WriteErrorMessages implements io.IO.
 func (p *phpIO) WriteErrorMessages(messages []string, newline bool, verbosity io.Verbosity) {
-	p.do("writeError", php.StringList(messages), newline, int64(verbosity))
+	p.do("writeError", php.StringList(foreignAll(messages)), newline, int64(verbosity))
 }
 
 // WriteRaw implements io.IO.
@@ -136,20 +148,22 @@ func sizeValue(size int) any {
 
 // Overwrite implements io.IO.
 func (p *phpIO) Overwrite(message string, newline bool, size int, verbosity io.Verbosity) {
-	p.do("overwrite", message, newline, sizeValue(size), int64(verbosity))
+	p.do("overwrite", ui.Foreign(message), newline, sizeValue(size), int64(verbosity))
 }
 
 // OverwriteError implements io.IO.
 func (p *phpIO) OverwriteError(message string, newline bool, size int, verbosity io.Verbosity) {
-	p.do("overwriteError", message, newline, sizeValue(size), int64(verbosity))
+	p.do("overwriteError", ui.Foreign(message), newline, sizeValue(size), int64(verbosity))
 }
 
 // Ask implements io.IO.
-func (p *phpIO) Ask(question string, def any) (any, error) { return p.call("ask", question, def) }
+func (p *phpIO) Ask(question string, def any) (any, error) {
+	return p.call("ask", ui.Foreign(question), def)
+}
 
 // AskConfirmation implements io.IO.
 func (p *phpIO) AskConfirmation(question string, def bool) (bool, error) {
-	v, err := p.call("askConfirmation", question, def)
+	v, err := p.call("askConfirmation", ui.Foreign(question), def)
 
 	return php.ToBool(v), err
 }
@@ -173,12 +187,12 @@ func (p *phpIO) AskAndValidate(question string, validator console.Validator, att
 		})
 	}
 
-	return p.call("askAndValidate", question, callable, a, def)
+	return p.call("askAndValidate", ui.Foreign(question), callable, a, def)
 }
 
 // AskAndHideAnswer implements io.IO.
 func (p *phpIO) AskAndHideAnswer(question string) (any, error) {
-	return p.call("askAndHideAnswer", question)
+	return p.call("askAndHideAnswer", ui.Foreign(question))
 }
 
 // Select implements io.IO.
@@ -188,7 +202,7 @@ func (p *phpIO) Select(question string, choices *php.Array, def any, attempts in
 		a = int64(attempts)
 	}
 
-	return p.call("select", question, choices, def, a, errorMessage, multiselect)
+	return p.call("select", ui.Foreign(question), choices, def, a, errorMessage, multiselect)
 }
 
 // authentication is an array{username: string|null, password: string|null}.

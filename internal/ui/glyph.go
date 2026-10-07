@@ -21,6 +21,16 @@ const (
 	GlyphBarHead
 	// GlyphBarTodo is a cell of a progress bar still to do.
 	GlyphBarTodo
+	// GlyphItem is an item of a list.
+	GlyphItem
+	// GlyphInstall marks a package installed.
+	GlyphInstall
+	// GlyphUpgrade marks a package upgraded.
+	GlyphUpgrade
+	// GlyphDowngrade marks a package downgraded.
+	GlyphDowngrade
+	// GlyphRemove marks a package removed.
+	GlyphRemove
 
 	numGlyphs
 )
@@ -31,6 +41,12 @@ var glyphs = [numGlyphs][2]string{
 	GlyphBarDone: {"━", "="},
 	GlyphBarHead: {"╸", ">"},
 	GlyphBarTodo: {"━", "-"},
+
+	GlyphItem:      {"-", "-"},
+	GlyphInstall:   {"+", "+"},
+	GlyphUpgrade:   {"↑", "^"},
+	GlyphDowngrade: {"↓", "v"},
+	GlyphRemove:    {"−", "-"},
 }
 
 // String is the glyph as the console can show it.

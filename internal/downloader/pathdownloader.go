@@ -94,7 +94,7 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 				return nil, err
 			}
 
-			c.io.WriteError("  - "+operation.FormatInstall(p, false)+appendix, true, mio.Normal)
+			c.io.WriteError(operation.InstallItem(p, false)+appendix, true, mio.Normal)
 		}
 
 		return resolved(""), nil
@@ -113,7 +113,7 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 	}
 
 	if c.output {
-		c.io.WriteError("  - "+operation.FormatInstall(p, false)+": ", false, mio.Normal)
+		c.io.WriteError(operation.InstallItem(p, false)+": ", false, mio.Normal)
 	}
 
 	isFallback := false
@@ -223,7 +223,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 	// real choice but to fail hard.
 	if util.IsWindows() && util.IsJunction(path) {
 		if c.output {
-			c.io.WriteError("  - "+operation.FormatUninstall(p)+", source is still present in "+path, true, mio.Normal)
+			c.io.WriteError(operation.UninstallItem(p)+", source is still present in "+path, true, mio.Normal)
 		}
 
 		if removed, err := util.RemoveJunction(path); err != nil || !removed {
@@ -257,7 +257,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 
 	if fspath.NormalizePath(absPath) == fspath.NormalizePath(absDistURL) {
 		if c.output {
-			c.io.WriteError("  - "+operation.FormatUninstall(p)+", source is still present in "+path, true, mio.Normal)
+			c.io.WriteError(operation.UninstallItem(p)+", source is still present in "+path, true, mio.Normal)
 		}
 
 		return resolved(""), nil

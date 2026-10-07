@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // The output modes of SuggestedPackagesReporter.Output.
@@ -187,7 +188,7 @@ func (r *SuggestedPackagesReporter) OutputMinimalistic(installedRepo *repository
 	}
 
 	if len(suggestedPackages) > 0 {
-		r.io.WriteError("<info>"+php.ToString(len(suggestedPackages))+" package suggestions were added by new dependencies, use `composer suggest` to see details.</info>", true, mio.Normal)
+		r.io.WriteError(ui.RoleMuted.Wrap(php.ToString(len(suggestedPackages))+" package suggestions were added by new dependencies, use `composer suggest` to see details."), true, mio.Normal)
 	}
 
 	return nil

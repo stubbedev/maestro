@@ -1,48 +1,56 @@
-// maestro's theme for formatter tags: Composer's tags and the roles of
-// internal/ui's palette render as the palette says (docs/PORTING.md
-// "Presentation of free output"), not with Symfony's colours.
+// maestro's theme for formatter tags: Composer's tags and the roles and
+// marks of internal/ui's palette render as the palette says
+// (docs/PORTING.md "Presentation of free output"), not with
+// Symfony's colours.
 
 package console
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/stubbedev/maestro/internal/ui"
 )
 
-// RoleStyle is the formatter style of a palette role: the role's SGR
-// sequences around the text. It is fixed, so its setters fail.
-type RoleStyle struct{ role ui.Role }
+// themed is a role or mark of maestro's theme.
+type themed interface {
+	fmt.Stringer
+	// Styled is text as decorated output shows it (an empty text too).
+	Styled(text string) string
+}
+
+// ThemeStyle is the formatter style of a role (ui.Role) or mark (ui.Mark)
+// of maestro's theme. It is fixed, so its setters fail.
+type ThemeStyle struct{ t themed }
 
 // NewRoleStyle is the style of role.
-func NewRoleStyle(role ui.Role) *RoleStyle { return &RoleStyle{role: role} }
+func NewRoleStyle(role ui.Role) *ThemeStyle { return &ThemeStyle{t: role} }
 
-func (s *RoleStyle) fixed() error {
-	return newError(KindInvalidArgument, `The style of the "%s" role is fixed by maestro's theme.`, s.role)
+// NewMarkStyle is the style of mark.
+func NewMarkStyle(mark ui.Mark) *ThemeStyle { return &ThemeStyle{t: mark} }
+
+func (s *ThemeStyle) fixed() error {
+	return newError(KindInvalidArgument, `The style "%s" is fixed by maestro's theme.`, s.t)
 }
 
 // SetForeground implements Style.
-func (s *RoleStyle) SetForeground(string) error { return s.fixed() }
+func (s *ThemeStyle) SetForeground(string) error { return s.fixed() }
 
 // SetBackground implements Style.
-func (s *RoleStyle) SetBackground(string) error { return s.fixed() }
+func (s *ThemeStyle) SetBackground(string) error { return s.fixed() }
 
 // SetOption implements Style.
-func (s *RoleStyle) SetOption(string) error { return s.fixed() }
+func (s *ThemeStyle) SetOption(string) error { return s.fixed() }
 
 // UnsetOption implements Style.
-func (s *RoleStyle) UnsetOption(string) error { return s.fixed() }
+func (s *ThemeStyle) UnsetOption(string) error { return s.fixed() }
 
 // SetOptions implements Style.
-func (s *RoleStyle) SetOptions([]string) error { return s.fixed() }
+func (s *ThemeStyle) SetOptions([]string) error { return s.fixed() }
 
 // Apply implements Style. Like Symfony's styles it styles an empty text
 // too, which the style stack compares styles by.
-func (s *RoleStyle) Apply(text string) string {
-	set, reset := s.role.SGR()
-
-	return set + text + reset
-}
+func (s *ThemeStyle) Apply(text string) string { return s.t.Styled(text) }
 
 // ThemeStyles are the styles of Composer's tags in maestro's theme
 // (ui.ComposerTags), for Composer's formatters
@@ -66,10 +74,14 @@ func IsStyledTerminal(out Output) bool {
 	return ok && out.IsDecorated() && IsTTY(s.Stream())
 }
 
-// setRoleStyles registers every role's own tag (ui.Role.Tag) on f, so
-// maestro's text styled by role (ui.Role.Wrap) renders on any formatter.
-func setRoleStyles(f Formatter) {
+// setThemeStyles registers the tags of every role (ui.Role.Tag) and mark
+// (ui.Mark.Tag) on f, so maestro's text styled with them renders on any
+// formatter.
+func setThemeStyles(f Formatter) {
 	for _, r := range ui.Roles() {
 		f.SetStyle(r.Tag(), NewRoleStyle(r))
+	}
+	for _, m := range ui.Marks() {
+		f.SetStyle(m.Tag(), NewMarkStyle(m))
 	}
 }

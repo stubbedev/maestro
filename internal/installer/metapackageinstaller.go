@@ -52,7 +52,7 @@ func (*MetapackageInstaller) Cleanup(_ operation.Type, _, _ pkg.PackageInterface
 
 // Install is install().
 func (m *MetapackageInstaller) Install(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) (*Promise, error) {
-	m.io.WriteError("  - "+operation.FormatInstall(p, false), true, mio.Normal)
+	m.io.WriteError(operation.InstallItem(p, false), true, mio.Normal)
 
 	if err := repo.AddPackage(pkg.Clone(p)); err != nil {
 		return nil, err
@@ -67,12 +67,12 @@ func (m *MetapackageInstaller) Update(repo repository.InstalledRepositoryInterfa
 		return nil, err
 	}
 
-	line, err := operation.FormatUpdate(initial, target)
+	line, err := operation.UpdateItem(initial, target)
 	if err != nil {
 		return nil, err
 	}
 
-	m.io.WriteError("  - "+line, true, mio.Normal)
+	m.io.WriteError(line, true, mio.Normal)
 
 	if err := repo.RemovePackage(initial); err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func (m *MetapackageInstaller) Uninstall(repo repository.InstalledRepositoryInte
 		return nil, err
 	}
 
-	m.io.WriteError("  - "+operation.FormatUninstall(p), true, mio.Normal)
+	m.io.WriteError(operation.UninstallItem(p), true, mio.Normal)
 
 	if err := repo.RemovePackage(p); err != nil {
 		return nil, err

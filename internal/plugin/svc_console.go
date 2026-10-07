@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // The mirror families of console objects. They are not shim classes:
@@ -599,8 +600,12 @@ func (o *phpOutput) call(method string, params ...any) any {
 	return v
 }
 
-// Write implements console.Output.
+// Write implements console.Output. PHP's formatter knows Composer's tags,
+// not maestro's (ui.Foreign).
 func (o *phpOutput) Write(message string, newline bool, options int) {
+	if options&(console.OutputRaw|console.OutputPlain) == 0 {
+		message = ui.Foreign(message)
+	}
 	o.call("write", message, newline, int64(options))
 }
 

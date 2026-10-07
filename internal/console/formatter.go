@@ -44,7 +44,7 @@ type NamedStyle struct {
 }
 
 // NewOutputFormatter registers the default error/info/comment/question styles
-// and the tags of maestro's theme's roles (setRoleStyles),
+// and the tags of maestro's theme's roles and marks (setThemeStyles),
 // followed by styles.
 func NewOutputFormatter(decorated bool, styles ...NamedStyle) *OutputFormatter {
 	f := &OutputFormatter{decorated: decorated, styles: make(map[string]Style, 4+len(styles))}
@@ -52,7 +52,7 @@ func NewOutputFormatter(decorated bool, styles ...NamedStyle) *OutputFormatter {
 	f.SetStyle("info", MustStyle("green", ""))
 	f.SetStyle("comment", MustStyle("yellow", ""))
 	f.SetStyle("question", MustStyle("black", "cyan"))
-	setRoleStyles(f)
+	setThemeStyles(f)
 	for _, s := range styles {
 		f.SetStyle(s.Name, s.Style)
 	}

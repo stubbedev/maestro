@@ -206,7 +206,7 @@ func (d *vcsDownloader) Install(p pkg.PackageInterface, path string) (*downloade
 		return nil, missingReference(p)
 	}
 
-	d.io.WriteError("  - "+operation.FormatInstall(p, false)+": ", false, mio.Normal)
+	d.io.WriteError(operation.InstallItem(p, false)+": ", false, mio.Normal)
 
 	urls := prepareURLs(p.SourceURLs())
 	if r := d.eachURL(urls, func(url string) error { return d.self.doInstall(p, path, url) }); r.failedOnLast {
@@ -222,12 +222,12 @@ func (d *vcsDownloader) Update(initial, target pkg.PackageInterface, path string
 		return nil, missingReference(target)
 	}
 
-	msg, err := operation.FormatUpdate(initial, target)
+	msg, err := operation.UpdateItem(initial, target)
 	if err != nil {
 		return nil, err
 	}
 
-	d.io.WriteError("  - "+msg+": ", false, mio.Normal)
+	d.io.WriteError(msg+": ", false, mio.Normal)
 
 	urls := prepareURLs(target.SourceURLs())
 	r := d.eachURL(urls, func(url string) error { return d.self.doUpdate(initial, target, path, url) })
@@ -273,7 +273,7 @@ func (d *vcsDownloader) Update(initial, target pkg.PackageInterface, path string
 
 // Remove is remove().
 func (d *vcsDownloader) Remove(p pkg.PackageInterface, path string) (*downloader.Promise, error) {
-	d.io.WriteError("  - "+operation.FormatUninstall(p), true, mio.Normal)
+	d.io.WriteError(operation.UninstallItem(p), true, mio.Normal)
 
 	promise, err := d.filesystem.RemoveDirectoryAsync(path)
 	if err != nil {
