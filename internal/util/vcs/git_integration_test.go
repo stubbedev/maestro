@@ -94,6 +94,10 @@ func newUpstream(t *testing.T) (dir, head string) {
 
 	dir = t.TempDir()
 	git(t, dir, "init", "-q", "-b", "main")
+	// no background auto gc: it repacks objects while a mirror clone copies
+	// them, failing the clone and the temp dir's cleanup
+	git(t, dir, "config", "gc.auto", "0")
+	git(t, dir, "config", "maintenance.auto", "false")
 
 	if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte("{}\n"), 0o644); err != nil {
 		t.Fatal(err)
