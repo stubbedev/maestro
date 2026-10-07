@@ -263,8 +263,13 @@ func (s *Store) ensureShard(kind int, sum *[32]byte, path string) error {
 		return nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+	// One mkdir, as the shard's parent is there but when the store was
+	// emptied by hand meanwhile.
+	dir := filepath.Dir(path)
+	if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
 	}
 
 	s.shards[kind][sum[0]].Store(true)

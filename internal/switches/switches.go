@@ -28,6 +28,10 @@ const (
 	// PerfBudgets ("1") fails the plugin runtime's timing tests when a
 	// timing misses its budget; without it they only log it.
 	PerfBudgets = "MAESTRO_PERF_BUDGETS"
+	// SyscallBudgets ("1") runs the tests that count, under strace, the
+	// system calls an install makes per package file, and fail when the
+	// count exceeds its budget.
+	SyscallBudgets = "MAESTRO_SYSCALL_BUDGETS"
 )
 
 // End-to-end knobs, read with E2E on.

@@ -620,6 +620,7 @@ off.
 | `MAESTRO_NETWORK_TESTS=1` | runs the tests that install real packages from GitHub (`internal/command`'s status test) |
 | `MAESTRO_ORACLE_LIVE=1` | runs the classmap oracles against the PHP implementation live instead of the goldens |
 | `MAESTRO_PERF_BUDGETS=1` | fails the plugin runtime's timing tests when a timing misses its budget (docs/PLUGINS.md §5.16); without it they only log it, as wall time depends on machine load. Set it on a quiet machine |
+| `MAESTRO_SYSCALL_BUDGETS=1` | runs the tests that count, under `strace -f -c`, the system calls an install into an empty package store makes per package file (`internal/store`), and fails one that exceeds its budget; they skip without `strace` (Linux) |
 
 With `MAESTRO_E2E=1`:
 
