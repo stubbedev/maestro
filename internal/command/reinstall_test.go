@@ -11,16 +11,23 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 )
 
+// TestReinstallCommand_ReinstallCommand runs caseProvider's cases, with
+// the status code the PHPUnit test leaves out, then maestro's: the input
+// errors (an exception's message in err) and selections matching
+// nothing.
 func TestReinstallCommand_ReinstallCommand(t *testing.T) {
+	const noneFound = `<warning>Found no packages to reinstall, aborting.</warning>`
 	tests := []struct {
 		name     string
 		options  []console.Param
 		expected string
+		code     int
+		err      string
 	}{
 		{
-			"reinstall a package by name",
-			[]console.Param{console.P("packages", []string{"root/req", "root/anotherreq*"})},
-			`- Removing root/req (1.0.0)
+			name:    "reinstall a package by name",
+			options: []console.Param{console.P("packages", []string{"root/req", "root/anotherreq*"})},
+			expected: `- Removing root/req (1.0.0)
   - Removing root/anotherreq2 (1.0.0)
   - Removing root/anotherreq (1.0.0)
   - Installing root/anotherreq (1.0.0)
@@ -28,9 +35,9 @@ func TestReinstallCommand_ReinstallCommand(t *testing.T) {
   - Installing root/req (1.0.0)`,
 		},
 		{
-			"reinstall packages by type",
-			[]console.Param{console.P("--type", []string{"metapackage"})},
-			`- Removing root/req (1.0.0)
+			name:    "reinstall packages by type",
+			options: []console.Param{console.P("--type", []string{"metapackage"})},
+			expected: `- Removing root/req (1.0.0)
   - Removing root/lala (1.0.0)
   - Removing root/anotherreq2 (1.0.0)
   - Removing root/anotherreq (1.0.0)
@@ -40,10 +47,38 @@ func TestReinstallCommand_ReinstallCommand(t *testing.T) {
   - Installing root/req (1.0.0)`,
 		},
 		{
-			"reinstall a package that is not installed",
-			[]console.Param{console.P("packages", []string{"root/unknownreq"})},
-			`<warning>Pattern "root/unknownreq" does not match any currently installed packages.</warning>
-<warning>Found no packages to reinstall, aborting.</warning>`,
+			name:    "reinstall a package that is not installed",
+			options: []console.Param{console.P("packages", []string{"root/unknownreq"})},
+			expected: `<warning>Pattern "root/unknownreq" does not match any currently installed packages.</warning>
+` + noneFound,
+			code: 1,
+		},
+		{
+			name:    "a wildcard matching nothing",
+			options: []console.Param{console.P("packages", []string{"nope/*"})},
+			expected: `<warning>Pattern "nope/*" does not match any currently installed packages.</warning>
+` + noneFound,
+			code: 1,
+		},
+		{
+			name:     "a type no package has",
+			options:  []console.Param{console.P("--type", []string{"nope"})},
+			expected: noneFound,
+			code:     1,
+		},
+		{
+			name: "no package names",
+			err:  "You must pass one or more package names to be reinstalled.",
+		},
+		{
+			name:    "package names and a type",
+			options: []console.Param{console.P("packages", []string{"root/req"}), console.P("--type", []string{"metapackage"})},
+			err:     "You cannot specify package names and filter by type at the same time.",
+		},
+		{
+			name:    "an invalid --prefer-install",
+			options: []console.Param{console.P("packages", []string{"root/req"}), console.P("--prefer-install", "foo")},
+			err:     `--prefer-install accepts one of "dist", "source" or "auto", got foo`,
 		},
 	}
 	for _, tt := range tests {
@@ -73,10 +108,20 @@ func TestReinstallCommand_ReinstallCommand(t *testing.T) {
 				console.P("--no-progress", true),
 				console.P("--no-plugins", true),
 			}, tt.options...)
-			if _, err := appTester.Run(params, commandtest.Options{}); err != nil {
+			code, err := appTester.Run(params, commandtest.Options{})
+			if tt.err != "" {
+				if err == nil || err.Error() != tt.err {
+					t.Fatalf("exception %v, want %q", err, tt.err)
+				}
+
+				return
+			}
+			if err != nil {
 				t.Fatalf("unexpected exception: %v", err)
 			}
-
+			if code != tt.code {
+				t.Errorf("status %d, want %d", code, tt.code)
+			}
 			if got := php.Trim(appTester.Display(true)); got != tt.expected {
 				t.Errorf("output mismatch\nwant:\n%s\ngot:\n%s", tt.expected, got)
 			}

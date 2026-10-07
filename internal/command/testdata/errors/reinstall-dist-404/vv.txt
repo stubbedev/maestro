@@ -1,0 +1,32 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+  - Removing x/y (1.0.0)
+  - Downloading x/y (1.0.0)
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+
+In CurlDownloader.php line 686:
+                                                                               
+  [Composer\Downloader\TransportException (100)]                               
+  The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
+  (HTTP/1.1 404 Not Found)                                                     
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:86
+ Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:434
+ Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:289
+ Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:221
+ Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Command/ReinstallCommand.php:170
+ Composer\Command\ReinstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+reinstall [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--no-autoloader] [--no-progress] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--type TYPE] [--] [<packages>...]
+
+exit 100

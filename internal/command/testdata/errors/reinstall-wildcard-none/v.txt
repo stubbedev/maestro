@@ -1,0 +1,4 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Pattern "nope/*" does not match any currently installed packages.
+Found no packages to reinstall, aborting.
+exit 1

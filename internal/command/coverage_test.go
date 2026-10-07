@@ -300,7 +300,18 @@ var coverage = []entry{
 		Pending: 49,
 	}),
 	cover(command.NewReinstallCommand, Coverage{
-		Tests: []Proof{Positive(Go(TestReinstallCommand_ReinstallCommand))},
+		Tests: []Proof{
+			Positive(Go(TestReinstallCommand_ReinstallCommand)),
+			Positive(E2E("dists", "reinstall", "acme/*")),
+			Positive(E2E("dists", "reinstall", "--type=library")),
+			Positive(E2E("path-repositories", "reinstall", "acme/b", "--no-autoloader")),
+			Positive(E2E("path-repositories", "reinstall", "acme/b", "-o")),
+			Positive(E2E("path-repositories", "reinstall", "acme/b", "-a")),
+			Positive(E2E("prefer-source", "reinstall", "psr/log", "--prefer-source")),
+			Positive(E2E("prefer-source", "reinstall", "psr/container", "--prefer-install=source")),
+			Positive(E2E("scripts", "reinstall", "psr/log")),
+			Negative(Go(TestReinstallCommand_ReinstallCommand)),
+		},
 	}),
 	cover(command.NewBumpCommand, Coverage{
 		Tests: []Proof{

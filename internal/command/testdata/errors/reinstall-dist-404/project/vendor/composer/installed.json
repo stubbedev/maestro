@@ -1,0 +1,18 @@
+{
+    "packages": [
+        {
+            "name": "x/y",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "dist": {
+                "type": "zip",
+                "url": "@SERVER@/status/404/x.zip"
+            },
+            "type": "library",
+            "installation-source": "dist",
+            "install-path": "../x/y"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}

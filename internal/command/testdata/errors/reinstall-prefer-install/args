@@ -1,0 +1,3 @@
+reinstall
+x/foo
+--prefer-install=foo

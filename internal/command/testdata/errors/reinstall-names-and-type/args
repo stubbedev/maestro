@@ -1,0 +1,3 @@
+reinstall
+--type=metapackage
+x/foo

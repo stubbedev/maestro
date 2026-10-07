@@ -1,0 +1,21 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In ReinstallCommand.php line 93:
+                                                              
+  [InvalidArgumentException]                                  
+  You must pass one or more package names to be reinstalled.  
+                                                              
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Command/ReinstallCommand.php:93
+ Composer\Command\ReinstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+reinstall [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--no-autoloader] [--no-progress] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--type TYPE] [--] [<packages>...]
+
+exit 1
