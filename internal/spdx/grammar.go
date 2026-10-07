@@ -76,82 +76,46 @@ func hasPrefixFold(s string, i int, word string) bool {
 	return true
 }
 
-// trie holds lowercase identifiers for caseless prefix matching.
-type trie struct {
-	nodes []trieNode
+// idSet is a set of lowercase identifiers, for caseless prefix matching.
+type idSet struct {
+	keys   map[string]int // lowercased identifier => index
+	maxLen int            // of the longest key
 }
 
-type trieNode struct {
-	labels   []byte  // sorted edge bytes
-	children []int32 // node index per label
-	terminal bool
+func newIDSet(keys map[string]int) idSet {
+	set := idSet{keys: keys}
+	for key := range keys {
+		set.maxLen = max(set.maxLen, len(key))
+	}
+
+	return set
 }
 
-func (t *trie) add(key string) {
-	if len(t.nodes) == 0 {
-		t.nodes = append(t.nodes, trieNode{})
-	}
-
-	n := 0
-
-	for i := range len(key) {
-		c := key[i]
-		node := &t.nodes[n]
-
-		j := 0
-		for j < len(node.labels) && node.labels[j] < c {
-			j++
+// match calls fn with every end offset e such that lowered[i:e] is a key,
+// shortest first; lowered is the subject with ASCII letters folded.
+func (t idSet) match(lowered string, i int, fn func(end int)) {
+	for e := i + 1; e <= len(lowered) && e-i <= t.maxLen; e++ {
+		if _, ok := t.keys[lowered[i:e]]; ok {
+			fn(e)
 		}
-
-		if j < len(node.labels) && node.labels[j] == c {
-			n = int(node.children[j])
-
-			continue
-		}
-
-		child := int32(len(t.nodes)) //nolint:gosec // a few thousand nodes
-		node.labels = append(node.labels[:j], append([]byte{c}, node.labels[j:]...)...)
-		node.children = append(node.children[:j], append([]int32{child}, node.children[j:]...)...)
-		t.nodes = append(t.nodes, trieNode{})
-		n = int(child)
 	}
-
-	t.nodes[n].terminal = true
 }
 
-// match calls fn with every end offset e such that s[i:e] is a key,
-// ignoring ASCII case, shortest first.
-func (t *trie) match(s string, i int, fn func(end int)) {
-	if len(t.nodes) == 0 {
-		return
+// lowerASCII folds the ASCII letters of s.
+func lowerASCII(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		b[i] = lower(c)
 	}
 
-	n := 0
-
-	for ; i < len(s); i++ {
-		node := &t.nodes[n]
-		c := lower(s[i])
-
-		j := 0
-		for j < len(node.labels) && node.labels[j] < c {
-			j++
-		}
-
-		if j == len(node.labels) || node.labels[j] != c {
-			return
-		}
-
-		n = int(node.children[j])
-		if t.nodes[n].terminal {
-			fn(i + 1)
-		}
-	}
+	return string(b)
 }
 
 // matcher recognises one subject.
 type matcher struct {
 	s        *SpdxLicenses
 	subject  string
+	lowered  string // subject, ASCII letters folded
 	head     []memo // by start offset
 	compound []memo
 }
@@ -211,7 +175,7 @@ func (m *matcher) keyword(i int, word string) int {
 func (m *matcher) simple(i int, ends []int) []int {
 	s := m.subject
 
-	m.s.licenseIDs.match(s, i, func(e int) {
+	m.s.licenseIDs.match(m.lowered, i, func(e int) {
 		ends = addEnd(ends, e)
 		if e < len(s) && s[e] == '+' {
 			ends = addEnd(ends, e+1)
@@ -268,7 +232,7 @@ func (m *matcher) compoundHead(i int) []int {
 		ends = m.simple(i, ends)
 		for _, e := range ends {
 			if k := m.keyword(e, "with"); k >= 0 {
-				m.s.exceptIDs.match(s, k, func(x int) { ends = addEnd(ends, x) })
+				m.s.exceptIDs.match(m.lowered, k, func(x int) { ends = addEnd(ends, x) })
 			}
 		}
 	}
@@ -316,7 +280,7 @@ func (m *matcher) compoundExpression(i int) []int {
 func (s *SpdxLicenses) matchExpression(license string) bool {
 	n := len(license)
 	memos := make([]memo, 2*(n+1))
-	m := matcher{s: s, subject: license, head: memos[:n+1], compound: memos[n+1:]}
+	m := matcher{s: s, subject: license, lowered: lowerASCII(license), head: memos[:n+1], compound: memos[n+1:]}
 
 	spans := func(end int) bool {
 		if (end == len("none") && hasPrefixFold(license, 0, "none")) ||

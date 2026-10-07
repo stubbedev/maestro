@@ -76,8 +76,8 @@ type SpdxLicenses struct {
 	licenseKeys map[string]int // lowercased identifier => index
 	exceptions  []Exception
 	exceptKeys  map[string]int
-	licenseIDs  trie // lowercased license identifiers
-	exceptIDs   trie // lowercased exception identifiers
+	licenseIDs  idSet // licenseKeys, for the license expression grammar
+	exceptIDs   idSet // exceptKeys
 }
 
 var shared = sync.OnceValue(func() *SpdxLicenses {
@@ -95,13 +95,7 @@ var shared = sync.OnceValue(func() *SpdxLicenses {
 		return Exception{id, name}
 	})
 
-	for key := range s.licenseKeys {
-		s.licenseIDs.add(key)
-	}
-
-	for key := range s.exceptKeys {
-		s.exceptIDs.add(key)
-	}
+	s.licenseIDs, s.exceptIDs = newIDSet(s.licenseKeys), newIDSet(s.exceptKeys)
 
 	return s
 })
