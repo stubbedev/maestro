@@ -29,6 +29,13 @@ func ArgumentTypeError(fn string, n int, param, expected string, given any) *Typ
 	return &TypeError{Message: fn + "(): Argument #" + strconv.Itoa(n) + " ($" + param + ") must be of type " + expected + ", " + php.ZvalValueName(given) + " given"}
 }
 
+// AdvisoryDataTypeError is the TypeError Composer's getSecurityAdvisories
+// throws when the advisory data a repository lists for packageName is not
+// an array: the closure it maps the data with declares array $data.
+func AdvisoryDataTypeError(packageName string, given any) *TypeError {
+	return &TypeError{Message: "Security advisory data for " + packageName + " must be of type array, " + php.ZvalValueName(given) + " given"}
+}
+
 // SecurityError is Composer\Exception\SecurityException (util owns it, so
 // errors.As matches across packages).
 type SecurityError = util.SecurityError

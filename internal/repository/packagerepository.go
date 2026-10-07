@@ -129,9 +129,7 @@ func (r *PackageRepository) SecurityAdvisories(packageConstraintMap *ConstraintM
 		for _, data := range list.All() {
 			advisoryData, ok := data.(*php.Array)
 			if !ok {
-				// the closure array_map() calls: no "called in", and
-				// the closure's line is the site
-				return AdvisoryResult{}, pkg.ArgumentTypeError(`Composer\Repository\PackageRepository::{closure:Composer\Repository\PackageRepository::getSecurityAdvisories():94}`, 1, "data", "array", data)
+				return AdvisoryResult{}, pkg.AdvisoryDataTypeError(packageName, data)
 			}
 			advisory, err := CreatePartialSecurityAdvisory(packageName, advisoryData, parser)
 			if err != nil {

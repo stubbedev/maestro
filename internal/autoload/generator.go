@@ -253,11 +253,11 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 		return
 	}
 	d := &dump{}
-	if d.basePath, err = realpath(cwd, 0); err != nil {
+	if d.basePath, err = realpath(cwd); err != nil {
 		return
 	}
 	d.basePath = util.NormalizePath(d.basePath)
-	if d.vendorPath, err = realpath(vendorDir, 0); err != nil {
+	if d.vendorPath, err = realpath(vendorDir); err != nil {
 		return
 	}
 	d.vendorPath = util.NormalizePath(d.vendorPath)

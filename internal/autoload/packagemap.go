@@ -469,7 +469,7 @@ func typeError(fn, given string) error {
 }
 
 // foreachError is the warning (an ErrorException under Composer's error
-// handler) foreach emits for a value that is not iterable, at site.
+// handler) foreach emits for a value that is not iterable.
 func foreachError(v any) error {
 	return &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.TypeName(v) + " given"}
 }

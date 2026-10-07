@@ -266,7 +266,7 @@ func addIfMissing(repo repository.InstalledRepositoryInterface, p pkg.PackageInt
 }
 
 // requireInstalled is the "Package is not installed" check of update and
-// uninstall, thrown at site.
+// uninstall.
 func requireInstalled(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) error {
 	has, err := repo.HasPackage(p)
 	if err != nil {

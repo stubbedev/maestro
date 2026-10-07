@@ -206,7 +206,7 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 }
 
 // openDirError is the UnexpectedValueException a SPL directory iterator
-// throws for a directory it cannot open, at site.
+// throws for a directory it cannot open.
 func openDirError(class, dir string, err error) error {
 	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + util.Strerror(err)}
 }

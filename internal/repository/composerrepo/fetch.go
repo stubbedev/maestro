@@ -675,13 +675,6 @@ func newRuntimeError(message string, previous error) *RuntimeError {
 // PHPPrevious implements phperr.Chained.
 func (e *RuntimeError) PHPPrevious() error { return e.Previous }
 
-// transportErrorAt is new TransportException($message, $code) at site.
-func transportErrorAt(message string, code int) *util.TransportError {
-	e := util.NewTransportError(message, code)
-
-	return e
-}
-
 func (e *RuntimeError) Error() string { return e.Message }
 
 // Unwrap returns the exception as a *util.RuntimeError.

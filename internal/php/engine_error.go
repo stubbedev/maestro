@@ -26,8 +26,7 @@ const FalseToArrayDeprecation = "Automatic conversion of false to array is depre
 // (created true) the caller stores in $v; a string fails with "Cannot
 // access offset of type string on string" (configuration keys are never
 // the numeric offsets PHP would write a byte at), the other scalars with
-// "Cannot use a scalar value as an array". The caller sets the error's
-// site (Raised).
+// "Cannot use a scalar value as an array".
 func WritableArray(v any) (arr *Array, created, deprecated bool, err *EngineError) {
 	switch c := v.(type) {
 	case *Array:

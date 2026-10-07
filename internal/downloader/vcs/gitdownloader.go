@@ -349,8 +349,8 @@ func (d *GitDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.N
 	return trimmedOrNull(output), nil
 }
 
-// showRefs runs `git show-ref --head -d` and returns its trimmed output.
-// site is where the PHP throws on failure.
+// showRefs runs `git show-ref --head -d` and returns its trimmed output,
+// failing as mustExecute does.
 func (d *GitDownloader) showRefs(path string) (string, error) {
 	var output string
 	if err := d.mustExecute([]string{"git", "show-ref", "--head", "-d"}, &output, path); err != nil {

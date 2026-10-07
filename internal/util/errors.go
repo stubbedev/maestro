@@ -151,7 +151,7 @@ func IsRuntimeException(err error) bool {
 
 // PHPClasser is implemented by error types of packages above util that
 // stand for a PHP exception class PHPClassOf cannot know, such as
-// Composer\Downloader\FilesystemException.
+// Composer\Repository\InvalidRepositoryException.
 type PHPClasser interface {
 	error
 	// PHPClass returns get_class($e) and $e->getCode().

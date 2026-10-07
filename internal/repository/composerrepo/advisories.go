@@ -89,7 +89,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 	create := func(parser *pkg.VersionParser, data any, name string) (repository.Advisory, error) {
 		dataArray, ok := data.(*php.Array)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Repository\ComposerRepository::{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, 1, "data", "array", data)
+			return nil, pkg.AdvisoryDataTypeError(name, data)
 		}
 		advisory, err := repository.CreatePartialSecurityAdvisory(name, dataArray, parser)
 		if err != nil {
@@ -306,7 +306,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 		}
 		filter, ok := get(asArrayOrNil(decoded), "filter").(*php.Array)
 		if !ok {
-			return nil, transportErrorAt("Filter api-url "+r.filterConfig.APIURL+" returned an unexpected response for "+r.RepoName(), 0)
+			return nil, util.NewTransportError("Filter api-url "+r.filterConfig.APIURL+" returned an unexpected response for "+r.RepoName(), 0)
 		}
 
 		return r.entryBuilder().Build(filter, packageConstraintMap, "")
@@ -454,7 +454,7 @@ func (r *ComposerRepository) loadFilterSummary() (*repository.NameMap[*repositor
 
 	lists, ok := get(data, "filter").(*php.Array)
 	if !ok {
-		return nil, transportErrorAt("Filter summary URL "+r.filterConfig.SummaryURL+" returned 404 for "+r.RepoName(), 404)
+		return nil, util.NewTransportError("Filter summary URL "+r.filterConfig.SummaryURL+" returned 404 for "+r.RepoName(), 404)
 	}
 
 	for k, raw := range lists.All() {

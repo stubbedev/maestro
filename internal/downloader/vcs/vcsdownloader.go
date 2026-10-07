@@ -417,7 +417,6 @@ func realpathCwd(path string) string {
 
 // failedToExecute is `throw new \RuntimeException('Failed to execute ' .
 // implode(' ', $command) . "\n\n" . $this->process->getErrorOutput())`.
-// site is where the PHP throws it.
 func (d *vcsDownloader) failedToExecute(command []string) error {
 	return &util.RuntimeError{Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + d.process.GetErrorOutput()}
 }
@@ -432,7 +431,7 @@ func (d *vcsDownloader) execute(command []string, output *string, cwd string) (i
 }
 
 // mustExecute runs command and fails with failedToExecute unless it exits
-// with 0 (thrown at site).
+// with 0.
 func (d *vcsDownloader) mustExecute(command []string, output *string, cwd string) error {
 	code, err := d.execute(command, output, cwd)
 	if err != nil {

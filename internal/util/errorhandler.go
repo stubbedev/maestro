@@ -91,7 +91,7 @@ func TriggerDeprecation(message string) {
 	deprecation(message)
 }
 
-// RaiseDeprecation reports an E_DEPRECATED the engine raises at site
+// RaiseDeprecation reports an E_DEPRECATED the engine raises
 // ("Automatic conversion of false to array is deprecated") as
 // ErrorHandler::handle does, as TriggerDeprecation.
 func RaiseDeprecation(message string) {

@@ -27,3 +27,18 @@ func TestTypeErrorMessages(t *testing.T) {
 		t.Errorf("return type error %q, want %q", r.Error(), want)
 	}
 }
+
+// The TypeError of advisory data that is not an array (the closures
+// getSecurityAdvisories maps it with) names the package and what it got,
+// not the closure or its line in Composer's source (#45).
+func TestAdvisoryDataTypeError(t *testing.T) {
+	e := pkg.AdvisoryDataTypeError("acme/lib", "x")
+	if class, _ := e.PHPClass(); class != "TypeError" {
+		t.Errorf("class %s", class)
+	}
+	for _, want := range []string{"acme/lib", "array", "string given"} {
+		if !strings.Contains(e.Error(), want) {
+			t.Errorf("message %q lacks %q", e.Error(), want)
+		}
+	}
+}

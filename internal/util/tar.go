@@ -18,7 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 )
 
-// noComposerJSONError is thrown (at site) when neither the archive root nor
+// noComposerJSONError is thrown when neither the archive root nor
 // its single top level directory holds a composer.json.
 func noComposerJSONError() error {
 	return &RuntimeError{Message: noComposerJSONMessage}

@@ -368,8 +368,7 @@ func silentChmod(path string) {
 	_ = store.Chmod(path, 0o777&^store.Umask())
 }
 
-// filePutContents is file_put_contents() under Composer's error handler,
-// called at site.
+// filePutContents is file_put_contents() under Composer's error handler.
 func filePutContents(path, data string) error {
 	if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
 		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}

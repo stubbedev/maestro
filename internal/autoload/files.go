@@ -84,11 +84,11 @@ func newDump(config Config, targetDir string) (*dump, error) {
 		return nil, err
 	}
 	d := &dump{}
-	if d.basePath, err = realpath(cwd, 217); err != nil {
+	if d.basePath, err = realpath(cwd); err != nil {
 		return nil, err
 	}
 	d.basePath = util.NormalizePath(d.basePath)
-	if d.vendorPath, err = realpath(vendorDir, 218); err != nil {
+	if d.vendorPath, err = realpath(vendorDir); err != nil {
 		return nil, err
 	}
 	d.vendorPath = util.NormalizePath(d.vendorPath)
@@ -96,7 +96,7 @@ func newDump(config Config, targetDir string) (*dump, error) {
 	if err := util.EnsureDirectoryExists(d.targetDir); err != nil {
 		return nil, err
 	}
-	if d.realTarget, err = realpath(d.targetDir, 224); err != nil {
+	if d.realTarget, err = realpath(d.targetDir); err != nil {
 		return nil, err
 	}
 
@@ -117,19 +117,13 @@ func newDump(config Config, targetDir string) (*dump, error) {
 	return d, nil
 }
 
-// realpath is realpath(), failing as PHP's strict_types call taking its
-// false result would: Filesystem::normalizePath() at line 217 or 218 of
-// AutoloadGenerator.php, findShortestPathCode() at line 224 (0: a call
-// maestro adds).
-func realpath(path string, line int) (string, error) {
+// realpath is realpath() of a path AutoloadGenerator::dump hands to
+// Filesystem's strictly typed methods: when it fails, PHP throws a
+// TypeError for the false those methods receive in place of a path.
+func realpath(path string) (string, error) {
 	real, ok := util.RealpathOK(path)
 	if !ok {
-		fn, param := "normalizePath", "path"
-		if line == 224 {
-			fn, param = "findShortestPathCode", "from"
-		}
-
-		return "", &php.EngineError{Class: "TypeError", Message: "Composer\\Util\\Filesystem::" + fn + "(): Argument #1 ($" + param + ") must be of type string, false given"}
+		return "", &php.EngineError{Class: "TypeError", Message: "Could not resolve the real path of " + path}
 	}
 
 	return real, nil
