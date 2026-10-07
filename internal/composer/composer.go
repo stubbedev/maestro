@@ -12,17 +12,18 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/upstream"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-// Composer::VERSION and friends, as Composer 2.10.3 has them.
+// Composer::VERSION and friends, of the release maestro ports (internal/upstream).
 const (
-	Version            = repository.ComposerVersion
+	Version            = upstream.ComposerVersion
 	BranchAliasVersion = ""
-	ReleaseDate        = "2026-08-27 13:34:23"
+	ReleaseDate        = upstream.ComposerReleaseDate
 	SourceVersion      = ""
-	RuntimeAPIVersion  = repository.RuntimeAPIVersion
+	RuntimeAPIVersion  = upstream.RuntimeAPIVersion
 )
 
 var commitIDPattern = php.MustCompile(`{^[a-f0-9]{40}$}`)

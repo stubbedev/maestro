@@ -39,20 +39,28 @@
     GOTOOLCHAIN = "local";
   };
 
-  # Recreates .ref/: the exact sources being ported, with their tests.
+  # Recreates .ref/: the exact sources being ported, with their tests: the
+  # Composer release internal/upstream names and the libraries at the
+  # versions its composer.lock pins. A checkout at another tag is replaced.
   scripts.ref-sync.exec = ''
     set -euo pipefail
     cd "$DEVENV_ROOT"
     mkdir -p .ref
     clone() { # repo tag dir
+      if [ -d ".ref/$3" ] && [ "$(git -C ".ref/$3" describe --tags --exact-match 2>/dev/null)" != "$2" ]; then
+        rm -rf ".ref/$3"
+      fi
       [ -d ".ref/$3" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "$2" "https://github.com/$1" ".ref/$3"
     }
+    locked() { # package: its version in Composer's composer.lock
+      php -r 'foreach (json_decode(file_get_contents(".ref/composer/composer.lock"), true)["packages"] as $p) { if ($p["name"] === $argv[1]) { echo $p["version"]; exit(0); } } exit(1);' "$1"
+    }
     clone composer/composer "$(tools/upstream/composer-version.sh)" composer
-    clone composer/semver 3.4.4 semver
-    clone composer/class-map-generator 1.7.3 class-map-generator
-    clone composer/spdx-licenses 1.6.0 spdx-licenses
-    clone composer/metadata-minifier 1.0.1 metadata-minifier
-    clone Seldaek/jsonlint 1.12.1 jsonlint
+    clone composer/semver "$(locked composer/semver)" semver
+    clone composer/class-map-generator "$(locked composer/class-map-generator)" class-map-generator
+    clone composer/spdx-licenses "$(locked composer/spdx-licenses)" spdx-licenses
+    clone composer/metadata-minifier "$(locked composer/metadata-minifier)" metadata-minifier
+    clone Seldaek/jsonlint "$(locked seld/jsonlint)" jsonlint
     [ -d .ref/composer/vendor ] || (cd .ref/composer && composer install --no-dev --no-scripts -q)
   '';
 

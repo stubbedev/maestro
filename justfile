@@ -51,7 +51,7 @@ build:
 test-race *args:
     {{ compose }} race go test -race "${@:-./...}"
 
-# Compare maestro with the real Composer 2.10.3 phar end to end (network, slow).
+# Compare maestro with the real Composer phar end to end (network, slow).
 e2e:
     {{ compose }} e2e
 
@@ -75,6 +75,10 @@ dev *args:
 # Recreate .ref/, the Composer sources the port follows (see docs/PORTING.md).
 ref:
     ref-sync
+
+# Move the pin to another Composer release (tools/upstream/bump.sh).
+bump-composer version:
+    tools/upstream/bump.sh {{ version }}
 
 # CI does this on every dependency change (see .github/workflows/flake.yml);
 # run it locally when you want `nix build` to work before pushing.

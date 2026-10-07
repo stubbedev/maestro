@@ -1,9 +1,9 @@
 // The end-to-end comparison of plugins and PHP scripts with real Composer
 // (docs/PLUGINS.md §9.2, §9.3): the plugins of docs/PLUGINS.md's tier 2
 // and the runtime scenarios, each fixture project run with the official
-// composer.phar 2.10.3 and with maestro, compared as TestE2E compares (it
-// reuses its runner: same directories, environment, normalisations and
-// comparison).
+// composer.phar of the release maestro ports and with maestro, compared as
+// TestE2E compares (it reuses its runner: same directories, environment,
+// normalisations and comparison).
 //
 // Plugin packages come from Packagist at the versions the fixtures'
 // composer.lock files pin; plugin-api and plugin-runtime use a path
@@ -19,13 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/switches"
+	"github.com/stubbedev/maestro/internal/upstream"
 )
 
 func TestE2EPlugins(t *testing.T) {
 	if !switches.On(switches.E2E) {
-		t.Skip("set MAESTRO_E2E=1 to compare maestro's plugins with Composer " + composer.Version + " (php, git, unzip and the network)")
+		t.Skip("set MAESTRO_E2E=1 to compare maestro's plugins with Composer " + upstream.ComposerVersion + " (php, git, unzip and the network)")
 	}
 
 	requireTools(t)

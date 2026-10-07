@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	vendor := flag.String("vendor", ".ref/composer/vendor", "Composer 2.10.3's vendor directory (runtime dependencies only)")
+	vendor := flag.String("vendor", ".ref/composer/vendor", "the vendor directory of the Composer release maestro ports (runtime dependencies only)")
 	shim := flag.String("shim", "internal/plugin/php", "the shim source tree")
 	flag.Parse()
 

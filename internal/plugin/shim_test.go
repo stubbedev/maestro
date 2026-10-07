@@ -17,7 +17,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/plugin/shimbuild"
-	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/upstream"
 )
 
 // TestShim_ManifestIsCurrent: the committed manifest lists the embedded
@@ -54,23 +54,22 @@ func TestShim_IndexIsCurrent(t *testing.T) {
 	}
 }
 
-// TestShim_PinnedVersions: the shim's constants equal maestro's (§5.13).
+// TestShim_PinnedVersions: the shim's constants equal maestro's (§5.13),
+// which are the release's (internal/upstream).
 func TestShim_PinnedVersions(t *testing.T) {
-	for file, want := range map[string]string{
-		"stubs/Composer/Plugin/PluginInterface.php": "public const PLUGIN_API_VERSION = '" + repository.PluginAPIVersion + "';",
-		"src/Composer/Composer.php":                 "public const VERSION = '" + repository.ComposerVersion + "';",
+	for _, c := range []struct{ file, want string }{
+		{"stubs/Composer/Plugin/PluginInterface.php", "public const PLUGIN_API_VERSION = '" + upstream.PluginAPIVersion + "';"},
+		{"src/Composer/Composer.php", "public const VERSION = '" + upstream.ComposerVersion + "';"},
+		{"src/Composer/Composer.php", "public const RELEASE_DATE = '" + upstream.ComposerReleaseDate + "';"},
+		{"src/Composer/Composer.php", "public const RUNTIME_API_VERSION = '" + upstream.RuntimeAPIVersion + "';"},
 	} {
-		data, err := fs.ReadFile(shimFS(), file)
+		data, err := fs.ReadFile(shimFS(), c.file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(string(data), want) {
-			t.Errorf("%s does not contain %s", file, want)
+		if !strings.Contains(string(data), c.want) {
+			t.Errorf("%s does not contain %s", c.file, c.want)
 		}
-	}
-	data, _ := fs.ReadFile(shimFS(), "src/Composer/Composer.php")
-	if !strings.Contains(string(data), "public const RUNTIME_API_VERSION = '"+repository.RuntimeAPIVersion+"';") {
-		t.Error("Composer::RUNTIME_API_VERSION differs")
 	}
 }
 

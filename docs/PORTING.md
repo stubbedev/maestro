@@ -151,17 +151,18 @@ bubbles/huh for progress and prompts, ...), under these rules:
 
 | Path | What |
 | --- | --- |
-| `.ref/composer` | composer/composer at tag 2.10.3, with `vendor/` installed (`--no-dev`) |
-| `.ref/semver` | composer/semver 3.4.4 |
-| `.ref/class-map-generator` | composer/class-map-generator 1.7.3 |
-| `.ref/spdx-licenses` | composer/spdx-licenses 1.6.0 |
-| `.ref/metadata-minifier` | composer/metadata-minifier 1.0.1 |
-| `.ref/jsonlint` | seld/jsonlint 1.12.1 |
+| `.ref/composer` | composer/composer at tag 2.10.3 (`internal/upstream`), with `vendor/` installed (`--no-dev`) |
+| `.ref/semver` | composer/semver |
+| `.ref/class-map-generator` | composer/class-map-generator |
+| `.ref/spdx-licenses` | composer/spdx-licenses |
+| `.ref/metadata-minifier` | composer/metadata-minifier |
+| `.ref/jsonlint` | seld/jsonlint |
 
-Other libraries Composer ships are ported from `.ref/composer/vendor/`, at
-the version Composer 2.10.3's lock file pins: symfony/console 5.4 (the
-subset in `internal/console`), justinrainbow/json-schema 6.10.0 (the parts
-in `internal/json/jsonschema`) and composer/ca-bundle (`internal/util/http`).
+The libraries are checked out at the versions Composer's composer.lock
+pins, and so are the others Composer ships, ported from
+`.ref/composer/vendor/`: symfony/console (the subset in
+`internal/console`), justinrainbow/json-schema (the parts in
+`internal/json/jsonschema`) and composer/ca-bundle (`internal/util/http`).
 
 The PHP source is the specification of behaviour. For the frozen surface,
 when the Go and PHP disagree, the Go is wrong: port logic faithfully,
@@ -172,19 +173,28 @@ its exact presentation.
 
 ## Following upstream
 
-maestro tracks the latest stable Composer. The release it ports is named
-in one place, `ComposerVersion` in `internal/util/http/runtime.go`:
-Composer::VERSION, the platform package, the user agent, the e2e phar and
-`ref-sync` read it from there (`tools/upstream/composer-version.sh` for
-scripts), and only the phar's checksum, the release date and the shim's
-`Composer::VERSION` and `RELEASE_DATE` are bumped with it (a test checks
-the shim's `VERSION` against it).
-`.github/workflows/upstream-composer.yml` checks Composer's releases daily
-and opens an `upstream` issue for each newer one (pre-releases included,
-titled as such) with its release notes, the compare link, a diffstat of
-the paths that matter, the bundled libraries its composer.lock changes
-(semver, class-map-generator, spdx-licenses, jsonlint, ...) and the
-checklist of a bump; that issue is the trigger to port it.
+maestro tracks the latest stable Composer. Its release is named in one
+place, `internal/upstream`: the version, the release date, the plugin and
+runtime API versions and the official phar's sha256. The Go code
+(Composer::VERSION, the platform packages, the user agent, the banner),
+the e2e tests and `ref-sync` (which checks out the libraries at the
+versions that release's composer.lock pins) read it from there; scripts
+through `tools/upstream/composer-version.sh`. Tests check the shim's
+copies of the constants against it.
+
+`tools/upstream/bump.sh <version>` (`just bump-composer <version>`) moves
+the pin: it downloads the release's phar, checks its sha256 against
+getcomposer.org's, reads the constants out of it and rewrites
+`internal/upstream`, the shim's constants and the docs that name the
+release.
+
+`.github/workflows/upstream-composer.yml` checks Composer's releases
+daily. It opens an `upstream` issue for each newer one (pre-releases
+included, titled as such) with its release notes, the compare link, a
+diffstat of the paths that matter, the bundled libraries its
+composer.lock changes and what is left to port, and for the newest
+stable one opens the bump PR (`tools/upstream/bump-pr.sh`), linked from
+the issue. The issue is the trigger to port the release.
 
 ## Deliberate deviations
 
@@ -296,6 +306,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | --- | --- |
 | `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, ...), the path functions (`getcwd`, `realpath`, `dirname`, `basename`, `pathinfo`; the lint forbids Go's `os.Getwd`, `filepath.Abs` and `filepath.EvalSymlinks` elsewhere), and its own PCRE2 10.48-compatible regex engine (internal/php/doc.go says why) |
 | `internal/phperr` | an error's PHP previous exception (`Chained`, `PreviousOf`) and the root Composer's sources are reported under (see "Errors") |
+| `internal/upstream` | nothing: the Composer release maestro ports, named once ("Following upstream") |
 | `internal/semver` | composer/semver |
 | `internal/classmap` | composer/class-map-generator |
 | `internal/spdx` | composer/spdx-licenses (+ its JSON data) |
@@ -596,7 +607,7 @@ docs/BENCHMARKS.md shows what they found.
 | `tools/fetchdists` | downloads real dist archives for the store's differential test |
 | `tools/deadcode` | fails on functions nothing reaches (`just deadcode`, CI) |
 | `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |
-| `tools/upstream` | prints the Composer release maestro ports; opens an issue per newer one ("Following upstream") |
+| `tools/upstream` | reads and bumps the Composer release maestro ports; opens its issues and bump PRs ("Following upstream") |
 
 ## Tooling hazard: `\u` escapes
 

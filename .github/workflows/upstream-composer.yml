@@ -2,30 +2,40 @@ name: Upstream Composer
 
 # maestro follows the latest Composer (docs/PORTING.md, "Following
 # upstream"): an issue for every Composer release newer than the one it
-# ports, opened once (tools/upstream/open-issues.sh).
+# ports, and a PR moving the pin to the newest stable one, each opened
+# once (tools/upstream/open-issues.sh, tools/upstream/bump-pr.sh).
 on:
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: write
+  pull-requests: write
 
 jobs:
-  issues:
+  upstream:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
 
-      # version_compare orders releases as Composer does
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # version_compare orders releases as Composer does; bump.sh reads the
+      # phar's constants
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.4'
           tools: none
 
       - name: Open an issue per new Composer release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: tools/upstream/open-issues.sh
+
+      - name: Open the PR bumping the pin to the newest stable release
+        run: tools/upstream/bump-pr.sh

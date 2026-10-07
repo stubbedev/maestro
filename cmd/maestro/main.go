@@ -1,10 +1,11 @@
 // Command maestro is Composer, natively: a drop-in replacement for the
-// composer command, ported from Composer 2.10.3 to Go. It ports
-// bin/composer; installed (or symlinked) as `composer` it behaves the
-// same, as its name never changes its behaviour.
+// composer command, ported to Go from the Composer release
+// internal/upstream names. It ports bin/composer; installed (or
+// symlinked) as `composer` it behaves the same, as its name never changes
+// its behaviour.
 //
 // Version: `maestro --version` prints exactly Composer's first line
-// ("Composer version 2.10.3 2026-08-27 13:34:23"), so tools parsing
+// ("Composer version <version> <release date>"), so tools parsing
 // `composer --version` keep working, followed on stderr by Composer's PHP
 // line and one maestro line ("Maestro version X"). Signals: like PHP
 // without pcntl handlers, SIGINT/SIGTERM/SIGHUP end the process unless a

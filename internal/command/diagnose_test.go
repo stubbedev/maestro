@@ -97,7 +97,7 @@ func TestDiagnoseCommand_NetworkDisabled(t *testing.T) {
 
 	output := appTester.Display(true)
 	for _, want := range []string{
-		"Composer version: 2.10.3\n",
+		"Composer version: " + composer.Version + "\n",
 		"Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.\n",
 		"Checking composer.json: OK\n",
 		"Checking http connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.\n",
@@ -321,9 +321,9 @@ func TestDiagnoseCommand_VersionCheckPlacement(t *testing.T) {
 	rs := newReleaseServer(t, "1.2.0", "NEW")
 
 	for current, want := range map[string]string{
-		"1.0.0": "Checking Composer version: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.\nComposer version: 2.10.3\n",
-		"dev":   "Composer version: 2.10.3\n",
-		"test":  "Composer version: 2.10.3\n",
+		"1.0.0": "Checking Composer version: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.\nComposer version: " + composer.Version + "\n",
+		"dev":   "Composer version: " + composer.Version + "\n",
+		"test":  "Composer version: " + composer.Version + "\n",
 	} {
 		commandtest.InitTempComposer(t, `{"name": "foo/bar", "version": "1.0.0", "description": "test pkg", "license": "MIT"}`, nil, nil, true)
 		appTester, _ := diagnoseTester(t, rs, current)

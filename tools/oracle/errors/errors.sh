@@ -86,7 +86,7 @@ if [ -z "$composer" ]; then
 	if [ -f "$root/.ref/composer/bin/composer" ]; then
 		composer=$root/.ref/composer/bin/composer
 	else
-		composer=${XDG_CACHE_HOME:-$HOME/.cache}/maestro-e2e/composer-2.10.3.phar
+		composer=${XDG_CACHE_HOME:-$HOME/.cache}/maestro-e2e/composer-$("$root/tools/upstream/composer-version.sh").phar
 	fi
 fi
 [ -f "$composer" ] || { echo "no Composer at $composer (run ref-sync, or MAESTRO_E2E=1 go test ./cmd/maestro once)" >&2; exit 1; }

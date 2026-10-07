@@ -18,7 +18,7 @@ here="$repo/tools/oracle/php"
 
 rm -rf "$work/composer" "$work"/tests-* "$work"/plog*.txt
 cp -a "$repo/.ref/composer" "$work/composer"
-curl -sSfL -o "$work/composer.phar" https://getcomposer.org/download/2.10.3/composer.phar
+curl -sSfL -o "$work/composer.phar" "https://getcomposer.org/download/$("$repo/tools/upstream/composer-version.sh")/composer.phar"
 curl -sSfL -o "$work/phpunit.phar" https://phar.phpunit.de/phpunit-9.6.phar
 (cd "$work/composer" && php ../composer.phar install --no-interaction --no-progress)
 

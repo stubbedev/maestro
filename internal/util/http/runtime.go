@@ -7,15 +7,13 @@ package http
 
 import (
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/upstream"
 )
 
 // ComposerVersion is Composer::getVersion() of the Composer release maestro
-// ports and reports itself as. It is the one place that release is named:
-// Composer::VERSION (internal/composer), the platform package, the e2e
-// phar, devenv.nix's ref-sync and .github/workflows/upstream-composer.yml
-// all read it, so keep this line's form (docs/PORTING.md, "Following
-// upstream").
-const ComposerVersion = "2.10.3"
+// ports and reports itself as.
+const ComposerVersion = upstream.ComposerVersion
 
 // Runtime supplies the facts of the running process that end up in the
 // User-Agent header. Implementations must be safe for concurrent use.

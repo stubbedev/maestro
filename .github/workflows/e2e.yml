@@ -1,6 +1,6 @@
 name: E2E
 
-# The drop-in promise, checked against the real Composer 2.10.3 phar on real
+# The drop-in promise, checked against the real Composer phar on real
 # projects. It needs the network (Packagist, GitHub) and takes a while, so it
 # runs weekly and on demand rather than on every push.
 on:

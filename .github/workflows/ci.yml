@@ -186,8 +186,8 @@ jobs:
           MAESTRO_PHP_TESTS: '1'
         run: go test -race -short ./...
 
-  # The PHP shim runs on the project's php, which can be as old as Composer
-  # 2.10.3's minimum (7.2.5); the test job covers 8.4.
+  # The PHP shim runs on the project's php, which can be as old as Composer's
+  # minimum (7.2.5); the test job covers 8.4.
 
       # saved even when the tests fail: a red job must not leave the next
       # run to compile everything again

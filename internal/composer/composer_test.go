@@ -3,6 +3,7 @@ package composer
 // Ports tests/Composer/Test/ComposerTest.php.
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/config"
@@ -10,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/upstream"
 )
 
 func TestComposer_SetGetPackage(t *testing.T) {
@@ -60,9 +62,14 @@ func TestComposer_SetGetInstallationManager(t *testing.T) {
 	}
 }
 
+// TestComposer_GetVersion: a release build's version is the release maestro
+// ports (internal/upstream), with the phar's form of the release date.
 func TestComposer_GetVersion(t *testing.T) {
-	if GetVersion() != "2.10.3" || RuntimeAPIVersion != "2.2.2" || ReleaseDate != "2026-08-27 13:34:23" {
-		t.Errorf("version = %s", GetVersion())
+	if GetVersion() != upstream.ComposerVersion || RuntimeAPIVersion != upstream.RuntimeAPIVersion {
+		t.Errorf("version = %s, runtime API %s", GetVersion(), RuntimeAPIVersion)
+	}
+	if !regexp.MustCompile(`^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$`).MatchString(ReleaseDate) {
+		t.Errorf("release date = %q", ReleaseDate)
 	}
 }
 

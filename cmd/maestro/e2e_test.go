@@ -1,7 +1,8 @@
 // The end-to-end comparison with real Composer (docs/PORTING.md, Tests §3):
 // every scenario (e2e_scenarios_test.go) runs once with the official
-// composer.phar 2.10.3 and once with maestro, from a cold cache and store
-// and again from the warm ones the cold run left, and each step must give
+// composer.phar of the release maestro ports (internal/upstream) and once
+// with maestro, from a cold cache and store and again from the warm ones
+// the cold run left, and each step must give
 // the same exit code, stdout, stderr and files, except how errors are
 // rendered (free, docs/PORTING.md "The contract").
 //
@@ -89,18 +90,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/testutil"
+	"github.com/stubbedev/maestro/internal/upstream"
 )
 
-// The official composer.phar of the release maestro ports and the sha256
-// getcomposer.org publishes for it (composerPharURL + ".sha256sum"). The
-// checksum is pinned here: bumping composer.Version without it fails the
-// download's check.
+// The official composer.phar of the release maestro ports and its pinned
+// sha256 (internal/upstream).
 const (
-	composerPharURL    = "https://getcomposer.org/download/" + composer.Version + "/composer.phar"
-	composerPharSHA256 = "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6"
+	composerPharURL    = "https://getcomposer.org/download/" + upstream.ComposerVersion + "/composer.phar"
+	composerPharSHA256 = upstream.ComposerPharSHA256
 )
 
 // step is one command run in a scenario.
@@ -164,7 +163,7 @@ type timing struct {
 
 func TestE2E(t *testing.T) {
 	if !switches.On(switches.E2E) {
-		t.Skip("set MAESTRO_E2E=1 to compare maestro with Composer " + composer.Version + " (php, git, unzip and the network)")
+		t.Skip("set MAESTRO_E2E=1 to compare maestro with Composer " + upstream.ComposerVersion + " (php, git, unzip and the network)")
 	}
 
 	requireTools(t)
@@ -258,7 +257,7 @@ func composerPhar(t *testing.T) string {
 	}
 
 	dir := filepath.Join(cacheDir, "maestro-e2e")
-	path := filepath.Join(dir, "composer-"+composer.Version+".phar")
+	path := filepath.Join(dir, "composer-"+upstream.ComposerVersion+".phar")
 
 	if sum, err := fileSHA256(path); err == nil && sum == composerPharSHA256 {
 		return path

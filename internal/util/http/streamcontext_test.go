@@ -287,7 +287,7 @@ func TestStreamContextFactory_UserAgentFormat(t *testing.T) {
 	t.Setenv("CI", "1")
 
 	sysname, release := uname()
-	want := "User-Agent: Composer/2.10.3 (" + sysname + "; " + release + "; PHP 8.3.0; maestro; Platform-PHP 8.1.0; CI)"
+	want := "User-Agent: Composer/" + ComposerVersion + " (" + sysname + "; " + release + "; PHP 8.3.0; maestro; Platform-PHP 8.1.0; CI)"
 
 	if ua := userAgentOf(t, rt); ua != want {
 		t.Fatalf("got %q, want %q", ua, want)
