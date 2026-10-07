@@ -1,5 +1,122 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## No-op and warm install: store imports during the revalidation (#29, 2026-10-07)
+
+"before" is 84b0087, "after" is 4a4f0cf (the four commits below). Same
+projects and method as the sections below: `install --no-plugins
+--no-scripts -q`, COMPOSER_TEST_SUITE=1, Composer 2.10.3 (phar) and the
+two binaries interleaved run by run (order reversed every other round),
+2 untimed warm-ups, medians of wall time, CPU (user + system) and peak
+RSS from wait4. *no-op*: vendor/ installed, 20 rounds; *warm*: a fresh
+copy of the project without vendor/, warm caches and store, 15 rounds.
+Each maestro binary had **its own copy of MAESTRO_CACHE_DIR** (the
+platform probe cache and the class map records are per binary, so
+sharing one makes every other run miss them); COMPOSER_CACHE_DIR was
+shared. CPU profile `performance` (intel_pstate powersave governor,
+energy preference "performance"), as in the section below; the 1-minute
+load average was 0.4 to 1.1 at the start of each series (2.5 at the end
+of the last).
+
+| Project | Command | Composer | before | after | speed-up before → after |
+|---|---|---:|---:|---:|---:|
+| laravel | no-op install | 1.28 s | 108.3 ms | 103.4 ms | 11.8x → 12.3x |
+| symfony | no-op install | 623 ms | 106.1 ms | 99.6 ms | 5.9x → 6.3x |
+| laravel | warm install | 2.12 s | 306.8 ms | 213.9 ms | 6.9x → 9.9x |
+| symfony | warm install | 1.65 s | 323.0 ms | 237.3 ms | 5.1x → 6.9x |
+
+CPU and memory are unchanged (warm: 982 → 964 ms and 936 → 937 ms of
+CPU; peak RSS within 2 MB). Composer is much faster in this profile than
+in #28's power-saver one (laravel's warm install 3.25 → 2.12 s, its no-op
+1.79 → 1.28 s), so the ratios here are lower than #28's for the same
+maestro times; compare within this table.
+
+Where a run's time goes, from timing marks (not committed; time since
+exec, medians of a few runs):
+
+- **No-op, before**: main at 4.5 ms (runtime and package init ~4 ms), the
+  platform probe's cached result decoded by 8 ms, the configuration read
+  by 11 ms, the dial to repo.packagist.org started at 14.7 ms (the
+  transport's TLS configuration, CA bundle parsed, was built first). TCP
+  handshake, TLS handshake and the two conditional requests (sent
+  together on the HTTP/2 connection) are three round trips of ~24 ms:
+  the 304s arrive at ~89 ms. Then pool and solver ~2 ms, the local
+  repository's write (installed.json and installed.php compared with
+  the files) ~2.6 ms, the dump 6 (symfony) to 10 ms (laravel), exit at
+  ~105 ms.
+- **Warm, before** (laravel): the 304s at ~88 ms, the store import of the
+  109 packages from ~89 to ~220 ms, the dump (class map record misses on
+  a fresh copy; the parse cache answers) until ~261 ms, and the install
+  notification (POST to packagist.org/downloads/, which Composer sends
+  and waits for too) answered at ~299 ms: its connection had been opened
+  only when the first package was installed (~190 ms), so the POST,
+  sent at ~220 ms, waited for the handshakes.
+
+What changed (vendor trees, modes and output identical to before on
+laravel, symfony with plugins and scripts, and a lock that fails to
+verify; the e2e install-from-lock, install-no-dev, warm-worktree,
+store-heal, autoload, laravel, symfony, scripts, prefer-source,
+plugin-flex, plugin-discovery and plugin-runtime scenarios pass):
+
+- **Packages materialized while the lock is verified** (4272f6b). The
+  install from a lock already started the dist transfers the files cache
+  lacks during the verification (#20). A dist it holds whose release the
+  store has is now materialized from the store then, into a directory of
+  vendor/composer of its own; the download still checks the files cache
+  and prints what it printed, and takes that tree with one rename when
+  it is of the same release with the same import options, which is what
+  materializing it then would build. What no download took is removed
+  once the operations ran or failed, or the lock did not verify, with
+  vendor/composer and vendor when they were made for it (a lock that
+  fails to verify leaves no vendor dir). laravel's store import now runs
+  from ~25 to ~150 ms, mostly during the revalidation.
+- **The notification's connection opens during the verification**
+  (4272f6b), when the operations are known, instead of at the first
+  install: the POST no longer waits for TCP and TLS handshakes (~25 ms).
+- **Raw descriptors for clones** (719316a): each FICLONE import went
+  through os.File, which registers with the poller on open and switches
+  back to blocking mode on every Fd() call: strace counted 113,000 fcntl,
+  28,000 failing epoll_ctl and 17,000 fstat calls for laravel's 8,800
+  files. Now seven syscalls per file instead of some twenty-three; ~4 ms
+  of the import (3%).
+- **The preconnect dials while its transport is set up** (7258edc): the
+  dial starts at ~11.4 ms instead of ~14.7 ms; the TLS handshake waits
+  for the TCP one anyway.
+- **The no-op dump takes installed.json's dev mode from the speculation**
+  (4a4f0cf) when the file is still the one the speculation read (same
+  file, size, mode and modification time): it decoded the 405 KB file
+  again for one key (~2 to 3 ms on symfony).
+
+Tried and not kept: handing the import's files out to its goroutines in
+chunks of 8 or 32 consecutive files (fewer goroutines in one directory
+at a time) gave 127 vs 130 ms on laravel, within the noise.
+
+Not reachable, and what is left (#29):
+
+- **No-op ≥20x is below the network floor.** 20x of Composer's no-op is
+  64 ms (laravel) and 31 ms (symfony) in this profile; the three round
+  trips alone take ~73 ms here, and Composer makes the same two
+  conditional requests (#14). What remains around them, ~27 ms: before
+  the dial ~11 ms (Go runtime and package init ~4 ms, of which an estimated 2 ms are
+  some 190 package-level regex compiles across the packages, which could
+  be made lazy in php.MustCompile; decoding the platform probe's cached
+  161 KB of JSON ~2.6 ms, mostly its constants (79 KB) and functions
+  (39 KB); the application and configuration ~3 ms); after the 304s
+  ~15 ms (pool and solver ~2 ms, which need the filter list; the local
+  repository's write ~2.6 ms and the dump's file contents ~4 to 8 ms,
+  both computable during the wait from what the speculation already
+  holds, since a no-op's 304s change nothing they depend on, but that
+  means running the dump's whole file generation ahead and replaying its
+  warnings, not done).
+- **Warm ≥20x** would be 106 ms (laravel) and 82 ms (symfony). After this
+  change a laravel run is ~25 ms of start-up and verification set-up,
+  ~125 ms of store import (now from ~25 ms, overlapping the ~90 ms of
+  revalidation), then the notification POST's ~60 ms (one round trip
+  and ~35 ms of server time; the dump, ~40 ms on a fresh copy, runs
+  meanwhile). The POST is sent only once the operations ran and waited
+  for, as Composer does, so the floor is the import plus that POST: the
+  import (btrfs file creation and FICLONE, ~70 µs of kernel CPU per file
+  over 8 slots) is what is left to cut.
+
 ## symfony's update: the optimizer, re-reads and double decodes (#29, 2026-10-07)
 
 "before" is caec675, "after" is b4140ab (the five commits listed below).
