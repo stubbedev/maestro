@@ -51,11 +51,11 @@
 # Cache::gcIsNecessary, one run in 51 otherwise, creates the files cache
 # directory, which changes clear-cache's output) and temporary archive
 # directory names, what depends on the machine's php (its version, and the
-# pool and rule counts, which include one platform package per loaded
-# extension), the resolution time, where Composer's sources are
-# (@COMPOSER@), and the banner (logo and version line) heading the output
-# of `list`, Composer's or maestro's (docs/PORTING.md deviation 8; as
-# testutil.NormalizeBanner).
+# pool, rule and pool optimizer counts, which include one platform package
+# per loaded extension), the resolution and pool optimizer times, where
+# Composer's sources are (@COMPOSER@), and the banner (logo and version
+# line) heading the output of `list`, Composer's or maestro's
+# (docs/PORTING.md deviation 8; as testutil.NormalizeBanner).
 set -uo pipefail
 root=$(pwd)
 data=$root/internal/command/testdata/errors
@@ -115,6 +115,8 @@ normalize() {
 		-e 's/^(Memory usage: )[0-9.]+MiB \(peak: [0-9.]+MiB\), time: [0-9.]+s$/\1@PROFILE@/' \
 		-e 's/^(Analyzed )[0-9]+( (packages|rules) to resolve dependencies)$/\1@N@\2/' \
 		-e 's/^(Dependency resolution completed in )[0-9.]+( seconds)$/\1@TIME@\2/' \
+		-e 's/^(Pool optimizer completed in )[0-9.]+( seconds)$/\1@TIME@\2/' \
+		-e 's/^(Found )[0-9]+( package versions referenced in your dependency graph\. )[0-9]+ \([0-9]+%\)( were optimized away\.)$/\1@N@\2@N@\3/' \
 		-e 's/(but your php version \()[^)]*(\) does not satisfy)/\1@PHPVERSION@\2/' |
 		sed -z -E "s#^([ _/\\\\|().,'\`-]+\n)+(Composer|maestro)[^\n]*\n#<banner>\n#"
 }

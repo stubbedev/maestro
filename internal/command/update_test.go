@@ -3,6 +3,7 @@
 package command_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -606,4 +607,121 @@ func TestUpdateCommand_UpdateWithTemporaryConstraintWildcardMatchingNothing(t *t
 	assertDisplayMatchesFormat(t, appTester, `Loading composer repositories with package information
 Updating dependencies
 Nothing to modify in lock file`)
+}
+
+// updateProject requires root/req, which requires dep/pkg ^1; dep/pkg is
+// locked and installed at 1.0.0, and 1.0.2 is available. All are
+// metapackages, so updates install without downloads.
+func updateProject(t *testing.T) {
+	t.Helper()
+	commandtest.InitTempComposer(t, `{
+		"repositories": {"packages": {"type": "package", "package": [
+			{"name": "root/req", "version": "1.0.0", "type": "metapackage", "require": {"dep/pkg": "^1"}},
+			{"name": "dep/pkg", "version": "1.0.0", "type": "metapackage"},
+			{"name": "dep/pkg", "version": "1.0.2", "type": "metapackage"}
+		]}},
+		"require": {"root/req": "1.*"}
+	}`, nil, nil, true)
+	rootReq := commandtest.GetPackage(t, "root/req", "1.0.0")
+	rootReq.SetType("metapackage")
+	rootReq.SetRequires(pkg.LinksOf(pkg.NewLink("root/req", "dep/pkg", semver.NewMatchAllConstraint(), pkg.TypeRequire, pkg.Str("^1"))))
+	dep := commandtest.GetPackage(t, "dep/pkg", "1.0.0")
+	dep.SetType("metapackage")
+	packages := []pkg.PackageInterface{rootReq, dep}
+	commandtest.CreateComposerLock(t, packages, nil)
+	commandtest.CreateInstalledJSON(t, packages, nil, true)
+}
+
+const upgradingDep = "  - Upgrading dep/pkg (1.0.0 => 1.0.2)"
+
+func TestUpdateCommand_Options(t *testing.T) {
+	runCommandCases(t, updateProject, []commandCase{
+		{
+			name:     "update upgrades",
+			params:   cmd("update", "--dry-run", true),
+			contains: []string{upgradingDep},
+		},
+		{
+			name:     "COMPOSER_PREFER_LOWEST is --prefer-lowest",
+			params:   cmd("update", "--dry-run", true),
+			env:      map[string]string{"COMPOSER_PREFER_LOWEST": "1"},
+			contains: []string{"Nothing to modify in lock file"},
+			excludes: []string{upgradingDep},
+		},
+		{
+			name:     "COMPOSER_MINIMAL_CHANGES is --minimal-changes",
+			params:   cmd("update", "--dry-run", true),
+			env:      map[string]string{"COMPOSER_MINIMAL_CHANGES": "1"},
+			contains: []string{"Nothing to modify in lock file"},
+			excludes: []string{upgradingDep},
+		},
+		{
+			name:     "a partial update leaves dependencies",
+			params:   cmd("update", "packages", []string{"root/req"}, "--dry-run", true),
+			excludes: []string{upgradingDep},
+		},
+		{
+			name:     "COMPOSER_WITH_ALL_DEPENDENCIES is --with-all-dependencies",
+			params:   cmd("update", "packages", []string{"root/req"}, "--dry-run", true),
+			env:      map[string]string{"COMPOSER_WITH_ALL_DEPENDENCIES": "1"},
+			contains: []string{upgradingDep},
+		},
+		{
+			name:     "COMPOSER_WITH_DEPENDENCIES is --with-dependencies",
+			params:   cmd("update", "packages", []string{"root/req"}, "--dry-run", true),
+			env:      map[string]string{"COMPOSER_WITH_DEPENDENCIES": "1"},
+			contains: []string{upgradingDep},
+		},
+		{
+			name:     "-W is --with-all-dependencies",
+			params:   cmd("update", "packages", []string{"root/req"}, "--dry-run", true, "-W", true),
+			contains: []string{upgradingDep},
+		},
+		{
+			name:     "-m is --minimal-changes",
+			params:   cmd("update", "--dry-run", true, "-m", true),
+			excludes: []string{upgradingDep},
+		},
+		{
+			name:     "the audit runs after an update",
+			params:   cmd("update"),
+			contains: []string{upgradingDep, "No security vulnerability advisories found."},
+		},
+		{
+			name:     "COMPOSER_NO_AUDIT is --no-audit",
+			params:   cmd("update"),
+			env:      map[string]string{"COMPOSER_NO_AUDIT": "1"},
+			contains: []string{upgradingDep},
+			excludes: []string{"No security vulnerability advisories found."},
+		},
+		{
+			name:   "-i answered no at the confirmation",
+			params: cmd("update", "-i", true, "--dry-run", true),
+			inputs: []string{"dep/pkg", "no"},
+			err:    "Installation aborted.",
+		},
+		{
+			name:   "--strict-psr-autoloader needs an optimized autoloader",
+			params: cmd("update", "--strict-psr-autoloader", true),
+			err:    "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.",
+		},
+	})
+}
+
+func TestUpdateCommand_BumpAfterUpdateFailurePassesThrough(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes read-only files")
+	}
+	runCommandCases(t, func(t *testing.T) {
+		t.Helper()
+		updateProject(t)
+		if err := os.Chmod("composer.json", 0o444); err != nil {
+			t.Fatal(err)
+		}
+	}, []commandCase{{
+		name:     "composer.json not writable after the update",
+		params:   cmd("update", "--bump-after-update", true, "--no-audit", true),
+		code:     1,
+		contains: []string{upgradingDep, "./composer.json is not writable."},
+	}})
 }

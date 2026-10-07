@@ -1,0 +1,3 @@
+update
+--bump-after-update=no-dev
+--no-install

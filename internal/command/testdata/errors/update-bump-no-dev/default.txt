@@ -1,0 +1,13 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Loading composer repositories with package information
+Updating dependencies
+Lock file operations: 0 installs, 1 update, 0 removals
+  - Upgrading x/foo (1.0.0 => 1.1.0)
+Writing lock file
+No security vulnerability advisories found.
+Bumping dependencies
+Warning: Bumping dependency constraints is not recommended for libraries as it will narrow down your dependencies and may cause problems for your users.
+If your package is not a library, you can explicitly specify the "type" by using "composer config type project".
+Alternatively you can use --bump-after-update=dev to only bump dependencies within "require-dev".
+./composer.json has been updated (1 changes).
+exit 0

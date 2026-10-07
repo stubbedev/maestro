@@ -1,0 +1,11 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Loading composer repositories with package information
+Updating dependencies
+Dependency resolution completed in @TIME@ seconds
+Analyzed @N@ packages to resolve dependencies
+Analyzed @N@ rules to resolve dependencies
+Nothing to modify in lock file
+Dependency resolution completed in @TIME@ seconds
+Writing lock file
+No security vulnerability advisories found.
+exit 0

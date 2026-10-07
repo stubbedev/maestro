@@ -359,6 +359,8 @@ var normalizers = []struct {
 	{regexp.MustCompile(`(?m)^(Memory usage: )[0-9.]+MiB \(peak: [0-9.]+MiB\), time: [0-9.]+s$`), "${1}@PROFILE@"},
 	{regexp.MustCompile(`(?m)^(Analyzed )[0-9]+( (packages|rules) to resolve dependencies)$`), "${1}@N@${2}"},
 	{regexp.MustCompile(`(?m)^(Dependency resolution completed in )[0-9.]+( seconds)$`), "${1}@TIME@${2}"},
+	{regexp.MustCompile(`(?m)^(Pool optimizer completed in )[0-9.]+( seconds)$`), "${1}@TIME@${2}"},
+	{regexp.MustCompile(`(?m)^(Found )[0-9]+( package versions referenced in your dependency graph\. )[0-9]+ \([0-9]+%\)( were optimized away\.)$`), "${1}@N@${2}@N@${3}"},
 	{regexp.MustCompile(`(but your php version \()[^)\n]*(\) does not satisfy)`), "${1}@PHPVERSION@${2}"},
 }
 

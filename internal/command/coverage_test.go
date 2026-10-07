@@ -98,7 +98,13 @@ var coverage = []entry{
 	cover(command.NewUpdateCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestUpdateCommand_Update)),
+			Positive(Go(TestUpdateCommand_Options)),
+			Positive(E2E("update", "u", "--dry-run")),
+			Positive(E2E("update", "upgrade", "psr/log")),
+			Positive(E2E("outdated", "update", "--bump-after-update=no-dev")),
 			Negative(Go(TestUpdateCommand_InteractiveModeThrowsIfNoPackageToUpdate)),
+			Negative(Go(TestUpdateCommand_Options)),
+			Negative(Go(TestUpdateCommand_BumpAfterUpdateFailurePassesThrough)),
 		},
 	}),
 	cover(command.NewSearchCommand, Coverage{
