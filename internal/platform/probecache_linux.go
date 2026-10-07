@@ -110,10 +110,19 @@ func isProbeEnv(name string) bool {
 }
 
 // volatileEnv are the environment variables a shell changes from one
-// command to the next, which do not reach php's view of itself; maestro's
-// own (MAESTRO_*) are left out too. Only an entry keyed on the whole
-// environment (probeCacheHeader.AllEnv) uses them.
+// command to the next ("_" is the program it ran), which do not reach
+// php's view of itself through a wrapper; maestro's own (MAESTRO_*) are
+// left out too (isVolatileEnv). Neither an entry keyed on the whole
+// environment (probeCacheHeader.AllEnv) nor one keyed on what a wrapper
+// names uses them: a wrapper executable holds "_" and the like as symbol
+// names, not as variables it reads.
 var volatileEnv = []string{"PWD", "OLDPWD", "SHLVL", "_"}
+
+// isVolatileEnv reports whether the variable name is left out of a
+// wrapper's names and the whole environment (volatileEnv).
+func isVolatileEnv(name string) bool {
+	return slices.Contains(volatileEnv, name) || strings.HasPrefix(name, "MAESTRO_")
+}
 
 // probeCacheHeader is the first line of a cache entry; the probe's result
 // follows it, in php's binary form of decoded JSON (php.AppendBinary),
@@ -257,7 +266,7 @@ func envSum(names, prefixes []string, all bool) string {
 // envMatches reports whether envSum takes the variable name.
 func envMatches(name string, names, prefixes []string, all bool) bool {
 	if all {
-		return !slices.Contains(volatileEnv, name) && !strings.HasPrefix(name, "MAESTRO_")
+		return !isVolatileEnv(name)
 	}
 
 	if _, found := slices.BinarySearch(names, name); found {
@@ -336,8 +345,8 @@ const maxWrapperScan = 1 << 20
 
 // wrapperEnvNames is every name a variable the wrapper executable at path
 // reads may have: a variable read by name has it in the file (makeWrapper's
-// and makeBinaryWrapper's --set-default, --prefix, ...). false when the
-// file is too large to tell.
+// and makeBinaryWrapper's --set-default, --prefix, ...), but for the
+// volatile ones (isVolatileEnv). false when the file is too large to tell.
 func wrapperEnvNames(path string) ([]string, bool) {
 	var st unix.Stat_t
 	if unix.Stat(path, &st) != nil || st.Size > maxWrapperScan {
@@ -349,7 +358,7 @@ func wrapperEnvNames(path string) ([]string, bool) {
 		return nil, false
 	}
 
-	return identifierNames(data), true
+	return slices.DeleteFunc(identifierNames(data), isVolatileEnv), true
 }
 
 // probeCachePath is where the entry of key lives.

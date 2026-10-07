@@ -243,14 +243,18 @@ func TestProbeCache_Env(t *testing.T) {
 }
 
 // TestProbeCache_WrapperEnv checks that a wrapper's entry depends on the
-// variables the wrapper names.
+// variables the wrapper names, but for those a shell sets anew for each
+// command (volatileEnv): "_" is in every binary wrapper's symbols, and
+// is the program that ran maestro (make, time, an IDE, ...).
 func TestProbeCache_WrapperEnv(t *testing.T) {
 	t.Setenv("MAESTRO_CACHE_DIR", t.TempDir())
+	t.Setenv("_", "/usr/bin/make")
+	t.Setenv("SHLVL", "1")
 
 	dir := t.TempDir()
 	wrapper := filepath.Join(dir, "php")
 	real := filepath.Join(dir, ".php-wrapped")
-	writeFile(t, wrapper, "\x7fELF\x00setenv\x00PROBE_WRAPPER_VARIABLE\x00")
+	writeFile(t, wrapper, "\x7fELF\x00setenv\x00PROBE_WRAPPER_VARIABLE\x00_\x00PWD\x00OLDPWD\x00SHLVL\x00MAESTRO_X\x00")
 	writeFile(t, real, "\x7fELF php")
 
 	t.Chdir(dir)
@@ -258,9 +262,13 @@ func TestProbeCache_WrapperEnv(t *testing.T) {
 	key := storeFake(t, wrapper, nil, real)
 
 	t.Setenv("PROBE_UNRELATED", "1")
+	t.Setenv("_", "/usr/bin/time")
+	t.Setenv("SHLVL", "2")
+	t.Setenv("OLDPWD", "/elsewhere")
+	t.Setenv("MAESTRO_X", "1")
 
 	if loadProbeCache(key, wrapper) == nil {
-		t.Error("an unrelated variable missed a wrapper's entry")
+		t.Error("an unrelated or volatile variable missed a wrapper's entry")
 	}
 
 	t.Setenv("PROBE_WRAPPER_VARIABLE", "1")
