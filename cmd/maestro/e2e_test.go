@@ -57,8 +57,8 @@
 //   - The random APCu prefix in vendor/composer/autoload_real.php
 //     (dump-autoload --apcu without --apcu-prefix: bin2hex(random_bytes(10))).
 //   - Scenario-specific ones, each documented at its step (normalize):
-//     fund's package order (normalizeFund) and diagnose's phar-only checks
-//     and binary path (normalizeDiagnose).
+//     fund's package order (normalizeFund) and diagnose's phar-only checks,
+//     its maestro version line and binary path (normalizeDiagnose).
 //   - A decorated free text report (a step's freeText): compared without
 //     escape sequences, after checking that maestro's keeps every one of
 //     Composer's in order, so it only adds colour (colourOnly).

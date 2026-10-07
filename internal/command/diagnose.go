@@ -26,6 +26,7 @@ import (
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	"github.com/stubbedev/maestro/internal/util/vcs"
@@ -77,6 +78,85 @@ type DiagnoseCommand struct {
 	exitCode       int
 	view           *platform.Snapshot
 	noPHP          bool
+	// decorated is whether stdout is decorated: then the report is a
+	// check list (ui.CheckList), else Composer's lines.
+	decorated bool
+	// current is the label of the check running.
+	current string
+}
+
+// diagnoseList is the look of diagnose's decorated report.
+var diagnoseList = ui.CheckList{LabelWidth: 34}
+
+// plainText is Composer's markup as the text it shows, for the check
+// list, which styles it itself.
+func plainText(markup string) string {
+	return console.NewOutputFormatter(false, console.ThemeStyles()...).Format(markup)
+}
+
+// diagnoseMaestroVersion is the running maestro's version, "dev" for a
+// build without one, so a report says which tool it diagnosed.
+func diagnoseMaestroVersion(rt *composer.Runtime) string {
+	if v := rt.ClientVersion(); v != "" {
+		return v
+	}
+
+	return "dev"
+}
+
+// writeLines writes lines of the check list, unformatted.
+func (c *DiagnoseCommand) writeLines(lines ...string) {
+	for _, l := range lines {
+		c.IO().WriteRaw(l, true, io.Normal)
+	}
+}
+
+// fact writes what diagnose found out: "label: value" (value is markup),
+// a line of the check list when decorated.
+func (c *DiagnoseCommand) fact(label, value string) {
+	if c.decorated {
+		c.writeLines(diagnoseList.Fact(label, plainText(value)))
+
+		return
+	}
+	c.IO().Write(label+": "+value, true, io.Normal)
+}
+
+// checking starts the check labelled label: undecorated, Composer's
+// "Checking label: ", which its result completes; decorated, its line is
+// written once it has a result.
+func (c *DiagnoseCommand) checking(label string) {
+	c.current = label
+	if !c.decorated {
+		c.IO().Write("Checking "+label+": ", false, io.Normal)
+	}
+}
+
+// writeResult writes the result of the current check: Composer's status
+// word (none for a passed check that says what it found) and messages
+// (markup), or the check list's lines.
+func (c *DiagnoseCommand) writeResult(status ui.CheckStatus, messages []string) {
+	if c.decorated {
+		plain := make([]string, len(messages))
+		for i, m := range messages {
+			plain[i] = php.Trim(plainText(m))
+		}
+		c.writeLines(diagnoseList.Check(status, c.current, plain)...)
+
+		return
+	}
+	cio := c.IO()
+	switch {
+	case status == ui.CheckFailed:
+		cio.Write("<error>FAIL</error>", true, io.Normal)
+	case status == ui.CheckWarning:
+		cio.Write("<warning>WARNING</warning>", true, io.Normal)
+	case len(messages) == 0:
+		cio.Write("<info>OK</info>", true, io.Normal)
+	}
+	for _, message := range messages {
+		cio.Write(php.Trim(message), true, io.Normal)
+	}
 }
 
 // NewDiagnoseCommand ports new DiagnoseCommand().
@@ -164,6 +244,7 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 		return 0, err
 	}
 	cio := c.IO()
+	c.decorated = cio.IsDecorated()
 	rt := c.runtime()
 	view, _, verr := rt.ComposerView()
 	switch {
@@ -208,7 +289,7 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	// if (strpos(__FILE__, 'phar:') === 0): a release build of maestro;
 	// the pubkeys check is skipped (see the type's comment).
 	if current, ok := c.releaseBuild(); ok {
-		cio.Write("Checking Composer version: ", false, io.Normal)
+		c.checking("Composer version")
 		res, err := c.checkVersion(cfg, current)
 		if err != nil {
 			return 0, err
@@ -216,13 +297,14 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 		c.outputResult(res)
 	}
 
-	cio.Write("Composer version: <comment>"+composer.GetVersion()+"</comment>", true, io.Normal)
+	c.fact("Composer version", "<comment>"+composer.GetVersion()+"</comment>")
+	c.fact("Maestro version", "<comment>"+diagnoseMaestroVersion(rt)+"</comment>")
 
-	cio.Write("Checking Composer and its dependencies for vulnerabilities: ", false, io.Normal)
+	c.checking("Composer and its dependencies for vulnerabilities")
 	c.outputResult(c.checkComposerAudit(cfg))
 
 	if c.noPHP {
-		cio.Write("Checking PHP: ", false, io.Normal)
+		c.checking("PHP")
 		c.outputResult("<error>No php binary was found in PATH. maestro runs PHP code (platform detection, plugins, scripts) with the php first on PATH: install PHP or put it on PATH.</error>")
 	} else if err := c.writePHP(cfg, rt); err != nil {
 		return 0, err
@@ -242,7 +324,7 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 		}
 	}
 
-	zip := "zip: "
+	zip := ""
 	if c.extensionLoaded("zip") {
 		zip += "<comment>extension present</comment>"
 	} else {
@@ -261,16 +343,16 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	if (hasSystem7zip || hasSystemUnzip) && !c.functionExists("proc_open") {
 		zip += ", <warning>proc_open is disabled or not present, unzip/7-z will not be usable</warning>"
 	}
-	cio.Write(zip, true, io.Normal)
+	c.fact("zip", zip)
 
 	if composerInst != nil {
 		var plugins []string
 		if r, ok := composerInst.PluginManager().(interface{ RegisteredPlugins() []string }); ok {
 			plugins = r.RegisteredPlugins()
 		}
-		cio.Write("Active plugins: "+strings.Join(plugins, ", "), true, io.Normal)
+		c.fact("Active plugins", strings.Join(plugins, ", "))
 
-		cio.Write("Checking composer.json: ", false, io.Normal)
+		c.checking("composer.json")
 		res, err := c.checkComposerSchema()
 		if err != nil {
 			return 0, err
@@ -283,7 +365,7 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 			return 0, err
 		}
 		if locked {
-			cio.Write("Checking composer.lock: ", false, io.Normal)
+			c.checking("composer.lock")
 			res, err := c.checkComposerLockSchema(l)
 			if err != nil {
 				return 0, err
@@ -293,21 +375,21 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	}
 
 	if !c.noPHP {
-		cio.Write("Checking platform settings: ", false, io.Normal)
+		c.checking("platform settings")
 		c.outputResult(c.checkPlatform())
 	}
 
-	cio.Write("Checking git settings: ", false, io.Normal)
+	c.checking("git settings")
 	gitResult, err := c.checkGit()
 	if err != nil {
 		return 0, err
 	}
 	c.outputResult(gitResult)
 
-	cio.Write("Checking http connectivity to packagist: ", false, io.Normal)
+	c.checking("http connectivity to packagist")
 	c.outputResult(c.checkHTTP("http", cfg))
 
-	cio.Write("Checking https connectivity to packagist: ", false, io.Normal)
+	c.checking("https connectivity to packagist")
 	c.outputResult(c.checkHTTP("https", cfg))
 
 	if repos := cfg.Repositories(); repos != nil {
@@ -332,7 +414,7 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 			if strings.HasPrefix(u, "https://repo.packagist.org") {
 				continue
 			}
-			cio.Write("Checking connectivity to "+repoURL+": ", false, io.Normal)
+			c.checking("connectivity to " + repoURL)
 			c.outputResult(c.checkComposerRepo(u, cfg))
 		}
 	}
@@ -348,11 +430,11 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 	oauth, _ := oauthVal.(*php.Array)
 	if oauth != nil && oauth.Len() > 0 {
 		for domain, token := range oauth.All() {
-			cio.Write("Checking "+domain.String()+" oauth access: ", false, io.Normal)
+			c.checking(domain.String() + " oauth access")
 			c.outputResult(c.checkGithubOauth(domain.String(), php.ToString(token)))
 		}
 	} else {
-		cio.Write("Checking github.com rate limit: ", false, io.Normal)
+		c.checking("github.com rate limit")
 		rate, err := c.githubRateLimit("github.com")
 		switch {
 		case err != nil:
@@ -366,19 +448,19 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 				c.outputResult(rate)
 			} else if remaining, _ := a.Get("remaining"); php.Compare(int64(10), remaining) > 0 {
 				limit, _ := a.Get("limit")
-				cio.Write("<warning>WARNING</warning>", true, io.Normal)
-				cio.Write("<comment>GitHub has a rate limit on their API. "+
-					"You currently have <options=bold>"+phpSprintfU(php.ToInt(remaining))+"</options=bold> "+
-					"out of <options=bold>"+phpSprintfU(php.ToInt(limit))+"</options=bold> requests left."+php.EOL+
-					"See https://developer.github.com/v3/#rate-limiting and also"+php.EOL+
-					"    https://getcomposer.org/doc/articles/troubleshooting.md#api-rate-limit-and-oauth-tokens</comment>", true, io.Normal)
+				// a warning that leaves the exit code alone
+				c.writeResult(ui.CheckWarning, []string{"<comment>GitHub has a rate limit on their API. " +
+					"You currently have <options=bold>" + phpSprintfU(php.ToInt(remaining)) + "</options=bold> " +
+					"out of <options=bold>" + phpSprintfU(php.ToInt(limit)) + "</options=bold> requests left." + php.EOL +
+					"See https://developer.github.com/v3/#rate-limiting and also" + php.EOL +
+					"    https://getcomposer.org/doc/articles/troubleshooting.md#api-rate-limit-and-oauth-tokens</comment>"})
 			} else {
 				c.outputResult(true)
 			}
 		}
 	}
 
-	cio.Write("Checking disk free space: ", false, io.Normal)
+	c.checking("disk free space")
 	disk, err := c.checkDiskSpace(cfg)
 	if err != nil {
 		return 0, err
@@ -391,8 +473,6 @@ func (c *DiagnoseCommand) Execute(in console.Input, out console.Output) (int, er
 // writePHP writes the lines describing the PHP Composer runs on: its
 // version, binary, OpenSSL and curl.
 func (c *DiagnoseCommand) writePHP(cfg *config.Config, rt *composer.Runtime) error {
-	cio := c.IO()
-
 	platformOverrides, err := cfg.Get("platform", 0)
 	if err != nil {
 		return err
@@ -418,18 +498,18 @@ func (c *DiagnoseCommand) writePHP(cfg *config.Config, rt *composer.Runtime) err
 		}
 	}
 
-	cio.Write("PHP version: <comment>"+phpVersion+"</comment>", true, io.Normal)
+	c.fact("PHP version", "<comment>"+phpVersion+"</comment>")
 
 	if v, ok := c.constant("PHP_BINARY"); ok {
-		cio.Write("PHP binary path: <comment>"+php.ToString(v)+"</comment>", true, io.Normal)
+		c.fact("PHP binary path", "<comment>"+php.ToString(v)+"</comment>")
 	}
 
 	openssl := "<error>missing</error>"
 	if v, ok := c.constant("OPENSSL_VERSION_TEXT"); ok {
 		openssl = "<comment>" + php.ToString(v) + "</comment>"
 	}
-	cio.Write("OpenSSL version: "+openssl, true, io.Normal)
-	cio.Write("curl version: "+c.curlVersion(), true, io.Normal)
+	c.fact("OpenSSL version", openssl)
+	c.fact("curl version", c.curlVersion())
 
 	return nil
 }
@@ -488,7 +568,6 @@ func diagnosePackagesJSONURL(u string) string {
 
 // checkProxies is the proxy block of execute().
 func (c *DiagnoseCommand) checkProxies(cfg *config.Config) error {
-	cio := c.IO()
 	proxyManager := http.GetProxyManager()
 	disableTLS, err := cfg.Get("disable-tls", 0)
 	if err != nil {
@@ -504,7 +583,7 @@ func (c *DiagnoseCommand) checkProxies(cfg *config.Config) error {
 			if _, ok := errors.AsType[*util.TransportError](err); !ok {
 				return err
 			}
-			cio.Write("Checking HTTP proxy: ", false, io.Normal)
+			c.checking("HTTP proxy")
 			if status := c.checkConnectivityAndComposerNetworkHTTPEnablement(); status != true {
 				c.outputResult(status)
 			} else {
@@ -518,7 +597,7 @@ func (c *DiagnoseCommand) checkProxies(cfg *config.Config) error {
 			if proxy.IsSecure() {
 				typ = "HTTPS"
 			}
-			cio.Write("Checking "+typ+" proxy with "+proto+": ", false, io.Normal)
+			c.checking(typ + " proxy with " + proto)
 			c.outputResult(c.checkHTTPProxy(proxy, proto))
 		}
 	}
@@ -888,9 +967,8 @@ func (c *DiagnoseCommand) curlVersion() string {
 // outputResult ports outputResult: result is true, a string, a []string
 // or an error (an \Exception).
 func (c *DiagnoseCommand) outputResult(result any) {
-	cio := c.IO()
 	if result == true {
-		cio.Write("<info>OK</info>", true, io.Normal)
+		c.writeResult(ui.CheckOK, nil)
 
 		return
 	}
@@ -925,17 +1003,15 @@ func (c *DiagnoseCommand) outputResult(result any) {
 		}
 	}
 
+	status := ui.CheckOK
 	if hadError {
-		cio.Write("<error>FAIL</error>", true, io.Normal)
+		status = ui.CheckFailed
 		c.exitCode = max(c.exitCode, 2)
 	} else if hadWarning {
-		cio.Write("<warning>WARNING</warning>", true, io.Normal)
+		status = ui.CheckWarning
 		c.exitCode = max(c.exitCode, 1)
 	}
-
-	for _, message := range messages {
-		cio.Write(php.Trim(message), true, io.Normal)
-	}
+	c.writeResult(status, messages)
 }
 
 // checkPlatform ports checkPlatform (code taken from

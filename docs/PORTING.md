@@ -156,6 +156,14 @@ bubbles/huh for progress and prompts, ...), under these rules:
   a severity badge, the title wrapped to the terminal and every other
   field (IDs and URL as links, an ignored advisory's reason) beneath it;
   undecorated it is Composer's tables, byte for byte.
+- diagnose. Its report is free (only its exit code and checks are
+  frozen). Undecorated it is Composer's lines plus `Maestro version: X`
+  after `Composer version`, so a report says which tool ran; decorated
+  it is a check list (`ui.CheckList`): the facts (versions, binaries) in
+  a label column, then one line per check with its outcome's glyph
+  (`✔`, `!`, `✖`; `OK`, `WARN`, `FAIL` without Unicode) and what a
+  passed check found, a warning's or failure's messages beneath it as a
+  diagnostic. Each check's line is written once it has a result.
 - The install/update summary. Each operation line's bullet is a
   mark (`ui.Mark`, through `operation.Item`/`InstallItem`/...): "-"
   undecorated, decorated a glyph in a role (`+` install, `↑` upgrade,

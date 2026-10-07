@@ -33,6 +33,12 @@ const (
 	GlyphSeparator
 	// GlyphRemove marks a package removed.
 	GlyphRemove
+	// GlyphCheckOK marks a check that passed.
+	GlyphCheckOK
+	// GlyphCheckWarning marks a check that warned.
+	GlyphCheckWarning
+	// GlyphCheckFailed marks a check that failed.
+	GlyphCheckFailed
 
 	numGlyphs
 )
@@ -50,6 +56,10 @@ var glyphs = [numGlyphs][2]string{
 	GlyphDowngrade: {"↓", "v"},
 	GlyphSeparator: {"·", "-"},
 	GlyphRemove:    {"−", "-"},
+
+	GlyphCheckOK:      {"✔", "OK"},
+	GlyphCheckWarning: {"!", "WARN"},
+	GlyphCheckFailed:  {"✖", "FAIL"},
 }
 
 // String is the glyph as the console can show it.

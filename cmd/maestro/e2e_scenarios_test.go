@@ -1037,9 +1037,16 @@ var pharOnlyDiagnose = regexp.MustCompile(`(?s)Checking pubkeys: .*?\nChecking C
 // running binary.
 var diagnoseVariable = regexp.MustCompile(`(?m)^(PHP binary path:).*$`)
 
-// normalizeDiagnose: see pharOnlyDiagnose and diagnoseVariable.
+// maestroDiagnose is the line diagnose adds to Composer's to say which
+// tool it diagnosed.
+var maestroDiagnose = regexp.MustCompile(`(?m)^Maestro version: .*\n`)
+
+// normalizeDiagnose: see pharOnlyDiagnose, diagnoseVariable and
+// maestroDiagnose.
 func normalizeDiagnose(s string) string {
-	return diagnoseVariable.ReplaceAllString(pharOnlyDiagnose.ReplaceAllString(s, ""), "$1 <variable>")
+	s = maestroDiagnose.ReplaceAllString(pharOnlyDiagnose.ReplaceAllString(s, ""), "")
+
+	return diagnoseVariable.ReplaceAllString(s, "$1 <variable>")
 }
 
 // normalizeFund: FundCommand lists packages in the order the parallel
