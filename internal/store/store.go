@@ -172,8 +172,26 @@ func Open(root string, opts *Options) (*Store, error) {
 
 	s.archive.URL = ""
 
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return nil, err
+	}
+
+	// A store this Open creates has nothing to prune: it counts as pruned
+	// now, so that the install filling it does not walk every object it
+	// just wrote.
+	fresh := false
+
 	for _, dir := range []string{s.files, s.index, s.tmp} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		err := os.Mkdir(dir, 0o755)
+		if err == nil && dir == s.files {
+			fresh = true
+		} else if err != nil && !errors.Is(err, fs.ErrExist) {
+			return nil, err
+		}
+	}
+
+	if fresh {
+		if err := s.stampPruned(); err != nil {
 			return nil, err
 		}
 	}

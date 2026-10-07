@@ -769,7 +769,13 @@ func TestPruneIfDue(t *testing.T) {
 		}
 	}
 
+	// a store Open created counts as just pruned
+	prune(false)
+
 	// never pruned
+	if err := os.Remove(stamp); err != nil {
+		t.Fatal(err)
+	}
 	prune(true)
 	prune(false)
 

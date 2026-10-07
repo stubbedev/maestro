@@ -142,7 +142,12 @@ func (s *Store) prune(maxAge time.Duration) (PruneResult, error) {
 		}
 	}
 
-	return res, os.WriteFile(filepath.Join(s.root, pruneStamp), nil, 0o644)
+	return res, s.stampPruned()
+}
+
+// stampPruned records that the store was pruned now.
+func (s *Store) stampPruned() error {
+	return os.WriteFile(filepath.Join(s.root, pruneStamp), nil, 0o644)
 }
 
 // VerifyResult is what Verify found.

@@ -16,6 +16,7 @@
 //	tmp/                              files being written, renamed into place
 //	lock                              shared by writers, exclusive for Prune
 //	pruned                            its modification time is the last Prune's
+//	                                  (or the store's creation)
 //
 // A release's dist identity is its package name, dist type, URL, reference
 // and shasum, plus archive.Rules: the version of the extraction rules and,
@@ -140,8 +141,9 @@
 // Lookup marks an index as used (its modification time). Prune removes the
 // indexes unused for a given age and every object no remaining index
 // refers to (package files linked to a removed object keep it), and
-// PruneIfDue does so once a day at most, which the commands that install
-// packages run when they are done; Verify
-// re-hashes every object and drops the corrupt ones; Stats reports what the
-// store holds and how many bytes it saves, hardlinks included.
+// PruneIfDue does so once a day at most (a store counts as pruned when
+// Open creates it), which the commands that install packages run when
+// they are done; Verify re-hashes every object and drops the corrupt
+// ones; Stats reports what the store holds and how many bytes it saves,
+// hardlinks included.
 package store
