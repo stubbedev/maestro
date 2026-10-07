@@ -74,7 +74,15 @@ var coverage = []entry{
 		Tests: []Proof{
 			Positive(Go(TestConfigCommand_ConfigUpdates)),
 			Positive(Go(TestConfigCommand_ConfigReads)),
+			Positive(Go(TestConfigCommand_Writes)),
+			Positive(Go(TestConfigCommand_Reads)),
+			Positive(E2E("config", "config", "--append", "repositories.z", "vcs", "https://example.org/z.git")),
+			Positive(E2E("config", "config", "repo.packagist.org", "false")),
+			Positive(E2E("config", "config", "gitlab-token.gitlab.example.org", "user", "tok")),
+			Positive(E2E("config", "config", "--unset", "gitlab-token.gitlab.example.org")),
 			Negative(Go(TestConfigCommand_ConfigThrowsForInvalidArgCombination)),
+			Negative(Go(TestConfigCommand_Errors)),
+			Negative(E2E("config", "config", "nothing-here")),
 		},
 	}),
 	cover(command.NewDependsCommand, Coverage{

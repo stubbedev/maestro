@@ -438,6 +438,10 @@ func fixtureScenarios() []scenario {
 				{args: []string{"config", "--unset", "sort-packages"}},
 				{args: []string{"config", "--list", "--source"}},
 				{args: []string{"config", "--absolute", "vendor-dir"}},
+				{args: []string{"config", "--append", "repositories.z", "vcs", "https://example.org/z.git"}},
+				{args: []string{"config", "repo.packagist.org", "false"}},
+				{args: []string{"config", "gitlab-token.gitlab.example.org", "user", "tok"}},
+				{args: []string{"config", "--unset", "gitlab-token.gitlab.example.org"}},
 			},
 		},
 		{

@@ -3,7 +3,11 @@
 package command_test
 
 import (
+	"fmt"
+	"maps"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -221,13 +225,13 @@ func TestConfigCommand_ConfigThrowsWhenMergingPolicyArrayWithObject(t *testing.T
 func TestConfigCommand_ConfigThrowsForInvalidPolicyAuditMode(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	_, err := runConfig(t, []console.Param{console.P("setting-key", "policy.advisories.audit"), console.P("setting-value", []string{"bogus"})})
-	expectRuntimeError(t, err, "")
+	expectRuntimeError(t, err, `"bogus" is an invalid value`)
 }
 
 func TestConfigCommand_ConfigThrowsForInvalidPolicyBlockScope(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	_, err := runConfig(t, []console.Param{console.P("setting-key", "policy.malware.block-scope"), console.P("setting-value", []string{"bogus"})})
-	expectRuntimeError(t, err, "")
+	expectRuntimeError(t, err, `"bogus" is an invalid value`)
 }
 
 func TestConfigCommand_ConfigThrowsForInvalidPolicyIgnoreSeverity(t *testing.T) {
@@ -239,7 +243,7 @@ func TestConfigCommand_ConfigThrowsForInvalidPolicyIgnoreSeverity(t *testing.T) 
 func TestConfigCommand_ConfigThrowsForInvalidPolicyIgnoreUnreachableValue(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	_, err := runConfig(t, []console.Param{console.P("setting-key", "policy.ignore-unreachable"), console.P("setting-value", []string{`["bogus"]`}), console.P("--json", true)})
-	expectRuntimeError(t, err, "")
+	expectRuntimeError(t, err, "valid values for policy.ignore-unreachable include: audit, install, update")
 }
 
 func TestConfigCommand_ConfigThrowsForInvalidPolicyListBoolValue(t *testing.T) {
@@ -262,4 +266,272 @@ func TestConfigCommand_ConfigThrowsPolicyListReserved(t *testing.T) {
 			expectRuntimeError(t, err, tc.expectedMessage)
 		})
 	}
+}
+
+// configProject is the composer.json the config runs beyond
+// ConfigCommandTest start from, unless they give their own.
+const configProject = `{"name":"a/b"}` + "\n"
+
+// configRun is a config run beyond ConfigCommandTest, with env set, in a
+// project of the files in before (path => content, "" for none; "home/"
+// paths are in COMPOSER_HOME, which starts empty; composer.json is
+// configProject unless given): the command line (setting-key, its values,
+// then option names and values), and what it gives: an exception with
+// message err, or status 0, stdout and a stderr holding stderr, and the
+// files after (path => exact content, "" for none; the files of before
+// stay as they were unless given; mode 0600 for the paths in private).
+type configRun struct {
+	name    string
+	env     map[string]string
+	before  map[string]string
+	key     string
+	values  []string
+	options []any
+	err     string
+	stdout  string
+	stderr  string
+	after   map[string]string
+	private []string
+}
+
+func runConfigRuns(t *testing.T, runs []configRun) {
+	t.Helper()
+	for _, tc := range runs {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			dir := commandtest.InitTempDir(t)
+			home := filepath.Join(dir, "composer-home")
+			path := func(p string) string {
+				if rest, ok := strings.CutPrefix(p, "home/"); ok {
+					return filepath.Join(home, rest)
+				}
+
+				return filepath.Join(dir, p)
+			}
+			before := map[string]string{"composer.json": configProject}
+			maps.Copy(before, tc.before)
+			for p, content := range before {
+				if content == "" {
+					continue
+				}
+				if err := os.MkdirAll(filepath.Dir(path(p)), 0o777); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path(p), []byte(content), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			kv := []any{"command", "config"}
+			if tc.key != "" {
+				kv = append(kv, "setting-key", tc.key)
+			}
+			if tc.values != nil {
+				kv = append(kv, "setting-value", tc.values)
+			}
+			got := commandtest.GetApplicationTester(t).RunStreams(append(kv, tc.options...)...)
+			switch {
+			case tc.err != "":
+				if got.Err == nil || got.Err.Error() != tc.err {
+					t.Fatalf("exception %v, want %q", got.Err, tc.err)
+				}
+			case got.Err != nil || got.Code != 0:
+				t.Fatalf("status %d, exception %v; stderr:\n%s", got.Code, got.Err, got.Stderr)
+			default:
+				if got.Stdout != tc.stdout {
+					t.Errorf("stdout %q, want %q", got.Stdout, tc.stdout)
+				}
+				if !strings.Contains(got.Stderr, tc.stderr) {
+					t.Errorf("stderr %q lacks %q", got.Stderr, tc.stderr)
+				}
+			}
+			after := maps.Clone(before)
+			maps.Copy(after, tc.after)
+			for p, want := range after {
+				data, err := os.ReadFile(path(p))
+				switch {
+				case want == "" && !os.IsNotExist(err):
+					t.Errorf("%s exists: %v", p, err)
+				case want != "" && string(data) != want:
+					t.Errorf("%s:\n%s\nwant:\n%s", p, data, want)
+				}
+			}
+			for _, p := range tc.private {
+				if st, err := os.Stat(path(p)); err != nil || runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
+					t.Errorf("%s: %v %v, want mode 0600", p, st, err)
+				}
+			}
+		})
+	}
+}
+
+// TestConfigCommand_Writes runs the writes ConfigCommandTest leaves out:
+// the files are as Composer writes them.
+func TestConfigCommand_Writes(t *testing.T) {
+	// auth.json as Composer writes it with one entry
+	auth := func(key, entry string) string { return "{\n    \"" + key + "\": {\n        " + entry + "\n    }\n}\n" }
+	userToken := func(host string) string {
+		return `"` + host + "\": {\n            \"username\": \"user\",\n            \"token\": \"tok\"\n        }"
+	}
+	config := func(entries string) string {
+		return "{\"name\":\"a/b\",\n    \"config\": {\n        " + entries + "\n    }\n}\n"
+	}
+	runs := []configRun{
+		{name: "a suggestion", key: "suggest.x/y", values: []string{"some", "reason"}, after: map[string]string{"composer.json": "{\"name\":\"a/b\",\n    \"suggest\": {\n        \"x/y\": \"some reason\"\n    }\n}\n"}},
+		{
+			name:    "unset a suggestion",
+			before:  map[string]string{"composer.json": "{\"name\":\"a/b\",\n    \"suggest\": {\n        \"x/y\": \"some reason\"\n    }\n}\n"},
+			key:     "suggest.x/y",
+			options: []any{"--unset", true},
+			after:   map[string]string{"composer.json": "{\"name\":\"a/b\",\n    \"suggest\": {\n    }\n}\n"},
+		},
+		{name: "a platform version", key: "platform.php", values: []string{"8.1.0"}, after: map[string]string{"composer.json": config("\"platform\": {\n            \"php\": \"8.1.0\"\n        }")}},
+		{name: "a platform package disabled", key: "platform.ext-foo", values: []string{"false"}, after: map[string]string{"composer.json": config("\"platform\": {\n            \"ext-foo\": false\n        }")}},
+		{name: "a script of several commands", key: "scripts.foo", values: []string{"a", "b"}, after: map[string]string{"composer.json": "{\"name\":\"a/b\",\n    \"scripts\": {\n        \"foo\": [\"a\", \"b\"]\n    }\n}\n"}},
+		{name: "disable-tls", key: "disable-tls", values: []string{"true"}, stderr: "You are now running Composer with SSL/TLS protection disabled.", after: map[string]string{"composer.json": config(`"disable-tls": true`)}},
+		{name: "enable tls", key: "disable-tls", values: []string{"false"}, after: map[string]string{"composer.json": config(`"disable-tls": false`)}},
+		{
+			name:    "another file",
+			before:  map[string]string{"alt.json": `{"name":"x/alt"}` + "\n"},
+			key:     "description",
+			values:  []string{"Alt."},
+			options: []any{"--file", "alt.json"},
+			after:   map[string]string{"alt.json": "{\"name\":\"x/alt\",\n    \"description\": \"Alt.\"\n}\n"},
+		},
+		{
+			name:    "a repository appended",
+			before:  map[string]string{"composer.json": "{\"name\":\"a/b\",\"repositories\":[{\"type\":\"vcs\",\"url\":\"https://example.org/y.git\"}]}\n"},
+			key:     "repositories.z",
+			values:  []string{"vcs", "https://example.org/z.git"},
+			options: []any{"--append", true},
+			after: map[string]string{"composer.json": "{\"name\":\"a/b\",\"repositories\":[{\"type\":\"vcs\",\"url\":\"https://example.org/y.git\"},{\n" +
+				"        \"name\": \"z\",\n        \"type\": \"vcs\",\n        \"url\": \"https://example.org/z.git\"\n    }]}\n"},
+		},
+		{name: "packagist disabled", key: "repo.packagist.org", values: []string{"false"}, after: map[string]string{"composer.json": "{\"name\":\"a/b\",\n    \"repositories\": [{\n        \"packagist.org\": false\n    }]\n}\n"}},
+		{
+			name:    "a global setting creates the home files",
+			key:     "process-timeout",
+			values:  []string{"5"},
+			options: []any{"--global", true},
+			after: map[string]string{
+				"home/config.json": "{\n    \"config\": {\n        \"process-timeout\": 5}\n}\n",
+				"home/auth.json": "{\n    \"bitbucket-oauth\": {},\n    \"github-oauth\": {},\n    \"gitlab-oauth\": {},\n    \"gitlab-token\": {},\n" +
+					"    \"http-basic\": {},\n    \"bearer\": {},\n    \"forgejo-token\": {}\n}\n",
+			},
+			private: []string{"home/config.json", "home/auth.json"},
+		},
+		{
+			name:    "an auth key moves from composer.json to auth.json",
+			before:  map[string]string{"composer.json": config("\"github-oauth\": {\n            \"github.com\": \"old\"\n        }")},
+			key:     "github-oauth.github.com",
+			values:  []string{"tok"},
+			after:   map[string]string{"auth.json": auth("github-oauth", `"github.com": "tok"`), "composer.json": config("\"github-oauth\": {\n        }")},
+			private: []string{"auth.json"},
+		},
+		{
+			name: "an auth key unset in both files",
+			before: map[string]string{
+				"composer.json": config("\"github-oauth\": {\n            \"github.com\": \"old\"\n        }"),
+				"auth.json":     auth("github-oauth", `"github.com": "old"`),
+			},
+			key:     "github-oauth.github.com",
+			options: []any{"--unset", true},
+			after:   map[string]string{"auth.json": "{\n    \"github-oauth\": {\n    }\n}\n", "composer.json": config("\"github-oauth\": {\n        }")},
+		},
+	}
+	for _, a := range []struct {
+		key    string
+		values []string
+		entry  string
+	}{
+		{"gitlab-oauth.gitlab.example.org", []string{"tok"}, `"gitlab.example.org": "tok"`},
+		{"gitlab-token.gitlab.example.org", []string{"tok"}, `"gitlab.example.org": "tok"`},
+		{"gitlab-token.gitlab.example.org", []string{"user", "tok"}, userToken("gitlab.example.org")},
+		{"forgejo-token.forgejo.example.org", []string{"user", "tok"}, userToken("forgejo.example.org")},
+		{"bitbucket-oauth.bitbucket.org", []string{"key", "secret"}, "\"bitbucket.org\": {\n            \"consumer-key\": \"key\",\n            \"consumer-secret\": \"secret\"\n        }"},
+		{"http-basic.example.org", []string{"user", "pass"}, "\"example.org\": {\n            \"username\": \"user\",\n            \"password\": \"pass\"\n        }"},
+		{"bearer.example.org", []string{"tok"}, `"example.org": "tok"`},
+		{"custom-headers.example.org", []string{"X-A: 1", "X-B: 2"}, `"example.org": ["X-A: 1", "X-B: 2"]`},
+	} {
+		kind, _, _ := strings.Cut(a.key, ".")
+		runs = append(runs, configRun{
+			name:    a.key + " " + strings.Join(a.values, " "),
+			key:     a.key,
+			values:  a.values,
+			after:   map[string]string{"auth.json": auth(kind, a.entry)},
+			private: []string{"auth.json"},
+		})
+	}
+	for _, key := range []string{"extra", "suggest", "platform"} {
+		runs = append(runs, configRun{name: "unset all of " + key, key: key, options: []any{"--unset", true}})
+	}
+	runConfigRuns(t, runs)
+}
+
+// TestConfigCommand_Reads runs the reads ConfigCommandTest leaves out.
+func TestConfigCommand_Reads(t *testing.T) {
+	runConfigRuns(t, []configRun{
+		{name: "no key"},
+		{name: "an empty object", key: "platform", stdout: "{}\n"},
+		{
+			name:   "a dotted config key",
+			before: map[string]string{"composer.json": `{"config":{"preferred-install":{"foo/*":"source"}}}`},
+			key:    "preferred-install.foo/*",
+			stdout: "source\n",
+		},
+		{
+			name:    "another file",
+			before:  map[string]string{"alt.json": `{"name":"x/alt"}`},
+			key:     "name",
+			options: []any{"--file", "alt.json"},
+			stdout:  "x/alt\n",
+		},
+		// the editor (EDITOR) leaves the files as they were
+		{name: "--editor", env: map[string]string{"EDITOR": "true"}, options: []any{"--editor", true}},
+		{name: "--editor --auth", env: map[string]string{"EDITOR": "true"}, options: []any{"--editor", true, "--auth", true}},
+	})
+}
+
+// TestConfigCommand_Errors runs config's refusals: each throws with
+// Composer's message and leaves the files as they were.
+func TestConfigCommand_Errors(t *testing.T) {
+	const twoArgs = "Expected two arguments (%s), got 1"
+	runs := []configRun{
+		{name: "no composer.json", before: map[string]string{"composer.json": ""}, key: "name", err: `File "./composer.json" cannot be found in the current directory`},
+		{name: "a missing --file", key: "name", options: []any{"--file", "missing.json"}, err: `File "missing.json" cannot be found in the current directory`},
+		{name: "a value with --unset", key: "name", values: []string{"x"}, options: []any{"--unset", true}, err: "You can not combine a setting value with --unset"},
+		{name: "an unknown repository", key: "repositories.nope", err: "There is no nope repository defined"},
+		{name: "an undefined dotted key", key: "extra.x.y", err: "extra.x.y is not defined."},
+		{name: "an undefined suggestion", key: "suggest.x/y", err: "suggest.x/y is not defined."},
+		{name: "two values for one", key: "process-timeout", values: []string{"1", "2"}, err: "You can only pass one value. Example: php composer.phar config process-timeout 300"},
+		{name: "an invalid multi value", key: "github-protocols", values: []string{"ftp"}, err: `["ftp"] is an invalid value (valid protocols include: git, https, ssh)`},
+		{name: "an invalid preferred-install", key: "preferred-install.a/*", values: []string{"bogus"}, err: "Invalid value for preferred-install.a/*. Should be one of: auto, source, or dist"},
+		{name: "an invalid allow-plugins", key: "allow-plugins.a/b", values: []string{"maybe"}, err: `"maybe" is an invalid value`},
+		{name: "a repository of three values", key: "repositories.foo", values: []string{"a", "b", "c"}, err: "You must pass the type and a url. Example: php composer.phar config repositories.foo vcs https://bar.com"},
+		{name: "http-basic without password", key: "http-basic.x", values: []string{"user"}, err: fmt.Sprintf(twoArgs, "username, password")},
+		{name: "bitbucket-oauth without secret", key: "bitbucket-oauth.x", values: []string{"a"}, err: fmt.Sprintf(twoArgs, "consumer-key, consumer-secret")},
+		{name: "forgejo-token without token", key: "forgejo-token.x", values: []string{"a"}, err: fmt.Sprintf(twoArgs, "username, access token")},
+		{name: "two github tokens", key: "github-oauth.github.com", values: []string{"a", "b"}, err: "Too many arguments, expected only one token"},
+		{name: "three gitlab values", key: "gitlab-token.x", values: []string{"a", "b", "c"}, err: "Too many arguments, expected only one token"},
+		{name: "a malformed header", key: "custom-headers.x", values: []string{"bad"}, err: `Header "bad" is not in "Header-Name: Header-Value" format`},
+		{
+			name:   "policy sources",
+			key:    "policy.advisories.sources",
+			values: []string{"x"},
+			err:    "Setting dependency policy sources is not supported by `composer config`. Use `composer policy add-source advisories url <https-url>` instead.",
+		},
+		{name: "audit.ignore not a list", key: "audit.ignore", values: []string{"1"}, options: []any{"--json", true}, err: "Expected an array or object for audit.ignore"},
+	}
+	for _, key := range []string{"name", "extra.a"} {
+		runs = append(runs, configRun{
+			name:    key + " globally",
+			key:     key,
+			values:  []string{"x/y"},
+			options: []any{"--global", true},
+			err:     "The " + key + " property can not be set in the global config.json file. Use `composer global config` to apply changes to the global composer.json",
+		})
+	}
+	runConfigRuns(t, runs)
 }
