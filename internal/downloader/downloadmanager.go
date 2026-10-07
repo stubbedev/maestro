@@ -155,6 +155,23 @@ func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Download
 	return d, nil
 }
 
+// MaintainStore prunes the package store the downloaders import from,
+// when it is due (once a day): maestro's own upkeep of deliberate
+// deviation 1, which a command that installed packages runs once it is
+// done, and no other command. A failure is reported, and does not fail
+// the command.
+func (m *DownloadManager) MaintainStore() {
+	for _, typ := range m.types {
+		if f := FileDownloaderOf(m.downloaders[typ]); f != nil && f.store != nil {
+			if err := f.maintainStore(); err != nil {
+				m.io.WriteError("<warning>The package store could not be pruned: "+err.Error()+"</warning>", true, mio.Verbose)
+			}
+
+			return
+		}
+	}
+}
+
 // DownloaderType is getDownloaderType(): the type a downloader is
 // registered for, false when it is not.
 func (m *DownloadManager) DownloaderType(d Downloader) (string, bool) {

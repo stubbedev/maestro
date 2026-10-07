@@ -755,6 +755,39 @@ func TestPrune(t *testing.T) {
 	}
 }
 
+// PruneIfDue prunes a store no process pruned in the last PruneInterval,
+// which any prune (Prune's too) restarts.
+func TestPruneIfDue(t *testing.T) {
+	work := tempDir(t)
+	s := openStore(t, filepath.Join(work, "store"), Copy)
+	stamp := filepath.Join(s.root, pruneStamp)
+
+	prune := func(want bool) {
+		t.Helper()
+		if _, pruned, err := s.PruneIfDue(24 * time.Hour); err != nil || pruned != want {
+			t.Fatalf("PruneIfDue pruned = %v, %v; want %v", pruned, err, want)
+		}
+	}
+
+	// never pruned
+	prune(true)
+	prune(false)
+
+	past := time.Now().Add(-PruneInterval - time.Minute)
+	if err := os.Chtimes(stamp, past, past); err != nil {
+		t.Fatal(err)
+	}
+	prune(true)
+
+	if err := os.Chtimes(stamp, past, past); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Prune(24 * time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	prune(false)
+}
+
 func TestVerify(t *testing.T) {
 	work := tempDir(t)
 	s := openStore(t, filepath.Join(work, "store"), Copy)

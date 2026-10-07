@@ -199,6 +199,8 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 	if err := installationManager.Execute(localRepo, installOperations, devMode, true, false); err != nil {
 		return 0, err
 	}
+	// the package store's upkeep, once everything else is done
+	defer downloadManager.MaintainStore()
 
 	if !console.BoolOption(in, "no-autoloader") {
 		optimize, err := optionOrConfig(in, "optimize-autoloader", cfg, "optimize-autoloader")

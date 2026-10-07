@@ -189,18 +189,18 @@ func (d *FileDownloader) collectGarbage() error {
 
 	d.io.WriteError("Running cache garbage collection", true, mio.VeryVerbose)
 
-	ttl := php.ToInt(d.config.Get("cache-files-ttl"))
-	if _, err := d.cache.Gc(int(ttl), php.ToInt(d.config.Get("cache-files-maxsize"))); err != nil {
-		return err
-	}
+	_, err := d.cache.Gc(int(php.ToInt(d.config.Get("cache-files-ttl"))), php.ToInt(d.config.Get("cache-files-maxsize")))
 
-	if d.store != nil {
-		if _, err := d.store.Prune(time.Duration(ttl) * time.Second); err != nil {
-			return err
-		}
-	}
+	return err
+}
 
-	return nil
+// maintainStore prunes the package store when it is due
+// (store.PruneIfDue): the releases not used for cache-files-ttl go.
+func (d *FileDownloader) maintainStore() error {
+	ttl := time.Duration(php.ToInt(d.config.Get("cache-files-ttl"))) * time.Second
+	_, _, err := d.store.PruneIfDue(ttl)
+
+	return err
 }
 
 // PHPClass implements php.Classer: get_class().

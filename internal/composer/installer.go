@@ -101,6 +101,9 @@ type Installer struct {
 	additionalFixedRepository repository.RepositoryInterface
 	temporaryConstraints      *repository.ConstraintMap
 	lockTransaction           *resolver.LockTransaction
+
+	// executedOperations is set once the install ran package operations.
+	executedOperations bool
 }
 
 // InstallerDeps are the collaborators of new Installer(...).
@@ -230,6 +233,8 @@ func (i *Installer) Run() (int, error) {
 	if i.updateAllowList != nil && i.updateMirrors {
 		return 0, &util.RuntimeError{Message: "The installer options updateMirrors and updateAllowList are mutually exclusive."}
 	}
+	// the package store's upkeep, once everything else is done
+	defer i.maintainStore()
 	i.prefetchFilterSummaries()
 
 	isFreshInstall, err := i.repositoryManager.LocalRepository().IsFresh()
@@ -1096,6 +1101,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	if err := i.installationManager.Execute(localRepo, operations, i.devMode, i.runScripts, i.downloadOnly); err != nil {
 		return 0, err
 	}
+	i.executedOperations = i.executedOperations || len(operations) > 0
 
 	// see https://github.com/composer/composer/issues/2764
 	if len(operations) > 0 {
@@ -1115,6 +1121,14 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	ahead.keepAutoloads()
 
 	return 0, nil
+}
+
+// maintainStore prunes the package store when it is due, after an install
+// that ran package operations (DownloadManager.MaintainStore).
+func (i *Installer) maintainStore() {
+	if i.executedOperations && i.downloadManager != nil {
+		i.downloadManager.MaintainStore()
+	}
 }
 
 // verifyLock is doInstall's check that the lock file works with the

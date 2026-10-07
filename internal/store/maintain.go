@@ -20,19 +20,62 @@ type PruneResult struct {
 	Bytes    int64
 }
 
+// PruneInterval is how often PruneIfDue prunes a store.
+const PruneInterval = 24 * time.Hour
+
+// pruneStamp is the file whose modification time is when the store was
+// last pruned.
+const pruneStamp = "pruned"
+
 // Prune removes the releases not used (looked up or inserted) for maxAge
 // with their derived data, then every object no remaining release refers
 // to, and leftover temporary files. It holds the store lock exclusively,
 // so inserts and imports wait.
 func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
-	var res PruneResult
-
 	unlock, err := s.lock(true)
 	if err != nil {
-		return res, err
+		return PruneResult{}, err
 	}
 
 	defer unlock()
+
+	return s.prune(maxAge)
+}
+
+// PruneIfDue is Prune when no process pruned the store in the last
+// PruneInterval; pruned is false when it was not due.
+func (s *Store) PruneIfDue(maxAge time.Duration) (res PruneResult, pruned bool, err error) {
+	if !s.pruneDue() {
+		return res, false, nil
+	}
+
+	unlock, err := s.lock(true)
+	if err != nil {
+		return res, false, err
+	}
+
+	defer unlock()
+
+	// another process may have pruned it while this one waited
+	if !s.pruneDue() {
+		return res, false, nil
+	}
+	res, err = s.prune(maxAge)
+
+	return res, err == nil, err
+}
+
+// pruneDue reports whether the store was last pruned PruneInterval ago
+// or more, or never.
+func (s *Store) pruneDue() bool {
+	st, err := os.Stat(filepath.Join(s.root, pruneStamp))
+
+	return err != nil || time.Since(st.ModTime()) >= PruneInterval
+}
+
+// prune is Prune under the exclusive lock.
+func (s *Store) prune(maxAge time.Duration) (PruneResult, error) {
+	var res PruneResult
 
 	s.releases.Clear()
 
@@ -40,7 +83,7 @@ func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
 	keep := map[[32]byte]struct{}{}
 	releases := map[string]struct{}{}
 
-	err = s.walkIndexes(func(path string, st fileStat) error {
+	err := s.walkIndexes(func(path string, st fileStat) error {
 		if st.mtime < cutoff {
 			res.Releases++
 			return remove(path)
@@ -97,7 +140,7 @@ func (s *Store) Prune(maxAge time.Duration) (PruneResult, error) {
 		}
 	}
 
-	return res, nil
+	return res, os.WriteFile(filepath.Join(s.root, pruneStamp), nil, 0o644)
 }
 
 // VerifyResult is what Verify found.
