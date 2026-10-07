@@ -40,6 +40,20 @@ type p2SlotName struct {
 
 	indexOnce sync.Once
 	idx       *p2Index
+
+	// expansion holds the entries the expansions decoded, each once
+	expansionOnce sync.Once
+	expansion     []expansionEntry
+}
+
+// expansionEntry is an entry of a slotted list as the expansions read it,
+// decoded once: they share its values, as the versions expandEach
+// expands share them.
+type expansionEntry struct {
+	once   sync.Once
+	entry  *php.Array
+	keys   []php.Key
+	values []any
 }
 
 // keyframeEvery is how many entries apart the expanded versions a slot
@@ -250,8 +264,9 @@ func (s *p2Slot) index(name string) *p2Index {
 }
 
 // expanded is the version at index i of name's list as expandEach expands
-// it, an array of its own; ok is false when the slot keeps no expanded
-// versions of the list.
+// it, an array of its own (its values may be shared with other expanded
+// versions, as expandEach's copies share them); ok is false when the slot
+// keeps no expanded versions of the list.
 func (s *p2Slot) expanded(name string, i int) (*php.Array, bool) {
 	n, ok := s.names[name]
 	if !ok || n.keyframes == nil || i < 0 || i >= len(n.entries) {
@@ -260,11 +275,22 @@ func (s *p2Slot) expanded(name string, i int) (*php.Array, bool) {
 	from := i - i%keyframeEvery
 	working := s.keyframe(n, from)
 	for j := from + 1; j <= i; j++ {
-		entry, _ := s.entry(n, j).(*php.Array)
-		working, _ = expandNext(working, entry)
+		working, _ = expandNext(working, s.expansionEntry(n, j).entry)
 	}
 
 	return working, true
+}
+
+// expansionEntry is the entry at index j of a slotted list, decoded once.
+func (s *p2Slot) expansionEntry(n *p2SlotName, j int) *expansionEntry {
+	n.expansionOnce.Do(func() { n.expansion = make([]expansionEntry, len(n.entries)) })
+	e := &n.expansion[j]
+	e.once.Do(func() {
+		e.entry, _ = s.entry(n, j).(*php.Array)
+		e.keys, e.values = e.entry.Keys(), e.entry.Values()
+	})
+
+	return e
 }
 
 // keyframe is the expanded version at index from, a keyframe's.
@@ -273,20 +299,12 @@ func (s *p2Slot) keyframe(n *p2SlotName, from int) *php.Array {
 	// each key takes two bytes or more
 	count, _ := r.count()
 	working := php.NewArrayCap(count)
-	type entry struct {
-		keys   []php.Key
-		values []any
-	}
-	entries := map[uint64]entry{}
 	for range count {
 		back, place := r.uvarint(), r.uvarint()
-		e, ok := entries[back]
-		if !ok && back <= uint64(from) { //nolint:gosec // from is an index
-			if a, isArray := s.entry(n, from-int(back)).(*php.Array); isArray { //nolint:gosec // bounded by from
-				e = entry{a.Keys(), a.Values()}
-				entries[back] = e
-			}
+		if back > uint64(from) { //nolint:gosec // from is an index
+			panic(errP2Slot)
 		}
+		e := s.expansionEntry(n, from-int(back)) //nolint:gosec // bounded by from
 		if r.bad || place >= uint64(len(e.keys)) {
 			// not a keyframe appendIndex wrote for this JSON
 			panic(errP2Slot)
