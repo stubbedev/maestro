@@ -39,7 +39,12 @@ func VersionCompareOp(version1, version2, operator string) (bool, error) {
 
 // versionCompareOp is version_compare() with one of Constraint's operators.
 func versionCompareOp(version1, version2 string, op Op) bool {
-	cmp := VersionCompare(version1, version2)
+	return opResult(VersionCompare(version1, version2), op)
+}
+
+// opResult is what version_compare() with op returns for the result cmp
+// of version_compare() without an operator.
+func opResult(cmp int, op Op) bool {
 	switch op {
 	case OpLT:
 		return cmp == -1
@@ -54,6 +59,47 @@ func versionCompareOp(version1, version2 string, op Op) bool {
 	default: // OpNE
 		return cmp != 0
 	}
+}
+
+// preparedVersion is a version compared with many others (a compiled
+// constraint's): its canonical form is computed once rather than on every
+// comparison.
+type preparedVersion struct {
+	version string
+	// canonical is the buffer php_version_compare compares for version;
+	// nil when version is empty as a C string
+	canonical []byte
+}
+
+func prepareVersion(version string) preparedVersion {
+	p := preparedVersion{version: version}
+	if v := cString(version); v != "" {
+		p.canonical = canonicalVersion(nil, v)
+	}
+
+	return p
+}
+
+// opWith is versionCompareOp(v, p.version, op).
+func (p *preparedVersion) opWith(v string, op Op) bool {
+	v = cString(v)
+	if p.canonical == nil || v == "" {
+		return versionCompareOp(v, p.version, op)
+	}
+	var buf [canonicalBufSize]byte
+
+	return opResult(compareCanonical(canonicalVersion(buf[:0], v), p.canonical), op)
+}
+
+// opBefore is versionCompareOp(p.version, v, op).
+func (p *preparedVersion) opBefore(v string, op Op) bool {
+	v = cString(v)
+	if p.canonical == nil || v == "" {
+		return versionCompareOp(p.version, v, op)
+	}
+	var buf [canonicalBufSize]byte
+
+	return opResult(compareCanonical(p.canonical, canonicalVersion(buf[:0], v)), op)
 }
 
 // byteString is a version as php_version_compare sees it: the caller's
@@ -115,6 +161,19 @@ func canonicalVersion[S byteString](dst []byte, version S) []byte {
 // any other non-alphanumeric byte into ".", inserts "." between runs of
 // digits and non-digits, and drops a trailing ".". version is not empty.
 func canonicalize[S byteString](dst []byte, version S) []byte {
+	if plainVersion(version) {
+		for i := range len(version) {
+			dst = append(dst, version[i])
+		}
+
+		return dst
+	}
+
+	return canonicalizeBytes(dst, version)
+}
+
+// canonicalizeBytes is canonicalize, byte by byte as the C code goes.
+func canonicalizeBytes[S byteString](dst []byte, version S) []byte {
 	isdig := func(c byte) bool { return isDigit(c) }
 	isndig := func(c byte) bool { return !isDigit(c) && c != '.' }
 
@@ -147,6 +206,26 @@ func canonicalize[S byteString](dst []byte, version S) []byte {
 	}
 
 	return q
+}
+
+// plainVersion tells whether version is runs of digits separated by
+// single dots ("1.2.3.0", the form of most normalized versions), which
+// canonicalize returns as it is: a digit after a digit or a dot is
+// copied, a dot after a digit is one, and there is no trailing dot.
+func plainVersion[S byteString](version S) bool {
+	if len(version) == 0 || !isDigit(version[0]) || version[len(version)-1] == '.' {
+		return false
+	}
+	for i := 1; i < len(version); i++ {
+		switch c := version[i]; {
+		case isDigit(c):
+		case c == '.' && version[i-1] != '.':
+		default:
+			return false
+		}
+	}
+
+	return true
 }
 
 // compareCanonical is the token loop of php_version_compare(). The C code

@@ -47,6 +47,13 @@ func BenchmarkVersionCompare(b *testing.B) {
 	}
 }
 
+func BenchmarkVersionCompare_Plain(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		VersionCompare("6.4.12.0", "6.4.3.0")
+	}
+}
+
 func BenchmarkVersionParser_Normalize(b *testing.B) {
 	var p VersionParser
 	b.ReportAllocs()
