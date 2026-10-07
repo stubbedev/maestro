@@ -1,0 +1,2 @@
+./composer.json has been created
+exit 0

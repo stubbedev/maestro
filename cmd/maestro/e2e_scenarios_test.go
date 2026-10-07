@@ -133,6 +133,13 @@ func fixtureScenarios() []scenario {
 				{args: []string{"require", "psr/container:^1.1"}},
 				{args: []string{"require", "--sort-packages", "psr/link:^1.0", "--no-update"}},
 				{args: []string{"update"}},
+				{args: []string{"r", "psr/http-message:^1.1", "--no-update"}},
+				{args: []string{"require", "psr/http-message:^1.1", "--update-no-dev"}},
+				{args: []string{"require", "psr/event-dispatcher:^1.0", "-W"}},
+				{args: []string{"require", "psr/http-factory:^1.0", "-m"}},
+				{args: []string{"require", "psr/clock:^1.0", "--no-install"}},
+				{args: []string{"require", "psr/http-client:^1.0", "-o"}},
+				{args: []string{"require", "psr/http-client:^1.0", "-a", "--apcu-autoloader-prefix=e2e"}},
 				{args: []string{"require", "php:>=8.1", "ext-json:*"}},
 				{args: []string{"require", "psr/log:^99"}},
 				{args: []string{"require", "nothing/at-all"}},
@@ -180,6 +187,8 @@ func fixtureScenarios() []scenario {
 				{args: []string{"status", "-v"}, setup: writeFile("project/vendor/acme/tool/src/Changed.php", "<?php\n")},
 				{args: []string{"show", "acme/lib", "--all"}},
 				{args: []string{"require", "acme/lib:dev-develop"}},
+				{args: []string{"require", "acme/lib:dev-develop", "--prefer-source"}, setup: removeVendor},
+				{args: []string{"require", "acme/lib:dev-develop", "--prefer-install=source"}, setup: removeVendor},
 				{args: []string{"install", "--prefer-dist"}, setup: removeVendor},
 			},
 		},
@@ -518,6 +527,7 @@ func fixtureScenarios() []scenario {
 				{args: []string{"require"}, env: interactive, stdin: "psr/log\n^1.1\n\n"},
 				{args: []string{"require", "--dev", "psr/log"}, env: interactive, stdin: "yes\n"},
 				{args: []string{"require", "psr/log"}, env: interactive, stdin: "no\n"},
+				{args: []string{"require", "mockery/mockery", "--no-update"}, env: interactive, stdin: "yes\n"},
 				{args: []string{"remove", "psr/log"}, env: interactive},
 				{
 					args: []string{"init"}, dir: "init", env: interactive, setup: mkdir("init"),
@@ -609,6 +619,13 @@ func fixtureScenarios() []scenario {
 				{args: []string{"install"}, setup: removeVendor},
 				{args: []string{"reinstall", "acme/tar-gz", "acme/zip-nested"}},
 				{args: []string{"install", "--no-cache"}, setup: removeVendor},
+			},
+		},
+		{
+			// No composer.json: require creates it.
+			name: "require-new-project",
+			steps: []step{
+				{args: []string{"require", "psr/log:1.0.0", "--no-update"}},
 			},
 		},
 		{

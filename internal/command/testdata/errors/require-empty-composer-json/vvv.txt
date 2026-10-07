@@ -1,0 +1,31 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+
+In JsonFile.php line 398:
+                                                                          
+  [Seld\JsonLint\ParsingException]                                        
+  "./composer.json" does not contain valid JSON                           
+  Parse error on line 1:                                                  
+                                                                          
+  ^                                                                       
+  Expected one of: 'STRING', 'NUMBER', 'NULL', 'TRUE', 'FALSE', '{', '['  
+                                                                          
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:398
+ Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:211
+ Composer\Json\JsonFile->validateSchema() at @COMPOSER@/src/Composer/Factory.php:313
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:629
+ Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:129
+ Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:240
+ Composer\Command\BaseCommand->initialize() at @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+require [--dev] [--dry-run] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--fixed] [--no-suggest] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-dependencies] [--with-all-dependencies] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--sort-packages] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+
+exit 1

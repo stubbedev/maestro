@@ -1,0 +1,44 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.json has been updated
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Running composer update x/y
+Loading composer repositories with package information
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+
+Installation failed, reverting ./composer.json to its original content.
+
+In CurlDownloader.php line 686:
+                                                                               
+  [Composer\Downloader\TransportException (100)]                               
+  The "http://@SERVER@/status/500/packages.json" file could not be dow  
+  nloaded (HTTP/1.1 500 Internal Server Error)                                 
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:366
+ Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:114
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1761
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1095
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:549
+ Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:452
+ Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:289
+ Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:351
+ Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:534
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/RequireCommand.php:496
+ Composer\Command\RequireCommand->doUpdate() at @COMPOSER@/src/Composer/Command/RequireCommand.php:337
+ Composer\Command\RequireCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+require [--dev] [--dry-run] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--fixed] [--no-suggest] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-dependencies] [--with-all-dependencies] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--sort-packages] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+
+exit 100

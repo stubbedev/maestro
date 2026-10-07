@@ -1,0 +1,2 @@
+The "--fixed" option is only allowed for packages with a "project" type or for dev dependencies to prevent possible misuses.
+If your package is not a library, you can explicitly specify the "type" by using "composer config type project".

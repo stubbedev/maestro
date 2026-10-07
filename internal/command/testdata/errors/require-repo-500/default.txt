@@ -1,0 +1,18 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+./composer.json has been updated
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Running composer update x/y
+Loading composer repositories with package information
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+
+Installation failed, reverting ./composer.json to its original content.
+
+In CurlDownloader.php line 686:
+                                                                               
+  The "http://@SERVER@/status/500/packages.json" file could not be dow  
+  nloaded (HTTP/1.1 500 Internal Server Error)                                 
+                                                                               
+
+require [--dev] [--dry-run] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--fixed] [--no-suggest] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-dependencies] [--with-all-dependencies] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--sort-packages] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+
+exit 100

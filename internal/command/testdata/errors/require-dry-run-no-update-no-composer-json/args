@@ -1,0 +1,4 @@
+require
+x/foo:1.0.0
+--dry-run
+--no-update

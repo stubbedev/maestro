@@ -57,8 +57,12 @@ func TestRequireCommand_RequireWarnsIfResolvedToFeatureBranch(t *testing.T) {
 	appTester := commandtest.GetApplicationTester(t)
 	appTester.SetInputs("n")
 	interactive := true
-	if _, err := appTester.RunArgs(commandtest.Options{Interactive: &interactive}, "command", "require", "--dry-run", true, "--no-audit", true, "packages", []string{"required/pkg"}); err != nil {
+	code, err := appTester.RunArgs(commandtest.Options{Interactive: &interactive}, "command", "require", "--dry-run", true, "--no-audit", true, "packages", []string{"required/pkg"})
+	if err != nil {
 		t.Fatal(err)
+	}
+	if code != 1 {
+		t.Errorf("status %d, want 1", code)
 	}
 	want := `./composer.json has been updated
 Running composer update required/pkg
@@ -271,4 +275,61 @@ func TestRequireCommand_InconsistentRequireKeys(t *testing.T) {
 			}
 		})
 	}
+}
+
+// requireProject has x/lib in require-dev and x/tool, tagged as a dev
+// tool, available.
+func requireProject(t *testing.T) {
+	t.Helper()
+	commandtest.InitTempComposer(t, `{"repositories": {"packages": {"type": "package", "package": [
+		{"name": "x/lib", "version": "1.0.0"},
+		{"name": "x/tool", "version": "1.0.0", "keywords": ["Testing", "dev"]}]}},
+		"require-dev": {"x/lib": "^1.0"}}`, nil, nil, true)
+}
+
+// projectSection checks that composer.json's section (require or
+// require-dev) holds package, or (has false) does not.
+func projectSection(section, pkgName string, has bool) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		reqs, _ := readProjectJSON(t, "composer.json").GetArray(section)
+		if got := reqs != nil && reqs.Has(pkgName); got != has {
+			t.Errorf("composer.json %s has %s: %v, want %v", section, pkgName, got, has)
+		}
+	}
+}
+
+func TestRequireCommand_Options(t *testing.T) {
+	runCommandCases(t, requireProject, []commandCase{
+		{
+			name:     "--no-suggest is deprecated and ignored",
+			params:   cmd("require", "packages", []string{"x/tool:1.0.0"}, "--dev", true, "--no-update", true, "--no-suggest", true),
+			contains: []string{`You are using the deprecated option "--no-suggest". It has no effect and will break in Composer 3.`},
+			check:    projectSection("require-dev", "x/tool", true),
+		},
+		{
+			name:   "a package tagged dev goes to require-dev when the user agrees",
+			params: cmd("require", "packages", []string{"x/tool"}, "--no-update", true),
+			inputs: []string{"yes"},
+			contains: []string{
+				`The package you required is recommended to be placed in require-dev (because it is tagged as "dev", "testing") but you did not use --dev.`,
+			},
+			check: func(t *testing.T) {
+				t.Helper()
+				projectSection("require-dev", "x/tool", true)(t)
+				projectSection("require", "x/tool", false)(t)
+			},
+		},
+		{
+			name:     "a require-dev package required without --dev, answered no twice",
+			params:   cmd("require", "packages", []string{"x/lib:^1.0"}, "--no-update", true),
+			inputs:   []string{"no", "no"},
+			contains: []string{"x/lib is currently present in the require-dev key and you ran the command without the --dev flag, which will move it to the require key."},
+			check: func(t *testing.T) {
+				t.Helper()
+				projectSection("require-dev", "x/lib", true)(t)
+				projectSection("require", "x/lib", false)(t)
+			},
+		},
+	})
 }

@@ -151,7 +151,11 @@ var coverage = []entry{
 	cover(command.NewRequireCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestRequireCommand_Require)),
+			Positive(Go(TestRequireCommand_Options)),
+			Positive(E2E("require-remove", "r", "psr/http-message:^1.1", "--no-update")),
+			Positive(E2E("require-new-project", "require", "psr/log:1.0.0", "--no-update")),
 			Negative(Go(TestRequireCommand_RequireThrowsIfNoneMatches)),
+			Negative(Go(TestRequireCommand_RequireWarnsIfResolvedToFeatureBranch)),
 		},
 	}),
 	cover(command.NewDumpAutoloadCommand, Coverage{

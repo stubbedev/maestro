@@ -1,0 +1,1 @@
+The "--fixed" option is only allowed for packages with a "project" type or for dev dependencies to prevent possible misuses.

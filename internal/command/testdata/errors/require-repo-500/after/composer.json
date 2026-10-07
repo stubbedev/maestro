@@ -1,0 +1,15 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "http://@SERVER@/status/500"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "config": {
+        "secure-http": false
+    }
+}
