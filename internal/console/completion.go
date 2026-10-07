@@ -173,7 +173,7 @@ func (in *CompletionInput) Bind(definition *InputDefinition) error {
 			in.completionType = CompletionTypeOptionValue
 			in.completionName, in.hasName = option.Name(), true
 			switch {
-			case optionValue != "" && optionValue != "0":
+			case php.Truthy(optionValue):
 				in.completionValue = optionValue
 			case !strings.HasPrefix(optionToken, "--"):
 				in.completionValue = php.Substr(optionToken, 2)
@@ -273,7 +273,7 @@ func (in *CompletionInput) MustSuggestArgumentValuesFor(argumentName string) boo
 
 func (in *CompletionInput) optionFromToken(optionToken string) *InputOption {
 	optionName := strings.TrimLeft(optionToken, "-")
-	if optionName == "" || optionName == "0" {
+	if !php.Truthy(optionName) {
 		return nil
 	}
 

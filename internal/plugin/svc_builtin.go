@@ -127,7 +127,7 @@ func (r *Runtime) registerBuiltinCommands() {
 		if err != nil {
 			return nil, err
 		}
-		in := console.CompletionInputFromTokens(stringList(a.at(1)), a.integer(2))
+		in := console.CompletionInputFromTokens(php.ToStrings(a.at(1)), a.integer(2))
 		base := cmd.Base()
 		if err := base.MergeApplicationDefinition(true); err != nil {
 			return nil, err

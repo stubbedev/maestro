@@ -298,9 +298,7 @@ func booleanValidator(val string) (bool, error) {
 	return val == "true" || val == "false" || val == "1" || val == "0", nil
 }
 
-func phpBool(val string) bool { return val != "" && val != "0" }
-
-func booleanNormalizer(val string) (any, error) { return val != "false" && phpBool(val), nil }
+func booleanNormalizer(val string) (any, error) { return val != "false" && php.Truthy(val), nil }
 
 func keepAsIs(val string) (any, error) { return val, nil }
 
@@ -330,7 +328,7 @@ func keywordOrBool(keyword ...string) func(string) (any, error) {
 			return val, nil
 		}
 
-		return val != "false" && phpBool(val), nil
+		return val != "false" && php.Truthy(val), nil
 	}
 }
 
@@ -563,7 +561,7 @@ func (c *ConfigCommand) openEditor(in console.Input) (int, error) {
 			for _, candidate := range []string{"editor", "vim", "vi", "nano", "pico", "ed"} {
 				outp, _ := exec.Command("/bin/sh", "-c", "which "+candidate).Output() //nolint:gosec // exec('which '.$candidate), a fixed list
 				lines := strings.Split(strings.TrimRight(string(outp), " \t\n\r\x00\x0B"), "\n")
-				if last := lines[len(lines)-1]; last != "" && last != "0" {
+				if last := lines[len(lines)-1]; php.Truthy(last) {
 					editor = candidate
 
 					break

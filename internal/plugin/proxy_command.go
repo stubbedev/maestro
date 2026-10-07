@@ -88,11 +88,11 @@ func commandDescFrom(v any) (*commandDesc, error) {
 		d.name, d.hasName = php.ToString(name), true
 	}
 	aliases, _ := a.Get("aliases")
-	d.aliases = stringList(aliases)
+	d.aliases = php.ToStrings(aliases)
 	d.description, _ = a.GetString("description")
 	d.help, _ = a.GetString("help")
 	usages, _ := a.Get("usages")
-	d.usages = stringList(usages)
+	d.usages = php.ToStrings(usages)
 	if pt, ok := a.Get("processTitle"); ok && pt != nil {
 		d.processTitle = php.ToString(pt)
 	}
@@ -302,14 +302,14 @@ func (p *phpCommand) complete(base *console.Command, in *console.CompletionInput
 		return
 	}
 	if names, ok := res.Get("options"); ok {
-		for _, name := range stringList(names) {
+		for _, name := range php.ToStrings(names) {
 			if o, err := base.Definition().Option(name); err == nil {
 				s.SuggestOptions(o)
 			}
 		}
 	}
 	if values, ok := res.Get("values"); ok {
-		s.SuggestStrings(stringList(values)...)
+		s.SuggestStrings(php.ToStrings(values)...)
 	}
 }
 
@@ -758,7 +758,7 @@ func loaderMayDefine(l *eventdispatcher.LoaderContents, class string) bool {
 // loaderPaths is a prefix's path or list of paths.
 func loaderPaths(v any) []string {
 	if a, ok := v.(*php.Array); ok {
-		return stringList(a)
+		return php.ToStrings(a)
 	}
 
 	return []string{php.ToString(v)}

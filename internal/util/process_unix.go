@@ -73,9 +73,10 @@ func directCommand(args []string, env []string) *exec.Cmd {
 	return nil
 }
 
-// exitStatus returns the exit code, 128+signal for a process killed by a
-// signal (Symfony's convention), and the terminating signal.
-func exitStatus(state *os.ProcessState) (code, termSig int) {
+// ExitStatus returns the exit code, 128+signal for a process killed by a
+// signal (Symfony's convention), and the terminating signal; -1 without a
+// state.
+func ExitStatus(state *os.ProcessState) (code, termSig int) {
 	if state == nil {
 		return -1, 0
 	}

@@ -47,6 +47,21 @@ func GetEnv(name string) (string, bool) {
 	return os.LookupEnv(name)
 }
 
+// GetEnvTruthy is Platform::getEnv($name) used as a boolean: the value,
+// and whether it is set to neither "" nor "0".
+func GetEnvTruthy(name string) (string, bool) {
+	v, ok := GetEnv(name)
+
+	return v, ok && php.Truthy(v)
+}
+
+// EnvTruthy is (bool) Platform::getEnv($name).
+func EnvTruthy(name string) bool {
+	_, ok := GetEnvTruthy(name)
+
+	return ok
+}
+
 // GetBoolEnv ports Platform::getBoolEnv: set reports whether the variable
 // holds a non-empty value; only 0, 1, false, true, off and on are accepted.
 func GetBoolEnv(name string) (value, set bool, err error) {
@@ -127,7 +142,7 @@ func expandPath(path string, windows bool) (string, error) {
 
 	// Treat HOME as an alias for USERPROFILE on Windows for legacy reasons.
 	if windows && name == "HOME" {
-		if home, _ := GetEnv("HOME"); phpTruthy(home) {
+		if home, _ := GetEnv("HOME"); php.Truthy(home) {
 			return home + rest + tail, nil
 		}
 
@@ -144,11 +159,6 @@ func expandPath(path string, windows bool) (string, error) {
 // isWordByte reports whether c matches PCRE's \w without UCP.
 func isWordByte(c byte) bool {
 	return isASCIIAlnum(c) || c == '_'
-}
-
-// phpTruthy is PHP's (bool) cast of a string.
-func phpTruthy(s string) bool {
-	return s != "" && s != "0"
 }
 
 // GetUserDirectory ports Platform::getUserDirectory.

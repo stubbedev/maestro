@@ -63,9 +63,6 @@ func dollarEnd(s string) int {
 	return len(s)
 }
 
-// phpTruthy reports whether a string is truthy in PHP: not "" and not "0".
-func phpTruthy(s string) bool { return s != "" && s != "0" }
-
 // phpAddInt ports `$numericString + $increment` for the numeric strings
 // manipulateVersionString() works on, returning the result as PHP would
 // convert it back to a string, and whether it is negative. Integer overflow

@@ -186,12 +186,6 @@ func (a *Application) pushCallFrame(function string, object any, args []any) fun
 	return rt.PopFrame
 }
 
-func envTruthy(name string) bool {
-	v, ok := util.GetEnv(name)
-
-	return ok && v != "" && v != "0"
-}
-
 // DoRun ports doRun. An ExitCoder error ends the run with its code and
 // nothing rendered.
 func (a *Application) DoRun(in console.Input, out console.Output) (int, error) {
@@ -210,7 +204,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 	a.disablePluginsByDefault = in.HasParameterOption([]string{"--no-plugins"}, false)
 	a.disableScriptsByDefault = in.HasParameterOption([]string{"--no-scripts"}, false)
 
-	if v, _ := util.GetEnv("COMPOSER_TESTS_ARE_RUNNING"); v != "1" && (envTruthy("COMPOSER_NO_INTERACTION") || a.Stdin == nil || !util.IsTty(a.Stdin)) {
+	if v, _ := util.GetEnv("COMPOSER_TESTS_ARE_RUNNING"); v != "1" && (util.EnvTruthy("COMPOSER_NO_INTERACTION") || a.Stdin == nil || !util.IsTty(a.Stdin)) {
 		in.SetInteractive(false)
 	}
 
@@ -247,7 +241,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 	// determine command name to be executed without including plugin commands
 	commandName, commandNameFalse := "", false
 	rawCommandName := a.commandNameBeforeBinding(in)
-	if phpTruthyString(rawCommandName) {
+	if php.Truthy(rawCommandName) {
 		cmd, err := a.Find(rawCommandName)
 		switch {
 		case err == nil:
@@ -273,7 +267,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 		}
 	}
 
-	needsSudoCheck := !util.IsWindows() && !envTruthy("COMPOSER_ALLOW_SUPERUSER") && !util.IsDocker()
+	needsSudoCheck := !util.IsWindows() && !util.EnvTruthy("COMPOSER_ALLOW_SUPERUSER") && !util.IsDocker()
 	isNonAllowedRoot := false
 
 	// Clobber sudo credentials if COMPOSER_ALLOW_SUPERUSER is not set before loading plugins
@@ -340,7 +334,7 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 
 	// determine command name to be executed incl plugin commands, and check if it's a proxy command
 	isProxyCommand := false
-	if name := a.commandNameBeforeBinding(in); phpTruthyString(name) {
+	if name := a.commandNameBeforeBinding(in); php.Truthy(name) {
 		cmd, err := a.Find(name)
 		switch {
 		case err == nil:
@@ -389,9 +383,6 @@ var fetchingCommands = map[string]bool{
 	"install": true, "update": true, "require": true, "remove": true,
 	"reinstall": true, "outdated": true, "audit": true,
 }
-
-// phpTruthyString is a ?string in a PHP condition.
-func phpTruthyString(s string) bool { return s != "" && s != "0" }
 
 // promptParentDir is the "No composer.json in current directory" lookup;
 // it returns the previous working directory when it changed directory.
@@ -559,7 +550,7 @@ func (a *Application) preRunChecks(cio *io.ConsoleIO, commandName string, isNonA
 	// The PHP < 7.2.5 warning cannot happen: cmd/maestro refuses such a
 	// PHP as bin/composer does.
 
-	if xdebugActive && !envTruthy("COMPOSER_DISABLE_XDEBUG_WARN") {
+	if xdebugActive && !util.EnvTruthy("COMPOSER_DISABLE_XDEBUG_WARN") {
 		cio.WriteError("<warning>Composer is operating slower than normal because you have Xdebug enabled. See https://getcomposer.org/xdebug</warning>", true, io.Normal)
 	}
 

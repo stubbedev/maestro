@@ -196,7 +196,7 @@ func (h *HttpDownloader) prefetch(url string, options *php.Array, urgent, spool 
 	if options != nil {
 		merged = php.ArrayReplaceRecursive(merged, options)
 	}
-	job := &httpJob{url: url, options: merged.Clone(), origin: util.GetOrigin(url, configList(h.config, "gitlab-domains"))}
+	job := &httpJob{url: url, options: merged.Clone(), origin: util.GetOrigin(url, php.ToStrings(h.config.Get("gitlab-domains")))}
 	if !h.canUseCurl(job) {
 		return nil
 	}
@@ -310,7 +310,7 @@ func (h *HttpDownloader) addJob(url string, options *php.Array, copyTo string, s
 		options: merged,
 		copyTo:  copyTo,
 		sync:    sync,
-		origin:  util.GetOrigin(url, configList(h.config, "gitlab-domains")),
+		origin:  util.GetOrigin(url, php.ToStrings(h.config.Get("gitlab-domains"))),
 	}
 	h.idGen++
 

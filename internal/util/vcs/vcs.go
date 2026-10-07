@@ -128,10 +128,3 @@ func anyOf(p *string) any {
 
 	return *p
 }
-
-// envTruthy is (bool) Platform::getEnv($name).
-func envTruthy(name string) (string, bool) {
-	v, ok := util.GetEnv(name)
-
-	return v, ok && php.ToBool(v)
-}

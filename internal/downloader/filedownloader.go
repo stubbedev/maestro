@@ -830,7 +830,7 @@ func (d *FileDownloader) installOperationAppendix(pkg.PackageInterface, string) 
 // ownProcessURL is processUrl($package, $url).
 func (d *FileDownloader) ownProcessURL(p pkg.PackageInterface, url string) (string, error) {
 	if ref := p.DistReference(); ref.Valid {
-		return util.UpdateDistReference(url, ref.S, configList(d.config, "github-domains"), configList(d.config, "gitlab-domains"))
+		return util.UpdateDistReference(url, ref.S, php.ToStrings(d.config.Get("github-domains")), php.ToStrings(d.config.Get("gitlab-domains")))
 	}
 
 	return url, nil
@@ -897,21 +897,6 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 // vendorDir is $this->config->get('vendor-dir').
 func (d *FileDownloader) vendorDir() string {
 	return php.ToString(d.config.Get("vendor-dir"))
-}
-
-// configList reads a list setting (github-domains, ...).
-func configList(config Config, key string) []string {
-	a, ok := config.Get(key).(*php.Array)
-	if !ok {
-		return nil
-	}
-
-	out := make([]string, 0, a.Len())
-	for _, v := range a.All() {
-		out = append(out, php.ToString(v))
-	}
-
-	return out
 }
 
 // randomDir is $vendorDir.'/composer/'.bin2hex(random_bytes(4)), a name not

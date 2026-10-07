@@ -879,7 +879,7 @@ func (c *DiagnoseCommand) outputResult(result any) {
 	var messages []string
 	switch r := result.(type) {
 	case string:
-		if r != "" && r != "0" {
+		if php.Truthy(r) {
 			messages = []string{r}
 		}
 	case []string:
@@ -1062,7 +1062,7 @@ func (c *DiagnoseCommand) checkPlatform() any {
 					opensslVersion = before
 				}
 			}
-			if opensslVersion == "" || opensslVersion == "0" {
+			if !php.Truthy(opensslVersion) {
 				opensslVersion = full
 			}
 			text = "The OpenSSL library (" + opensslVersion + ") used by PHP does not support TLSv1.2 or TLSv1.1." + php.EOL + "If possible you should upgrade OpenSSL to version 1.0.1 or above."
@@ -1097,7 +1097,7 @@ func (c *DiagnoseCommand) checkPlatform() any {
 
 // checkConnectivity ports checkConnectivity: true, or the SKIP message.
 func (c *DiagnoseCommand) checkConnectivity() any {
-	if v := c.iniGet("allow_url_fopen"); v == "" || v == "0" {
+	if v := c.iniGet("allow_url_fopen"); !php.Truthy(v) {
 		return "<info>SKIP</> <comment>Because allow_url_fopen is missing.</>"
 	}
 
@@ -1117,7 +1117,7 @@ func (c *DiagnoseCommand) checkConnectivityAndComposerNetworkHTTPEnablement() an
 }
 
 func checkComposerNetworkHTTPEnablement() any {
-	if envTruthy("COMPOSER_DISABLE_NETWORK") {
+	if util.EnvTruthy("COMPOSER_DISABLE_NETWORK") {
 		return "<info>SKIP</> <comment>Network is disabled by COMPOSER_DISABLE_NETWORK.</>"
 	}
 

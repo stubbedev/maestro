@@ -17,23 +17,15 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-// getEnvTruthy is Platform::getEnv($name) used as a boolean: set, and
-// neither "" nor "0".
-func getEnvTruthy(name string) (string, bool) {
-	v, ok := util.GetEnv(name)
-
-	return v, ok && php.ToBool(v)
-}
-
 // HomeDir ports Factory::getHomeDir: COMPOSER_HOME, else the XDG config
 // directory or ~/.composer (whichever exists, the first otherwise).
 func HomeDir() (string, error) {
-	if home, ok := getEnvTruthy("COMPOSER_HOME"); ok {
+	if home, ok := util.GetEnvTruthy("COMPOSER_HOME"); ok {
 		return home, nil
 	}
 
 	if util.IsWindows() {
-		appData, ok := getEnvTruthy("APPDATA")
+		appData, ok := util.GetEnvTruthy("APPDATA")
 		if !ok {
 			return "", &util.RuntimeError{Message: "The APPDATA or COMPOSER_HOME environment variable must be set for composer to run correctly"}
 		}
@@ -49,7 +41,7 @@ func HomeDir() (string, error) {
 
 	if useXdg() {
 		// XDG Base Directory Specifications
-		xdgConfig, ok := getEnvTruthy("XDG_CONFIG_HOME")
+		xdgConfig, ok := util.GetEnvTruthy("XDG_CONFIG_HOME")
 		if !ok {
 			xdgConfig = userDir + "/.config"
 		}
@@ -72,16 +64,16 @@ func HomeDir() (string, error) {
 
 // CacheDir ports Factory::getCacheDir.
 func CacheDir(home string) (string, error) {
-	if cacheDir, ok := getEnvTruthy("COMPOSER_CACHE_DIR"); ok {
+	if cacheDir, ok := util.GetEnvTruthy("COMPOSER_CACHE_DIR"); ok {
 		return cacheDir, nil
 	}
 
-	if homeEnv, ok := getEnvTruthy("COMPOSER_HOME"); ok {
+	if homeEnv, ok := util.GetEnvTruthy("COMPOSER_HOME"); ok {
 		return homeEnv + "/cache", nil
 	}
 
 	if util.IsWindows() {
-		cacheDir, ok := getEnvTruthy("LOCALAPPDATA")
+		cacheDir, ok := util.GetEnvTruthy("LOCALAPPDATA")
 		if ok {
 			cacheDir += "/Composer"
 		} else {
@@ -109,7 +101,7 @@ func CacheDir(home string) (string, error) {
 	}
 
 	if useXdg() {
-		xdgCache, ok := getEnvTruthy("XDG_CACHE_HOME")
+		xdgCache, ok := util.GetEnvTruthy("XDG_CACHE_HOME")
 		if !ok {
 			xdgCache = userDir + "/.cache"
 		}
@@ -122,7 +114,7 @@ func CacheDir(home string) (string, error) {
 
 // DataDir ports Factory::getDataDir.
 func DataDir(home string) (string, error) {
-	if homeEnv, ok := getEnvTruthy("COMPOSER_HOME"); ok {
+	if homeEnv, ok := util.GetEnvTruthy("COMPOSER_HOME"); ok {
 		return homeEnv, nil
 	}
 
@@ -135,7 +127,7 @@ func DataDir(home string) (string, error) {
 		return "", err
 	}
 	if home != userDir+"/.composer" && useXdg() {
-		xdgData, ok := getEnvTruthy("XDG_DATA_HOME")
+		xdgData, ok := util.GetEnvTruthy("XDG_DATA_HOME")
 		if !ok {
 			xdgData = userDir + "/.local/share"
 		}
@@ -367,7 +359,7 @@ func useXdg() bool {
 // userDir ports Factory::getUserDir: $HOME with forward slashes and no
 // trailing slash.
 func userDir() (string, error) {
-	home, ok := getEnvTruthy("HOME")
+	home, ok := util.GetEnvTruthy("HOME")
 	if !ok {
 		return "", &util.RuntimeError{Message: "The HOME or COMPOSER_HOME environment variable must be set for composer to run correctly"}
 	}

@@ -104,7 +104,7 @@ func (c *GlobalCommand) Run(in console.Input, out console.Output) (int, error) {
 	tokens, _ := php.PregSplit(`{\s+}`, in.String(), -1, 0)
 	var args []string
 	for _, token := range tokens {
-		if token != "" && token != "0" && token[0] != '-' {
+		if php.Truthy(token) && token[0] != '-' {
 			args = append(args, token)
 			if len(args) >= 2 {
 				break
@@ -134,7 +134,7 @@ func (c *GlobalCommand) Run(in console.Input, out console.Output) (int, error) {
 // global directory and returns the input without the "global" token.
 func (c *GlobalCommand) prepareSubcommandInput(in console.Input, quiet bool) (*console.StringInput, error) {
 	// The COMPOSER env var should not apply to the global execution scope
-	if v, ok := util.GetEnv("COMPOSER"); ok && v != "" && v != "0" {
+	if v, ok := util.GetEnv("COMPOSER"); ok && php.Truthy(v) {
 		util.ClearEnv("COMPOSER")
 	}
 

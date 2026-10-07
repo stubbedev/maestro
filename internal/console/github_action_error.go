@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // GithubActionError emits GitHub Actions "::error" workflow commands. The
@@ -21,22 +23,15 @@ func NewGithubActionError(write func(message string)) *GithubActionError {
 	return &GithubActionError{write: write}
 }
 
-// envTruthy is the truthiness of Platform::getEnv($name).
-func envTruthy(name string) bool {
-	v := os.Getenv(name)
-
-	return v != "" && v != "0"
-}
-
 // Emit writes message as an error annotation when running in GitHub
 // Actions. An empty file or a zero line means none (PHP null).
 func (g *GithubActionError) Emit(message, file string, line int) {
-	if !envTruthy("GITHUB_ACTIONS") || envTruthy("COMPOSER_TESTS_ARE_RUNNING") {
+	if !php.Truthy(os.Getenv("GITHUB_ACTIONS")) || php.Truthy(os.Getenv("COMPOSER_TESTS_ARE_RUNNING")) {
 		return
 	}
 
 	message = escapeData(message)
-	hasFile := file != "" && file != "0"
+	hasFile := php.Truthy(file)
 
 	switch {
 	case hasFile && line != 0:

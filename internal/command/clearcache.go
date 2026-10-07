@@ -79,7 +79,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 		}
 
 		cachePath, ok := php.Realpath(php.ToString(v))
-		if !ok || cachePath == "" || cachePath == "0" {
+		if !ok || !php.Truthy(cachePath) {
 			// realpath()'s false prints as an empty string
 			out.WriteError("<info>Cache directory does not exist ("+key+"): </info>", true, io.Normal)
 

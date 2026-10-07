@@ -603,7 +603,7 @@ func (r *Runtime) registerAutoloadGenerator() {
 		if err != nil {
 			return nil, err
 		}
-		code, err := g.PlatformCheck(entries, a.at(2), stringList(a.at(3)))
+		code, err := g.PlatformCheck(entries, a.at(2), php.ToStrings(a.at(3)))
 		if err != nil || code == "" {
 			return nil, err
 		}

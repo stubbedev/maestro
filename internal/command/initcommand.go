@@ -90,7 +90,7 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 		if !slices.Contains(initAllowlist, o.Name) || o.Value == nil {
 			continue
 		}
-		if len(toStringList(optionToPHP(o.Value))) == 0 {
+		if len(php.ToStrings(optionToPHP(o.Value))) == 0 {
 			if _, isList := optionToPHP(o.Value).(*php.Array); isList {
 				continue
 			}
@@ -140,7 +140,7 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 
 	var require any = php.NewObject()
 	if requires, ok := options.Get("require"); ok {
-		formatted, err := c.FormatRequirements(toStringList(requires))
+		formatted, err := c.FormatRequirements(php.ToStrings(requires))
 		if err != nil {
 			return 0, err
 		}
@@ -151,7 +151,7 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 	options.Set("require", require)
 
 	if requiresDev, ok := options.Get("require-dev"); ok {
-		formatted, err := c.FormatRequirements(toStringList(requiresDev))
+		formatted, err := c.FormatRequirements(php.ToStrings(requiresDev))
 		if err != nil {
 			return 0, err
 		}
@@ -285,20 +285,6 @@ func optionToPHP(v any) any {
 	}
 
 	return v
-}
-
-// toStringList is a string-list value of options.
-func toStringList(v any) []string {
-	a, ok := v.(*php.Array)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, a.Len())
-	for _, s := range a.All() {
-		out = append(out, php.ToString(s))
-	}
-
-	return out
 }
 
 // Initialize ports initialize().

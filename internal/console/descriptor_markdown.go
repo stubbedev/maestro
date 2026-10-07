@@ -41,11 +41,11 @@ func mdYesNo(b bool) string {
 
 func (d *MarkdownDescriptor) describeInputArgument(argument *InputArgument, _ DescriptorOptions) {
 	name := argument.Name()
-	if name == "" || name == "0" {
+	if !php.Truthy(name) {
 		name = "<none>"
 	}
 	description := ""
-	if desc := argument.Description(); desc != "" && desc != "0" {
+	if desc := argument.Description(); php.Truthy(desc) {
 		description = replaceNewlineRuns(desc, "\n") + "\n\n"
 	}
 
@@ -61,11 +61,11 @@ func (d *MarkdownDescriptor) describeInputOption(option *InputOption, _ Descript
 	if option.IsNegatable() {
 		name += "|--no-" + option.Name()
 	}
-	if s := option.Shortcut(); s != "" && s != "0" {
+	if s := option.Shortcut(); php.Truthy(s) {
 		name += "|-" + strings.ReplaceAll(s, "|", "|-")
 	}
 	description := ""
-	if desc := option.Description(); desc != "" && desc != "0" {
+	if desc := option.Description(); php.Truthy(desc) {
 		description = replaceNewlineRuns(desc, "\n") + "\n\n"
 	}
 
@@ -112,7 +112,7 @@ func mdUsages(usages []string) string {
 
 func (d *MarkdownDescriptor) mdCommandHeader(base *Command, usages []string) string {
 	description := ""
-	if desc := base.Description(); desc != "" && desc != "0" {
+	if desc := base.Description(); php.Truthy(desc) {
 		description = desc + "\n\n"
 	}
 
@@ -139,7 +139,7 @@ func (d *MarkdownDescriptor) describeCommand(command Commander, options Descript
 	usages = append(usages, base.Usages()...)
 	d.mdWrite(d.mdCommandHeader(base, usages))
 
-	if help := base.ProcessedHelp(); help != "" && help != "0" {
+	if help := base.ProcessedHelp(); php.Truthy(help) {
 		d.mdWrite("\n")
 		d.mdWrite(help)
 	}

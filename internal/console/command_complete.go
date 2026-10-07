@@ -193,7 +193,7 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 		// expand shortcut names ("cache:cl<TAB>") into their full name ("cache:clear")
 		var names []string
 		for _, n := range append([]string{command.Base().Name()}, command.Base().Aliases()...) {
-			if n != "" && n != "0" {
+			if php.Truthy(n) {
 				names = append(names, n)
 			}
 		}
@@ -410,7 +410,7 @@ func (c *DumpCompletionCommand) Execute(in Input, out Output) (int, error) {
 	if !found {
 		supported := supportedShells()
 		out = ErrorOutputOf(out)
-		if shell != "" && shell != "0" {
+		if php.Truthy(shell) {
 			out.Writeln(`<error>Detected shell "` + shell + `", which is not supported by Symfony shell completion (supported shells: "` + strings.Join(supported, `", "`) + `").</>`)
 		} else {
 			out.Writeln(`<error>Shell not detected, Symfony shell completion only supports "` + strings.Join(supported, `", "`) + `").</>`)

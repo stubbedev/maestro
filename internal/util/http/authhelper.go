@@ -263,7 +263,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 					return AuthResult{}, err
 				}
 
-				if accessToken != "" && accessToken != "0" {
+				if php.Truthy(accessToken) {
 					h.io.SetAuthentication(origin, "x-token-auth", &accessToken)
 					askForOAuthToken = false
 				}

@@ -3,6 +3,8 @@ package util
 import (
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Ports tests/Composer/Test/Util/NoProxyPatternTest.php.
@@ -26,7 +28,7 @@ func runNoProxyCases(t *testing.T, cases []noProxyCase) {
 // noProxyTestURL ports NoProxyPatternTest::getUrl: it appends a scheme to
 // the test url if it is missing.
 func noProxyTestURL(url string) string {
-	if u, ok := parseURL(url); ok && phpTruthy(u.scheme) {
+	if u, ok := parseURL(url); ok && php.Truthy(u.scheme) {
 		return url
 	}
 

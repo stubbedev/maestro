@@ -279,7 +279,7 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 
 				relativePath := installPath + "/" + path
 				var rawRelative any // the value when it is not a string
-				if empty(installPath) {
+				if !php.Truthy(installPath) {
 					relativePath = path
 					if !isString {
 						rawRelative = pv
@@ -353,7 +353,7 @@ func excludePattern(path string, installPath *string) (pattern, resolved string,
 	if err != nil {
 		return "", "", false, err
 	}
-	if empty(*installPath) {
+	if !php.Truthy(*installPath) {
 		cwd, err := util.GetCwd(false)
 		if err != nil {
 			return "", "", false, err
@@ -457,9 +457,6 @@ func castArray(v any) []any {
 
 	return []any{v}
 }
-
-// empty is PHP's empty() on a string.
-func empty(s string) bool { return s == "" || s == "0" }
 
 // typeError is the TypeError a strict_types call of fn in
 // AutoloadGenerator.php throws for an argument #1 ($string) of the given

@@ -150,7 +150,7 @@ func (r *FilesystemRepository) readPackageList() (*php.Array, error) {
 			if !ok {
 				return nil, pkg.ArgumentTypeError(`Composer\Repository\WritableArrayRepository::setDevPackageNames`, 1, "devPackageNames", "array", v)
 			}
-			r.SetDevPackageNames(stringValues(names))
+			r.SetDevPackageNames(php.ToStrings(names))
 		}
 		if v, _ := data.Get("dev"); v != nil {
 			// $this->devMode = $data['dev'] (an untyped property): a
@@ -665,13 +665,3 @@ func (r *InstalledFilesystemRepository) RepoName() string {
 // IsFresh ports InstalledFilesystemRepository::isFresh: whether the file
 // does not exist.
 func (r *InstalledFilesystemRepository) IsFresh() (bool, error) { return !r.file.Exists(), nil }
-
-// stringValues returns the values of a list as strings.
-func stringValues(a *php.Array) []string {
-	values := make([]string, 0, a.Len())
-	for _, v := range a.All() {
-		values = append(values, php.ToString(v))
-	}
-
-	return values
-}

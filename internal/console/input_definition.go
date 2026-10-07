@@ -161,7 +161,7 @@ type InputOption struct {
 func NewInputOption(name, shortcut string, mode int, description string, def any) (*InputOption, error) {
 	name = strings.TrimPrefix(name, "--")
 
-	if name == "" || name == "0" {
+	if !php.Truthy(name) {
 		return nil, newError(KindInvalidArgument, "An option name cannot be empty.")
 	}
 
@@ -222,7 +222,7 @@ func (o *InputOption) Shortcut() string { return o.shortcut }
 
 // shortcutIsTruthy is PHP's `if ($option->getShortcut())`: the shortcut "0"
 // is falsy, so such an option gets no usable shortcut.
-func (o *InputOption) shortcutIsTruthy() bool { return o.shortcut != "" && o.shortcut != "0" }
+func (o *InputOption) shortcutIsTruthy() bool { return php.Truthy(o.shortcut) }
 
 // Name returns the option name.
 func (o *InputOption) Name() string { return o.name }

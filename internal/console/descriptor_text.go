@@ -132,7 +132,7 @@ func (d *TextDescriptor) describeCommand(command Commander, options DescriptorOp
 	_ = base.MergeApplicationDefinition(false)
 
 	description := base.Description()
-	if description != "" && description != "0" {
+	if php.Truthy(description) {
 		d.writeText("<comment>Description:</comment>", options)
 		d.writeText("\n", DescriptorOptions{})
 		d.writeText("  "+description, DescriptorOptions{})
@@ -156,7 +156,7 @@ func (d *TextDescriptor) describeCommand(command Commander, options DescriptorOp
 	}
 
 	help := base.ProcessedHelp()
-	if help != "" && help != "0" && help != description {
+	if php.Truthy(help) && help != description {
 		d.writeText("\n", DescriptorOptions{})
 		d.writeText("<comment>Help:</comment>", options)
 		d.writeText("\n", DescriptorOptions{})
@@ -211,7 +211,7 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 		return err
 	}
 	listed := commands
-	if describedNamespace != "" && describedNamespace != "0" && len(namespaces) > 0 {
+	if php.Truthy(describedNamespace) && len(namespaces) > 0 {
 		// make sure all alias commands are included when describing a specific namespace
 		listed = maps.Clone(commands)
 		for _, name := range namespaces[0].Commands {
@@ -234,7 +234,7 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 	}
 	width := columnWidthForNames(widthNames)
 
-	if describedNamespace != "" && describedNamespace != "0" {
+	if php.Truthy(describedNamespace) {
 		d.writeText(`<comment>Available commands for the "`+describedNamespace+`" namespace:</comment>`, options)
 	} else {
 		d.writeText("<comment>Available commands:</comment>", options)
@@ -251,7 +251,7 @@ func (d *TextDescriptor) describeApplication(app *Application, options Descripto
 			continue
 		}
 
-		if (describedNamespace == "" || describedNamespace == "0") && ns.ID != GlobalNamespace {
+		if (!php.Truthy(describedNamespace)) && ns.ID != GlobalNamespace {
 			d.writeText("\n", DescriptorOptions{})
 			d.writeText(" <comment>"+ns.ID+"</comment>", options)
 		}

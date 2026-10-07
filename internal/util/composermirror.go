@@ -23,7 +23,7 @@ func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference,
 	if reference != nil {
 		ref = *reference
 		// if ($reference): "0" is falsy too.
-		if phpTruthy(ref) {
+		if php.Truthy(ref) {
 			// [a-f0-9]* is possessive before $: Preg::isMatch cannot throw.
 			if isRef, _ := mirrorReference.IsMatch(ref); !isRef {
 				ref = md5Hex(ref)

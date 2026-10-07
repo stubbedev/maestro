@@ -713,7 +713,7 @@ func (p *ProcessExecutor) outputCommandRun(command Command, cwd string, async bo
 		mode += " async"
 	}
 
-	if !phpTruthy(cwd) {
+	if !php.Truthy(cwd) {
 		cwd = "CWD"
 	}
 

@@ -86,7 +86,7 @@ func getURLData(url string) *noProxyRule {
 	u, ok := parseURL(url)
 
 	// if (!$host = parse_url(...)): "0" is falsy too.
-	if !ok || !phpTruthy(u.host) {
+	if !ok || !php.Truthy(u.host) {
 		return nil
 	}
 

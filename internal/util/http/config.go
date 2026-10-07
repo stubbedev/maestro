@@ -38,36 +38,11 @@ type ConfigSource interface {
 	RemoveConfigSetting(name string) error
 }
 
-// configList is $config->get($key) for a list of strings (github-domains,
-// gitlab-domains, ...).
-func configList(config Config, key string) []string {
-	a, ok := config.Get(key).(*php.Array)
-	if !ok {
-		return nil
-	}
-
-	out := make([]string, 0, a.Len())
-	for _, v := range a.All() {
-		out = append(out, php.ToString(v))
-	}
-
-	return out
-}
-
 // configHas is in_array($value, $config->get($key), true).
 func configHas(config Config, key, value string) bool {
-	a, ok := config.Get(key).(*php.Array)
-	if !ok {
-		return false
-	}
+	a, _ := config.Get(key).(*php.Array)
 
-	for _, v := range a.All() {
-		if s, ok := v.(string); ok && s == value {
-			return true
-		}
-	}
-
-	return false
+	return php.InArray(value, a, true)
 }
 
 // path walks a nested option array: $options[$k1][$k2]... with isset()

@@ -1104,7 +1104,7 @@ func filterURL(value any, schemes ...string) (bool, error) {
 	}
 
 	bits, ok := util.ParseURL(s)
-	if !ok || bits.Scheme == "" || bits.Scheme == "0" || bits.Host == "" || bits.Host == "0" {
+	if !ok || !php.Truthy(bits.Scheme) || !php.Truthy(bits.Host) {
 		return false, nil
 	}
 

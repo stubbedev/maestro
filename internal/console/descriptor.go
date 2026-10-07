@@ -193,7 +193,7 @@ func (d *ApplicationDescription) inspect() error {
 	}
 
 	ns := ""
-	if d.namespace != "" && d.namespace != "0" {
+	if php.Truthy(d.namespace) {
 		var err error
 		if ns, err = d.application.FindNamespace(d.namespace); err != nil {
 			return err

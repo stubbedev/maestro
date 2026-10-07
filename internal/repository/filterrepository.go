@@ -64,7 +64,7 @@ func filterOption(repo RepositoryInterface, options *php.Array, key string) (*ph
 		return nil, &util.InvalidArgumentError{Message: `"` + key + `" key for repository ` + repo.RepoName() + " should be an array"}
 	}
 
-	return php.Compile(pkg.PackageNamesToRegexp(stringValues(names), "{^(?:%s)$}iD"))
+	return php.Compile(pkg.PackageNamesToRegexp(php.ToStrings(names), "{^(?:%s)$}iD"))
 }
 
 // Class returns the PHP class name.

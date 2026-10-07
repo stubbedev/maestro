@@ -79,7 +79,7 @@ func (in *ArrayInput) Clone() Input {
 // FirstArgument implements Input.
 func (in *ArrayInput) FirstArgument() string {
 	for _, p := range in.parameters {
-		if !p.Positional && p.Key != "" && p.Key != "0" && p.Key[0] == '-' {
+		if !p.Positional && php.Truthy(p.Key) && p.Key[0] == '-' {
 			continue
 		}
 
@@ -140,7 +140,7 @@ func (in *ArrayInput) ParameterOption(values []string, def any, onlyParams bool)
 func (in *ArrayInput) String() string {
 	params := make([]string, 0, len(in.parameters))
 	for _, p := range in.parameters {
-		if !p.Positional && p.Key != "" && p.Key != "0" && p.Key[0] == '-' {
+		if !p.Positional && php.Truthy(p.Key) && p.Key[0] == '-' {
 			glue := " "
 			if len(p.Key) > 1 && p.Key[1] == '-' {
 				glue = "="

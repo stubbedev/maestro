@@ -720,7 +720,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 
 	if p == nil {
 		errorMessage := "Could not find package " + name + " with "
-		if packageVersion != "" && packageVersion != "0" {
+		if php.Truthy(packageVersion) {
 			errorMessage += "version " + packageVersion
 		} else {
 			errorMessage += "stability " + stability

@@ -214,7 +214,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 
 	name := a.commandName(in)
 	if in.HasParameterOption([]string{"--help", "-h"}, true) {
-		if name == "" || name == "0" { // !$name
+		if !php.Truthy(name) { // !$name
 			name = "help"
 			argIn, err := NewArrayInput([]Param{P("command_name", a.defaultCommand)}, nil)
 			if err != nil {
@@ -226,7 +226,7 @@ func (a *Application) DoRun(in Input, out Output) (int, error) {
 		}
 	}
 
-	if name == "" || name == "0" { // !$name
+	if !php.Truthy(name) { // !$name
 		name = a.defaultCommand
 		definition := a.Definition()
 		args := slices.Clone(definition.Arguments())
@@ -349,7 +349,7 @@ func (a *Application) Complete(in *CompletionInput, suggestions *CompletionSugge
 		}
 		filtered := names[:0]
 		for _, n := range names {
-			if n != "" && n != "0" {
+			if php.Truthy(n) {
 				filtered = append(filtered, n)
 			}
 		}
@@ -559,7 +559,7 @@ func (a *Application) Namespaces() []string {
 	seen := map[string]bool{}
 	add := func(list []string) {
 		for _, ns := range list {
-			if ns == "" || ns == "0" || seen[ns] {
+			if !php.Truthy(ns) || seen[ns] {
 				continue
 			}
 			seen[ns] = true

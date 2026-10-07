@@ -5,6 +5,8 @@ package util
 import (
 	"os"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // IniGetAll ports IniHelper::getAll: the php.ini locations, the loaded one
@@ -42,5 +44,5 @@ func IniGetMessage(loaded func() []string) string {
 
 // phpEmpty is PHP's empty() for a string.
 func phpEmpty(s string) bool {
-	return !phpTruthy(s)
+	return !php.Truthy(s)
 }

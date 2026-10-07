@@ -21,7 +21,3 @@ func NewProcessExecutor(ioi io.IO) *util.ProcessExecutor {
 
 	return util.NewProcessExecutor(ioi)
 }
-
-// ConfigList is $config->get($key) for a list of strings (github-domains,
-// github-protocols, ...); nil when the value is not an array.
-func ConfigList(config Config, key string) []string { return configList(config, key) }

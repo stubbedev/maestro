@@ -190,7 +190,7 @@ func (g *Git) runCommand(commandCallables []CommandFunc, url, cwd string, initia
 		}
 	}
 
-	protocols := http.ConfigList(g.config, "github-protocols")
+	protocols := php.ToStrings(g.config.Get("github-protocols"))
 	gitHubDomains := GetGitHubDomainsRegex(g.config)
 
 	// public github, autoswitch protocols
@@ -538,7 +538,7 @@ func firstMatch(url string, patterns ...string) (*php.Match, error) {
 // or clones it afresh when dir is not one. False means the update failed
 // (or the network is disabled).
 func (g *Git) SyncMirror(url, dir string) (bool, error) {
-	if v, truthy := envTruthy("COMPOSER_DISABLE_NETWORK"); truthy && v != "prime" {
+	if v, truthy := util.GetEnvTruthy("COMPOSER_DISABLE_NETWORK"); truthy && v != "prime" {
 		g.io.WriteError("<warning>Aborting git mirror sync of "+util.SanitizeURL(url)+" as network is disabled</warning>", true, io.Normal)
 
 		return false, nil
@@ -789,7 +789,7 @@ func (g *Git) getAuthenticationFailure(url string) (*php.Match, error) {
 // GetMirrorDefaultBranch ports getMirrorDefaultBranch(): the HEAD branch
 // of the remote of the mirror at dir; false for null.
 func (g *Git) GetMirrorDefaultBranch(url, dir string, isLocalPathRepository bool) (string, bool) {
-	if _, truthy := envTruthy("COMPOSER_DISABLE_NETWORK"); truthy {
+	if _, truthy := util.GetEnvTruthy("COMPOSER_DISABLE_NETWORK"); truthy {
 		return "", false
 	}
 
@@ -926,11 +926,11 @@ func CleanEnv(process Process) error {
 	}
 
 	// clean up rogue git env vars in case this is running in a git hook
-	if _, truthy := envTruthy("GIT_DIR"); truthy {
+	if _, truthy := util.GetEnvTruthy("GIT_DIR"); truthy {
 		util.ClearEnv("GIT_DIR")
 	}
 
-	if _, truthy := envTruthy("GIT_WORK_TREE"); truthy {
+	if _, truthy := util.GetEnvTruthy("GIT_WORK_TREE"); truthy {
 		util.ClearEnv("GIT_WORK_TREE")
 	}
 
@@ -958,7 +958,7 @@ func GetGitLabDomainsRegex(config http.Config) string {
 }
 
 func domainsRegex(config http.Config, key string) string {
-	domains := http.ConfigList(config, key)
+	domains := php.ToStrings(config.Get(key))
 
 	var b strings.Builder
 

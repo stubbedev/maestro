@@ -4,7 +4,6 @@ package http
 
 import (
 	"errors"
-	"slices"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/io"
@@ -41,8 +40,7 @@ func (g *GitLab) AuthorizeOAuth(originURL string) bool {
 	// before composer 1.9, origin URLs had no port number in them
 	bcOriginURL, _, _ := portRegex.Replace(originURL, "", -1)
 
-	domains := configList(g.config, "gitlab-domains")
-	if !slices.Contains(domains, originURL) && !slices.Contains(domains, bcOriginURL) {
+	if !configHas(g.config, "gitlab-domains", originURL) && !configHas(g.config, "gitlab-domains", bcOriginURL) {
 		return false
 	}
 

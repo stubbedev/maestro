@@ -61,7 +61,9 @@ func redirectToFiles(cmd *exec.Cmd) (*filePipes, error) {
 	return fp, nil
 }
 
-func exitStatus(state *os.ProcessState) (code, termSig int) {
+// ExitStatus returns the exit code (Windows has no signals), -1 without a
+// state.
+func ExitStatus(state *os.ProcessState) (code, termSig int) {
 	if state == nil {
 		return -1, 0
 	}

@@ -115,7 +115,7 @@ func SystemCaRootBundlePath(logger Logger) (string, error) {
 
 	for _, caBundlePath := range paths {
 		// `if ($caBundle && ...)`: "" and "0" are falsy
-		if caBundlePath != "" && caBundlePath != "0" && (caFileUsable(caBundlePath, logger) || caDirUsable(caBundlePath, logger)) {
+		if php.Truthy(caBundlePath) && (caFileUsable(caBundlePath, logger) || caDirUsable(caBundlePath, logger)) {
 			caBundle.caPath, caBundle.found = caBundlePath, true
 
 			return caBundlePath, nil

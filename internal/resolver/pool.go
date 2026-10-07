@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -195,13 +196,13 @@ func (p *Pool) FilterListEntryForPackageVersion(packageName string, constraint s
 			}
 			seen[entry] = true
 			var b strings.Builder
-			if entry.Source.Valid && phpTruthy(entry.Source.S) {
+			if entry.Source.Valid && php.Truthy(entry.Source.S) {
 				b.WriteString(" reported by " + entry.Source.S)
 			}
-			if entry.URL.Valid && phpTruthy(entry.URL.S) {
+			if entry.URL.Valid && php.Truthy(entry.URL.S) {
 				b.WriteString(" (see " + entry.URL.S + ")")
 			}
-			if entry.Reason.Valid && phpTruthy(entry.Reason.S) {
+			if entry.Reason.Valid && php.Truthy(entry.Reason.S) {
 				b.WriteString(" reason: " + entry.Reason.S)
 			}
 			list, _ := lists.Get(entry.ListName)
@@ -220,9 +221,6 @@ func (p *Pool) FilterListEntryForPackageVersion(packageName string, constraint s
 
 	return result
 }
-
-// phpTruthy is (bool) $string.
-func phpTruthy(s string) bool { return s != "" && s != "0" }
 
 func (p *Pool) setPackages(packages []pkg.PackageInterface) {
 	p.packages = make([]pkg.PackageInterface, 0, len(packages))

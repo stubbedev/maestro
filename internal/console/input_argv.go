@@ -433,7 +433,7 @@ func argvTokenString(token string) string {
 		}
 	}
 
-	if token != "" && token != "0" && token[0] != '-' {
+	if php.Truthy(token) && token[0] != '-' {
 		return EscapeToken(token)
 	}
 

@@ -314,6 +314,21 @@ func ArraySearch(needle any, haystack *Array, strict bool) (Key, bool) {
 	return Key{}, false
 }
 
+// ToStrings is array_map('strval', array_values($v)) when v is an array,
+// nil otherwise.
+func ToStrings(v any) []string {
+	a, ok := v.(*Array)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, a.Len())
+	for _, item := range a.All() {
+		out = append(out, ToString(item))
+	}
+
+	return out
+}
+
 // InArray ports in_array($needle, $haystack, $strict).
 func InArray(needle any, haystack *Array, strict bool) bool {
 	_, ok := ArraySearch(needle, haystack, strict)

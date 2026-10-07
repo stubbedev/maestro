@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // XMLDescriptor renders the xml format.
@@ -89,7 +91,7 @@ func (d *XMLDescriptor) ApplicationDocument(app *Application, namespace string, 
 
 	description := NewApplicationDescription(app, namespace, true)
 
-	hasNamespace := namespace != "" && namespace != "0"
+	hasNamespace := php.Truthy(namespace)
 	if hasNamespace {
 		commandsXML.setAttribute("namespace", namespace)
 	}
@@ -211,7 +213,7 @@ func inputOptionDocument(option *InputOption) []*XMLNode {
 	if first, _, ok := strings.Cut(shortcut, "|"); ok {
 		objectXML.setAttribute("shortcut", "-"+first)
 		objectXML.setAttribute("shortcuts", "-"+strings.ReplaceAll(shortcut, "|", "|-"))
-	} else if shortcut != "" && shortcut != "0" {
+	} else if php.Truthy(shortcut) {
 		objectXML.setAttribute("shortcut", "-"+shortcut)
 	} else {
 		objectXML.setAttribute("shortcut", "")

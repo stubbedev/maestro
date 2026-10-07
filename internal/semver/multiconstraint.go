@@ -128,7 +128,7 @@ func (c *MultiConstraint) SetPrettyString(prettyString string) { c.prettyString 
 
 // PrettyString ports getPrettyString().
 func (c *MultiConstraint) PrettyString() string {
-	if phpTruthy(c.prettyString) {
+	if php.Truthy(c.prettyString) {
 		return c.prettyString
 	}
 
@@ -257,19 +257,19 @@ func contiguousRanges(left, right ConstraintInterface) (l, r *MultiConstraint, o
 		return nil, nil, false
 	}
 	left0 := l.constraints[0].String()
-	if !phpTruthy(left0) || !strings.HasPrefix(left0, ">=") {
+	if !php.Truthy(left0) || !strings.HasPrefix(left0, ">=") {
 		return nil, nil, false
 	}
 	left1 := l.constraints[1].String()
-	if !phpTruthy(left1) || left1[0] != '<' {
+	if !php.Truthy(left1) || left1[0] != '<' {
 		return nil, nil, false
 	}
 	right0 := r.constraints[0].String()
-	if !phpTruthy(right0) || !strings.HasPrefix(right0, ">=") {
+	if !php.Truthy(right0) || !strings.HasPrefix(right0, ">=") {
 		return nil, nil, false
 	}
 	right1 := r.constraints[1].String()
-	if !phpTruthy(right1) || right1[0] != '<' {
+	if !php.Truthy(right1) || right1[0] != '<' {
 		return nil, nil, false
 	}
 	if php.Substr(left1, 2) != php.Substr(right0, 3) {

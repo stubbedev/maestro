@@ -137,11 +137,11 @@ func (r *Runtime) subclassDownloaderBase(o *rpc.PHPObject) (func(downloader.Deps
 		return nil, nil, &rpc.ProtocolError{Message: "no description of " + o.Class}
 	}
 	parents, _ := d.Get("parents")
-	for _, class := range stringList(parents) {
+	for _, class := range php.ToStrings(parents) {
 		if ctor, ok := downloaderConstructors[class]; ok {
 			overrides, _ := d.Get("overrides")
 
-			return ctor, stringList(overrides), nil
+			return ctor, php.ToStrings(overrides), nil
 		}
 	}
 

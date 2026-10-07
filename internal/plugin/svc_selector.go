@@ -139,7 +139,7 @@ func (r *Runtime) registerSelectors() {
 		if err != nil {
 			return nil, err
 		}
-		opts := resolver.CreatePoolOptions{IgnoredTypes: stringList(a.at(4))}
+		opts := resolver.CreatePoolOptions{IgnoredTypes: php.ToStrings(a.at(4))}
 		if a.has(3) {
 			ed, err := param[*eventdispatcher.EventDispatcher](a, 3)
 			if err != nil {
@@ -148,7 +148,7 @@ func (r *Runtime) registerSelectors() {
 			opts.EventDispatcher = ed
 		}
 		if a.has(5) {
-			opts.AllowedTypes = php.Some(stringList(a.at(5)))
+			opts.AllowedTypes = php.Some(php.ToStrings(a.at(5)))
 		}
 		pool, err := resolver.CreatePool(s, req, out, opts)
 		if err != nil {
@@ -174,7 +174,7 @@ func (r *Runtime) registerSelectors() {
 			}
 			locked = l
 		}
-		pool, err := resolver.CreatePoolForPackages(s, stringList(a.at(1)), locked)
+		pool, err := resolver.CreatePoolForPackages(s, php.ToStrings(a.at(1)), locked)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +197,7 @@ func (r *Runtime) registerSelectors() {
 		return php.ArrayOf("advisories", list, "unreachableRepos", php.StringList(res.UnreachableRepos)), nil
 	}
 	method("getSecurityAdvisories", func(s *repository.RepositorySet, a args) (any, error) {
-		return advisories(s.GetSecurityAdvisories(stringList(a.at(1)), a.boolean(2), a.boolean(3)))
+		return advisories(s.GetSecurityAdvisories(php.ToStrings(a.at(1)), a.boolean(2), a.boolean(3)))
 	})
 	method("getMatchingSecurityAdvisories", func(s *repository.RepositorySet, a args) (any, error) {
 		packages, err := packagesParam(a, 1)

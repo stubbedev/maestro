@@ -223,7 +223,7 @@ func (r *Runtime) registerHTTP() {
 		return nil, fs.CallbackGet(a.integer(1), a.integer(2), a.str(3), a.integer(4), int64(a.integer(5)), int64(a.integer(6)))
 	})
 	rfsMethod("promptAuthAndRetry", func(fs *http.RemoteFilesystem, a args) (any, error) {
-		return nil, fs.PromptAuthAndRetry(a.integer(1), a.str(2), stringList(a.at(3)))
+		return nil, fs.PromptAuthAndRetry(a.integer(1), a.str(2), php.ToStrings(a.at(3)))
 	})
 	// Url::sanitize() for getRemoteContents()'s MaxFileSizeExceededException.
 	r.Handle("rfs.sanitizeUrl", func(v any) (any, error) {

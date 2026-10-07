@@ -2,6 +2,8 @@
 
 package semver
 
+import "github.com/stubbedev/maestro/internal/php"
+
 // MatchNoneConstraint ports Composer\Semver\Constraint\MatchNoneConstraint:
 // the blackhole of constraints, nothing escapes it.
 type MatchNoneConstraint struct {
@@ -21,7 +23,7 @@ func (c *MatchNoneConstraint) SetPrettyString(prettyString string) { c.prettyStr
 
 // PrettyString ports getPrettyString().
 func (c *MatchNoneConstraint) PrettyString() string {
-	if phpTruthy(c.prettyString) {
+	if php.Truthy(c.prettyString) {
 		return c.prettyString
 	}
 

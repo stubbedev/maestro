@@ -4,7 +4,6 @@ package http
 
 import (
 	"errors"
-	"slices"
 	"strings"
 	"time"
 
@@ -70,7 +69,8 @@ func lazyGetter(ioi io.IO, config Config, httpDownloader Getter, rt Runtime) fun
 // AuthorizeOAuth is authorizeOAuth($originUrl): use the token in git
 // config (github.accesstoken) if there is one.
 func (g *GitHub) AuthorizeOAuth(originURL string) bool {
-	if !slices.Contains(configList(g.config, "github-domains"), originURL) {
+	// in_array($originUrl, $this->config->get('github-domains')): loose
+	if domains, _ := g.config.Get("github-domains").(*php.Array); !php.InArray(originURL, domains, false) {
 		return false
 	}
 

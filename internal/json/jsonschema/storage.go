@@ -379,11 +379,11 @@ func jsonDecodingMessage(code int) string {
 // resolvePointer ports UriRetriever::resolvePointer.
 func resolvePointer(jsonSchema any, uri string) any {
 	parsed := parseURI(uri)
-	if !parsed.hasFragment || parsed.fragment == "" || parsed.fragment == "0" {
+	if !parsed.hasFragment || !php.Truthy(parsed.fragment) {
 		return jsonSchema
 	}
 	for el := range strings.SplitSeq(parsed.fragment, "/") {
-		if el == "" || el == "0" {
+		if !php.Truthy(el) {
 			continue
 		}
 		el = strings.ReplaceAll(el, "~1", "/")
@@ -471,7 +471,7 @@ func resolveURI(uri, baseURI string, hasBase bool) (string, bool) {
 	}
 
 	components := parseURI(uri)
-	if components.scheme != "" && components.scheme != "0" {
+	if php.Truthy(components.scheme) {
 		return uri, false
 	}
 
@@ -526,13 +526,13 @@ var (
 func combineRelativePathWithBasePath(relativePath, basePath string) string {
 	relativePath, _, _ = dotSlashes.Replace(relativePath, "", -1)
 	relativePath, _, _ = doubleSlashes.Replace(relativePath, "/", -1)
-	if relativePath == "" || relativePath == "0" {
+	if !php.Truthy(relativePath) {
 		return basePath
 	}
 	if relativePath[0] == '/' {
 		return relativePath
 	}
-	if basePath == "" || basePath == "0" {
+	if !php.Truthy(basePath) {
 		fail("Unable to resolve URI '" + relativePath + "' from base '" + basePath + "'")
 	}
 

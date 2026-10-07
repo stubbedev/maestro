@@ -324,17 +324,17 @@ func (r *Runtime) applyInstallerFields(inst *composer.Installer, fields *php.Arr
 		inst.SetApcuAutoloader(apcu, prefix)
 	}
 	if v, ok := get("ignoredTypes"); ok {
-		inst.SetIgnoredTypes(stringList(v))
+		inst.SetIgnoredTypes(php.ToStrings(v))
 	}
 	if v, ok := get("allowedTypes"); ok {
 		if v == nil {
 			inst.SetAllowedTypes(php.Null[[]string]())
 		} else {
-			inst.SetAllowedTypes(php.Some(stringList(v)))
+			inst.SetAllowedTypes(php.Some(php.ToStrings(v)))
 		}
 	}
 	if v, ok := get("updateAllowList"); ok {
-		inst.SetUpdateAllowList(stringList(v))
+		inst.SetUpdateAllowList(php.ToStrings(v))
 	}
 	if v, ok := get("updateAllowTransitiveDependencies"); ok {
 		if _, err := inst.SetUpdateAllowTransitiveDependencies(php.ToNativeInt(v)); err != nil {

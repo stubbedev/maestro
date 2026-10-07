@@ -710,7 +710,7 @@ func (c *CurlDownloader) handleRedirect(job *curlJob, response *Response) (strin
 		return "", err
 	}
 
-	if targetURL != "" && targetURL != "0" {
+	if php.Truthy(targetURL) {
 		if !util.IsAllowedRedirect(targetURL) {
 			return "", util.NewTransportError(`Could not follow the redirect to "`+util.SanitizeURL(targetURL)+`" because only http and https redirects are supported.`, 400)
 		}
@@ -729,7 +729,7 @@ func (c *CurlDownloader) handleRedirect(job *curlJob, response *Response) (strin
 // Composer does; "" when there is none.
 func redirectTarget(url string, response *Response) (string, error) {
 	locationHeader, ok, err := response.HeaderChecked("location")
-	if err != nil || !ok || locationHeader == "" || locationHeader == "0" {
+	if err != nil || !ok || !php.Truthy(locationHeader) {
 		return "", err
 	}
 
@@ -785,7 +785,7 @@ func (c *CurlDownloader) isAuthenticatedRetryNeeded(job *curlJob, response *Resp
 	if job.origin == "bitbucket.org" &&
 		!IsPublicBitBucketDownload(job.url) &&
 		strings.HasSuffix(job.url, ".zip") &&
-		(locationHeader == "" || locationHeader == "0" || !strings.HasSuffix(locationHeader, ".zip")) {
+		(!php.Truthy(locationHeader) || !strings.HasSuffix(locationHeader, ".zip")) {
 		contentType, ok, err := response.HeaderChecked("content-type")
 		if err != nil {
 			return AuthResult{}, err
@@ -825,7 +825,7 @@ func (c *CurlDownloader) restartJob(job *curlJob, url string, attributes curlAtt
 
 	closeFile(job.bodyFile)
 
-	origin := util.GetOrigin(url, configList(c.config, "gitlab-domains"))
+	origin := util.GetOrigin(url, php.ToStrings(c.config.Get("gitlab-domains")))
 
 	return c.initDownload(job, origin, url, job.options, attributes)
 }

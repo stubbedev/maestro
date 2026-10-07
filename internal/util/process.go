@@ -439,7 +439,7 @@ func (p *Process) wait(cmd *exec.Cmd, pipes *filePipes, done chan struct{}) {
 	}
 
 	p.exited = true
-	p.exitCode, p.termSig = exitStatus(cmd.ProcessState)
+	p.exitCode, p.termSig = ExitStatus(cmd.ProcessState)
 	p.mu.Unlock()
 
 	close(done)

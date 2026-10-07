@@ -69,7 +69,7 @@ func TestFilesystemRepository_Oracle(t *testing.T) {
 		dumpVersions, _ := get("dump_versions").(bool)
 		repo := must(NewFilesystemRepository(must(json.NewFile(dir+"/installed.json", nil, nil)), dumpVersions, root))
 		devNames, _ := get("dev_names").(*php.Array)
-		repo.SetDevPackageNames(stringValues(devNames))
+		repo.SetDevPackageNames(php.ToStrings(devNames))
 		packages, _ := get("packages").(*php.Array)
 		for _, data := range packages.All() {
 			data, _ := data.(*php.Array)
@@ -155,7 +155,7 @@ func TestInstalledRepository_GetDependentsOracle(t *testing.T) {
 		invert, _ := get("invert").(bool)
 		recurse, _ := get("recurse").(bool)
 
-		got := dumpDependents(t, must(repo.GetDependents(stringValues(needle), constraint, invert, recurse)))
+		got := dumpDependents(t, must(repo.GetDependents(php.ToStrings(needle), constraint, invert, recurse)))
 		want, _ := get("result").(*php.Array)
 		if !php.StrictEquals(got, want) {
 			t.Errorf("case %v:\ngot  %s\nwant %s", key, must(php.JSONEncode(got, 0)), must(php.JSONEncode(want, 0)))

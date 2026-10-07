@@ -15,9 +15,9 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Transport selects how maestro and the child talk.
@@ -188,7 +188,11 @@ func watch(cmd *exec.Cmd, closers ...io.Closer) *child {
 
 	go func() {
 		_ = cmd.Wait()
-		c.status = exitStatus(cmd.ProcessState)
+		// the status a shell reports: the exit code or 128+signal; one
+		// that cannot be known (no wait status) is a failure
+		if c.status, _ = util.ExitStatus(cmd.ProcessState); c.status < 0 {
+			c.status = 1
+		}
 
 		c.mu.Lock()
 		closers := c.closers
@@ -218,20 +222,4 @@ func (c *child) addCloser(cl io.Closer) {
 	}
 	c.closers = append(c.closers, cl)
 	c.mu.Unlock()
-}
-
-// exitStatus is the process's status as a shell reports it: the exit
-// code, or 128+signal.
-func exitStatus(ps *os.ProcessState) int {
-	if ps == nil {
-		return 1
-	}
-	if ws, ok := ps.Sys().(interface {
-		Signaled() bool
-		Signal() syscall.Signal
-	}); ok && ws.Signaled() {
-		return 128 + int(ws.Signal())
-	}
-
-	return ps.ExitCode()
 }

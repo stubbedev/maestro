@@ -2,6 +2,8 @@
 
 package semver
 
+import "github.com/stubbedev/maestro/internal/php"
+
 // MatchAllConstraint ports Composer\Semver\Constraint\MatchAllConstraint:
 // the absence of a constraint, which matches everything.
 type MatchAllConstraint struct {
@@ -21,7 +23,7 @@ func (c *MatchAllConstraint) SetPrettyString(prettyString string) { c.prettyStri
 
 // PrettyString ports getPrettyString().
 func (c *MatchAllConstraint) PrettyString() string {
-	if phpTruthy(c.prettyString) {
+	if php.Truthy(c.prettyString) {
 		return c.prettyString
 	}
 

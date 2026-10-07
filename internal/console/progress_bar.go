@@ -430,7 +430,7 @@ func (b *ProgressBar) ensureFormat() {
 		return
 	}
 	format := b.internalFormat
-	if format == "" || format == "0" {
+	if !php.Truthy(format) {
 		format = b.determineBestFormat()
 	}
 	b.setRealFormat(format)

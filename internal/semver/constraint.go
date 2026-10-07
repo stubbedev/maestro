@@ -4,6 +4,8 @@ package semver
 
 import (
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // ConstraintInterface ports Composer\Semver\Constraint\ConstraintInterface.
@@ -147,7 +149,7 @@ func (c *Constraint) SetPrettyString(prettyString string) { c.prettyString = pre
 
 // PrettyString ports getPrettyString().
 func (c *Constraint) PrettyString() string {
-	if phpTruthy(c.prettyString) {
+	if php.Truthy(c.prettyString) {
 		return c.prettyString
 	}
 

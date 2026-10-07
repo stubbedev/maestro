@@ -534,7 +534,7 @@ func (s *speculation) versionsOf(name string, data *php.Array) (versions []*spec
 		if err != nil || !ok {
 			exact = exact && err == nil
 			alias = ""
-		} else if alias == "" || alias == "0" {
+		} else if !php.Truthy(alias) {
 			exact = false
 		}
 		normalizedStable := s.stable(name, normalized)

@@ -311,7 +311,7 @@ func (c *BaseCommand) Initialize(in console.Input, _ console.Output) error {
 	for _, e := range envOptions {
 		for _, name := range e.options {
 			if in.HasOption(name) {
-				if in.Option(name) == false && envTruthy(e.env) {
+				if in.Option(name) == false && util.EnvTruthy(e.env) {
 					in.SetOption(name, true)
 				}
 			}
@@ -319,7 +319,7 @@ func (c *BaseCommand) Initialize(in console.Input, _ console.Output) error {
 	}
 
 	if in.HasOption("ignore-platform-reqs") {
-		if !console.BoolOption(in, "ignore-platform-reqs") && envTruthy("COMPOSER_IGNORE_PLATFORM_REQS") {
+		if !console.BoolOption(in, "ignore-platform-reqs") && util.EnvTruthy("COMPOSER_IGNORE_PLATFORM_REQS") {
 			in.SetOption("ignore-platform-reqs", true)
 
 			out.WriteError("<warning>COMPOSER_IGNORE_PLATFORM_REQS is set. You may experience unexpected errors.</warning>", true, io.Normal)

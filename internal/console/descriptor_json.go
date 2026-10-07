@@ -62,7 +62,7 @@ func (d *JSONDescriptor) describeApplication(app *Application, options Descripto
 
 	data.Set("commands", commands)
 
-	if describedNamespace != "" && describedNamespace != "0" {
+	if php.Truthy(describedNamespace) {
 		data.Set("namespace", describedNamespace)
 	} else {
 		namespaces, err := description.Namespaces()
@@ -129,7 +129,7 @@ func inputOptionData(option *InputOption, negated bool) *php.Array {
 	}
 
 	shortcut := ""
-	if s := option.Shortcut(); s != "" && s != "0" {
+	if s := option.Shortcut(); php.Truthy(s) {
 		shortcut = "-" + strings.ReplaceAll(s, "|", "|-")
 	}
 

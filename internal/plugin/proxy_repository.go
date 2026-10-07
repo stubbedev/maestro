@@ -197,7 +197,7 @@ func (p *proxyRepository) LoadPackages(packageNameMap *repository.ConstraintMap,
 	}
 	var out repository.LoadResult
 	found, _ := res.Get("namesFound")
-	out.NamesFound = stringList(found)
+	out.NamesFound = php.ToStrings(found)
 	packages, _ := res.Get("packages")
 	out.Packages, err = p.packages(packages)
 

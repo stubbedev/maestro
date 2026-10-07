@@ -6,6 +6,8 @@ package console
 import (
 	"os"
 	"slices"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Style is OutputFormatterStyleInterface.
@@ -118,7 +120,7 @@ func (s *OutputFormatterStyle) Apply(text string) string {
 		konsole := os.Getenv("KONSOLE_VERSION")
 		_, idea := os.LookupEnv("IDEA_INITIAL_DIRECTORY")
 		s.handlesHrefGracefully = os.Getenv("TERMINAL_EMULATOR") != "JetBrains-JediTerm" &&
-			(konsole == "" || konsole == "0" || phpIntval(konsole) > 201100) && !idea
+			(!php.Truthy(konsole) || phpIntval(konsole) > 201100) && !idea
 	}
 
 	if s.hasHref && s.handlesHrefGracefully {

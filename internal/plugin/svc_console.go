@@ -10,7 +10,6 @@ package plugin
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/composer"
@@ -681,18 +680,4 @@ func (r *Runtime) registerConsole() {
 	})
 
 	r.registerApplications()
-}
-
-// stringList is a PHP list of strings (nil for anything else).
-func stringList(v any) []string {
-	a, ok := v.(*php.Array)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, a.Len())
-	for _, item := range a.Values() {
-		out = append(out, php.ToString(item))
-	}
-
-	return slices.Clip(out)
 }
