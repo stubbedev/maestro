@@ -1,0 +1,9 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+outdated [-o|--outdated] [-a|--all] [--locked] [-D|--direct] [--strict] [-M|--major-only] [-m|--minor-only] [-p|--patch-only] [-A|--sort-by-age] [-f|--format FORMAT] [--ignore IGNORE] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<package>]
+
+exit 1

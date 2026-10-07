@@ -1,0 +1,27 @@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file @CAFILE@: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading @DIR@/p/vendor/composer/installed.json
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Cannot use x/new's latest version 2.0.0 as it requires php >=99 which is not satisfied by your platform.
+Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+
+Direct dependencies required in composer.json:
+x/new 1.0.0 ! 1.5.0
+
+Transitive dependencies not required in composer.json:
+Everything up to date
+exit 0

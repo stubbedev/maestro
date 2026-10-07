@@ -1,0 +1,18 @@
+{
+    "installed": [
+        {
+            "name": "x/foo",
+            "direct-dependency": true,
+            "homepage": null,
+            "source": null,
+            "version": "1.0.0",
+            "release-age": "",
+            "release-date": "",
+            "latest": "2.0.0",
+            "latest-status": "update-possible",
+            "latest-release-date": "",
+            "description": null,
+            "abandoned": false
+        }
+    ]
+}

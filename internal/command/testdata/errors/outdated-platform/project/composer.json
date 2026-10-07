@@ -1,0 +1,19 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "package",
+            "package": [
+                {"name": "x/new", "version": "1.0.0", "type": "metapackage"},
+                {"name": "x/new", "version": "1.5.0", "type": "metapackage"},
+                {"name": "x/new", "version": "2.0.0", "type": "metapackage", "require": {"php": ">=99"}}
+            ]
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/new": "*"
+    }
+}

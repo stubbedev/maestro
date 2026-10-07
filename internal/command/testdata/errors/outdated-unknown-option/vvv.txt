@@ -1,0 +1,40 @@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file @CAFILE@: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading ./composer.lock (@DIR@/p/composer.lock)
+Reading @DIR@/p/vendor/composer/installed.json
+
+In ArgvInput.php line 220:
+                                                          
+  [Symfony\Component\Console\Exception\RuntimeException]  
+  The "--nope" option does not exist.                     
+                                                          
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:220
+ Symfony\Component\Console\Input\ArgvInput->addLongOption() at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:149
+ Symfony\Component\Console\Input\ArgvInput->parseLongOption() at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:82
+ Symfony\Component\Console\Input\ArgvInput->parseToken() at @COMPOSER@/vendor/symfony/console/Input/ArgvInput.php:71
+ Symfony\Component\Console\Input\ArgvInput->parse() at @COMPOSER@/vendor/symfony/console/Input/Input.php:55
+ Symfony\Component\Console\Input\Input->bind() at @COMPOSER@/vendor/symfony/console/Command/Command.php:257
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+outdated [-o|--outdated] [-a|--all] [--locked] [-D|--direct] [--strict] [-M|--major-only] [-m|--minor-only] [-p|--patch-only] [-A|--sort-by-age] [-f|--format FORMAT] [--ignore IGNORE] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<package>]
+
+exit 1

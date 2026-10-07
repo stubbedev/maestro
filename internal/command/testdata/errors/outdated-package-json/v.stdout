@@ -1,0 +1,15 @@
+{
+    "name": "x/foo",
+    "description": null,
+    "keywords": [],
+    "type": "metapackage",
+    "homepage": null,
+    "names": [
+        "x/foo"
+    ],
+    "versions": [
+        "1.0.0"
+    ],
+    "latest": "2.0.0",
+    "path": null
+}

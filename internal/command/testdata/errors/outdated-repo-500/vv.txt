@@ -1,0 +1,42 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+
+In CurlDownloader.php line 686:
+                                                                               
+  [Composer\Downloader\TransportException (100)]                               
+  The "http://@SERVER@/status/500/packages.json" file could not be dow  
+  nloaded (HTTP/1.1 500 Internal Server Error)                                 
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:366
+ Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:114
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1761
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1095
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:549
+ Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:201
+ Composer\Repository\RepositorySet->findPackages() at @COMPOSER@/src/Composer/Package/Version/VersionSelector.php:86
+ Composer\Package\Version\VersionSelector->findBestCandidate() at @COMPOSER@/src/Composer/Command/ShowCommand.php:1529
+ Composer\Command\ShowCommand->findLatestPackage() at @COMPOSER@/src/Composer/Command/ShowCommand.php:479
+ Composer\Command\ShowCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/src/Composer/Command/OutdatedCommand.php:125
+ Composer\Command\OutdatedCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+show [--all] [--locked] [-i|--installed] [-p|--platform] [-a|--available] [-s|--self] [-N|--name-only] [-P|--path] [-t|--tree] [-l|--latest] [-o|--outdated] [--ignore IGNORE] [-M|--major-only] [-m|--minor-only] [--patch-only] [-A|--sort-by-age] [-D|--direct] [--strict] [-f|--format FORMAT] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<package> [<version>]]
+
+exit 100

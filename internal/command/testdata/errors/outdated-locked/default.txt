@@ -1,0 +1,11 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+
+Direct dependencies required in composer.json:
+x/foo 1.0.0 ~ 2.0.0
+
+Transitive dependencies not required in composer.json:
+Everything up to date
+exit 0
