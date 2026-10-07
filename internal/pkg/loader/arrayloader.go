@@ -330,9 +330,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetTargetDir(targetDir)
 	}
 
-	if extra := config.ArrayAt("extra"); extra != nil {
-		p.SetExtra(extra)
-	}
+	configureExtra(p, config)
 
 	if bin := config.At("bin"); bin != nil {
 		binaries, err := loadBinaries(bin)
@@ -664,6 +662,13 @@ func configureType(p *pkg.CompletePackage, config *php.Array) error {
 	p.SetType(typ)
 
 	return nil
+}
+
+// configureExtra sets the extra of an array.
+func configureExtra(p *pkg.CompletePackage, config *php.Array) {
+	if extra := config.ArrayAt("extra"); extra != nil {
+		p.SetExtra(extra)
+	}
 }
 
 // configureDefaultBranch sets whether the package is the default branch.

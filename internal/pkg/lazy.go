@@ -23,7 +23,7 @@ type lazyRest struct {
 
 // NewSkeletonPackage makes p, a package built with the properties a
 // skeleton keeps from the start (skeletonFields: its name, versions,
-// type, links, default branch flag and abandoned value), a skeleton: the
+// type, links, default branch flag, abandoned value and extra), a skeleton: the
 // first use of any other property, or of a setter, sets all the others
 // from load, which builds the same package in full. load must not fail
 // (it is called when its caller can no longer tell): a caller makes
@@ -111,7 +111,6 @@ func (p *CompletePackage) adoptRest(full *CompletePackage) {
 	p.releaseDate = full.releaseDate
 	p.sourceMirrors = full.sourceMirrors
 	p.distMirrors = full.distMirrors
-	p.extra = full.extra
 	p.binaries = full.binaries
 	p.suggests = full.suggests
 	p.autoload = full.autoload
@@ -179,14 +178,14 @@ const skeletonSetBits = setType
 // (adoptedFields). Methods reading only these need not materialize.
 var skeletonFields = []string{
 	"basePackage", "version", "prettyVersion", "typ", "requires", "conflicts", "provides",
-	"replaces", "devRequires", "stability", "isDefaultBranch", "lazy", "abandoned",
+	"replaces", "devRequires", "stability", "isDefaultBranch", "lazy", "abandoned", "extra",
 }
 
 // adoptedFields are the fields adoptRest sets ("set": its other bits).
 var adoptedFields = []string{
 	"targetDir", "installationSource", "sourceType", "sourceURL", "sourceReference", "distType",
 	"distURL", "distReference", "distSha1Checksum", "notificationURL", "releaseDate",
-	"sourceMirrors", "distMirrors", "extra", "binaries", "suggests", "autoload", "devAutoload",
+	"sourceMirrors", "distMirrors", "binaries", "suggests", "autoload", "devAutoload",
 	"includePaths", "transportOptions", "phpExt", "set",
 	"description", "homepage", "archiveName", "repositories", "license", "keywords", "authors",
 	"scripts", "support", "funding", "archiveExcludes",

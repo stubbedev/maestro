@@ -260,10 +260,9 @@ func (p *Package) SetExtra(extra *php.Array) {
 	p.changed()
 }
 
-// Extra ports Package::getExtra.
+// Extra ports Package::getExtra; a skeleton has it (plugins read it of
+// every package in a pool).
 func (p *Package) Extra() *php.Array {
-	p.need()
-
 	return orEmpty(p.extra)
 }
 

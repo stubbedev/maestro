@@ -106,7 +106,7 @@ const (
 // appendSkeleton appends the skeleton record of a version, that of its
 // SkeletonConfig: the number of its keys, then each key (its index in
 // loader.SkeletonKeys) and its value as loader.SkeletonFields yields it.
-// Arrays (the links, the branch aliases) are kept by ref: the versions of
+// Arrays (the links, the extra) are kept by ref: the versions of
 // a list share them, as the expansion has them share.
 func appendSkeleton(dst []byte, version *php.Array, arrayRef func(*php.Array) uint64) ([]byte, bool) {
 	// the count, at most len(loader.SkeletonKeys), fits in its byte

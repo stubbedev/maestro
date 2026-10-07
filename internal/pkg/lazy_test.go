@@ -31,7 +31,7 @@ var skeletonMethods = []string{
 	"Name", "PrettyName", "ID", "SetID", "Repository", "SetRepository", "IsPlatform", "PHPClass",
 	"IsDev", "Type", "Stability", "Version", "PrettyVersion", "Requires", "Conflicts", "Provides",
 	"Replaces", "DevRequires", "IsDefaultBranch", "Names", "UniqueName", "String", "PrettyString",
-	"Equals", "StabilityPriority", "IsAbandoned", "Abandoned", "ReplacementPackage",
+	"Equals", "StabilityPriority", "IsAbandoned", "Abandoned", "ReplacementPackage", "Extra",
 }
 
 // fullPackage is a package with every property set.
@@ -78,6 +78,7 @@ func fullPackage() *CompletePackage {
 func testSkeleton() (*CompletePackage, *bool) {
 	p := NewCompletePackage("a/b", "1.0.0.0", "1.0.0")
 	p.SetType("library")
+	p.SetExtra(php.ArrayOf("x", 1))
 	loaded := false
 	NewSkeletonPackage(p, func() (*CompletePackage, error) {
 		loaded = true

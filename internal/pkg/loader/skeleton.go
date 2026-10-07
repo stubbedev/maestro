@@ -13,8 +13,8 @@ import (
 
 // SkeletonConfig is the part of a version's config a skeleton package is
 // loaded from (LoadSkeleton): what createObject, the links,
-// configureType, configureDefaultBranch, configureAbandoned and
-// GetBranchAlias read of it.
+// configureType, configureExtra, configureDefaultBranch,
+// configureAbandoned and GetBranchAlias read of it.
 func SkeletonConfig(config *php.Array) *php.Array {
 	skeleton := php.NewArrayCap(len(SkeletonKeys))
 	for key, v := range SkeletonFields(config) {
@@ -31,19 +31,14 @@ var SkeletonKeys = [...]string{
 	"require", "conflict", "provide", "replace", "require-dev", "extra",
 }
 
-// SkeletonExtra is the index of "extra" in SkeletonKeys: a SkeletonConfig
-// holds only the branch-alias of a version's extra.
-const SkeletonExtra = len(SkeletonKeys) - 1
-
 // SkeletonFields yields the keys of SkeletonConfig(config), in its order,
 // as their indexes in SkeletonKeys, and their values (SetSkeletonField
-// sets them): SkeletonExtra's is the branch-alias of config's extra.
+// sets them), found in one pass.
 func SkeletonFields(config *php.Array) iter.Seq2[int, any] {
 	return func(yield func(int, any) bool) {
-		// the keys before extra, found in one pass
 		var (
-			values [SkeletonExtra]any
-			found  [SkeletonExtra]bool
+			values [len(SkeletonKeys)]any
+			found  [len(SkeletonKeys)]bool
 		)
 		for k, v := range config.All() {
 			if key := skeletonKey(k); key >= 0 {
@@ -55,14 +50,10 @@ func SkeletonFields(config *php.Array) iter.Seq2[int, any] {
 				return
 			}
 		}
-		if aliases, ok := config.ArrayAt("extra").Get("branch-alias"); ok {
-			yield(SkeletonExtra, aliases)
-		}
 	}
 }
 
-// skeletonKey is the index in SkeletonKeys of k, a key before extra; -1
-// for any other key.
+// skeletonKey is the index in SkeletonKeys of k; -1 for any other key.
 func skeletonKey(k php.Key) int {
 	if !k.IsString() {
 		return -1
@@ -90,6 +81,8 @@ func skeletonKey(k php.Key) int {
 		return 9
 	case "require-dev":
 		return 10
+	case "extra":
+		return 11
 	}
 
 	return -1
@@ -98,9 +91,6 @@ func skeletonKey(k php.Key) int {
 // SetSkeletonField sets the key at index key in SkeletonKeys of skeleton,
 // a SkeletonConfig, to v, its value as SkeletonFields yields it.
 func SetSkeletonField(skeleton *php.Array, key int, v any) {
-	if key == SkeletonExtra {
-		v = php.ArrayOf("branch-alias", v)
-	}
 	skeleton.Set(SkeletonKeys[key], v)
 }
 
@@ -122,6 +112,7 @@ func (b *PackageBatch) LoadSkeleton(skeleton *php.Array, full func() *php.Array)
 	if err := configureType(cp, skeleton); err != nil {
 		return nil, err
 	}
+	configureExtra(cp, skeleton)
 	configureDefaultBranch(cp, skeleton)
 	configureAbandoned(cp, skeleton)
 

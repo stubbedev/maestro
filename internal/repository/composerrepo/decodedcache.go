@@ -28,11 +28,11 @@ func UseDecodedCache(root string) {
 
 // decodedVersion is the directory, under the root, of the slots of the
 // current form; it changes with decodedMagic.
-const decodedVersion = "v4"
+const decodedVersion = "v5"
 
 // decodedMagic starts a decoded file; its version changes with the slot's
 // form (cache.Decoded), the p2 codec's (appendP2) and the binary form.
-const decodedMagic = "maestro-p2-v4\n"
+const decodedMagic = "maestro-p2-v5\n"
 
 // decodedMinSize is the size under which JSON is decoded at once: reading
 // a small file back costs more than decoding it.

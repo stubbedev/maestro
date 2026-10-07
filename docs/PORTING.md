@@ -278,7 +278,8 @@ These change frozen behaviour on purpose; nothing else may.
    (see "maestro's own caches" for what is kept between runs).
    Repository packages read back from the decoded metadata cache are
    skeletons: the properties the solver reads (name, versions, type,
-   links, default branch flag, abandoned value, branch alias) are set at
+   links, default branch flag, abandoned value, branch alias) and the
+   extra, which plugins read of whole pools (symfony/flex), are set at
    once, all others the first time any method reads or sets one
    (`internal/pkg/lazy.go`), so the tens of thousands of versions a pool
    holds and drops are never loaded in full. A version is loaded as a

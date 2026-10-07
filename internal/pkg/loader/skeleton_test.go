@@ -94,16 +94,12 @@ func TestLoadSkeleton(t *testing.T) {
 	}
 }
 
-// skeletonKey tells the index of each key of SkeletonKeys before extra,
-// and the links' are SupportedLinkTypes' in order.
+// skeletonKey tells the index of each key of SkeletonKeys, and the links'
+// are SupportedLinkTypes' in order.
 func TestSkeletonKeys(t *testing.T) {
 	for i, k := range SkeletonKeys {
-		want := i
-		if i == SkeletonExtra {
-			want = -1
-		}
-		if got := skeletonKey(php.StrKey(k)); got != want {
-			t.Errorf("skeletonKey(%q) = %d, want %d", k, got, want)
+		if got := skeletonKey(php.StrKey(k)); got != i {
+			t.Errorf("skeletonKey(%q) = %d, want %d", k, got, i)
 		}
 	}
 	for i, lt := range pkg.SupportedLinkTypes() {
