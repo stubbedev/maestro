@@ -64,10 +64,13 @@ func (t *prefetchedTransfer) run(ctx context.Context, p *transportPool) bool {
 	return true
 }
 
-// maxPrefetches bounds the prefetched transfers running at once: over
-// HTTP/2 (Packagist, GitHub) they share one connection; a server
-// answering over HTTP/1 gets that many connections at most.
-const maxPrefetches = 64
+// maxPrefetches bounds the prefetched transfers running at once. Over
+// HTTP/2 they share one connection, as many at once as net/http lets a
+// connection take before the server's settings arrive (100, GitHub's
+// limit; Packagist allows 128): one more would open a connection of its
+// own. Over HTTP/1 they share MaxConnsPerHost connections. A transfer
+// waiting here starts only when a running one ends, a round trip later.
+const maxPrefetches = 100
 
 // prefetches holds the transfers a pool started ahead of time. They start
 // at most limit at once: first the urgent ones (asked for by a reader of
