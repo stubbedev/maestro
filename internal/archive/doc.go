@@ -34,4 +34,8 @@
 // directory. Sizes declared by the archive are never trusted: content is read
 // through readers that fail as soon as more (or other) bytes arrive than the
 // plan promised.
+//
+// A zip archive of up to 32 MiB is read into memory whole when it is
+// opened, and planned and extracted from there: its central directory,
+// local headers and entries would otherwise each cost reads of their own.
 package archive

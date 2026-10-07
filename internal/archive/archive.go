@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"bytes"
 	"cmp"
 	"errors"
 	"fmt"
@@ -316,7 +317,7 @@ func Open(path string, format Format, opts *Options) (*Archive, error) {
 
 	switch format {
 	case Zip:
-		a.content, err = planZip(f, info.Size(), opts.locale(), b)
+		a.content, err = planZip(zipSource(f, info.Size()), info.Size(), opts.locale(), b)
 	case Tar:
 		a.content, err = planPharTar(f, info.Size(), b)
 	case Xz:
@@ -341,6 +342,27 @@ func Open(path string, format Format, opts *Options) (*Archive, error) {
 	}
 
 	return a, nil
+}
+
+// zipInMemory is the largest zip archive read into memory at once: a zip
+// is read in many places (the central directory, every local header,
+// every entry's data), each a pread of its own from the file.
+var zipInMemory int64 = 32 << 20
+
+// zipSource is where a zip archive of size bytes is read from: its content
+// in memory (one read), or f itself when it is larger than zipInMemory or
+// cannot be read whole.
+func zipSource(f *os.File, size int64) io.ReaderAt {
+	if size > zipInMemory {
+		return f
+	}
+
+	data := make([]byte, size)
+	if n, err := f.ReadAt(data, 0); int64(n) != size || (err != nil && !errors.Is(err, io.EOF)) {
+		return f
+	}
+
+	return bytes.NewReader(data)
 }
 
 // Entries is the planned package tree: the package directory ("") first,

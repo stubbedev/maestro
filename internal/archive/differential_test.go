@@ -137,6 +137,32 @@ func TestDifferentialZip(t *testing.T) {
 	c.Log(t, "zip corpus")
 }
 
+// TestZipFromFile extracts the zip corpus from the archive in memory (as
+// every zip up to its size limit is) and from the file, and expects the
+// same trees and the same refusals.
+func TestZipFromFile(t *testing.T) {
+	for _, tc := range archivetest.ZipCorpus() {
+		path := write(t, "dist.zip", tc.Data)
+		opts := &archive.Options{Locale: archive.LocaleUTF8}
+
+		mem, memErr := extract(path, archive.Zip, opts, 0o022)
+
+		restore := archive.SetZipInMemory(0)
+		file, fileErr := extract(path, archive.Zip, opts, 0o022)
+
+		restore()
+
+		if fmt.Sprint(memErr) != fmt.Sprint(fileErr) {
+			t.Errorf("%s: from memory %v, from the file %v", tc.Name, memErr, fileErr)
+			continue
+		}
+
+		if fmt.Sprint(mem) != fmt.Sprint(file) {
+			t.Errorf("%s: trees differ\nfrom memory: %v\nfrom the file: %v", tc.Name, mem, file)
+		}
+	}
+}
+
 // TestDifferentialPharTar extracts the generated tar corpus, plain and
 // gzip-compressed, with PHP's PharData and with maestro.
 func TestDifferentialPharTar(t *testing.T) {

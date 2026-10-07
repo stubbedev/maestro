@@ -19,7 +19,6 @@ import (
 	"hash/crc32"
 	"io"
 	"io/fs"
-	"os"
 	"runtime"
 	"slices"
 	"strings"
@@ -120,7 +119,7 @@ type zipEntry struct {
 }
 
 type zipPlanner struct {
-	f      *os.File
+	f      io.ReaderAt
 	buf    []byte // local header reads
 	b      *builder
 	files  []zipFile
@@ -139,7 +138,7 @@ func (z *zipPlanner) fail(kind error, code int, entry, reason string, args ...an
 	return e
 }
 
-func planZip(f *os.File, size int64, locale Locale, b *builder) (contentReader, error) {
+func planZip(f io.ReaderAt, size int64, locale Locale, b *builder) (contentReader, error) {
 	z := &zipPlanner{f: f, b: b, size: size, locale: locale}
 
 	entries, err := z.readCentral()
@@ -153,7 +152,7 @@ func planZip(f *os.File, size int64, locale Locale, b *builder) (contentReader, 
 		}
 	}
 
-	return &zipContent{files: z.files}, nil
+	return &zipContent{files: z.files, src: f}, nil
 }
 
 // readCentral finds the end record (find_ecrec, find_ecrec64) and reads
@@ -1297,6 +1296,7 @@ func (c *cover) add(beg, end int64) int {
 
 // zipContent streams the planned files' data.
 type zipContent struct {
+	src   io.ReaderAt
 	files []zipFile
 }
 
@@ -1306,7 +1306,7 @@ func (c *zipContent) readFiles(a *Archive, fn FileFunc) error {
 	for _, i := range a.fileOrder(func(src int) int64 { return c.files[src].dataStart }) {
 		e := &a.entries[i]
 
-		r, err := newZipReader(a.file, c.files[e.src], e.Path, dec)
+		r, err := newZipReader(c.src, c.files[e.src], e.Path, dec)
 		if err != nil {
 			return err
 		}
@@ -1331,9 +1331,9 @@ type zipDecoders struct {
 	chk     checkReader
 }
 
-// section reads [off, end) of a file with pread.
+// section reads [off, end) of the archive.
 type section struct {
-	f        *os.File
+	f        io.ReaderAt
 	off, end int64
 }
 
@@ -1369,7 +1369,7 @@ func (dec *zipDecoders) buffer() {
 
 // newZipReader returns a reader of the entry's checked content, valid
 // until the next call with the same dec (nil: a fresh one).
-func newZipReader(f *os.File, file zipFile, entry string, dec *zipDecoders) (io.Reader, error) {
+func newZipReader(f io.ReaderAt, file zipFile, entry string, dec *zipDecoders) (io.Reader, error) {
 	if dec == nil {
 		dec = &zipDecoders{}
 	}
