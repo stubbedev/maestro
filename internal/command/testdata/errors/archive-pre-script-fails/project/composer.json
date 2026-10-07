@@ -1,0 +1,19 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "pkg/foo"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/foo": "*"
+    },
+    "scripts": {
+        "pre-archive-cmd": "exit 3",
+        "post-archive-cmd": "echo post-archive > post.txt"
+    }
+}

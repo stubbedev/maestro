@@ -1,0 +1,4 @@
+archive
+x/foo
+--format=rar
+--dir=out

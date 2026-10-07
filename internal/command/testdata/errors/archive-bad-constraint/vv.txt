@@ -1,0 +1,27 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Searching for the specified package.
+
+In VersionParser.php line 526:
+                                                                        
+  [UnexpectedValueException]                                            
+  Could not parse version constraint ^^1: Invalid version string "^^1"  
+                                                                        
+
+Exception trace:
+  at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:526
+ Composer\Semver\VersionParser->parseConstraint() at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:281
+ Composer\Semver\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Package/Version/VersionParser.php:34
+ Composer\Package\Version\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Command/ArchiveCommand.php:179
+ Composer\Command\ArchiveCommand->selectPackage() at @COMPOSER@/src/Composer/Command/ArchiveCommand.php:133
+ Composer\Command\ArchiveCommand->archive() at @COMPOSER@/src/Composer/Command/ArchiveCommand.php:98
+ Composer\Command\ArchiveCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+archive [-f|--format FORMAT] [--dir DIR] [--file FILE] [--ignore-filters] [--] [<package> [<version>]]
+
+exit 1

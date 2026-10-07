@@ -1,0 +1,11 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Searching for the specified package.
+
+In VersionParser.php line 526:
+                                                                        
+  Could not parse version constraint ^^1: Invalid version string "^^1"  
+                                                                        
+
+archive [-f|--format FORMAT] [--dir DIR] [--file FILE] [--ignore-filters] [--] [<package> [<version>]]
+
+exit 1

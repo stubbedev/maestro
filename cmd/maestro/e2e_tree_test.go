@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/bzip2"
+	"compress/gzip"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -259,7 +261,8 @@ func normalizeFile(rel string, data []byte) []byte {
 	return data
 }
 
-// archiveListing lists a zip or tar archive's entries.
+// archiveListing lists a zip or (compressed) tar archive's entries: the
+// compressed formats' headers hold the time of writing too.
 func archiveListing(name string, data []byte) string {
 	var lines []string
 
@@ -281,8 +284,20 @@ func archiveListing(name string, data []byte) string {
 
 			lines = append(lines, fmt.Sprintf("%s %v %x", f.Name, f.Mode(), sha256.Sum256(content)))
 		}
-	case strings.HasSuffix(name, ".tar"):
-		r := tar.NewReader(bytes.NewReader(data))
+	case strings.HasSuffix(name, ".tar"), strings.HasSuffix(name, ".tar.gz"), strings.HasSuffix(name, ".tar.bz2"):
+		var stream io.Reader = bytes.NewReader(data)
+		switch {
+		case strings.HasSuffix(name, ".gz"):
+			gz, err := gzip.NewReader(stream)
+			if err != nil {
+				return "unreadable gzip: " + err.Error()
+			}
+			stream = gz
+		case strings.HasSuffix(name, ".bz2"):
+			stream = bzip2.NewReader(stream)
+		}
+
+		r := tar.NewReader(stream)
 
 		for {
 			h, err := r.Next()

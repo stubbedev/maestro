@@ -1,0 +1,11 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+> pre-archive-cmd: echo pre-archive
+pre-archive
+Searching for the specified package.
+Found an exact match x/foo 1.0.0.
+Creating the archive into "out".
+  - Installing x/foo (1.0.0): Symlinking from pkg/foo
+Created: out/x-foo-4acedb2227bad751f4e57a7cbd2a4fa54241e48b-path.tar
+> post-archive-cmd: echo post-archive
+post-archive
+exit 0

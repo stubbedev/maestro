@@ -1,0 +1,4 @@
+archive
+x/foo
+1.0.0@dev
+--dir=out

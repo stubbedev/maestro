@@ -1,0 +1,19 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "pkg/foo"
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/foo": "*"
+    },
+    "config": {
+        "archive-format": "zip",
+        "archive-dir": "out"
+    }
+}

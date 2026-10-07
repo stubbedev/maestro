@@ -412,6 +412,23 @@ func fixtureScenarios() []scenario {
 			},
 		},
 		{
+			// The fixture sets archive-format and archive-dir in its
+			// config, leaves a file out with archive.exclude and one with
+			// a .gitattributes export-ignore.
+			name:    "archive",
+			fixture: "archive",
+			steps: []step{
+				{args: []string{"update"}},
+				{args: []string{"archive"}},
+				{args: []string{"archive", "--format=tar", "--file=filtered"}},
+				{args: []string{"archive", "--format=tar", "--file=unfiltered", "--ignore-filters"}},
+				{args: []string{"archive", "--format=tar.gz", "--file=gz"}},
+				// several of packagist's releases of a package not installed match
+				{args: []string{"archive", "psr/container", "^1.1", "--file=psr-container"}},
+				{args: []string{"archive", "nope/nope-xyz"}, dir: "empty", setup: mkdir("empty")},
+			},
+		},
+		{
 			name:    "security",
 			fixture: "security",
 			steps: []step{

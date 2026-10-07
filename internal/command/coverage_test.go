@@ -176,8 +176,18 @@ var coverage = []entry{
 		Tests:   []Proof{Positive(Go(TestStatusCommand_NoLocalChanges))},
 		Pending: 102,
 	}),
-	// Its tests are package-internal; the errors oracle covers both kinds.
-	cover(command.NewArchiveCommand, Coverage{}),
+	cover(command.NewArchiveCommand, Coverage{
+		Tests: []Proof{
+			Positive(Go(TestArchiveCommand_Streams)),
+			Positive(E2E("archive", "archive")),
+			Positive(E2E("archive", "archive", "--format=tar", "--file=filtered")),
+			Positive(E2E("archive", "archive", "--format=tar", "--file=unfiltered", "--ignore-filters")),
+			Positive(E2E("archive", "archive", "--format=tar.gz", "--file=gz")),
+			Positive(E2E("archive", "archive", "psr/container", "^1.1", "--file=psr-container")),
+			Negative(Go(TestArchiveCommand_Streams)),
+			Negative(E2E("archive", "archive", "nope/nope-xyz")),
+		},
+	}),
 	cover(command.NewDiagnoseCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestDiagnoseCommand_CmdSuccess)),

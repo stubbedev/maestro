@@ -1,0 +1,4 @@
+archive
+x/foo
+--dir=out
+--file=foo
