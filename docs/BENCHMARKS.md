@@ -1,5 +1,25 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## GitHub dists from codeload.github.com directly (#30, 2026-10-07)
+
+Packagist's GitHub dist URLs (api.github.com/repos/…/zipball/…) only
+redirect to codeload.github.com/…/legacy.zip/…; maestro now requests the
+latter, falling back to the former on any failure. The files cache keys
+on the original URL and holds the same bytes: a cold install of the
+laravel lock with each binary left byte-identical files caches (109
+archives) and vendor trees.
+
+In the dev container (one shared download link), the 109 laravel dists
+fetched with curl, 12 at a time and no connection reuse, took 2.7 to 2.9 s
+through api.github.com and 2.1 s from codeload (3 runs each, 17.4 MB
+either way). maestro's own cold install of that lock (`install
+--no-plugins --no-scripts -q`, empty Composer and maestro caches, 20
+interleaved pairs) did not change measurably: median 2.17 s before
+(8c056d6), 2.14 s after, interquartile ranges overlapping. That link is
+bandwidth-bound, and the dist transfers already overlap the lock
+verification (#20), which hides the redirect's round trip; the gain is
+there where installs wait on latency rather than bandwidth.
+
 ## Probe cache keyed on the variables php reads (#87, 2026-10-07)
 
 The platform probe cache used to key each entry on the whole environment,

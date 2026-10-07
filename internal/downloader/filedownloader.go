@@ -359,7 +359,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			st.c.io.WriteError("  - Downloading <info>"+p.Name()+"</info> (<comment>"+p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>)", true, mio.Normal)
 		}
 
-		transfer, err := d.http.AddCopy(url.processed, st.fileName, p.TransportOptions())
+		transfer, err := d.transfer(p, url.processed, st.fileName)
 		if err != nil {
 			return nil, err
 		}

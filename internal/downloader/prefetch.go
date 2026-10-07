@@ -98,6 +98,10 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 		}
 	}
 
+	// the request the download makes (transfer)
+	if direct := d.codeloadURL(p, processed); direct != "" {
+		processed = direct
+	}
 	pf.PrefetchCopy(processed, p.TransportOptions())
 }
 

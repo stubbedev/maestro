@@ -166,6 +166,14 @@ These change frozen behaviour on purpose; nothing else may.
    escaping them as glibc's unzip does. On Windows, where Composer extracts
    zips with ZipArchive or 7-Zip, maestro extracts as unzip would on Unix.
 3. **Speed.** Parallelism and caching wherever results stay identical.
+   One request goes elsewhere: a zip dist at Packagist's
+   `https://api.github.com/repos/{owner}/{repo}/zipball/{ref}`, which
+   GitHub only redirects to
+   `https://codeload.github.com/{owner}/{repo}/legacy.zip/{ref}`, is
+   requested there (the same bytes; the files cache keys on the original
+   URL), from the original URL when that fails in any way, and never when
+   a `PRE_FILE_DOWNLOAD` listener could change the request
+   (`internal/downloader/codeload.go`).
 4. **self-update** updates maestro from its GitHub releases.
 5. **Plugins** run in maestro's own PHP shim (`internal/plugin/php`), which
    reimplements Composer's public PHP plugin API, not Composer's code.
