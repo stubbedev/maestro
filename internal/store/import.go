@@ -69,9 +69,9 @@ func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 
 	tmp := tmpName(filepath.Dir(dst), "."+filepath.Base(dst)+".maestro-")
 
-	s.slots <- struct{}{}
+	s.imports <- struct{}{}
 	err = s.build(r.entries, tmp, opts.Unshared)
-	<-s.slots
+	<-s.imports
 
 	if err == nil {
 		err = renameDir(tmp, dst)
@@ -226,13 +226,13 @@ func (s *Store) importFiles(dev *device, entries []Entry, files []int, base stri
 
 			if owner && n%importBatch == 0 {
 				// another helper per importBatch files still to do
-				for helpers < cap(s.slots)-1 && (int64(len(files))-k)/importBatch > int64(helpers+1) {
+				for helpers < cap(s.imports)-1 && (int64(len(files))-k)/importBatch > int64(helpers+1) {
 					select {
-					case s.slots <- struct{}{}:
+					case s.imports <- struct{}{}:
 						helpers++
 
 						wg.Go(func() {
-							defer func() { <-s.slots }()
+							defer func() { <-s.imports }()
 
 							work(false)
 						})

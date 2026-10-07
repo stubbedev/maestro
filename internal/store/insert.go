@@ -62,8 +62,8 @@ func (s *Store) insert(d Dist, path, dst string, opts ImportOptions, dv Deriver)
 
 	// The slot bounds the archives held in memory as well as the
 	// goroutines writing files.
-	s.slots <- struct{}{}
-	defer func() { <-s.slots }()
+	s.inserts <- struct{}{}
+	defer func() { <-s.inserts }()
 
 	a, err := archive.Open(path, format, aopts)
 	if err != nil {
@@ -258,9 +258,9 @@ func (in *inserter) dispatch(help bool) {
 
 	if help {
 		select {
-		case in.s.slots <- struct{}{}:
+		case in.s.inserts <- struct{}{}:
 			in.wg.Go(func() {
-				defer func() { <-in.s.slots }()
+				defer func() { <-in.s.inserts }()
 
 				in.store(jobs)
 			})

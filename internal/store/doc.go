@@ -105,12 +105,14 @@
 // is imported as Materialize imports it. A new release's files are so
 // written once and linked into the package by one more call.
 //
-// Inserts and imports running at once share a few goroutines between them
-// (Options.Workers, by default GOMAXPROCS but at most 8): filesystems
+// Imports running at once share a few goroutines between them
+// (Options.Workers, by default GOMAXPROCS but at most 4): filesystems
 // create files no faster when more threads contend for their locks, and
-// btrfs slower. An insert reads its archive in one of them and hands the
-// files it holds in memory on in batches, to another goroutine while one
-// is free and else storing them itself.
+// btrfs slower. Inserts running at once share others (by default
+// GOMAXPROCS but at most 8, as they also decompress): an insert reads its
+// archive in one of them and hands the files it holds in memory on in
+// batches, to another goroutine while one is free and else storing them
+// itself.
 //
 // # Hard-linked package files
 //

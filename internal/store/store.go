@@ -87,9 +87,10 @@ type Options struct {
 	Archive archive.Options
 	// Method is the import method.
 	Method Method
-	// Workers bounds the goroutines all inserts and imports running at
-	// once use together (default GOMAXPROCS, at most maxImportSlots), and
-	// those one InsertDir uses (default GOMAXPROCS).
+	// Workers bounds the goroutines the inserts running at once use
+	// together (default GOMAXPROCS, at most maxInsertSlots), those the
+	// imports running at once use together (default GOMAXPROCS, at most
+	// maxImportSlots), and those one InsertDir uses (default GOMAXPROCS).
 	Workers int
 }
 
@@ -107,9 +108,12 @@ type Store struct {
 	index    string
 	derived  string
 	tmp      string
-	// slots holds one token per goroutine inserting a release or creating
-	// package files, which the inserts and imports running at once share.
-	slots   chan struct{}
+	// inserts holds one token per goroutine inserting a release (reading
+	// its archive or storing its files), which the inserts running at
+	// once share; imports one per goroutine creating package files from
+	// the store, which the imports running at once share.
+	inserts chan struct{}
+	imports chan struct{}
 	workers int
 	method  Method
 	umask   fs.FileMode
@@ -118,10 +122,16 @@ type Store struct {
 	shards [3][256]atomic.Bool
 }
 
-// maxImportSlots bounds the goroutines imports use by default: creating
-// files is the filesystem's work, and beyond a few threads they only
-// contend for its locks (btrfs gets slower, tmpfs no faster).
-const maxImportSlots = 8
+// maxInsertSlots and maxImportSlots bound the goroutines inserts and
+// imports use by default. An import only creates files, the filesystem's
+// work, and beyond a few threads they only contend for its locks: a warm
+// laravel or symfony install on btrfs takes as long with 4 as with 8, with
+// a third less system time (2 is slower). An insert also decompresses its
+// archive, which more threads do sooner.
+const (
+	maxInsertSlots = 8
+	maxImportSlots = 4
+)
 
 // ErrNotFound means a dist is not in the store.
 var ErrNotFound = errors.New("not in the package store")
@@ -164,12 +174,13 @@ func Open(root string, opts *Options) (*Store, error) {
 		s.workers = runtime.GOMAXPROCS(0)
 	}
 
-	slots := s.workers
+	inserts, imports := s.workers, s.workers
 	if opts.Workers <= 0 {
-		slots = min(slots, maxImportSlots)
+		inserts, imports = min(inserts, maxInsertSlots), min(imports, maxImportSlots)
 	}
 
-	s.slots = make(chan struct{}, slots)
+	s.inserts = make(chan struct{}, inserts)
+	s.imports = make(chan struct{}, imports)
 
 	s.archive.URL = ""
 
