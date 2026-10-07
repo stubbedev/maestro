@@ -286,6 +286,10 @@ These change frozen behaviour on purpose; nothing else may.
    it at once gives (`loader.SkeletonChecker`: the full load succeeds, has no
    side effect, and its release date does not depend on the current
    time).
+   The `rm -rf <dir>` Composer's Filesystem runs to remove a directory
+   (a package being uninstalled, a temporary directory) is done
+   in-process, with rm's exit status and still logged at `-vvv` as the
+   command it stands for (`internal/util/process_builtin_unix.go`).
    One request goes elsewhere: a zip dist at Packagist's
    `https://api.github.com/repos/{owner}/{repo}/zipball/{ref}`, which
    GitHub only redirects to

@@ -7,6 +7,7 @@ package util
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -226,6 +227,14 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 		return &RuntimeError{Class: ClassProcessRuntime, Message: `The provided cwd "` + p.cwd + `" does not exist.`}
 	}
 
+	if !p.isShell && !p.tty && p.input == nil {
+		if run := builtinCommand(p.args, p.cwd); run != nil {
+			p.startBuiltin(run)
+
+			return nil
+		}
+	}
+
 	// An argument list naming a VCS tool starts it without the shell
 	// whose only job is to exec it (deliberate deviation 3); the shell
 	// still runs it when it is not plainly found in PATH, so what a
@@ -354,6 +363,24 @@ func (p *Process) startCmd(cmd *exec.Cmd, commandline string, env []string, dire
 	go p.wait(cmd, pipes, p.done)
 
 	return nil
+}
+
+// startBuiltin runs a command's in-process equivalent (builtinCommand) on
+// a goroutine of its own, as the process would run beside maestro; its
+// error output is the process's. p.mu is held.
+func (p *Process) startBuiltin(run func(stderr io.Writer) int) {
+	done := make(chan struct{})
+	p.cmd, p.started, p.done = nil, true, done
+
+	go func() {
+		code := run(&processWriter{p: p, typ: ProcessErr})
+
+		p.mu.Lock()
+		p.exited, p.exitCode = true, code
+		p.mu.Unlock()
+
+		close(done)
+	}()
 }
 
 // processWriter receives a stream's output, buffering it and queueing it
@@ -557,10 +584,15 @@ func (p *Process) terminatedOrSignal(sig int) bool {
 func (p *Process) sendSignal(sig int) error {
 	p.mu.Lock()
 	p.latestSignal = sig
-	proc := p.cmd.Process
+	cmd := p.cmd
 	p.mu.Unlock()
 
-	return signalProcess(proc, sig)
+	if cmd == nil {
+		// an in-process command (startBuiltin) runs to its end
+		return nil
+	}
+
+	return signalProcess(cmd.Process, sig)
 }
 
 // IsSuccessful ports Process::isSuccessful.
