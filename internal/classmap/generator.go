@@ -323,7 +323,7 @@ func (g *Generator) prepare(items []scanItem, excluded Matcher) {
 
 			return
 		}
-		it.classes, it.parseErr = g.Parser.cachedFindClasses(b, it.filePath, g.cache)
+		it.classes, it.parseErr = g.Parser.cachedFindClasses(b, it.filePath, g.cache, g.rec.seen(it.filePath))
 	}
 
 	workers := min(runtime.GOMAXPROCS(0), len(items))

@@ -101,7 +101,7 @@ func NewParseCache() *ParseCache { return &ParseCache{} }
 // be, or through the content hash an earlier run recorded for it, when
 // that file was not changed since. A release file whose result is not
 // kept yet comes back as stamped, for the parse to keep it.
-func (c *ParseCache) lookupByIdentity(p Parser, path string) (classes []string, ok bool, stamped *stampCandidate) {
+func (c *ParseCache) lookupByIdentity(p Parser, path string, seen func(fsstate.ID)) (classes []string, ok bool, stamped *stampCandidate) {
 	if c != nil {
 		c.releasesPending.Wait()
 	}
@@ -110,6 +110,9 @@ func (c *ParseCache) lookupByIdentity(p Parser, path string) (classes []string, 
 		return nil, false, nil
 	}
 	key, keyed := statKey(path)
+	if keyed && seen != nil {
+		seen(key)
+	}
 	if !keyed {
 		if releases {
 			if size, mtime, ok := statStamp(path); ok {
@@ -198,9 +201,11 @@ func (c *ParseCache) Warm(p Parser, extensions []string, requests []ScanRequest)
 	c.warming.Go(func() { g.prefetch(requests) })
 }
 
-// cachedFindClasses is findClasses() through the cache.
-func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCache) ([]string, error) {
-	classes, ok, stamped := cache.lookupByIdentity(p, path)
+// cachedFindClasses is findClasses() through the cache. seen, when not
+// nil, is handed the identity of the file as the lookup found it or the
+// read saw it.
+func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCache, seen func(fsstate.ID)) ([]string, error) {
+	classes, ok, stamped := cache.lookupByIdentity(p, path, seen)
 	if ok {
 		return classes, nil
 	}
@@ -211,6 +216,9 @@ func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCach
 	n, key, keyed, err := b.readFileKey(path)
 	if err != nil {
 		return nil, readError(path, err)
+	}
+	if keyed && seen != nil {
+		seen(key)
 	}
 	var content contentKey
 	if disk || stamped != nil {

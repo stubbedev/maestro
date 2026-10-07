@@ -144,7 +144,7 @@ func (g *Generator) prefetch(requests []ScanRequest) {
 		if prefetchExcluded(&pre.dirs, &jobs[i].it, jobs[i].excluded) {
 			return
 		}
-		parsed[i].classes, parsed[i].err = g.Parser.cachedFindClasses(b, jobs[i].it.filePath, g.cache)
+		parsed[i].classes, parsed[i].err = g.Parser.cachedFindClasses(b, jobs[i].it.filePath, g.cache, g.rec.seen(jobs[i].it.filePath))
 		done[i] = true
 	})
 	pre.files = make(map[string]parseResult, len(jobs))

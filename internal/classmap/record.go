@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -124,6 +125,20 @@ func recordHeader() string {
 type recording struct {
 	roots, dirs, files []string
 	broken             bool
+	// ids are the identities of the files the scans parsed, as the scans
+	// found them (path -> fsstate.ID): the record holds those, and needs
+	// no stat of its own for them.
+	ids sync.Map
+}
+
+// seen returns what notes the identity of the file at path for the record,
+// nil when nothing is recorded.
+func (r *recording) seen(path string) func(fsstate.ID) {
+	if r == nil {
+		return nil
+	}
+
+	return func(id fsstate.ID) { r.ids.Store(path, id) }
 }
 
 // StartRecording makes the generator note what its scans depend on, for
@@ -195,7 +210,13 @@ func (g *Generator) SaveRecord(rec *Record) {
 	now := time.Now()
 	var failed atomic.Bool
 	parallel(len(paths), func(i int) {
-		k, ok := fsstate.Stat(paths[i])
+		var k fsstate.ID
+		v, ok := r.ids.Load(paths[i])
+		if ok && files[paths[i]] {
+			k, _ = v.(fsstate.ID)
+		} else {
+			k, ok = fsstate.Stat(paths[i])
+		}
 		stamped[i] = ok && files[paths[i]] && g.cache.isStamped(paths[i], k)
 		if !ok || !trusted(k, stamped[i], now, rec.trust) {
 			failed.Store(true)

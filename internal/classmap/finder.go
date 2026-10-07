@@ -257,7 +257,14 @@ func isDotPath(path string) bool {
 // resolving a file costs at most one lstat() (none when the Finder saw it
 // is not a symlink) and each directory one more.
 type realDirCache struct {
-	m sync.Map // directory path -> realpath, "" if it does not resolve
+	m sync.Map // directory path -> *realDir
+}
+
+// realDir is a directory's realpath, "" if it does not resolve, worked
+// out once however many scans ask for it at the same time.
+type realDir struct {
+	once sync.Once
+	real string
 }
 
 // realpath is php.Realpath(path) for an absolute path. notLink tells that path
@@ -289,11 +296,22 @@ func (c *realDirCache) resolve(path string, notLink bool) string {
 	if path == "" || path == "/" {
 		return "/"
 	}
-	if r, ok := c.m.Load(path); ok {
-		real, _ := r.(string)
-
-		return real
+	if notLink {
+		return c.join(path, true)
 	}
+	v, ok := c.m.Load(path)
+	if !ok {
+		v, _ = c.m.LoadOrStore(path, &realDir{})
+	}
+	d, _ := v.(*realDir)
+	d.once.Do(func() { d.real = c.join(path, false) })
+
+	return d.real
+}
+
+// join is the realpath of path, "" if it does not resolve: its parent's,
+// then its name, checked with lstat() not to be a symlink unless known.
+func (c *realDirCache) join(path string, notLink bool) string {
 	slash := strings.LastIndexByte(path, '/')
 	name := path[slash+1:]
 	if slash < 0 || name == "" || name == "." || name == ".." {
@@ -319,9 +337,5 @@ func (c *realDirCache) resolve(path string, notLink bool) string {
 			}
 		}
 	}
-	if !notLink {
-		c.m.Store(path, real)
-	}
-
 	return real
 }
