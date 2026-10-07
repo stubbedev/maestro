@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/stubbedev/maestro/internal/advisory"
+	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/installer"
 	"github.com/stubbedev/maestro/internal/php"
@@ -69,14 +70,21 @@ func (i *Installer) SetDownloadOnly(downloadOnly bool) *Installer {
 
 // SetPreferSource ports setPreferSource.
 func (i *Installer) SetPreferSource(preferSource bool) *Installer {
-	i.preferSource = preferSource
+	i.installPreference = i.installPreference.With(downloader.PreferSource, preferSource)
 
 	return i
 }
 
 // SetPreferDist ports setPreferDist.
 func (i *Installer) SetPreferDist(preferDist bool) *Installer {
-	i.preferDist = preferDist
+	i.installPreference = i.installPreference.With(downloader.PreferDist, preferDist)
+
+	return i
+}
+
+// SetInstallPreference is setPreferSource() and setPreferDist() at once.
+func (i *Installer) SetInstallPreference(p downloader.InstallPreference) *Installer {
+	i.installPreference = p
 
 	return i
 }

@@ -261,9 +261,3 @@ func (autoloadGeneratorMock) SetPlatformRequirementFilter(version.PlatformRequir
 func (autoloadGeneratorMock) DumpAutoloads(ConfigReader, repository.InstalledRepositoryInterface, pkg.RootPackageInterface, InstallationManager, string, bool, string, AutoloadLocker) (*classmap.ClassMap, error) {
 	return nil, nil
 }
-
-// downloadManagerMock is the PHPUnit mock of DownloadManager.
-type downloadManagerMock struct{}
-
-func (downloadManagerMock) SetPreferSource(bool) {}
-func (downloadManagerMock) SetPreferDist(bool)   {}

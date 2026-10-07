@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/installer"
 	"github.com/stubbedev/maestro/internal/io"
@@ -123,7 +124,7 @@ func (c *CreateProjectCommand) Execute(in console.Input, _ console.Output) (int,
 	}
 	cio := c.IO()
 
-	preferSource, preferDist, err := c.PreferredInstallOptions(cfg, in, true)
+	installPreference, err := c.PreferredInstallOptions(cfg, in, true)
 	if err != nil {
 		return 0, err
 	}
@@ -166,8 +167,7 @@ func (c *CreateProjectCommand) Execute(in console.Input, _ console.Output) (int,
 		Directory:                 nullableString(in.Argument("directory")),
 		PackageVersion:            nullableString(in.Argument("version")),
 		Stability:                 nullableString(in.Option("stability")),
-		PreferSource:              preferSource,
-		PreferDist:                preferDist,
+		InstallPreference:         installPreference,
 		InstallDevPackages:        !console.BoolOption(in, "no-dev"),
 		Repositories:              repositories,
 		DisablePlugins:            console.BoolOption(in, "no-plugins"),
@@ -189,8 +189,7 @@ type InstallProjectOptions struct {
 	Directory                 *string
 	PackageVersion            *string
 	Stability                 *string
-	PreferSource              bool
-	PreferDist                bool
+	InstallPreference         downloader.InstallPreference
 	InstallDevPackages        bool
 	Repositories              php.Nullable[[]string] // string|array|null, as an array or null
 	DisablePlugins            bool
@@ -343,7 +342,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 
 	// use the new config including the newly installed project
 	cfg = comp.Config()
-	preferSource, preferDist, err := c.PreferredInstallOptions(cfg, in, false)
+	installPreference, err := c.PreferredInstallOptions(cfg, in, false)
 	if err != nil {
 		return 0, err
 	}
@@ -376,8 +375,7 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 		if err != nil {
 			return 0, err
 		}
-		inst.SetPreferSource(preferSource).
-			SetPreferDist(preferDist).
+		inst.SetInstallPreference(installPreference).
 			SetDevMode(o.InstallDevPackages).
 			SetPlatformRequirementFilter(platformRequirementFilter).
 			SetSuggestedPackagesReporter(c.suggestedPackagesReporter).
@@ -766,7 +764,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	}
 
 	dm := comp.DownloadManager()
-	dm.SetPreferSource(o.PreferSource).SetPreferDist(o.PreferDist)
+	dm.SetInstallPreference(o.InstallPreference)
 
 	projectInstaller := installer.NewProjectInstaller(directory, dm, fs)
 	im, ok := comp.InstallationManager().(*installer.Manager)

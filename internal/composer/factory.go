@@ -695,12 +695,7 @@ func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownl
 	if err != nil {
 		return nil, err
 	}
-	switch preferred {
-	case "dist":
-		dm.SetPreferDist(true)
-	case "source":
-		dm.SetPreferSource(true)
-	}
+	dm.SetInstallPreference(downloader.PreferenceOf(preferred))
 
 	if a, ok := preferred.(*php.Array); ok {
 		if _, err := dm.SetPreferences(a); err != nil {

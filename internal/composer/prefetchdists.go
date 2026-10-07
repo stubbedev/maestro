@@ -25,11 +25,10 @@ func (i *Installer) prefetchDists(transaction *resolver.Transaction) func() {
 		return nil
 	}
 
-	a, ok := i.downloadManager.(DownloadManagerAdapter)
-	if !ok || a.DownloadManager == nil {
+	m := i.downloadManager
+	if m == nil {
 		return nil
 	}
-	m := a.DownloadManager
 
 	var installed []pkg.PackageInterface
 

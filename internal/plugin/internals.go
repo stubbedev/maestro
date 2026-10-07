@@ -22,6 +22,7 @@ import (
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/installer"
@@ -213,8 +214,8 @@ func (r *Runtime) installerProps(s composer.InstallerState) (*php.Array, error) 
 		"installationManager", im,
 		"eventDispatcher", ed,
 		"autoloadGenerator", r.value(s.AutoloadGenerator),
-		"preferSource", s.PreferSource,
-		"preferDist", s.PreferDist,
+		"preferSource", s.InstallPreference.Has(downloader.PreferSource),
+		"preferDist", s.InstallPreference.Has(downloader.PreferDist),
 		"optimizeAutoloader", s.OptimizeAutoloader,
 		"classMapAuthoritative", s.ClassMapAuthoritative,
 		"apcuAutoloader", s.ApcuAutoloader,

@@ -25,8 +25,7 @@ type DownloadManager struct {
 	packagePreferences []preference
 	// types are the downloader types in registration order.
 	types                           []string
-	preferDist                      bool
-	preferSource                    bool
+	preference                      InstallPreference
 	sourceFallback                  bool
 	sourceFallbackDeprecationWarned bool
 }
@@ -44,22 +43,25 @@ func NewDownloadManager(io mio.IO, preferSource bool, filesystem *util.Filesyste
 		filesystem = util.NewFilesystem(nil)
 	}
 
-	return &DownloadManager{io: io, preferSource: preferSource, filesystem: filesystem, downloaders: map[string]Downloader{}}
+	return &DownloadManager{io: io, preference: PreferAuto.With(PreferSource, preferSource), filesystem: filesystem, downloaders: map[string]Downloader{}}
 }
 
 // SetPreferSource is setPreferSource().
 func (m *DownloadManager) SetPreferSource(preferSource bool) *DownloadManager {
-	m.preferSource = preferSource
+	m.preference = m.preference.With(PreferSource, preferSource)
 
 	return m
 }
 
 // SetPreferDist is setPreferDist().
 func (m *DownloadManager) SetPreferDist(preferDist bool) *DownloadManager {
-	m.preferDist = preferDist
+	m.preference = m.preference.With(PreferDist, preferDist)
 
 	return m
 }
+
+// SetInstallPreference is setPreferSource() and setPreferDist() at once.
+func (m *DownloadManager) SetInstallPreference(p InstallPreference) { m.preference = p }
 
 // SetPreferences is setPreferences(): the preferred-install map of package
 // patterns to "dist", "source" or "auto".
@@ -453,8 +455,8 @@ func (m *DownloadManager) availableSources(p, prev pkg.PackageInterface) ([]pkg.
 	}
 
 	// reverse sources in case dist is the preferred source for this package
-	if !m.preferSource {
-		preferDist := m.preferDist
+	if !m.preference.Has(PreferSource) {
+		preferDist := m.preference.Has(PreferDist)
 		if !preferDist {
 			preference, err := m.resolvePackageInstallPreference(p)
 			if err != nil {

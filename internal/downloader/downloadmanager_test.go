@@ -790,3 +790,31 @@ func TestDownloadManager_UpdateTypeChangeAfterAsyncRemoval(t *testing.T) {
 		t.Fatalf("installed %q", zip.paths)
 	}
 }
+
+// setPreferSource() and setPreferDist() set two flags, not one choice:
+// with both on, source wins, and turning one off leaves the other.
+func TestDownloadManager_PreferSourceAndDistAreTwoFlags(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		set   func(m *DownloadManager)
+		first pkg.InstallationSource
+	}{
+		{"neither: a stable package's default", func(*DownloadManager) {}, pkg.FromDist},
+		{"source", func(m *DownloadManager) { m.SetPreferSource(true) }, pkg.FromSource},
+		{"dist", func(m *DownloadManager) { m.SetPreferDist(true) }, pkg.FromDist},
+		{"source, then dist", func(m *DownloadManager) { m.SetPreferSource(true).SetPreferDist(true) }, pkg.FromSource},
+		{"dist, then source", func(m *DownloadManager) { m.SetPreferDist(true).SetPreferSource(true) }, pkg.FromSource},
+		{"both, then not source", func(m *DownloadManager) { m.SetPreferSource(true).SetPreferDist(true).SetPreferSource(false) }, pkg.FromDist},
+		{"both, then not dist", func(m *DownloadManager) { m.SetPreferDist(true).SetPreferSource(true).SetPreferDist(false) }, pkg.FromSource},
+	} {
+		m, _ := newManager(t)
+		tc.set(m)
+		sources, err := m.availableSources(dmPackage("a/b", false, "git", "zip"), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sources[0] != tc.first {
+			t.Errorf("%s: sources %q, want %s first", tc.name, sources, tc.first)
+		}
+	}
+}

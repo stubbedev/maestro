@@ -109,7 +109,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 	}
 
 	cfg := c2.Config()
-	preferSource, preferDist, err := c.PreferredInstallOptions(cfg, in, false)
+	installPreference, err := c.PreferredInstallOptions(cfg, in, false)
 	if err != nil {
 		return 0, err
 	}
@@ -150,8 +150,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 		SetDryRun(console.BoolOption(in, "dry-run")).
 		SetDownloadOnly(console.BoolOption(in, "download-only")).
 		SetVerbose(console.BoolOption(in, "verbose")).
-		SetPreferSource(preferSource).
-		SetPreferDist(preferDist).
+		SetInstallPreference(installPreference).
 		SetDevMode(!console.BoolOption(in, "no-dev")).
 		SetDumpAutoloader(!console.BoolOption(in, "no-autoloader")).
 		SetOptimizeAutoloader(optimize).

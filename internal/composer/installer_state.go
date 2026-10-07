@@ -38,15 +38,16 @@ type InstallerState struct {
 	EventDispatcher     EventDispatcher
 	AutoloadGenerator   *autoload.Generator
 
-	PreferSource, PreferDist, OptimizeAutoloader, ClassMapAuthoritative bool
-	ApcuAutoloader                                                      bool
-	ApcuAutoloaderPrefix                                                *string
-	DevMode, DryRun, DownloadOnly, Verbose, Update, Install             bool
-	DumpAutoloader, RunScripts, PreferStable, PreferLowest              bool
-	MinimalUpdate, WriteLock, ExecuteOperations, Audit, ErrorOnAudit    bool
-	StrictPsrAutoloader                                                 bool
-	AuditFormat                                                         string
-	IgnoredTypes                                                        []string
+	InstallPreference                                                downloader.InstallPreference
+	OptimizeAutoloader, ClassMapAuthoritative                        bool
+	ApcuAutoloader                                                   bool
+	ApcuAutoloaderPrefix                                             *string
+	DevMode, DryRun, DownloadOnly, Verbose, Update, Install          bool
+	DumpAutoloader, RunScripts, PreferStable, PreferLowest           bool
+	MinimalUpdate, WriteLock, ExecuteOperations, Audit, ErrorOnAudit bool
+	StrictPsrAutoloader                                              bool
+	AuditFormat                                                      string
+	IgnoredTypes                                                     []string
 	// AllowedTypes is ?array: null allows every type, [] none.
 	AllowedTypes  php.Nullable[[]string]
 	UpdateMirrors bool
@@ -72,9 +73,9 @@ func (i *Installer) State() InstallerState {
 		RepositoryManager:                 i.repositoryManager,
 		Locker:                            i.locker,
 		InstallationManager:               i.installationManager,
+		DownloadManager:                   i.downloadManager,
 		EventDispatcher:                   i.eventDispatcher,
-		PreferSource:                      i.preferSource,
-		PreferDist:                        i.preferDist,
+		InstallPreference:                 i.installPreference,
 		OptimizeAutoloader:                i.optimizeAutoloader,
 		ClassMapAuthoritative:             i.classMapAuthoritative,
 		ApcuAutoloader:                    i.apcuAutoloader,
@@ -108,9 +109,6 @@ func (i *Installer) State() InstallerState {
 		AuditConfig:                       i.auditConfig,
 		PolicyConfig:                      i.policyConfig,
 		LockTransaction:                   i.lockTransaction,
-	}
-	if a, ok := i.downloadManager.(DownloadManagerAdapter); ok {
-		s.DownloadManager = a.DownloadManager
 	}
 	if g, ok := i.autoloadGenerator.(GeneratorAdapter); ok {
 		s.AutoloadGenerator = g.Generator

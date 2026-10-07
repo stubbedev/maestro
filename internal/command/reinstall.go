@@ -156,7 +156,7 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 	}
 
 	cfg := comp.Config()
-	preferSource, preferDist, err := c.PreferredInstallOptions(cfg, in, false)
+	installPreference, err := c.PreferredInstallOptions(cfg, in, false)
 	if err != nil {
 		return 0, err
 	}
@@ -172,8 +172,7 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 		}
 	}
 
-	downloadManager.SetPreferSource(preferSource)
-	downloadManager.SetPreferDist(preferDist)
+	downloadManager.SetInstallPreference(installPreference)
 
 	devMode, ok := localRepo.DevMode()
 	if !ok {

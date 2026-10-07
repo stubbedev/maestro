@@ -150,9 +150,7 @@ func (r *Runtime) newInstallerFromSettings(a args) (*composer.Installer, error) 
 		deps.Runtime = r.composerFactory.Runtime
 		deps.Process = util.NewProcessExecutor(out)
 	}
-	if dm != nil {
-		deps.DownloadManager = composer.DownloadManagerAdapter{DownloadManager: dm}
-	}
+	deps.DownloadManager = dm
 	if ed != nil {
 		deps.EventDispatcher = ed
 	}

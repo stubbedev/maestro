@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
@@ -371,30 +372,26 @@ func (c *BaseCommand) CreateComposerInstance(in console.Input, out io.IO, cfg an
 	return comp, err
 }
 
-// PreferredInstallOptions ports getPreferredInstallOptions.
-func (*BaseCommand) PreferredInstallOptions(cfg *config.Config, in console.Input, keepVcsRequiresPreferSource bool) (preferSource, preferDist bool, err error) {
+// PreferredInstallOptions ports getPreferredInstallOptions: the
+// $preferSource and $preferDist it returns.
+func (*BaseCommand) PreferredInstallOptions(cfg *config.Config, in console.Input, keepVcsRequiresPreferSource bool) (downloader.InstallPreference, error) {
 	v, err := cfg.Get("preferred-install", 0)
 	if err != nil {
-		return false, false, err
+		return downloader.PreferAuto, err
 	}
-	switch v {
-	case "source":
-		preferSource = true
-	case "dist":
-		preferDist = true
-	}
+	preference := downloader.PreferenceOf(v)
 
 	if !in.HasOption("prefer-dist") || !in.HasOption("prefer-source") {
-		return preferSource, preferDist, nil
+		return preference, nil
 	}
 
 	if in.HasOption("prefer-install") {
 		if pi, ok := in.Option("prefer-install").(string); ok {
 			if console.BoolOption(in, "prefer-source") {
-				return false, false, NewError(ClassInvalidArgument, "--prefer-source can not be used together with --prefer-install")
+				return downloader.PreferAuto, NewError(ClassInvalidArgument, "--prefer-source can not be used together with --prefer-install")
 			}
 			if console.BoolOption(in, "prefer-dist") {
-				return false, false, NewError(ClassInvalidArgument, "--prefer-dist can not be used together with --prefer-install")
+				return downloader.PreferAuto, NewError(ClassInvalidArgument, "--prefer-dist can not be used together with --prefer-install")
 			}
 			switch pi {
 			case "dist":
@@ -402,21 +399,20 @@ func (*BaseCommand) PreferredInstallOptions(cfg *config.Config, in console.Input
 			case "source":
 				in.SetOption("prefer-source", true)
 			case "auto":
-				preferDist = false
-				preferSource = false
+				preference = downloader.PreferAuto
 			default:
-				return false, false, NewError(ClassUnexpectedValue, `--prefer-install accepts one of "dist", "source" or "auto", got `+pi)
+				return downloader.PreferAuto, NewError(ClassUnexpectedValue, `--prefer-install accepts one of "dist", "source" or "auto", got `+pi)
 			}
 		}
 	}
 
 	keepVcs := keepVcsRequiresPreferSource && in.HasOption("keep-vcs") && console.BoolOption(in, "keep-vcs")
-	if console.BoolOption(in, "prefer-source") || console.BoolOption(in, "prefer-dist") || keepVcs {
-		preferSource = console.BoolOption(in, "prefer-source") || keepVcs
-		preferDist = console.BoolOption(in, "prefer-dist")
+	preferSource, preferDist := console.BoolOption(in, "prefer-source") || keepVcs, console.BoolOption(in, "prefer-dist")
+	if preferSource || preferDist {
+		preference = downloader.PreferAuto.With(downloader.PreferSource, preferSource).With(downloader.PreferDist, preferDist)
 	}
 
-	return preferSource, preferDist, nil
+	return preference, nil
 }
 
 // PlatformRequirementFilter ports getPlatformRequirementFilter.

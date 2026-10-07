@@ -106,7 +106,6 @@ func runNoOpInstall(t *testing.T, failEvent string, failExecute bool) (*speculat
 		IO:                  out,
 		Config:              installerTestConfig{},
 		Package:             pkg.NewRootPackage("a/a", "1.0.0.0", "1.0.0"),
-		DownloadManager:     downloadManagerMock{},
 		RepositoryManager:   repositoryManager,
 		Locker:              l,
 		InstallationManager: im,

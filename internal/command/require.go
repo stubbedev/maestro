@@ -662,7 +662,7 @@ func (c *RequireCommand) doUpdate(in console.Input, out console.Output, cio io.I
 		return 0, err
 	}
 
-	preferSource, preferDist, err := c.PreferredInstallOptions(cfg, in, false)
+	installPreference, err := c.PreferredInstallOptions(cfg, in, false)
 	if err != nil {
 		return 0, err
 	}
@@ -682,8 +682,7 @@ func (c *RequireCommand) doUpdate(in console.Input, out console.Output, cio io.I
 	install.
 		SetDryRun(console.BoolOption(in, "dry-run")).
 		SetVerbose(console.BoolOption(in, "verbose")).
-		SetPreferSource(preferSource).
-		SetPreferDist(preferDist).
+		SetInstallPreference(installPreference).
 		SetDevMode(updateDevMode).
 		SetOptimizeAutoloader(optimize).
 		SetClassMapAuthoritative(authoritative).

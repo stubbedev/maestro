@@ -3,25 +3,10 @@ package composer
 import (
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/classmap"
-	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
-
-// DownloadManagerAdapter is a *downloader.DownloadManager as the
-// Installer's DownloadManager.
-type DownloadManagerAdapter struct{ *downloader.DownloadManager }
-
-// SetPreferSource implements DownloadManager.
-func (a DownloadManagerAdapter) SetPreferSource(preferSource bool) {
-	a.DownloadManager.SetPreferSource(preferSource)
-}
-
-// SetPreferDist implements DownloadManager.
-func (a DownloadManagerAdapter) SetPreferDist(preferDist bool) {
-	a.DownloadManager.SetPreferDist(preferDist)
-}
 
 // GeneratorAdapter is a *autoload.Generator as the Installer's
 // AutoloadGenerator.

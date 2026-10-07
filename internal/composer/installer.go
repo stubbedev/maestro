@@ -13,6 +13,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/installer"
@@ -55,7 +56,7 @@ type Installer struct {
 	config              ConfigReader
 	pkg                 pkg.RootPackageInterface
 	fixedRootPackage    pkg.RootPackageInterface
-	downloadManager     DownloadManager
+	downloadManager     *downloader.DownloadManager
 	repositoryManager   *repository.RepositoryManager
 	locker              *locker.Locker
 	installationManager InstallationManager
@@ -64,8 +65,7 @@ type Installer struct {
 	runtime             *Runtime
 	process             *util.ProcessExecutor
 
-	preferSource          bool
-	preferDist            bool
+	installPreference     downloader.InstallPreference
 	optimizeAutoloader    bool
 	classMapAuthoritative bool
 	strictPsrAutoloader   bool
@@ -108,7 +108,7 @@ type InstallerDeps struct {
 	IO                  io.IO
 	Config              ConfigReader
 	Package             pkg.RootPackageInterface
-	DownloadManager     DownloadManager
+	DownloadManager     *downloader.DownloadManager
 	RepositoryManager   *repository.RepositoryManager
 	Locker              *locker.Locker
 	InstallationManager InstallationManager
@@ -175,9 +175,7 @@ func CreateInstaller(out io.IO, c *Composer) (*Installer, error) {
 		Runtime:             c.runtime,
 		Process:             c.process,
 	}
-	if dm := c.DownloadManager(); dm != nil {
-		deps.DownloadManager = DownloadManagerAdapter{dm}
-	}
+	deps.DownloadManager = c.DownloadManager()
 	if ed := c.EventDispatcher(); ed != nil {
 		deps.EventDispatcher = ed
 	}
@@ -300,8 +298,7 @@ func (i *Installer) Run() (int, error) {
 	}
 
 	if i.downloadManager != nil {
-		i.downloadManager.SetPreferSource(i.preferSource)
-		i.downloadManager.SetPreferDist(i.preferDist)
+		i.downloadManager.SetInstallPreference(i.installPreference)
 	}
 
 	localRepo := i.repositoryManager.LocalRepository()

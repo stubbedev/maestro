@@ -128,10 +128,3 @@ type AutoloadLocker interface {
 	IsLocked() (bool, error)
 	LockData() (*php.Array, error)
 }
-
-// DownloadManager is the part of Composer\Downloader\DownloadManager the
-// Installer uses.
-type DownloadManager interface {
-	SetPreferSource(preferSource bool)
-	SetPreferDist(preferDist bool)
-}
