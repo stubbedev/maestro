@@ -104,6 +104,24 @@ bubbles/huh for progress and prompts, ...), under these rules:
   `internal/console`/`internal/io`), not scattered through the ports, so
   ported code keeps reporting information and the renderer decides how it
   looks.
+- One theme (#93). `internal/ui`'s palette is a set of typed roles
+  (`ui.Role`: success, notice, warning, danger, highlight, accent, muted,
+  emphasis, package, version, link, ...) on the 16 ANSI colours, with
+  backgrounds only where Composer has them (`<question>`, init's banner).
+  Everything styled takes its look from a role: diagnostics
+  (`Diagnostic.Lines`), Composer's formatter tags through one table
+  (`ui.ComposerTags`: `info`, `comment`, `question`, `error`, `warning`,
+  `highlight`, registered by `Factory::createAdditionalStyles`), and
+  maestro's own text through each role's tag (`ui.RoleX.Wrap(text)`,
+  `<maestro-x>`, which every formatter knows) or its inline style
+  (`Inline()`, to combine with `href=`). Composer's `<error>` (white on
+  red) and `<warning>` (black on yellow) boxes render as the danger (bold
+  red) and warning (bold yellow) roles, as diagnostics do, so one run
+  shows one look; `<info>` and `<comment>` keep Composer's green and
+  yellow, so package names and versions in progress lines look as
+  Composer users know them; links stay OSC 8 hyperlinks. No package but
+  `internal/ui` and the formatter engine in `internal/console` writes a
+  colour or escape sequence of its own, which a test enforces.
 
 ## Reference sources
 

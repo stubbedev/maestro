@@ -20,6 +20,7 @@ import (
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/spdx"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 func init() {
@@ -1724,17 +1725,10 @@ func appendLinks(j *php.Array, p pkg.CompletePackageInterface) error {
 	return nil
 }
 
-// initStyles ports ShowCommand::initStyles.
+// initStyles ports ShowCommand::initStyles: the tags of the tree's
+// levels, Composer's colours as maestro's theme's roles.
 func (c *ShowCommand) initStyles(output console.Output) error {
-	c.colors = []string{"green", "yellow", "cyan", "magenta", "blue"}
-
-	for _, color := range c.colors {
-		style, err := console.NewOutputFormatterStyle(color, "")
-		if err != nil {
-			return err
-		}
-		output.Formatter().SetStyle(color, style)
-	}
+	c.colors = ui.TreeTags()
 
 	return nil
 }

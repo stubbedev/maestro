@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -1376,9 +1377,9 @@ func (c *ConfigCommand) listConfiguration(contents *php.Array, rawContents any, 
 			link = "https://getcomposer.org/doc/06-config.md#" + id
 		}
 		if raw, ok := rawVal.(string); ok && (!isString || raw != text) {
-			out.Write("[<fg=yellow;href="+link+">"+k+keyStr+"</>] <info>"+raw+" ("+text+")</info>"+source, true, io.Quiet)
+			out.Write("[<"+ui.RoleNotice.Inline()+";href="+link+">"+k+keyStr+"</>] <info>"+raw+" ("+text+")</info>"+source, true, io.Quiet)
 		} else {
-			out.Write("[<fg=yellow;href="+link+">"+k+keyStr+"</>] <info>"+text+"</info>"+source, true, io.Quiet)
+			out.Write("[<"+ui.RoleNotice.Inline()+";href="+link+">"+k+keyStr+"</>] <info>"+text+"</info>"+source, true, io.Quiet)
 		}
 	}
 	return nil

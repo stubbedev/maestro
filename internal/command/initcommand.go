@@ -20,6 +20,7 @@ import (
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	rvcs "github.com/stubbedev/maestro/internal/repository/vcs"
 	"github.com/stubbedev/maestro/internal/spdx"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -322,7 +323,7 @@ func (c *InitCommand) Interact(in console.Input, out console.Output) error {
 
 	cio.WriteErrorMessages([]string{
 		"",
-		formatter.FormatBlock([]string{"Welcome to the Composer config generator"}, "bg=blue;fg=white", true),
+		formatter.FormatBlock([]string{"Welcome to the Composer config generator"}, ui.RoleBanner.Inline(), true),
 		"",
 	}, true, io.Normal)
 

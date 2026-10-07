@@ -22,14 +22,7 @@
 // wrap, keeping URLs and paths whole for copying.
 package ui
 
-import (
-	"io"
-	"strings"
-	"sync"
-
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
-)
+import "strings"
 
 // Kind is what a Diagnostic reports.
 type Kind int
@@ -73,12 +66,16 @@ type Options struct {
 
 var labels = [...]string{Error: "Error:", Warning: "Warning:", Deprecation: "Deprecated:", Note: "Note:"}
 
+// headlineRoles are the roles of each kind's label.
+var headlineRoles = [len(labels)]Role{Error: RoleDanger, Warning: RoleWarning, Deprecation: RoleWarning, Note: RoleAccent}
+
 // Lines renders d as lines without line endings.
 func (d Diagnostic) Lines(opts Options) []string {
-	s := plain
-	if opts.Decorated {
-		s = decorated()
+	style := func(r Role) func(string) string {
+		return func(s string) string { return r.Render(s, opts.Decorated) }
 	}
+	text := func(s string) string { return s }
+	muted := style(RoleMuted)
 
 	var lines []string
 	add := func(indent, label string, labelStyle func(string) string, text string, first func(string) string, rest func(string) string) {
@@ -98,19 +95,22 @@ func (d Diagnostic) Lines(opts Options) []string {
 		}
 	}
 
-	head := s.headline[d.Kind]
-	add("", labels[d.Kind], head, d.Message, s.message[d.Kind], s.text)
+	message := text
+	if d.Kind == Error {
+		message = style(RoleEmphasis)
+	}
+	add("", labels[d.Kind], style(headlineRoles[d.Kind]), d.Message, message, text)
 	for _, c := range d.Causes {
-		add("  ", "Caused by:", s.cause, c, s.text, s.text)
+		add("  ", "Caused by:", style(RoleNotice), c, text, text)
 	}
 	for _, h := range d.Hints {
-		add("  ", "Hint:", s.hint, h, s.text, s.text)
+		add("  ", "Hint:", style(RoleSuccess), h, text, text)
 	}
 	if d.Usage != "" {
-		add("  ", "Usage:", s.faint, d.Usage, s.text, s.text)
+		add("  ", "Usage:", muted, d.Usage, text, text)
 	}
 	if opts.Verbose && len(d.Details) > 0 {
-		add("  ", "Debug:", s.faint, strings.Join(d.Details, "\n"), s.faint, s.faint)
+		add("  ", "Debug:", muted, strings.Join(d.Details, "\n"), muted, muted)
 	}
 
 	return lines
@@ -127,60 +127,3 @@ func SplitLines(s string) []string {
 
 	return lines
 }
-
-// styles are the functions that style each part of a Diagnostic.
-type styles struct {
-	headline [len(labels)]func(string) string
-	message  [len(labels)]func(string) string
-	cause    func(string) string
-	hint     func(string) string
-	faint    func(string) string
-	text     func(string) string
-}
-
-func identity(s string) string { return s }
-
-// plain styles nothing.
-var plain = styles{
-	headline: [len(labels)]func(string) string{identity, identity, identity, identity},
-	message:  [len(labels)]func(string) string{identity, identity, identity, identity},
-	cause:    identity,
-	hint:     identity,
-	faint:    identity,
-	text:     identity,
-}
-
-// decorated is the styles of decorated output: the 16 ANSI colours, which
-// follow the terminal's theme, and no background colours.
-var decorated = sync.OnceValue(func() styles {
-	// The renderer never looks at a terminal: whether to decorate is
-	// Composer's decision, made by the caller.
-	r := lipgloss.NewRenderer(io.Discard)
-	r.SetColorProfile(termenv.ANSI)
-	base := r.NewStyle().TabWidth(lipgloss.NoTabConversion)
-	render := func(st lipgloss.Style) func(string) string {
-		return func(s string) string {
-			if s == "" {
-				return s
-			}
-
-			return st.Render(s)
-		}
-	}
-	red, yellow, green, cyan := lipgloss.Color("1"), lipgloss.Color("3"), lipgloss.Color("2"), lipgloss.Color("6")
-	bold := render(base.Bold(true))
-
-	return styles{
-		headline: [len(labels)]func(string) string{
-			Error:       render(base.Bold(true).Foreground(red)),
-			Warning:     render(base.Bold(true).Foreground(yellow)),
-			Deprecation: render(base.Bold(true).Foreground(yellow)),
-			Note:        render(base.Foreground(cyan)),
-		},
-		message: [len(labels)]func(string) string{Error: bold, Warning: identity, Deprecation: identity, Note: identity},
-		cause:   render(base.Foreground(yellow)),
-		hint:    render(base.Foreground(green)),
-		faint:   render(base.Faint(true)),
-		text:    identity,
-	}
-})

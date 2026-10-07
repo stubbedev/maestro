@@ -141,16 +141,10 @@ func GetComposerFile() (string, error) { return config.ComposerFile() }
 func GetLockFile(composerFile string) string { return config.LockFile(composerFile) }
 
 // CreateAdditionalStyles ports Factory::createAdditionalStyles: the
-// highlight and warning styles of Composer's output.
-func CreateAdditionalStyles() []console.NamedStyle {
-	highlight, _ := console.NewOutputFormatterStyle("red", "")
-	warning, _ := console.NewOutputFormatterStyle("black", "yellow")
-
-	return []console.NamedStyle{
-		{Name: "highlight", Style: highlight},
-		{Name: "warning", Style: warning},
-	}
-}
+// highlight and warning styles of Composer's output. They and Symfony's
+// default tags take their look from maestro's theme (console.ThemeStyles),
+// which also adds a tag per palette role.
+func CreateAdditionalStyles() []console.NamedStyle { return console.ThemeStyles() }
 
 // CreateOutput ports Factory::createOutput: a ConsoleOutput with
 // Composer's styles.

@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -813,7 +814,7 @@ func (m *Manager) isPluginAllowed(packageName string, isGlobalPlugin, optional, 
 				break
 			}
 
-			answer, err := m.io.Ask(`Do you trust "<fg=green;options=bold>`+packageName+`</>" to execute code and wish to enable it now? (writes "allow-plugins" to composer.json) [<comment>y,n,d,?</comment>] `, def)
+			answer, err := m.io.Ask(`Do you trust "`+ui.RolePackage.Wrap(packageName)+`" to execute code and wish to enable it now? (writes "allow-plugins" to composer.json) [<comment>y,n,d,?</comment>] `, def)
 			if err != nil {
 				return false, err
 			}

@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // The argument and option names of the dependency commands.
@@ -343,11 +344,7 @@ func (c *BaseDependencyCommand) printTable(out console.Output, results []reposit
 
 // initStyles ports initStyles.
 func (c *BaseDependencyCommand) initStyles(out console.Output) {
-	c.colors = []string{"green", "yellow", "cyan", "magenta", "blue"}
-
-	for _, color := range c.colors {
-		out.Formatter().SetStyle(color, console.MustStyle(color, ""))
-	}
+	c.colors = ui.TreeTags()
 }
 
 // printTree ports printTree: a tree of results at level, each line
