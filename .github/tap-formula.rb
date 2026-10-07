@@ -24,7 +24,11 @@ class Maestro < Formula
     end
   end
 
-  depends_on "php"
+  # maestro runs PHP code (platform detection, plugins, scripts) with the
+  # php first on PATH, whichever installed it, so Homebrew's php is only
+  # an option: forcing it builds php's whole tree where no bottle fits
+  # (an Intel brew on Apple Silicon) for users who already have a php.
+  depends_on "php" => :optional
 
   def install
     bin.install asset => "maestro"
@@ -33,6 +37,10 @@ class Maestro < Formula
 
   def caveats
     <<~EOS
+      maestro runs PHP code with the php first on your PATH. If you have
+      none, install one (`brew install php`, or reinstall maestro with
+      `--with-php`).
+
       To use maestro as composer:
         ln -s "#{opt_bin}/maestro" "$(brew --prefix)/bin/composer"
     EOS

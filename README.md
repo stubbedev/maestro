@@ -29,6 +29,12 @@ Homebrew:
 brew install stubbedev/tap/maestro
 ```
 
+maestro uses the `php` first on your `PATH`, so the formula does not pull
+in Homebrew's php; add `--with-php` (or `brew install php`) if you have
+none. On Apple Silicon, install with the arm64 Homebrew
+(`/opt/homebrew/bin/brew`): an Intel Homebrew in `/usr/local` installs the
+x86_64 binary, which runs under Rosetta.
+
 Nix (the package also provides `composer`):
 
 ```nix
