@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
+	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -168,6 +169,18 @@ func (m *DownloadManager) MaintainStore() {
 			}
 
 			return
+		}
+	}
+}
+
+// DeriveWith has the downloaders that insert archives into the shared
+// package store hand each package's files to what derive returns for it
+// (nil for nothing), as they are inserted (store.Deriver): maestro's own
+// work ahead, which changes nothing they install.
+func (m *DownloadManager) DeriveWith(derive func(pkg.PackageInterface) store.Deriver) {
+	for _, typ := range m.types {
+		if f := FileDownloaderOf(m.downloaders[typ]); f != nil && f.store != nil {
+			f.derive = derive
 		}
 	}
 }

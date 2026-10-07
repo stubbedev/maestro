@@ -50,7 +50,7 @@ func BenchmarkImport(b *testing.B) {
 			s := openStore(b, filepath.Join(work, "store"), m)
 			d := Dist{Name: "bench/pkg", Type: "zip"}
 
-			r, err := s.Insert(d, zip)
+			r, err := s.Insert(d, zip, nil)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -86,7 +86,7 @@ func BenchmarkInsertCold(b *testing.B) {
 		n++
 		s := openStore(b, filepath.Join(work, fmt.Sprint("store", n)), Auto)
 
-		if _, err := s.Insert(d, zip); err != nil {
+		if _, err := s.Insert(d, zip, nil); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -99,7 +99,7 @@ func BenchmarkInsertWarm(b *testing.B) {
 	zip, total := benchPackage(b, work)
 	s := openStore(b, filepath.Join(work, "store"), Auto)
 
-	if _, err := s.Insert(Dist{Name: "bench/pkg", Type: "zip"}, zip); err != nil {
+	if _, err := s.Insert(Dist{Name: "bench/pkg", Type: "zip"}, zip, nil); err != nil {
 		b.Fatal(err)
 	}
 
@@ -108,7 +108,7 @@ func BenchmarkInsertWarm(b *testing.B) {
 	n := 0
 	for b.Loop() {
 		n++
-		if _, err := s.Insert(Dist{Name: "bench/pkg", Type: "zip", Reference: strconv.Itoa(n)}, zip); err != nil {
+		if _, err := s.Insert(Dist{Name: "bench/pkg", Type: "zip", Reference: strconv.Itoa(n)}, zip, nil); err != nil {
 			b.Fatal(err)
 		}
 	}

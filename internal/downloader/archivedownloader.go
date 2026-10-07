@@ -610,7 +610,16 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 
 	s := d.store
 
-	if _, write := d.storeAccess(); !write || !shared {
+	// what is worked out from the files as they are inserted is kept in
+	// the shared store only
+	var dv store.Deriver
+
+	_, write := d.storeAccess()
+	if write && shared && d.derive != nil {
+		dv = d.derive(p)
+	}
+
+	if !write || !shared {
 		method, err := store.ParseMethod(os.Getenv(store.MethodEnv))
 		if err != nil {
 			return err
@@ -625,7 +634,7 @@ func (d *FileDownloader) extractToStore(p pkg.PackageInterface, fileName, dir st
 		}
 	}
 
-	return s.Install(storeDist(p), fileName, dir, d.importOptions(p))
+	return s.Install(storeDist(p), fileName, dir, d.importOptions(p), dv)
 }
 
 // importOptions is how p's files come from the store. Composer plugins

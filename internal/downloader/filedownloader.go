@@ -94,7 +94,10 @@ type FileDownloader struct {
 	iniFiles func() []string
 	// extensionLoaded is Deps.ExtensionLoaded (never nil).
 	extensionLoaded func(name string) bool
-	self            hooks
+	// derive works data out from a package's files as the shared store
+	// inserts its archive (DownloadManager.DeriveWith), nil for nothing.
+	derive func(pkg.PackageInterface) store.Deriver
+	self   hooks
 	// hooks are the overrides of a subclass written in PHP (SetHooks).
 	hooks *Hooks
 	class string

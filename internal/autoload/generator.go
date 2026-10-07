@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/console"
@@ -51,6 +52,8 @@ type Generator struct {
 	// ahead is the speculated scan the running Dump took, nil without one:
 	// write compares with the files as it read them.
 	ahead *scanResult
+	// parseAhead is the aheadMode ParseAhead set.
+	parseAhead atomic.Int32
 	// recordDir keeps the class maps of the scans (UseScanRecords), ""
 	// for none.
 	recordDir string

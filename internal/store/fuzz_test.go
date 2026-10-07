@@ -56,7 +56,7 @@ func FuzzInstall(f *testing.F) {
 
 		dst := filepath.Join(out, "pkg")
 
-		r, err := s.Insert(d, in)
+		r, err := s.Insert(d, in, nil)
 		if err == nil {
 			err = s.Materialize(r, dst, ImportOptions{})
 		}

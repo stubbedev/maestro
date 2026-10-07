@@ -15,11 +15,26 @@ import (
 // worker; larger ones are streamed to disk while being hashed.
 const smallFile = 1 << 20
 
+// Deriver works data out from the files of a release while Insert stores
+// them, and keeps it with the release (WriteDerived) once it is in the
+// store.
+type Deriver interface {
+	// File sees the content of the file at path (slash-separated, in the
+	// release's tree), with its hash, once it is stored. It is called for
+	// the files Insert holds in memory (those of up to 1 MiB), from
+	// several goroutines at once, and must not keep data.
+	File(path string, data []byte, sum *[32]byte)
+	// Inserted is called once release r is in store s, after File saw
+	// all of its files, unless the insert failed.
+	Inserted(s *Store, r *Release)
+}
+
 // Insert extracts the archive at path into the store as dist d's release,
 // replacing any index the dist had. Files already in the store are not
 // written again. Archives maestro cannot extract exactly as Composer would
-// fail with the archive package's *archive.Error.
-func (s *Store) Insert(d Dist, path string) (*Release, error) {
+// fail with the archive package's *archive.Error. dv, when not nil, sees
+// the files as they are stored.
+func (s *Store) Insert(d Dist, path string, dv Deriver) (*Release, error) {
 	format, opts, err := s.options(&d)
 	if err != nil {
 		return nil, err
@@ -48,7 +63,7 @@ func (s *Store) Insert(d Dist, path string) (*Release, error) {
 		entries[i].Entry = planned[i]
 	}
 
-	in := &inserter{s: s, entries: entries}
+	in := &inserter{s: s, entries: entries, derive: dv}
 
 	err = in.wait(a.ReadFiles(in.file))
 	if err != nil {
@@ -64,6 +79,10 @@ func (s *Store) Insert(d Dist, path string) (*Release, error) {
 	r := &Release{entries: entries, id: id}
 	s.releases.Store(id, r)
 
+	if dv != nil {
+		dv.Inserted(s, r)
+	}
+
 	return r, nil
 }
 
@@ -73,6 +92,7 @@ func (s *Store) Insert(d Dist, path string) (*Release, error) {
 type inserter struct {
 	err     error
 	s       *Store
+	derive  Deriver
 	hash    hash.Hash
 	jobs    chan insertJob
 	entries []Entry
@@ -161,6 +181,8 @@ func (in *inserter) start() {
 
 					if err := in.s.putObject(data, &e.Hash, objectPerm(e.Perm(in.s.umask))); err != nil {
 						in.fail(err)
+					} else if in.derive != nil {
+						in.derive.File(e.Path, data, &e.Hash)
 					}
 				}
 

@@ -42,7 +42,7 @@ func helper() int {
 	if err == nil {
 		var s *Store
 		if s, err = Open("store", nil); err == nil {
-			err = s.Install(Dist{Name: "a/b", Type: "zip", URL: url}, "dist.zip", "pkg", ImportOptions{})
+			err = s.Install(Dist{Name: "a/b", Type: "zip", URL: url}, "dist.zip", "pkg", ImportOptions{}, nil)
 		}
 	}
 
@@ -265,7 +265,7 @@ func TestInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, zip, dst, ImportOptions{}); err != nil {
+			if err := s.Install(d, zip, dst, ImportOptions{}, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -300,7 +300,7 @@ func TestInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, "", dst2, ImportOptions{}); err != nil {
+			if err := s.Install(d, "", dst2, ImportOptions{}, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -308,7 +308,7 @@ func TestInstall(t *testing.T) {
 				t.Fatalf("warm tree differs:\n%s", archivetest.Short(diff))
 			}
 
-			if err := s.Install(Dist{Name: "x/y", Type: "zip"}, "", filepath.Join(work, "nope"), ImportOptions{}); !errors.Is(err, ErrNotFound) {
+			if err := s.Install(Dist{Name: "x/y", Type: "zip"}, "", filepath.Join(work, "nope"), ImportOptions{}, nil); !errors.Is(err, ErrNotFound) {
 				t.Errorf("expected ErrNotFound for an unknown dist, got %v", err)
 			}
 
@@ -339,7 +339,7 @@ func TestCloneMethod(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Clone)
 	zip := writeFile(t, work, "dist.zip", sample())
 
-	err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(work, "dst"), ImportOptions{})
+	err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(work, "dst"), ImportOptions{}, nil)
 	if err != nil && !strings.Contains(err.Error(), "reflinks") {
 		t.Fatal(err)
 	}
@@ -368,7 +368,7 @@ func TestUnshared(t *testing.T) {
 			d := Dist{Name: "a/b", Type: "zip"}
 			plugin, other := filepath.Join(work, m.String()+"-plugin"), filepath.Join(work, m.String()+"-other")
 
-			if err := s.Install(d, zip, plugin, ImportOptions{Unshared: true}); err != nil {
+			if err := s.Install(d, zip, plugin, ImportOptions{Unshared: true}, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -381,7 +381,7 @@ func TestUnshared(t *testing.T) {
 			// A shared import of the same release after it links (where the
 			// method does), and the unshared one does not move the device
 			// off hardlinks.
-			if err := s.Install(d, "", other, ImportOptions{}); err != nil {
+			if err := s.Install(d, "", other, ImportOptions{}, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -421,11 +421,11 @@ func TestInPlaceModification(t *testing.T) {
 	d := Dist{Name: "a/b", Type: "zip"}
 	first, second := filepath.Join(work, "p1"), filepath.Join(work, "p2")
 
-	if err := s.Install(d, zip, first, ImportOptions{}); err != nil {
+	if err := s.Install(d, zip, first, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Install(d, "", second, ImportOptions{}); err != nil {
+	if err := s.Install(d, "", second, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -438,7 +438,7 @@ func TestInPlaceModification(t *testing.T) {
 
 	// Without the archive the store cannot restore the content.
 	var missing *MissingError
-	if err := s.Install(d, "", filepath.Join(work, "p3"), ImportOptions{}); !errors.As(err, &missing) {
+	if err := s.Install(d, "", filepath.Join(work, "p3"), ImportOptions{}, nil); !errors.As(err, &missing) {
 		t.Fatalf("expected *MissingError, got %v", err)
 	}
 
@@ -447,7 +447,7 @@ func TestInPlaceModification(t *testing.T) {
 	}
 
 	// With it, Install inserts the release again.
-	if err := s.Install(d, zip, filepath.Join(work, "p4"), ImportOptions{}); err != nil {
+	if err := s.Install(d, zip, filepath.Join(work, "p4"), ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -485,7 +485,7 @@ func TestLinkedMetadataChanges(t *testing.T) {
 	d := Dist{Name: "a/b", Type: "zip"}
 	first := filepath.Join(work, "p1")
 
-	if err := s.Install(d, zip, first, ImportOptions{}); err != nil {
+	if err := s.Install(d, zip, first, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -499,7 +499,7 @@ func TestLinkedMetadataChanges(t *testing.T) {
 	}
 
 	second := filepath.Join(work, "p2")
-	if err := s.Install(d, "", second, ImportOptions{}); err != nil {
+	if err := s.Install(d, "", second, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -555,7 +555,7 @@ func TestLinkedObjectsConcurrent(t *testing.T) {
 			for round := range 25 {
 				// The release, intact again (Install heals from the archive).
 				linked := filepath.Join(work, fmt.Sprintf("%v-linked-%d", m, round))
-				if err := s.Install(d, zip, linked, ImportOptions{}); err != nil {
+				if err := s.Install(d, zip, linked, ImportOptions{}, nil); err != nil {
 					t.Fatal(err)
 				}
 
@@ -643,14 +643,14 @@ func TestUmaskVariants(t *testing.T) {
 	setUmask(t, 0o022)
 
 	s1 := openStore(t, filepath.Join(work, "store"), Hardlink)
-	if err := s1.Install(d, zip, filepath.Join(work, "p1"), ImportOptions{}); err != nil {
+	if err := s1.Install(d, zip, filepath.Join(work, "p1"), ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	unix.Umask(0o002)
 
 	s2 := openStore(t, filepath.Join(work, "store"), Hardlink)
-	if err := s2.Install(d, "", filepath.Join(work, "p2"), ImportOptions{}); err != nil {
+	if err := s2.Install(d, "", filepath.Join(work, "p2"), ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -698,7 +698,7 @@ func TestSetgidInherited(t *testing.T) {
 	zip := writeFile(t, work, "dist.zip", sample())
 	s := openStore(t, filepath.Join(work, "store"), Copy)
 
-	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(parent, "b"), ImportOptions{}); err != nil {
+	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, filepath.Join(parent, "b"), ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -715,11 +715,11 @@ func TestPrune(t *testing.T) {
 	old := Dist{Name: "a/old", Type: "zip"}
 	cur := Dist{Name: "a/cur", Type: "zip"}
 
-	if _, err := s.Insert(old, writeFile(t, work, "old.zip", archivetest.Zip("", archivetest.UnixFile("only-old", 0o644, "old"), archivetest.UnixFile("shared", 0o644, "s")))); err != nil {
+	if _, err := s.Insert(old, writeFile(t, work, "old.zip", archivetest.Zip("", archivetest.UnixFile("only-old", 0o644, "old"), archivetest.UnixFile("shared", 0o644, "s"))), nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := s.Insert(cur, writeFile(t, work, "cur.zip", archivetest.Zip("", archivetest.UnixFile("only-cur", 0o644, "cur"), archivetest.UnixFile("shared", 0o644, "s")))); err != nil {
+	if _, err := s.Insert(cur, writeFile(t, work, "cur.zip", archivetest.Zip("", archivetest.UnixFile("only-cur", 0o644, "cur"), archivetest.UnixFile("shared", 0o644, "s"))), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -746,7 +746,7 @@ func TestPrune(t *testing.T) {
 		t.Errorf("pruned release still found: %v", err)
 	}
 
-	if err := s.Install(cur, "", filepath.Join(work, "dst"), ImportOptions{}); err != nil {
+	if err := s.Install(cur, "", filepath.Join(work, "dst"), ImportOptions{}, nil); err != nil {
 		t.Fatalf("kept release broken by prune: %v", err)
 	}
 
@@ -793,7 +793,7 @@ func TestVerify(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Copy)
 	d := Dist{Name: "a/b", Type: "zip"}
 
-	r, err := s.Insert(d, writeFile(t, work, "dist.zip", sample()))
+	r, err := s.Insert(d, writeFile(t, work, "dist.zip", sample()), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -832,7 +832,7 @@ func TestRefusedArchive(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Copy)
 	zip := writeFile(t, work, "dist.zip", archivetest.Zip("", archivetest.UnixFile("/abs", 0o644, "x")))
 
-	_, err := s.Insert(Dist{Name: "a/b", Type: "zip"}, zip)
+	_, err := s.Insert(Dist{Name: "a/b", Type: "zip"}, zip, nil)
 
 	var ae *archive.Error
 	if !errors.As(err, &ae) || !errors.Is(err, archive.ErrIrreproducible) {
@@ -876,7 +876,7 @@ func TestConcurrentInserts(t *testing.T) {
 			}
 
 			i := g % len(zips)
-			errs <- s.Install(Dist{Name: "a/b", Type: "zip", URL: zips[i]}, zips[i], filepath.Join(work, fmt.Sprintf("g%d", g)), ImportOptions{})
+			errs <- s.Install(Dist{Name: "a/b", Type: "zip", URL: zips[i]}, zips[i], filepath.Join(work, fmt.Sprintf("g%d", g)), ImportOptions{}, nil)
 		})
 	}
 
@@ -974,7 +974,7 @@ func TestUnshareAndChmod(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Hardlink)
 	dst := filepath.Join(work, "dst")
 
-	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, writeFile(t, work, "dist.zip", sample()), dst, ImportOptions{}); err != nil {
+	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, writeFile(t, work, "dist.zip", sample()), dst, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1057,7 +1057,7 @@ func TestImportStampsFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, zip, dst, c.opts); err != nil {
+			if err := s.Install(d, zip, dst, c.opts, nil); err != nil {
 				if c.m == Clone && strings.Contains(err.Error(), "reflinks") {
 					t.Skipf("no reflinks here: %v", err)
 				}
@@ -1103,12 +1103,12 @@ func TestDerived(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Auto)
 	d := Dist{Name: "a/b", Type: "zip", URL: "https://example.org/b.zip"}
 
-	r, err := s.Insert(d, zip)
+	r, err := s.Insert(d, zip, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	other, err := s.Insert(Dist{Name: "a/c", Type: "zip", URL: "https://example.org/c.zip"}, zip)
+	other, err := s.Insert(Dist{Name: "a/c", Type: "zip", URL: "https://example.org/c.zip"}, zip, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

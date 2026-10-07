@@ -233,7 +233,11 @@ Autoload:
   scans stats those (about 10,000 on laravel, 2 ms) instead of scanning.
 - **Parse results** are kept by content hash, and with each release in the
   store, so a new worktree's dump parses none of the package files an
-  earlier dump saw.
+  earlier dump saw. The files of the classmap (and, for an optimized dump,
+  PSR) paths of a package the store inserts are parsed as they are
+  inserted, from the extracted bytes and by the store's hash, while other
+  downloads run: the dump of a cold install reads, hashes and parses none
+  of them.
 
 Fixed per-run costs:
 

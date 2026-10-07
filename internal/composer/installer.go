@@ -307,6 +307,13 @@ func (i *Installer) Run() (int, error) {
 		i.downloadManager.SetInstallPreference(i.installPreference)
 	}
 
+	// the autoload dump below scans the files of the packages installed:
+	// those the package store inserts are parsed as they are inserted
+	// (deliberate deviation 3)
+	if a, ok := i.autoloadGenerator.(autoloadParser); ok && i.dumpAutoloader && i.executeOperations {
+		a.ParseAhead(i.optimizeAutoloader || i.classMapAuthoritative)
+	}
+
 	localRepo := i.repositoryManager.LocalRepository()
 
 	var notified func()
@@ -1690,6 +1697,12 @@ func (i *Installer) createFilterListPoolFilter(blockScope string) (*resolver.Fil
 // (GeneratorAdapter).
 type autoloadWarmer interface {
 	WarmAutoloads(config ConfigReader, localRepo repository.InstalledRepositoryInterface, root pkg.RootPackageInterface, im InstallationManager, scanPsrPackages bool)
+}
+
+// autoloadParser is an AutoloadGenerator that can parse the files of
+// packages as the package store inserts them (GeneratorAdapter).
+type autoloadParser interface {
+	ParseAhead(scanPsrPackages bool)
 }
 
 // asyncNotifier is an InstallationManager that can send the install

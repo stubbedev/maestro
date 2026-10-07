@@ -543,6 +543,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		generator.UseScanRecords(cache.ClassMapRecords())
 		if st, err := store.Open(cache.Store(), nil); err == nil {
 			generator.UseStore(st)
+			dm.DeriveWith(generator.Deriver)
 		}
 		full.SetAutoloadGenerator(generator)
 

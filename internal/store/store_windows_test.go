@@ -40,7 +40,7 @@ func helper() int {
 
 	s, err := Open(os.Getenv("MAESTRO_STORE_ROOT"), nil)
 	if err == nil {
-		err = s.Install(Dist{Name: "a/b", Type: "zip", URL: zip}, zip, os.Getenv("MAESTRO_STORE_DST"), ImportOptions{})
+		err = s.Install(Dist{Name: "a/b", Type: "zip", URL: zip}, zip, os.Getenv("MAESTRO_STORE_DST"), ImportOptions{}, nil)
 	}
 
 	if err != nil {
@@ -132,7 +132,7 @@ func TestInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, zip, dst, ImportOptions{}); err != nil {
+			if err := s.Install(d, zip, dst, ImportOptions{}, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -168,13 +168,13 @@ func TestInstall(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := s.Install(d, "", dst2, ImportOptions{}); err != nil {
+			if err := s.Install(d, "", dst2, ImportOptions{}, nil); err != nil {
 				t.Fatal(err)
 			}
 
 			checkTree(t, dst2)
 
-			if err := s.Install(Dist{Name: "x/y", Type: "zip"}, "", filepath.Join(work, "nope"), ImportOptions{}); !errors.Is(err, ErrNotFound) {
+			if err := s.Install(Dist{Name: "x/y", Type: "zip"}, "", filepath.Join(work, "nope"), ImportOptions{}, nil); !errors.Is(err, ErrNotFound) {
 				t.Errorf("expected ErrNotFound for an unknown dist, got %v", err)
 			}
 
@@ -194,7 +194,7 @@ func TestInPlaceModification(t *testing.T) {
 	d := Dist{Name: "a/b", Type: "zip"}
 	first := filepath.Join(work, "p1")
 
-	if err := s.Install(d, zip, first, ImportOptions{}); err != nil {
+	if err := s.Install(d, zip, first, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +213,7 @@ func TestInPlaceModification(t *testing.T) {
 	}
 
 	var missing *MissingError
-	if err := s.Install(d, "", filepath.Join(work, "p2"), ImportOptions{}); !errors.As(err, &missing) {
+	if err := s.Install(d, "", filepath.Join(work, "p2"), ImportOptions{}, nil); !errors.As(err, &missing) {
 		t.Fatalf("expected *MissingError, got %v", err)
 	}
 
@@ -221,7 +221,7 @@ func TestInPlaceModification(t *testing.T) {
 		t.Error("a failed import left its destination behind")
 	}
 
-	if err := s.Install(d, zip, filepath.Join(work, "p3"), ImportOptions{}); err != nil {
+	if err := s.Install(d, zip, filepath.Join(work, "p3"), ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -240,7 +240,7 @@ func TestChmod(t *testing.T) {
 	s := openStore(t, filepath.Join(work, "store"), Hardlink)
 	dst := filepath.Join(work, "dst")
 
-	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, writeFile(t, work, "dist.zip", sample()), dst, ImportOptions{}); err != nil {
+	if err := s.Install(Dist{Name: "a/b", Type: "zip"}, writeFile(t, work, "dist.zip", sample()), dst, ImportOptions{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -349,7 +349,7 @@ func TestConcurrentInserts(t *testing.T) {
 			}
 
 			i := g % len(zips)
-			errs <- s.Install(Dist{Name: "a/b", Type: "zip", URL: zips[i]}, zips[i], filepath.Join(work, fmt.Sprintf("g%d", g)), ImportOptions{})
+			errs <- s.Install(Dist{Name: "a/b", Type: "zip", URL: zips[i]}, zips[i], filepath.Join(work, fmt.Sprintf("g%d", g)), ImportOptions{}, nil)
 		})
 	}
 

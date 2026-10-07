@@ -63,7 +63,7 @@ func runStoreDifferential(t *testing.T, what string, cases []distCase) {
 
 				var got archivetest.Tree
 
-				err := s.Install(dc.dist, dc.path, dst, ImportOptions{})
+				err := s.Install(dc.dist, dc.path, dst, ImportOptions{}, nil)
 				if err == nil {
 					got = snapshot(t, dst)
 				}
