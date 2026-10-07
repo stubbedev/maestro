@@ -332,9 +332,22 @@ the same bytes (decoded JSON), the same content hash (parse results), or
 the same identity of every file it depends on (device, inode, mode, size,
 modification and change times; an identity too close to the time the
 entry was written is not trusted, as git treats racily clean index
-entries). Parse results and schema validations are used only by the
-binary that made them. Anything else is computed again and the entry
-overwritten, so a stale entry costs time and never changes frozen output.
+entries). Anything else is computed again and the entry overwritten, so
+a stale entry costs time and never changes frozen output.
+
+The class map parse results, the class map records and the schema memo
+also carry the version of their format (`fsstate.Format`), which covers
+how an entry is written and read and the code computing what it holds:
+the class map parser, the scans, the schema validation and Composer's
+schemas. An entry is used by any maestro of the same version, whichever
+build wrote it, so upgrading maestro keeps them unless that code
+changed. `internal/cache`'s `TestOwnFormats` keeps the versions honest:
+it fingerprints the declarations each version covers (from its roots,
+every function, method, type, constant and variable of the module they
+refer to, transitively, as tokens without comments, with the files they
+embed) and fails when a fingerprint is not the one recorded for the
+current version in `internal/cache/testdata/formats.txt`, so a change to
+that code cannot land without a new version.
 
 `clear-cache` clears each together with a Composer cache directory,
 silently (its output stays Composer's): what follows `cache-dir` goes
@@ -344,14 +357,14 @@ as each other cache bounds its own size.
 
 | Path | Holds | Used while | `clear-cache` |
 | --- | --- | --- | --- |
-| `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
+| `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it; the scan results, the same format version (`classmap-parse`) | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
 | `p2` | Packagist p2 metadata files from Composer's repo cache, decoded: where each package's versions are in the JSON (a version is decoded from its bytes when read), the expanded version every 16 versions as the versions its values come from, and an index of what the loads read of each version (and of its skeleton); the run that decodes a file builds its index from the versions it scanned and loaded, checking only the others | the JSON is byte-identical: the cached file's identity is the one a read that could trust it saw (a timestamp tick old), or else a copy of the JSON compares equal | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
 | `decoded` | large local JSON files read on most runs (`vendor/composer/installed.json`), decoded; at most 64 | the JSON is byte-identical | with `cache-dir` |
-| `classmap/v1.bin` | the classes found in each file content seen, by SHA-256 and parser settings, and each file's content hash by its identity | the same maestro binary; the content hash, or the file's identity | with `cache-dir` |
-| `classmap/records` | a project's class map with the identity of every file and directory its scans depended on; at most 64 | the same scans, and every identity unchanged | with `cache-dir` |
+| `classmap/v1.bin` | the classes found in each file content seen, by SHA-256 and parser settings, and each file's content hash by its identity | the same format version (`classmap-parse`); the content hash, or the file's identity | with `cache-dir` |
+| `classmap/records` | a project's class map with the identity of every file and directory its scans depended on; at most 64 | the same format version (`classmap-record`) and scans, and every identity unchanged | with `cache-dir` |
 | `platform` | php's probed platform (Linux), keyed on the php binary, its ini files, the environment that can change what it reports and the files it loaded; at most 64 | all of those unchanged, for 24 hours at most | with `cache-dir` |
 | `git-version` | `git --version` (Linux, real process executor only, never at `-vvv`), keyed on the git binary's identity | the binary unchanged, for 24 hours at most | with `cache-dir` |
-| `schema/validated` | the SHA-256 of the last 64 documents that validated against Composer's schemas without a finding | the same maestro binary and document | with `cache-dir` |
+| `schema/validated` | the SHA-256 of the last 64 documents that validated against Composer's schemas without a finding | the same format version (`schema-memo`) and document | with `cache-dir` |
 | `cacert` | the embedded CA bundle written out as a file, for what needs a path to one (`CaBundle::getBundledCaBundlePath`) | named by its hash | with `cache-dir` |
 
 ### Go runtime settings
@@ -636,6 +649,7 @@ off.
 | `MAESTRO_ORACLE_LIVE=1` | runs the classmap oracles against the PHP implementation live instead of the goldens |
 | `MAESTRO_PERF_BUDGETS=1` | fails the plugin runtime's timing tests when a timing misses its budget (docs/PLUGINS.md §5.16); without it they only log it, as wall time depends on machine load. Set it on a quiet machine |
 | `MAESTRO_SYSCALL_BUDGETS=1` | runs the tests that count, under `strace -f -c`, the system calls an install into an empty package store makes per package file (`internal/store`), and fails one that exceeds its budget; they skip without `strace` (Linux) |
+| `MAESTRO_UPDATE_FORMATS=1` | has `TestOwnFormats` (`internal/cache`) record in `internal/cache/testdata/formats.txt` the fingerprint of a cache format version not recorded yet ("maestro's own caches"); it never changes a recorded one |
 
 With `MAESTRO_E2E=1`:
 

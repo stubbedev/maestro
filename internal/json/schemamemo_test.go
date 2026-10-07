@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // useSchemaMemo has ValidateJSONSchema use a memo at a fresh path for the
@@ -17,9 +18,6 @@ func useSchemaMemo(t *testing.T) string {
 	path := filepath.Join(t.TempDir(), "schema", "validated")
 	UseSchemaMemo(path)
 	t.Cleanup(func() { schemaMemos.Store(nil) })
-	if schemaMemos.Load() == nil {
-		t.Skip("the test binary cannot tell what it is")
-	}
 
 	return path
 }
@@ -43,7 +41,7 @@ func TestValidateJSONSchema_Memo(t *testing.T) {
 
 		return strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
 	}
-	if got := lines(); len(got) != 2 || got[0]+"\n" != schemaMemoHeader() {
+	if got := lines(); len(got) != 2 || got[0]+"\n" != schemaFormat.Header() {
 		t.Fatalf("memo file %q", got)
 	}
 
@@ -68,8 +66,8 @@ func TestValidateJSONSchema_Memo(t *testing.T) {
 	}
 }
 
-// A memo file of another binary or format holds nothing.
-func TestValidateJSONSchema_MemoOfAnotherBinary(t *testing.T) {
+// A memo file of another format holds nothing.
+func TestValidateJSONSchema_MemoOfAnotherFormat(t *testing.T) {
 	path := useSchemaMemo(t)
 	invalid := php.ArrayOf("name", "acme/app", "minimum-stability", "bogus")
 	encoded, _ := php.JSONEncode(invalid, 0)
@@ -77,11 +75,11 @@ func TestValidateJSONSchema_MemoOfAnotherBinary(t *testing.T) {
 	m := &schemaMemo{path: path}
 	m.remember(sum)
 	data, _ := os.ReadFile(path)
-	if err := os.WriteFile(path, []byte(strings.Replace(string(data), schemaMemoHeader(), "maestro schema memo 1 1 1\n", 1)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(strings.Replace(string(data), schemaFormat.Header(), (fsstate.Format{Name: schemaFormat.Name, Version: schemaFormat.Version - 1}).Header(), 1)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := ValidateJSONSchema("composer.json", invalid, LaxSchema, ""); err == nil {
-		t.Error("another binary's memo was trusted")
+		t.Error("another format's memo was trusted")
 	}
 }

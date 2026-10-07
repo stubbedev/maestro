@@ -1,0 +1,7 @@
+# The versions of maestro's own caches (fsstate.Format) and, for each, the
+# fingerprint of the code it covers (TestOwnFormats): <name> <version>
+# <fingerprint>. Lines are only added, by running TestOwnFormats with
+# MAESTRO_UPDATE_FORMATS=1 after bumping a Version.
+classmap-parse 1 c5d8196023b39c1b2b903423a14407faceae4c98b45b9b465121284f5471f9fb
+classmap-record 1 84f58735a6c8fb5c5f1453923c9fe5019ead82dc29d984012657585dd67228cb
+schema-memo 1 8d5c21d299c6649344a5cd0fc33950c442e0bfdcafcbd717b97df609e008cb61

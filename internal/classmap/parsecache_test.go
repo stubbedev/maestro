@@ -297,7 +297,7 @@ func TestParseCache_ReleasesAmbiguousStamp(t *testing.T) {
 
 // Kept results of another format or binary, or damaged, are ignored.
 func TestParseCache_ReleaseResultsDecoding(t *testing.T) {
-	header := releasesHeader()
+	header := parseFormat.Header()
 	results := map[contentKey][]string{
 		{sum: sha256.Sum256([]byte("a")), parser: DefaultParser.key()}: {"A", `N\B`},
 		{sum: sha256.Sum256([]byte("b")), parser: parserKey{true, 3}}:  nil,

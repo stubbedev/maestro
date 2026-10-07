@@ -32,6 +32,9 @@ const (
 	// system calls an install makes per package file, and fail when the
 	// count exceeds its budget.
 	SyscallBudgets = "MAESTRO_SYSCALL_BUDGETS"
+	// UpdateFormats ("1") has internal/cache's TestOwnFormats record the
+	// fingerprint of a cache format version not recorded yet.
+	UpdateFormats = "MAESTRO_UPDATE_FORMATS"
 )
 
 // End-to-end knobs, read with E2E on.

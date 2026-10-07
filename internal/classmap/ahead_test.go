@@ -34,7 +34,7 @@ func releaseParseOf(t *testing.T, p Parser, dir string, accept func(string) bool
 		t.Fatal(err)
 	}
 	data, _ := rp.Merge(nil)
-	results := decodeResults(data, releasesHeader())
+	results := decodeResults(data, parseFormat.Header())
 	if data != nil && results == nil {
 		t.Fatal("the merged results do not decode")
 	}

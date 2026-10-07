@@ -29,11 +29,11 @@ type contentKey struct {
 const diskCacheMaxEntries = 1 << 19
 
 // diskCache is the persistent part of a ParseCache: the classes found in
-// file contents seen by earlier runs of this maestro binary, by content
+// file contents seen by earlier runs, by content
 // hash, so that a run reads and hashes files it has seen before (in any
 // project) instead of parsing them; and the content hash of the files
 // those runs read, by file identity (fsstate.ID), so that a file unchanged
-// since is not even read.
+// since is not even read. Its header is parseFormat's.
 type diskCache struct {
 	path, header string
 	// once loads the file, on first use; touched is set from then on, so
@@ -64,9 +64,8 @@ type diskCache struct {
 // runs. The file is read once per process, when a scan (or Warm) first
 // needs it, and shared by every ParseCache of the process using it: a
 // command that never scans never reads it. Results are only shared
-// between runs of the same maestro binary (its size and modification time
-// are part of the file's header), so a parser change never reads results
-// of another. Save writes the file.
+// between maestros of the same parseFormat (the file's header), so a
+// parser change never reads results of another. Save writes the file.
 func (c *ParseCache) UseFile(path string) {
 	if c == nil || c.disk != nil {
 		return
@@ -86,7 +85,7 @@ func sharedDiskCache(path string) *diskCache {
 	defer diskCaches.Unlock()
 	d, ok := diskCaches.byPath[path]
 	if !ok {
-		d = &diskCache{path: path, header: diskHeader(), used: map[contentKey]struct{}{}}
+		d = &diskCache{path: path, header: parseFormat.Header(), used: map[contentKey]struct{}{}}
 		diskCaches.byPath[path] = d
 	}
 
@@ -97,11 +96,6 @@ func sharedDiskCache(path string) *diskCache {
 func (d *diskCache) ready() {
 	d.touched.Store(true)
 	d.once.Do(func() { d.entries, d.stats, d.written = d.load() })
-}
-
-// diskHeader is the first line of the file: format and binary.
-func diskHeader() string {
-	return "maestro classmap cache 4" + fsstate.BinaryID() + "\n"
 }
 
 // load reads the file: the header, the identity index (a count, then per

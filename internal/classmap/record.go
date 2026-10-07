@@ -83,7 +83,7 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 	h := fsstate.NewKeyHash()
 	put := h.String
 	pk := p.key()
-	put(recordHeader())
+	put(recordFormat.Header())
 	put(id)
 	put(cwd)
 	put(real)
@@ -116,10 +116,9 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 	return r, true
 }
 
-// recordHeader is the first line of a record: format and binary.
-func recordHeader() string {
-	return "maestro classmap record 3" + fsstate.BinaryID() + "\n"
-}
+// recordFormat is the version of the records, and of the scans that
+// build their class maps; its Header starts every record.
+var recordFormat = fsstate.Format{Name: "classmap-record", Version: 1}
 
 // recording is what a generator's scans depended on.
 type recording struct {
@@ -243,7 +242,7 @@ func (g *Generator) SaveRecord(rec *Record) {
 	}
 
 	var b bytes.Buffer
-	b.WriteString(recordHeader())
+	b.WriteString(recordFormat.Header())
 	b.Write(rec.key[:])
 	w := recordWriter{&b, [binary.MaxVarintLen64]byte{}}
 	w.uint(uint64(len(paths)))
@@ -489,7 +488,7 @@ func (rec *Record) Load() (*ClassMap, bool) {
 	if err != nil {
 		return nil, false
 	}
-	header := recordHeader()
+	header := recordFormat.Header()
 	start := len(header) + len(rec.key)
 	if len(data) < start || string(data[:len(header)]) != header || !bytes.Equal(data[len(header):start], rec.key[:]) {
 		return nil, false

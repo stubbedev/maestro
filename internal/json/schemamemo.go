@@ -25,8 +25,8 @@ const schemaMemoSize = 64
 // same document the same way, so a run reading an unchanged composer.json
 // skips its validation. Only successes are kept, so a document with
 // findings is validated, and they are reported, every time. The file
-// holds a header naming the format and the binary (fsstate.BinaryID),
-// then the SHA-256 of each document, the most recent last.
+// holds schemaFormat's header, then the SHA-256 of each document, the
+// most recent last.
 type schemaMemo struct {
 	path string
 
@@ -39,18 +39,13 @@ type schemaMemo struct {
 var schemaMemos atomic.Pointer[schemaMemo]
 
 // UseSchemaMemo has ValidateJSONSchema remember in the file at path the
-// documents that validated against Composer's schemas. Without it (tests,
-// or a binary that cannot tell what it is) every document is validated.
-func UseSchemaMemo(path string) {
-	if fsstate.BinaryID() != "" {
-		schemaMemos.Store(&schemaMemo{path: path})
-	}
-}
+// documents that validated against Composer's schemas. Without it (tests)
+// every document is validated.
+func UseSchemaMemo(path string) { schemaMemos.Store(&schemaMemo{path: path}) }
 
-// schemaMemoHeader is the first line of the file.
-func schemaMemoHeader() string {
-	return "maestro schema memo 1" + fsstate.BinaryID() + "\n"
-}
+// schemaFormat is the version of the memo, and of the validation and the
+// schemas whose successes it remembers.
+var schemaFormat = fsstate.Format{Name: "schema-memo", Version: 1}
 
 // schemaKey is what identifies a validation against Composer's schemas:
 // the schema (LaxSchema, ...) and the document.
@@ -80,7 +75,7 @@ func (m *schemaMemo) remember(sum [sha256.Size]byte) {
 	}
 
 	var b bytes.Buffer
-	b.WriteString(schemaMemoHeader())
+	b.WriteString(schemaFormat.Header())
 	for _, s := range m.sums {
 		b.WriteString(hex.EncodeToString(s[:]))
 		b.WriteByte('\n')
@@ -89,8 +84,8 @@ func (m *schemaMemo) remember(sum [sha256.Size]byte) {
 	_ = fsstate.WriteAtomic(m.path, b.Bytes())
 }
 
-// load reads the file once; one of another format or binary, or
-// malformed, holds nothing.
+// load reads the file once; one of another format, or malformed, holds
+// nothing.
 func (m *schemaMemo) load() {
 	if m.loaded {
 		return
@@ -101,7 +96,7 @@ func (m *schemaMemo) load() {
 	if err != nil {
 		return
 	}
-	rest, ok := bytes.CutPrefix(data, []byte(schemaMemoHeader()))
+	rest, ok := bytes.CutPrefix(data, []byte(schemaFormat.Header()))
 	if !ok {
 		return
 	}

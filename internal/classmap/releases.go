@@ -69,11 +69,10 @@ type releaseSet struct {
 	stamps   map[stampKey][]stampCandidate
 }
 
-// releasesHeader starts every release's results: format and binary, as
-// the cache file's (diskHeader).
-func releasesHeader() string {
-	return "maestro classmap release 1" + fsstate.BinaryID() + "\n"
-}
+// parseFormat is the version of the parse results kept across runs: in
+// the cache file (UseFile) and with each release (AddReleases); its
+// Header starts both.
+var parseFormat = fsstate.Format{Name: "classmap-parse", Version: 1}
 
 // AddReleases tells the cache about package trees installed from the
 // package store: a scanned file whose stat shows the stamp of a release
@@ -120,7 +119,7 @@ func (c *ParseCache) addReleases(releases []Release) {
 	}
 	set.mu.Unlock()
 
-	header := releasesHeader()
+	header := parseFormat.Header()
 	parallel(len(fresh), func(i int) {
 		rr := fresh[i]
 		data, err := rr.src.ReadResults()
@@ -211,7 +210,7 @@ func (s *releaseSet) save() {
 		}
 	}
 	s.mu.Unlock()
-	header := releasesHeader()
+	header := parseFormat.Header()
 	parallel(len(dirty), func(i int) {
 		rr := dirty[i]
 		s.mu.RLock()

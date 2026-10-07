@@ -49,7 +49,7 @@ func (r *ReleaseParse) File(path string, data []byte, sum *[32]byte) {
 // them; nil or anything unreadable for none) with those File found added,
 // for Release.WriteResults; ok is false when File found nothing new.
 func (r *ReleaseParse) Merge(kept []byte) (data []byte, ok bool) {
-	header := releasesHeader()
+	header := parseFormat.Header()
 	results := decodeResults(kept, header)
 	if results == nil {
 		results = map[contentKey][]string{}
