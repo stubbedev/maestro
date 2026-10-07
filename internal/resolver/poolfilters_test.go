@@ -125,8 +125,8 @@ func TestSecurityAdvisoryPoolFilter_FilterPackagesByAdvisories(t *testing.T) {
 // matching advisories computed on several goroutines whatever the pool
 // size.
 func TestSecurityAdvisoryPoolFilter_Parallel(t *testing.T) {
-	defer func(n int) { minParallelPackages = n }(minParallelPackages)
-	minParallelPackages = 1
+	defer func(n, chunk int) { minParallelPackages, parallelChunk = n, chunk }(minParallelPackages, parallelChunk)
+	minParallelPackages, parallelChunk = 1, 1
 
 	t.Run("FilterPackagesByAdvisories", TestSecurityAdvisoryPoolFilter_FilterPackagesByAdvisories)
 	t.Run("DontFilterPackagesByIgnoredAdvisories", TestSecurityAdvisoryPoolFilter_DontFilterPackagesByIgnoredAdvisories)

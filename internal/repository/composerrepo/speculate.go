@@ -228,6 +228,16 @@ type speculatedFile struct {
 	json  string
 	data  *php.Array
 	store func()
+	// expected tells the loads that the cached copy was handed over, or
+	// will not be (see decodedFiles.expect); nil when not expected
+	expected func()
+}
+
+// handedOver calls f.expected, if any.
+func (f *speculatedFile) handedOver() {
+	if f.expected != nil {
+		f.expected()
+	}
 }
 
 // requestFiles reads name's cached files and starts their requests.
@@ -237,6 +247,11 @@ func (s *speculation) requestFiles(name string) []*speculatedFile {
 		url := strings.ReplaceAll(s.metadataURL, "%package%", fileName)
 		f := &speculatedFile{cacheKey: "provider-" + php.Strtr(fileName, "/", "~") + ".json"}
 		f.cached, _ = s.peek(f.cacheKey)
+		if f.cached != "" && !s.stopped.Load() {
+			// the loads wait for it (load hands the cached copies over
+			// first when all of them are cached)
+			f.expected = s.r.decoded.expect(s.gen, f.cacheKey, f.cached)
+		}
 		if !s.r.decoded.wasRequested(url) {
 			f.response = s.p.PrefetchResponse(url, s.conditionalOptions(f.cached))
 		}
@@ -254,6 +269,18 @@ func (s *speculation) load(name string, st *speculatedName, files []*speculatedF
 	allCached := true
 	for _, f := range files {
 		allCached = allCached && f.cached != ""
+	}
+	defer func() {
+		for _, f := range files {
+			f.handedOver()
+		}
+	}()
+	if !allCached {
+		// nothing is handed over before the responses come: the loads do
+		// not wait for them
+		for _, f := range files {
+			f.handedOver()
+		}
 	}
 
 	// decode reads f's versions from json; handOver builds its packages
@@ -318,6 +345,7 @@ func (s *speculation) load(name string, st *speculatedName, files []*speculatedF
 		publish()
 		for _, f := range files {
 			handOver(f)
+			f.handedOver()
 		}
 	}
 

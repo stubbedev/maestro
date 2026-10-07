@@ -142,12 +142,12 @@ func (c *Cache) Read(file string) (string, bool, error) {
 
 	c.io.WriteError("Reading "+c.root+file+" from cache", true, mio.Debug)
 
-	data, err := os.ReadFile(c.root + file)
+	data, err := readFile(c.root + file)
 	if err != nil {
 		return "", false, &util.ErrorException{Message: "file_get_contents(" + c.root + file + "): Failed to open stream: " + util.Strerror(err)}
 	}
 
-	return string(data), true, nil
+	return data, true, nil
 }
 
 // ReadAll is Read of each file in turn, with the files read in parallel
@@ -175,13 +175,13 @@ func (c *Cache) ReadAll(files []string, then func(i int, contents string)) ([]st
 					continue
 				}
 				found[i] = true
-				data, err := os.ReadFile(paths[i])
+				data, err := readFile(paths[i])
 				if err != nil {
 					errs[i] = err
 
 					continue
 				}
-				contents[i] = string(data)
+				contents[i] = data
 				if then != nil {
 					then(i, contents[i])
 				}
@@ -214,12 +214,12 @@ func (c *Cache) Peek(file string) (string, bool) {
 		return "", false
 	}
 
-	data, err := os.ReadFile(c.root + c.key(file))
+	data, err := readFile(c.root + c.key(file))
 	if err != nil {
 		return "", false
 	}
 
-	return string(data), true
+	return data, true
 }
 
 // Peeker returns Peek as it is now, for use on other goroutines: the
@@ -236,12 +236,12 @@ func (c *Cache) Peeker() func(file string) (string, bool) {
 		if err != nil {
 			key = file
 		}
-		data, err := os.ReadFile(root + key)
+		data, err := readFile(root + key)
 		if err != nil {
 			return "", false
 		}
 
-		return string(data), true
+		return data, true
 	}
 }
 
@@ -269,6 +269,7 @@ func (c *Cache) Write(file, contents string) (bool, error) {
 	tempFileName := c.root + file + hex.EncodeToString(random) + ".tmp"
 
 	err := writeFile(tempFileName, contents)
+	forget(c.root + file)
 	if err == nil {
 		if rerr := os.Rename(tempFileName, c.root+file); rerr != nil {
 			err = &util.ErrorException{Message: "rename(" + tempFileName + "," + c.root + file + "): " + util.Strerror(rerr)}
@@ -436,6 +437,7 @@ func (c *Cache) Remove(file string) (bool, error) {
 		return false, nil
 	}
 
+	forget(c.root + file)
 	if err := util.Unlink(c.root + file); err != nil {
 		return false, err
 	}

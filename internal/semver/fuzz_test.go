@@ -120,7 +120,7 @@ func FuzzNormalize(f *testing.F) {
 }
 
 func FuzzVersionCompare(f *testing.F) {
-	for _, s := range [][2]string{{"1.0", "1.0.0"}, {"1.0-dev", "1.0"}, {"1.0#", "1.0pl"}, {"", "1"}, {"a.b", "1.a"}} {
+	for _, s := range [][2]string{{"1.0", "1.0.0"}, {"1.0-dev", "1.0"}, {"1.0#", "1.0pl"}, {"", "1"}, {"a.b", "1.a"}, {"6.4.12.0", "6.4.0.0-dev"}, {"1..2", "1.2."}, {".5", "0"}, {"10.0.0", "9.99999999999999999999.1"}} {
 		f.Add(s[0], s[1])
 	}
 	// PHP's version_compare() is not antisymmetric (version_compare('.',
@@ -137,5 +137,24 @@ func FuzzVersionCompare(f *testing.F) {
 			}
 		}
 		Comparator.LessThan(a, b)
+
+		// plain versions are copied as the C code would canonicalize them
+		for _, v := range []string{a, b} {
+			if v != "" && string(canonicalize(nil, v)) != string(canonicalizeBytes(nil, v)) {
+				t.Fatalf("canonicalize(%q) = %q, want %q", v, canonicalize(nil, v), canonicalizeBytes(nil, v))
+			}
+		}
+
+		// a compiled constraint's prepared version compares alike
+		prepared := prepareVersion(b)
+		reversed := VersionCompare(b, a)
+		for _, op := range []Op{OpEQ, OpLT, OpLE, OpGT, OpGE, OpNE} {
+			if got, want := prepared.opWith(a, op), opResult(cmp, op); got != want {
+				t.Fatalf("prepared %q: opWith(%q, %v) = %v, want %v", b, a, op, got, want)
+			}
+			if got, want := prepared.opBefore(a, op), opResult(reversed, op); got != want {
+				t.Fatalf("prepared %q: opBefore(%q, %v) = %v, want %v", b, a, op, got, want)
+			}
+		}
 	})
 }

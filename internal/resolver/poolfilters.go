@@ -4,9 +4,7 @@
 package resolver
 
 import (
-	"runtime"
 	"slices"
-	"sync"
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/filterlist"
@@ -139,23 +137,13 @@ func parallelMatchingAdvisories(packages []pkg.PackageInterface, advisoryMap *re
 		return out
 	}
 
-	compute := func(from, to int) {
-		for i := from; i < to; i++ {
-			out[i] = matchingAdvisories(packages[i], advisoryMap)
+	parallelRanges(len(packages), func() func(from, to int) {
+		return func(from, to int) {
+			for i := from; i < to; i++ {
+				out[i] = matchingAdvisories(packages[i], advisoryMap)
+			}
 		}
-	}
-	workers := runtime.GOMAXPROCS(0)
-	if len(packages) < minParallelPackages || workers < 2 {
-		compute(0, len(packages))
-
-		return out
-	}
-	var wg sync.WaitGroup
-	size := (len(packages) + workers - 1) / workers
-	for from := 0; from < len(packages); from += size {
-		wg.Go(func() { compute(from, min(from+size, len(packages))) })
-	}
-	wg.Wait()
+	})
 
 	return out
 }

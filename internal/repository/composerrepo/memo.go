@@ -17,7 +17,9 @@ import (
 //     reads each p2 file three times, for the packages, their advisories
 //     and their filter entries; only the first decodes it all.
 //   - files a speculation decoded ahead of the package loads
-//     (speculate.go), each handed over once.
+//     (speculate.go), each handed over once; a load waits for a cached
+//     file the speculation is about to hand over rather than decode it a
+//     second time.
 //
 // A remembered file is only used for the exact JSON it was decoded from,
 // so it is what decoding that JSON gives.
@@ -31,6 +33,16 @@ type decodedFiles struct {
 	requested map[string]struct{}
 	// prebuilt are the packages built ahead from the files taken.
 	prebuilt map[*php.Array]*prebuilt
+	// expected are the cached files the speculation of generation gen
+	// decodes and hands over without waiting for anything else
+	expected map[string]*expectedFile
+}
+
+// expectedFile is a file the speculation is to offer, decoded from json;
+// done is closed once it did, or gave up.
+type expectedFile struct {
+	json string
+	done chan struct{}
 }
 
 type decodedFile struct {
@@ -86,9 +98,41 @@ func (d *decodedFiles) offer(gen int, cacheKey, json string, data *php.Array, pr
 	d.ahead[cacheKey] = decodedFile{json: json, data: data, pre: pre}
 }
 
+// expect notes that the speculation of generation gen is to offer the
+// file cached under cacheKey, decoded from json; the returned function
+// (to be called whatever happens, more than once if need be) tells that it
+// did or gave up.
+func (d *decodedFiles) expect(gen int, cacheKey, json string) (done func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if gen != d.gen {
+		return func() {}
+	}
+	if d.expected == nil {
+		d.expected = map[string]*expectedFile{}
+	}
+	e := &expectedFile{json: json, done: make(chan struct{})}
+	d.expected[cacheKey] = e
+
+	var once sync.Once
+
+	return func() {
+		once.Do(func() {
+			d.mu.Lock()
+			if d.expected[cacheKey] == e {
+				delete(d.expected, cacheKey)
+			}
+			d.mu.Unlock()
+			close(e.done)
+		})
+	}
+}
+
 // take returns, once, the data offered for the file cached under cacheKey
-// when json is what it was decoded from, else nil. The packages built
-// ahead from it are then prebuiltFor(data).
+// when json is what it was decoded from, else nil; when the speculation
+// is to offer it (expect), it waits for that. The packages built ahead
+// from it are then prebuiltFor(data).
 func (d *decodedFiles) take(cacheKey, json string) *php.Array {
 	if d == nil {
 		return nil
@@ -98,6 +142,12 @@ func (d *decodedFiles) take(cacheKey, json string) *php.Array {
 	defer d.mu.Unlock()
 
 	e, ok := d.ahead[cacheKey]
+	if expected := d.expected[cacheKey]; !ok && expected != nil && expected.json == json {
+		d.mu.Unlock()
+		<-expected.done
+		d.mu.Lock()
+		e, ok = d.ahead[cacheKey]
+	}
 	if !ok || e.json != json {
 		return nil
 	}
@@ -144,6 +194,7 @@ func (d *decodedFiles) stopSpeculation(gen int) {
 		d.gen++
 		d.ahead = nil
 		d.prebuilt = nil
+		d.expected = nil
 	}
 }
 

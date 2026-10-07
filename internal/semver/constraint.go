@@ -341,21 +341,23 @@ func (c *Constraint) compile(otherOperator Op) compiledMatcher {
 		return matcherFalse
 	}
 
+	// the constraint's version is compared with every version matched
+	prepared := prepareVersion(version)
 	switch c.operator {
 	case OpEQ:
 		switch otherOperator {
 		case OpEQ: // \version_compare($v, %s, '==')
-			return matcherExpr(func(v string, _ bool) bool { return versionCompareOp(v, version, OpEQ) })
+			return matcherExpr(func(v string, _ bool) bool { return prepared.opWith(v, OpEQ) })
 		case OpNE: // $b || \version_compare($v, %s, '!=')
-			return matcherExpr(func(v string, b bool) bool { return b || versionCompareOp(v, version, OpNE) })
+			return matcherExpr(func(v string, b bool) bool { return b || prepared.opWith(v, OpNE) })
 		}
 
 		// !$b && \version_compare(%s, $v, '%s')
-		return matcherExpr(func(v string, b bool) bool { return !b && versionCompareOp(version, v, otherOperator) })
+		return matcherExpr(func(v string, b bool) bool { return !b && prepared.opBefore(v, otherOperator) })
 	case OpNE:
 		switch otherOperator {
 		case OpEQ: // $b || (!$b && \version_compare($v, %s, '!='))
-			return matcherExpr(func(v string, b bool) bool { return b || versionCompareOp(v, version, OpNE) })
+			return matcherExpr(func(v string, b bool) bool { return b || prepared.opWith(v, OpNE) })
 		case OpNE:
 			return matcherTrue
 		}
@@ -379,12 +381,12 @@ func (c *Constraint) compile(otherOperator Op) compiledMatcher {
 	if (op == OpLE && otherOperator == OpGT) || (op == OpGE && otherOperator == OpLT) {
 		// !$b && \version_compare($v, %s, '!=') && \version_compare($v, %s, '%s')
 		return matcherExpr(func(v string, b bool) bool {
-			return !b && versionCompareOp(v, version, OpNE) && versionCompareOp(v, version, op)
+			return !b && prepared.opWith(v, OpNE) && prepared.opWith(v, op)
 		})
 	}
 
 	// !$b && \version_compare($v, %s, '%s')
-	return matcherExpr(func(v string, b bool) bool { return !b && versionCompareOp(v, version, op) })
+	return matcherExpr(func(v string, b bool) bool { return !b && prepared.opWith(v, op) })
 }
 
 func notBranch(_ string, b bool) bool { return !b }

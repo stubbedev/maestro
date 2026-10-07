@@ -277,9 +277,22 @@ func (p *Pool) computeWhatProvides(name string, constraint semver.ConstraintInte
 	if len(candidates) == 0 {
 		return []pkg.PackageInterface{}
 	}
+	// the candidates of the name itself are matched with the checker
+	// CompilingMatcher::match uses (its cached results are what the checker
+	// gives), looked up once for them all
+	var matcher func(version string) bool
 	matches := make([]pkg.PackageInterface, 0, len(candidates))
 	for _, candidate := range candidates {
-		if p.Match(candidate, name, constraint) {
+		var ok bool
+		if candidate.Name() == name && constraint != nil {
+			if matcher == nil {
+				matcher = semver.CompilingMatcher.Matcher(constraint, semver.OpEQ)
+			}
+			ok = matcher(candidate.Version())
+		} else {
+			ok = p.Match(candidate, name, constraint)
+		}
+		if ok {
 			matches = append(matches, candidate)
 		}
 	}
