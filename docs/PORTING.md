@@ -265,7 +265,14 @@ Cycle-breaking decisions already made:
   autoload, config, raw composer.json) is a `*php.Array`, so key order,
   int/string key coercion and list/object encoding behave as in PHP.
 - Concurrency is allowed only where output and side effects stay identical
-  and deterministic.
+  and deterministic. Asynchronous work completes in start order where
+  Composer's completion order is nondeterministic (`util.Scheduler`).
+- Float arithmetic that ports PHP stays unfused: PHP rounds after every
+  opcode, but Go may fuse `a - b*c` into one FMA on arm64. Wrap products
+  in an explicit `float64(...)` (jsonschema's `fmodNonZero`).
+- `date()`, `new DateTime()` and friends use PHP's default time zone,
+  `php.DefaultTimezone()` (the user's `date.timezone`, else UTC), never
+  Go's local zone.
 - Line endings: where Composer or Symfony Console use `PHP_EOL` (every line
   `writeln()` and `write($msg, true)` end, `newLine()`, messages joined
   with it), the port uses `php.EOL`, which is `"\r\n"` on Windows; where
@@ -326,6 +333,23 @@ Cycle-breaking decisions already made:
    PATH finds, there Git for Windows' GNU tar, which takes the drive
    letter of an absolute path for a remote host.
 
+Tests must pass on every CI machine, not just the one that recorded them:
+
+- Compare realpath()ed paths with `testutil.RealTempDir` (on macOS /var is
+  /private/var).
+- Where Composer follows readdir order, maestro does too
+  (`util.ReadDirOrder`). Tests compare such results without depending on
+  order, or build fixtures whose order is fixed. The live PHP oracles stay
+  exact.
+- Differential archive tests need the reference extractors: Info-ZIP UnZip
+  6.00 (`archivetest.NeedInfoZip`) and GNU tar (`archivetest.NeedGNUTar`).
+  They skip with a message when these are missing.
+- Tests that need a progress bar clear `CI` (`t.Setenv("CI", "")`), because
+  GitHub Actions sets it.
+- Process-wide caches (the git/hg/svn versions in `internal/util/vcs`)
+  are pinned with `vcs.SetVersion` and friends and reset in `t.Cleanup`.
+  Tests that do this must not run in parallel.
+
 Opt-in test switches:
 
 | Variable | Turns on |
@@ -368,6 +392,28 @@ Composer's patterns pasted verbatim. It is a PCRE2-compatible engine
 (recursion, subroutines and all); don't use `regexp` or regexp2 for ported
 patterns. regexp2 is a dependency only for a test that cross-checks
 semver's hand-written matchers (`internal/semver/regex_test.go`).
+
+A match can fail (backtrack or recursion limit, bad UTF-8 under `/u`), and
+many simple-looking patterns do on subjects well under 1 MB:
+`(.+?)\s*$` fails at about 10 KB of whitespace, and globs turned into
+`.*.*.*c` fail at about 150 bytes. What happens next depends on how the
+PHP calls it:
+
+- `Composer\Pcre\Preg::*` throws PcreException (a RuntimeException).
+  Return the `*php.PcreError` up the stack, as far as PHP lets it travel
+  (check for `catch (\Exception)`/`catch (\RuntimeException)` on the way).
+- Bare `preg_*` returns false/null (preg_grep: the entries collected so
+  far). Do what the PHP caller does with that: `!preg_match` is true, and
+  preg_replace's null concatenates as "".
+- Ignore the error (`_`) only where the pattern provably cannot fail:
+  bounded work per start position (a single character class, an anchored
+  fixed-length prefix, possessive quantifiers before a disjoint literal)
+  or a subject bounded far below the limit. Say why in a comment at the
+  site. Helpers that panic or swallow errors must not wrap patterns that
+  can fail.
+- `util.SanitizeURL` (only used to build messages) returns "" where Preg
+  would throw. Anything that derives more than a message from a URL (cache
+  directory names) uses `util.SanitizeURLChecked`.
 
 ## Working alongside other ports
 

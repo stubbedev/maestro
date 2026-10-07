@@ -9,7 +9,14 @@
 // ("+1 day", "next month", "first day of", weekday names, "back of",
 // "ago", ...) included; the parsed time is then resolved as
 // php_date_initialize does (timelib_fill_holes, timelib_update_ts:
-// datetime_relative.go).
+// datetime_relative.go). Oracle: tools/oracle/pkg/datetime.php.
+//
+// Not reproduced: zone identifiers come from Go's zoneinfo (its tzdata
+// version, LMT offsets before a zone's first transition, and names PHP's
+// bundled database lacks), and results outside time.Time's range
+// ("@9223372036854775807", 19-digit years) cannot be represented. Move
+// this to internal/php if anything besides package metadata needs
+// DateTime.
 
 package loader
 
