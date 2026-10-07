@@ -772,6 +772,13 @@ func stringList(data *php.Array, key string) []string {
 
 // LoadPackages ports loadPackages.
 func (r *ComposerRepository) LoadPackages(packageNameMap *repository.ConstraintMap, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded) (repository.LoadResult, error) {
+	// the names' metadata files are requested along with the root file
+	// (by the metadata URL of its cached copy), not a round trip after
+	// it (deliberate deviation 3); the loads below take the responses
+	if !r.rootLoaded && packageNameMap.Len() > 0 {
+		r.PrefetchPackages(packageNameMap.Keys(), acceptableStabilities, stabilityFlags)
+	}
+
 	// this call initializes loadRootServerFile which is needed for the rest below to work
 	hasProviders, err := r.hasProvidersCheck()
 	if err != nil {

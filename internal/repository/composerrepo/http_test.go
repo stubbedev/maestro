@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
@@ -25,6 +26,8 @@ type p2Server struct {
 	*httptest.Server
 	mu       sync.Mutex
 	requests []string
+	// before, when set, runs before a request is answered
+	before func(path string)
 }
 
 func newP2Server(t testing.TB) *p2Server {
@@ -42,7 +45,12 @@ func newP2Server(t testing.TB) *p2Server {
 	s.Server = httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, req *stdhttp.Request) {
 		s.mu.Lock()
 		s.requests = append(s.requests, req.URL.Path+" "+req.Header.Get("If-Modified-Since"))
+		before := s.before
 		s.mu.Unlock()
+
+		if before != nil {
+			before(req.URL.Path)
+		}
 
 		body, ok := files[req.URL.Path]
 		if !ok {
@@ -163,5 +171,58 @@ func BenchmarkLoadPackages(b *testing.B) {
 		if _, err := repo.LoadPackages(allP2Names(), acceptable, php.NewArray(), nil); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// TestComposerRepository_LoadPackagesRequestsFilesWithTheRootFile: with
+// the root file cached, the first load requests the names' metadata files
+// along with the root file's revalidation, not after its response.
+func TestComposerRepository_LoadPackagesRequestsFilesWithTheRootFile(t *testing.T) {
+	server := newP2Server(t)
+	cfg := createConfig(t, "secure-http", false)
+	names := repository.NewConstraintMap("laravel/framework", nil)
+	stable := php.ArrayOf("stable", 0)
+
+	load := func() {
+		// with TLS set up, as a Loop's: requests are prefetched
+		downloader, err := http.NewHttpDownloader(io.NewNullIO(), cfg.ForHTTP(), nil, false, http.NewStaticRuntime("8.4.0", "2.10.3"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		downloader.EnableAsync()
+		repo := newRepo(t, php.ArrayOf("url", server.URL), cfg, downloader)
+		if _, err := repo.LoadPackages(names.Clone(), stable, php.NewArray(), nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	load() // fills the cache
+	server.takeRequests()
+
+	fileRequested := make(chan struct{})
+	var once sync.Once
+	var early bool
+	server.mu.Lock()
+	server.before = func(path string) {
+		switch path {
+		case "/p2/laravel/framework.json":
+			once.Do(func() { close(fileRequested) })
+		case "/packages.json":
+			select {
+			case <-fileRequested:
+				early = true
+			case <-time.After(2 * time.Second):
+			}
+		}
+	}
+	server.mu.Unlock()
+
+	load()
+
+	if !early {
+		t.Error("the metadata file was requested after the root file's response")
+	}
+	if requests := server.takeRequests(); len(requests) != 2 {
+		t.Errorf("requests %v, want the root file and the metadata file once each", requests)
 	}
 }
