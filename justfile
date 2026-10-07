@@ -1,39 +1,59 @@
 # maestro dev tasks.
+#
+# vet, lint, test, build, check, test-race, e2e and shell run in the dev
+# container (compose.yaml), so they depend on nothing of this machine and
+# leave nothing on it; extra arguments go to the command, e.g.
+# `just test ./internal/config -run TestFactory`.
+
+# The container runs as you, so what it writes to the checkout is yours.
+export MAESTRO_UID := `id -u`
+export MAESTRO_GID := `id -g`
+
+compose := "docker compose run --rm --build"
 
 # List all recipes with their descriptions.
 default:
     @just --list
 
 # Run every release gate in order: vet, lint, test, build.
-check: vet lint test build
+check:
+    {{ compose }} check
 
 # Static analysis of every package with go vet.
-vet:
-    go vet ./...
+[positional-arguments]
+vet *args:
+    {{ compose }} lint go vet "${@:-./...}"
 
 # Lint every package; settings live in .golangci.yml.
-lint:
-    golangci-lint run
+[positional-arguments]
+lint *args:
+    {{ compose }} lint golangci-lint run "$@"
 
-# Run the test suite for every package.
-test:
-    go test ./...
+# Run the test suite for every package, the php-driven tests included.
+[positional-arguments]
+test *args:
+    {{ compose }} test go test "${@:-./...}"
 
 # Compile-check every package; the output is discarded.
 build:
-    go build -o /dev/null ./...
+    {{ compose }} test go build -o /dev/null ./...
+
+# Run the test suite with the race detector, including the php-driven tests.
+[positional-arguments]
+test-race *args:
+    {{ compose }} race go test -race "${@:-./...}"
+
+# Compare maestro with the real Composer 2.10.3 phar end to end (network, slow).
+e2e:
+    {{ compose }} e2e
+
+# Open a shell in the dev container.
+shell:
+    {{ compose }} shell
 
 # Format every Go source in place with gofmt.
 fmt:
     gofmt -w .
-
-# Run the test suite with the race detector, including the php-driven tests.
-test-race:
-    CGO_ENABLED=1 MAESTRO_PHP_TESTS=1 go test -race ./...
-
-# Compare maestro with the real Composer 2.10.3 phar end to end (network, slow).
-e2e:
-    MAESTRO_E2E=1 MAESTRO_PHP_TESTS=1 go test -count=1 -timeout 4h -run 'TestE2E|TestAllFunctional' ./cmd/maestro
 
 # Build the current tree and run it in the directory you call just from,
 # e.g. `just dev install -v` inside a PHP project. The binary is ./maestro

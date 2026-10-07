@@ -1,0 +1,98 @@
+# The dev container the tests run in, so a run depends on nothing of the
+# machine it runs on (its user, home directory, umask, locale, time zone,
+# php, unzip, tar or caches) and leaves nothing behind on it. The justfile
+# drives it: `just test`, `just test-race`, `just lint`, `just check`,
+# `just e2e`, `just shell`. Each profile is one task:
+#
+#   docker compose --profile test run --rm test [go test args...]
+#
+# The image mirrors CI's Linux test job: Go as go.mod pins it, php 8.4 with
+# the extensions the e2e job adds (zip, bz2), Info-ZIP UnZip 6.00 and GNU
+# tar for the archive differential tests, git, and golangci-lint as CI pins
+# it. The checkout is mounted at /src; the Go caches and the e2e cache
+# (the pinned Composer phar) live in named volumes.
+
+x-dev: &dev
+  build:
+    context: .
+    dockerfile_inline: |
+      FROM golang:1.27.1-trixie AS go
+      FROM golangci/golangci-lint:v2.13.2 AS lint
+      FROM php:8.4-cli-trixie
+      RUN apt-get update \
+       && apt-get install -y --no-install-recommends \
+            bzip2 ca-certificates gcc git just libbz2-dev libc6-dev libzip-dev tar unzip xz-utils \
+       && docker-php-ext-install bz2 zip \
+       && rm -rf /var/lib/apt/lists/*
+      COPY --from=go /usr/local/go /usr/local/go
+      COPY --from=lint /usr/bin/golangci-lint /usr/local/bin/golangci-lint
+      # Any user id runs here (MAESTRO_UID): HOME and the cache volumes
+      # are writable by all, and the mounted checkout is trusted.
+      RUN mkdir -p /home/dev/.cache /home/dev/go \
+       && chmod -R 0777 /home/dev \
+       && git config --system safe.directory '*'
+      ENV PATH=/usr/local/go/bin:/home/dev/go/bin:$$PATH \
+          HOME=/home/dev \
+          GOPATH=/home/dev/go \
+          GOTOOLCHAIN=local \
+          CGO_ENABLED=0 \
+          LANG=C.UTF-8 \
+          TZ=UTC
+      # A fixed umask: what files the tests create are writable by others
+      # decides warnings Composer prints (self-update, data-dir).
+      ENTRYPOINT ["sh", "-c", "umask 022 && exec \"$$@\"", "sh"]
+  image: maestro-dev
+  user: "${MAESTRO_UID:-1000}:${MAESTRO_GID:-1000}"
+  working_dir: /src
+  volumes:
+    - .:/src
+    - cache:/home/dev/.cache
+    - go-mod:/home/dev/go
+  environment:
+    MAESTRO_PHP_TESTS: "1"
+  # The plugin shim's tests watch php's exit and signals.
+  init: true
+
+services:
+  test:
+    <<: *dev
+    profiles: [test]
+    command: [go, test, ./...]
+
+  race:
+    <<: *dev
+    profiles: [race]
+    environment:
+      MAESTRO_PHP_TESTS: "1"
+      CGO_ENABLED: "1"
+    command: [go, test, -race, -short, ./...]
+
+  lint:
+    <<: *dev
+    profiles: [lint]
+    command: [sh, -c, "go vet ./... && golangci-lint run"]
+
+  check:
+    <<: *dev
+    profiles: [check]
+    command: [sh, -c, "go vet ./... && golangci-lint run && go test ./... && go build -o /dev/null ./..."]
+
+  e2e:
+    <<: *dev
+    profiles: [e2e]
+    environment:
+      MAESTRO_PHP_TESTS: "1"
+      MAESTRO_E2E: "1"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    command: [go, test, -count=1, -timeout, 4h, -run, "TestE2E|TestAllFunctional", ./cmd/maestro]
+
+  shell:
+    <<: *dev
+    profiles: [shell]
+    stdin_open: true
+    tty: true
+    command: [bash]
+
+volumes:
+  cache:
+  go-mod:

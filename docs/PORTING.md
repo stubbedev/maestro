@@ -367,11 +367,15 @@ Opt-in test switches:
 | `MAESTRO_TEST_DISTS=<dir>` | the store's differential test over real dists fetched by `go run ./tools/fetchdists` |
 | `MAESTRO_TEST_UNZIP`, `MAESTRO_TEST_TAR` | which reference `unzip`/`tar` the archive tests compare with |
 
-Run everything inside the devenv shell (`devenv shell -- bash -c '...'` from
-the repo root; it has Go, golangci-lint, php, unzip, gh, just). The justfile
-wraps the usual runs: `just check` (vet, lint, test, build), `just
-test-race` (`-race` with `MAESTRO_PHP_TESTS=1`) and `just e2e`. A port is
-done when `go vet`, `golangci-lint run` and `go test -race` with
+Tests, vet and lint run in the dev container (`compose.yaml`, one profile
+per task), so a run depends on nothing of the machine it runs on (user,
+home directory, umask, locale, php, unzip, tar, caches) and leaves nothing
+on it. The justfile drives it: `just test` (with `MAESTRO_PHP_TESTS=1`;
+arguments go to `go test`, e.g. `just test ./internal/config -run X`),
+`just vet`, `just lint`, `just build`, `just check` (vet, lint, test,
+build), `just test-race`, `just e2e` and `just shell`. Oracles that run
+Composer's PHP from `.ref/` and other tools run in the devenv shell
+(`devenv shell -- bash -c '...'` from the repo root). A port is done when `go vet`, `golangci-lint run` and `go test -race` with
 `MAESTRO_PHP_TESTS=1` pass for its packages (`CGO_ENABLED=1` for `-race`).
 CI (`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
 Windows in shards.

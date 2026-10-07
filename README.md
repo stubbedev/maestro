@@ -77,12 +77,15 @@ force an import method (default `auto`: reflink, else hardlink, else copy).
 
 The dev environment is [devenv](https://devenv.sh): `devenv shell` provides
 Go, golangci-lint, php, unzip and the rest. `ref-sync` checks out the exact
-Composer sources being ported into `.ref/`.
+Composer sources being ported into `.ref/`. Tests, vet and lint run in a
+Docker dev container (`compose.yaml`), which the justfile drives:
 
 ```sh
 just check       # vet, lint, test, build
+just test        # the test suite, php-driven tests included (args go to go test)
 just test-race   # race detector, plus the php-driven tests
 just e2e         # compare against the real Composer phar (network, slow)
+just shell       # a shell in the dev container
 ```
 
 [docs/PORTING.md](docs/PORTING.md) is the porting contract: layout, rules,

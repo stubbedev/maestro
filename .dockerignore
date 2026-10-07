@@ -1,0 +1,3 @@
+# compose.yaml builds the dev image from its inline Dockerfile alone and
+# mounts the checkout at run time: the build context carries nothing.
+*
