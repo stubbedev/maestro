@@ -126,19 +126,29 @@ type recording struct {
 	roots, dirs, files []string
 	broken             bool
 	// ids are the identities of the files the scans parsed, as the scans
-	// found them (path -> fsstate.ID): the record holds those, and needs
-	// no stat of its own for them.
+	// found them (path -> seenID): the record holds those, and needs no
+	// stat of its own for them.
 	ids sync.Map
 }
 
+// seenID is a file's identity as a scan found it, and a time before the
+// scan looked: what the identity is trusted as of.
+type seenID struct {
+	at time.Time
+	id fsstate.ID
+}
+
 // seen returns what notes the identity of the file at path for the record,
-// nil when nothing is recorded.
+// nil when nothing is recorded. It is called before the scan looks at the
+// file.
 func (r *recording) seen(path string) func(fsstate.ID) {
 	if r == nil {
 		return nil
 	}
 
-	return func(id fsstate.ID) { r.ids.Store(path, id) }
+	at := time.Now()
+
+	return func(id fsstate.ID) { r.ids.Store(path, seenID{at: at, id: id}) }
 }
 
 // StartRecording makes the generator note what its scans depend on, for
@@ -210,15 +220,20 @@ func (g *Generator) SaveRecord(rec *Record) {
 	now := time.Now()
 	var failed atomic.Bool
 	parallel(len(paths), func(i int) {
+		// an identity the scan saw is trusted as of when the scan
+		// looked, not now: a file written within the margin before that
+		// could change again without changing its identity
 		var k fsstate.ID
+		at := now
 		v, ok := r.ids.Load(paths[i])
 		if ok && files[paths[i]] {
-			k, _ = v.(fsstate.ID)
+			seen, _ := v.(seenID)
+			k, at = seen.id, seen.at
 		} else {
 			k, ok = fsstate.Stat(paths[i])
 		}
 		stamped[i] = ok && files[paths[i]] && g.cache.isStamped(paths[i], k)
-		if !ok || !trusted(k, stamped[i], now, rec.trust) {
+		if !ok || !trusted(k, stamped[i], at, rec.trust) {
 			failed.Store(true)
 		}
 		keys[i] = k

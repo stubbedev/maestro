@@ -225,6 +225,36 @@ func TestRecord_NotUsedWhenRacy(t *testing.T) {
 	}
 }
 
+// An identity the scan saw is trusted as of when the scan looked: a file
+// written just before the scan is not recorded, however late the record
+// is saved.
+func TestRecord_TrustedAsOfTheScan(t *testing.T) {
+	t.Parallel()
+
+	const margin = fsstate.Margin(300 * time.Millisecond)
+
+	dir, scans := recordFixture(t)
+	records := recordStore{dir: t.TempDir(), trust: margin}
+	rec, ok := NewRecord(records.dir, "p", []string{dir}, DefaultParser, nil, scans)
+	if !ok {
+		t.Fatal("the scans cannot be recorded")
+	}
+	rec.trust = margin
+	g := NewGenerator(nil).AvoidDuplicateScans(nil)
+	g.StartRecording()
+	for _, s := range scans {
+		if err := g.ScanPaths(s.Path, s.Excluded, s.Type, s.Namespace, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	time.Sleep(2 * time.Duration(margin))
+	g.SaveRecord(rec)
+
+	if _, hit := rec.Load(); hit {
+		t.Error("a record trusted identities seen within the margin of their files' writes")
+	}
+}
+
 // A store release's file, taken by its stamp, keeps its record valid
 // when the store hard-links it into another project (which changes its
 // change time); any other change to it, or a new change time of a file
