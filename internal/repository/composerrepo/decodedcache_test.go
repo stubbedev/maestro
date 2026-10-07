@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // p2Files are the p2 fixtures and, to check the decoded cache on more real
@@ -34,7 +35,7 @@ func p2Files(t *testing.T) map[string]string {
 	if home, err := os.UserHomeDir(); err == nil {
 		dirs = append(dirs, filepath.Join(home, ".cache", "composer", "repo", "https---repo.packagist.org"))
 	}
-	dirs = append(dirs, filepath.SplitList(os.Getenv("MAESTRO_P2_DIRS"))...)
+	dirs = append(dirs, filepath.SplitList(os.Getenv(switches.P2Dirs))...)
 	for _, dir := range dirs {
 		paths, _ := filepath.Glob(filepath.Join(dir, "provider-*.json"))
 		for _, p := range paths {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive"
 	"github.com/stubbedev/maestro/internal/archive/archivetest"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // methods are the import methods the differential tests run with; Auto
@@ -162,7 +163,7 @@ func TestDifferentialStoreTar(t *testing.T) {
 
 // distsDir holds real package archives fetched by tools/fetchdists.
 func distsDir() string {
-	if dir := os.Getenv("MAESTRO_TEST_DISTS"); dir != "" {
+	if dir := os.Getenv(switches.TestDists); dir != "" {
 		return dir
 	}
 

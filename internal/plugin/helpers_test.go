@@ -7,6 +7,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // requirePHP skips a test that runs the real shim unless
@@ -14,7 +15,7 @@ import (
 func requirePHP(t *testing.T) {
 	t.Helper()
 
-	if os.Getenv("MAESTRO_PHP_TESTS") != "1" {
+	if !switches.On(switches.PHPTests) {
 		t.Skip("set MAESTRO_PHP_TESTS=1 to run the shim with php")
 	}
 }

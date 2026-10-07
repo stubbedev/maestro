@@ -12,13 +12,15 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 func init() {
 	startProfiling = func() func() {
 		var stops []func()
 
-		if path := os.Getenv("MAESTRO_CPUPROFILE"); path != "" {
+		if path := os.Getenv(switches.CPUProfile); path != "" {
 			if f, err := os.Create(path); err == nil {
 				if pprof.StartCPUProfile(f) == nil {
 					stops = append(stops, func() { pprof.StopCPUProfile(); _ = f.Close() })
@@ -26,7 +28,7 @@ func init() {
 			}
 		}
 
-		if path := os.Getenv("MAESTRO_TRACE"); path != "" {
+		if path := os.Getenv(switches.Trace); path != "" {
 			if f, err := os.Create(path); err == nil {
 				if trace.Start(f) == nil {
 					stops = append(stops, func() { trace.Stop(); _ = f.Close() })
@@ -34,7 +36,7 @@ func init() {
 			}
 		}
 
-		if path := os.Getenv("MAESTRO_MEMPROFILE"); path != "" {
+		if path := os.Getenv(switches.MemProfile); path != "" {
 			runtime.MemProfileRate = 4096
 			stops = append(stops, func() {
 				if f, err := os.Create(path); err == nil {

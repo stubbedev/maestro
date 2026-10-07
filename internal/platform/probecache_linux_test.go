@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
@@ -398,7 +399,7 @@ func TestProbeCache_Prune(t *testing.T) {
 // TestProbeCache_RealPHP probes the php on the PATH through the cache:
 // the second detection is the cached result of the first.
 func TestProbeCache_RealPHP(t *testing.T) {
-	if os.Getenv("MAESTRO_PHP_TESTS") != "1" {
+	if !switches.On(switches.PHPTests) {
 		t.Skip("set MAESTRO_PHP_TESTS=1 to probe php")
 	}
 
@@ -457,7 +458,7 @@ func TestProbeCache_NoMappedFiles(t *testing.T) {
 // TestProbeCache_BinaryIdentical checks that the cache's binary form of
 // the real probe's result reads back as the snapshot its JSON gives.
 func TestProbeCache_BinaryIdentical(t *testing.T) {
-	if os.Getenv("MAESTRO_PHP_TESTS") != "1" {
+	if !switches.On(switches.PHPTests) {
 		t.Skip("set MAESTRO_PHP_TESTS=1 to probe php")
 	}
 

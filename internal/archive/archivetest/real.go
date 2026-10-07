@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // Result is what a real extractor left behind.
@@ -132,7 +133,7 @@ func Gunzip(t testing.TB, file, name string, umask int) Result {
 
 // infoZip finds the reference unzip once; see InfoZip.
 var infoZip = sync.OnceValues(func() (string, string) {
-	unzip := os.Getenv("MAESTRO_TEST_UNZIP")
+	unzip := os.Getenv(switches.TestUnzip)
 	if unzip == "" {
 		unzip = "unzip"
 	}
@@ -211,7 +212,7 @@ func Unstorable(tree Tree) bool {
 // gnuTar finds the reference tar once; see GNUTar.
 var gnuTar = sync.OnceValues(func() (string, string) {
 	candidates := []string{"tar", "gtar"}
-	if tar := os.Getenv("MAESTRO_TEST_TAR"); tar != "" {
+	if tar := os.Getenv(switches.TestTar); tar != "" {
 		candidates = []string{tar}
 	}
 

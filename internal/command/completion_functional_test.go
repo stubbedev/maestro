@@ -13,6 +13,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // completeCommand ports CommandCompletionTester::complete.
@@ -43,7 +44,7 @@ func completeCommand(t *testing.T, cmd console.Commander, input []string) []stri
 }
 
 func TestCompletionFunctional_Complete(t *testing.T) {
-	if os.Getenv("MAESTRO_E2E") == "" {
+	if !switches.On(switches.E2E) {
 		t.Skip("set MAESTRO_E2E=1 to complete against .ref/composer and packagist")
 	}
 	if _, err := os.Stat("../../.ref/composer/composer.json"); err != nil {

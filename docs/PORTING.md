@@ -247,6 +247,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | `internal/advisory`, `internal/policy`, `internal/filterlist` (+ `source`) | the namespaces of those names |
 | `internal/composer` | Composer\Composer, Factory, Installer (the top-level classes) |
 | `internal/command` | Composer\Command\*, Composer\Console\Application |
+| `internal/switches` | nothing: the environment variables of the opt-in tests and the profiling build ("Test switches", "Profiling") |
 | `cmd/maestro` | entry point; also runs as `composer` |
 
 Test-only packages, imported only from `_test.go` files: `internal/testutil`
@@ -428,16 +429,6 @@ Tests must pass on every CI machine, not just the one that recorded them:
   pinned with `vcs.SetVersion`/`vcs.SetSvnVersion` and reset in
   `t.Cleanup`. Tests that do this must not run in parallel.
 
-Opt-in test switches:
-
-| Variable | Turns on |
-| --- | --- |
-| `MAESTRO_PHP_TESTS=1` | tests that run `php` (scripts, plugins, platform detection) |
-| `MAESTRO_E2E=1` | the end-to-end comparison with Composer (network, slow) |
-| `MAESTRO_ORACLE_LIVE=1` | classmap oracles run against the PHP implementation live instead of the goldens |
-| `MAESTRO_TEST_DISTS=<dir>` | the store's differential test over real dists fetched by `go run ./tools/fetchdists` |
-| `MAESTRO_TEST_UNZIP`, `MAESTRO_TEST_TAR` | which reference `unzip`/`tar` the archive tests compare with |
-
 Tests, vet and lint run in the dev container (`compose.yaml`, one profile
 per task), so a run depends on nothing of the machine it runs on (user,
 home directory, umask, locale, php, unzip, tar, caches) and leaves nothing
@@ -452,6 +443,55 @@ PHP from `.ref/` and other tools run in the devenv shell
 `MAESTRO_PHP_TESTS=1` pass for its packages (`CGO_ENABLED=1` for `-race`).
 CI (`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
 Windows in shards.
+
+### Test switches
+
+Environment variables a developer or CI sets for tests that are off by
+default, and for the inputs they take. `internal/switches` declares them
+all; its tests fail when this section and the code disagree. A switch
+that turns something on takes `1`; any other value, or none, leaves it
+off.
+
+| Variable | Does |
+| --- | --- |
+| `MAESTRO_PHP_TESTS=1` | runs the tests that run `php`: scripts, plugins, platform detection (the dev container and CI set it) |
+| `MAESTRO_E2E=1` | runs the end-to-end comparison with Composer (`cmd/maestro`) and the functional fixtures (`cmd/maestro`, `internal/command`); they need php, git, unzip and the network, and are slow |
+| `MAESTRO_NETWORK_TESTS=1` | runs the tests that install real packages from GitHub (`internal/command`'s status test) |
+| `MAESTRO_ORACLE_LIVE=1` | runs the classmap oracles against the PHP implementation live instead of the goldens |
+| `MAESTRO_PERF_BUDGETS=1` | fails the plugin runtime's timing tests when a timing misses its budget (docs/PLUGINS.md §5.16); without it they only log it, as wall time depends on machine load. Set it on a quiet machine |
+
+With `MAESTRO_E2E=1`:
+
+| Variable | Does |
+| --- | --- |
+| `MAESTRO_E2E_BIN=<file>` | the maestro binary to compare; default: one built from the tree |
+| `MAESTRO_E2E_KEEP=<dir>` | runs the scenarios in `<dir>` and keeps each tool's project, caches and output there; default: a temporary directory, removed as each scenario ends |
+| `MAESTRO_E2E_WARM=0` | runs only the cold phase (empty caches); default: cold, then warm (a fresh project on the caches and store the cold phase left) |
+| `MAESTRO_E2E_PLUGINS=<a,b,...>` | runs only the named plugin scenarios (`TestE2EPlugins`); the others skip |
+| `MAESTRO_E2E_REPORT=<file>` | writes `TestE2E`'s wall-time table (docs/BENCHMARKS.md) to `<file>` |
+| `MAESTRO_E2E_PRIVATE_APP=<dir>` | the checkout of a private Laravel application, with its composer.lock, for the `private-app` scenario and docs/BENCHMARKS.md's private-app rows; without it that scenario skips |
+
+Test inputs:
+
+| Variable | Does |
+| --- | --- |
+| `MAESTRO_ORACLE_SEED=<n>`, `MAESTRO_ORACLE_COUNT=<n>` | the seed (default 42) and number of cases (default 50000) of the live classmap random oracle |
+| `MAESTRO_ORACLE_VERSIONS=<dir>` | a set `tools/oracle/classmap/versions.sh` wrote, for the classmap versions oracle; default: the committed `testdata/oracle` |
+| `MAESTRO_TEST_DISTS=<dir>` | the real dists `go run ./tools/fetchdists` fetched, for the store's differential test; default: `maestro-test-dists` in the user cache directory, and the test skips when it is empty |
+| `MAESTRO_TEST_UNZIP=<file>`, `MAESTRO_TEST_TAR=<file>` | the reference `unzip` and `tar` the archive tests compare with; default: `unzip`, and `tar` then `gtar`, from PATH (macOS CI points them at Homebrew's Info-ZIP and GNU tar) |
+| `MAESTRO_P2_DIRS=<path list>` | more directories of cached Packagist `provider-*.json` files the decoded metadata cache's test checks, besides Composer's cache directories |
+
+### Profiling
+
+A binary built with `go build -tags maestro_profile ./cmd/maestro` (never a
+release) writes profiles of its run to the files these name;
+docs/BENCHMARKS.md shows what they found.
+
+| Variable | Writes |
+| --- | --- |
+| `MAESTRO_CPUPROFILE=<file>` | a CPU profile (`go tool pprof`) |
+| `MAESTRO_MEMPROFILE=<file>` | an allocation profile, sampled every 4 KiB, when the run ends (`go tool pprof`) |
+| `MAESTRO_TRACE=<file>` | an execution trace (`go tool trace`) |
 
 ## Tools
 

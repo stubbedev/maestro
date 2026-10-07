@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 func TestStatusCommand_NoLocalChanges(t *testing.T) {
@@ -36,7 +37,7 @@ func TestStatusCommand_NoLocalChanges(t *testing.T) {
 // GitHub as the PHP test does, so it needs the network: it runs only with
 // MAESTRO_NETWORK_TESTS=1.
 func TestStatusCommand_LocallyModifiedPackages(t *testing.T) {
-	if os.Getenv("MAESTRO_NETWORK_TESTS") != "1" {
+	if !switches.On(switches.NetworkTests) {
 		t.Skip("needs the network (set MAESTRO_NETWORK_TESTS=1)")
 	}
 	cases := []struct {

@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -142,7 +143,7 @@ func functionalFirstLine(s string) string {
 }
 
 func TestAllFunctional_Integration(t *testing.T) {
-	if os.Getenv("MAESTRO_E2E") != "1" {
+	if !switches.On(switches.E2E) {
 		t.Skip("functional fixtures need the network and git; set MAESTRO_E2E=1")
 	}
 	files, err := filepath.Glob("testdata/functional/*.test")

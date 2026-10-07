@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 func TestRunScriptCommand_DetectAndPassDevModeToEventAndToDispatching(t *testing.T) {
@@ -124,7 +125,7 @@ func TestRunScriptCommand_CanDefineAliases(t *testing.T) {
 func pluginTesters(t *testing.T) func() *commandtest.ApplicationTester {
 	t.Helper()
 
-	if os.Getenv("MAESTRO_PHP_TESTS") != "1" {
+	if !switches.On(switches.PHPTests) {
 		t.Skip("set MAESTRO_PHP_TESTS=1 to run PHP commands with php")
 	}
 

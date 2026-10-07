@@ -86,6 +86,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/testutil"
 )
 
@@ -156,20 +157,20 @@ type timing struct {
 }
 
 func TestE2E(t *testing.T) {
-	if os.Getenv("MAESTRO_E2E") == "" {
+	if !switches.On(switches.E2E) {
 		t.Skip("set MAESTRO_E2E=1 to compare maestro with Composer 2.10.3 (php, git, unzip and the network)")
 	}
 
 	requireTools(t)
 
 	phar := composerPhar(t)
-	maestro := os.Getenv("MAESTRO_E2E_BIN")
+	maestro := os.Getenv(switches.E2EBin)
 	if maestro == "" {
 		maestro = buildMaestro(t, t.TempDir())
 	}
 
 	base := t.TempDir()
-	if keep := os.Getenv("MAESTRO_E2E_KEEP"); keep != "" {
+	if keep := os.Getenv(switches.E2EKeep); keep != "" {
 		base = keep
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			t.Fatal(err)
@@ -182,7 +183,7 @@ func TestE2E(t *testing.T) {
 	}
 
 	phases := []string{"cold", "warm"}
-	if os.Getenv("MAESTRO_E2E_WARM") == "0" {
+	if os.Getenv(switches.E2EWarm) == "0" {
 		phases = phases[:1]
 	}
 
@@ -223,7 +224,7 @@ func TestE2E(t *testing.T) {
 	report := speedReport(timings, phases)
 	t.Log("\n" + report)
 
-	if path := os.Getenv("MAESTRO_E2E_REPORT"); path != "" {
+	if path := os.Getenv(switches.E2EReport); path != "" {
 		if err := os.WriteFile(path, []byte(report), 0o644); err != nil {
 			t.Error(err)
 		}
@@ -330,7 +331,7 @@ func buildMaestro(t *testing.T, dir string) string {
 func runScenario(t *testing.T, sc scenario, dir, tool string, cmd []string, phase string) ([]stepResult, time.Duration) {
 	t.Helper()
 
-	keep := os.Getenv("MAESTRO_E2E_KEEP") != ""
+	keep := os.Getenv(switches.E2EKeep) != ""
 	if !keep {
 		t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	}

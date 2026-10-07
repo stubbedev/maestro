@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -72,7 +73,7 @@ func checkBudget(t *testing.T, what string, got, budget time.Duration) {
 
 	t.Logf("%s: %v (budget %v)", what, got, budget)
 
-	if got > budget && os.Getenv("MAESTRO_PERF_BUDGETS") == "1" {
+	if got > budget && switches.On(switches.PerfBudgets) {
 		t.Errorf("%s took %v, the budget is %v (docs/PLUGINS.md §5.16)", what, got, budget)
 	}
 }

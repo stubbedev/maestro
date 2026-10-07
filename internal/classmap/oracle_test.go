@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // The goldens are written by tools/oracle/classmap/*.php, which run the real
@@ -126,12 +128,12 @@ func TestOracleRandom(t *testing.T) {
 // (MAESTRO_ORACLE_LIVE=1, MAESTRO_ORACLE_SEED and MAESTRO_ORACLE_COUNT
 // optional) and compares.
 func TestOracleRandomLive(t *testing.T) {
-	if os.Getenv("MAESTRO_ORACLE_LIVE") == "" {
+	if !switches.On(switches.OracleLive) {
 		t.Skip("set MAESTRO_ORACLE_LIVE=1 to run against php")
 	}
 	dir := t.TempDir()
-	seed := cmp(os.Getenv("MAESTRO_ORACLE_SEED"), "42")
-	count := cmp(os.Getenv("MAESTRO_ORACLE_COUNT"), "50000")
+	seed := cmp(os.Getenv(switches.OracleSeed), "42")
+	count := cmp(os.Getenv(switches.OracleCount), "50000")
 	cmd := exec.Command("php", "../../tools/oracle/classmap/random.php", seed, count, dir)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %s", err, out)
@@ -185,7 +187,7 @@ func checkRandom(t *testing.T, dir string) {
 // (tools/oracle/classmap/versions.sh; MAESTRO_ORACLE_VERSIONS names the
 // directory of another set it wrote).
 func TestOracleVersions(t *testing.T) {
-	dir := cmp(os.Getenv("MAESTRO_ORACLE_VERSIONS"), "testdata/oracle")
+	dir := cmp(os.Getenv(switches.OracleVersions), "testdata/oracle")
 	cases, err := os.ReadFile(filepath.Join(dir, "versions.bin"))
 	if err != nil {
 		t.Fatal(err)

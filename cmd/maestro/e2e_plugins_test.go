@@ -18,23 +18,25 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 func TestE2EPlugins(t *testing.T) {
-	if os.Getenv("MAESTRO_E2E") == "" {
+	if !switches.On(switches.E2E) {
 		t.Skip("set MAESTRO_E2E=1 to compare maestro's plugins with Composer 2.10.3 (php, git, unzip and the network)")
 	}
 
 	requireTools(t)
 
 	phar := composerPhar(t)
-	maestro := os.Getenv("MAESTRO_E2E_BIN")
+	maestro := os.Getenv(switches.E2EBin)
 	if maestro == "" {
 		maestro = buildMaestro(t, t.TempDir())
 	}
 
 	base := t.TempDir()
-	if keep := os.Getenv("MAESTRO_E2E_KEEP"); keep != "" {
+	if keep := os.Getenv(switches.E2EKeep); keep != "" {
 		base = keep
 		if err := os.MkdirAll(base, 0o755); err != nil {
 			t.Fatal(err)
@@ -47,12 +49,12 @@ func TestE2EPlugins(t *testing.T) {
 	}
 
 	phases := []string{"cold", "warm"}
-	if os.Getenv("MAESTRO_E2E_WARM") == "0" {
+	if os.Getenv(switches.E2EWarm) == "0" {
 		phases = phases[:1]
 	}
 
 	var only []string
-	if v := os.Getenv("MAESTRO_E2E_PLUGINS"); v != "" {
+	if v := os.Getenv(switches.E2EPlugins); v != "" {
 		only = strings.Split(v, ",")
 	}
 

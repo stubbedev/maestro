@@ -21,6 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 var packages = []string{
@@ -53,7 +55,7 @@ type dist struct {
 }
 
 func main() {
-	def := os.Getenv("MAESTRO_TEST_DISTS")
+	def := os.Getenv(switches.TestDists)
 	if def == "" {
 		if dir, err := os.UserCacheDir(); err == nil {
 			def = filepath.Join(dir, "maestro-test-dists")

@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 // realWorldScenarios are real projects. Their composer.json files declare
@@ -130,7 +131,7 @@ func removeDir(rel string) func(*testing.T, string) {
 // privateAppDir is the checkout of a private Laravel application, a
 // project with private repositories and many plugins.
 func privateAppDir() string {
-	return os.Getenv("MAESTRO_E2E_PRIVATE_APP")
+	return os.Getenv(switches.E2EPrivateApp)
 }
 
 // privateAppPrivate are the private application's packages that come from

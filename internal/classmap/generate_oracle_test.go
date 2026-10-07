@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 type generateScenario struct {
@@ -93,7 +94,7 @@ func TestOracleGenerate(t *testing.T) {
 // directory order the Finder sees decides which file wins for a duplicate
 // class, and it is only stable on the same file system.
 func TestOracleGenerateLive(t *testing.T) {
-	if os.Getenv("MAESTRO_ORACLE_LIVE") == "" {
+	if !switches.On(switches.OracleLive) {
 		t.Skip("set MAESTRO_ORACLE_LIVE=1 to run against php")
 	}
 	out := filepath.Join(t.TempDir(), "generate.json")

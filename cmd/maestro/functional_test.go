@@ -16,12 +16,13 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/switches"
 )
 
 const functionalDir = "../../internal/composer/testdata/Fixtures/functional"
 
 func TestAllFunctional(t *testing.T) {
-	if os.Getenv("MAESTRO_E2E") == "" {
+	if !switches.On(switches.E2E) {
 		t.Skip("set MAESTRO_E2E=1 to run the functional fixtures (php, plugins and the network)")
 	}
 
