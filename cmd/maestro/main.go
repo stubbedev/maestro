@@ -33,6 +33,7 @@ import (
 var version = "dev"
 
 func main() {
+	startGCFloor(os.Getenv)
 	stop := startProfiling()
 	code := run()
 	stop()

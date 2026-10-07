@@ -337,6 +337,15 @@ as each other cache bounds its own size.
 | `schema/validated` | the SHA-256 of the last 64 documents that validated against Composer's schemas without a finding | the same maestro binary and document | with `cache-dir` |
 | `cacert` | the embedded CA bundle written out as a file, for what needs a path to one (`CaBundle::getBundledCaBundlePath`) | named by its hash | with `cache-dir` |
 
+### Go runtime settings
+
+When neither `GOGC` nor `GOMEMLIMIT` is set, maestro starts with the
+garbage collector off and a 64 MiB memory limit (`cmd/maestro/gc.go`):
+most commands finish without collecting at all. A run that reaches the
+limit collects once, and from then on runs with Go's defaults (`GOGC=100`,
+no limit). An explicit `GOGC` or `GOMEMLIMIT` works as for any Go program
+and turns this off.
+
 ## Layout
 
 Go packages mirror Composer namespaces. `package` is reserved in Go, so

@@ -245,10 +245,15 @@ Fixed per-run costs:
   ~0.9 ms.
 - **The schema validation of an unchanged composer.json is remembered.**
 
-GC: Go's default GOGC is kept. GOGC=200, GOGC=400 with GOMEMLIMIT=320MiB
-and GOGC=off with GOMEMLIMIT=512MiB cut CPU by up to 22% but moved wall
-time by no more than the series' own spread, and raised peak memory by up
-to 2x. An explicit GOGC or GOMEMLIMIT works as for any Go program.
+GC: the collector stays off until the run's memory reaches 64 MiB, then
+runs with Go's defaults (docs/PORTING.md, "Go runtime settings"). Small
+commands (`--version`, validate, a no-op install, dump-autoload) collect
+at most once instead of 3 to 12 times, using up to a third less CPU, for
+at most 64 MiB more memory; long runs are as before. GOGC=200, GOGC=400
+with GOMEMLIMIT=320MiB and GOGC=off with GOMEMLIMIT=512MiB for the whole
+run cut CPU by up to 22% but moved wall time by no more than the series'
+own spread, and raised peak memory by up to 2x. An explicit GOGC or
+GOMEMLIMIT works as for any Go program.
 
 ## Where the time goes
 
