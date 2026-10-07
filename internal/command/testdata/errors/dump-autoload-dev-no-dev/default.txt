@@ -1,0 +1,10 @@
+Generating autoload files
+
+In DumpAutoloadCommand.php line 107:
+                                                                             
+  You can not use both --no-dev and --dev as they conflict with each other.  
+                                                                             
+
+dump-autoload [-o|--optimize] [-a|--classmap-authoritative] [--apcu] [--apcu-prefix APCU-PREFIX] [--dry-run] [--dev] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--strict-psr] [--strict-ambiguous]
+
+exit 1

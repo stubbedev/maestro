@@ -1,0 +1,21 @@
+
+In DumpAutoloadCommand.php line 87:
+                                                                               
+  [InvalidArgumentException]                                                   
+  --strict-ambiguous mode only works with optimized autoloader, use --optimiz  
+  e or --classmap-authoritative if you want a strict return value.             
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Command/DumpAutoloadCommand.php:87
+ Composer\Command\DumpAutoloadCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+dump-autoload [-o|--optimize] [-a|--classmap-authoritative] [--apcu] [--apcu-prefix APCU-PREFIX] [--dry-run] [--dev] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--strict-psr] [--strict-ambiguous]
+
+exit 1

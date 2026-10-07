@@ -1,0 +1,10 @@
+
+In DumpAutoloadCommand.php line 87:
+                                                                               
+  --strict-ambiguous mode only works with optimized autoloader, use --optimiz  
+  e or --classmap-authoritative if you want a strict return value.             
+                                                                               
+
+dump-autoload [-o|--optimize] [-a|--classmap-authoritative] [--apcu] [--apcu-prefix APCU-PREFIX] [--dry-run] [--dev] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--strict-psr] [--strict-ambiguous]
+
+exit 1

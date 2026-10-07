@@ -150,7 +150,19 @@ var coverage = []entry{
 	cover(command.NewDumpAutoloadCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestDumpAutoloadCommand_DumpAutoload)),
+			Positive(Go(TestDumpAutoloadCommand_StrictAmbiguousWithoutAmbiguousClasses)),
+			Positive(Go(TestDumpAutoloadCommand_ConfigFallbacks)),
+			Positive(Go(TestDumpAutoloadCommand_DryRun)),
+			Positive(Go(TestDumpAutoloadCommand_Alias)),
+			Positive(E2E("autoload", "dumpautoload", "-o")),
+			Positive(E2E("autoload", "dump-autoload", "-o", "--dry-run")),
+			Positive(E2E("autoload", "dump-autoload", "--apcu-prefix=e2e")),
+			Positive(E2E("autoload", "dump-autoload")),
+			Positive(E2E("autoload", "dump-autoload", "--dev")),
+			Positive(E2E("platform", "dump-autoload", "--ignore-platform-req=php")),
+			Positive(E2E("platform", "dump-autoload", "--ignore-platform-reqs")),
 			Negative(Go(TestDumpAutoloadCommand_DevAndNoDevCannotBeCombined)),
+			Negative(Go(TestDumpAutoloadCommand_StrictAmbiguousDoesNotWorkWithoutOptimizedAutoloader)),
 		},
 	}),
 	cover(command.NewStatusCommand, Coverage{

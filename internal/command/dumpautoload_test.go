@@ -7,7 +7,11 @@
 package command_test
 
 import (
+	"io/fs"
+	"maps"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -67,30 +71,26 @@ func assertInvalidArgument(t *testing.T, err error, message string) {
 func TestDumpAutoloadCommand_DumpAutoload(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	output := assertDumpSucceeds(t)
-	assertOutputHas(t, output, "Generating autoload files")
-	assertOutputHas(t, output, "Generated autoload files")
+	assertDumpMode(t, output, plainDump)
 }
 
 func TestDumpAutoloadCommand_DumpDevAutoload(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	output := assertDumpSucceeds(t, "--dev", true)
-	assertOutputHas(t, output, "Generating autoload files")
-	assertOutputHas(t, output, "Generated autoload files")
+	assertDumpMode(t, output, plainDump)
 }
 
 func TestDumpAutoloadCommand_DumpNoDevAutoload(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	// Composer's test passes --dev here too.
 	output := assertDumpSucceeds(t, "--dev", true)
-	assertOutputHas(t, output, "Generating autoload files")
-	assertOutputHas(t, output, "Generated autoload files")
+	assertDumpMode(t, output, plainDump)
 }
 
 func TestDumpAutoloadCommand_UsingOptimizeAndStrictPsr(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	output := assertDumpSucceeds(t, "--optimize", true, "--strict-psr", true)
-	assertOutputHas(t, output, "Generating optimized autoload files")
-	assertOutputMatches(t, `/Generated optimized autoload files containing \d+ classes/`, output)
+	assertDumpMode(t, output, optimizedDump)
 }
 
 func TestDumpAutoloadCommand_FailsUsingStrictPsrIfClassMapViolationsAreFound(t *testing.T) {
@@ -114,15 +114,13 @@ func TestDumpAutoloadCommand_FailsUsingStrictPsrIfClassMapViolationsAreFound(t *
 func TestDumpAutoloadCommand_UsingClassmapAuthoritative(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	output := assertDumpSucceeds(t, "--classmap-authoritative", true)
-	assertOutputHas(t, output, "Generating optimized autoload files (authoritative)")
-	assertOutputMatches(t, `/Generated optimized autoload files \(authoritative\) containing \d+ classes/`, output)
+	assertDumpMode(t, output, authoritativeDump)
 }
 
 func TestDumpAutoloadCommand_UsingClassmapAuthoritativeAndStrictPsr(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	output := assertDumpSucceeds(t, "--classmap-authoritative", true, "--strict-psr", true)
-	assertOutputHas(t, output, "Generating optimized autoload files")
-	assertOutputMatches(t, `/Generated optimized autoload files \(authoritative\) containing \d+ classes/`, output)
+	assertDumpMode(t, output, authoritativeDump)
 }
 
 func TestDumpAutoloadCommand_StrictPsrDoesNotWorkWithoutOptimizedAutoloader(t *testing.T) {
@@ -200,4 +198,124 @@ func TestDumpAutoloadCommand_WithConflictedComposerLockWithoutAutoloaderSuffix(t
 		t.Errorf("autoload.php contains the conflict marker:\n%s", autoload)
 	}
 	assertOutputMatches(t, `{ComposerAutoloaderInit[a-f0-9]{32}::getLoader\(\);}`, autoload)
+}
+
+// dumpMode is an autoloader mode's pair of output lines: the one before
+// the dump and a pattern for the one after it.
+type dumpMode struct{ generating, generated string }
+
+var (
+	plainDump         = dumpMode{"Generating autoload files", `/Generated autoload files/`}
+	optimizedDump     = dumpMode{"Generating optimized autoload files", `/Generated optimized autoload files containing \d+ classes/`}
+	authoritativeDump = dumpMode{"Generating optimized autoload files (authoritative)", `/Generated optimized autoload files \(authoritative\) containing \d+ classes/`}
+)
+
+func assertDumpMode(t *testing.T, output string, mode dumpMode) {
+	t.Helper()
+	assertOutputHas(t, output, mode.generating)
+	assertOutputMatches(t, mode.generated, output)
+}
+
+// psr4Project is a project whose one class complies with its PSR-4 rule.
+func psr4Project(t *testing.T, extra string) string {
+	t.Helper()
+	dir := commandtest.InitTempComposer(t, `{"autoload": {"psr-4": {"App\\": "src/"}}`+extra+`}`, nil, nil, true)
+	if err := os.Mkdir(dir+"/src", 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dir+"/src/Foo.php", []byte(`<?php namespace App; class Foo {}`), 0o666); err != nil {
+		t.Fatal(err)
+	}
+
+	return dir
+}
+
+// readTree is every file under dir by its path relative to dir.
+func readTree(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	files := map[string]string{}
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		rel, _ := filepath.Rel(dir, path)
+		files[rel] = string(data)
+
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return files
+}
+
+func TestDumpAutoloadCommand_StrictAmbiguousDoesNotWorkWithoutOptimizedAutoloader(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	_, _, err := dumpAutoload(t, "--strict-ambiguous", true)
+	assertInvalidArgument(t, err, "--strict-ambiguous mode only works with optimized autoloader, use --optimize or --classmap-authoritative if you want a strict return value.")
+}
+
+func TestDumpAutoloadCommand_StrictAmbiguousWithoutAmbiguousClasses(t *testing.T) {
+	psr4Project(t, "")
+	output := assertDumpSucceeds(t, "--optimize", true, "--strict-ambiguous", true)
+	assertDumpMode(t, output, optimizedDump)
+}
+
+// The config options turn on the modes their command line options do.
+func TestDumpAutoloadCommand_ConfigFallbacks(t *testing.T) {
+	for _, tc := range []struct {
+		config string
+		mode   dumpMode
+		real   string // in autoload_real.php
+	}{
+		{"optimize-autoloader", optimizedDump, ""},
+		{"classmap-authoritative", authoritativeDump, "$loader->setClassMapAuthoritative(true);"},
+		{"apcu-autoloader", plainDump, "$loader->setApcuPrefix("},
+	} {
+		t.Run(tc.config, func(t *testing.T) {
+			dir := psr4Project(t, `, "config": {"`+tc.config+`": true}`)
+			assertDumpMode(t, assertDumpSucceeds(t), tc.mode)
+			if tc.real != "" {
+				real, err := os.ReadFile(dir + "/vendor/composer/autoload_real.php")
+				if err != nil {
+					t.Fatal(err)
+				}
+				assertOutputHas(t, string(real), tc.real)
+			}
+		})
+	}
+}
+
+// --dry-run reports the dump without changing a file of vendor/.
+func TestDumpAutoloadCommand_DryRun(t *testing.T) {
+	dir := psr4Project(t, "")
+	assertDumpSucceeds(t)
+	before := readTree(t, dir+"/vendor")
+	if err := os.WriteFile(dir+"/composer.json", []byte(`{"autoload": {"psr-4": {"Other\\": "lib/"}, "classmap": ["src/"]}, "repositories": [{"packagist.org": false}]}`), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	assertDumpMode(t, assertDumpSucceeds(t, "--optimize", true, "--dry-run", true), optimizedDump)
+	if after := readTree(t, dir+"/vendor"); !maps.Equal(before, after) {
+		t.Errorf("--dry-run changed vendor/:\nbefore %v\nafter %v", slices.Sorted(maps.Keys(before)), slices.Sorted(maps.Keys(after)))
+	}
+}
+
+// The alias runs the command: same output, same files.
+func TestDumpAutoloadCommand_Alias(t *testing.T) {
+	dir := psr4Project(t, "")
+	want := assertDumpSucceeds(t, "--optimize", true)
+	wantFiles := readTree(t, dir+"/vendor")
+	appTester := commandtest.GetApplicationTester(t)
+	code, err := appTester.RunArgs(commandtest.Options{}, "command", "dumpautoload", "--optimize", true)
+	if err != nil || code != 0 {
+		t.Fatalf("dumpautoload: exit %d, %v", code, err)
+	}
+	if got := appTester.Display(true); got != want {
+		t.Errorf("dumpautoload output %q, want %q", got, want)
+	}
+	if !maps.Equal(readTree(t, dir+"/vendor"), wantFiles) {
+		t.Error("dumpautoload wrote other files than dump-autoload")
+	}
 }
