@@ -661,6 +661,11 @@ func (m *Manager) loadRepository(repo repository.RepositoryInterface, isGlobalRe
 	if err != nil {
 		return err
 	}
+	if !slices.ContainsFunc(packages, func(p pkg.PackageInterface) bool { return pkg.IsPluginType(p.Type()) }) {
+		// the loop below registers plugin packages only: without any,
+		// sorting the packages and finding the required ones is wasted
+		return nil
+	}
 
 	weights := map[string]int{}
 	for _, p := range packages {

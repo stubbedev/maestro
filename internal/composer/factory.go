@@ -3,6 +3,7 @@
 package composer
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"strings"
@@ -108,6 +109,31 @@ type rootVersions struct {
 type rootVersion struct {
 	data       *loader.VersionData
 	generation uint64
+}
+
+// PrefetchRootVersion starts the first command of the guess of the root
+// package's version, for a process about to load the project in the
+// working directory, when its composer.json leaves the version to guess
+// (deliberate deviation 3: the guess then finds its first command done or
+// under way). One whose composer.json may set a version, as one naming
+// "version" anywhere may, is left alone.
+func PrefetchRootVersion() {
+	if env, _ := util.GetEnv("COMPOSER_ROOT_VERSION"); php.ToBool(env) {
+		return
+	}
+	file, err := GetComposerFile()
+	if err != nil {
+		return
+	}
+	data, err := os.ReadFile(file)
+	if err != nil || bytes.Contains(data, []byte(`"version"`)) {
+		return
+	}
+	cwd, err := util.GetCwd(true)
+	if err != nil {
+		return
+	}
+	version.PrefetchGuess(cwd)
 }
 
 // rootVersionGuesser is the VersionGuesser of the root packages a Factory
@@ -404,8 +430,14 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		// we only load if the InstalledVersions class wasn't defined yet so that this is only loaded once
 		installedVersionsPath := vendorDir + "/composer/installed.php"
 		if disablePlugins == PluginsEnabled && !disableScripts && php.FileExists(installedVersionsPath) && !rt.MarkInstalledVersionsLoaded() {
-			if data, ok := repository.SafelyLoadInstalledVersions(installedVersionsPath); ok {
-				rt.SetInstalledVersions(data)
+			// read now, as Composer does, and evaluated once the plugin
+			// runtime starts: most runs never start it
+			if content, err := os.ReadFile(installedVersionsPath); err == nil {
+				rt.SetInstalledVersionsFunc(func() *php.Array {
+					data, _, _ := repository.InstalledVersionsFromContent(installedVersionsPath, content)
+
+					return data
+				})
 			}
 		}
 	}

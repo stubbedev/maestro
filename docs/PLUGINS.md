@@ -691,9 +691,10 @@ PHP-side steps.
 
 1. In `Factory.createComposer` with a full load, when plugins and scripts
    are not disabled, the class was not yet "loaded" (a per-runtime flag in
-   Go) and `vendor/composer/installed.php` exists: Go validates the file
-   with the `safelyLoadInstalledVersions` regex. If PHP is not yet running,
-   Go records the data as pending. When PHP starts, or right away if it is
+   Go) and `vendor/composer/installed.php` exists: Go reads the file then,
+   and validates it with the `safelyLoadInstalledVersions` regex once the
+   data is first needed (most runs never start PHP). If PHP is not yet
+   running, Go records the data as pending. When PHP starts, or right away if it is
    running, it sends `iv.reload {data}` with `__DIR__` already substituted.
 2. On every `FilesystemRepository.Write` with `dumpVersions`, Go sends
    `iv.reload {data, selfDir}`. The shim calls `InstalledVersions::reload`

@@ -80,6 +80,11 @@ func GetProcessTimeout() int {
 	return int(processTimeout.Load())
 }
 
+// processTimeoutDuration is the timeout of the processes started now.
+func processTimeoutDuration() time.Duration {
+	return time.Duration(GetProcessTimeout()) * time.Second
+}
+
 // SetProcessTimeout ports ProcessExecutor::setTimeout, in seconds; 0
 // disables the timeout.
 func SetProcessTimeout(seconds int) {
@@ -102,12 +107,17 @@ type ProcessExecutor struct {
 	// settles are the promise settlements decided with mu held, run once
 	// it is released: their callbacks may call the executor again.
 	settles []func()
-	// prefetched are the commands Prefetch started, by prefetchKey.
-	prefetched map[string]*prefetchedProcess
+}
+
+// prefetches are the commands Prefetch started, by prefetchKey: those of
+// every ProcessExecutor of the process, so that any Execute can take one.
+var prefetches struct {
+	mu sync.Mutex
+	m  map[string]*prefetchedProcess
 }
 
 // prefetchedProcess is a command started ahead of the Execute that is to
-// take it, with the environment it was started in.
+// take it, with the environment it ran in (sorted).
 type prefetchedProcess struct {
 	process *Process
 	environ []string
@@ -186,57 +196,74 @@ func (p *ProcessExecutor) LogsCommands() bool {
 // Prefetch starts command in cwd now, for an Execute of it that is likely
 // to come (deliberate deviation 3: commands whose turn depends on the
 // output of others run at once). The next Execute capturing the output of
-// the same command in the same directory, with the environment unchanged,
-// takes the started process and waits for it, logging and recording its
-// error output as for any run; one that never comes leaves the process to
-// finish unobserved. Only commands that change nothing are worth
-// prefetching: the process runs whether it is taken or not.
+// the same command in the same directory, with the same environment and
+// process timeout, takes the started process and waits for it, logging
+// and recording its error output as for any run; one that never comes
+// leaves the process to finish unobserved. Only commands that change
+// nothing are worth prefetching: the process runs whether it is taken or
+// not.
 func (p *ProcessExecutor) Prefetch(command Command, cwd string) {
+	p.PrefetchEnv(command, cwd, nil)
+}
+
+// PrefetchEnv is Prefetch with env set over the environment: for an
+// Execute that comes once the process's environment has these values
+// (and otherwise has not changed).
+func (p *ProcessExecutor) PrefetchEnv(command Command, cwd string, env map[string]string) {
 	if command.shell || (cwd != "" && p.RequiresGitDirEnv(command)) {
 		return
 	}
 
 	key := prefetchKey(command, cwd)
 
-	p.mu.Lock()
-	_, ok := p.prefetched[key]
-	p.mu.Unlock()
+	prefetches.mu.Lock()
+	_, ok := prefetches.m[key]
+	prefetches.mu.Unlock()
 
 	if ok {
 		return
 	}
 
-	environ := os.Environ()
-	process := p.newProcess(command, cwd, nil)
+	process := p.newProcess(command, cwd, env)
 
 	if err := process.Start(nil); err != nil {
 		// Execute runs it again and reports what failed
 		return
 	}
 
-	p.mu.Lock()
-	if p.prefetched == nil {
-		p.prefetched = map[string]*prefetchedProcess{}
+	prefetches.mu.Lock()
+	if prefetches.m == nil {
+		prefetches.m = map[string]*prefetchedProcess{}
 	}
-	p.prefetched[key] = &prefetchedProcess{process: process, environ: environ}
-	p.mu.Unlock()
+	prefetches.m[key] = &prefetchedProcess{process: process, environ: sortedEnviron(envPairs(env))}
+	prefetches.mu.Unlock()
 }
 
 // takePrefetched returns the process Prefetch started for command in cwd,
-// once, if the environment is the one it was started in.
+// once, if it ran in the current environment with the current timeout.
 func (p *ProcessExecutor) takePrefetched(command Command, cwd string) *Process {
 	key := prefetchKey(command, cwd)
 
-	p.mu.Lock()
-	pf, ok := p.prefetched[key]
-	delete(p.prefetched, key)
-	p.mu.Unlock()
+	prefetches.mu.Lock()
+	pf, ok := prefetches.m[key]
+	delete(prefetches.m, key)
+	prefetches.mu.Unlock()
 
-	if !ok || !slices.Equal(pf.environ, os.Environ()) {
+	if !ok || !slices.Equal(pf.environ, sortedEnviron(nil)) || pf.process.timeout != processTimeoutDuration() {
 		return nil
 	}
 
 	return pf.process
+}
+
+// sortedEnviron is the process's environment with overrides set over it,
+// sorted: what a process started with overrides gets, in an order that
+// does not depend on how it was built.
+func sortedEnviron(overrides []string) []string {
+	env := slices.Clone(mergeEnv(overrides, os.Environ(), IsWindows()))
+	slices.Sort(env)
+
+	return env
 }
 
 func prefetchKey(command Command, cwd string) string {
@@ -245,7 +272,7 @@ func prefetchKey(command Command, cwd string) string {
 
 // newProcess is the Process running command.
 func (p *ProcessExecutor) newProcess(command Command, cwd string, env map[string]string) *Process {
-	timeout := time.Duration(GetProcessTimeout()) * time.Second
+	timeout := processTimeoutDuration()
 
 	if command.shell {
 		// On Windows Composer means to resolve the executable of a command

@@ -396,6 +396,28 @@ func fixtureScenarios() []scenario {
 			},
 		},
 		{
+			// Script commands load the project for any command, --version
+			// included: what that load prints and runs at each verbosity,
+			// outside a git checkout and then in one, whose root version
+			// it guesses.
+			name:    "scripts-verbosity",
+			fixture: "scripts",
+			steps: []step{
+				{args: []string{"install", "--no-scripts"}},
+				{args: []string{"--version"}},
+				{args: []string{"--version", "-v"}},
+				{args: []string{"--version", "-vv"}},
+				{args: []string{"--version", "-vvv"}},
+				{args: []string{"list", "-vvv"}},
+				{args: []string{"help", "hello", "-vv"}},
+				{args: []string{"hello", "-vvv"}},
+				{args: []string{"--version", "-vvv"}, setup: gitProject},
+				{args: []string{"hello", "-vvv"}},
+				{args: []string{"show", "-s", "-vvv"}},
+				{args: []string{"--version", "-vvv", "--no-plugins"}},
+			},
+		},
+		{
 			name:  "create-project",
 			setup: vcsRepos,
 			steps: []step{

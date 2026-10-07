@@ -241,7 +241,7 @@ func (g *VersionGuesser) guessGitVersion(packageConfig guessConfig, path string)
 	)
 
 	// try to fetch current version from git branch
-	code, err := g.process.Execute([]string{"git", "branch", "-a", "--no-color", "--no-abbrev", "-v"}, &output, path)
+	code, err := g.process.Execute(gitBranchCommand, &output, path)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +335,23 @@ func (g *VersionGuesser) guessGitVersion(packageConfig guessConfig, path string)
 	}
 
 	return data, nil
+}
+
+// gitBranchCommand is the first command a guess runs.
+var gitBranchCommand = []string{"git", "branch", "-a", "--no-color", "--no-abbrev", "-v"}
+
+// PrefetchGuess starts the first command GuessVersion runs for the
+// checkout at path (util.ProcessExecutor's Prefetch), for a guess that is
+// likely to come: a process is about to load the root package at path.
+// The command runs in the environment the guess runs it in once
+// vcs.CleanEnv prepared it; when that turns out otherwise, the guess runs
+// it again.
+func PrefetchGuess(path string) {
+	if util.IsInputCompletionProcess() {
+		return
+	}
+
+	util.NewProcessExecutor(nil).PrefetchEnv(util.Cmd(gitBranchCommand...), path, vcs.CleanEnvValues())
 }
 
 // prefetchFallbacks starts at once the commands guessVersion runs one

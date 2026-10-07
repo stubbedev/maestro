@@ -33,9 +33,8 @@ var installedPhpDir = php.MustCompile(`{=>\s*+__DIR__\s*+\.\s*+(['"])}`)
 // InstalledVersions::reload, when the file only contains the code write()
 // generates (so that evaluating it is safe). ok is false otherwise.
 //
-// It treats the PcreException Preg throws as "not loaded"; Factory lets
-// that exception through, so callers porting Factory use
-// SafelyLoadInstalledVersionsChecked.
+// It treats the PcreException Preg throws as "not loaded"; callers that
+// let that exception through use SafelyLoadInstalledVersionsChecked.
 func SafelyLoadInstalledVersions(path string) (data *php.Array, ok bool) {
 	data, ok, _ = SafelyLoadInstalledVersionsChecked(path)
 
@@ -50,6 +49,13 @@ func SafelyLoadInstalledVersionsChecked(path string) (data *php.Array, ok bool, 
 	if err != nil {
 		return nil, false, nil
 	}
+
+	return InstalledVersionsFromContent(path, content)
+}
+
+// InstalledVersionsFromContent is SafelyLoadInstalledVersionsChecked on
+// content, the installed.php read from path.
+func InstalledVersionsFromContent(path string, content []byte) (data *php.Array, ok bool, err error) {
 	installedVersionsData := string(content)
 	matched, err := installedPhpPattern.IsMatch(php.Trim(installedVersionsData))
 	if err != nil || !matched {

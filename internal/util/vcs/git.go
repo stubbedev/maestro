@@ -901,6 +901,23 @@ func ParseRevListOutput(output string, process Process) (string, error) {
 	return output, err
 }
 
+// The variables CleanEnv sets: one keeping git from prompting (which one
+// depends on git's version) and the language git runs in.
+const (
+	envNoPrompt      = "GIT_TERMINAL_PROMPT"
+	envNoPromptValue = "0"
+	envAskPass       = "GIT_ASKPASS"
+	envAskPassValue  = "echo"
+	envLanguage      = "LANGUAGE"
+	envLanguageValue = "C"
+)
+
+// CleanEnvValues are the variables CleanEnv sets with a git of at least
+// 2.3.0, with their values: the environment it leaves when it clears none.
+func CleanEnvValues() map[string]string {
+	return map[string]string{envNoPrompt: envNoPromptValue, envLanguage: envLanguageValue}
+}
+
 // CleanEnv ports Git::cleanEnv: sets up the environment for running git
 // non-interactively. A nil process is a new ProcessExecutor.
 func CleanEnv(process Process) error {
@@ -915,13 +932,13 @@ func CleanEnv(process Process) error {
 
 	if ok {
 		// added in git 2.3.0, prevents prompting the user for username/password
-		if v, _ := util.GetEnv("GIT_TERMINAL_PROMPT"); v != "0" {
-			util.PutEnv("GIT_TERMINAL_PROMPT", "0")
+		if v, _ := util.GetEnv(envNoPrompt); v != envNoPromptValue {
+			util.PutEnv(envNoPrompt, envNoPromptValue)
 		}
 	} else {
 		// added in git 1.7.1, prevents prompting the user for username/password
-		if v, _ := util.GetEnv("GIT_ASKPASS"); v != "echo" {
-			util.PutEnv("GIT_ASKPASS", "echo")
+		if v, _ := util.GetEnv(envAskPass); v != envAskPassValue {
+			util.PutEnv(envAskPass, envAskPassValue)
 		}
 	}
 
@@ -935,8 +952,8 @@ func CleanEnv(process Process) error {
 	}
 
 	// Run processes with predictable LANGUAGE
-	if v, _ := util.GetEnv("LANGUAGE"); v != "C" {
-		util.PutEnv("LANGUAGE", "C")
+	if v, _ := util.GetEnv(envLanguage); v != envLanguageValue {
+		util.PutEnv(envLanguage, envLanguageValue)
 	}
 
 	// clean up env for OSX, see https://github.com/composer/composer/issues/2146#issuecomment-35478940

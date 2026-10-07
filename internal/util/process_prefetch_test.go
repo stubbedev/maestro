@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeTool writes an executable shell script named name into a new
@@ -75,6 +76,66 @@ func TestProcessExecutor_Prefetch(t *testing.T) {
 	other := t.TempDir()
 	if _, err := process.Execute(Cmd("git", "c"), &output, other); err != nil || output != "out c 2\n" {
 		t.Errorf("other directory: %q, %v", output, err)
+	}
+}
+
+func TestProcessExecutor_PrefetchEnv(t *testing.T) {
+	skipOnWindows(t)
+
+	runs := filepath.Join(t.TempDir(), "runs")
+	fakeTool(t, "git", `echo "$1" >> '`+runs+`'; echo "out $1 ${MAESTRO_PREFETCH_TEST:-unset}"`+"\n")
+
+	dir := t.TempDir()
+	execute := func(name string) string {
+		t.Helper()
+
+		var output string
+		if _, err := NewProcessExecutor(nil).Execute(Cmd("git", name), &output, dir); err != nil {
+			t.Fatal(err)
+		}
+
+		return output
+	}
+	// started counts the runs of git name, once count of them started
+	started := func(name string, count int) int {
+		t.Helper()
+
+		for range 500 {
+			data, _ := os.ReadFile(runs)
+			if n := strings.Count(string(data), name+"\n"); n >= count {
+				return n
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		return -1
+	}
+
+	// started for the environment to come, taken by another executor once
+	// the environment is that
+	NewProcessExecutor(nil).PrefetchEnv(Cmd("git", "a"), dir, map[string]string{"MAESTRO_PREFETCH_TEST": "set"})
+	t.Setenv("MAESTRO_PREFETCH_TEST", "set")
+
+	if got := execute("a"); got != "out a set\n" || started("a", 1) != 1 {
+		t.Errorf("taken: %q, %d runs", got, started("a", 1))
+	}
+
+	// not taken when the environment came out otherwise
+	NewProcessExecutor(nil).PrefetchEnv(Cmd("git", "b"), dir, map[string]string{"MAESTRO_PREFETCH_TEST": "other"})
+
+	if got := execute("b"); got != "out b set\n" || started("b", 2) != 2 {
+		t.Errorf("other environment: %q", got)
+	}
+
+	// nor when the process timeout changed in between
+	NewProcessExecutor(nil).Prefetch(Cmd("git", "c"), dir)
+
+	timeout := GetProcessTimeout()
+	SetProcessTimeout(timeout + 1)
+	t.Cleanup(func() { SetProcessTimeout(timeout) })
+
+	if got := execute("c"); got != "out c set\n" || started("c", 2) != 2 {
+		t.Errorf("other timeout: %q", got)
 	}
 }
 

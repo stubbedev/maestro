@@ -42,7 +42,7 @@ type Runtime struct {
 	runningOperation        *string
 	platformPHPVersion      string
 	installedVersionsLoaded bool
-	installedVersions       *php.Array
+	installedVersions       func() *php.Array
 	frames                  []Frame
 
 	// installedVersionsSink receives the installed.php data whenever
@@ -330,18 +330,28 @@ func (r *Runtime) MarkInstalledVersionsLoaded() (alreadyLoaded bool) {
 // into Composer\InstalledVersions (safelyLoadInstalledVersions), for the
 // plugin runtime to hand to PHP once it starts.
 func (r *Runtime) SetInstalledVersions(data *php.Array) {
+	r.SetInstalledVersionsFunc(func() *php.Array { return data })
+}
+
+// SetInstalledVersionsFunc is SetInstalledVersions with the data load
+// computes, once, when the plugin runtime first asks for it.
+func (r *Runtime) SetInstalledVersionsFunc(load func() *php.Array) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.installedVersions = data
+	r.installedVersions = sync.OnceValue(load)
 }
 
 // InstalledVersions returns the data SetInstalledVersions recorded (nil
 // for none).
 func (r *Runtime) InstalledVersions() *php.Array {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	load := r.installedVersions
+	r.mu.Unlock()
+	if load == nil {
+		return nil
+	}
 
-	return r.installedVersions
+	return load()
 }
 
 // SetInstalledVersionsSink sets the function the local repositories created

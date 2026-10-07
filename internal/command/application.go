@@ -259,6 +259,10 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 		}
 	}
 
+	if !globalProjectCommands[commandName] {
+		composer.PrefetchRootVersion()
+	}
+
 	needsSudoCheck := !util.IsWindows() && !util.EnvTruthy("COMPOSER_ALLOW_SUPERUSER") && !util.IsDocker()
 	isNonAllowedRoot := false
 
@@ -365,6 +369,12 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 var noComposerJSONCommands = map[string]bool{
 	"": true, "list": true, "init": true, "about": true, "help": true, "diagnose": true,
 	"self-update": true, "global": true, "create-project": true, "outdated": true,
+}
+
+// globalProjectCommands are the commands that do not load the project in
+// the working directory, whatever it holds.
+var globalProjectCommands = map[string]bool{
+	"global": true, "self-update": true, "create-project": true, "init": true,
 }
 
 // fetchingCommands are the commands that talk to the repositories on most
