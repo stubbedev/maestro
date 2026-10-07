@@ -34,8 +34,8 @@ func TestNormalizeOracle(t *testing.T) {
 		},
 		{
 			"diagnose",
-			"PHP version: 8.4.25\nPHP binary path: /usr/bin/php8.4\nOpenSSL version: OpenSSL 3.0.13\ncurl version: 8.5.0 libz 1.3\nzip: extension present, unzip present\nChecking git settings: OK git version 2.43.0\n",
-			"PHP version: @PHPVERSION@\nPHP binary path: @MACHINE@\nOpenSSL version: @MACHINE@\ncurl version: @MACHINE@\nzip: @MACHINE@\nChecking git settings: OK git version @GITVERSION@\n",
+			"Composer version: 2.10.3\nMaestro version: 1.2.0\nPHP version: 8.4.25\nPHP binary path: /usr/bin/php8.4\nOpenSSL version: OpenSSL 3.0.13\ncurl version: 8.5.0 libz 1.3\nzip: extension present, unzip present\nChecking git settings: OK git version 2.43.0\n",
+			"Composer version: 2.10.3\nPHP version: @PHPVERSION@\nPHP binary path: @MACHINE@\nOpenSSL version: @MACHINE@\ncurl version: @MACHINE@\nzip: @MACHINE@\nChecking git settings: OK git version @GITVERSION@\n",
 		},
 		{
 			"diagnose platform override",

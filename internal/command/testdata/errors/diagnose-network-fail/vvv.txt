@@ -1,0 +1,75 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file @CAFILE@: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Composer version: 2.10.3
+Checking Composer and its dependencies for vulnerabilities: Downloading https://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
+Retrying (1) https://repo.packagist.org/packages.json due to curl error 7
+Retrying (2) https://repo.packagist.org/packages.json due to curl error 7
+Retrying (3) https://repo.packagist.org/packages.json due to curl error 7
+Failed performing audit: curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+PHP version: @PHPVERSION@
+PHP binary path: @MACHINE@
+OpenSSL version: @MACHINE@
+curl version: @MACHINE@
+zip: @MACHINE@
+Active plugins: 
+Checking composer.json: Reading ./composer.json (@DIR@/p/composer.json)
+OK
+Checking platform settings: OK
+Checking git settings: Executing command (CWD): 'git' 'config' 'color.ui'
+OK git version 2.55.0
+Checking http connectivity to packagist: Downloading http://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
+Retrying (1) http://repo.packagist.org/packages.json due to curl error 7
+Retrying (2) http://repo.packagist.org/packages.json due to curl error 7
+Retrying (3) http://repo.packagist.org/packages.json due to curl error 7
+FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1:1 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking https connectivity to packagist: Downloading https://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
+Retrying (1) https://repo.packagist.org/packages.json due to curl error 7
+Retrying (2) https://repo.packagist.org/packages.json due to curl error 7
+Retrying (3) https://repo.packagist.org/packages.json due to curl error 7
+FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking connectivity to http://@SERVER@/status/500: Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+Downloading http://@SERVER@/status/500/packages.json using proxy (excluded by no_proxy)
+[500] http://@SERVER@/status/500/packages.json
+Retrying (1) http://@SERVER@/status/500/packages.json due to status code 500
+[500] http://@SERVER@/status/500/packages.json
+Retrying (2) http://@SERVER@/status/500/packages.json due to status code 500
+[500] http://@SERVER@/status/500/packages.json
+Retrying (3) http://@SERVER@/status/500/packages.json due to status code 500
+[500] http://@SERVER@/status/500/packages.json
+FAIL
+[Composer\Downloader\TransportException] The "http://@SERVER@/status/500/packages.json" file could not be downloaded (HTTP/1.1 500 Internal Server Error)
+Checking HTTP proxy with http: Downloading http://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
+Retrying (1) http://repo.packagist.org/packages.json due to curl error 7
+Retrying (2) http://repo.packagist.org/packages.json due to curl error 7
+Retrying (3) http://repo.packagist.org/packages.json due to curl error 7
+FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1:1 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking HTTP proxy with https: Downloading https://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
+Retrying (1) https://repo.packagist.org/packages.json due to curl error 7
+Retrying (2) https://repo.packagist.org/packages.json due to curl error 7
+Retrying (3) https://repo.packagist.org/packages.json due to curl error 7
+FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking github.com rate limit: Downloading https://api.github.com/rate_limit using proxy (http://127.0.0.1:1)
+Retrying (1) https://api.github.com/rate_limit due to curl error 7
+Retrying (2) https://api.github.com/rate_limit due to curl error 7
+Retrying (3) https://api.github.com/rate_limit due to curl error 7
+FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading https://api.github.com/rate_limit: Failed to connect to api.github.com:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking disk free space: OK
+exit 2

@@ -1,0 +1,1 @@
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server

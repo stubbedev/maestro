@@ -6,7 +6,10 @@ import (
 	"bytes"
 	"context"
 	gojson "encoding/json"
+	"encoding/pem"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +22,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/util"
+	utilhttp "github.com/stubbedev/maestro/internal/util/http"
 )
 
 // requirePackagist skips tests that, like Composer's, talk to packagist.org
@@ -96,6 +100,9 @@ func TestDiagnoseCommand_NetworkDisabled(t *testing.T) {
 	}
 
 	output := appTester.Display(true)
+	if appTester.StatusCode() != 0 {
+		t.Errorf("status %d, want 0\n%s", appTester.StatusCode(), output)
+	}
 	for _, want := range []string{
 		"Composer version: " + composer.Version + "\n",
 		"Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.\n",
@@ -108,6 +115,68 @@ func TestDiagnoseCommand_NetworkDisabled(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("output lacks %q:\n%s", want, output)
 		}
+	}
+}
+
+// TestDiagnoseCommand_GithubOauth checks a github-oauth domain's token
+// against the domain's API: an invalid token (401) and a valid one with an
+// expiry. Every other connection goes to a proxy that refuses it, so the
+// network checks fail fast and the exit code is 2.
+func TestDiagnoseCommand_GithubOauth(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		handler http.HandlerFunc
+		want    string
+	}{
+		{"invalid", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+		}, `The oauth token for DOMAIN seems invalid, run "composer config --global --unset github-oauth.DOMAIN" to remove it`},
+		{"expires", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v3/" || r.Header.Get("Authorization") == "" {
+				w.WriteHeader(http.StatusNotFound)
+
+				return
+			}
+			w.Header().Set("GitHub-Authentication-Token-Expiration", "2030-01-01 00:00:00 UTC")
+			_, _ = w.Write([]byte("{}"))
+		}, "OK expires on 2030-01-01 00:00:00 UTC"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewTLSServer(tc.handler)
+			defer srv.Close()
+			domain := srv.Listener.Addr().String()
+			cafile := filepath.Join(t.TempDir(), "ca.pem")
+			if err := os.WriteFile(cafile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw}), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("COMPOSER_DISABLE_NETWORK", "")
+			t.Setenv("http_proxy", "http://127.0.0.1:1")
+			t.Setenv("https_proxy", "http://127.0.0.1:1")
+			t.Setenv("no_proxy", "127.0.0.1")
+			utilhttp.ResetProxyManager()
+			t.Cleanup(utilhttp.ResetProxyManager)
+			composerJSON, _ := gojson.Marshal(map[string]any{
+				"name": "foo/bar", "description": "test pkg", "license": "MIT",
+				"config": map[string]any{"cafile": cafile, "github-oauth": map[string]any{domain: "token"}, "github-domains": []any{domain}},
+			})
+			commandtest.InitTempComposer(t, string(composerJSON), nil, nil, true)
+
+			appTester := commandtest.GetApplicationTester(t)
+			if _, err := appTester.RunArgs(commandtest.Options{}, "command", "diagnose"); err != nil {
+				t.Fatal(err)
+			}
+			output := appTester.Display(true)
+			if appTester.StatusCode() != 2 {
+				t.Errorf("status %d, want 2\n%s", appTester.StatusCode(), output)
+			}
+			want := "Checking " + domain + " oauth access: " + strings.ReplaceAll(tc.want, "DOMAIN", domain) + "\n"
+			if !strings.Contains(output, want) {
+				t.Errorf("output lacks %q:\n%s", want, output)
+			}
+			if strings.Contains(output, "rate limit") {
+				t.Errorf("output has the rate limit check:\n%s", output)
+			}
+		})
 	}
 }
 

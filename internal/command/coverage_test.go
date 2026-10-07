@@ -236,7 +236,9 @@ var coverage = []entry{
 	cover(command.NewDiagnoseCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestDiagnoseCommand_CmdSuccess)),
+			Positive(Go(TestDiagnoseCommand_NetworkDisabled)),
 			Negative(Go(TestDiagnoseCommand_CmdFail)),
+			Negative(Go(TestDiagnoseCommand_GithubOauth)),
 		},
 	}),
 	cover(command.NewRunScriptCommand, Coverage{

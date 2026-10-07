@@ -1,0 +1,10 @@
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "config": {
+        "platform": {
+            "php": "7.0.0"
+        }
+    }
+}

@@ -13,7 +13,8 @@
 //     messages file, its lines (for errors that are no exception, such as
 //     solver problems and failed scripts, or where only part of a message
 //     carries the information). Each listed line must occur in Composer's
-//     recorded output too. Messages are compared without whitespace (box
+//     recorded output too; one Composer wrote on stdout is checked by the
+//     comparison of stdout. Messages are compared without whitespace (box
 //     padding and wrapping, indentation and line breaks don't matter),
 //     box-drawing characters and PHP's TypeError call site
 //     (", called in X on line N"). Where Composer failed writing nothing
@@ -205,9 +206,13 @@ func compare(t *testing.T, golden string, want expected, got result) {
 		t.Errorf("stderr not empty, Composer wrote nothing (%s.txt): %q", golden, got.stderr)
 	}
 	stdout := testutil.CompactMessage(got.stdout)
+	reported := testutil.CompactMessage(want.stdout)
 	for _, m := range want.messages {
 		switch {
 		case strings.Contains(got.stderr, m):
+		case strings.Contains(reported, m):
+			// Composer reports it on stdout (diagnose's checks, show's
+			// outdated packages), which is compared exactly.
 		case strings.Contains(stdout, m):
 			t.Errorf("error message on stdout, not stderr (%s.txt): %q", golden, m)
 		default:

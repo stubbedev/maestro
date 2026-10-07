@@ -1,0 +1,16 @@
+Composer version: 2.10.3
+Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+PHP version: @PHPVERSION@
+PHP binary path: @MACHINE@
+OpenSSL version: @MACHINE@
+curl version: @MACHINE@
+zip: @MACHINE@
+Active plugins: 
+Checking composer.json: OK
+Checking composer.lock: OK
+Checking platform settings: OK
+Checking git settings: OK git version @GITVERSION@
+Checking http connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+Checking https connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+Checking github.com rate limit: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+Checking disk free space: OK

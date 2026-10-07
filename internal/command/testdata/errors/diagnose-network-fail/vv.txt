@@ -1,0 +1,27 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Composer version: 2.10.3
+Checking Composer and its dependencies for vulnerabilities: Failed performing audit: curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+PHP version: @PHPVERSION@
+PHP binary path: @MACHINE@
+OpenSSL version: @MACHINE@
+curl version: @MACHINE@
+zip: @MACHINE@
+Active plugins: 
+Checking composer.json: OK
+Checking platform settings: OK
+Checking git settings: OK git version @GITVERSION@
+Checking http connectivity to packagist: FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1:1 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking https connectivity to packagist: FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking connectivity to http://@SERVER@/status/500: Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+FAIL
+[Composer\Downloader\TransportException] The "http://@SERVER@/status/500/packages.json" file could not be downloaded (HTTP/1.1 500 Internal Server Error)
+Checking HTTP proxy with http: FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1:1 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking HTTP proxy with https: FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking github.com rate limit: FAIL
+[Composer\Downloader\TransportException] curl error 7 while downloading https://api.github.com/rate_limit: Failed to connect to api.github.com:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
+Checking disk free space: OK
+exit 2

@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/testutil"
 )
 
 // scenarios are the end-to-end scenarios, in the order they run.
@@ -1058,14 +1060,10 @@ var pharOnlyDiagnose = regexp.MustCompile(`(?s)Checking pubkeys: .*?\nChecking C
 // running binary.
 var diagnoseVariable = regexp.MustCompile(`(?m)^(PHP binary path:).*$`)
 
-// maestroDiagnose is the line diagnose adds to Composer's to say which
-// tool it diagnosed.
-var maestroDiagnose = regexp.MustCompile(`(?m)^Maestro version: .*\n`)
-
 // normalizeDiagnose: see pharOnlyDiagnose, diagnoseVariable and
-// maestroDiagnose.
+// testutil.MaestroDiagnoseLine.
 func normalizeDiagnose(s string) string {
-	s = maestroDiagnose.ReplaceAllString(pharOnlyDiagnose.ReplaceAllString(s, ""), "")
+	s = testutil.MaestroDiagnoseLine.ReplaceAllString(pharOnlyDiagnose.ReplaceAllString(s, ""), "")
 
 	return diagnoseVariable.ReplaceAllString(s, "$1 <variable>")
 }

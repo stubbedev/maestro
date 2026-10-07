@@ -22,6 +22,11 @@ type OracleRun struct {
 	Composer string
 }
 
+// MaestroDiagnoseLine is the line maestro's diagnose adds after
+// Composer's version line to say which tool it diagnosed
+// (docs/PORTING.md): comparisons with Composer's report leave it out.
+var MaestroDiagnoseLine = regexp.MustCompile(`(?m)^Maestro version: .*\n`)
+
 // oracleRules are what differs between runs of a scenario or between
 // machines, in the order applied: random names, timings and counts that
 // depend on the machine's php, and the paths of the machine's files and
@@ -57,7 +62,9 @@ var oracleRules = []struct {
 	{regexp.MustCompile(`(^|[ '\n])/[^ '\n]*/(unzip|7z|7za|7zz)([ '\n]|$)`), "${1}@BIN@/${2}${3}"},
 	// curl's connection time, as CompactMessage has it
 	{regexp.MustCompile(`( after )[0-9]+( ms: )`), "${1}0${2}"},
-	// diagnose's description of the machine's php and tools
+	// diagnose's description of the machine's php and tools, and the
+	// tool it names
+	{MaestroDiagnoseLine, ""},
 	{regexp.MustCompile(`(?m)^(PHP version: )[0-9][^ \n]*$`), "${1}@PHPVERSION@"},
 	{regexp.MustCompile(`(?m)^(PHP version: [^\n]* - Package overridden via config\.platform, actual: )[^\n]*$`), "${1}@PHPVERSION@"},
 	{regexp.MustCompile(`(?m)^(PHP binary path|OpenSSL version|curl version|zip): .*$`), "${1}: @MACHINE@"},

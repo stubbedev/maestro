@@ -1,0 +1,20 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Checked CA file @CAFILE@: valid
+Composer version: 2.10.3
+Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+PHP version: @PHPVERSION@
+PHP binary path: @MACHINE@
+OpenSSL version: @MACHINE@
+curl version: @MACHINE@
+zip: @MACHINE@
+Checking platform settings: OK
+Checking git settings: Executing command (CWD): 'git' 'config' 'color.ui'
+Executing command (CWD): 'git' '--version'
+OK git version 2.55.0
+Checking http connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+Checking https connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+Checking github.com rate limit: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
+Checking disk free space: OK
+exit 0

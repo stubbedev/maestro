@@ -1,0 +1,8 @@
+
+                                                            
+  No arguments expected for "diagnose" command, got "foo".  
+                                                            
+
+diagnose
+
+exit 1
