@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/store"
+	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -111,13 +112,16 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 
 // specMaterial is a package tree materialized from the store ahead of the
 // download that needs it (prefetchMaterial), in a directory of its own
-// next to the download's staging directories.
-type specMaterial struct {
+// next to the download's staging directories: its result is that
+// directory, removed when nobody takes it.
+type specMaterial = util.Ahead[materialKey, string]
+
+// materialKey is what a materialized tree is made of. A Release never
+// changes once loaded (Release.Entries), so the same one is the same
+// tree.
+type materialKey struct {
 	rel  *store.Release
 	opts store.ImportOptions
-	dir  string
-	done chan struct{}
-	err  error
 }
 
 // prefetchMaterial starts materializing p's release from the store when
@@ -147,18 +151,14 @@ func (d *FileDownloader) prefetchMaterial(p pkg.PackageInterface) {
 		return
 	}
 
-	sp := &specMaterial{rel: rel, opts: d.importOptions(p), dir: d.randomDir(), done: make(chan struct{})}
 	if d.specs == nil {
 		d.specs = map[pkg.PackageInterface]*specMaterial{}
 	}
 
-	d.specs[p] = sp
-
-	go func() {
-		defer close(sp.done)
-
-		sp.err = d.store.Materialize(sp.rel, sp.dir, sp.opts)
-	}()
+	key, dir := materialKey{rel, d.importOptions(p)}, d.randomDir()
+	d.specs[p] = util.StartAhead(key, func() (string, error) {
+		return dir, d.store.Materialize(key.rel, dir, key.opts)
+	}, func(dir string) { _ = os.RemoveAll(dir) })
 }
 
 // specDirs makes sure the directory dir exists for the trees materialized
@@ -215,18 +215,12 @@ func (d *FileDownloader) takeMaterial(p pkg.PackageInterface, rel *store.Release
 	}
 	d.mu.Unlock()
 
-	if sp != nil {
-		<-sp.done
-
-		if sp.err == nil && sp.rel == rel && sp.opts == opts {
-			if err := os.Rename(sp.dir, dst); err == nil {
-				return nil
-			}
+	if dir, ok := sp.Take(materialKey{rel, opts}); ok {
+		if err := os.Rename(dir, dst); err == nil {
+			return nil
 		}
 
-		if sp.err == nil {
-			_ = os.RemoveAll(sp.dir)
-		}
+		_ = os.RemoveAll(dir)
 	}
 
 	return d.store.Materialize(rel, dst, opts)
@@ -243,15 +237,7 @@ func (d *FileDownloader) discardMaterial() {
 	d.mu.Unlock()
 
 	for _, sp := range specs {
-		if sp == nil {
-			continue
-		}
-
-		<-sp.done
-
-		if sp.err == nil {
-			_ = os.RemoveAll(sp.dir)
-		}
+		sp.Discard()
 	}
 
 	for _, dir := range slices.Backward(created) {

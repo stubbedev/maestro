@@ -17,14 +17,39 @@ import (
 
 // speculation is a class map scan started by Speculate.
 type speculation struct {
-	parser               classmap.Parser
-	scanPsrPackages      bool
-	basePath, vendorPath string
-	autoloads            *Autoloads
+	scan *util.Ahead[scanKey, *scanResult]
 
-	done     chan struct{}
+	// devMode is installed.json's "dev" as the speculation read it, from
+	// the file installedJSON describes (nil when it was not read, or
+	// changed while it was read).
+	devMode       bool
+	installedPath string
+	installedJSON fs.FileInfo
+}
+
+// scanKey is what a class map scan is made of: the Dump that takes a
+// speculated scan is one whose key is the same.
+type scanKey struct {
+	scanInputs
+	autoloads *Autoloads
+}
+
+// scanInputs are the comparable part of a scanKey. strictAmbiguous is
+// how the scan's result was analysed.
+type scanInputs struct {
+	parser                           classmap.Parser
+	scanPsrPackages, strictAmbiguous bool
+	basePath, vendorPath             string
+}
+
+// same reports whether a and b give the same scan.
+func (a scanKey) same(b scanKey) bool {
+	return a.scanInputs == b.scanInputs && sameScans(a.autoloads, b.autoloads)
+}
+
+// scanResult is the result of a speculated scan.
+type scanResult struct {
 	classMap *classmap.ClassMap
-	err      error
 	// warnings are what scan prints about classMap, which is completed
 	// as scan completes it (analyseClassMap, without strictAmbiguous).
 	warnings []string
@@ -33,13 +58,6 @@ type speculation struct {
 	// files the dump writes as they were then (readCurrent).
 	ahead   *dump
 	current map[string]currentFile
-
-	// devMode is installed.json's "dev" as the speculation read it, from
-	// the file installedJSON describes (nil when it was not read, or
-	// changed while it was read).
-	devMode       bool
-	installedPath string
-	installedJSON fs.FileInfo
 }
 
 // Speculate starts, in the background, the class map scan of the Dump
@@ -94,33 +112,29 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 		return
 	}
 
-	s := &speculation{
-		parser:          g.Parser,
-		scanPsrPackages: scanPsrPackages,
-		basePath:        d.basePath,
-		vendorPath:      d.vendorPath,
-		autoloads:       autoloads,
-		done:            make(chan struct{}),
-		devMode:         devMode,
-		installedPath:   installedPath,
-		installedJSON:   installedJSON,
-	}
 	ahead := aheadDump(d, "composer")
-	g.speculation = s
-	go func() {
-		defer close(s.done)
-		s.classMap, s.err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages)
-		if s.err != nil {
-			return
-		}
-		if s.warnings, s.err = analyseClassMap(s.classMap, d.vendorPath, false); s.err != nil {
-			return
-		}
-		if ahead != nil && ahead.classmap(s.classMap) == nil {
-			s.ahead = ahead
-			s.current = readCurrent(ahead)
-		}
-	}()
+	key := scanKey{scanInputs{parser: g.Parser, scanPsrPackages: scanPsrPackages, basePath: d.basePath, vendorPath: d.vendorPath}, autoloads}
+	g.speculation = &speculation{
+		scan: util.StartAheadFunc(key, scanKey.same, func() (*scanResult, error) {
+			s := &scanResult{}
+			var err error
+			if s.classMap, err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages); err != nil {
+				return nil, err
+			}
+			if s.warnings, err = analyseClassMap(s.classMap, d.vendorPath, false); err != nil {
+				return nil, err
+			}
+			if ahead != nil && ahead.classmap(s.classMap) == nil {
+				s.ahead = ahead
+				s.current = readCurrent(ahead)
+			}
+
+			return s, nil
+		}, nil),
+		devMode:       devMode,
+		installedPath: installedPath,
+		installedJSON: installedJSON,
+	}
 }
 
 // aheadDump is the dump newDump(config, targetDir) makes for the base and
@@ -147,14 +161,6 @@ func aheadDump(d *dump, targetDir string) *dump {
 	ahead.baseDir = evalPathCode(ahead.appBaseDirCode, "", ahead.vendorDir)
 
 	return ahead
-}
-
-// samePaths reports whether a and b have the same paths and codes for
-// them, which is all dump.classmap reads besides the class map.
-func samePaths(a, b *dump) bool {
-	return a.basePath == b.basePath && a.vendorPath == b.vendorPath && a.targetDir == b.targetDir && a.realTarget == b.realTarget &&
-		a.vendorPathCode == b.vendorPathCode && a.vendorPathToTargetDirCode == b.vendorPathToTargetDirCode && a.appBaseDirCode == b.appBaseDirCode &&
-		a.vendorDir == b.vendorDir && a.baseDir == b.baseDir
 }
 
 // currentFile is a file's contents, and its description from before and
@@ -195,7 +201,7 @@ var dumpFiles = []string{"autoload_namespaces.php", "autoload_psr4.php", "autolo
 
 // unchanged reports whether path holds content, as the speculation read
 // it, when it did not change since.
-func (s *speculation) unchanged(path, content string) bool {
+func (s *scanResult) unchanged(path, content string) bool {
 	f, ok := s.current[path]
 	if !ok || string(f.content) != content {
 		return false
@@ -206,10 +212,11 @@ func (s *speculation) unchanged(path, content string) bool {
 }
 
 // takeClassmap sets d's class map files to those the speculation built,
-// when it built them for d's paths.
-func (s *speculation) takeClassmap(d *dump) bool {
+// when it built them for d's paths (all dump.classmap reads besides the
+// class map).
+func (s *scanResult) takeClassmap(d *dump) bool {
 	a := s.ahead
-	if a == nil || !samePaths(a, d) {
+	if a == nil || a.dumpPaths != d.dumpPaths {
 		return false
 	}
 	d.classes, d.classPaths, d.classmapFile, d.staticClassMap = a.classes, a.classPaths, a.classmapFile, a.staticClassMap
@@ -269,23 +276,22 @@ func (g *Generator) takeSpeculatedDevMode(config Config) bool {
 func (g *Generator) DiscardSpeculation() {
 	if s := g.speculation; s != nil {
 		g.speculation = nil
-		<-s.done
+		s.scan.Discard()
 	}
 }
 
 // takeSpeculation is the speculated scan when it scanned what a Dump with
 // these values scans, and analysed it as that Dump does; nil otherwise.
-func (g *Generator) takeSpeculation(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool) *speculation {
+// The speculation is dropped either way.
+func (g *Generator) takeSpeculation(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool) *scanResult {
 	s := g.speculation
 	if s == nil {
 		return nil
 	}
-	g.DiscardSpeculation()
-	if s.err != nil || strictAmbiguous || s.parser != g.Parser || s.scanPsrPackages != scanPsrPackages || s.basePath != d.basePath || s.vendorPath != d.vendorPath || !sameScans(s.autoloads, autoloads) {
-		return nil
-	}
+	g.speculation = nil
+	taken, _ := s.scan.Take(scanKey{scanInputs{g.Parser, scanPsrPackages, strictAmbiguous, d.basePath, d.vendorPath}, autoloads})
 
-	return s
+	return taken
 }
 
 // sameScans reports whether a and b give the same scans: the same

@@ -55,9 +55,9 @@ type Generator struct {
 	// speculation is the class map scan Speculate started, nil without
 	// one.
 	speculation *speculation
-	// ahead is the speculation the running Dump took, nil without one:
+	// ahead is the speculated scan the running Dump took, nil without one:
 	// write compares with the files as it read them.
-	ahead *speculation
+	ahead *scanResult
 	// recordDir keeps the class maps of the scans (UseScanRecords), ""
 	// for none.
 	recordDir string
@@ -353,7 +353,7 @@ func (g *Generator) devModeArg() error {
 // scan builds the class map: the classmap rules, plus the PSR-0/4 dirs
 // with scanPsrPackages, reporting ambiguous classes and PSR violations.
 // ahead is what a speculation found of it already, nil to scan now.
-func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapEntry, scanPsrPackages, strictAmbiguous bool, ahead *speculation) (*classmap.ClassMap, error) {
+func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapEntry, scanPsrPackages, strictAmbiguous bool, ahead *scanResult) (*classmap.ClassMap, error) {
 	if ahead != nil {
 		// the speculation analysed its scan as this would (takeSpeculation)
 		for _, msg := range ahead.warnings {

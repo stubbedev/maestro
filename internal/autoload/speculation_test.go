@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // speculationEnv is a project whose root package has a classmap rule and
@@ -35,8 +36,26 @@ func (e *env) speculated() {
 	if e.generator.speculation == nil {
 		e.t.Fatal("Speculate started no scan")
 	}
-	<-e.generator.speculation.done
+	e.generator.speculation.scan.Wait()
 	e.write(e.workingDir+"/lib/late.php", `<?php class Late {}`)
+}
+
+// peekSpeculation is the result of the speculated scan, which it leaves
+// for the dump to take.
+func (e *env) peekSpeculation() *scanResult {
+	e.t.Helper()
+	s := e.generator.speculation
+	if s == nil {
+		e.t.Fatal("Speculate started no scan")
+	}
+	key := s.scan.Key()
+	result, ok := s.scan.Take(key)
+	if !ok {
+		e.t.Fatal("the speculated scan failed")
+	}
+	s.scan = util.StartAheadFunc(key, scanKey.same, func() (*scanResult, error) { return result, nil }, nil)
+
+	return result
 }
 
 func (e *env) classmapHas(class string) bool {
@@ -113,8 +132,7 @@ func TestGenerator_DumpAheadIsTheDump(t *testing.T) {
 	e.io = newBufferIO(t)
 	e.generator = NewGenerator(e.dispatcher, e.io)
 	e.generator.Speculate(e.config, e.repo, p, e.im, true)
-	<-e.generator.speculation.done
-	if e.generator.speculation.ahead == nil || len(e.generator.speculation.current) == 0 {
+	if s := e.peekSpeculation(); s.ahead == nil || len(s.current) == 0 {
 		t.Fatal("the speculation built no class map files")
 	}
 	// changed since the speculation read it: written again

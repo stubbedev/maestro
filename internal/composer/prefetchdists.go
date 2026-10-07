@@ -6,7 +6,6 @@ package composer
 import (
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 )
@@ -19,11 +18,12 @@ import (
 // are what they are without it. A dist the files cache holds whose
 // release is in the package store is materialized from the store instead,
 // for the download to take (downloader.FileDownloader.prefetchMaterial).
-// The returned function ends what no download took; doInstall calls it
-// once the operations ran or failed, or the lock did not verify.
-func (i *Installer) prefetchDists(locked *repository.LockArrayRepository, localRepo repository.InstalledRepositoryInterface) func() {
-	if !i.executeOperations {
-		return func() {}
+// transaction is the local repository transaction as computed before
+// the verification, nil when it could not be. The returned function ends what no
+// download took, nil when nothing started (aheadWork.Discard).
+func (i *Installer) prefetchDists(transaction *resolver.Transaction) func() {
+	if !i.executeOperations || transaction == nil {
+		return nil
 	}
 
 	var m *downloader.DownloadManager
@@ -38,13 +38,7 @@ func (i *Installer) prefetchDists(locked *repository.LockArrayRepository, localR
 	}
 
 	if m == nil {
-		return func() {}
-	}
-
-	// the transaction doInstall computes after the verification
-	transaction, err := resolver.NewLocalRepoTransaction(locked, localRepo)
-	if err != nil {
-		return func() {}
+		return nil
 	}
 
 	var installed []pkg.PackageInterface

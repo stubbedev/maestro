@@ -125,10 +125,7 @@ func TestDownloadManager_PrefetchMaterializes(t *testing.T) {
 			t.Fatal("nothing materialized ahead")
 		}
 
-		<-sp.done
-		if sp.err != nil {
-			t.Fatal(sp.err)
-		}
+		sp.Wait()
 
 		return pr, f, m, p
 	}
@@ -156,6 +153,42 @@ func TestDownloadManager_PrefetchMaterializes(t *testing.T) {
 		if got := downloadLines(pr.out); !slices.Equal(got, want) {
 			t.Fatalf("output %q, want %q", got, want)
 		}
+	})
+
+	// a package changed in place since (a plugin making it one) is
+	// materialized as it is then: the tree made ahead goes
+	t.Run("changed in place", func(t *testing.T) {
+		pr, f, m, p := prefetched(t)
+
+		entries, err := os.ReadDir(pr.vendor + "/composer")
+		if err != nil || len(entries) != 1 {
+			t.Fatalf("trees made ahead: %v, %v", entries, err)
+		}
+
+		ahead, err := os.Stat(pr.vendor + "/composer/" + entries[0].Name() + "/composer.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		p.(*pkg.CompletePackage).SetType("composer-plugin")
+
+		path, err := pr.install(f, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		installed, err := os.Stat(path + "/composer.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if os.SameFile(ahead, installed) {
+			t.Fatal("the tree made ahead for another type was taken")
+		}
+
+		m.DiscardPrefetched()
+		checkTree(t, path)
+		checkNoLeftovers(t, pr.vendor)
 	})
 
 	t.Run("discarded", func(t *testing.T) {

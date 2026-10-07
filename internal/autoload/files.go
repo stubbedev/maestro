@@ -25,18 +25,7 @@ import (
 // generated autoload_*.php contents, plus what PHP gets back when
 // getStaticFile requires those files.
 type dump struct {
-	basePath   string // the project dir
-	vendorPath string
-	targetDir  string // vendorPath/targetDir
-	realTarget string // realpath(targetDir), the __DIR__ of its files
-
-	vendorPathCode            string
-	vendorPathToTargetDirCode string
-	appBaseDirCode            string
-
-	// vendorDir and baseDir are what $vendorDir and $baseDir evaluate to
-	// in the generated files.
-	vendorDir, baseDir string
+	dumpPaths
 
 	namespacesFile, psr4File, classmapFile string
 
@@ -51,6 +40,25 @@ type dump struct {
 	staticClassMap string
 
 	exclusions exclusionRegexes
+}
+
+// dumpPaths are a dump's paths and the codes for them: everything
+// dump.classmap reads besides the class map, so that the class map files
+// a speculation built are taken only by a dump with equal dumpPaths
+// (speculation.takeClassmap). A field dump.classmap reads goes here.
+type dumpPaths struct {
+	basePath   string // the project dir
+	vendorPath string
+	targetDir  string // vendorPath/targetDir
+	realTarget string // realpath(targetDir), the __DIR__ of its files
+
+	vendorPathCode            string
+	vendorPathToTargetDirCode string
+	appBaseDirCode            string
+
+	// vendorDir and baseDir are what $vendorDir and $baseDir evaluate to
+	// in the generated files.
+	vendorDir, baseDir string
 }
 
 // namespacePaths is one entry of autoload_namespaces.php or
