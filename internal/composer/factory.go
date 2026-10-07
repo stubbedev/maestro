@@ -90,12 +90,24 @@ func (f *Factory) CreateConfig(out io.IO, cwd string) (*config.Config, error) {
 }
 
 // rootVersions are root package versions a Factory guessed, by directory
-// and root package configuration: a process loads the same root package
+// and what the guess reads of the root package configuration
+// (version.GuessKey): a process loads the same root package
 // more than once (validate: for the application and for the file it
-// validates), and the guess is then the same, its VCS commands run once.
+// validates; require: before and after it writes composer.json), and the
+// guess is then the same, its VCS commands run once. A guess, the guess
+// that there is no version included, stands only while no foreign code
+// ran (util.RunForeignCode): a script or a plugin may have changed the
+// checkout since.
 type rootVersions struct {
 	mu      sync.Mutex
-	guessed map[string]loader.VersionData
+	guessed map[string]rootVersion
+}
+
+// rootVersion is a guess of rootVersions: its data (nil for none) and the
+// foreign code generation it was made in.
+type rootVersion struct {
+	data       *loader.VersionData
+	generation uint64
 }
 
 // rootVersionGuesser is the VersionGuesser of the root packages a Factory
@@ -107,31 +119,42 @@ type rootVersionGuesser struct {
 
 // GuessVersion implements loader.VersionGuesser.
 func (g rootVersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*loader.VersionData, error) {
-	encoded, err := php.JSONEncode(packageConfig, 0)
-	if err != nil {
+	generation, quiet := util.ForeignCodeGeneration()
+	if !quiet {
 		return g.VersionGuesser.GuessVersion(packageConfig, path)
 	}
 	dir, ok := php.Realpath(path)
 	if !ok {
 		dir = path
 	}
-	key := dir + "\x00" + encoded
+	key := dir + "\x00" + version.GuessKey(packageConfig)
 
 	g.versions.mu.Lock()
 	defer g.versions.mu.Unlock()
-	if data, ok := g.versions.guessed[key]; ok {
-		return &data, nil
+	if guess, ok := g.versions.guessed[key]; ok && guess.generation == generation {
+		return cloneVersionData(guess.data), nil
 	}
 	data, err := g.VersionGuesser.GuessVersion(packageConfig, path)
-	if err != nil || data == nil {
+	if err != nil {
 		return data, err
 	}
 	if g.versions.guessed == nil {
-		g.versions.guessed = map[string]loader.VersionData{}
+		g.versions.guessed = map[string]rootVersion{}
 	}
-	g.versions.guessed[key] = *data
+	g.versions.guessed[key] = rootVersion{data: cloneVersionData(data), generation: generation}
 
 	return data, nil
+}
+
+// cloneVersionData is a copy of data, nil for nil: what a guess returns is
+// the caller's.
+func cloneVersionData(data *loader.VersionData) *loader.VersionData {
+	if data == nil {
+		return nil
+	}
+	c := *data
+
+	return &c
 }
 
 // GetComposerFile ports Factory::getComposerFile.

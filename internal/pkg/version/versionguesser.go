@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/io"
@@ -148,6 +149,12 @@ func (g *VersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*l
 		return nil, nil
 	}
 
+	return g.guess(newGuessConfig(packageConfig), path)
+}
+
+// guess is GuessVersion for the parts of the package configuration it
+// reads.
+func (g *VersionGuesser) guess(packageConfig guessConfig, path string) (*loader.VersionData, error) {
 	data, err := g.guessGitVersion(packageConfig, path)
 	if err != nil {
 		return nil, err
@@ -157,9 +164,9 @@ func (g *VersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*l
 		return postprocess(data)
 	}
 
-	for _, guess := range [...]func(*php.Array, string) (*versionData, error){
+	for _, guess := range [...]func(guessConfig, string) (*versionData, error){
 		g.guessHgVersion,
-		func(_ *php.Array, path string) (*versionData, error) { return g.guessFossilVersion(path) },
+		func(_ guessConfig, path string) (*versionData, error) { return g.guessFossilVersion(path) },
 		g.guessSvnVersion,
 	} {
 		data, err := guess(packageConfig, path)
@@ -221,7 +228,7 @@ var (
 	rootVersionDev   = php.MustCompile(`{^(\d+(?:\.\d+)*)-dev$}i`)
 )
 
-func (g *VersionGuesser) guessGitVersion(packageConfig *php.Array, path string) (*versionData, error) {
+func (g *VersionGuesser) guessGitVersion(packageConfig guessConfig, path string) (*versionData, error) {
 	if err := vcs.CleanEnv(g.vcsProcess()); err != nil {
 		return nil, err
 	}
@@ -406,7 +413,7 @@ func (g *VersionGuesser) versionFromGitTags(path string) (version, prettyVersion
 	return "", "", false, nil
 }
 
-func (g *VersionGuesser) guessHgVersion(packageConfig *php.Array, path string) (*versionData, error) {
+func (g *VersionGuesser) guessHgVersion(packageConfig guessConfig, path string) (*versionData, error) {
 	// try to fetch current version from hg branch
 	var output string
 
@@ -509,13 +516,12 @@ func (g *VersionGuesser) hgBranches() ([]string, error) {
 // the rest once a candidate has no commits in between; here the results
 // are handled in candidate order, which picks the same branch unless
 // several have none.
-func (g *VersionGuesser) guessFeatureVersion(packageConfig *php.Array, version pkg.NullString, branches []string, scmCmdline []string, path string) (pkg.NullString, pkg.NullString, error) {
+func (g *VersionGuesser) guessFeatureVersion(packageConfig guessConfig, version pkg.NullString, branches []string, scmCmdline []string, path string) (pkg.NullString, pkg.NullString, error) {
 	prettyVersion := version
 
 	// ignore feature branches if they have no branch-alias or self.version is used
 	// and find the branch they came from to use as a version instead
-	branchAlias := packageConfig.ArrayAt("extra").ArrayAt("branch-alias")
-	if branchAlias.Isset(version.S) && !strings.Contains(jsonEncode(packageConfig), `"self.version"`) {
+	if packageConfig.branchAlias.Isset(version.S) && !packageConfig.selfVersion {
 		return version, prettyVersion, nil
 	}
 
@@ -620,21 +626,8 @@ func (g *VersionGuesser) guessFeatureVersion(packageConfig *php.Array, version p
 }
 
 // isFeature ports VersionGuesser::isFeatureBranch.
-func isFeature(packageConfig *php.Array, branchName string) (bool, error) {
-	nonFeatureBranches := ""
-
-	if v := packageConfig.At("non-feature-branches"); php.ToBool(v) {
-		if list, ok := v.(*php.Array); ok {
-			parts := make([]string, 0, list.Len())
-			for _, s := range list.All() {
-				parts = append(parts, php.ToString(s))
-			}
-
-			nonFeatureBranches = strings.Join(parts, "|")
-		}
-	}
-
-	ok, err := php.PregIsMatch(`{^(`+nonFeatureBranches+`|master|main|latest|next|current|support|tip|trunk|default|develop|\d+\..+)$}`, branchName)
+func isFeature(packageConfig guessConfig, branchName string) (bool, error) {
+	ok, err := php.PregIsMatch(`{^(`+packageConfig.nonFeatureBranches+`|master|main|latest|next|current|support|tip|trunk|default|develop|\d+\..+)$}`, branchName)
 	if err != nil {
 		return false, err
 	}
@@ -675,7 +668,7 @@ func (g *VersionGuesser) guessFossilVersion(path string) (*versionData, error) {
 	return &versionData{version: version, commit: pkg.Str(""), prettyVersion: prettyVersion}, nil
 }
 
-func (g *VersionGuesser) guessSvnVersion(packageConfig *php.Array, path string) (*versionData, error) {
+func (g *VersionGuesser) guessSvnVersion(packageConfig guessConfig, path string) (*versionData, error) {
 	vcs.SvnCleanEnv()
 
 	// try to fetch current version from svn
@@ -686,17 +679,7 @@ func (g *VersionGuesser) guessSvnVersion(packageConfig *php.Array, path string) 
 		return nil, err
 	}
 
-	pathOption := func(key, def string) string {
-		if v := packageConfig.At(key); v != nil {
-			return php.PregQuote(php.ToString(v), "#")
-		}
-
-		return def
-	}
-
-	trunkPath := pathOption("trunk-path", "trunk")
-	branchesPath := pathOption("branches-path", "branches")
-	tagsPath := pathOption("tags-path", "tags")
+	trunkPath, branchesPath, tagsPath := packageConfig.trunkPath, packageConfig.branchesPath, packageConfig.tagsPath
 	urlPattern := "#<url>.*/(" + trunkPath + "|(" + branchesPath + "|" + tagsPath + ")/(.*))</url>#"
 
 	re, err := php.Compile(urlPattern)
@@ -789,4 +772,65 @@ func jsonEncode(v any) string {
 	s, _ := php.JSONEncode(v, 0)
 
 	return s
+}
+
+// guessConfig is all GuessVersion reads of the package configuration; the
+// guess is the same for configurations that agree on it (GuessKey).
+type guessConfig struct {
+	// branchAlias is extra.branch-alias
+	branchAlias *php.Array
+	// selfVersion: the encoded configuration holds "self.version"
+	selfVersion bool
+	// nonFeatureBranches is non-feature-branches joined with "|"
+	nonFeatureBranches string
+	// the svn layout's paths, preg-quoted
+	trunkPath, branchesPath, tagsPath string
+}
+
+func newGuessConfig(packageConfig *php.Array) guessConfig {
+	c := guessConfig{
+		branchAlias: packageConfig.ArrayAt("extra").ArrayAt("branch-alias"),
+		selfVersion: strings.Contains(jsonEncode(packageConfig), `"self.version"`),
+	}
+	if v := packageConfig.At("non-feature-branches"); php.ToBool(v) {
+		if list, ok := v.(*php.Array); ok {
+			parts := make([]string, 0, list.Len())
+			for _, s := range list.All() {
+				parts = append(parts, php.ToString(s))
+			}
+
+			c.nonFeatureBranches = strings.Join(parts, "|")
+		}
+	}
+	pathOption := func(key, def string) string {
+		if v := packageConfig.At(key); v != nil {
+			return php.PregQuote(php.ToString(v), "#")
+		}
+
+		return def
+	}
+	c.trunkPath = pathOption("trunk-path", "trunk")
+	c.branchesPath = pathOption("branches-path", "branches")
+	c.tagsPath = pathOption("tags-path", "tags")
+
+	return c
+}
+
+// GuessKey is a key of what GuessVersion reads of packageConfig: for two
+// configurations of the same key, GuessVersion guesses alike (in the same
+// checkout, unchanged).
+func GuessKey(packageConfig *php.Array) string {
+	c := newGuessConfig(packageConfig)
+	branchAlias := "" // none
+	if c.branchAlias != nil {
+		branchAlias = jsonEncode(c.branchAlias)
+	}
+	var b strings.Builder
+	for _, part := range [...]string{branchAlias, strconv.FormatBool(c.selfVersion), c.nonFeatureBranches, c.trunkPath, c.branchesPath, c.tagsPath} {
+		b.WriteString(strconv.Itoa(len(part)))
+		b.WriteByte(':')
+		b.WriteString(part)
+	}
+
+	return b.String()
 }

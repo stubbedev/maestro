@@ -303,7 +303,9 @@ func (r *Runtime) Start(purpose string) error {
 		return err
 	}
 
+	ran := util.RunForeignCode()
 	conn, err := r.start(purpose)
+	ran()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -529,6 +531,7 @@ func (r *Runtime) Call(method string, args any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer util.RunForeignCode()()
 
 	return conn.Call(method, args)
 }

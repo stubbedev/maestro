@@ -254,6 +254,10 @@ func (d *EventDispatcher) runListener(event Event, callable Listener, st *dispat
 		formattedEventNameWithArgs += " (" + strings.Join(additionalArgs, ", ") + ")"
 	}
 
+	if _, ok := callable.(GoFunc); !ok {
+		defer util.RunForeignCode()()
+	}
+
 	switch l := callable.(type) {
 	case PHPCallable:
 		return d.callPHPListener(event, l, formattedEventNameWithArgs, st)
