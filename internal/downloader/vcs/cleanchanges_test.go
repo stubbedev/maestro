@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/processmock"
 )
@@ -37,7 +38,7 @@ func TestGitDownloader_CleanChangesPrompt(t *testing.T) {
 
 	d := g.downloader(t)
 	p := sourcePackage("1.0.0.0", "1.0.0", "ref")
-	_, err := d.Prepare("update", p, dir, p)
+	_, err := d.Prepare(operation.TypeUpdate, p, dir, p)
 	noError(t, err)
 	assertComplete(t, g.process)
 
@@ -63,7 +64,7 @@ func TestGitDownloader_CleanChangesPrompt(t *testing.T) {
 
 	// the stash is popped by cleanup, and later checkouts are forced
 	g.process.Expects([]processmock.Expectation{processmock.Cmd("git", "stash", "pop")}, true, nil)
-	_, err = d.Cleanup("update", p, dir, p)
+	_, err = d.Cleanup(operation.TypeUpdate, p, dir, p)
 	noError(t, err)
 	assertComplete(t, g.process)
 }
@@ -78,7 +79,7 @@ func TestGitDownloader_CleanChangesUninstallHasNoStash(t *testing.T) {
 	g.process.Expects(gitChanged(" M a.php\n"), true, nil)
 
 	p := sourcePackage("1.0.0.0", "1.0.0", "ref")
-	_, err := g.downloader(t).Prepare("uninstall", p, dir, nil)
+	_, err := g.downloader(t).Prepare(operation.TypeUninstall, p, dir, nil)
 	wantError[*util.RuntimeError](t, err, "Update aborted")
 
 	out := php.NormalizeEOL(buffer.Output())
@@ -121,9 +122,9 @@ func TestGitDownloader_CleanChangesNonInteractive(t *testing.T) {
 
 			var err error
 			if c.uninst {
-				_, err = g.downloader(t).Prepare("uninstall", p, dir, nil)
+				_, err = g.downloader(t).Prepare(operation.TypeUninstall, p, dir, nil)
 			} else {
-				_, err = g.downloader(t).Prepare("update", p, dir, p)
+				_, err = g.downloader(t).Prepare(operation.TypeUpdate, p, dir, p)
 			}
 
 			if c.err != "" {
@@ -250,7 +251,7 @@ func TestSvnDownloader_CleanChanges(t *testing.T) {
 	}, true, nil)
 
 	p := sourcePackage("1.0.0.0", "1.0.0", "ref")
-	_, err := svnDownloader(t, mio.NewNullIO(), process, "discard-changes", true).Prepare("update", p, dir, p)
+	_, err := svnDownloader(t, mio.NewNullIO(), process, "discard-changes", true).Prepare(operation.TypeUpdate, p, dir, p)
 	noError(t, err)
 	assertComplete(t, process)
 
@@ -258,7 +259,7 @@ func TestSvnDownloader_CleanChanges(t *testing.T) {
 	buffer.SetUserInputs([]string{"?", "n"})
 
 	process.Expects([]processmock.Expectation{{Cmd: util.Cmd("svn", "status", "--ignore-externals"), Stdout: status}}, true, nil)
-	_, err = svnDownloader(t, buffer, process).Prepare("uninstall", p, dir, nil)
+	_, err = svnDownloader(t, buffer, process).Prepare(operation.TypeUninstall, p, dir, nil)
 	wantError[*util.RuntimeError](t, err, "Update aborted")
 
 	want := strings.Join([]string{

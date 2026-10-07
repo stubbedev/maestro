@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -243,10 +244,10 @@ func (l *Loop) AbortJobs() {
 // Waitable is PHP's null promise.
 type SyncDownloader[P any] interface {
 	Download(pkg P, path string, prevPackage P) (Waitable, error)
-	Prepare(typ string, pkg P, path string, prevPackage P) (Waitable, error)
+	Prepare(typ operation.Type, pkg P, path string, prevPackage P) (Waitable, error)
 	Install(pkg P, path string) (Waitable, error)
 	Update(pkg, prevPackage P, path string) (Waitable, error)
-	Cleanup(typ string, pkg P, path string, prevPackage P) (Waitable, error)
+	Cleanup(typ operation.Type, pkg P, path string, prevPackage P) (Waitable, error)
 }
 
 // Await is SyncHelper::await($loop, $promise), taking the result of a call

@@ -154,9 +154,9 @@ func (d *vcsDownloader) Download(p pkg.PackageInterface, path string, prev pkg.P
 }
 
 // Prepare is prepare().
-func (d *vcsDownloader) Prepare(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
+func (d *vcsDownloader) Prepare(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
 	switch typ {
-	case "update":
+	case operation.TypeUpdate:
 		if err := d.self.cleanChanges(prev, path, true); err != nil {
 			return nil, err
 		}
@@ -164,22 +164,24 @@ func (d *vcsDownloader) Prepare(typ string, p pkg.PackageInterface, path string,
 		d.mu.Lock()
 		d.hasCleanedChanges[prev.UniqueName()] = true
 		d.mu.Unlock()
-	case "install":
+	case operation.TypeInstall:
 		if err := d.filesystem.EmptyDirectory(path, true); err != nil {
 			return nil, err
 		}
-	case "uninstall":
+	case operation.TypeUninstall:
 		if err := d.self.cleanChanges(p, path, false); err != nil {
 			return nil, err
 		}
+	default:
+		// another type (a plugin's) prepares nothing, as in Composer
 	}
 
 	return util.Resolved(""), nil
 }
 
 // Cleanup is cleanup().
-func (d *vcsDownloader) Cleanup(typ string, _ pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
-	if typ == "update" {
+func (d *vcsDownloader) Cleanup(typ operation.Type, _ pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
+	if typ == operation.TypeUpdate {
 		d.mu.Lock()
 		cleaned := d.hasCleanedChanges[prev.UniqueName()]
 		d.mu.Unlock()

@@ -21,6 +21,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -254,13 +255,13 @@ func (pr *project) install(d Downloader, p pkg.PackageInterface) (string, error)
 		return path, err
 	}
 
-	if err := await(d.Prepare("install", p, path, nil)); err != nil {
+	if err := await(d.Prepare(operation.TypeInstall, p, path, nil)); err != nil {
 		return path, err
 	}
 
 	installErr := await(d.Install(p, path))
 
-	if err := await(d.Cleanup("install", p, path, nil)); err != nil {
+	if err := await(d.Cleanup(operation.TypeInstall, p, path, nil)); err != nil {
 		return path, err
 	}
 

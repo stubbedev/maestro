@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -55,8 +56,8 @@ func (f *fakeDownloader) Download(_ pkg.PackageInterface, path string, _ pkg.Pac
 	return resolved(""), nil
 }
 
-func (f *fakeDownloader) Prepare(typ string, _ pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
-	f.record("prepare:"+typ, path)
+func (f *fakeDownloader) Prepare(typ operation.Type, _ pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
+	f.record("prepare:"+string(typ), path)
 
 	if f.prepare != nil {
 		return f.prepare()
@@ -87,8 +88,8 @@ func (f *fakeDownloader) Remove(_ pkg.PackageInterface, path string) (*Promise, 
 	return resolved(""), nil
 }
 
-func (f *fakeDownloader) Cleanup(typ string, _ pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
-	f.record("cleanup:"+typ, path)
+func (f *fakeDownloader) Cleanup(typ operation.Type, _ pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
+	f.record("cleanup:"+string(typ), path)
 
 	return resolved(""), nil
 }

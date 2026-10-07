@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/downloader"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
@@ -380,4 +381,18 @@ func TestGitDownloader_GetInstallationSource(t *testing.T) {
 	if got := g.downloader(t).InstallationSource(); got != "source" {
 		t.Fatalf("got %q", got)
 	}
+}
+
+// prepare() and cleanup() of a type that is no operation's (a plugin may
+// pass one) do nothing, as Composer's ignore it.
+func TestGitDownloader_PrepareAndCleanupIgnoreOtherTypes(t *testing.T) {
+	g := newGitTest(t)
+	g.process.Expects(nil, true, nil)
+	d := g.downloader(t)
+	p := sourcePackage("dev-master", "dev-master", sha, "https://example.com/composer/composer")
+
+	noError(t, run(
+		func() (*downloader.Promise, error) { return d.Prepare("custom", p, "/path", p) },
+		func() (*downloader.Promise, error) { return d.Cleanup("custom", p, "/path", p) },
+	))
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -169,7 +170,7 @@ func (l *LibraryInstaller) Download(p, prev pkg.PackageInterface) (*Promise, err
 }
 
 // Prepare is prepare().
-func (l *LibraryInstaller) Prepare(typ string, p, prev pkg.PackageInterface) (*Promise, error) {
+func (l *LibraryInstaller) Prepare(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error) {
 	downloadPath, dm, err := l.prepareCall(p)
 	if err != nil {
 		return nil, err
@@ -179,7 +180,7 @@ func (l *LibraryInstaller) Prepare(typ string, p, prev pkg.PackageInterface) (*P
 }
 
 // Cleanup is cleanup().
-func (l *LibraryInstaller) Cleanup(typ string, p, prev pkg.PackageInterface) (*Promise, error) {
+func (l *LibraryInstaller) Cleanup(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error) {
 	downloadPath, dm, err := l.prepareCall(p)
 	if err != nil {
 		return nil, err

@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -204,7 +205,7 @@ func (r *Runtime) registerDownloaders() {
 		if err != nil {
 			return nil, err
 		}
-		promise, err := d.Prepare(a.str(1), p, a.str(3), prev)
+		promise, err := d.Prepare(operation.Type(a.str(1)), p, a.str(3), prev)
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +261,7 @@ func (r *Runtime) registerDownloaders() {
 		if err != nil {
 			return nil, err
 		}
-		promise, err := d.Cleanup(a.str(1), p, a.str(3), prev)
+		promise, err := d.Cleanup(operation.Type(a.str(1)), p, a.str(3), prev)
 		if err != nil {
 			return nil, err
 		}

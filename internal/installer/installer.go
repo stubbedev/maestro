@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 )
 
 // Installer is InstallerInterface. prev is nil for null; methods returning
@@ -25,7 +26,7 @@ type Installer interface {
 	Download(p, prev pkg.PackageInterface) (*Promise, error)
 	// Prepare is prepare($type, $package, $prevPackage); typ is install,
 	// update or uninstall.
-	Prepare(typ string, p, prev pkg.PackageInterface) (*Promise, error)
+	Prepare(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error)
 	// Install is install($repo, $package).
 	Install(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) (*Promise, error)
 	// Update is update($repo, $initial, $target).
@@ -33,7 +34,7 @@ type Installer interface {
 	// Uninstall is uninstall($repo, $package).
 	Uninstall(repo repository.InstalledRepositoryInterface, p pkg.PackageInterface) (*Promise, error)
 	// Cleanup is cleanup($type, $package, $prevPackage).
-	Cleanup(typ string, p, prev pkg.PackageInterface) (*Promise, error)
+	Cleanup(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error)
 	// InstallPath is getInstallPath($package); ok false is null (nothing
 	// installed on disk).
 	InstallPath(p pkg.PackageInterface) (path string, ok bool, err error)
@@ -112,11 +113,11 @@ type PluginManager interface {
 // installers use; *downloader.DownloadManager implements it.
 type DownloadManager interface {
 	Download(p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*downloader.Promise, error)
-	Prepare(typ string, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*downloader.Promise, error)
+	Prepare(typ operation.Type, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*downloader.Promise, error)
 	Install(p pkg.PackageInterface, targetDir string) (*downloader.Promise, error)
 	Update(initial, target pkg.PackageInterface, targetDir string) (*downloader.Promise, error)
 	Remove(p pkg.PackageInterface, targetDir string) (*downloader.Promise, error)
-	Cleanup(typ string, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*downloader.Promise, error)
+	Cleanup(typ operation.Type, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*downloader.Promise, error)
 }
 
 // EventDispatcher is the part of Composer\EventDispatcher\EventDispatcher

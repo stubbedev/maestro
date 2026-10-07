@@ -7,6 +7,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -52,10 +53,10 @@ func (i *PluginInstaller) DisablePlugins() error {
 }
 
 // Prepare is prepare(): it fails early if a plugin is not allowed.
-func (i *PluginInstaller) Prepare(typ string, p, prev pkg.PackageInterface) (*Promise, error) {
+func (i *PluginInstaller) Prepare(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error) {
 	// fail install process early if it is going to fail due to a plugin
 	// not being allowed
-	if typ == "install" || typ == "update" {
+	if typ == operation.TypeInstall || typ == operation.TypeUpdate {
 		pm, err := i.PluginManager()
 		if err != nil {
 			return nil, err

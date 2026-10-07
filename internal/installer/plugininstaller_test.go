@@ -6,6 +6,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -115,17 +116,17 @@ func TestPluginInstaller_PrepareChecksAllowed(t *testing.T) {
 	p := pluginPackage("Foo\\Plugin")
 	p.Extra().Set("plugin-optional", true)
 
-	if _, err := pi.Prepare("install", p, nil); err != nil {
+	if _, err := pi.Prepare(operation.TypeInstall, p, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := pi.Prepare("uninstall", p, nil); err != nil {
+	if _, err := pi.Prepare(operation.TypeUninstall, p, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	pm.allowedErr = &util.RuntimeError{Message: "not allowed"}
 
-	if _, err := pi.Prepare("update", p, nil); err == nil || err.Error() != "not allowed" {
+	if _, err := pi.Prepare(operation.TypeUpdate, p, nil); err == nil || err.Error() != "not allowed" {
 		t.Errorf("err = %v", err)
 	}
 

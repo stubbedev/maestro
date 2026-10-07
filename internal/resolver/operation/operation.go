@@ -11,20 +11,29 @@ package operation
 
 import "github.com/stubbedev/maestro/internal/pkg"
 
-// The operation types, as getOperationType returns them.
+// Type is an operation type, as getOperationType returns it and as the
+// installers' and downloaders' prepare() and cleanup() take it. A plugin
+// may pass those any string, which they ignore as Composer's do.
+type Type string
+
+// The operation types.
 const (
-	TypeInstall              = "install"
-	TypeUpdate               = "update"
-	TypeUninstall            = "uninstall"
-	TypeMarkAliasInstalled   = "markAliasInstalled"
-	TypeMarkAliasUninstalled = "markAliasUninstalled"
+	TypeInstall              Type = "install"
+	TypeUpdate               Type = "update"
+	TypeUninstall            Type = "uninstall"
+	TypeMarkAliasInstalled   Type = "markAliasInstalled"
+	TypeMarkAliasUninstalled Type = "markAliasUninstalled"
 )
+
+// IsAlias is `false !== strpos($operation->getOperationType(), 'Alias')`:
+// the operation marks an alias, and changes no files.
+func (t Type) IsAlias() bool { return t == TypeMarkAliasInstalled || t == TypeMarkAliasUninstalled }
 
 // Operation ports OperationInterface. `instanceof` checks are type
 // assertions on the concrete pointer types.
 type Operation interface {
 	// OperationType ports getOperationType.
-	OperationType() string
+	OperationType() Type
 	// Show ports show($lock): the operation as the installer prints it.
 	// The error is UpdateOperation's version comparison failing, which
 	// cannot happen for normalized versions.
@@ -54,7 +63,7 @@ func NewInstallOperation(p pkg.PackageInterface) *InstallOperation {
 func (o *InstallOperation) Package() pkg.PackageInterface { return o.pkg }
 
 // OperationType implements Operation.
-func (o *InstallOperation) OperationType() string { return TypeInstall }
+func (o *InstallOperation) OperationType() Type { return TypeInstall }
 
 // Show implements Operation.
 func (o *InstallOperation) Show(lock bool) (string, error) { return FormatInstall(o.pkg, lock), nil }
@@ -86,7 +95,7 @@ func NewUninstallOperation(p pkg.PackageInterface) *UninstallOperation {
 func (o *UninstallOperation) Package() pkg.PackageInterface { return o.pkg }
 
 // OperationType implements Operation.
-func (o *UninstallOperation) OperationType() string { return TypeUninstall }
+func (o *UninstallOperation) OperationType() Type { return TypeUninstall }
 
 // Show implements Operation.
 func (o *UninstallOperation) Show(bool) (string, error) { return FormatUninstall(o.pkg), nil }
@@ -117,7 +126,7 @@ func (o *UpdateOperation) InitialPackage() pkg.PackageInterface { return o.initi
 func (o *UpdateOperation) TargetPackage() pkg.PackageInterface { return o.target }
 
 // OperationType implements Operation.
-func (o *UpdateOperation) OperationType() string { return TypeUpdate }
+func (o *UpdateOperation) OperationType() Type { return TypeUpdate }
 
 // Show implements Operation.
 func (o *UpdateOperation) Show(bool) (string, error) { return FormatUpdate(o.initial, o.target) }
@@ -166,7 +175,7 @@ func NewMarkAliasInstalledOperation(p pkg.Alias) *MarkAliasInstalledOperation {
 func (o *MarkAliasInstalledOperation) Package() pkg.Alias { return o.pkg }
 
 // OperationType implements Operation.
-func (o *MarkAliasInstalledOperation) OperationType() string { return TypeMarkAliasInstalled }
+func (o *MarkAliasInstalledOperation) OperationType() Type { return TypeMarkAliasInstalled }
 
 // Show implements Operation.
 func (o *MarkAliasInstalledOperation) Show(bool) (string, error) {
@@ -191,7 +200,7 @@ func NewMarkAliasUninstalledOperation(p pkg.Alias) *MarkAliasUninstalledOperatio
 func (o *MarkAliasUninstalledOperation) Package() pkg.Alias { return o.pkg }
 
 // OperationType implements Operation.
-func (o *MarkAliasUninstalledOperation) OperationType() string { return TypeMarkAliasUninstalled }
+func (o *MarkAliasUninstalledOperation) OperationType() Type { return TypeMarkAliasUninstalled }
 
 // Show implements Operation.
 func (o *MarkAliasUninstalledOperation) Show(bool) (string, error) {

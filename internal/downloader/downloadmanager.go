@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -246,7 +247,7 @@ func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, pre
 }
 
 // Prepare is prepare($type, $package, $targetDir, $prevPackage).
-func (m *DownloadManager) Prepare(typ string, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*Promise, error) {
+func (m *DownloadManager) Prepare(typ operation.Type, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*Promise, error) {
 	targetDir = normalizeTargetDir(targetDir)
 
 	d, err := m.DownloaderForPackage(p)
@@ -344,7 +345,7 @@ func (m *DownloadManager) Update(initial, target pkg.PackageInterface, targetDir
 		// on a type change the existing source install is about to be
 		// wiped, so run its uninstall guard first to avoid silently
 		// dropping local changes in a modified VCS checkout
-		if promise, err = initialDownloader.Prepare("uninstall", initial, targetDir, nil); err != nil {
+		if promise, err = initialDownloader.Prepare(operation.TypeUninstall, initial, targetDir, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -377,7 +378,7 @@ func (m *DownloadManager) Remove(p pkg.PackageInterface, targetDir string) (*Pro
 }
 
 // Cleanup is cleanup($type, $package, $targetDir, $prevPackage).
-func (m *DownloadManager) Cleanup(typ string, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*Promise, error) {
+func (m *DownloadManager) Cleanup(typ operation.Type, p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*Promise, error) {
 	targetDir = normalizeTargetDir(targetDir)
 
 	d, err := m.DownloaderForPackage(p)
@@ -502,7 +503,7 @@ func (s syncDownloader) Download(p pkg.PackageInterface, path string, prev pkg.P
 	return waitable(s.m.Download(p, path, prev))
 }
 
-func (s syncDownloader) Prepare(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (http.Waitable, error) {
+func (s syncDownloader) Prepare(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (http.Waitable, error) {
 	return waitable(s.m.Prepare(typ, p, path, prev))
 }
 
@@ -514,6 +515,6 @@ func (s syncDownloader) Update(p, prev pkg.PackageInterface, path string) (http.
 	return waitable(s.m.Update(p, prev, path))
 }
 
-func (s syncDownloader) Cleanup(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (http.Waitable, error) {
+func (s syncDownloader) Cleanup(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (http.Waitable, error) {
 	return waitable(s.m.Cleanup(typ, p, path, prev))
 }

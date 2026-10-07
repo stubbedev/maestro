@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -29,11 +30,11 @@ type Downloader interface {
 	// InstallationSource is getInstallationSource(): "dist" or "source".
 	InstallationSource() string
 	Download(p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
-	Prepare(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
+	Prepare(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
 	Install(p pkg.PackageInterface, path string) (*Promise, error)
 	Update(initial, target pkg.PackageInterface, path string) (*Promise, error)
 	Remove(p pkg.PackageInterface, path string) (*Promise, error)
-	Cleanup(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
+	Cleanup(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
 }
 
 // ChangeReporter is ChangeReportInterface.

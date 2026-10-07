@@ -795,7 +795,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 		}
 
 		// output op if lock file is enabled, but alias op only in debug verbosity
-		isAlias := strings.Contains(op.OperationType(), "Alias")
+		isAlias := op.OperationType().IsAlias()
 		if lock && (!isAlias || i.io.IsDebug()) {
 			sourceRepo := ""
 			if i.io.IsVeryVerbose() && !isAlias {
@@ -1079,7 +1079,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	if !i.executeOperations {
 		for _, op := range operations {
 			// output op, but alias op only in debug verbosity
-			if !strings.Contains(op.OperationType(), "Alias") || i.io.IsDebug() {
+			if !op.OperationType().IsAlias() || i.io.IsDebug() {
 				shown, err := op.Show(false)
 				if err != nil {
 					return 0, err

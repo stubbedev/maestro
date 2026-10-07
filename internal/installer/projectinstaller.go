@@ -9,6 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -63,12 +64,12 @@ func (i *ProjectInstaller) Download(p, prev pkg.PackageInterface) (*Promise, err
 }
 
 // Prepare is prepare().
-func (i *ProjectInstaller) Prepare(typ string, p, prev pkg.PackageInterface) (*Promise, error) {
+func (i *ProjectInstaller) Prepare(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error) {
 	return wrap(i.downloadManager.Prepare(typ, p, i.installPath, prev))
 }
 
 // Cleanup is cleanup().
-func (i *ProjectInstaller) Cleanup(typ string, p, prev pkg.PackageInterface) (*Promise, error) {
+func (i *ProjectInstaller) Cleanup(typ operation.Type, p, prev pkg.PackageInterface) (*Promise, error) {
 	return wrap(i.downloadManager.Cleanup(typ, p, i.installPath, prev))
 }
 

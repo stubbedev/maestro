@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -369,8 +370,8 @@ func (d *proxyDownloader) Download(p pkg.PackageInterface, path string, prev pkg
 }
 
 // Prepare implements downloader.Downloader.
-func (d *proxyDownloader) Prepare(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
-	return d.promise("prepare", typ, d.pkgValue(p), path, d.pkgValue(prev))
+func (d *proxyDownloader) Prepare(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
+	return d.promise("prepare", string(typ), d.pkgValue(p), path, d.pkgValue(prev))
 }
 
 // Install implements downloader.Downloader.
@@ -389,6 +390,6 @@ func (d *proxyDownloader) Remove(p pkg.PackageInterface, path string) (*download
 }
 
 // Cleanup implements downloader.Downloader.
-func (d *proxyDownloader) Cleanup(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
-	return d.promise("cleanup", typ, d.pkgValue(p), path, d.pkgValue(prev))
+func (d *proxyDownloader) Cleanup(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
+	return d.promise("cleanup", string(typ), d.pkgValue(p), path, d.pkgValue(prev))
 }

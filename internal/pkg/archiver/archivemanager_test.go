@@ -9,6 +9,7 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
@@ -43,7 +44,7 @@ func (cloneDownloader) Download(pkg.PackageInterface, string, pkg.PackageInterfa
 	return util.Resolved(""), nil
 }
 
-func (cloneDownloader) Prepare(string, pkg.PackageInterface, string, pkg.PackageInterface) (*downloader.Promise, error) {
+func (cloneDownloader) Prepare(operation.Type, pkg.PackageInterface, string, pkg.PackageInterface) (*downloader.Promise, error) {
 	return util.Resolved(""), nil
 }
 
@@ -64,7 +65,7 @@ func (cloneDownloader) Remove(pkg.PackageInterface, string) (*downloader.Promise
 	return util.Resolved(""), nil
 }
 
-func (cloneDownloader) Cleanup(string, pkg.PackageInterface, string, pkg.PackageInterface) (*downloader.Promise, error) {
+func (cloneDownloader) Cleanup(operation.Type, pkg.PackageInterface, string, pkg.PackageInterface) (*downloader.Promise, error) {
 	return util.Resolved(""), nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -188,7 +189,7 @@ func (d *mockDM) Download(p pkg.PackageInterface, targetDir string, _ pkg.Packag
 	return d.ret("download", p)
 }
 
-func (d *mockDM) Prepare(typ string, p pkg.PackageInterface, targetDir string, _ pkg.PackageInterface) (*downloader.Promise, error) {
+func (d *mockDM) Prepare(typ operation.Type, p pkg.PackageInterface, targetDir string, _ pkg.PackageInterface) (*downloader.Promise, error) {
 	d.rec.add("prepare %s %s %s", typ, p.String(), targetDir)
 
 	return d.ret("prepare", p)
@@ -212,7 +213,7 @@ func (d *mockDM) Remove(p pkg.PackageInterface, targetDir string) (*downloader.P
 	return d.ret("remove", p)
 }
 
-func (d *mockDM) Cleanup(typ string, p pkg.PackageInterface, targetDir string, _ pkg.PackageInterface) (*downloader.Promise, error) {
+func (d *mockDM) Cleanup(typ operation.Type, p pkg.PackageInterface, targetDir string, _ pkg.PackageInterface) (*downloader.Promise, error) {
 	d.rec.add("cleanup %s %s %s", typ, p.String(), targetDir)
 
 	return d.ret("cleanup", p)
@@ -260,7 +261,7 @@ func (i *mockInstaller) Download(p, _ pkg.PackageInterface) (*Promise, error) {
 	return i.ret("download", p)
 }
 
-func (i *mockInstaller) Prepare(typ string, p, _ pkg.PackageInterface) (*Promise, error) {
+func (i *mockInstaller) Prepare(typ operation.Type, p, _ pkg.PackageInterface) (*Promise, error) {
 	i.rec.add("prepare %s %s", typ, p.String())
 
 	return i.ret("prepare", p)
@@ -284,7 +285,7 @@ func (i *mockInstaller) Uninstall(_ repository.InstalledRepositoryInterface, p p
 	return i.ret("uninstall", p)
 }
 
-func (i *mockInstaller) Cleanup(typ string, p, _ pkg.PackageInterface) (*Promise, error) {
+func (i *mockInstaller) Cleanup(typ operation.Type, p, _ pkg.PackageInterface) (*Promise, error) {
 	i.rec.add("cleanup %s %s", typ, p.String())
 
 	return i.ret("cleanup", p)

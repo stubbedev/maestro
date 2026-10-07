@@ -225,7 +225,7 @@ func (d *FileDownloader) Remove(p pkg.PackageInterface, path string) (*Promise, 
 }
 
 // Prepare is prepare($type, $package, $path, $prevPackage).
-func (d *FileDownloader) Prepare(string, pkg.PackageInterface, string, pkg.PackageInterface) (*Promise, error) {
+func (d *FileDownloader) Prepare(operation.Type, pkg.PackageInterface, string, pkg.PackageInterface) (*Promise, error) {
 	return resolved(""), nil
 }
 
@@ -605,7 +605,7 @@ func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 }
 
 // Cleanup is cleanup($type, $package, $path, $prevPackage).
-func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
+func (d *FileDownloader) Cleanup(_ operation.Type, p pkg.PackageInterface, path string, _ pkg.PackageInterface) (*Promise, error) {
 	fileName, err := d.fileName(p, path)
 	if err != nil {
 		return nil, err

@@ -12,6 +12,7 @@ import (
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 	"github.com/stubbedev/maestro/internal/util/processmock"
@@ -161,9 +162,9 @@ func noError(t *testing.T, err error) {
 func installSteps(d downloader.Downloader, p pkg.PackageInterface, path string) []func() (*downloader.Promise, error) {
 	return []func() (*downloader.Promise, error){
 		func() (*downloader.Promise, error) { return d.Download(p, path, nil) },
-		func() (*downloader.Promise, error) { return d.Prepare("install", p, path, nil) },
+		func() (*downloader.Promise, error) { return d.Prepare(operation.TypeInstall, p, path, nil) },
 		func() (*downloader.Promise, error) { return d.Install(p, path) },
-		func() (*downloader.Promise, error) { return d.Cleanup("install", p, path, nil) },
+		func() (*downloader.Promise, error) { return d.Cleanup(operation.TypeInstall, p, path, nil) },
 	}
 }
 
@@ -172,18 +173,18 @@ func installSteps(d downloader.Downloader, p pkg.PackageInterface, path string) 
 func updateSteps(d downloader.Downloader, initial, target pkg.PackageInterface, path string) []func() (*downloader.Promise, error) {
 	return []func() (*downloader.Promise, error){
 		func() (*downloader.Promise, error) { return d.Download(target, path, initial) },
-		func() (*downloader.Promise, error) { return d.Prepare("update", target, path, initial) },
+		func() (*downloader.Promise, error) { return d.Prepare(operation.TypeUpdate, target, path, initial) },
 		func() (*downloader.Promise, error) { return d.Update(initial, target, path) },
-		func() (*downloader.Promise, error) { return d.Cleanup("update", target, path, initial) },
+		func() (*downloader.Promise, error) { return d.Cleanup(operation.TypeUpdate, target, path, initial) },
 	}
 }
 
 // removeSteps are prepare, remove and cleanup of an uninstall.
 func removeSteps(d downloader.Downloader, p pkg.PackageInterface, path string) []func() (*downloader.Promise, error) {
 	return []func() (*downloader.Promise, error){
-		func() (*downloader.Promise, error) { return d.Prepare("uninstall", p, path, nil) },
+		func() (*downloader.Promise, error) { return d.Prepare(operation.TypeUninstall, p, path, nil) },
 		func() (*downloader.Promise, error) { return d.Remove(p, path) },
-		func() (*downloader.Promise, error) { return d.Cleanup("uninstall", p, path, nil) },
+		func() (*downloader.Promise, error) { return d.Cleanup(operation.TypeUninstall, p, path, nil) },
 	}
 }
 

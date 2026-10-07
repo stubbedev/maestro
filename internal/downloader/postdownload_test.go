@@ -8,6 +8,7 @@ import (
 	"github.com/stubbedev/maestro/internal/archive/archivetest"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 )
 
@@ -123,7 +124,7 @@ func TestArchiveDownloader_PostFileDownloadListenerOnStoreHit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := await(d.Cleanup("install", p, path, nil)); err != nil {
+	if err := await(d.Cleanup(operation.TypeInstall, p, path, nil)); err != nil {
 		t.Fatal(err)
 	}
 

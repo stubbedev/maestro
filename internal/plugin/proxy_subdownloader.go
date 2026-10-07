@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 )
 
 // subclassDownloader is maestro's downloader of a subclass written in PHP
@@ -57,7 +58,7 @@ func (s *subclassDownloader) Download(p pkg.PackageInterface, path string, prev 
 }
 
 // Prepare implements downloader.Downloader.
-func (s *subclassDownloader) Prepare(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
+func (s *subclassDownloader) Prepare(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
 	if s.overrides("prepare") {
 		return s.php.Prepare(typ, p, path, prev)
 	}
@@ -93,7 +94,7 @@ func (s *subclassDownloader) Remove(p pkg.PackageInterface, path string) (*downl
 }
 
 // Cleanup implements downloader.Downloader.
-func (s *subclassDownloader) Cleanup(typ string, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
+func (s *subclassDownloader) Cleanup(typ operation.Type, p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*downloader.Promise, error) {
 	if s.overrides("cleanup") {
 		return s.php.Cleanup(typ, p, path, prev)
 	}

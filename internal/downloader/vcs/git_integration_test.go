@@ -14,6 +14,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	mio "github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
 )
@@ -261,7 +262,7 @@ func TestGitIntegration_InstallThroughMirrorCache(t *testing.T) {
 		t.Fatalf("output %q", out)
 	}
 
-	if _, err := d.Cleanup("install", p, path, nil); err != nil {
+	if _, err := d.Cleanup(operation.TypeInstall, p, path, nil); err != nil {
 		t.Fatal(err)
 	}
 }

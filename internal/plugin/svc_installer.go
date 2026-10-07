@@ -313,9 +313,9 @@ func (pi *phpInstaller) Download(p, prev pkg.PackageInterface) (*installer.Promi
 }
 
 // Prepare implements installer.Installer.
-func (pi *phpInstaller) Prepare(typ string, p, prev pkg.PackageInterface) (*installer.Promise, error) {
+func (pi *phpInstaller) Prepare(typ operation.Type, p, prev pkg.PackageInterface) (*installer.Promise, error) {
 	if pi.overridden("prepare") {
-		return pi.callPromise("prepare", typ, pi.r.value(p), pi.r.value(prev))
+		return pi.callPromise("prepare", string(typ), pi.r.value(p), pi.r.value(prev))
 	}
 	peer, err := pi.base()
 	if err != nil {
@@ -365,9 +365,9 @@ func (pi *phpInstaller) Uninstall(repo repository.InstalledRepositoryInterface, 
 }
 
 // Cleanup implements installer.Installer.
-func (pi *phpInstaller) Cleanup(typ string, p, prev pkg.PackageInterface) (*installer.Promise, error) {
+func (pi *phpInstaller) Cleanup(typ operation.Type, p, prev pkg.PackageInterface) (*installer.Promise, error) {
 	if pi.overridden("cleanup") {
-		return pi.callPromise("cleanup", typ, pi.r.value(p), pi.r.value(prev))
+		return pi.callPromise("cleanup", string(typ), pi.r.value(p), pi.r.value(prev))
 	}
 	peer, err := pi.base()
 	if err != nil {
@@ -793,10 +793,10 @@ func (r *Runtime) runBase(target installer.Installer, method string, p args) (va
 		value, err = target.IsInstalled(repo, pk)
 	case "download", "prepare", "cleanup":
 		off := 0
-		typ := ""
+		var typ operation.Type
 		if method != "download" {
 			off = 1
-			typ = p.str(0)
+			typ = operation.Type(p.str(0))
 		}
 		pk, perr := packageParam(p, off)
 		if perr != nil {

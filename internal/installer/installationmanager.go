@@ -386,7 +386,7 @@ func operationPackages(op operation.Operation) (p, initial pkg.PackageInterface)
 
 // executesCode reports whether an operation type changes files (alias
 // operations do not).
-func executesCode(opType string) bool {
+func executesCode(opType operation.Type) bool {
 	return opType == operation.TypeUpdate || opType == operation.TypeInstall || opType == operation.TypeUninstall
 }
 
@@ -483,12 +483,12 @@ func (m *Manager) downloadAndExecuteBatch(repo repository.InstalledRepositoryInt
 
 // package event names by operation type.
 var (
-	prePackageEvents = map[string]string{
+	prePackageEvents = map[operation.Type]string{
 		operation.TypeInstall:   eventdispatcher.PrePackageInstall,
 		operation.TypeUpdate:    eventdispatcher.PrePackageUpdate,
 		operation.TypeUninstall: eventdispatcher.PrePackageUninstall,
 	}
-	postPackageEvents = map[string]string{
+	postPackageEvents = map[operation.Type]string{
 		operation.TypeInstall:   eventdispatcher.PostPackageInstall,
 		operation.TypeUpdate:    eventdispatcher.PostPackageUpdate,
 		operation.TypeUninstall: eventdispatcher.PostPackageUninstall,
@@ -552,7 +552,7 @@ func (m *Manager) executeBatch(repo repository.InstalledRepositoryInterface, ope
 		promise = Then(promise, func() (*Promise, error) {
 			return nil, repo.Write(devMode, m)
 		}, func(e error) (*Promise, error) {
-			m.io.WriteError("    <error>"+php.Ucfirst(opType)+" of "+p.PrettyName()+" failed</error>", true, mio.Normal)
+			m.io.WriteError("    <error>"+php.Ucfirst(string(opType))+" of "+p.PrettyName()+" failed</error>", true, mio.Normal)
 
 			return nil, e
 		})
@@ -609,7 +609,7 @@ func (m *Manager) executeOperation(repo repository.InstalledRepositoryInterface,
 		return nil, m.MarkAliasUninstalled(repo, o)
 	}
 
-	return nil, &util.LogicError{Message: "Unknown operation type: " + op.OperationType()}
+	return nil, &util.LogicError{Message: "Unknown operation type: " + string(op.OperationType())}
 }
 
 // progressIO is `instanceof ConsoleIO` (BufferIO included), which gives
@@ -655,7 +655,7 @@ func (m *Manager) Download(p pkg.PackageInterface) (*Promise, error) {
 		return nil, err
 	}
 
-	promise, err := installer.Cleanup("install", p, nil)
+	promise, err := installer.Cleanup(operation.TypeInstall, p, nil)
 
 	return promise, err
 }

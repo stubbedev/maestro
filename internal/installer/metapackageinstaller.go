@@ -41,12 +41,12 @@ func (*MetapackageInstaller) Download(_, _ pkg.PackageInterface) (*Promise, erro
 }
 
 // Prepare is prepare(): a noop.
-func (*MetapackageInstaller) Prepare(_ string, _, _ pkg.PackageInterface) (*Promise, error) {
+func (*MetapackageInstaller) Prepare(_ operation.Type, _, _ pkg.PackageInterface) (*Promise, error) {
 	return Resolved(), nil
 }
 
 // Cleanup is cleanup(): a noop.
-func (*MetapackageInstaller) Cleanup(_ string, _, _ pkg.PackageInterface) (*Promise, error) {
+func (*MetapackageInstaller) Cleanup(_ operation.Type, _, _ pkg.PackageInterface) (*Promise, error) {
 	return Resolved(), nil
 }
 
@@ -128,12 +128,12 @@ func (*NoopInstaller) Download(_, _ pkg.PackageInterface) (*Promise, error) {
 }
 
 // Prepare is prepare(): a noop.
-func (*NoopInstaller) Prepare(_ string, _, _ pkg.PackageInterface) (*Promise, error) {
+func (*NoopInstaller) Prepare(_ operation.Type, _, _ pkg.PackageInterface) (*Promise, error) {
 	return Resolved(), nil
 }
 
 // Cleanup is cleanup(): a noop.
-func (*NoopInstaller) Cleanup(_ string, _, _ pkg.PackageInterface) (*Promise, error) {
+func (*NoopInstaller) Cleanup(_ operation.Type, _, _ pkg.PackageInterface) (*Promise, error) {
 	return Resolved(), nil
 }
 

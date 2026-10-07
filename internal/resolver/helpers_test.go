@@ -252,9 +252,9 @@ func operationResults(t testing.TB, operations []operation.Operation, uninstallJ
 		case *operation.UpdateOperation:
 			result = append(result, opResult{job: "update", from: op.InitialPackage(), to: op.TargetPackage()})
 		case *operation.MarkAliasInstalledOperation:
-			result = append(result, opResult{job: op.OperationType(), pkg: op.Package()})
+			result = append(result, opResult{job: string(op.OperationType()), pkg: op.Package()})
 		case *operation.MarkAliasUninstalledOperation:
-			result = append(result, opResult{job: op.OperationType(), pkg: op.Package()})
+			result = append(result, opResult{job: string(op.OperationType()), pkg: op.Package()})
 		case *operation.UninstallOperation:
 			result = append(result, opResult{job: uninstallJob, pkg: op.Package()})
 		case *operation.InstallOperation:
