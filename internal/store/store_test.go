@@ -472,6 +472,47 @@ func TestInPlaceModification(t *testing.T) {
 	}
 }
 
+// TestUnfinishedObject: an object left half written under its own name (a
+// crash before its stamp was set) fails its check, and the next insert of
+// its content replaces it, for every method.
+func TestUnfinishedObject(t *testing.T) {
+	setUmask(t, 0o022)
+
+	work := tempDir(t)
+	zip := writeFile(t, work, "dist.zip", sample())
+
+	for _, m := range []Method{Auto, Hardlink, Copy} {
+		t.Run(m.String(), func(t *testing.T) {
+			s := openStore(t, filepath.Join(work, "store-"+m.String()), m)
+			sum := sha256.Sum256([]byte("<?php class A {}\n"))
+			obj := s.objectPath(&sum, 0o644)
+
+			if err := os.MkdirAll(filepath.Dir(obj), 0o755); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := os.WriteFile(obj, []byte("<?php cl"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			dst := filepath.Join(work, "vendor-"+m.String())
+			if err := s.Install(Dist{Name: "a/b", Type: "zip"}, zip, dst, ImportOptions{}, nil); err != nil {
+				t.Fatal(err)
+			}
+
+			for _, name := range []string{"src/A.php", "src/B.php"} {
+				if got, _ := os.ReadFile(filepath.Join(dst, name)); string(got) != "<?php class A {}\n" {
+					t.Errorf("%s: %q", name, got)
+				}
+			}
+
+			if res, err := s.Verify(); err != nil || res.Corrupt != 0 || res.Missing != 0 || res.Restamped != 0 {
+				t.Errorf("store not healthy: %+v %v", res, err)
+			}
+		})
+	}
+}
+
 // TestLinkedMetadataChanges: changes that keep the content (a touch, a
 // chmod through a vendor file, which a plain chmod of a hard-linked file
 // is) only make the store replace the object by a fresh, correctly

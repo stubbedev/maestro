@@ -133,12 +133,10 @@ func (s *Store) publishObject(f *os.File, sum *[32]byte, perm fs.FileMode, path 
 	return err
 }
 
-// putObject stores data as the object for sum and perm unless an intact
-// one is there already: one stat when it is, one create, write and rename
-// when it is not.
-func (s *Store) putObject(data []byte, sum *[32]byte, perm fs.FileMode) error {
-	path := s.objectPath(sum, perm)
-
+// writeObject stores data as the object path for sum and perm unless an
+// intact one is there already: one stat when it is, one create, write and
+// rename (replacing a stale object) when it is not.
+func (s *Store) writeObject(path string, data []byte, sum *[32]byte, perm fs.FileMode) error {
 	st, err := lstat(path)
 	if err == nil && stampOf(int64(len(data)), perm, sum).check(st) == nil {
 		return nil

@@ -28,12 +28,19 @@
 // to it is exactly what Composer would have written (objects for another
 // umask are created from the content on first use).
 //
-// Every write the store makes is atomic. An object is written once into
-// tmp/ and renamed into place without replacing (two processes inserting
-// the same content both succeed, one rename wins, the other's copy is
-// dropped); an index is renamed into place last, so a present index only
-// ever names objects already written. A package directory is assembled in a
-// sibling of its destination and renamed onto it.
+// Nothing the store writes is used before it is complete. On Linux an
+// object not in the store yet is created under its own name, exclusively,
+// and written in one go; its stamp (below), set last, marks it complete.
+// Until then, and after a crash in between, it fails every check as a
+// modified object does, so a process that meets it meanwhile (inserting
+// the same content, or importing it) replaces it as it replaces a stale
+// one. On other systems, and to replace a stale object, an object is
+// written into tmp/ and renamed into place: without replacing unless the
+// object there is stale, so that two processes inserting the same content
+// both succeed and one copy is dropped. An index is renamed into place
+// last, so a present index only ever names objects already written. A
+// package directory is assembled in a sibling of its destination and
+// renamed onto it.
 //
 // # Directory trees
 //
@@ -83,10 +90,22 @@
 // content (Entry.ModTime; the autoload dump uses it instead of reading
 // the file).
 //
-// Imports running at once share a few goroutines between them
+// Install builds the package directory of a release it inserts while
+// inserting it: each file is created in the directory as soon as its
+// object is written. On Linux a new object is imported from its still
+// open descriptor (a clone or copy from the content in memory, or a
+// hardlink to its name) without checking its stamp again, since no
+// package file links to it yet; an object the store held already is
+// imported as Materialize imports it. A new release's files are so
+// created twice, once in the store and once in the package, and
+// looked up, opened and checked no more.
+//
+// Inserts and imports running at once share a few goroutines between them
 // (Options.Workers, by default GOMAXPROCS but at most 8): filesystems
 // create files no faster when more threads contend for their locks, and
-// btrfs slower.
+// btrfs slower. An insert reads its archive in one of them and hands the
+// files it holds in memory on in batches, to another goroutine while one
+// is free and else storing them itself.
 //
 // # Hard-linked package files
 //
@@ -143,7 +162,8 @@
 // refers to (package files linked to a removed object keep it), and
 // PruneIfDue does so once a day at most (a store counts as pruned when
 // Open creates it), which the commands that install packages run when
-// they are done; Verify re-hashes every object and drops the corrupt
-// ones; Stats reports what the store holds and how many bytes it saves,
-// hardlinks included.
+// they are done; Verify re-hashes every object and drops the corrupt ones (an
+// object still being written counts as one; the release naming it is
+// inserted again on its next import); Stats reports what the store holds
+// and how many bytes it saves, hardlinks included.
 package store

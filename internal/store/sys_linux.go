@@ -102,47 +102,57 @@ func cloneObject(src, dst string, perm, umask fs.FileMode, want stamp) error {
 
 	defer func() { _ = unix.Close(in) }()
 
+	if err := cloneFd(in, dst, perm, umask, want.mtime); err != nil {
+		return err
+	}
+
+	// FICLONE locks both inodes: a write through another name of the
+	// object came before the clone (or after it, harmlessly), and shows in
+	// the stamp.
+	var st unix.Stat_t
+	if err = unix.Fstat(in, &st); err != nil {
+		err = &fs.PathError{Op: "fstat", Path: src, Err: err}
+	} else {
+		err = want.check(statOf(&st))
+	}
+
+	if err != nil {
+		_ = os.Remove(dst)
+	}
+
+	return err
+}
+
+// cloneFd creates dst as a copy-on-write clone of the open file in, with
+// permission bits perm and modification time mtime. Filesystems that
+// cannot clone, and two different filesystems, fail with errUnsupported,
+// leaving nothing behind.
+func cloneFd(in int, dst string, perm, umask fs.FileMode, mtime int64) error {
 	out, err := openRaw(dst, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, uint32(perm))
 	if err != nil {
 		return err
 	}
 
 	err = unix.IoctlFileClone(out, in)
-	if err == nil && perm&umask != 0 {
-		if err = ignoringEINTR(func() error { return unix.Fchmod(out, uint32(perm)) }); err != nil {
-			err = &fs.PathError{Op: "chmod", Path: dst, Err: err}
-		}
-	}
-
-	if err == nil {
-		err = futimens(out, want.mtime)
-	}
-
-	if cerr := unix.Close(out); err == nil && cerr != nil {
-		err = &fs.PathError{Op: "close", Path: dst, Err: cerr}
-	}
-
-	if err == nil {
-		// FICLONE locks both inodes: a write through another name of the
-		// object came before the clone (or after it, harmlessly), and
-		// shows in the stamp.
-		var st unix.Stat_t
-		if err = unix.Fstat(in, &st); err != nil {
-			err = &fs.PathError{Op: "fstat", Path: src, Err: err}
-		} else if err = want.check(statOf(&st)); err == nil {
-			return nil
-		}
-
+	if err != nil {
+		_ = unix.Close(out)
 		_ = os.Remove(dst)
 
-		return err
+		if errors.Is(err, unix.EOPNOTSUPP) || errors.Is(err, unix.ENOTTY) || errors.Is(err, unix.EXDEV) ||
+			errors.Is(err, unix.EINVAL) || errors.Is(err, unix.ENOSYS) || errors.Is(err, unix.EPERM) {
+			return errUnsupported
+		}
+
+		return &fs.PathError{Op: "clone", Path: dst, Err: err}
 	}
 
-	_ = os.Remove(dst)
+	err = stampFd(out, dst, perm, umask, mtime)
+	if cerr := closeRaw(out, dst); err == nil {
+		err = cerr
+	}
 
-	if errors.Is(err, unix.EOPNOTSUPP) || errors.Is(err, unix.ENOTTY) || errors.Is(err, unix.EXDEV) ||
-		errors.Is(err, unix.EINVAL) || errors.Is(err, unix.ENOSYS) || errors.Is(err, unix.EPERM) {
-		return errUnsupported
+	if err != nil {
+		_ = os.Remove(dst)
 	}
 
 	return err

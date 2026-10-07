@@ -369,24 +369,21 @@ func (s *Store) Ensure(d Dist, path string) (*Release, error) {
 // dist, else (or when objects have gone missing) from the archive at path,
 // which may be empty when the caller has none (ErrNotFound or a
 // *MissingError then tells it to fetch the archive). dv, when not nil,
-// sees the files of an archive inserted (Insert).
+// sees the files of an archive inserted (Insert). An inserted release's
+// files are imported as they are stored.
 func (s *Store) Install(d Dist, path, dst string, opts ImportOptions, dv Deriver) error {
 	r, err := s.Lookup(d)
-	if errors.Is(err, ErrNotFound) && path != "" {
-		r, err = s.Insert(d, path, dv)
-	}
 
-	if err != nil {
-		return err
+	switch {
+	case errors.Is(err, ErrNotFound) && path != "":
+		_, err = s.insert(d, path, dst, opts, dv)
+	case err == nil:
+		err = s.Materialize(r, dst, opts)
 	}
-
-	err = s.Materialize(r, dst, opts)
 
 	var missing *MissingError
 	if errors.As(err, &missing) && path != "" {
-		if r, err = s.Insert(d, path, dv); err == nil {
-			err = s.Materialize(r, dst, opts)
-		}
+		_, err = s.insert(d, path, dst, opts, dv)
 	}
 
 	return err

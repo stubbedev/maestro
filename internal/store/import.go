@@ -66,26 +66,19 @@ func (s *Store) Materialize(r *Release, dst string, opts ImportOptions) error {
 
 	tmp := tmpName(filepath.Dir(dst), "."+filepath.Base(dst)+".maestro-")
 
-	root := &r.entries[0]
-	if err := os.Mkdir(tmp, root.Perm(s.umask)|0o700); err != nil {
-		return err
-	}
-
 	s.slots <- struct{}{}
 	err = s.build(r.entries, tmp, opts.Unshared)
 	<-s.slots
 
+	if err == nil {
+		err = renameDir(tmp, dst)
+	}
+
 	if err != nil {
 		_ = removeTree(tmp)
-		return err
 	}
 
-	if err := renameDir(tmp, dst); err != nil {
-		_ = removeTree(tmp)
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // dirFix is a directory whose final mode is set once it is filled.
@@ -94,15 +87,49 @@ type dirFix struct {
 	mode fs.FileMode
 }
 
-// build fills the fresh directory tmp with the release's tree, never
+// tree is a package directory being built: its directories and symlinks
+// are there, its files are being imported.
+type tree struct {
+	dev      *device
+	base     string // the directory and a separator
+	fixes    []dirFix
+	files    []int // the File entries
+	unshared bool  // never hardlink a file
+}
+
+// build creates tmp and fills it with the release's tree, never
 // hardlinking a file when unshared is set.
 func (s *Store) build(entries []Entry, tmp string, unshared bool) error {
-	st, err := lstat(tmp)
-	if err != nil {
-		return err
+	t, err := s.plant(entries, tmp, unshared)
+	if err == nil {
+		err = s.importFiles(t.dev, entries, t.files, t.base, unshared)
 	}
 
-	dev := s.device(st.dev)
+	if err == nil {
+		err = t.finish()
+	}
+
+	return err
+}
+
+// plant creates tmp with the directories and symlinks of the tree, and
+// lists its files.
+func (s *Store) plant(entries []Entry, tmp string, unshared bool) (*tree, error) {
+	if err := os.Mkdir(tmp, entries[0].Perm(s.umask)|0o700); err != nil {
+		return nil, err
+	}
+
+	st, err := lstat(tmp)
+	if err != nil {
+		return nil, err
+	}
+
+	t := &tree{
+		dev:      s.device(st.dev),
+		base:     tmp + string(os.PathSeparator),
+		files:    make([]int, 0, len(entries)),
+		unshared: unshared,
+	}
 
 	// A setgid bit inherited from the parent stays on every directory.
 	sgid := fs.FileMode(0)
@@ -110,22 +137,17 @@ func (s *Store) build(entries []Entry, tmp string, unshared bool) error {
 		sgid = fs.ModeSetgid
 	}
 
-	var fixes []dirFix
-
 	fix := func(path string, perm, created fs.FileMode) {
 		if perm != created {
-			fixes = append(fixes, dirFix{path: path, mode: perm | sgid})
+			t.fixes = append(t.fixes, dirFix{path: path, mode: perm | sgid})
 		}
 	}
 
 	fix(tmp, entries[0].Perm(s.umask), st.mode&fs.ModePerm)
 
-	files := make([]int, 0, len(entries))
-	base := tmp + string(os.PathSeparator)
-
 	for i := 1; i < len(entries); i++ {
 		e := &entries[i]
-		path := base + filepath.FromSlash(e.Path)
+		path := t.base + filepath.FromSlash(e.Path)
 
 		switch e.Kind {
 		case archive.Dir:
@@ -133,25 +155,26 @@ func (s *Store) build(entries []Entry, tmp string, unshared bool) error {
 
 			created, err := s.mkdir(path, perm|0o700)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			fix(path, perm, created)
 		case archive.Symlink:
 			if err := os.Symlink(e.Link, path); err != nil {
-				return err
+				return nil, err
 			}
 		case archive.File:
-			files = append(files, i)
+			t.files = append(t.files, i)
 		}
 	}
 
-	if err := s.importFiles(dev, entries, files, base, unshared); err != nil {
-		return err
-	}
+	return t, nil
+}
 
-	// Deepest first: a parent's mode may forbid changing its children.
-	for _, f := range slices.Backward(fixes) {
+// finish gives the tree's directories their final modes, deepest first: a
+// parent's mode may forbid changing its children.
+func (t *tree) finish() error {
+	for _, f := range slices.Backward(t.fixes) {
 		if err := os.Chmod(f.path, f.mode); err != nil {
 			return err
 		}
@@ -269,15 +292,50 @@ func stale(err error) bool {
 }
 
 // importObject creates dst with permission bits perm from the object obj
-// with the device's method, moving the device down to the next method when
-// the filesystem refuses one (under Auto). linkable says a hardlink may be
+// with the device's method (importWith), checking the object against its
+// stamp.
+func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, linkable bool, want stamp) error {
+	return s.importWith(dev, storedObject{s: s, path: obj, want: want}, dst, perm, linkable)
+}
+
+// objectSource is an object a package file is created from, by each
+// method.
+type objectSource interface {
+	clone(dst string, perm fs.FileMode) error
+	link(dst string) error
+	copy(dst string, perm fs.FileMode) error
+}
+
+// storedObject is an object in the store, found by its name: every import
+// from it checks it against its stamp.
+type storedObject struct {
+	s    *Store
+	path string
+	want stamp
+}
+
+func (o storedObject) clone(dst string, perm fs.FileMode) error {
+	return cloneObject(o.path, dst, perm, o.s.umask, o.want)
+}
+
+func (o storedObject) link(dst string) error {
+	return linkObject(o.path, dst, o.want)
+}
+
+func (o storedObject) copy(dst string, perm fs.FileMode) error {
+	return o.s.copyObject(o.path, dst, perm, o.want)
+}
+
+// importWith creates dst with permission bits perm from src with the
+// device's method, moving the device down to the next method when the
+// filesystem refuses one (under Auto). linkable says a hardlink may be
 // used: it carries the right mode and the package allows sharing; else a
 // device that hardlinks copies.
-func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, linkable bool, want stamp) error {
+func (s *Store) importWith(dev *device, src objectSource, dst string, perm fs.FileMode, linkable bool) error {
 	for {
 		switch m := dev.get(); {
 		case m == Clone:
-			err := cloneObject(obj, dst, perm, s.umask, want)
+			err := src.clone(dst, perm)
 			if !errors.Is(err, errUnsupported) {
 				return err
 			}
@@ -288,14 +346,14 @@ func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, lin
 
 			dev.demote(Clone, Hardlink)
 		case m == Hardlink && linkable:
-			err := linkObject(obj, dst, want)
+			err := src.link(dst)
 
 			switch {
 			case err == nil, stale(err):
 				return err
 			case linkLimit(err):
 				// This object has as many links as the filesystem allows.
-				return s.copyObject(obj, dst, perm, want)
+				return src.copy(dst, perm)
 			case !linkUnsupported(err):
 				return err
 			case s.method != Auto:
@@ -304,7 +362,7 @@ func (s *Store) importObject(dev *device, obj, dst string, perm fs.FileMode, lin
 
 			dev.demote(Hardlink, Copy)
 		default:
-			return s.copyObject(obj, dst, perm, want)
+			return src.copy(dst, perm)
 		}
 	}
 }
