@@ -132,3 +132,11 @@ func TestPhpGlobDirs(t *testing.T) {
 		}
 	}
 }
+
+// finderFiles iterates the Finder over dirs and returns the files it
+// yields, in order, and the exception that stopped the iteration, if any.
+func finderFiles(dirs, excludedDirs []string) ([]foundFile, error) {
+	files, _, err := finderFilesDirs(dirs, excludedDirs)
+
+	return files, err
+}

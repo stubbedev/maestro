@@ -74,6 +74,8 @@ func TestParseCache_FollowsContents(t *testing.T) {
 // safely older than the cache file (a change within the same timestamp
 // tick could hide behind it) is not trusted, and the file is read.
 func TestParseCache_IdentityIndex(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	file := filepath.Join(dir, "a.php")
 	if err := os.WriteFile(file, []byte("<?php class Foo {}"), 0o644); err != nil {
@@ -91,17 +93,15 @@ func TestParseCache_IdentityIndex(t *testing.T) {
 	}
 	first.Save()
 
-	margin := statTrustMargin
-	t.Cleanup(func() { statTrustMargin = margin })
 	scan := func(trust time.Duration) int64 {
 		t.Helper()
-		statTrustMargin = trust
-		before := fileReads.Load()
-		if got := scanWithCache(t, readCache(cacheFile), dir); !slices.Equal(got, []string{"Foo"}) {
+		cache := readCache(cacheFile)
+		cache.trust = trustMargin(trust)
+		if got := scanWithCache(t, cache, dir); !slices.Equal(got, []string{"Foo"}) {
 			t.Fatalf("scan: %q", got)
 		}
 
-		return fileReads.Load() - before
+		return cache.reads.Load()
 	}
 
 	if n := scan(-time.Hour); n != 0 {
@@ -160,6 +160,8 @@ func stampFile(t *testing.T, dir, rel, content string, stamp int64) StampedFile 
 // scan, in this project or another one installing the release, reads
 // none of them. A file that no longer shows its stamp is read.
 func TestParseCache_Releases(t *testing.T) {
+	t.Parallel()
+
 	const stamp = 1_000_000_000
 	project := t.TempDir()
 	files := []StampedFile{
@@ -171,13 +173,12 @@ func TestParseCache_Releases(t *testing.T) {
 		t.Helper()
 		cache := NewParseCache()
 		cache.AddReleases([]Release{release})
-		before := fileReads.Load()
 		if got := scanWithCache(t, cache, dir); !slices.Equal(got, want) {
 			t.Fatalf("scan of %s: %q, want %q", dir, got, want)
 		}
 		cache.Save()
 
-		return fileReads.Load() - before
+		return cache.reads.Load()
 	}
 
 	if n := scan(project, "Bar", "Foo"); n != 2 {
@@ -228,6 +229,8 @@ func TestParseCache_Releases(t *testing.T) {
 // Two release files of the same size, stamp and path but different
 // contents leave the file unknown: it is read.
 func TestParseCache_ReleasesAmbiguousStamp(t *testing.T) {
+	t.Parallel()
+
 	const stamp = 1_000_000_000
 	dir := t.TempDir()
 	foo := stampFile(t, dir, "src/A.php", "<?php class Foo {}", stamp)
@@ -235,11 +238,10 @@ func TestParseCache_ReleasesAmbiguousStamp(t *testing.T) {
 	bar.Sum = sha256.Sum256([]byte("<?php class Bar {}"))
 	cache := NewParseCache()
 	cache.AddReleases([]Release{&memRelease{name: "a", files: []StampedFile{foo}}, &memRelease{name: "b", files: []StampedFile{bar}}})
-	before := fileReads.Load()
 	if got := scanWithCache(t, cache, dir); !slices.Equal(got, []string{"Foo"}) {
 		t.Fatalf("scan: %q", got)
 	}
-	if n := fileReads.Load() - before; n != 1 {
+	if n := cache.reads.Load(); n != 1 {
 		t.Errorf("ambiguous file read %d times, want 1", n)
 	}
 }
@@ -290,6 +292,8 @@ func TestHasPathSuffix(t *testing.T) {
 // again, so that a later run can trust them (git rewrites an index with
 // racily clean entries); without that they would never become trusted.
 func TestParseCache_RacyEntriesRewriteTheFile(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.php"), []byte("<?php class Foo {}"), 0o644); err != nil {
 		t.Fatal(err)
@@ -306,13 +310,10 @@ func TestParseCache_RacyEntriesRewriteTheFile(t *testing.T) {
 	if err := os.Chtimes(cacheFile, old, old); err != nil {
 		t.Fatal(err)
 	}
-	margin := statTrustMargin
-	t.Cleanup(func() { statTrustMargin = margin })
-	statTrustMargin = time.Minute
-
 	// the file's times are not a minute older than the cache file's (an
 	// hour in the past now): racy, read again, and the cache file saved
 	later := readCache(cacheFile)
+	later.trust = trustMargin(time.Minute)
 	scanWithCache(t, later, dir)
 	later.Save()
 	info, err := os.Stat(cacheFile)

@@ -40,19 +40,34 @@ func recordFixture(t *testing.T) (dir string, scans []RecordScan) {
 
 // recorded is the class map of the scans, from the record if it is valid
 // (hit), else scanned and recorded.
-func recorded(t *testing.T, records, id, anchor string, scans []RecordScan) (m *ClassMap, hit bool) {
+// recordStore is a directory of records and the margin they trust
+// identities with.
+type recordStore struct {
+	dir   string
+	trust trustMargin
+}
+
+// trustAll trusts identities however recent; trustNone none written in
+// the last hour.
+const (
+	trustAll  = trustMargin(-time.Hour)
+	trustNone = trustMargin(time.Hour)
+)
+
+func recorded(t *testing.T, records recordStore, id, anchor string, scans []RecordScan) (m *ClassMap, hit bool) {
 	t.Helper()
 
 	return recordedWith(t, records, id, anchor, scans, nil)
 }
 
 // recordedWith is recorded, with scans through cache.
-func recordedWith(t *testing.T, records, id, anchor string, scans []RecordScan, cache *ParseCache) (m *ClassMap, hit bool) {
+func recordedWith(t *testing.T, records recordStore, id, anchor string, scans []RecordScan, cache *ParseCache) (m *ClassMap, hit bool) {
 	t.Helper()
-	rec, ok := NewRecord(records, id, []string{anchor}, DefaultParser, nil, scans)
+	rec, ok := NewRecord(records.dir, id, []string{anchor}, DefaultParser, nil, scans)
 	if !ok {
 		t.Fatal("the scans cannot be recorded")
 	}
+	rec.trust = records.trust
 	if m, ok := rec.Load(); ok {
 		return m, true
 	}
@@ -89,17 +104,11 @@ func viewOf(t *testing.T, m *ClassMap) classMapView {
 	return v
 }
 
-func trustRecent(t *testing.T) {
-	t.Helper()
-	margin := statTrustMargin
-	t.Cleanup(func() { statTrustMargin = margin })
-	statTrustMargin = -time.Hour
-}
-
 func TestRecord_KeepsTheClassMap(t *testing.T) {
-	trustRecent(t)
+	t.Parallel()
+
 	dir, scans := recordFixture(t)
-	records := t.TempDir()
+	records := recordStore{dir: t.TempDir(), trust: trustAll}
 
 	scanned, hit := recorded(t, records, "p", dir, scans)
 	if hit {
@@ -125,6 +134,8 @@ func TestRecord_KeepsTheClassMap(t *testing.T) {
 }
 
 func TestRecord_NotUsedAfterChanges(t *testing.T) {
+	t.Parallel()
+
 	for name, change := range map[string]func(t *testing.T, dir string){
 		"rewritten file": func(t *testing.T, dir string) {
 			file := filepath.Join(dir, "lib/sub/b.php")
@@ -160,9 +171,8 @@ func TestRecord_NotUsedAfterChanges(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			trustRecent(t)
 			dir, scans := recordFixture(t)
-			records := t.TempDir()
+			records := recordStore{dir: t.TempDir(), trust: trustAll}
 			recorded(t, records, "p", dir, scans)
 			time.Sleep(20 * time.Millisecond) // a new change time
 			change(t, dir)
@@ -181,9 +191,10 @@ func TestRecord_NotUsedAfterChanges(t *testing.T) {
 }
 
 func TestRecord_NotUsedForOtherScans(t *testing.T) {
-	trustRecent(t)
+	t.Parallel()
+
 	dir, scans := recordFixture(t)
-	records := t.TempDir()
+	records := recordStore{dir: t.TempDir(), trust: trustAll}
 	recorded(t, records, "p", dir, scans)
 
 	if _, hit := recorded(t, records, "p", dir, scans[:1]); hit {
@@ -194,18 +205,17 @@ func TestRecord_NotUsedForOtherScans(t *testing.T) {
 	}
 	excluded := append([]RecordScan(nil), scans...)
 	excluded[0].Excluded = DefaultDuplicatesFilter
-	if _, ok := NewRecord(records, "p", nil, DefaultParser, nil, excluded); ok {
+	if _, ok := NewRecord(records.dir, "p", nil, DefaultParser, nil, excluded); ok {
 		t.Error("scans with a matcher of unknown pattern can be recorded")
 	}
 }
 
 // Identities too close to the record's writing are not trusted.
 func TestRecord_NotUsedWhenRacy(t *testing.T) {
+	t.Parallel()
+
 	dir, scans := recordFixture(t)
-	records := t.TempDir()
-	margin := statTrustMargin
-	t.Cleanup(func() { statTrustMargin = margin })
-	statTrustMargin = time.Hour
+	records := recordStore{dir: t.TempDir(), trust: trustNone}
 
 	recorded(t, records, "p", dir, scans)
 	if _, hit := recorded(t, records, "p", dir, scans); hit {
@@ -218,6 +228,8 @@ func TestRecord_NotUsedWhenRacy(t *testing.T) {
 // change time); any other change to it, or a new change time of a file
 // without a stamp, still makes the record miss.
 func TestRecord_StampedFilesWithoutChangeTime(t *testing.T) {
+	t.Parallel()
+
 	const stamp = 1_000_000_000
 	for name, tc := range map[string]struct {
 		change func(t *testing.T, dir string)
@@ -240,12 +252,11 @@ func TestRecord_StampedFilesWithoutChangeTime(t *testing.T) {
 		}, false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			trustRecent(t)
 			dir, scans := recordFixture(t)
 			release := &memRelease{name: "a/b", files: []StampedFile{
 				stampFile(t, dir, "lib/a.php", `<?php class Dup {} class A {}`, stamp),
 			}}
-			records := t.TempDir()
+			records := recordStore{dir: t.TempDir(), trust: trustAll}
 			cache := func() *ParseCache {
 				c := NewParseCache()
 				c.AddReleases([]Release{release})

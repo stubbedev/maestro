@@ -45,6 +45,9 @@ type Record struct {
 	path    string
 	key     [32]byte
 	anchors []string
+	// trust is how old a file must be for its identity to be recorded
+	// and, recorded, trusted.
+	trust trustMargin
 }
 
 // recordMaxFiles bounds the records kept in a directory: past it, the
@@ -197,7 +200,7 @@ func (g *Generator) SaveRecord(rec *Record) {
 	// writes one)
 	keys := make([]fileKey, len(paths))
 	stamped := make([]bool, len(paths))
-	limit := time.Now().Add(-statTrustMargin)
+	limit := rec.trust.before(time.Now())
 	var failed atomic.Bool
 	parallel(len(paths), func(i int) {
 		k, ok := statAnyKey(paths[i])
@@ -494,7 +497,7 @@ func (rec *Record) Load() (*ClassMap, bool) {
 	}()
 
 	// every identity as recorded, and old enough to trust
-	limit := info.ModTime().Add(-statTrustMargin)
+	limit := rec.trust.before(info.ModTime())
 	var changed atomic.Bool
 	parallel(n, func(i int) {
 		if changed.Load() {

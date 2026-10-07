@@ -56,11 +56,25 @@ type diskCache struct {
 	racy bool
 }
 
-// statTrustMargin is how much older than the cache file a file's
-// modification and change times must be for its recorded identity to be
-// trusted: more than the coarsest timestamp granularity in use (FAT's
-// two seconds). A variable for tests.
-var statTrustMargin = 3 * time.Second
+// statTrustMargin is how much older than the cache file (or record) a
+// file's modification and change times must be for its recorded identity
+// to be trusted: more than the coarsest timestamp granularity in use
+// (FAT's two seconds).
+const statTrustMargin = 3 * time.Second
+
+// trustMargin is the margin a ParseCache or Record trusts identities
+// with; the zero value is statTrustMargin.
+type trustMargin time.Duration
+
+// before returns the time a file's times must be older than for its
+// identity, recorded at t, to be trusted.
+func (m trustMargin) before(t time.Time) time.Time {
+	if m == 0 {
+		return t.Add(-statTrustMargin)
+	}
+
+	return t.Add(-time.Duration(m))
+}
 
 // UseFile makes the cache keep its results in the file at path across
 // runs, starting to load it in the background. Results are only shared
@@ -158,7 +172,7 @@ func (d *diskCache) load() (map[contentKey][]string, map[fileKey][32]byte, time.
 
 // statSum returns the content hash recorded for a file identity, if it
 // can be trusted (see diskCache.stats).
-func (d *diskCache) statSum(key fileKey) ([32]byte, bool) {
+func (d *diskCache) statSum(key fileKey, trust trustMargin) ([32]byte, bool) {
 	<-d.loaded
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -166,7 +180,7 @@ func (d *diskCache) statSum(key fileKey) ([32]byte, bool) {
 	if !ok || d.written.IsZero() {
 		return sum, false
 	}
-	limit := d.written.Add(-statTrustMargin)
+	limit := trust.before(d.written)
 	if !time.Unix(key.mtimeSec, key.mtimeNsec).Before(limit) || !time.Unix(key.ctimeSec, key.ctimeNsec).Before(limit) {
 		d.racy = true
 

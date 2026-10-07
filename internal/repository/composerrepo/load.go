@@ -376,8 +376,8 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 	if minified {
 		if versions := pre.versionsFor(realName, len(items), acceptableStabilities, stabilityFlags); versions != nil {
 			if packages, ok, err := r.buildFromVersions(items, versions, packagesSource, realName, constraint, alreadyLoaded, pre); ok {
-				if onVersionsShared != nil {
-					onVersionsShared()
+				if r.observe.versionsShared != nil {
+					r.observe.versionsShared()
 				}
 
 				return packages, err
@@ -553,10 +553,6 @@ func (r *ComposerRepository) createAround(versionsToLoad []*php.Array, loaded []
 
 	return loaded, nil
 }
-
-// onVersionsShared, when set (by tests), is called for each list
-// buildFromVersions builds.
-var onVersionsShared func()
 
 // errStopExpanding stops expandEach where the versions needed end.
 var errStopExpanding = errors.New("stop expanding")

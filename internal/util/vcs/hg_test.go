@@ -46,8 +46,8 @@ func TestHg_RunCommandWithAuthentication(t *testing.T) {
 }
 
 func TestHg_RunCommandErrors(t *testing.T) {
-	SetHgVersion("", false)
-	t.Cleanup(func() { SetHgVersion("", false) })
+	hgVersion.set("", false)
+	t.Cleanup(func() { hgVersion.set("", false) })
 
 	process := processmock.New()
 	process.Expects([]processmock.Expectation{
@@ -77,8 +77,8 @@ func TestHg_RunCommandErrors(t *testing.T) {
 }
 
 func TestHg_NotFound(t *testing.T) {
-	SetHgVersion("", false)
-	t.Cleanup(func() { SetHgVersion("", false) })
+	hgVersion.set("", false)
+	t.Cleanup(func() { hgVersion.set("", false) })
 
 	process := processmock.New()
 	process.Expects([]processmock.Expectation{

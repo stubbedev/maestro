@@ -262,6 +262,19 @@ Cycle-breaking decisions already made:
   help text, option descriptions, questions, files) are copied exactly,
   including punctuation, spacing and `<info>` tags. On the free surface,
   Composer's text is the default (see "The contract").
+- State lives in the object that owns it. Package-level mutable state is
+  only a port of a PHP static (`Git::$version`, `ErrorHandler::$io`,
+  `ProxyManager`'s instance, `CaBundle`'s caches, ...), which is
+  process-wide in Composer too, nested runs from plugins included. A
+  knob or observation point a test needs (a limit, a time margin, a
+  counter, a callback) is a field of the owning object whose zero value
+  is the production behaviour, never a package variable a test assigns.
+- A port of public PHP API stays while Go code or a ported test calls it;
+  with neither it is deleted, as is any other code nothing reaches
+  (`tools/deadcode`, run by `just check` and CI). Plugins never reach Go's
+  ports of the libraries the shim vendors (composer/semver,
+  spdx-licenses, ...): they get the PHP originals. A helper only tests
+  use lives in a `_test.go` file (`export_test.go` for external tests).
 - Data that Composer keeps as free-form PHP arrays (extra, scripts,
   autoload, config, raw composer.json) is a `*php.Array`, so key order,
   int/string key coercion and list/object encoding behave as in PHP.
@@ -353,9 +366,9 @@ Tests must pass on every CI machine, not just the one that recorded them:
   They skip with a message when these are missing.
 - Tests that need a progress bar clear `CI` (`t.Setenv("CI", "")`), because
   GitHub Actions sets it.
-- Process-wide caches (the git/hg/svn versions in `internal/util/vcs`)
-  are pinned with `vcs.SetVersion` and friends and reset in `t.Cleanup`.
-  Tests that do this must not run in parallel.
+- Process-wide caches (the git/svn versions in `internal/util/vcs`) are
+  pinned with `vcs.SetVersion`/`vcs.SetSvnVersion` and reset in
+  `t.Cleanup`. Tests that do this must not run in parallel.
 
 Opt-in test switches:
 

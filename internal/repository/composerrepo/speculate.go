@@ -19,10 +19,6 @@ import (
 
 var _ repository.LoadSpeculator = (*ComposerRepository)(nil)
 
-// onSpeculation, when set (by tests), is called with each speculation
-// SpeculateLoads starts.
-var onSpeculation func(*speculation)
-
 // responsePrefetcher is the part of HttpDownloader that starts requests
 // ahead and lets a speculative reader see their responses.
 type responsePrefetcher interface {
@@ -65,8 +61,8 @@ func (r *ComposerRepository) SpeculateLoads(roots *repository.ConstraintMap, ski
 		names:       map[string]*speculatedName{},
 		followed:    map[string]struct{}{},
 	}
-	if onSpeculation != nil {
-		onSpeculation(s)
+	if r.observe.speculation != nil {
+		r.observe.speculation(s)
 	}
 	if metadataURL, notifyURL, notifyOK := r.aheadRoot(p); metadataURL != "" {
 		s.begin(metadataURL, notifyURL, notifyOK)

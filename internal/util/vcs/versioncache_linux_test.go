@@ -11,8 +11,7 @@ import (
 )
 
 // fakeGit puts a binary named git (a copy of the test binary: what it
-// prints does not matter, the tests never run it) first in PATH, and
-// trusts its fresh times.
+// prints does not matter, the tests never run it) first in PATH.
 func fakeGit(t *testing.T) string {
 	t.Helper()
 	self, err := os.Executable()
@@ -29,9 +28,6 @@ func fakeGit(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	margin := versionTrustMargin
-	t.Cleanup(func() { versionTrustMargin = margin })
-	versionTrustMargin = -time.Hour
 
 	return git
 }
@@ -39,7 +35,8 @@ func fakeGit(t *testing.T) string {
 func useVersionCache(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	UseVersionCache(dir)
+	// as UseVersionCache, trusting fakeGit's fresh times
+	keptGitVersion.Store(&versionCacheConfig{dir: dir, trust: -time.Hour})
 	SetVersion("", false)
 	t.Cleanup(func() {
 		UseVersionCache("")

@@ -67,18 +67,29 @@ func (t *prefetchedTransfer) run(ctx context.Context, p *transportPool) bool {
 // maxPrefetches bounds the prefetched transfers running at once: over
 // HTTP/2 (Packagist, GitHub) they share one connection; a server
 // answering over HTTP/1 gets that many connections at most.
-var maxPrefetches = 64 // a variable for the tests
+const maxPrefetches = 64
 
 // prefetches holds the transfers a pool started ahead of time. They start
-// at most maxPrefetches at once: first the urgent ones (asked for by a
-// reader of their response), then the others, each in the order they
-// were asked for.
+// at most limit at once: first the urgent ones (asked for by a reader of
+// their response), then the others, each in the order they were asked
+// for.
 type prefetches struct {
 	mu      sync.Mutex
 	pending map[prefetchKey][]*prefetchedTransfer
 	urgent  []*prefetchedTransfer
 	later   []*prefetchedTransfer
 	running int
+	// limit is how many run at once; zero is maxPrefetches.
+	limit int
+}
+
+// max is how many prefetched transfers run at once.
+func (p *prefetches) max() int {
+	if p.limit == 0 {
+		return maxPrefetches
+	}
+
+	return p.limit
 }
 
 // prefetch starts r in the background, unless an identical transfer is
@@ -113,7 +124,7 @@ func (p *transportPool) prefetch(r *transferRequest, urgent bool) *prefetchedTra
 	} else {
 		p.ahead.later = append(p.ahead.later, t)
 	}
-	if p.ahead.running < maxPrefetches {
+	if p.ahead.running < p.ahead.max() {
 		p.ahead.running++
 		go p.runPrefetches()
 	}

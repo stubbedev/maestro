@@ -52,6 +52,11 @@ type ParseCache struct {
 	stampedAny atomic.Bool
 	// releasesPending runs AddReleasesAsync.
 	releasesPending sync.WaitGroup
+	// reads counts the files the cache did not know and had read.
+	reads atomic.Int64
+	// trust is how old a file must be for the cache file's identity of
+	// it to be trusted.
+	trust trustMargin
 }
 
 // NewParseCache returns an empty cache.
@@ -102,7 +107,7 @@ func (c *ParseCache) lookupByIdentity(p Parser, path string) (classes []string, 
 	if !disk {
 		return nil, false, nil
 	}
-	sum, ok := c.disk.statSum(key)
+	sum, ok := c.disk.statSum(key, c.trust)
 	if !ok {
 		return nil, false, nil
 	}
@@ -166,6 +171,9 @@ func (p Parser) cachedFindClasses(b *parseBuffers, path string, cache *ParseCach
 		return classes, nil
 	}
 	disk := cache != nil && cache.disk != nil
+	if cache != nil {
+		cache.reads.Add(1)
+	}
 	n, key, keyed, err := b.readFileKey(path)
 	if err != nil {
 		return nil, readError(path, err)

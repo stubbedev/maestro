@@ -102,7 +102,3 @@ func GetHgVersion(process Process) (string, bool, error) {
 		return versionMatch(process, util.Cmd("hg", "--version"), `/^.+? (\d+(?:\.\d+)+)(?:\+.*?)?\)?\r?\n/`)
 	}, false)
 }
-
-// SetHgVersion sets the cached hg version (Hg::$version); known false
-// resets it.
-func SetHgVersion(version string, known bool) { hgVersion.set(version, known) }

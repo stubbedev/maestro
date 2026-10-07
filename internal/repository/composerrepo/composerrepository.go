@@ -145,6 +145,18 @@ type ComposerRepository struct {
 	// initialized tells whether ArrayRepository::initialize ran, for
 	// getProviders' `if ($this->packages)`.
 	initialized bool
+
+	// observe lets a test watch this repository's work; nil fields are
+	// not called.
+	observe observers
+}
+
+// observers are the points where a test watches a ComposerRepository.
+type observers struct {
+	// speculation is called with each speculation SpeculateLoads starts.
+	speculation func(*speculation)
+	// versionsShared is called for each list buildFromVersions builds.
+	versionsShared func()
 }
 
 var (

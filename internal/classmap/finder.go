@@ -129,16 +129,9 @@ type foundFile struct {
 	notLink bool
 }
 
-// finderFiles iterates the Finder over dirs and returns the files it
-// yields, in order, and the exception that stopped the iteration, if any.
-func finderFiles(dirs, excludedDirs []string) ([]foundFile, error) {
-	files, _, err := finderFilesDirs(dirs, excludedDirs)
-
-	return files, err
-}
-
-// finderFilesDirs is finderFiles, also returning the directories the
-// Finder listed, in order.
+// finderFilesDirs iterates the Finder over dirs and returns the files and
+// directories it yields, in order, and the exception that stopped the
+// iteration, if any.
 func finderFilesDirs(dirs, excludedDirs []string) ([]foundFile, []string, error) {
 	w := finderWalk{excl: newFinderExclusions(excludedDirs)}
 	for _, dir := range dirs {

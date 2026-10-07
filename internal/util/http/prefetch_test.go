@@ -153,23 +153,22 @@ func TestHttpDownloader_PrefetchQueue(t *testing.T) {
 	defer srv.Close()
 	defer close(release)
 
-	defer func(n int) { maxPrefetches = n }(maxPrefetches)
-	maxPrefetches = 2 // below the connections per host
-
 	h, _ := newPrefetchDownloader(t)
+	const limit = 2 // below the connections per host
+	h.curl.pool.ahead.limit = limit
 	ssl, _ := arrayValue(h.options, "ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
 
 	// every slot taken by a transfer the server holds
-	for i := range maxPrefetches {
+	for i := range limit {
 		h.Prefetch(srv.URL+"/slow/"+strconv.Itoa(i), nil)
 	}
 	waitFor(t, func() bool {
 		mu.Lock()
 		defer mu.Unlock()
 
-		return len(order) == maxPrefetches
+		return len(order) == limit
 	})
 
 	h.Prefetch(srv.URL+"/later", nil)
@@ -191,7 +190,7 @@ func TestHttpDownloader_PrefetchQueue(t *testing.T) {
 		t.Errorf("urgent response: %d %q %v", status, body, ok)
 	}
 	mu.Lock()
-	tail := slices.Clone(order[maxPrefetches:])
+	tail := slices.Clone(order[limit:])
 	mu.Unlock()
 	if len(tail) < 2 || tail[0] != "/queued" || tail[1] != "/urgent" {
 		t.Errorf("order after the slow transfers: %v", tail)

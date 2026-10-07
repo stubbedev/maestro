@@ -234,6 +234,8 @@ func TestPrebuilt_Take(t *testing.T) {
 // made without it; no file is requested twice. The loads decide which
 // versions they build from the versions the speculation read.
 func TestComposerRepository_SpeculateLoads(t *testing.T) {
+	t.Parallel()
+
 	for _, acceptable := range []*php.Array{php.ArrayOf("stable", 0, "dev", 20), php.ArrayOf("stable", 0)} {
 		testSpeculateLoads(t, acceptable)
 	}
@@ -243,8 +245,6 @@ func testSpeculateLoads(t *testing.T, acceptable *php.Array) {
 	server := newP2Server(t)
 	flags := php.NewArray()
 	var shared atomic.Int32
-	onVersionsShared = func() { shared.Add(1) }
-	t.Cleanup(func() { onVersionsShared = nil })
 	constraints := &repository.ConstraintMap{}
 	for _, name := range p2Names {
 		constraints.Set(name, must(pkg.NewVersionParser().ParseConstraints(">=2")))
@@ -282,12 +282,12 @@ func testSpeculateLoads(t *testing.T, acceptable *php.Array) {
 			}
 			downloader.EnableAsync()
 			repo := newRepo(t, php.ArrayOf("url", server.URL), cfg, downloader)
+			repo.observe.versionsShared = func() { shared.Add(1) }
 			stop := func() {}
 			var s *speculation
 			if speculate {
-				onSpeculation = func(started *speculation) { s = started }
+				repo.observe.speculation = func(started *speculation) { s = started }
 				stop = repo.SpeculateLoads(constraints.Clone(), func(string) bool { return false }, acceptable, flags)
-				onSpeculation = nil
 				if warm {
 					// with the root file cached, the speculation runs
 					// at once: all of it is ahead of the loads

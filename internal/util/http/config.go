@@ -184,7 +184,7 @@ const callablePrefix = "\x00maestro-callable:"
 
 // RegisterCallable registers fn for use as a callable option value
 // (prevent_url_access_callable, prevent_ip_access_callable) and returns
-// the value to put in the options. ReleaseCallable forgets it.
+// the value to put in the options.
 func RegisterCallable(fn func(string) bool) string {
 	key := callablePrefix + strconv.FormatUint(callableSeq.Add(1), 10)
 	callables.Store(key, fn)

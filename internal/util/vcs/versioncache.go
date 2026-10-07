@@ -13,9 +13,16 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-// versionCacheDir is where GetVersion keeps git's version across runs, ""
-// or nil for nowhere (UseVersionCache).
-var versionCacheDir atomic.Pointer[string]
+// keptGitVersion is where and how GetVersion keeps git's version across
+// runs; nil or a dir of "" for nowhere (UseVersionCache).
+var keptGitVersion atomic.Pointer[versionCacheConfig]
+
+type versionCacheConfig struct {
+	dir string
+	// trust is how much older than an entry the binary's modification
+	// and change times must be for the entry to be written.
+	trust time.Duration
+}
 
 // UseVersionCache makes GetVersion keep the version of git in dir for
 // later runs, "" nowhere (the default). Only a *util.ProcessExecutor's
@@ -27,7 +34,9 @@ var versionCacheDir atomic.Pointer[string]
 // it is used for a day at most (versionCacheMaxAge). Linux only (on
 // macOS /usr/bin/git is a shim running the selected Xcode's git, and on
 // Windows git.exe is often a shim too).
-func UseVersionCache(dir string) { versionCacheDir.Store(&dir) }
+func UseVersionCache(dir string) {
+	keptGitVersion.Store(&versionCacheConfig{dir: dir, trust: versionTrustMargin})
+}
 
 // versionCacheMaxAge is how long a kept git version is used at most,
 // however unchanged the binary looks.
@@ -38,9 +47,8 @@ const versionCacheHeader = "maestro git version 1\n"
 
 // versionTrustMargin is how much older than an entry the binary's
 // modification and change times must be for the entry to be written: a
-// binary replaced within the timestamps' granularity may not show it. A
-// variable for tests.
-var versionTrustMargin = 3 * time.Second
+// binary replaced within the timestamps' granularity may not show it.
+const versionTrustMargin = 3 * time.Second
 
 // executor is a Process that runs commands with a *util.ProcessExecutor
 // (VersionGuesser's adapter).
@@ -51,8 +59,8 @@ type executor interface {
 // versionCachePath is where the kept version of git, as process runs it,
 // is, "" when it is not kept (see UseVersionCache).
 func versionCachePath(process Process) string {
-	dir := versionCacheDir.Load()
-	if dir == nil || *dir == "" {
+	c := keptGitVersion.Load()
+	if c == nil || c.dir == "" {
 		return ""
 	}
 	p, ok := process.(*util.ProcessExecutor)
@@ -62,12 +70,12 @@ func versionCachePath(process Process) string {
 	if !ok || p == nil || p.LogsCommands() {
 		return ""
 	}
-	key := gitBinaryKey(util.DirectToolPath("git"), time.Now().Add(-versionTrustMargin))
+	key := gitBinaryKey(util.DirectToolPath("git"), time.Now().Add(-c.trust))
 	if key == "" {
 		return ""
 	}
 
-	return filepath.Join(*dir, key)
+	return filepath.Join(c.dir, key)
 }
 
 // loadVersion returns the version kept at path, if any.
