@@ -41,6 +41,9 @@ func realWorldScenarios() []scenario {
 				{args: with("install"), dir: "app", setup: removeDir("app/vendor"), mustSucceed: true},
 				{args: with("dump-autoload", "--classmap-authoritative"), dir: "app"},
 				{args: with("why", "symfony/http-kernel"), dir: "app"},
+				// 52,520 lines: every branch's circular cut points
+				{args: with("why", "-t", "psr/container"), dir: "app"},
+				{args: with("why-not", "-t", "symfony/http-kernel", "8.0"), dir: "app"},
 			},
 		},
 		{

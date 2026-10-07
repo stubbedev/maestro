@@ -105,34 +105,105 @@ type Dependent struct {
 // be), each with its dependents up to the root package when recurse is
 // set. constraint (nil: any) filters the links.
 func (r *InstalledRepository) GetDependents(needle []string, constraint semver.ConstraintInterface, invert, recurse bool) ([]Dependent, error) {
-	return r.getDependents(needle, constraint, invert, recurse, nil)
-}
-
-func (r *InstalledRepository) getDependents(needle []string, constraint semver.ConstraintInterface, invert, recurse bool, packagesFound []string) ([]Dependent, error) {
-	needles := make([]string, len(needle))
-	for i, n := range needle {
-		needles[i] = php.Strtolower(n)
-	}
-	var results []Dependent
-
-	// initialize the array with the needles before any recursion occurs
-	if packagesFound == nil {
-		packagesFound = slices.Clone(needles)
-	}
-
 	packages, err := r.Packages()
 	if err != nil {
 		return nil, err
 	}
-
+	w := &dependentsWalk{r: r, packages: packages, forward: make([]*pkg.Links, len(packages))}
 	// locate root package for use below
-	var rootPackage pkg.RootPackageInterface
 	for _, p := range packages {
 		if root, ok := p.(pkg.RootPackageInterface); ok {
-			rootPackage = root
+			w.root = root
 
 			break
 		}
+	}
+
+	return w.dependents(needle, constraint, invert, recurse, nil)
+}
+
+// dependentsWalk is one getDependents() and its recursion, which read
+// the same installed packages at every level: their list, the root
+// package and each package's forward links are found once.
+type dependentsWalk struct {
+	r        *InstalledRepository
+	packages []pkg.PackageInterface
+	root     pkg.RootPackageInterface
+	// forward are the links of each package a forward search follows,
+	// nil until known.
+	forward []*pkg.Links
+	// related are, by name, the indexes of the packages that a forward
+	// search for the name finds something in, nil until built.
+	related map[string][]int
+}
+
+// mark sets in visit the packages a forward search for name finds
+// something in: those linking to it, replacing from it (the package
+// itself) or conflicting with it. The others add nothing to its results.
+func (w *dependentsWalk) mark(visit []bool, name string) {
+	if w.related == nil {
+		w.related = map[string][]int{}
+		add := func(name string, i int) {
+			if is := w.related[name]; len(is) == 0 || is[len(is)-1] != i {
+				w.related[name] = append(is, i)
+			}
+		}
+		for i, p := range w.packages {
+			for link := range w.links(i, false).Values() {
+				add(link.Target(), i)
+			}
+			for link := range p.Replaces().Values() {
+				add(link.Source(), i)
+			}
+			for link := range p.Conflicts().Values() {
+				add(link.Target(), i)
+			}
+		}
+	}
+	for _, i := range w.related[name] {
+		visit[i] = true
+	}
+}
+
+// links are the links of packages[i] cross-referenced to the needles:
+// its requirements, plus its replacements on a forward search, plus the
+// root package's dev requirements.
+func (w *dependentsWalk) links(i int, invert bool) pkg.Links {
+	if !invert && w.forward[i] != nil {
+		return *w.forward[i]
+	}
+	p := w.packages[i]
+	links := p.Requires()
+	if !invert {
+		links = linksUnion(links, p.Replaces())
+	}
+	if _, ok := p.(pkg.RootPackageInterface); ok {
+		links = linksUnion(links, p.DevRequires())
+	}
+	if !invert {
+		w.forward[i] = &links
+	}
+
+	return links
+}
+
+// dependents is getDependents(). packagesFound is never appended to in
+// place (its capacity is its length), so each package's tree shares it
+// until it adds to it.
+func (w *dependentsWalk) dependents(needle []string, constraint semver.ConstraintInterface, invert, recurse bool, packagesFound []string) ([]Dependent, error) {
+	r := w.r
+	needles := make([]string, len(needle))
+	for i, n := range needle {
+		needles[i] = php.Strtolower(n)
+	}
+	var (
+		results []Dependent
+		err     error
+	)
+
+	// initialize the array with the needles before any recursion occurs
+	if packagesFound == nil {
+		packagesFound = slices.Clip(slices.Clone(needles))
 	}
 
 	recurseFrom := func(name string, packagesInTree []string) ([]Dependent, error) {
@@ -140,21 +211,30 @@ func (r *InstalledRepository) getDependents(needle []string, constraint semver.C
 			return []Dependent{}, nil
 		}
 
-		return r.getDependents([]string{name}, nil, false, true, slices.Clip(packagesInTree))
+		return w.dependents([]string{name}, nil, false, true, slices.Clip(packagesInTree))
+	}
+
+	// a forward search visits only the packages it finds something in
+	var visit []bool
+	if !invert {
+		visit = make([]bool, len(w.packages))
+		for _, n := range needles {
+			w.mark(visit, n)
+		}
 	}
 
 	// Loop over all currently installed packages.
-	for _, p := range packages {
-		links := p.Requires()
-
+	for i, p := range w.packages {
+		if visit != nil && !visit[i] {
+			continue
+		}
 		// each loop needs its own "tree" as we want to show the complete dependent set of every needle
-		// without warning all the time about finding circular deps
-		packagesInTree := slices.Clone(packagesFound)
+		// without warning all the time about finding circular deps; the
+		// first append copies it
+		packagesInTree := packagesFound
 
 		// Replacements are considered valid reasons for a package to be installed during forward resolution
 		if !invert {
-			links = linksUnion(links, p.Replaces())
-
 			// On forward search, check if any replaced package was required and add the replaced
 			// packages to the list of needles. Contrary to the cross-reference link check below,
 			// replaced packages are the target of links.
@@ -176,17 +256,14 @@ func (r *InstalledRepository) getDependents(needle []string, constraint semver.C
 					}
 					results = append(results, Dependent{Package: p, Link: link, Dependents: dependents})
 					needles = append(needles, link.Target())
+					w.mark(visit, link.Target())
 				}
 			}
 		}
 
-		// Require-dev is only relevant for the root package
-		if _, ok := p.(pkg.RootPackageInterface); ok {
-			links = linksUnion(links, p.DevRequires())
-		}
-
-		// Cross-reference all discovered links to the needles
-		for link := range links.Values() {
+		// Cross-reference all discovered links to the needles (require-dev
+		// is only relevant for the root package)
+		for link := range w.links(i, invert).Values() {
 			for _, n := range needles {
 				if link.Target() != n || (constraint != nil && link.Constraint().Matches(constraint) == invert) {
 					continue
@@ -220,7 +297,7 @@ func (r *InstalledRepository) getDependents(needle []string, constraint semver.C
 
 		// When inverting, we need to check for conflicts of the needles' requirements against installed packages
 		if invert && constraint != nil && slices.Contains(needles, p.Name()) && constraint.Matches(semver.NewConstraintOp(semver.OpEQ, p.Version())) {
-			if results, err = r.appendRequirementConflicts(results, p, packages, rootPackage); err != nil {
+			if results, err = r.appendRequirementConflicts(results, p, w.packages, w.root); err != nil {
 				return nil, err
 			}
 		}
