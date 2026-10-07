@@ -1,5 +1,28 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## Probe cache keyed on the variables php reads (#87, 2026-10-07)
+
+The platform probe cache used to key each entry on the whole environment,
+so any variable that differed from the last run (a terminal's WINDOWID,
+direnv's DIRENV_DIFF, the COMPOSER_* variables Composer exports to
+scripts) ran php again, ~30 ms on every command. hyperfine sets
+HYPERFINE_RANDOMIZED_ENVIRONMENT_OFFSET to a new value on every run, so
+hyperfine numbers in the sections below include that probe on every run
+(a ~45 ms floor for `--version`, `list` and `show`); the interleaved
+wait4 series do not. Entries are now keyed on the variables php can read
+(internal/platform/probecache_linux.go says which and why) and the cache
+keeps at most 64 entries.
+
+`show --no-plugins --no-scripts` in the laravel project, each binary with
+an empty MAESTRO_CACHE_DIR, 3 warm-ups then medians of 30 runs; load
+average 0.4 to 0.8. "before" is d053ec3.
+
+| run | before | after |
+|---|---:|---:|
+| same environment every run | 17.9 ms | 17.9 ms |
+| FOO_RANDOM changing every run | 47.6 ms | 17.9 ms |
+| cache entries after the series | 31 (5.5 MB) | 1 (180 KB) |
+
 ## No-op install: start-up and the work after the revalidation (#29, 2026-10-07)
 
 "before" is cd6b2a7, "after" is f78ff7a (the four commits below). Same

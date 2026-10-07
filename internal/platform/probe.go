@@ -84,7 +84,7 @@ func Probe(ctx context.Context, binary string) (*Snapshot, error) {
 
 // probeCached is Probe, through the cache of earlier runs' results
 // (probecache_linux.go): php is started only when binary, the files it
-// loads or its environment changed since.
+// loads or the environment it reads changed since.
 func probeCached(ctx context.Context, binary string) (*Snapshot, error) {
 	key := probeCacheKey(binary)
 	if key != "" {
@@ -93,9 +93,11 @@ func probeCached(ctx context.Context, binary string) (*Snapshot, error) {
 		}
 	}
 
+	start := time.Now()
+
 	s, output, err := probe(ctx, binary)
 	if err == nil && key != "" {
-		storeProbeCache(key, binary, s, output)
+		storeProbeCache(key, binary, s, output, start)
 	}
 
 	return s, err
