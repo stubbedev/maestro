@@ -1,13 +1,9 @@
 package ui
 
 import (
-	"io"
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
 
 // Role is what a piece of decorated free output is: a success, a warning,
@@ -55,6 +51,10 @@ const (
 	// RoleBanner is a heading block (Composer's init welcome): white on
 	// blue.
 	RoleBanner
+	// RoleErrorBox is Composer's <error>: white on red.
+	RoleErrorBox
+	// RoleWarningBox is Composer's <warning>: black on yellow.
+	RoleWarningBox
 
 	numRoles
 )
@@ -93,15 +93,16 @@ type FormatterTag struct {
 
 // ComposerTags are the tags Composer's text carries (Symfony's defaults
 // and Factory::createAdditionalStyles) and the roles maestro renders them
-// with: the one table from tag to role. Composer's <error> (white on red)
-// and <warning> (black on yellow) boxes become the Danger and Warning
-// roles, the look of maestro's diagnostics, so one run shows one look.
+// with: the one table from tag to role. Each role looks exactly like the
+// tag's style in Composer, down to the bytes of its escape sequences
+// (internal/console's TestComposerTagsAreComposers), since frozen output
+// carries these tags.
 var ComposerTags = [...]FormatterTag{
 	{"info", RoleSuccess},
 	{"comment", RoleNotice},
 	{"question", RoleQuestion},
-	{"error", RoleDanger},
-	{"warning", RoleWarning},
+	{"error", RoleErrorBox},
+	{"warning", RoleWarningBox},
 	{"highlight", RoleHighlight},
 }
 
@@ -142,21 +143,23 @@ type spec struct {
 
 // palette is the theme: how each role looks.
 var palette = [numRoles]spec{
-	RoleSuccess:   {name: "success", fg: green},
-	RoleNotice:    {name: "notice", fg: yellow},
-	RoleWarning:   {name: "warning", fg: yellow, attrs: bold},
-	RoleDanger:    {name: "danger", fg: red, attrs: bold},
-	RoleHighlight: {name: "highlight", fg: red},
-	RoleAccent:    {name: "accent", fg: cyan},
-	RoleSecondary: {name: "secondary", fg: magenta},
-	RoleTertiary:  {name: "tertiary", fg: blue},
-	RoleMuted:     {name: "muted", attrs: faint},
-	RoleEmphasis:  {name: "emphasis", attrs: bold},
-	RolePackage:   {name: "package", fg: green, attrs: bold},
-	RoleVersion:   {name: "version", fg: yellow},
-	RoleLink:      {name: "link", attrs: underline},
-	RoleQuestion:  {name: "question", fg: black, bg: cyan},
-	RoleBanner:    {name: "banner", fg: white, bg: blue},
+	RoleSuccess:    {name: "success", fg: green},
+	RoleNotice:     {name: "notice", fg: yellow},
+	RoleWarning:    {name: "warning", fg: yellow, attrs: bold},
+	RoleDanger:     {name: "danger", fg: red, attrs: bold},
+	RoleHighlight:  {name: "highlight", fg: red},
+	RoleAccent:     {name: "accent", fg: cyan},
+	RoleSecondary:  {name: "secondary", fg: magenta},
+	RoleTertiary:   {name: "tertiary", fg: blue},
+	RoleMuted:      {name: "muted", attrs: faint},
+	RoleEmphasis:   {name: "emphasis", attrs: bold},
+	RolePackage:    {name: "package", fg: green, attrs: bold},
+	RoleVersion:    {name: "version", fg: yellow},
+	RoleLink:       {name: "link", attrs: underline},
+	RoleQuestion:   {name: "question", fg: black, bg: cyan},
+	RoleBanner:     {name: "banner", fg: white, bg: blue},
+	RoleErrorBox:   {name: "error-box", fg: white, bg: red},
+	RoleWarningBox: {name: "warning-box", fg: black, bg: yellow},
 }
 
 // String is the role's name.
@@ -216,25 +219,32 @@ func (r Role) Render(text string, decorated bool) string {
 	return r.Styled(text)
 }
 
-// sgr is the SGR() of every role: lipgloss's rendering of the role, in
-// the ANSI profile, of a sentinel, split around it.
+// sgr is the set and unset sequences of every role, built as Symfony's
+// Color builds a style's: the foreground (30-37, unset 39), the background
+// (40-47, unset 49), then each attribute (bold 1, unset 22; faint, which
+// Symfony has not, 2, unset 22; underline 4, unset 24), joined by ";". A
+// role styled like a Composer tag is therefore that tag's exact bytes,
+// and text after it keeps the styles around it.
 var sgr = sync.OnceValue(func() (seqs [numRoles][2]string) {
-	// The renderer never looks at a terminal: whether to decorate is
-	// Composer's decision, made by the caller.
-	r := lipgloss.NewRenderer(io.Discard)
-	r.SetColorProfile(termenv.ANSI)
-	const sentinel = "\x00"
 	for i, s := range palette {
-		st := r.NewStyle()
+		var set, unset []string
 		if s.fg != noColor {
-			st = st.Foreground(lipgloss.Color(strconv.Itoa(int(s.fg - black))))
+			set, unset = append(set, strconv.Itoa(30+int(s.fg-black))), append(unset, "39")
 		}
 		if s.bg != noColor {
-			st = st.Background(lipgloss.Color(strconv.Itoa(int(s.bg - black))))
+			set, unset = append(set, strconv.Itoa(40+int(s.bg-black))), append(unset, "49")
 		}
-		st = st.Bold(s.attrs&bold != 0).Faint(s.attrs&faint != 0).Underline(s.attrs&underline != 0)
-		set, reset, _ := strings.Cut(st.Render(sentinel), sentinel)
-		seqs[i] = [2]string{set, reset}
+		for _, a := range [...]struct {
+			attr       attrs
+			set, unset string
+		}{{bold, "1", "22"}, {faint, "2", "22"}, {underline, "4", "24"}} {
+			if s.attrs&a.attr != 0 {
+				set, unset = append(set, a.set), append(unset, a.unset)
+			}
+		}
+		if len(set) > 0 {
+			seqs[i] = [2]string{"\x1b[" + strings.Join(set, ";") + "m", "\x1b[" + strings.Join(unset, ";") + "m"}
+		}
 	}
 
 	return seqs

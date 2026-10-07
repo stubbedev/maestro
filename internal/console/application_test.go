@@ -720,9 +720,9 @@ func TestApplication_RenderException(t *testing.T) {
 		"         exit code 255\n", tester.Display())
 
 	tester.Run([]Param{P("command", "foo3:bar")}, testerOptions{decorated: new(true), captureStderrSeparately: true})
-	assertRendered(t, "\n\x1b[1;31mError:\x1b[0m \x1b[1mThird exception <fg=blue;bg=red>comment</>\x1b[0m\n"+
-		"  \x1b[33mCaused by:\x1b[0m Second exception <comment>comment</comment>\n"+
-		"  \x1b[33mCaused by:\x1b[0m First exception <p>this is html</p>\n", tester.ErrorOutput())
+	assertRendered(t, "\n\x1b[31;1mError:\x1b[39;22m \x1b[1mThird exception <fg=blue;bg=red>comment</>\x1b[22m\n"+
+		"  \x1b[33mCaused by:\x1b[39m Second exception <comment>comment</comment>\n"+
+		"  \x1b[33mCaused by:\x1b[39m First exception <p>this is html</p>\n", tester.ErrorOutput())
 }
 
 func TestApplication_RenderExceptionWithDoubleWidthCharacters(t *testing.T) {

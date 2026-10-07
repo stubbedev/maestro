@@ -59,11 +59,11 @@ func TestLinesKinds(t *testing.T) {
 func TestLinesDecorated(t *testing.T) {
 	d := Diagnostic{Kind: Error, Message: "a\tb\nc", Causes: []string{"d"}, Hints: []string{"e"}, Details: []string{"f"}}
 	want := []string{
-		"\x1b[1;31mError:\x1b[0m \x1b[1ma\tb\x1b[0m",
+		"\x1b[31;1mError:\x1b[39;22m \x1b[1ma\tb\x1b[22m",
 		"       c",
-		"  \x1b[33mCaused by:\x1b[0m d",
-		"  \x1b[32mHint:\x1b[0m e",
-		"  \x1b[2mDebug:\x1b[0m \x1b[2mf\x1b[0m",
+		"  \x1b[33mCaused by:\x1b[39m d",
+		"  \x1b[32mHint:\x1b[39m e",
+		"  \x1b[2mDebug:\x1b[22m \x1b[2mf\x1b[22m",
 	}
 	if got := d.Lines(Options{Decorated: true, Verbose: true}); !slices.Equal(got, want) {
 		t.Errorf("Lines() = %q, want %q", got, want)

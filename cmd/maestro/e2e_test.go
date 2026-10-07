@@ -59,6 +59,9 @@
 //   - Scenario-specific ones, each documented at its step (normalize):
 //     fund's package order (normalizeFund) and diagnose's phar-only checks
 //     and binary path (normalizeDiagnose).
+//   - A decorated free text report (a step's freeText): compared without
+//     escape sequences, after checking that maestro's keeps every one of
+//     Composer's in order, so it only adds colour (colourOnly).
 //   - An empty vendor/bin that Composer leaves behind and maestro doesn't
 //     create (emptyBinDirs; deviation 7 in docs/PORTING.md).
 //
@@ -129,6 +132,11 @@ type step struct {
 	// network), which is reported as such instead of as the differences
 	// the later steps then show.
 	mustSucceed bool
+	// freeText marks a decorated text report on stdout (docs/PORTING.md
+	// "Reports for people, colour only"), which maestro may colour more
+	// than Composer: compared without escape sequences, and Composer's
+	// escape sequences must all be in maestro's, in order (colourOnly).
+	freeText bool
 }
 
 // scenario is a fixture project and the steps run in it.
@@ -610,7 +618,14 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 			norm = s.normalize
 		}
 
-		if d := textDiff(norm(normalizeOutput(w.stdout)), norm(normalizeOutput(g.stdout))); d != "" {
+		wantOut, gotOut := norm(normalizeOutput(w.stdout)), norm(normalizeOutput(g.stdout))
+		if s.freeText {
+			if missing := colourOnly(wantOut, gotOut); missing != "" {
+				t.Errorf("%s: stdout lacks Composer's escape sequence %q at its place", label, missing)
+			}
+			wantOut, gotOut = escapeRe.ReplaceAllString(wantOut, ""), escapeRe.ReplaceAllString(gotOut, "")
+		}
+		if d := textDiff(wantOut, gotOut); d != "" {
 			t.Errorf("%s: stdout differs (- Composer, + maestro):\n%s", label, d)
 		}
 
@@ -626,6 +641,28 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 			t.Errorf("%s: files differ:\n%s", label, d)
 		}
 	}
+}
+
+// escapeRe matches an SGR sequence or an OSC 8 hyperlink's start or end.
+var escapeRe = regexp.MustCompile("\x1b\\[[0-9;]*m|\x1b\\]8;[^\x1b\a]*(?:\x1b\\\\|\a)")
+
+// colourOnly checks that got, maestro's decorated report, keeps every
+// escape sequence of want, Composer's, in order, so it only adds colour
+// to Composer's; it returns the first one missing, or "".
+func colourOnly(want, got string) string {
+	gotSeqs := escapeRe.FindAllString(got, -1)
+	j := 0
+	for _, seq := range escapeRe.FindAllString(want, -1) {
+		for j < len(gotSeqs) && gotSeqs[j] != seq {
+			j++
+		}
+		if j == len(gotSeqs) {
+			return seq
+		}
+		j++
+	}
+
+	return ""
 }
 
 // compareStderr compares a step's stderr. How errors are rendered is free

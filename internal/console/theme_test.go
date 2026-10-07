@@ -44,6 +44,40 @@ func TestThemeTags(t *testing.T) {
 	}
 }
 
+// composerStyles are the styles Composer's tags have in Composer: Symfony's
+// OutputFormatter defaults and Factory::createAdditionalStyles.
+var composerStyles = map[string]*OutputFormatterStyle{
+	"error":     MustStyle("white", "red"),
+	"info":      MustStyle("green", ""),
+	"comment":   MustStyle("yellow", ""),
+	"question":  MustStyle("black", "cyan"),
+	"highlight": MustStyle("red", ""),
+	"warning":   MustStyle("black", "yellow"),
+}
+
+// Frozen output carries Composer's tags, so each renders as Composer
+// renders it, byte for byte, in maestro's theme and on any formatter.
+func TestComposerTagsAreComposers(t *testing.T) {
+	if len(composerStyles) != len(ui.ComposerTags) {
+		t.Fatalf("%d Composer styles, %d tags", len(composerStyles), len(ui.ComposerTags))
+	}
+	for _, ft := range ui.ComposerTags {
+		want, ok := composerStyles[ft.Name]
+		if !ok {
+			t.Errorf("<%s> is not a tag of Composer's", ft.Name)
+
+			continue
+		}
+		if got, want := NewRoleStyle(ft.Role).Apply("x"), want.Apply("x"); got != want {
+			t.Errorf("<%s> renders %q, Composer %q", ft.Name, got, want)
+		}
+		text := "a <" + ft.Name + ">b</" + ft.Name + "> c"
+		if got, want := NewOutputFormatter(true, ThemeStyles()...).Format(text), NewOutputFormatter(true, NamedStyle{Name: ft.Name, Style: want}).Format(text); got != want {
+			t.Errorf("%q renders %q, Composer %q", text, got, want)
+		}
+	}
+}
+
 // A progress bar in maestro's style (ui.ProgressBar) is as wide as
 // Composer's: its cells' markup and escape sequences take no room.
 func TestThemedProgressBarWidth(t *testing.T) {

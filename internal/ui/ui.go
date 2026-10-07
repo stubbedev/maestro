@@ -2,7 +2,7 @@
 // (docs/PORTING.md "The contract" and "Presentation of free output"):
 // how errors, warnings, deprecation notices and hints look. Ported code
 // reports the information (a Diagnostic); this package alone decides the
-// layout and the styling, with lipgloss.
+// layout and the styling, with the theme's roles.
 //
 // It renders lines, not output: callers write them, one per line ending
 // in php.EOL, to the stream Composer writes the information to (stderr for

@@ -132,7 +132,8 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 		label := func(s string) string { return surface.Style(ui.RoleMuted, s) }
 		cio.Write(label("Name:")+" <comment>"+root.PrettyName()+"</comment>", true, io.Normal)
 		cio.Write(label("Version:")+" <comment>"+root.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>", true, io.Normal)
-		cio.Write(label("Licenses:")+" <comment>"+styleLicenses(surface, spdxLicenses, root.License())+"</comment>", true, io.Normal)
+		// the root's licences keep Composer's <comment> look
+		cio.Write(label("Licenses:")+" <comment>"+styleLicenses(ui.Frozen, spdxLicenses, root.License())+"</comment>", true, io.Normal)
 		cio.Write(label("Dependencies:"), true, io.Normal)
 		cio.Write("", true, io.Normal)
 
