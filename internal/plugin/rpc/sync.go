@@ -149,7 +149,7 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 					}
 					updates = append(updates, php.ArrayOf("h", int64(r.h), "r", int64(rev), "full", encoded)) //nolint:gosec // revisions stay far below 2^63.
 				}
-				e.newMirrors = append(e.newMirrors, &mirrorState{h: r.h, m: m, rev: rev})
+				e.newMirrors = append(e.newMirrors, c.h.newMirrorState(r.h, m, rev))
 			}
 		}
 		s.Set("reg", list)
@@ -187,30 +187,34 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 		commits = append(commits, func() { maps.Copy(c.sync.sentStatics, changed) })
 	}
 
-	for _, ms := range c.h.mirrors {
-		rev := ms.m.Rev()
-		if rev == ms.rev {
-			continue
-		}
-		u := php.ArrayOf("h", int64(ms.h), "r", int64(rev)) //nolint:gosec // revisions stay far below 2^63.
-		fields, ok := (*php.Array)(nil), false
-		if dm, isDelta := ms.m.(DeltaMirror); isDelta {
-			fields, ok = dm.MirrorChanges(ms.rev)
-		}
-		key := "f"
-		if !ok {
-			key = "full"
-			if fields, err = ms.m.MirrorSnapshot(); err != nil {
-				return nil, nil, err
+	poll := func(mirrors []*mirrorState) error {
+		for _, ms := range mirrors {
+			u, err := c.mirrorUpdate(e, ms, &commits)
+			if err != nil {
+				return err
+			}
+			if u != nil {
+				updates = append(updates, u)
 			}
 		}
-		encoded, _, err := e.array(fields)
-		if err != nil {
+
+		return nil
+	}
+	if err := poll(c.h.mirrors); err != nil {
+		return nil, nil, err
+	}
+	// a family's mirrors only when its clock moved since the message
+	// that last looked at them: one that moves during the look moves
+	// past the value recorded, so the next message looks again
+	for _, fs := range c.h.families {
+		clock := fs.f.Clock()
+		if fs.polled && clock == fs.clock {
+			continue
+		}
+		if err := poll(fs.mirrors); err != nil {
 			return nil, nil, err
 		}
-		u.Set(key, encoded)
-		updates = append(updates, u)
-		commits = append(commits, func() { ms.rev = rev })
+		commits = append(commits, func() { fs.clock, fs.polled = clock, true })
 	}
 	if len(updates) > 0 {
 		list := php.NewArrayCap(len(updates))
@@ -270,6 +274,36 @@ func (c *Conn) outgoingEnv(e *Encoder, s *php.Array, envOf []string, commits *[]
 	s.Set("env", encoded)
 
 	return nil
+}
+
+// mirrorUpdate is the update of a mirror PHP holds that changed since
+// (nil for one that did not), adding what records it as sent to commits.
+func (c *Conn) mirrorUpdate(e *Encoder, ms *mirrorState, commits *[]func()) (*php.Array, error) {
+	rev := ms.m.Rev()
+	if rev == ms.rev {
+		return nil, nil
+	}
+	u := php.ArrayOf("h", int64(ms.h), "r", int64(rev)) //nolint:gosec // revisions stay far below 2^63.
+	fields, ok := (*php.Array)(nil), false
+	if dm, isDelta := ms.m.(DeltaMirror); isDelta {
+		fields, ok = dm.MirrorChanges(ms.rev)
+	}
+	key := "f"
+	if !ok {
+		key = "full"
+		var err error
+		if fields, err = ms.m.MirrorSnapshot(); err != nil {
+			return nil, err
+		}
+	}
+	encoded, _, err := e.array(fields)
+	if err != nil {
+		return nil, err
+	}
+	u.Set(key, encoded)
+	*commits = append(*commits, func() { ms.rev = rev })
+
+	return u, nil
 }
 
 // applySync applies a decoded sync block from PHP.

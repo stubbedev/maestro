@@ -58,6 +58,22 @@ type DeltaMirror interface {
 	MirrorChanges(since uint64) (fields *php.Array, ok bool)
 }
 
+// FamilyMirror is a Mirror of a family whose clock moves whenever the
+// Rev of one of them may have (all packages): the sync engine polls the
+// Rev of the family's mirrors in a message only when the clock moved since
+// the last one.
+type FamilyMirror interface {
+	Mirror
+	MirrorFamily() *MirrorFamily
+}
+
+// MirrorFamily is the clock of a family of mirrors.
+type MirrorFamily struct {
+	// Clock returns a counter that moves whenever the Rev of a mirror of
+	// the family may have.
+	Clock func() uint64
+}
+
 // MirrorFactory builds the Go object of a PHP-born mirror (new Package()
 // in plugin code) the first time it crosses to Go. class is its PHP class,
 // which may be a user subclass of the factory's base.
@@ -92,9 +108,12 @@ type handles struct {
 	// mirror, or a service maestro created for it) to its Go object.
 	adopted map[Handle]Object
 
-	// mirrors are the Go mirrors PHP holds, with the revision it has, in
-	// the order PHP got them.
+	// mirrors are the Go mirrors PHP holds that are not FamilyMirrors,
+	// with the revision it has, in the order PHP got them; families
+	// hold the others, by family, in the order the families came.
 	mirrors   []*mirrorState
+	families  []*familyState
+	familyOf  map[*MirrorFamily]*familyState
 	mirrorIdx map[Handle]*mirrorState
 }
 
@@ -102,6 +121,45 @@ type mirrorState struct {
 	h   Handle
 	m   Mirror
 	rev uint64
+	// fam is the family of a FamilyMirror, nil for another mirror.
+	fam *familyState
+}
+
+// familyState is a MirrorFamily's mirrors PHP holds, in the order PHP got
+// them, and its clock when the sync engine last looked at them (polled
+// tells whether it did).
+type familyState struct {
+	f       *MirrorFamily
+	mirrors []*mirrorState
+	clock   uint64
+	polled  bool
+}
+
+// newMirrorState is the state of mirror m, which PHP has at revision rev.
+func (t *handles) newMirrorState(h Handle, m Mirror, rev uint64) *mirrorState {
+	ms := &mirrorState{h: h, m: m, rev: rev}
+	if fm, ok := m.(FamilyMirror); ok {
+		f := fm.MirrorFamily()
+		fs := t.familyOf[f]
+		if fs == nil {
+			fs = &familyState{f: f}
+			t.familyOf[f] = fs
+			t.families = append(t.families, fs)
+		}
+		ms.fam = fs
+	}
+
+	return ms
+}
+
+// addMirror records a mirror PHP got.
+func (t *handles) addMirror(ms *mirrorState) {
+	if ms.fam != nil {
+		ms.fam.mirrors = append(ms.fam.mirrors, ms)
+	} else {
+		t.mirrors = append(t.mirrors, ms)
+	}
+	t.mirrorIdx[ms.h] = ms
 }
 
 func newHandles() handles {
@@ -112,6 +170,7 @@ func newHandles() handles {
 		phpObjects: map[Handle]*PHPObject{},
 		adopted:    map[Handle]Object{},
 		mirrorIdx:  map[Handle]*mirrorState{},
+		familyOf:   map[*MirrorFamily]*familyState{},
 	}
 }
 

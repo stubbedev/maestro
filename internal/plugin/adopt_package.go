@@ -22,7 +22,7 @@ func (r *Runtime) adoptPackage(_ string, s *php.Array) (rpc.Mirror, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := &packageMirror{r: r, p: p}
+	m := r.newPackageMirror(p)
 	r.bridge.object(p, func() rpc.Object { return m })
 
 	return m, nil

@@ -105,7 +105,7 @@ func (a *AliasPackage) DevRequires() Links { return a.devRequires }
 // whether the alias was defined by the root package.
 func (a *AliasPackage) SetRootPackageAlias(value bool) {
 	a.rootPackageAlias = value
-	a.rev++
+	a.changed()
 }
 
 // IsRootPackageAlias ports AliasPackage::isRootPackageAlias.

@@ -5,6 +5,7 @@ package pkg
 import (
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
@@ -108,6 +109,10 @@ type basePackage struct {
 	// the id (Rev is their sum).
 	rev   uint64
 	idRev uint64
+	// watched is non-zero for a package whose changes ChangeClock counts
+	// (Watch); atomic. Clone copies packages, which an atomic.Uint32
+	// would forbid.
+	watched uint32 //nolint:modernize // see above
 }
 
 func newBasePackage(name string) basePackage {
@@ -126,7 +131,39 @@ func (b *basePackage) PrettyName() string { return b.prettyName }
 func (b *basePackage) SetID(id int) {
 	b.id = id
 	b.idRev++
+	b.tick()
 }
+
+// changed counts a change of a field but the id.
+func (b *basePackage) changed() {
+	b.rev++
+	b.tick()
+}
+
+// tick moves ChangeClock for a watched package.
+func (b *basePackage) tick() {
+	if atomic.LoadUint32(&b.watched) != 0 {
+		changeClock.Add(1)
+	}
+}
+
+// changeClock counts the changes of the watched packages (ChangeClock).
+var changeClock atomic.Uint64
+
+// Watch has ChangeClock count the changes of p (and of the package it
+// aliases).
+func Watch(p PackageInterface) {
+	if a, ok := p.(Alias); ok {
+		Watch(a.AliasOf())
+	}
+	if b, ok := p.(interface{ base() *basePackage }); ok {
+		atomic.StoreUint32(&b.base().watched, 1)
+	}
+}
+
+// ChangeClock is a counter of the changes of the packages Watch was
+// called for: the Rev of none of them changed while it did not move.
+func ChangeClock() uint64 { return changeClock.Load() }
 
 // ID ports BasePackage::getId.
 func (b *basePackage) ID() int { return b.id }
@@ -140,7 +177,7 @@ func (b *basePackage) SetRepository(repository Repository) error {
 	}
 
 	b.repository = repository
-	b.rev++
+	b.changed()
 
 	return nil
 }

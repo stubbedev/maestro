@@ -49,7 +49,7 @@ func (p *CompletePackage) Clone() *CompletePackage {
 func (p *CompletePackage) SetScripts(scripts *php.Array) {
 	p.need()
 	p.scripts = scripts
-	p.rev++
+	p.changed()
 }
 
 // Scripts ports CompletePackage::getScripts.
@@ -63,7 +63,7 @@ func (p *CompletePackage) Scripts() *php.Array {
 func (p *CompletePackage) SetRepositories(repositories *php.Array) {
 	p.need()
 	p.repositories = repositories
-	p.rev++
+	p.changed()
 }
 
 // Repositories ports CompletePackage::getRepositories.
@@ -77,7 +77,7 @@ func (p *CompletePackage) Repositories() *php.Array {
 func (p *CompletePackage) SetLicense(license *php.Array) {
 	p.need()
 	p.license = license
-	p.rev++
+	p.changed()
 }
 
 // License ports CompletePackage::getLicense.
@@ -91,7 +91,7 @@ func (p *CompletePackage) License() *php.Array {
 func (p *CompletePackage) SetKeywords(keywords *php.Array) {
 	p.need()
 	p.keywords = keywords
-	p.rev++
+	p.changed()
 }
 
 // Keywords ports CompletePackage::getKeywords.
@@ -105,7 +105,7 @@ func (p *CompletePackage) Keywords() *php.Array {
 func (p *CompletePackage) SetAuthors(authors *php.Array) {
 	p.need()
 	p.authors = authors
-	p.rev++
+	p.changed()
 }
 
 // Authors ports CompletePackage::getAuthors.
@@ -144,7 +144,7 @@ func (p *CompletePackage) Homepage() NullString {
 func (p *CompletePackage) SetSupport(support *php.Array) {
 	p.need()
 	p.support = support
-	p.rev++
+	p.changed()
 }
 
 // Support ports CompletePackage::getSupport.
@@ -158,7 +158,7 @@ func (p *CompletePackage) Support() *php.Array {
 func (p *CompletePackage) SetFunding(funding *php.Array) {
 	p.need()
 	p.funding = funding
-	p.rev++
+	p.changed()
 }
 
 // Funding ports CompletePackage::getFunding.
@@ -176,7 +176,7 @@ func (p *CompletePackage) IsAbandoned() bool { return php.ToBool(p.abandoned) }
 func (p *CompletePackage) SetAbandoned(abandoned any) {
 	p.need()
 	p.abandoned = abandoned
-	p.rev++
+	p.changed()
 }
 
 // Abandoned returns the abandoned value as set.
@@ -207,7 +207,7 @@ func (p *CompletePackage) ArchiveName() NullString {
 func (p *CompletePackage) SetArchiveExcludes(excludes *php.Array) {
 	p.need()
 	p.archiveExcludes = excludes
-	p.rev++
+	p.changed()
 }
 
 // ArchiveExcludes ports CompletePackage::getArchiveExcludes.

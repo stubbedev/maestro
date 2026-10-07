@@ -43,7 +43,7 @@ func (p *RootPackage) Clone() *RootPackage {
 // SetMinimumStability ports RootPackage::setMinimumStability.
 func (p *RootPackage) SetMinimumStability(minimumStability string) {
 	p.minimumStability = minimumStability
-	p.rev++
+	p.changed()
 }
 
 // MinimumStability ports RootPackage::getMinimumStability.
@@ -53,7 +53,7 @@ func (p *RootPackage) MinimumStability() string { return p.minimumStability }
 // BasePackage::STABILITY_* value.
 func (p *RootPackage) SetStabilityFlags(stabilityFlags *php.Array) {
 	p.stabilityFlags = stabilityFlags
-	p.rev++
+	p.changed()
 }
 
 // StabilityFlags ports RootPackage::getStabilityFlags.
@@ -62,7 +62,7 @@ func (p *RootPackage) StabilityFlags() *php.Array { return orEmpty(p.stabilityFl
 // SetPreferStable ports RootPackage::setPreferStable.
 func (p *RootPackage) SetPreferStable(preferStable bool) {
 	p.preferStable = preferStable
-	p.rev++
+	p.changed()
 }
 
 // PreferStable ports RootPackage::getPreferStable.
@@ -71,7 +71,7 @@ func (p *RootPackage) PreferStable() bool { return p.preferStable }
 // SetConfig ports RootPackage::setConfig.
 func (p *RootPackage) SetConfig(config *php.Array) {
 	p.config = config
-	p.rev++
+	p.changed()
 }
 
 // Config ports RootPackage::getConfig.
@@ -80,7 +80,7 @@ func (p *RootPackage) Config() *php.Array { return orEmpty(p.config) }
 // SetReferences ports RootPackage::setReferences.
 func (p *RootPackage) SetReferences(references *php.Array) {
 	p.references = references
-	p.rev++
+	p.changed()
 }
 
 // References ports RootPackage::getReferences.
@@ -89,7 +89,7 @@ func (p *RootPackage) References() *php.Array { return orEmpty(p.references) }
 // SetAliases ports RootPackage::setAliases.
 func (p *RootPackage) SetAliases(aliases *php.Array) {
 	p.aliases = aliases
-	p.rev++
+	p.changed()
 }
 
 // Aliases ports RootPackage::getAliases.

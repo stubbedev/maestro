@@ -125,7 +125,7 @@ func setNullable[T ~string](p *Package, bit uint16, dst *T, v Null[T]) {
 		p.set &^= bit
 	}
 
-	p.rev++
+	p.changed()
 }
 
 func orEmpty(a *php.Array) *php.Array {
@@ -228,7 +228,7 @@ func (p *Package) TargetDir() NullString {
 func (p *Package) SetExtra(extra *php.Array) {
 	p.need()
 	p.extra = extra
-	p.rev++
+	p.changed()
 }
 
 // Extra ports Package::getExtra.
@@ -242,7 +242,7 @@ func (p *Package) Extra() *php.Array {
 func (p *Package) SetBinaries(binaries *php.Array) {
 	p.need()
 	p.binaries = binaries
-	p.rev++
+	p.changed()
 }
 
 // Binaries ports Package::getBinaries.
@@ -308,7 +308,7 @@ func (p *Package) SourceReference() NullString {
 func (p *Package) SetSourceMirrors(mirrors *php.Array) {
 	p.need()
 	p.sourceMirrors = mirrors
-	p.rev++
+	p.changed()
 }
 
 // SourceMirrors ports Package::getSourceMirrors; nil is null.
@@ -387,7 +387,7 @@ func (p *Package) DistSha1Checksum() NullString {
 func (p *Package) SetDistMirrors(mirrors *php.Array) {
 	p.need()
 	p.distMirrors = mirrors
-	p.rev++
+	p.changed()
 }
 
 // DistMirrors ports Package::getDistMirrors; nil is null.
@@ -414,7 +414,7 @@ func (p *Package) TransportOptions() *php.Array {
 func (p *Package) SetTransportOptions(options *php.Array) {
 	p.need()
 	p.transportOptions = options
-	p.rev++
+	p.changed()
 }
 
 // Version ports Package::getVersion.
@@ -434,7 +434,7 @@ func (p *Package) SetReleaseDate(releaseDate time.Time, ok bool) {
 		p.releaseDate = time.Time{}
 	}
 
-	p.rev++
+	p.changed()
 }
 
 // ReleaseDate ports Package::getReleaseDate; false is null.
@@ -452,7 +452,7 @@ func (p *Package) setLinks(dst *Links, links Links) {
 	}
 
 	*dst = links
-	p.rev++
+	p.changed()
 }
 
 func collectLinks(l Links) []*Link {
@@ -518,7 +518,7 @@ func (p *Package) DevRequires() Links { return p.devRequires }
 func (p *Package) SetSuggests(suggests *php.Array) {
 	p.need()
 	p.suggests = suggests
-	p.rev++
+	p.changed()
 }
 
 // Suggests ports Package::getSuggests.
@@ -532,7 +532,7 @@ func (p *Package) Suggests() *php.Array {
 func (p *Package) SetAutoload(autoload *php.Array) {
 	p.need()
 	p.autoload = autoload
-	p.rev++
+	p.changed()
 }
 
 // Autoload ports Package::getAutoload.
@@ -546,7 +546,7 @@ func (p *Package) Autoload() *php.Array {
 func (p *Package) SetDevAutoload(devAutoload *php.Array) {
 	p.need()
 	p.devAutoload = devAutoload
-	p.rev++
+	p.changed()
 }
 
 // DevAutoload ports Package::getDevAutoload.
@@ -560,7 +560,7 @@ func (p *Package) DevAutoload() *php.Array {
 func (p *Package) SetIncludePaths(includePaths *php.Array) {
 	p.need()
 	p.includePaths = includePaths
-	p.rev++
+	p.changed()
 }
 
 // IncludePaths ports Package::getIncludePaths.
@@ -574,7 +574,7 @@ func (p *Package) IncludePaths() *php.Array {
 func (p *Package) SetPhpExt(phpExt *php.Array) {
 	p.need()
 	p.phpExt = phpExt
-	p.rev++
+	p.changed()
 }
 
 // PhpExt ports Package::getPhpExt; nil is null.
@@ -600,7 +600,7 @@ func (p *Package) NotificationURL() NullString {
 func (p *Package) SetIsDefaultBranch(defaultBranch bool) {
 	p.need()
 	p.isDefaultBranch = defaultBranch
-	p.rev++
+	p.changed()
 }
 
 // IsDefaultBranch ports Package::isDefaultBranch.
@@ -650,7 +650,7 @@ func (p *Package) ReplaceVersion(version, prettyVersion string) {
 	p.version = version
 	p.prettyVersion = prettyVersion
 	p.stability = parseStability(version)
-	p.rev++
+	p.changed()
 }
 
 // urls ports Package::getUrls.

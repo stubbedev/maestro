@@ -58,6 +58,22 @@ func (*packageMirror) MirrorBase() string { return packageBase }
 // Rev implements rpc.Mirror.
 func (m *packageMirror) Rev() uint64 { return m.p.Rev() }
 
+// packageFamily is the family of the package mirrors: their Revs move
+// with pkg.ChangeClock, which counts the changes of the packages PHP has
+// (newPackageMirror watches them).
+var packageFamily = &rpc.MirrorFamily{Clock: pkg.ChangeClock}
+
+// newPackageMirror returns the mirror of p, whose changes the package
+// family's clock then counts.
+func (r *Runtime) newPackageMirror(p pkg.PackageInterface) *packageMirror {
+	pkg.Watch(p)
+
+	return &packageMirror{r: r, p: p}
+}
+
+// MirrorFamily implements rpc.FamilyMirror.
+func (*packageMirror) MirrorFamily() *rpc.MirrorFamily { return packageFamily }
+
 // ApplyMirror implements rpc.Mirror. The shim changes packages through
 // their setters (`pkg.*`), never by syncing fields.
 func (m *packageMirror) ApplyMirror(*php.Array) error {
@@ -247,7 +263,7 @@ func (r *Runtime) packageObject(p pkg.PackageInterface) any {
 		return nil
 	}
 
-	return r.bridge.object(p, func() rpc.Object { return &packageMirror{r: r, p: p} })
+	return r.bridge.object(p, func() rpc.Object { return r.newPackageMirror(p) })
 }
 
 // lazyPackageList is packageList for the package lists of PRE_POOL_CREATE
@@ -272,7 +288,7 @@ func (r *Runtime) lazyPackage(p pkg.PackageInterface) any {
 	_, alias := p.(pkg.Alias)
 
 	return r.bridge.object(p, func() rpc.Object {
-		m := &packageMirror{r: r, p: p}
+		m := r.newPackageMirror(p)
 		m.lazy.Store(!root && !alias)
 
 		return m

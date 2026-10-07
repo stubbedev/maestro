@@ -82,8 +82,7 @@ func (c *Conn) newEncoder() *Encoder { return &Encoder{c: c, sent: map[Handle]bo
 func (e *Encoder) commit() {
 	maps.Copy(e.c.h.sent, e.sent)
 	for _, ms := range e.newMirrors {
-		e.c.h.mirrors = append(e.c.h.mirrors, ms)
-		e.c.h.mirrorIdx[ms.h] = ms
+		e.c.h.addMirror(ms)
 	}
 }
 
@@ -303,7 +302,7 @@ func (e *Encoder) object(o Object) (any, error) {
 		}
 		t.Set("base", m.MirrorBase())
 		t.Set("d", d)
-		e.newMirrors = append(e.newMirrors, &mirrorState{h: h, m: m, rev: rev})
+		e.newMirrors = append(e.newMirrors, e.c.h.newMirrorState(h, m, rev))
 	}
 
 	return t, nil

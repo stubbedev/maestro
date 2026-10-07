@@ -59,35 +59,35 @@ func (a *RootAliasPackage) Config() *php.Array { return a.root.Config() }
 // SetRequires ports RootAliasPackage::setRequires.
 func (a *RootAliasPackage) SetRequires(requires Links) {
 	a.requires = a.replaceSelfVersionDependencies(requires, TypeRequire)
-	a.rev++
+	a.changed()
 	a.root.SetRequires(requires)
 }
 
 // SetDevRequires ports RootAliasPackage::setDevRequires.
 func (a *RootAliasPackage) SetDevRequires(devRequires Links) {
 	a.devRequires = a.replaceSelfVersionDependencies(devRequires, TypeDevRequire)
-	a.rev++
+	a.changed()
 	a.root.SetDevRequires(devRequires)
 }
 
 // SetConflicts ports RootAliasPackage::setConflicts.
 func (a *RootAliasPackage) SetConflicts(conflicts Links) {
 	a.conflicts = a.replaceSelfVersionDependencies(conflicts, TypeConflict)
-	a.rev++
+	a.changed()
 	a.root.SetConflicts(conflicts)
 }
 
 // SetProvides ports RootAliasPackage::setProvides.
 func (a *RootAliasPackage) SetProvides(provides Links) {
 	a.provides = a.replaceSelfVersionDependencies(provides, TypeProvide)
-	a.rev++
+	a.changed()
 	a.root.SetProvides(provides)
 }
 
 // SetReplaces ports RootAliasPackage::setReplaces.
 func (a *RootAliasPackage) SetReplaces(replaces Links) {
 	a.replaces = a.replaceSelfVersionDependencies(replaces, TypeReplace)
-	a.rev++
+	a.changed()
 	a.root.SetReplaces(replaces)
 }
 
@@ -111,7 +111,7 @@ func (a *RootAliasPackage) SetOwnLinks(setter string, links Links) {
 		return
 	}
 
-	a.rev++
+	a.changed()
 }
 
 // SetAutoload ports RootAliasPackage::setAutoload.
