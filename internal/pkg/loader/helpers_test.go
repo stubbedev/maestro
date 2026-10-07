@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -119,12 +118,9 @@ func asException(raw json.RawMessage) (class, message string, ok bool) {
 	return "", "", false
 }
 
-// checkException compares err with a recorded exception. PHP's TypeError
-// messages end with where the call came from (", called in X on line N"),
-// which is free (docs/PORTING.md "The contract") and not compared.
-// calledIn is that call site.
-var calledIn = regexp.MustCompile(`, called in .* on line [0-9]+$`)
-
+// checkException compares err with a recorded exception. The oracle
+// records TypeErrors without PHP's call site (", called in X on line N"),
+// which maestro does not port (docs/PORTING.md "Errors").
 func checkException(t *testing.T, what string, err error, class, message string) {
 	t.Helper()
 
@@ -136,15 +132,6 @@ func checkException(t *testing.T, what string, err error, class, message string)
 
 	if got := phpClass(err); got != class {
 		t.Errorf("%s: got %s(%q), want %s(%q)", what, got, err, class, message)
-
-		return
-	}
-
-	if class == "TypeError" {
-		got, want := calledIn.ReplaceAllString(err.Error(), ""), calledIn.ReplaceAllString(message, "")
-		if got != want {
-			t.Errorf("%s: got %q, want %q", what, got, want)
-		}
 
 		return
 	}

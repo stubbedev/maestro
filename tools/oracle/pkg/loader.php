@@ -21,6 +21,9 @@
 // Run: php tools/oracle/pkg/loader.php
 require __DIR__.'/common.php';
 
+// the p2 inputs and validating.json.gz are held in memory whole
+ini_set('memory_limit', '-1');
+
 use Composer\Package\AliasPackage;
 use Composer\Package\CompletePackage;
 use Composer\Package\CompletePackageInterface;
@@ -287,7 +290,7 @@ foreach ($cases as $i => $config) {
         $result['invalid'] = $e->getMessage();
         $result['data'] = enc($e->getData());
     } catch (\Throwable $e) {
-        $result['e'] = [get_class($e), $e->getMessage()];
+        $result['e'] = exception($e);
     }
     $result['errors'] = $loader->getErrors();
     $result['warnings'] = $loader->getWarnings();

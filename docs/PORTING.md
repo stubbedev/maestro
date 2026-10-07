@@ -339,6 +339,11 @@ Tests must pass on every CI machine, not just the one that recorded them:
 
 - Compare realpath()ed paths with `testutil.RealTempDir` (on macOS /var is
   /private/var).
+- Goldens name no machine: an oracle writes placeholders for the paths of
+  the machine it runs on (`/home/user`, `/home/oracle`; see
+  `tools/oracle/php/preg_anonymize.php`) and leaves PHP's TypeError call
+  sites out. `TestTestdataNamesNoMachine` (`internal/testutil`) fails on a
+  home directory in any testdata.
 - Where Composer follows readdir order, maestro does too
   (`util.ReadDirOrder`). Tests compare such results without depending on
   order, or build fixtures whose order is fixed. The live PHP oracles stay

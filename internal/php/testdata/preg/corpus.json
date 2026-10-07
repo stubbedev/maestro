@@ -198,26 +198,26 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Autoload/Fixtures($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-9df5c3cf95aef2f6c52e/vendor/symfony/filesystem/Tests($|/)",
-                "/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/symfony/phpunit\\-bridge/bin($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-c1f876bf4c39becc8921/.+?/excsubpath($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-e8cdb484bf374f77b7cb/vendor/symfony/console/Tests($|/)",
+                "/tmp/preg\\-capture\\-1000/composer/vendor/symfony/finder/Tests($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-759078a04ae2fc23207f/working\\-dir/classmap4/[^/]+?/classes\\.php($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-e8cdb484bf374f77b7cb/vendor/symfony/finder/Tests($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-c1f876bf4c39becc8921/composersrc/foo/bar($|/)",
-                "/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/symfony/finder/Tests($|/)"
+                "/tmp/preg\\-capture\\-1000/composer/vendor/symfony/phpunit\\-bridge/bin($|/)",
+                "/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/Autoload/Fixtures($|/)"
             ],
             "logged": [
-                "/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Autoload/Fixtures($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-9df5c3cf95aef2f6c52e/vendor/symfony/filesystem/Tests($|/)",
-                "/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/symfony/phpunit\\-bridge/bin($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-c1f876bf4c39becc8921/.+?/excsubpath($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-e8cdb484bf374f77b7cb/vendor/symfony/console/Tests($|/)",
+                "/tmp/preg\\-capture\\-1000/composer/vendor/symfony/finder/Tests($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-759078a04ae2fc23207f/working\\-dir/classmap4/[^/]+?/classes\\.php($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-e8cdb484bf374f77b7cb/vendor/symfony/finder/Tests($|/)",
                 "/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-c1f876bf4c39becc8921/composersrc/foo/bar($|/)",
-                "/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/symfony/finder/Tests($|/)"
+                "/tmp/preg\\-capture\\-1000/composer/vendor/symfony/phpunit\\-bridge/bin($|/)",
+                "/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/Autoload/Fixtures($|/)"
             ]
         },
         {
@@ -487,23 +487,23 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "/home/stubbe/.cache/composer",
+                "/home/user/.cache/composer",
                 "/dev/null/files",
                 "/dev/null",
-                "/home/stubbe/.cache/composer/repo",
+                "/home/user/.cache/composer/repo",
                 "/dev/null/repo/https---repo.packagist.org",
-                "/home/stubbe/.cache/composer/files",
+                "/home/user/.cache/composer/files",
                 "/tmp/nix-shell.mt4aPL/composer-test/cache",
                 "/tmp/nix-shell.mt4aPL/composer-test-0c8c2f3aa585fc979706",
                 "/tmp/nix-shell.mt4aPL/composer-test-5c88cff272268e1d7df4"
             ],
             "logged": [
-                "/home/stubbe/.cache/composer",
+                "/home/user/.cache/composer",
                 "/dev/null/files",
                 "/dev/null",
-                "/home/stubbe/.cache/composer/repo",
+                "/home/user/.cache/composer/repo",
                 "/dev/null/repo/https---repo.packagist.org",
-                "/home/stubbe/.cache/composer/files",
+                "/home/user/.cache/composer/files",
                 "/tmp/nix-shell.mt4aPL/composer-test/cache",
                 "/tmp/nix-shell.mt4aPL/composer-test-0c8c2f3aa585fc979706",
                 "/tmp/nix-shell.mt4aPL/composer-test-5c88cff272268e1d7df4"
@@ -1779,13 +1779,13 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "stubbe",
+                "user",
                 ".vendor-name",
                 "_foo_--bar__baz.--..qux__",
                 "composer-test-b4eb075b74e59b4d5c43"
             ],
             "logged": [
-                "stubbe",
+                "user",
                 ".vendor-name",
                 "_foo_--bar__baz.--..qux__",
                 "composer-test-b4eb075b74e59b4d5c43"
@@ -1807,13 +1807,13 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "stubbe",
+                "user",
                 "foo_--bar__baz.--..qux",
                 "vendor-name",
                 "composer-test-b4eb075b74e59b4d5c43"
             ],
             "logged": [
-                "stubbe",
+                "user",
                 "foo_--bar__baz.--..qux",
                 "vendor-name",
                 "composer-test-b4eb075b74e59b4d5c43"
@@ -2850,7 +2850,7 @@
                 "https://first.test",
                 "http://packagistnew.org",
                 "https://new.example.org",
-                "file:///tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
+                "file:///tmp/preg-capture-1000/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
             ],
             "logged": [
                 "http://example.com",
@@ -2859,7 +2859,7 @@
                 "https://first.test",
                 "http://packagistnew.org",
                 "https://new.example.org",
-                "file:///tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
+                "file:///tmp/preg-capture-1000/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
             ]
         },
         {
@@ -2923,7 +2923,7 @@
                 "/vendor",
                 "vendor/bin",
                 "/dev/null",
-                "/home/stubbe",
+                "/home/user",
                 "/dev/null/vcs"
             ],
             "logged": [
@@ -2934,7 +2934,7 @@
                 "/vendor",
                 "vendor/bin",
                 "/dev/null",
-                "/home/stubbe",
+                "/home/user",
                 "/dev/null/vcs"
             ]
         },
@@ -3709,17 +3709,17 @@
                 "a\r\nb\n",
                 "Revision: 1234\nLast Changed Rev: 1230\nURL: https://svn.example.org/repo/trunk\n",
                 "* main\n  feature/foo\n  remotes/origin/HEAD -> origin/main\n",
+                "file:///tmp/preg-capture-1000/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo",
                 "/",
                 "git version 2.43.0",
-                "file:///tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo",
                 "http://example.org"
             ],
             "logged": [
                 "Revision: 1234\nLast Changed Rev: 1230\nURL: https://svn.example.org/repo/trunk\n",
                 "* main\n  feature/foo\n  remotes/origin/HEAD -> origin/main\n",
+                "file:///tmp/preg-capture-1000/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo",
                 "/",
                 "git version 2.43.0",
-                "file:///tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo",
                 "http://example.org"
             ]
         },
@@ -4468,50 +4468,6 @@
             "logged": []
         },
         {
-            "pattern": "{(^|:)/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/EventDispatcher/vendor/bin($|:)}",
-            "origin": "dynamic",
-            "sources": [
-                "src/Composer/EventDispatcher/EventDispatcher.php:695"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "/tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/vendor/bin:/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g189"
-            ],
-            "logged": [
-                "/tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/vendor/bin:/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g189"
-            ]
-        },
-        {
-            "pattern": "{(^|:)/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/bin($|:)}",
-            "origin": "dynamic",
-            "sources": [
-                "src/Composer/EventDispatcher/EventDispatcher.php:695"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/xj"
-            ],
-            "logged": [
-                "/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/xj"
-            ]
-        },
-        {
             "pattern": "{(^|:)/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-ca43732e0044087e7a37/vendor/bin($|:)}",
             "origin": "dynamic",
             "sources": [
@@ -4527,10 +4483,10 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/xj"
+                "/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/00000000000000000000000000000000-binutils-wrapper-2.46/bin:/nix/store/00000000000000000000000000000000-binutils-2.46/bin:/nix/store/xj"
             ],
             "logged": [
-                "/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/xj"
+                "/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/00000000000000000000000000000000-binutils-wrapper-2.46/bin:/nix/store/00000000000000000000000000000000-binutils-2.46/bin:/nix/store/xj"
             ]
         },
         {
@@ -4549,10 +4505,54 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/xj"
+                "/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/00000000000000000000000000000000-binutils-wrapper-2.46/bin:/nix/store/00000000000000000000000000000000-binutils-2.46/bin:/nix/store/xj"
             ],
             "logged": [
-                "/nix/store/wzf7v2cm02izb6c7j0y7zqxv8iw50hz4-go-1.27.1/bin:/nix/store/a8362xqnzxwhdpbdhfq6q5s1afh7xxyw-gopls-0.23.0/bin:/nix/store/ilazks9wgdw6vbc6q8gb2i4by1r1cr73-golangci-lint-2.13.2/bin:/nix/store/khby4fhyb0asp2h532yx8bd53gvmkc9s-delve-1.27.2/bin:/nix/store/nvydswi7ickfaim3l29afrm2238fjzlv-just-1.58.0/bin:/nix/store/wnhqcd0f1b20rmrsh26ailj65xny6ahk-php-with-extensions-8.4.25/bin:/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin:/nix/store/msr1v91ybfw6j12rs5mfl8ghb2rqsnsr-git-2.55.0/bin:/nix/store/bsjdf8dh5k8sylwzgp58ip47sbpbzw5l-gh-2.101.0/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/xj"
+                "/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/00000000000000000000000000000000-binutils-wrapper-2.46/bin:/nix/store/00000000000000000000000000000000-binutils-2.46/bin:/nix/store/xj"
+            ]
+        },
+        {
+            "pattern": "{(^|:)/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/EventDispatcher/vendor/bin($|:)}",
+            "origin": "dynamic",
+            "sources": [
+                "src/Composer/EventDispatcher/EventDispatcher.php:695"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "/tmp/preg-capture-1000/composer/vendor/bin:/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/0fdc105g189"
+            ],
+            "logged": [
+                "/tmp/preg-capture-1000/composer/vendor/bin:/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/0fdc105g189"
+            ]
+        },
+        {
+            "pattern": "{(^|:)/tmp/preg\\-capture\\-1000/composer/vendor/bin($|:)}",
+            "origin": "dynamic",
+            "sources": [
+                "src/Composer/EventDispatcher/EventDispatcher.php:695"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/00000000000000000000000000000000-binutils-wrapper-2.46/bin:/nix/store/00000000000000000000000000000000-binutils-2.46/bin:/nix/store/xj"
+            ],
+            "logged": [
+                "/nix/store/00000000000000000000000000000000-go-1.27.1/bin:/nix/store/00000000000000000000000000000000-gopls-0.23.0/bin:/nix/store/00000000000000000000000000000000-golangci-lint-2.13.2/bin:/nix/store/00000000000000000000000000000000-delve-1.27.2/bin:/nix/store/00000000000000000000000000000000-just-1.58.0/bin:/nix/store/00000000000000000000000000000000-php-with-extensions-8.4.25/bin:/nix/store/00000000000000000000000000000000-unzip-6.0/bin:/nix/store/00000000000000000000000000000000-git-2.55.0/bin:/nix/store/00000000000000000000000000000000-gh-2.101.0/bin:/nix/store/00000000000000000000000000000000-patchelf-0.15.2/bin:/nix/store/00000000000000000000000000000000-gcc-wrapper-15.3.0/bin:/nix/store/00000000000000000000000000000000-gcc-15.3.0/bin:/nix/store/00000000000000000000000000000000-glibc-2.42-84-bin/bin:/nix/store/00000000000000000000000000000000-coreutils-9.11/bin:/nix/store/00000000000000000000000000000000-binutils-wrapper-2.46/bin:/nix/store/00000000000000000000000000000000-binutils-2.46/bin:/nix/store/xj"
             ]
         },
         {
@@ -9630,7 +9630,7 @@
                 "https://packagist.org",
                 "http://example.org/packages.json",
                 "https://dummy.test.link",
-                "file:///tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
+                "file:///tmp/preg-capture-1000/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
             ],
             "logged": [
                 "invalid_repo_url",
@@ -9641,7 +9641,7 @@
                 "https://packagist.org",
                 "http://example.org/packages.json",
                 "https://dummy.test.link",
-                "file:///tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
+                "file:///tmp/preg-capture-1000/composer/tests/Composer/Test/Fixtures/installer/install-branch-alias-composer-repo"
             ]
         },
         {
@@ -10146,10 +10146,10 @@
                     "base64": "//4gaW52YWxpZCDD"
                 },
                 "a\r\nb\n",
-                "/tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Repository/Fixtures/path/missing"
+                "/tmp/preg-capture-1000/composer/tests/Composer/Test/Repository/Fixtures/path/missing"
             ],
             "logged": [
-                "/tmp/claude-1000/-home-stubbe-git-private-maestro/b89d3c6d-6d89-41c2-845c-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Repository/Fixtures/path/missing"
+                "/tmp/preg-capture-1000/composer/tests/Composer/Test/Repository/Fixtures/path/missing"
             ]
         },
         {
@@ -15700,73 +15700,73 @@
             ]
         },
         {
-            "pattern": "{(/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Fixtures($|/)|/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Autoload/Fixtures($|/)|/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Autoload/MinimumVersionSupport($|/)|/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/tests/Composer/Test/Plugin/Fixtures($|/))}",
-            "origin": "dynamic",
-            "sources": [
-                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ],
-            "logged": [
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ]
-        },
-        {
-            "pattern": "{(/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/symfony/finder/Tests($|/))}",
-            "origin": "dynamic",
-            "sources": [
-                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ],
-            "logged": [
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ]
-        },
-        {
-            "pattern": "{(/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer/vendor/symfony/process/Tests($|/))}",
-            "origin": "dynamic",
-            "sources": [
-                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ],
-            "logged": [
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ]
-        },
-        {
             "pattern": "{(/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-759078a04ae2fc23207f/classmap2($|/))}",
+            "origin": "dynamic",
+            "sources": [
+                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ],
+            "logged": [
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ]
+        },
+        {
+            "pattern": "{(/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/Fixtures($|/)|/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/Autoload/Fixtures($|/)|/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/Autoload/MinimumVersionSupport($|/)|/tmp/preg\\-capture\\-1000/composer/tests/Composer/Test/Plugin/Fixtures($|/))}",
+            "origin": "dynamic",
+            "sources": [
+                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ],
+            "logged": [
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ]
+        },
+        {
+            "pattern": "{(/tmp/preg\\-capture\\-1000/composer/vendor/symfony/finder/Tests($|/))}",
+            "origin": "dynamic",
+            "sources": [
+                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ],
+            "logged": [
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ]
+        },
+        {
+            "pattern": "{(/tmp/preg\\-capture\\-1000/composer/vendor/symfony/process/Tests($|/))}",
             "origin": "dynamic",
             "sources": [
                 "vendor/composer/class-map-generator/src/ClassMapGenerator.php:178"
@@ -15821,30 +15821,7 @@
             ]
         },
         {
-            "pattern": "{^/home/stubbe/git/private/maestro/\\.ref/class\\-map\\-generator}",
-            "origin": "dynamic",
-            "sources": [
-                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:266",
-                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:267"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ],
-            "logged": [
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
-            ]
-        },
-        {
-            "pattern": "{^/tmp/claude\\-1000/\\-home\\-stubbe\\-git\\-private\\-maestro/b89d3c6d\\-6d89\\-41c2\\-845c\\-2c5ca4843324/scratchpad/preg/composer}",
+            "pattern": "{^/home/user/src/project/\\.ref/class\\-map\\-generator}",
             "origin": "dynamic",
             "sources": [
                 "vendor/composer/class-map-generator/src/ClassMapGenerator.php:266",
@@ -15891,6 +15868,29 @@
         },
         {
             "pattern": "{^/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-c1f876bf4c39becc8921}",
+            "origin": "dynamic",
+            "sources": [
+                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:266",
+                "vendor/composer/class-map-generator/src/ClassMapGenerator.php:267"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ],
+            "logged": [
+                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
+            ]
+        },
+        {
+            "pattern": "{^/tmp/preg\\-capture\\-1000/composer}",
             "origin": "dynamic",
             "sources": [
                 "vendor/composer/class-map-generator/src/ClassMapGenerator.php:266",

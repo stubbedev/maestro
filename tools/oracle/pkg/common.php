@@ -27,8 +27,20 @@ function attempt(callable $f)
     try {
         return $f();
     } catch (\Throwable $e) {
-        return ['e' => [get_class($e), $e->getMessage()]];
+        return ['e' => exception($e)];
     }
+}
+
+/**
+ * $e as the goldens record it: its class and message, without the call
+ * site PHP appends to TypeErrors (", called in X on line N"), which names
+ * the machine's checkout and which maestro does not port.
+ *
+ * @return array{string, string}
+ */
+function exception(\Throwable $e): array
+{
+    return [get_class($e), preg_replace('{, called in .* on line \d+$}', '', $e->getMessage())];
 }
 
 /** Writes $data as JSON, one top-level entry per line; .gz paths are gzipped. */

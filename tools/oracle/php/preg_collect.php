@@ -32,6 +32,7 @@ $ref = $root.'/.ref/composer';
 $out = $root.'/internal/php/testdata/preg/corpus.json';
 
 require $ref.'/vendor/autoload.php';
+require __DIR__.'/preg_anonymize.php';
 
 const MAX_SUBJECTS = 16;
 // patterns only seen at runtime (built from data) get fewer subjects, and at
@@ -398,8 +399,10 @@ function evaluateArg(array $arg, string $ns, array $uses, ?string $class): ?arra
 }
 
 /** @return list<array{string,string,string}> [pattern, subject, source] */
-function readCaptureLog(string $file): array
+function readCaptureLog(string $file, string $root, string $home, string $user): array
 {
+    // the capture's working directory holds the log (preg_capture.sh)
+    $map = anonymizer(dirname((string) realpath($file)), $root, $home);
     $res = [];
     $prefix = null;
     $fh = fopen($file, 'r');
@@ -412,7 +415,7 @@ function readCaptureLog(string $file): array
         if (!preg_match('{^.*?/((?:src/Composer|vendor/composer|vendor/seld)/.*)$}', $src, $m)) {
             continue;
         }
-        $res[] = [$pattern, $subject, $m[1]];
+        $res[] = [anonymize($pattern, $map, $user), anonymize($subject, $map, $user), $m[1]];
     }
 
     return $res;
@@ -550,10 +553,14 @@ foreach ($static as [$p, $source]) {
     $add($p, $source, 'static');
 }
 
+// what names this machine in a capture (preg_anonymize.php)
+$home = (string) getenv('HOME');
+$user = (string) (getenv('USER') ?: get_current_user());
+
 $logs = array_slice($argv, 1);
 if ($logs !== []) {
     foreach ($logs as $log) {
-        foreach (readCaptureLog($log) as [$p, $subject, $source]) {
+        foreach (readCaptureLog($log, $root, $home, $user) as [$p, $subject, $source]) {
             if (!isset($patterns[$p]) || !isset($patterns[$p]['origin']['static'])) {
                 $add($p, $source, 'dynamic');
             }
@@ -562,9 +569,10 @@ if ($logs !== []) {
     }
 } elseif (is_file($out)) {
     // reuse previously captured subjects
+    $map = anonymizer(null, $root, $home);
     $prev = json_decode((string) file_get_contents($out), true);
     foreach ($prev['patterns'] as $e) {
-        $p = decodeStr($e['pattern']);
+        $p = anonymize(decodeStr($e['pattern']), $map, $user);
         if ($e['origin'] === 'static' && !isset($patterns[$p])) {
             continue; // no longer in the sources
         }
@@ -574,7 +582,7 @@ if ($logs !== []) {
             }
         }
         foreach ($e['logged'] ?? [] as $s) {
-            $patterns[$p]['logged'][] = decodeStr($s);
+            $patterns[$p]['logged'][] = anonymize(decodeStr($s), $map, $user);
         }
     }
 }
