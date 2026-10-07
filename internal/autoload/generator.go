@@ -130,7 +130,7 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 	g.parseCache.Wait()
 
 	// auto-set devMode based on whether dev dependencies are installed or not
-	if !g.devModeSet {
+	if !g.devModeSet && !g.takeSpeculatedDevMode(config) {
 		if err := g.detectDevMode(config); err != nil {
 			return nil, err
 		}

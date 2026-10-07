@@ -113,6 +113,29 @@ func TestGenerator_SpeculationUsesInstalledDevMode(t *testing.T) {
 	}
 }
 
+// The dump takes the dev mode the speculation read only from the
+// installed.json it read: one written since is read again.
+func TestGenerator_DumpRereadsChangedInstalledDevMode(t *testing.T) {
+	e, p := speculationEnv(t)
+	p.SetDevAutoload(arr("classmap", list("dev/")))
+	e.mkdir(e.workingDir + "/dev")
+	e.write(e.workingDir+"/dev/d.php", `<?php class DevOnly {}`)
+	e.mkdir(e.vendorDir + "/composer")
+	e.write(e.vendorDir+"/composer/installed.json", `{"packages": [], "dev": true, "dev-package-names": []}`)
+
+	e.generator.Speculate(e.config, e.repo, p, e.im, false)
+	e.speculated()
+	if s := e.generator.speculation; s.installedJSON == nil || !s.devMode {
+		t.Fatalf("the speculation did not keep installed.json's dev mode: %v", s.devMode)
+	}
+	e.write(e.vendorDir+"/composer/installed.json", `{"packages": [], "dev": false, "dev-package-names": []}`)
+	e.dump(p, false, "_1")
+
+	if e.classmapHas("DevOnly") {
+		t.Error("the dump used the speculation's dev mode: DevOnly is in the class map")
+	}
+}
+
 // A warm-up runs before the dev mode is set, and parses the root's
 // autoload-dev rules too.
 func TestGenerator_WarmReadsRootDevRules(t *testing.T) {

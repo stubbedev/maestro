@@ -4,6 +4,8 @@
 package autoload
 
 import (
+	"io/fs"
+	"os"
 	"slices"
 
 	"github.com/stubbedev/maestro/internal/classmap"
@@ -22,6 +24,13 @@ type speculation struct {
 	done     chan struct{}
 	classMap *classmap.ClassMap
 	err      error
+
+	// devMode is installed.json's "dev" as the speculation read it, from
+	// the file installedJSON describes (nil when it was not read, or
+	// changed while it was read).
+	devMode       bool
+	installedPath string
+	installedJSON fs.FileInfo
 }
 
 // Speculate starts, in the background, the class map scan of the Dump
@@ -40,10 +49,12 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 		scanPsrPackages = true
 	}
 	devMode := g.devMode
+	var installedPath string
+	var installedJSON fs.FileInfo
 	if !g.devModeSet {
 		var value any
 		var err error
-		if devMode, value, err = installedDevMode(config); err != nil || value != nil {
+		if devMode, value, installedPath, installedJSON, err = installedDevModeStamped(config); err != nil || value != nil {
 			return
 		}
 	}
@@ -81,12 +92,63 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 		vendorPath:      d.vendorPath,
 		autoloads:       autoloads,
 		done:            make(chan struct{}),
+		devMode:         devMode,
+		installedPath:   installedPath,
+		installedJSON:   installedJSON,
 	}
 	g.speculation = s
 	go func() {
 		defer close(s.done)
 		s.classMap, s.err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages)
 	}()
+}
+
+// installedDevModeStamped is installedDevMode, also returning the path of
+// installed.json and its file's description when it was there and did not
+// change while it was read.
+func installedDevModeStamped(config Config) (devMode bool, value any, path string, info fs.FileInfo, err error) {
+	vendorDir, err := vendorDirConfig(config)
+	if err != nil {
+		return false, nil, "", nil, err
+	}
+	path = vendorDir + "/composer/installed.json"
+	before, beforeErr := os.Stat(path)
+	if devMode, value, err = installedDevMode(config); err != nil {
+		return devMode, value, path, nil, err
+	}
+	if after, afterErr := os.Stat(path); beforeErr == nil && afterErr == nil && sameFileStamp(before, after) {
+		info = after
+	}
+
+	return devMode, value, path, info, nil
+}
+
+// sameFileStamp reports whether a and b describe the same file with the
+// same size, mode and modification time.
+func sameFileStamp(a, b fs.FileInfo) bool {
+	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) && a.Mode() == b.Mode()
+}
+
+// takeSpeculatedDevMode sets devMode as detectDevMode would, from what the
+// speculation read of installed.json, when that file is still the one it
+// read (the dump of a no-op install reads it again otherwise: 400 KB of
+// JSON for symfony's); false when it cannot.
+func (g *Generator) takeSpeculatedDevMode(config Config) bool {
+	s := g.speculation
+	if s == nil || s.installedJSON == nil {
+		return false
+	}
+	vendorDir, err := vendorDirConfig(config)
+	if err != nil || vendorDir+"/composer/installed.json" != s.installedPath {
+		return false
+	}
+	now, err := os.Stat(s.installedPath)
+	if err != nil || !sameFileStamp(s.installedJSON, now) {
+		return false
+	}
+	g.devModeSet, g.devMode, g.devModeValue = true, s.devMode, nil
+
+	return true
 }
 
 // DiscardSpeculation drops the scan Speculate started, once it ended.
