@@ -64,15 +64,16 @@ const (
 )
 
 // DecodedCodec is the form a Decoded keeps values in: Append appends a
-// value's (false when it cannot), Decode reads it back. Decode may keep
-// parts of data, which nothing changes.
+// value's (false when it cannot), Decode reads it back, given the JSON it
+// was decoded from. Decode may keep parts of data and of the JSON, which
+// nothing changes.
 type DecodedCodec struct {
 	Append func(dst []byte, v any) ([]byte, bool)
-	Decode func(data []byte) (any, error)
+	Decode func(data []byte, json string) (any, error)
 }
 
 // binaryCodec keeps values in their binary form (php.AppendBinary).
-var binaryCodec = DecodedCodec{Append: php.AppendBinary, Decode: php.DecodeBinary}
+var binaryCodec = DecodedCodec{Append: php.AppendBinary, Decode: func(data []byte, _ string) (any, error) { return php.DecodeBinary(data) }}
 
 // NewDecoded returns a Decoded keeping nothing until Use, values in their
 // binary form (php.AppendBinary).
@@ -111,7 +112,7 @@ func (d *Decoded) Decode(source string, origin Origin, json string, decode func(
 	byOrigin := origin.ok && origin.id.Trusted(origin.seen, d.margin)
 	if data, err := os.ReadFile(path); err == nil {
 		if form, decoded, ok := d.holds(data, origin, json); ok {
-			if v, err := d.codec.Decode(decoded); err == nil {
+			if v, err := d.codec.Decode(decoded, json); err == nil {
 				if form == slotByCopy && byOrigin {
 					// told by its origin from now on, without the copy
 					return v, func() { d.write(dir, path, d.slotHeader(origin, json, true), decoded) }, nil

@@ -461,32 +461,30 @@ func (s *speculation) prebuild(name string, file *p2File, versions []*speculated
 	notifyURL := notificationURL(s.notifyURL)
 	packages := map[int]pkg.PackageInterface{}
 	batch := s.r.loader.Batch()
-	// load builds the package of version v (left as it was), at index i
-	load := func(i int, v *php.Array) {
+	// load builds the package of version v (left as it was), at index i,
+	// and tells whether v loads as a skeleton (fitUnknown: not loaded)
+	load := func(i int, v *php.Array) byte {
 		if normalized := v.At("version_normalized"); normalized == nil || normalized == pkg.DefaultBranchAlias {
-			return
+			return fitUnknown
 		}
 
-		n, present := v.Get("notification-url")
-		if n == nil {
-			v.Set("notification-url", notifyURL)
-		}
-		p, err := batch.Load(v)
-		if n == nil {
-			if present {
-				v.Set("notification-url", n)
-			} else {
-				// the key added last: removing it leaves the array as it was
-				v.Delete("notification-url")
-			}
-		}
+		var (
+			p   pkg.PackageInterface
+			err error
+		)
+		withNotificationURL(v, notifyURL, func() { p, err = batch.Load(v) })
 		if err != nil {
 			// a version the loader refuses is left to the load
 			batch = s.r.loader.Batch()
 
-			return
+			return fitNo
 		}
 		packages[i] = p
+		if loader.LoadedFits(v) {
+			return fitYes
+		}
+
+		return fitNo
 	}
 
 	if idx != nil {
@@ -515,15 +513,23 @@ func (s *speculation) prebuild(name string, file *p2File, versions []*speculated
 	} else {
 		// each version is loaded as the expansion gives it, without a
 		// copy: it has the notification-url createPackages gives it only
-		// for the time of the load (the loader does not keep the array)
+		// for the time of the load (the loader does not keep the array).
+		// The whole list is expanded for the index of the file's slot,
+		// which takes what the loads tell.
+		items := raw.Values()
+		index := file.draft(name).builder(items)
 		i := -1
-		_, _ = expandEach(raw.Values(), func(v *php.Array, _ func() *php.Array) error {
+		_, _ = expandEach(items, func(v *php.Array, _ func() *php.Array) error {
 			i++
-			if i > last {
+			if index == nil && i > last {
 				return errStopExpanding
 			}
+			fits := fitUnknown
 			if accepted[i] {
-				load(i, v)
+				fits = load(i, v)
+			}
+			if index != nil && !index.add(v, fits) {
+				index = nil
 			}
 
 			return nil
@@ -559,9 +565,14 @@ func (s *speculation) versionsOf(name string, file *p2File) (versions []*specula
 	if !ok {
 		return nil, false
 	}
-	scanned, exact, ok := scanVersions(raw.Values(), file.at("minified") == "composer/2.0", s.r.versionParser, s.r.loader)
+	minified := file.at("minified") == "composer/2.0"
+	scanned, exact, ok := scanVersions(raw.Values(), minified, s.r.versionParser, s.r.loader)
 	if !ok {
 		return nil, false
+	}
+	if d := file.draft(name); d != nil && minified {
+		// the slot built from the file takes them
+		d.scanned = scanned
 	}
 
 	return s.speculated(name, scanned), exact

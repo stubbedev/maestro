@@ -28,11 +28,11 @@ func UseDecodedCache(root string) {
 
 // decodedVersion is the directory, under the root, of the slots of the
 // current form; it changes with decodedMagic.
-const decodedVersion = "v3"
+const decodedVersion = "v4"
 
 // decodedMagic starts a decoded file; its version changes with the slot's
 // form (cache.Decoded), the p2 codec's (appendP2) and the binary form.
-const decodedMagic = "maestro-p2-v3\n"
+const decodedMagic = "maestro-p2-v4\n"
 
 // decodedMinSize is the size under which JSON is decoded at once: reading
 // a small file back costs more than decoding it.
@@ -50,8 +50,8 @@ func (r *ComposerRepository) decodeCached(cacheKey, json string) (file *p2File, 
 		return eagerFile(decodeArray(json)), nil
 	}
 	v, store, err := decodedP2.Decode(r.cache.Root()+"\x00"+cacheKey, r.cache.OriginOf(cacheKey, json), json, func(json string) (any, error) {
-		if a := decodeArray(json); a != nil {
-			return eagerFile(a), nil
+		if f := decodeFile(json); f != nil {
+			return f, nil
 		}
 
 		return nil, errNotArray

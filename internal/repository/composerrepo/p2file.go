@@ -16,7 +16,72 @@ import (
 type p2File struct {
 	// data is the file, decoded at once; nil for a slot
 	data *php.Array
-	slot *p2Slot
+	// spans are where the values of data's version lists are in its JSON
+	// (php.JSONDecodeSpans), which a slot keeps instead of the values; nil
+	// when not known
+	spans map[*php.Array][]php.JSONSpan
+	// drafts are, by package name, what the readers of data found out
+	// about the version lists that their slot's index keeps
+	drafts map[string]*indexDraft
+	slot   *p2Slot
+}
+
+// indexDraft is what the readers of a file decoded at once found out
+// about a minified version list that its slot's index keeps, which the
+// slot is built from instead of finding it out again: the versions
+// scanned (scanVersions; nil when not scanned), and the index built
+// while a reader expanded the whole list (nil when none did).
+type indexDraft struct {
+	scanned []scannedVersion
+	built   *indexBuilder
+}
+
+// draft is the indexDraft of name's version list; nil for a file not
+// decoded at once.
+func (f *p2File) draft(name string) *indexDraft {
+	if f == nil || f.data == nil {
+		return nil
+	}
+	d := f.drafts[name]
+	if d == nil {
+		if f.drafts == nil {
+			f.drafts = map[string]*indexDraft{}
+		}
+		d = &indexDraft{}
+		f.drafts[name] = d
+	}
+
+	return d
+}
+
+// scannedFor is the versions of items scanned; nil when not scanned.
+func (d *indexDraft) scannedFor(items []any) []scannedVersion {
+	if d == nil || len(d.scanned) != len(items) {
+		return nil
+	}
+
+	return d.scanned
+}
+
+// builder is a new indexBuilder of items for a reader expanding them
+// all, which the slot takes; nil for a nil draft.
+func (d *indexDraft) builder(items []any) *indexBuilder {
+	if d == nil {
+		return nil
+	}
+	d.built = newIndexBuilder(items, d.scannedFor(items))
+
+	return d.built
+}
+
+// builtFor is the index built of items, every version added; nil when
+// there is none.
+func (d *indexDraft) builtFor(items []any) *indexBuilder {
+	if d == nil || d.built == nil || d.built.added != len(items) || len(d.built.items) != len(items) {
+		return nil
+	}
+
+	return d.built
 }
 
 // eagerFile is the p2File of data, decoded at once; nil for nil.
@@ -26,6 +91,17 @@ func eagerFile(data *php.Array) *p2File {
 	}
 
 	return &p2File{data: data}
+}
+
+// decodeFile is eagerFile(decodeArray(json)), with the spans of its
+// version lists' entries.
+func decodeFile(json string) *p2File {
+	v, spans, err := php.JSONDecodeSpans(json, php.JSONDefaultDepth, 2)
+	if data, ok := v.(*php.Array); ok && err == nil {
+		return &p2File{data: data, spans: spans}
+	}
+
+	return nil
 }
 
 // at is $data[$key], for a top-level key other than "packages".

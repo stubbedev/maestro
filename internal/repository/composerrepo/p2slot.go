@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
-	"slices"
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -17,21 +16,25 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 )
 
-// p2Slot is a metadata file read back from its slot. Its top is the file
-// with the version list of each slotted package replaced by null; those
-// lists are decoded from their entries when read.
+// p2Slot is a metadata file read back from its slot, with the JSON it
+// was decoded from. Its top is the file with the version list of each
+// slotted package replaced by null; those lists are decoded from their
+// entries' spans of the JSON when read.
 type p2Slot struct {
+	json    string
 	topData []byte
 	top     *php.Array
 	names   map[string]*p2SlotName
 }
 
-// p2SlotName is a slotted package's version list: its entries, each in
-// its binary form and, for a minified list that expandEach expands, the
-// expanded version at every keyframeEvery-th entry and the index of the
-// versions.
+// p2SlotName is a slotted package's version list: where its entries are
+// in the JSON and, for a minified list that expandEach expands, the
+// expanded version at every keyframeEvery-th entry (a keyframe) and the
+// index of the versions. A keyframe tells, for each key of the expanded
+// version in order, the entry its value comes from (how many entries
+// before the keyframe's) and the key's place in that entry.
 type p2SlotName struct {
-	entries   [][]byte
+	entries   []php.JSONSpan
 	keyframes [][]byte
 	index     *p2IndexData
 
@@ -40,7 +43,8 @@ type p2SlotName struct {
 }
 
 // keyframeEvery is how many entries apart the expanded versions a slot
-// keeps are: expanding a version decodes at most that many entries.
+// keeps are: expanding a version applies at most that many entries to
+// its keyframe.
 const keyframeEvery = 16
 
 // p2Index is what versionsOf and prebuild read of a minified version
@@ -75,34 +79,28 @@ func (idx *p2Index) link(ref uint64) *php.Array {
 	return nil
 }
 
-// The keys of a skeleton record: those of loader.SkeletonConfig.
-var skeletonKeys = [...]string{
-	"name", "version", "version_normalized", "type", "default-branch", "abandoned",
-	"require", "conflict", "provide", "replace", "require-dev", "extra",
-}
-
 // The tags of the values of a skeleton record.
 const (
 	skNull   byte = iota
 	skFalse       // false
 	skTrue        // true
 	skString      // its length, its bytes
-	skLink        // a link array, by its ref
+	skArray       // an array, by its ref
 	skValue       // any other value: its length, its binary form
 )
 
-// appendSkeleton appends the skeleton record of config, a SkeletonConfig:
-// the number of its keys, then each key's index in skeletonKeys and its
-// value; false for a key it does not know.
-func appendSkeleton(dst []byte, config *php.Array, linkRef func(*php.Array) uint64) ([]byte, bool) {
-	dst = binary.AppendUvarint(dst, uint64(len(config.Keys())))
-	for k, v := range config.All() {
-		key := slices.Index(skeletonKeys[:], k.String())
-		if key < 0 || !k.IsString() {
-			return dst, false
-		}
-		dst = append(dst, byte(key)) //nolint:gosec // an index in skeletonKeys
-		_, isLink := pkg.SupportedLinkType(k.String())
+// appendSkeleton appends the skeleton record of a version, that of its
+// SkeletonConfig: the number of its keys, then each key (its index in
+// loader.SkeletonKeys) and its value as loader.SkeletonFields yields it.
+// Arrays (the links, the branch aliases) are kept by ref: the versions of
+// a list share them, as the expansion has them share.
+func appendSkeleton(dst []byte, version *php.Array, arrayRef func(*php.Array) uint64) ([]byte, bool) {
+	// the count, at most len(loader.SkeletonKeys), fits in its byte
+	count := len(dst)
+	dst = append(dst, 0)
+	for key, v := range loader.SkeletonFields(version) {
+		dst[count]++
+		dst = append(dst, byte(key)) //nolint:gosec // an index in loader.SkeletonKeys
 		switch v := v.(type) {
 		case nil:
 			dst = append(dst, skNull)
@@ -113,13 +111,10 @@ func appendSkeleton(dst []byte, config *php.Array, linkRef func(*php.Array) uint
 				dst = append(dst, skFalse)
 			}
 		case string:
-			dst = appendBytes(append(dst, skString), []byte(v))
+			dst = appendString(append(dst, skString), v)
+		case *php.Array:
+			dst = binary.AppendUvarint(append(dst, skArray), arrayRef(v))
 		default:
-			if a, ok := v.(*php.Array); ok && isLink {
-				dst = binary.AppendUvarint(append(dst, skLink), linkRef(a))
-
-				continue
-			}
 			part, ok := php.AppendBinary(nil, v)
 			if !ok {
 				return dst, false
@@ -143,7 +138,7 @@ func (idx *p2Index) skeleton(i int) *php.Array {
 	for range n {
 		key, _ := r.byte()
 		tag, ok := r.byte()
-		if !ok || int(key) >= len(skeletonKeys) {
+		if !ok || int(key) >= len(loader.SkeletonKeys) {
 			return nil
 		}
 		var v any
@@ -155,9 +150,12 @@ func (idx *p2Index) skeleton(i int) *php.Array {
 			v = true
 		case skString:
 			v = r.str()
-		case skLink:
-			ref := r.uvarint()
-			v = idx.link(ref)
+		case skArray:
+			a := idx.link(r.uvarint())
+			if a == nil {
+				return nil
+			}
+			v = a
 		case skValue:
 			var err error
 			if v, err = php.DecodeBinary([]byte(r.str())); err != nil {
@@ -166,7 +164,7 @@ func (idx *p2Index) skeleton(i int) *php.Array {
 		default:
 			return nil
 		}
-		config.Set(skeletonKeys[key], v)
+		loader.SetSkeletonField(config, int(key), v)
 	}
 	if r.bad {
 		return nil
@@ -182,11 +180,23 @@ func (s *p2Slot) versions(name string) any {
 		return packageVersions(s.top, name)
 	}
 	list := php.NewArrayCap(len(n.entries))
-	for _, e := range n.entries {
-		list.Append(mustDecode(e))
+	for i := range n.entries {
+		list.Append(s.entry(n, i))
 	}
 
 	return list
+}
+
+// entry decodes the entry at index i of a slotted list from its span of
+// the JSON, which decodeP2 checked.
+func (s *p2Slot) entry(n *p2SlotName, i int) any {
+	span := n.entries[i]
+	v, err := php.JSONDecode(s.json[span.Start:span.End], true)
+	if err != nil {
+		panic(err)
+	}
+
+	return v
 }
 
 // mustDecode decodes a part of a slot, which decodeP2 checked.
@@ -248,14 +258,48 @@ func (s *p2Slot) expanded(name string, i int) (*php.Array, bool) {
 		return nil, false
 	}
 	from := i - i%keyframeEvery
-	working, _ := mustDecode(n.keyframes[from/keyframeEvery]).(*php.Array)
+	working := s.keyframe(n, from)
 	for j := from + 1; j <= i; j++ {
-		entry, _ := mustDecode(n.entries[j]).(*php.Array)
+		entry, _ := s.entry(n, j).(*php.Array)
 		working, _ = expandNext(working, entry)
 	}
 
 	return working, true
 }
+
+// keyframe is the expanded version at index from, a keyframe's.
+func (s *p2Slot) keyframe(n *p2SlotName, from int) *php.Array {
+	r := p2Reader{b: n.keyframes[from/keyframeEvery]}
+	// each key takes two bytes or more
+	count, _ := r.count()
+	working := php.NewArrayCap(count)
+	type entry struct {
+		keys   []php.Key
+		values []any
+	}
+	entries := map[uint64]entry{}
+	for range count {
+		back, place := r.uvarint(), r.uvarint()
+		e, ok := entries[back]
+		if !ok && back <= uint64(from) { //nolint:gosec // from is an index
+			if a, isArray := s.entry(n, from-int(back)).(*php.Array); isArray { //nolint:gosec // bounded by from
+				e = entry{a.Keys(), a.Values()}
+				entries[back] = e
+			}
+		}
+		if r.bad || place >= uint64(len(e.keys)) {
+			// not a keyframe appendIndex wrote for this JSON
+			panic(errP2Slot)
+		}
+		working.SetKey(e.keys[place], e.values[place])
+	}
+
+	return working
+}
+
+// keyOrigin is where the value of a key of an expanded version comes
+// from: the index of the entry, and the key's place in it.
+type keyOrigin struct{ entry, place int }
 
 // loadedVersion returns the version at index i of name's list as
 // createPackages loads it: expanded, with notifyURL (notificationURL) as
@@ -271,8 +315,10 @@ func (s *p2Slot) loadedVersion(name string, i int, notifyURL any) func() *php.Ar
 	}
 }
 
-// The p2 codec's form of a file: its checksum, then its top, then for each slotted package,
-// its name, its entries, its keyframes and its index: a flag, then the
+// The p2 codec's form of a file: its checksum, then its top, then for each
+// slotted package, its name, its entries' spans of the JSON (each the
+// distance from the end of the one before, or from the start of the
+// JSON, then its length), its keyframes and its index: a flag, then the
 // links, the scanned versions and the skeleton configs. Each part is a
 // uvarint count or length followed by its bytes.
 
@@ -284,9 +330,9 @@ var p2Codec = struct {
 
 var errP2Slot = errors.New("composerrepo: malformed p2 slot")
 
-// appendP2 appends the slot form of v, a *p2File decoded at once,
-// after its checksum: the parts are decoded only when they are read, so
-// that a damaged slot cannot be told from a good one then.
+// appendP2 appends the slot form of v, a *p2File decoded at once by
+// decodeFile, after its checksum: the parts are decoded only when they
+// are read, so that a damaged slot cannot be told from a good one then.
 func appendP2(dst []byte, v any) ([]byte, bool) {
 	start := len(dst)
 	dst, ok := appendP2Parts(append(dst, make([]byte, crcSize)...), v)
@@ -321,7 +367,7 @@ func appendP2Parts(dst []byte, v any) ([]byte, bool) {
 		for k, list := range packages.All() {
 			// a list rebuilt from its entries is the list itself
 			l, ok := list.(*php.Array)
-			if !ok || !k.IsString() || !l.IsAppended() {
+			if !ok || !k.IsString() || !l.IsAppended() || len(f.spans[l]) != l.Len() {
 				continue
 			}
 			if placeholders == nil {
@@ -342,15 +388,16 @@ func appendP2Parts(dst []byte, v any) ([]byte, bool) {
 	dst = binary.AppendUvarint(dst, uint64(len(names)))
 	minified := f.data.At("minified") == "composer/2.0"
 	for _, n := range names {
-		dst = appendBytes(dst, []byte(n.name))
+		dst = appendString(dst, n.name)
 		items := n.list.Values()
 		dst = binary.AppendUvarint(dst, uint64(len(items)))
-		for _, item := range items {
-			if dst, ok = appendPart(dst, item); !ok {
-				return dst, false
-			}
+		end := 0
+		for _, span := range f.spans[n.list] {
+			dst = binary.AppendUvarint(dst, uint64(span.Start-end))      //nolint:gosec // spans follow each other
+			dst = binary.AppendUvarint(dst, uint64(span.End-span.Start)) //nolint:gosec // a span ends after it starts
+			end = span.End
 		}
-		if dst, ok = appendIndex(dst, items, minified); !ok {
+		if dst, ok = appendIndex(dst, items, minified, f.drafts[n.name]); !ok {
 			return dst, false
 		}
 	}
@@ -372,76 +419,168 @@ func appendBytes(dst, b []byte) []byte {
 	return append(binary.AppendUvarint(dst, uint64(len(b))), b...)
 }
 
+// appendString is appendBytes for a string.
+func appendString(dst []byte, s string) []byte {
+	return append(binary.AppendUvarint(dst, uint64(len(s))), s...)
+}
+
 // appendIndex appends the keyframes and the index a slot keeps of a
 // version list: none unless the list is minified and expandEach expands
-// it.
-func appendIndex(dst []byte, items []any, minified bool) ([]byte, bool) {
+// it. It takes what draft (nil: none) holds instead of finding it out.
+func appendIndex(dst []byte, items []any, minified bool, draft *indexDraft) ([]byte, bool) {
 	if !minified {
 		return append(dst, 0, 0), true
 	}
 	if _, ok := expandable(items); !ok {
 		return append(dst, 0, 0), true
 	}
-
-	refs := map[*php.Array]uint64{}
-	links := php.NewArray()
-	linkRef := func(a *php.Array) uint64 {
-		ref, ok := refs[a]
-		if !ok {
-			ref = uint64(len(refs))
-			refs[a] = ref
-			links.Append(a)
-		}
-
-		return ref
+	if b := draft.builtFor(items); b != nil {
+		return b.appendTo(dst)
 	}
 
-	var (
-		keyframes [][]byte
-		scanned   []byte
-		skeletons []byte
-		ok        = true
-		checker   = p2Codec.loader.SkeletonChecker()
-	)
-	i := -1
+	b := newIndexBuilder(items, draft.scannedFor(items))
 	_, _ = expandEach(items, func(v *php.Array, _ func() *php.Array) error {
-		i++
-		if i%keyframeEvery == 0 {
-			var keyframe []byte
-			keyframe, ok = php.AppendBinary(nil, v)
-			if !ok {
-				return errStopExpanding
-			}
-			keyframes = append(keyframes, keyframe)
+		if !b.add(v, fitUnknown) {
+			return errStopExpanding
 		}
-		sv := scanVersion(v, p2Codec.parser, p2Codec.loader)
-		scanned = appendScanned(scanned, sv, linkRef)
-		var record []byte
-		if !sv.skip && fitsSkeleton(checker, v) {
-			if record, ok = appendSkeleton(nil, loader.SkeletonConfig(v), linkRef); !ok {
-				return errStopExpanding
-			}
-		}
-		skeletons = appendBytes(skeletons, record)
 
 		return nil
 	})
+
+	return b.appendTo(dst)
+}
+
+// indexBuilder builds the keyframes and the index of a minified version
+// list that expandEach expands, from its versions added one by one as
+// expandEach expands them.
+type indexBuilder struct {
+	items []any
+	// scanned are the versions scanned already; nil: none
+	scanned []scannedVersion
+	added   int
+	ok      bool
+
+	keyframes                   [][]byte
+	scannedPart, skeletons, rec []byte
+	// links are the arrays the skeleton records hold, by ref
+	links *php.Array
+	refs  map[*php.Array]uint64
+	// origins are, for each key of the expanded version, the entry its
+	// value comes from and the key's place in it; expanded is the
+	// length of the expanded version before the one added
+	origins  map[string]keyOrigin
+	expanded int
+	checker  *loader.SkeletonChecker
+}
+
+// The fits of a version an indexBuilder adds: whether it loads as a
+// skeleton, when a load tells.
+const (
+	fitUnknown byte = iota
+	fitYes
+	fitNo
+)
+
+// newIndexBuilder is an indexBuilder for the versions of items, scanned
+// already (scanVersions) unless scanned is nil.
+func newIndexBuilder(items []any, scanned []scannedVersion) *indexBuilder {
+	return &indexBuilder{
+		items: items, scanned: scanned, ok: true,
+		links: php.NewArray(), refs: map[*php.Array]uint64{}, origins: map[string]keyOrigin{},
+	}
+}
+
+// arrayRef is the ref of a, an array a skeleton record holds.
+func (b *indexBuilder) arrayRef(a *php.Array) uint64 {
+	ref, ok := b.refs[a]
 	if !ok {
-		return dst, false
+		ref = uint64(len(b.refs))
+		b.refs[a] = ref
+		b.links.Append(a)
 	}
 
-	dst = binary.AppendUvarint(dst, uint64(len(keyframes)))
-	for _, k := range keyframes {
+	return ref
+}
+
+// add adds the next version, v as expandEach expands it, which fits
+// tells loads as a skeleton (fitUnknown: it is checked); false when the
+// index cannot hold it.
+func (b *indexBuilder) add(v *php.Array, fits byte) bool {
+	i := b.added
+	b.added++
+
+	// as expandNext changes the expanded version
+	entry, _ := b.items[i].(*php.Array)
+	restarted := b.expanded == 0
+	if restarted {
+		clear(b.origins)
+	}
+	place := 0
+	for k, value := range entry.All() {
+		if value == "__unset" && !restarted {
+			delete(b.origins, k.String())
+		} else {
+			b.origins[k.String()] = keyOrigin{i, place}
+		}
+		place++
+	}
+	b.expanded = v.Len()
+	if i%keyframeEvery == 0 {
+		keyframe := binary.AppendUvarint(nil, uint64(v.Len())) //nolint:gosec // a length
+		for k := range v.All() {
+			o := b.origins[k.String()]
+			keyframe = binary.AppendUvarint(binary.AppendUvarint(keyframe, uint64(i-o.entry)), uint64(o.place)) //nolint:gosec // places and earlier entries
+		}
+		b.keyframes = append(b.keyframes, keyframe)
+	}
+
+	var sv scannedVersion
+	if b.scanned != nil {
+		sv = b.scanned[i]
+	} else {
+		sv = scanVersion(v, p2Codec.parser, p2Codec.loader)
+	}
+	b.scannedPart = appendScanned(b.scannedPart, sv, b.arrayRef)
+	b.rec = b.rec[:0]
+	if !sv.skip {
+		if fits == fitUnknown {
+			if b.checker == nil {
+				b.checker = p2Codec.loader.SkeletonChecker()
+			}
+			fits = fitNo
+			if fitsSkeleton(b.checker, v) {
+				fits = fitYes
+			}
+		}
+		if fits == fitYes {
+			if b.rec, b.ok = appendSkeleton(b.rec, v, b.arrayRef); !b.ok {
+				return false
+			}
+		}
+	}
+	b.skeletons = appendBytes(b.skeletons, b.rec)
+
+	return true
+}
+
+// appendTo appends the keyframes and the index, once every version was
+// added.
+func (b *indexBuilder) appendTo(dst []byte) ([]byte, bool) {
+	if !b.ok || b.added != len(b.items) {
+		return dst, false
+	}
+	dst = binary.AppendUvarint(dst, uint64(len(b.keyframes)))
+	for _, k := range b.keyframes {
 		dst = appendBytes(dst, k)
 	}
 	dst = append(dst, 1)
-	if dst, ok = appendPart(dst, links); !ok {
+	dst, ok := appendPart(dst, b.links)
+	if !ok {
 		return dst, false
 	}
-	dst = appendBytes(dst, scanned)
-	dst = appendBytes(dst, skeletons)
+	dst = appendBytes(dst, b.scannedPart)
 
-	return dst, true
+	return appendBytes(dst, b.skeletons), true
 }
 
 // The flags of a scanned version in its slot form.
@@ -454,7 +593,7 @@ const (
 // appendScanned appends a scanned version: its flags, then, unless it is
 // skipped, its normalized version and alias (each after its length) and
 // its require's link ref, if any.
-func appendScanned(dst []byte, sv scannedVersion, linkRef func(*php.Array) uint64) []byte {
+func appendScanned(dst []byte, sv scannedVersion, arrayRef func(*php.Array) uint64) []byte {
 	if sv.skip {
 		return append(dst, scannedSkip)
 	}
@@ -466,10 +605,10 @@ func appendScanned(dst []byte, sv scannedVersion, linkRef func(*php.Array) uint6
 		flags |= scannedRequire
 	}
 	dst = append(dst, flags)
-	dst = appendBytes(dst, []byte(sv.normalized))
-	dst = appendBytes(dst, []byte(sv.alias))
+	dst = appendString(dst, sv.normalized)
+	dst = appendString(dst, sv.alias)
 	if sv.require != nil {
-		dst = binary.AppendUvarint(dst, linkRef(sv.require))
+		dst = binary.AppendUvarint(dst, arrayRef(sv.require))
 	}
 
 	return dst
@@ -477,21 +616,30 @@ func appendScanned(dst []byte, sv scannedVersion, linkRef func(*php.Array) uint6
 
 // fitsSkeleton is checker.Fits for an expanded version, loaded with any
 // notification-url when it has none (the loads give it the repository's).
-func fitsSkeleton(checker *loader.SkeletonChecker, v *php.Array) bool {
+func fitsSkeleton(checker *loader.SkeletonChecker, v *php.Array) (fits bool) {
+	withNotificationURL(v, "https://notify.invalid", func() { fits = checker.Fits(v) })
+
+	return fits
+}
+
+// withNotificationURL runs fn with url as the notification-url of v, a
+// version, when it has none (null or no key), as createPackages loads
+// it; v is then left as it was.
+func withNotificationURL(v *php.Array, url any, fn func()) {
 	n, present := v.Get("notification-url")
 	if n != nil {
-		return checker.Fits(v)
+		fn()
+
+		return
 	}
-	v.Set("notification-url", "https://notify.invalid")
-	fits := checker.Fits(v)
+	v.Set("notification-url", url)
+	fn()
 	if present {
 		v.Set("notification-url", n)
 	} else {
 		// the key added last: removing it leaves the array as it was
 		v.Delete("notification-url")
 	}
-
-	return fits
 }
 
 // decode reads back an index of a list of count versions; nil when it
@@ -556,23 +704,31 @@ func (d *p2IndexData) decode(count int) *p2Index {
 	return idx
 }
 
-// decodeP2 reads a file back from its slot form.
-func decodeP2(data []byte) (any, error) {
+// decodeP2 reads a file back from its slot form, for json, the JSON it
+// was decoded from.
+func decodeP2(data []byte, json string) (any, error) {
 	if len(data) < crcSize || crc32.Checksum(data[crcSize:], crcTable) != binary.LittleEndian.Uint32(data) {
 		return nil, errP2Slot
 	}
 	data = data[crcSize:]
 	r := p2Reader{b: data}
-	s := &p2Slot{topData: r.part()}
+	s := &p2Slot{json: json, topData: r.part()}
 	if count, ok := r.count(); ok {
 		s.names = make(map[string]*p2SlotName, count)
 		for range count {
 			name := string(r.part())
 			n := &p2SlotName{}
 			entries, _ := r.count()
-			n.entries = make([][]byte, 0, entries)
+			n.entries = make([]php.JSONSpan, 0, entries)
+			end := 0
 			for range entries {
-				n.entries = append(n.entries, r.part())
+				gap, size := r.uvarint(), r.uvarint()
+				if r.bad || gap > uint64(len(json)-end) || size == 0 || size > uint64(len(json)-end)-gap {
+					return nil, errP2Slot
+				}
+				start := end + int(gap) //nolint:gosec // bounded by len(json)
+				end = start + int(size) //nolint:gosec // bounded by len(json)
+				n.entries = append(n.entries, php.JSONSpan{Start: start, End: end})
 			}
 			if keyframes, _ := r.count(); keyframes > 0 {
 				n.keyframes = make([][]byte, 0, keyframes)
