@@ -1,0 +1,79 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Checked CA file @CAFILE@: valid
+
+                                            
+  Welcome to the Composer config generator  
+                                            
+
+
+This command will guide you through creating your composer.json config.
+
+Executing command (CWD): 'git' 'config' '-l'
+Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
+Define your dependencies.
+
+Would you like to define your dev dependencies (require-dev) interactively [yes]? Add PSR-4 autoload mapping? Maps namespace "Acme\App" to the entered relative path. [src/, n to skip]: 
+{
+    "name": "acme/app",
+    "description": "An application",
+    "require": {
+        "x/foo": "1.0.0"
+    },
+    "license": "MIT",
+    "repositories": [
+        {
+            "type": "package",
+            "package": [
+                {
+                    "name": "x/foo",
+                    "version": "1.0.0",
+                    "type": "metapackage"
+                }
+            ]
+        },
+        {
+            "packagist.org": false
+        }
+    ]
+}
+
+Do you confirm generation [yes]? Would you like to install dependencies now [yes]? Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Loading composer repositories with package information
+Built pool.
+Running security advisory pool filter.
+Running filter list pool filter.
+Running pool optimizer.
+Updating dependencies
+Generating rules
+Resolving dependencies through SAT
+Looking at all rules.
+
+Dependency resolution completed in @TIME@ seconds
+Analyzed @N@ packages to resolve dependencies
+Analyzed @N@ rules to resolve dependencies
+Lock file operations: 1 install, 0 updates, 0 removals
+Installs: x/foo:1.0.0
+  - Locking x/foo (1.0.0) from package repo (defining 1 package)
+Writing lock file
+Installing dependencies from lock file (including require-dev)
+Reading ./composer.lock (@DIR@/p/composer.lock)
+Package operations: 1 install, 0 updates, 0 removals
+Installs: x/foo:1.0.0
+  - Installing x/foo (1.0.0)
+Generating autoload files
+No security vulnerability advisories found.
+exit 0

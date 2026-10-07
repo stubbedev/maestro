@@ -1,0 +1,7 @@
+Writing ./composer.json
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Generating autoload files
+Generated autoload files
+PSR-4 autoloading configured. Use "namespace Acme\App;" in src/
+Include the Composer autoloader with: require 'vendor/autoload.php';
+exit 0

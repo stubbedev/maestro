@@ -1,0 +1,31 @@
+
+                                            
+  Welcome to the Composer config generator  
+                                            
+
+
+This command will guide you through creating your composer.json config.
+
+Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
+Define your dependencies.
+
+Would you like to define your dependencies (require) interactively [yes]? Would you like to define your dev dependencies (require-dev) interactively [yes]? Add PSR-4 autoload mapping? Maps namespace "Acme\App" to the entered relative path. [src/, n to skip]: The src folder name "/abs" is invalid. Please add a relative path with tailing forward slash. [A-Za-z0-9_-/]+/
+Add PSR-4 autoload mapping? Maps namespace "Acme\App" to the entered relative path. [src/, n to skip]: 
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\App\\": "src/"
+        }
+    },
+    "require": {}
+}
+
+Do you confirm generation [yes]? Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Generating autoload files
+Generated autoload files
+PSR-4 autoloading configured. Use "namespace Acme\App;" in src/
+Include the Composer autoloader with: require 'vendor/autoload.php';
+exit 0

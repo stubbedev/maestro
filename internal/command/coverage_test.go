@@ -105,6 +105,7 @@ var coverage = []entry{
 	cover(command.NewInitCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestInitCommand_RunCommand)),
+			Positive(Go(TestInitCommand_InteractiveGitignore)),
 			Negative(Go(TestInitCommand_RunCommandInvalid)),
 		},
 	}),

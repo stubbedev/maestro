@@ -1,0 +1,5 @@
+Writing ./composer.json
+Schema validation error, aborting
+"./composer.json" does not match the expected JSON schema:
+ - minimum-stability : Does not have a value in the enumeration ["dev","alpha","beta","rc","RC","stable"]
+exit 1

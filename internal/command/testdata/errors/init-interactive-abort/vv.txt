@@ -1,0 +1,20 @@
+
+                                            
+  Welcome to the Composer config generator  
+                                            
+
+
+This command will guide you through creating your composer.json config.
+
+Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
+Define your dependencies.
+
+Would you like to define your dependencies (require) interactively [yes]? Would you like to define your dev dependencies (require-dev) interactively [yes]? Add PSR-4 autoload mapping? Maps namespace "Acme\App" to the entered relative path. [src/, n to skip]: 
+{
+    "name": "acme/app",
+    "description": "An application",
+    "require": {}
+}
+
+Do you confirm generation [yes]? Command aborted
+exit 1

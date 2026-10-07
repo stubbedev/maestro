@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\App\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {}
+}

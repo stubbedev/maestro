@@ -1,0 +1,10 @@
+
+In InitCommand.php line 452:
+                                                                               
+  Invalid author string.  Must be in the formats: Jane Doe or John Smith <joh  
+  n@example.com>                                                               
+                                                                               
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

@@ -1,0 +1,5 @@
+init
+--name
+acme/app
+--repository
+https://example.org/repo

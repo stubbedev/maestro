@@ -1,0 +1,9 @@
+init
+--name
+acme/app
+-s
+dev
+-l
+MIT
+-a
+src/

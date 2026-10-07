@@ -1,0 +1,9 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Executing command (CWD): 'git' 'config' '-l'
+Writing ./composer.json
+Schema validation error, aborting
+"./composer.json" does not match the expected JSON schema:
+ - minimum-stability : Does not have a value in the enumeration ["dev","alpha","beta","rc","RC","stable"]
+exit 1

@@ -381,6 +381,44 @@ func TestInitCommand_InteractiveRun(t *testing.T) {
 	}`)
 }
 
+// TestInitCommand_InteractiveGitignore: in a git repository, the
+// interactive run asks to ignore the vendor directory and, answered yes,
+// adds /vendor/ to .gitignore, as Composer does.
+func TestInitCommand_InteractiveGitignore(t *testing.T) {
+	initSetUp(t)
+	dir := initTempDirWithoutFiles(t)
+	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	appTester := commandtest.GetApplicationTester(t)
+	appTester.SetInputs(
+		"vendor/pkg", // Pkg name
+		"",           // Description
+		"n",          // Author
+		"",           // Minimum stability
+		"",           // Type
+		"",           // License
+		"no",         // Define dependencies
+		"no",         // Define dev dependencies
+		"n",          // Add PSR-4 autoload mapping
+		"",           // Confirm generation
+		"",           // Add vendor to .gitignore
+	)
+	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "init"); err != nil {
+		t.Fatal(err)
+	}
+	if code := appTester.StatusCode(); code != 0 {
+		t.Fatalf("status %d: %s", code, appTester.Display(true))
+	}
+	if !strings.Contains(appTester.Display(true), "Would you like the vendor directory added to your .gitignore [yes]? ") {
+		t.Errorf("no .gitignore question:\n%s", appTester.Display(true))
+	}
+	if got, err := os.ReadFile(filepath.Join(dir, ".gitignore")); err != nil || string(got) != "/vendor/\n" {
+		t.Errorf(".gitignore %q (%v), want %q", got, err, "/vendor/\n")
+	}
+}
+
 func TestInitCommand_FormatAuthors(t *testing.T) {
 	initSetUp(t)
 	cmd := command.NewInitCommand()

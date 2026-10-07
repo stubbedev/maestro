@@ -1,0 +1,33 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+
+                                            
+  Welcome to the Composer config generator  
+                                            
+
+
+This command will guide you through creating your composer.json config.
+
+Executing command (CWD): 'git' 'config' '-l'
+Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
+In InitCommand.php line 370:
+                                                                               
+  [InvalidArgumentException]                                                   
+  Invalid license provided: Not-A-License. Only SPDX license identifiers (htt  
+  ps://spdx.org/licenses/) or "proprietary" are accepted.                      
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Command/InitCommand.php:370
+ Composer\Command\InitCommand->interact() at @COMPOSER@/vendor/symfony/console/Command/Command.php:283
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

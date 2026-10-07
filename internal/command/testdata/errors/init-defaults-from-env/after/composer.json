@@ -1,0 +1,10 @@
+{
+    "name": "acme/p",
+    "authors": [
+        {
+            "name": "Jane Doe",
+            "email": "jane@example.com"
+        }
+    ],
+    "require": {}
+}

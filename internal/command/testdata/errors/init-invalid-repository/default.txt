@@ -1,0 +1,13 @@
+
+In JsonFile.php line 393:
+                                         
+  The input does not contain valid JSON  
+  Parse error on line 1:                 
+  {bad                                   
+  ^                                      
+  Expected one of: 'STRING', '}'         
+                                         
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

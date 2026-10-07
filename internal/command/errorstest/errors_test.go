@@ -323,6 +323,10 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 	cmd.Env = env
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if stdin, err := os.Open(filepath.Join(dir, "stdin")); err == nil {
+		defer stdin.Close()
+		cmd.Stdin = stdin
+	}
 	code := 0
 	if err := cmd.Run(); err != nil {
 		ee, ok := errors.AsType[*exec.ExitError](err)

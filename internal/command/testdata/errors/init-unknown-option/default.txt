@@ -1,0 +1,8 @@
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

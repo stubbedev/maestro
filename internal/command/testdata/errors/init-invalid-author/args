@@ -1,0 +1,4 @@
+init
+--name
+acme/app
+--author=<bad>

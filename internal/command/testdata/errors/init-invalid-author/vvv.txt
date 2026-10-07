@@ -1,0 +1,26 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+
+In InitCommand.php line 452:
+                                                                               
+  [InvalidArgumentException]                                                   
+  Invalid author string.  Must be in the formats: Jane Doe or John Smith <joh  
+  n@example.com>                                                               
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Command/InitCommand.php:452
+ Composer\Command\InitCommand->parseAuthorString() at @COMPOSER@/src/Composer/Command/InitCommand.php:463
+ Composer\Command\InitCommand->formatAuthors() at @COMPOSER@/src/Composer/Command/InitCommand.php:96
+ Composer\Command\InitCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]
+
+exit 1

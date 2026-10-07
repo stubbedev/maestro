@@ -42,6 +42,9 @@
 #             the run is frozen: -w records Composer's into after/<path>
 #             (normalised as the output is; no after/<path> when the run
 #             leaves no such file), which maestro's must equal
+#   stdin     optional input of the run (otherwise none): answers to the
+#             questions of a run made interactive by
+#             COMPOSER_TESTS_ARE_RUNNING=1 in env
 # @SERVER@ in env and in the files of project/ and home/ is the local HTTP
 # server's URL.
 # The local HTTP server (tools/oracle/errors/router.php, `php -S`) serves
@@ -140,6 +143,7 @@ run() {
 		cd "$work/run/p" || exit
 		exec 3> "$out"
 		if [ "$separate" = 1 ]; then exec 4> /dev/null; else exec 4>&3; fi
+		if [ -f "$dir/stdin" ]; then exec < "$dir/stdin"; else exec < /dev/null; fi
 		env -i PATH="$PATH" HOME="$work/run/home" COMPOSER_HOME="$work/run/home" \
 			COMPOSER_CACHE_DIR="$work/run/cache" COMPOSER_NO_INTERACTION=1 NO_COLOR=1 COLUMNS=80 \
 			COMPOSER_TEST_SUITE=1 \

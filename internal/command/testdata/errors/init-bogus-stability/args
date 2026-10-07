@@ -1,0 +1,5 @@
+init
+--name
+acme/app
+--stability
+bogus

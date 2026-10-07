@@ -1,0 +1,2 @@
+Schema validation error, aborting
+ - minimum-stability : Does not have a value in the enumeration ["dev","alpha","beta","rc","RC","stable"]

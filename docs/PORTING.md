@@ -513,8 +513,9 @@ Cycle-breaking decisions already made:
    Composer's exceptions (or a scenario's listed lines), whitespace-
    insensitively, not how they are rendered. A scenario may also freeze
    files the run leaves (composer.json restored after a failure, a lock
-   that must not be written), share a project from `_projects/`, and make
-   files read-only; see `tools/oracle/errors/errors.sh`.
+   that must not be written), share a project from `_projects/`, make
+   files read-only and answer questions on stdin; see
+   `tools/oracle/errors/errors.sh`.
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
    2.10.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare

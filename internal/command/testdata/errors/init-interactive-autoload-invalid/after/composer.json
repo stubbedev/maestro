@@ -1,0 +1,11 @@
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\App\\": "src/"
+        }
+    },
+    "require": {}
+}

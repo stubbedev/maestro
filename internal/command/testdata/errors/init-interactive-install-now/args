@@ -1,0 +1,5 @@
+init
+--repository={"type": "package", "package": [{"name": "x/foo", "version": "1.0.0", "type": "metapackage"}]}
+--repository={"packagist.org": false}
+--require
+x/foo:1.0.0

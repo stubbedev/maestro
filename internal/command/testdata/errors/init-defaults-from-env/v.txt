@@ -1,0 +1,2 @@
+Writing ./composer.json
+exit 0

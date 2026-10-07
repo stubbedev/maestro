@@ -1,0 +1,48 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+
+                                            
+  Welcome to the Composer config generator  
+                                            
+
+
+This command will guide you through creating your composer.json config.
+
+Executing command (CWD): 'git' 'config' '-l'
+Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
+Define your dependencies.
+
+Checked CA file @CAFILE@: valid
+Would you like to define your dependencies (require) interactively [yes]? Would you like to define your dev dependencies (require-dev) interactively [yes]? Add PSR-4 autoload mapping? Maps namespace "Acme\App" to the entered relative path. [src/, n to skip]: The src folder name "/abs" is invalid. Please add a relative path with tailing forward slash. [A-Za-z0-9_-/]+/
+Add PSR-4 autoload mapping? Maps namespace "Acme\App" to the entered relative path. [src/, n to skip]: 
+{
+    "name": "acme/app",
+    "description": "An application",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Acme\\App\\": "src/"
+        }
+    },
+    "require": {}
+}
+
+Do you confirm generation [yes]? Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Generating autoload files
+Generated autoload files
+PSR-4 autoloading configured. Use "namespace Acme\App;" in src/
+Include the Composer autoloader with: require 'vendor/autoload.php';
+exit 0
