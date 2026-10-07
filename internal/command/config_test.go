@@ -263,24 +263,3 @@ func TestConfigCommand_ConfigThrowsPolicyListReserved(t *testing.T) {
 		})
 	}
 }
-
-// TestConfigCommand_Help compares `help config` with the reference
-// Composer's (testdata/help/config.txt, tools/oracle/command/help.sh).
-func TestConfigCommand_Help(t *testing.T) {
-	want, err := os.ReadFile("testdata/help/config.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	console.ScriptName = "composer"
-	dir := commandtest.UniqueTmpDirectory(t)
-	t.Setenv("COMPOSER_HOME", dir+"/home")
-	t.Chdir(dir)
-
-	appTester := commandtest.GetApplicationTester(t)
-	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "help", "command_name", "config"); err != nil {
-		t.Fatal(err)
-	}
-	if got := appTester.Display(false); got != string(want) {
-		t.Errorf("help config differs\n got:\n%s\nwant:\n%s", got, want)
-	}
-}

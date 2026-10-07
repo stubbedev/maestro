@@ -1,0 +1,12 @@
+
+                                                                              
+  Command "in" is ambiguous.                                                  
+  Did you mean one of these?                                                  
+      init    Creates a basic composer.json file in current directory         
+      install Installs the project dependencies from the composer.lock fi...  
+      info    Shows information about packages.                               
+                                                                              
+
+help [--format FORMAT] [--raw] [--] [<command_name>]
+
+exit 1

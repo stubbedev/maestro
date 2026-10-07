@@ -1,0 +1,35 @@
+Description:
+  Dumps the autoloader
+
+Usage:
+  dump-autoload [options]
+  dumpautoload
+
+Options:
+  -o, --optimize                                 Optimizes PSR0 and PSR4 packages to be loaded with classmaps too, good for production.
+  -a, --classmap-authoritative                   Autoload classes from the classmap only. Implicitly enables `--optimize`.
+      --apcu                                     Use APCu to cache found/not-found classes.
+      --apcu-prefix=APCU-PREFIX                  Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu
+      --dry-run                                  Outputs the operations but will not execute anything.
+      --dev                                      Enables autoload-dev rules. Composer will by default infer this automatically according to the last install or update --no-dev state.
+      --no-dev                                   Disables autoload-dev rules. Composer will by default infer this automatically according to the last install or update --no-dev state.
+      --ignore-platform-req=IGNORE-PLATFORM-REQ  Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
+      --ignore-platform-reqs                     Ignore all platform requirements (php & ext- packages).
+      --strict-psr                               Return a failed status code (1) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize to work.
+      --strict-ambiguous                         Return a failed status code (2) if the same class is found in multiple files. Requires --optimize to work.
+  -h, --help                                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                                    Do not output any message
+  -V, --version                                  Display this application version
+      --ansi|--no-ansi                           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                           Do not ask any interactive question
+      --profile                                  Display timing and memory usage information
+      --no-plugins                               Whether to disable plugins.
+      --no-scripts                               Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR                  If specified, use the given directory as working directory.
+      --no-cache                                 Prevent use of the cache
+  -v|vv|vvv, --verbose                           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  php composer.phar dump-autoload
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#dump-autoload-dumpautoload

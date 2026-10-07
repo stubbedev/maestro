@@ -1,16 +1,16 @@
 Description:
-  List commands
+  Opens the package's repository URL or homepage in your browser
 
 Usage:
-  list [options] [--] [<namespace>]
+  browse [options] [--] [<packages>...]
+  home
 
 Arguments:
-  namespace                      The namespace name
+  packages                       Package(s) to browse to.
 
 Options:
-      --raw                      To output raw command list
-      --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
+  -H, --homepage                 Open the homepage instead of the repository URL.
+  -s, --show                     Only show the homepage or repository URL.
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +24,10 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  The home command opens or shows a package's repository URL or
+  homepage in your default browser.
   
-    composer list
+  To open the homepage by default, use -H or --homepage.
+  To show instead of open the repository or homepage URL, use -s or --show.
   
-  You can also display the commands for a specific namespace:
-  
-    composer list test
-  
-  You can also output the information in other formats by using the --format option:
-  
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw
+  Read more at https://getcomposer.org/doc/03-cli.md#browse-home

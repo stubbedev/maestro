@@ -1,16 +1,14 @@
 Description:
-  List commands
+  Allows running commands in the global composer dir ($COMPOSER_HOME)
 
 Usage:
-  list [options] [--] [<namespace>]
+  global <command-name> [<args>...]
 
 Arguments:
-  namespace                      The namespace name
+  command-name                   
+  args                           
 
 Options:
-      --raw                      To output raw command list
-      --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +22,19 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  Use this command as a wrapper to run other Composer commands
+  within the global context of COMPOSER_HOME.
   
-    composer list
+  You can use this to install CLI utilities globally, all you need
+  is to add the COMPOSER_HOME/vendor/bin dir to your PATH env var.
   
-  You can also display the commands for a specific namespace:
+  COMPOSER_HOME is c:\Users<user>\AppData\Roaming\Composer on Windows
+  and /home/<user>/.composer on unix systems.
   
-    composer list test
+  If your system uses freedesktop.org standards, then it will first check
+  XDG_CONFIG_HOME or default to /home/<user>/.config/composer
   
-  You can also output the information in other formats by using the --format option:
+  Note: This path may vary depending on customizations to bin-dir in
+  composer.json or the environmental variable COMPOSER_BIN_DIR.
   
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw
+  Read more at https://getcomposer.org/doc/03-cli.md#global

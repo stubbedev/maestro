@@ -1,0 +1,71 @@
+Description:
+  Creates new project from a package into given directory
+
+Usage:
+  create-project [options] [--] [<package> [<directory> [<version>]]]
+
+Arguments:
+  package                                        Package name to be installed
+  directory                                      Directory where the files should be created
+  version                                        Version, will default to latest
+
+Options:
+  -s, --stability=STABILITY                      Minimum-stability allowed (unless a version is specified).
+      --prefer-source                            Forces installation from package sources when possible, including VCS information.
+      --prefer-dist                              Forces installation from package dist (default behavior).
+      --prefer-install=PREFER-INSTALL            Forces installation from package dist|source|auto (auto chooses source for dev versions, dist for the rest).
+      --repository=REPOSITORY                    Add custom repositories to look the package up, either by URL or using JSON arrays (multiple values allowed)
+      --repository-url=REPOSITORY-URL            DEPRECATED: Use --repository instead.
+      --add-repository                           Add the custom repository in the composer.json. If a lock file is present it will be deleted and an update will be run instead of install.
+      --require=REQUIRE                          Require additional package(s) to composer.json after installing the project. If a lock file is present it will be deleted and an update will be run instead of install. (multiple values allowed)
+      --dev                                      Enables installation of require-dev packages (enabled by default, only present for BC).
+      --no-dev                                   Disables installation of require-dev packages.
+      --no-custom-installers                     DEPRECATED: Use no-plugins instead.
+      --no-scripts                               Skips the execution of all scripts defined in composer.json file.
+      --no-progress                              Do not output download progress.
+      --no-secure-http                           Disable the secure-http config option temporarily while installing the root package. Use at your own risk. Using this flag is a bad idea.
+      --keep-vcs                                 Whether to prevent deleting the vcs folder.
+      --remove-vcs                               Whether to force deletion of the vcs folder without prompting.
+      --no-install                               Whether to skip installation of the package dependencies.
+      --no-audit                                 Whether to skip auditing of the installed package dependencies (can also be set via the COMPOSER_NO_AUDIT=1 env var).
+      --audit-format=AUDIT-FORMAT                Audit output format. Must be "table", "plain", "json" or "summary". [default: "summary"]
+      --no-security-blocking                     DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
+      --no-blocking                              Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --ignore-platform-req=IGNORE-PLATFORM-REQ  Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
+      --ignore-platform-reqs                     Ignore all platform requirements (php & ext- packages).
+      --ask                                      Whether to ask for project directory.
+  -h, --help                                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                                    Do not output any message
+  -V, --version                                  Display this application version
+      --ansi|--no-ansi                           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                           Do not ask any interactive question
+      --profile                                  Display timing and memory usage information
+      --no-plugins                               Whether to disable plugins.
+  -d, --working-dir=WORKING-DIR                  If specified, use the given directory as working directory.
+      --no-cache                                 Prevent use of the cache
+  -v|vv|vvv, --verbose                           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The create-project command creates a new project from a given
+  package into a new directory. If executed without params and in a directory
+  with a composer.json file it installs the packages for the current project.
+  
+  You can use this command to bootstrap new projects or setup a clean
+  version-controlled installation for developers of your project.
+  
+  php composer.phar create-project vendor/project target-directory [version]
+  
+  You can also specify the version with the package name using = or : as separator.
+  
+  php composer.phar create-project vendor/project:version target-directory
+  
+  To install unstable packages, either specify the version you want, or use the
+  --stability=dev (where dev can be one of RC, beta, alpha or dev).
+  
+  To setup a developer workable version you should create the project using the source
+  controlled code by appending the '--prefer-source' flag.
+  
+  To install a package from another repository than the default one you
+  can pass the '--repository=https://myrepository.org' flag.
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#create-project

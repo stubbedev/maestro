@@ -1,16 +1,13 @@
 Description:
-  List commands
+  Shows information about licenses of dependencies
 
 Usage:
-  list [options] [--] [<namespace>]
-
-Arguments:
-  namespace                      The namespace name
+  licenses [options]
 
 Options:
-      --raw                      To output raw command list
-      --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
+  -f, --format=FORMAT            Format of the output: text, json or summary [default: "text"]
+      --no-dev                   Disables search in require-dev packages.
+      --locked                   Shows licenses from the lock file instead of installed packages.
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +21,10 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  The license command displays detailed information about the licenses of
+  the installed dependencies.
   
-    composer list
+  Use --locked to show licenses from composer.lock instead of what's currently
+  installed in the vendor directory.
   
-  You can also display the commands for a specific namespace:
-  
-    composer list test
-  
-  You can also output the information in other formats by using the --format option:
-  
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw
+  Read more at https://getcomposer.org/doc/03-cli.md#licenses

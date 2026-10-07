@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command"
+	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 )
@@ -21,6 +22,10 @@ type Options struct {
 	// Verbosity is a console.Verbosity* level; 0 is unset.
 	Verbosity               int
 	CaptureStderrSeparately bool
+	// ComposerStyles gives the output Composer's additional styles
+	// (highlight, warning), as the binary's (Factory::createOutput) has
+	// and a tester's has not: for comparisons with Composer's output.
+	ComposerStyles bool
 }
 
 // ApplicationTester ports Symfony's ApplicationTester.
@@ -168,8 +173,12 @@ func createStream(inputs []string) *strings.Reader {
 func (a *ApplicationTester) initOutput(o Options) {
 	a.separately = o.CaptureStderrSeparately
 	a.outBuf = &bytes.Buffer{}
+	var formatter console.Formatter
+	if o.ComposerStyles {
+		formatter = console.NewOutputFormatter(false, composer.CreateAdditionalStyles()...)
+	}
 	if !a.separately {
-		out := console.NewStreamOutput(a.outBuf, console.VerbosityNormal, new(false), nil)
+		out := console.NewStreamOutput(a.outBuf, console.VerbosityNormal, new(false), formatter)
 		if o.Decorated != nil {
 			out.SetDecorated(*o.Decorated)
 		}
@@ -186,7 +195,7 @@ func (a *ApplicationTester) initOutput(o Options) {
 		verbosity = console.VerbosityNormal
 	}
 	a.errBuf = &bytes.Buffer{}
-	out := console.NewConsoleOutputStreams(a.outBuf, a.errBuf, verbosity, o.Decorated, nil)
+	out := console.NewConsoleOutputStreams(a.outBuf, a.errBuf, verbosity, o.Decorated, formatter)
 	errOut := console.NewStreamOutput(a.errBuf, console.VerbosityNormal, new(false), nil)
 	errOut.SetFormatter(out.Formatter())
 	errOut.SetVerbosity(out.Verbosity())

@@ -1,16 +1,15 @@
 Description:
-  List commands
+  Display help for a command
 
 Usage:
-  list [options] [--] [<namespace>]
+  help [options] [--] [<command_name>]
 
 Arguments:
-  namespace                      The namespace name
+  command_name                   The command name [default: "help"]
 
 Options:
-      --raw                      To output raw command list
       --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
+      --raw                      To output raw command help
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +23,12 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  The help command displays help for a given command:
   
-    composer list
+    composer help list
   
-  You can also display the commands for a specific namespace:
+  You can also output the help in other formats by using the --format option:
   
-    composer list test
+    composer help --format=xml list
   
-  You can also output the information in other formats by using the --format option:
-  
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw
+  To display the list of available commands, please use the list command.

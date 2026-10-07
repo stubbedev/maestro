@@ -1,0 +1,54 @@
+Description:
+  Installs the project dependencies from the composer.lock file if present, or falls back on the composer.json
+
+Usage:
+  install [options] [--] [<packages>...]
+  i
+
+Arguments:
+  packages                                             Should not be provided, use composer require instead to add a given package to composer.json.
+
+Options:
+      --prefer-source                                  Forces installation from package sources when possible, including VCS information.
+      --prefer-dist                                    Forces installation from package dist (default behavior).
+      --prefer-install=PREFER-INSTALL                  Forces installation from package dist|source|auto (auto chooses source for dev versions, dist for the rest).
+      --dry-run                                        Outputs the operations but will not execute anything (implicitly enables --verbose).
+      --download-only                                  Download only, do not install packages.
+      --dev                                            DEPRECATED: Enables installation of require-dev packages (enabled by default, only present for BC).
+      --no-suggest                                     DEPRECATED: This flag does not exist anymore.
+      --no-dev                                         Disables installation of require-dev packages.
+      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
+      --no-blocking                                    Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --no-autoloader                                  Skips autoloader generation
+      --no-progress                                    Do not output download progress.
+      --no-install                                     Do not use, only defined here to catch misuse of the install command.
+      --audit                                          Run an audit after installation is complete.
+      --audit-format=AUDIT-FORMAT                      Audit output format. Must be "table", "plain", "json", or "summary". [default: "summary"]
+  -o, --optimize-autoloader                            Optimize autoloader during autoloader dump
+  -a, --classmap-authoritative                         Autoload classes from the classmap only. Implicitly enables `--optimize-autoloader`.
+      --strict-psr-autoloader                          Return a failed status code (6) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize-autoloader to work.
+      --apcu-autoloader                                Use APCu to cache found/not-found classes.
+      --apcu-autoloader-prefix=APCU-AUTOLOADER-PREFIX  Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader
+      --ignore-platform-req=IGNORE-PLATFORM-REQ        Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
+      --ignore-platform-reqs                           Ignore all platform requirements (php & ext- packages).
+  -h, --help                                           Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                                          Do not output any message
+  -V, --version                                        Display this application version
+      --ansi|--no-ansi                                 Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                                 Do not ask any interactive question
+      --profile                                        Display timing and memory usage information
+      --no-plugins                                     Whether to disable plugins.
+      --no-scripts                                     Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR                        If specified, use the given directory as working directory.
+      --no-cache                                       Prevent use of the cache
+  -v|vv|vvv, --verbose                                 Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The install command reads the composer.lock file from
+  the current directory, processes it, and downloads and installs all the
+  libraries and dependencies outlined in that file. If the file does not
+  exist it will look for composer.json and do the same.
+  
+  php composer.phar install
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#install-i

@@ -1,16 +1,13 @@
 Description:
-  List commands
+  Check that platform requirements are satisfied
 
 Usage:
-  list [options] [--] [<namespace>]
-
-Arguments:
-  namespace                      The namespace name
+  check-platform-reqs [options]
 
 Options:
-      --raw                      To output raw command list
-      --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
+      --no-dev                   Disables checking of require-dev packages requirements.
+      --lock                     Checks requirements only from the lock file, not from installed packages.
+  -f, --format=FORMAT            Format of the output: text or json [default: "text"]
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +21,9 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  Checks that your PHP and extensions versions match the platform requirements of the installed packages.
   
-    composer list
+  Unlike update/install, this command will ignore config.platform settings and check the real platform packages so you can be certain you have the required platform dependencies.
   
-  You can also display the commands for a specific namespace:
+  php composer.phar check-platform-reqs
   
-    composer list test
-  
-  You can also output the information in other formats by using the --format option:
-  
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw

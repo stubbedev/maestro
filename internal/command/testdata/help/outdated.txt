@@ -1,0 +1,48 @@
+Description:
+  Shows a list of installed packages that have updates available, including their latest version
+
+Usage:
+  outdated [options] [--] [<package>]
+
+Arguments:
+  package                                        Package to inspect. Or a name including a wildcard (*) to filter lists of packages instead.
+
+Options:
+  -o, --outdated                                 Show only packages that are outdated (this is the default, but present here for compat with `show`
+  -a, --all                                      Show all installed packages with their latest versions
+      --locked                                   Shows updates for packages from the lock file, regardless of what is currently in vendor dir
+  -D, --direct                                   Shows only packages that are directly required by the root package
+      --strict                                   Return a non-zero exit code when there are outdated packages
+  -M, --major-only                               Show only packages that have major SemVer-compatible updates.
+  -m, --minor-only                               Show only packages that have minor SemVer-compatible updates.
+  -p, --patch-only                               Show only packages that have patch SemVer-compatible updates.
+  -A, --sort-by-age                              Displays the installed version's age, and sorts packages oldest first.
+  -f, --format=FORMAT                            Format of the output: text or json [default: "text"]
+      --ignore=IGNORE                            Ignore specified package(s). Can contain wildcards (*). Use it if you don't want to be informed about new versions of some packages. (multiple values allowed)
+      --no-dev                                   Disables search in require-dev packages.
+      --ignore-platform-req=IGNORE-PLATFORM-REQ  Ignore a specific platform requirement (php & ext- packages). Use with the --outdated option (multiple values allowed)
+      --ignore-platform-reqs                     Ignore all platform requirements (php & ext- packages). Use with the --outdated option
+  -h, --help                                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                                    Do not output any message
+  -V, --version                                  Display this application version
+      --ansi|--no-ansi                           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                           Do not ask any interactive question
+      --profile                                  Display timing and memory usage information
+      --no-plugins                               Whether to disable plugins.
+      --no-scripts                               Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR                  If specified, use the given directory as working directory.
+      --no-cache                                 Prevent use of the cache
+  -v|vv|vvv, --verbose                           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The outdated command is just a proxy for `composer show -l`
+  
+  The color coding (or signage if you have ANSI colors disabled) for dependency versions is as such:
+  
+  - green (=): Dependency is in the latest version and is up to date.
+  - yellow (~): Dependency has a new version available that includes backwards
+    compatibility breaks according to semver, so upgrade when you can but it
+    may involve work.
+  - red (!): Dependency has a new version that is semver-compatible and you should upgrade it.
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#outdated

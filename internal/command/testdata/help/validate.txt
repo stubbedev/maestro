@@ -1,0 +1,38 @@
+Description:
+  Validates a composer.json and composer.lock
+
+Usage:
+  validate [options] [--] [<file>]
+
+Arguments:
+  file                           path to composer.json file
+
+Options:
+      --no-check-all             Do not validate requires for overly strict/loose constraints
+      --check-lock               Check if lock file is up to date (even when config.lock is false)
+      --no-check-lock            Do not check if lock file is up to date
+      --no-check-publish         Do not check for publish errors
+      --no-check-version         Do not report a warning if the version field is present
+  -A, --with-dependencies        Also validate the composer.json of all installed dependencies
+      --strict                   Return a non-zero exit code for warnings as well as errors
+  -h, --help                     Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                    Do not output any message
+  -V, --version                  Display this application version
+      --ansi|--no-ansi           Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction           Do not ask any interactive question
+      --profile                  Display timing and memory usage information
+      --no-plugins               Whether to disable plugins.
+      --no-scripts               Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR  If specified, use the given directory as working directory.
+      --no-cache                 Prevent use of the cache
+  -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The validate command validates a given composer.json and composer.lock
+  
+  Exit codes in case of errors are:
+  1 validation warning(s), only when --strict is given
+  2 validation error(s)
+  3 file unreadable or missing
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#validate

@@ -1,0 +1,33 @@
+Description:
+  Checks for security vulnerability advisories for installed packages
+
+Usage:
+  audit [options]
+
+Options:
+      --no-dev                           Disables auditing of require-dev packages.
+  -f, --format=FORMAT                    Output format. Must be "table", "plain", "json", or "summary". [default: "table"]
+      --locked                           Audit based on the lock file instead of the installed packages.
+      --abandoned=ABANDONED              Behavior on abandoned packages. Must be "ignore", "report", or "fail".
+      --ignore-severity=IGNORE-SEVERITY  Ignore advisories of a certain severity level. (multiple values allowed)
+      --ignore-unreachable               Ignore repositories that are unreachable or return a non-200 status code.
+  -h, --help                             Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                            Do not output any message
+  -V, --version                          Display this application version
+      --ansi|--no-ansi                   Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                   Do not ask any interactive question
+      --profile                          Display timing and memory usage information
+      --no-plugins                       Whether to disable plugins.
+      --no-scripts                       Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR          If specified, use the given directory as working directory.
+      --no-cache                         Prevent use of the cache
+  -v|vv|vvv, --verbose                   Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The audit command checks for security vulnerability advisories for installed packages.
+  
+  If you do not want to include dev dependencies in the audit you can omit them with --no-dev
+  
+  If you want to ignore repositories that are unreachable or return a non-200 status code, use --ignore-unreachable
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#audit

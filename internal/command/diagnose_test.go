@@ -84,24 +84,6 @@ func TestDiagnoseCommand_CmdSuccess(t *testing.T) {
 	}
 }
 
-// TestDiagnoseCommand_Help compares `help diagnose` with Composer's
-// (testdata/help/diagnose.txt, tools/oracle/command/help_diagnose.php).
-func TestDiagnoseCommand_Help(t *testing.T) {
-	want, err := os.ReadFile("testdata/help/diagnose.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	commandtest.InitTempComposer(t, nil, nil, nil, true)
-
-	appTester := commandtest.GetApplicationTester(t)
-	if code, err := appTester.RunArgs(commandtest.Options{}, "command", "help", "command_name", "diagnose"); err != nil || code != 0 {
-		t.Fatalf("run: %d %v", code, err)
-	}
-	if got := appTester.Display(true); got != string(want) {
-		t.Errorf("help differs:\n got %q\nwant %q", got, want)
-	}
-}
-
 // TestDiagnoseCommand_NetworkDisabled runs every check offline: the
 // network checks are skipped and the exit code reflects the rest.
 func TestDiagnoseCommand_NetworkDisabled(t *testing.T) {

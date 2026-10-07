@@ -1,0 +1,25 @@
+
+In Application.php line 761:
+                                                                              
+  [Symfony\Component\Console\Exception\CommandNotFoundException]              
+  Command "in" is ambiguous.                                                  
+  Did you mean one of these?                                                  
+      init    Creates a basic composer.json file in current directory         
+      install Installs the project dependencies from the composer.lock fi...  
+      info    Shows information about packages.                               
+                                                                              
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Application.php:761
+ Symfony\Component\Console\Application->find() at @COMPOSER@/vendor/symfony/console/Command/HelpCommand.php:73
+ Symfony\Component\Console\Command\HelpCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+help [--format FORMAT] [--raw] [--] [<command_name>]
+
+exit 1

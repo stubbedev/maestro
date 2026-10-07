@@ -1,0 +1,8 @@
+
+                               
+  Unsupported format "bogus".  
+                               
+
+help [--format FORMAT] [--raw] [--] [<command_name>]
+
+exit 1

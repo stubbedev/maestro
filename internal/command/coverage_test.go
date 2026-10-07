@@ -34,8 +34,14 @@ import (
 // remove Pending once both kinds exist (the guard fails while it stays).
 var coverage = []entry{
 	cover(console.NewHelpCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestHelp_GroupC))},
-		Pending: 83,
+		Tests: []Proof{
+			Positive(Go(TestHelp_All)),
+			Positive(Go(TestHelp_Quiet)),
+			Positive(E2E("commands", "help")),
+			Positive(E2E("commands", "help", "validate", "--format=json")),
+			Positive(E2E("commands", "help", "u")),
+			Positive(E2E("scripts", "help", "hi")),
+		},
 	}),
 	cover(console.NewListCommand, Coverage{
 		Tests: []Proof{

@@ -1,0 +1,8 @@
+
+                                  
+  Command "nope" is not defined.  
+                                  
+
+help [--format FORMAT] [--raw] [--] [<command_name>]
+
+exit 1

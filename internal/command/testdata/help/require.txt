@@ -1,0 +1,63 @@
+Description:
+  Adds required packages to your composer.json and installs them
+
+Usage:
+  require [options] [--] [<packages>...]
+  r
+
+Arguments:
+  packages                                             Optional package name can also include a version constraint, e.g. foo/bar or foo/bar:1.0.0 or foo/bar=1.0.0 or "foo/bar 1.0.0"
+
+Options:
+      --dev                                            Add requirement to require-dev.
+      --dry-run                                        Outputs the operations but will not execute anything (implicitly enables --verbose).
+      --prefer-source                                  Forces installation from package sources when possible, including VCS information.
+      --prefer-dist                                    Forces installation from package dist (default behavior).
+      --prefer-install=PREFER-INSTALL                  Forces installation from package dist|source|auto (auto chooses source for dev versions, dist for the rest).
+      --fixed                                          Write fixed version to the composer.json.
+      --no-suggest                                     DEPRECATED: This flag does not exist anymore.
+      --no-progress                                    Do not output download progress.
+      --no-update                                      Disables the automatic update of the dependencies (implies --no-install).
+      --no-install                                     Skip the install step after updating the composer.lock file.
+      --no-audit                                       Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).
+      --audit-format=AUDIT-FORMAT                      Audit output format. Must be "table", "plain", "json", or "summary". [default: "summary"]
+      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
+      --no-blocking                                    Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --update-no-dev                                  Run the dependency update with the --no-dev option.
+  -w, --update-with-dependencies                       Allows inherited dependencies to be updated, except those that are root requirements (can also be set via the COMPOSER_WITH_DEPENDENCIES=1 env var).
+  -W, --update-with-all-dependencies                   Allows all inherited dependencies to be updated, including those that are root requirements (can also be set via the COMPOSER_WITH_ALL_DEPENDENCIES=1 env var).
+      --with-dependencies                              Alias for --update-with-dependencies
+      --with-all-dependencies                          Alias for --update-with-all-dependencies
+      --ignore-platform-req=IGNORE-PLATFORM-REQ        Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
+      --ignore-platform-reqs                           Ignore all platform requirements (php & ext- packages).
+      --prefer-stable                                  Prefer stable versions of dependencies (can also be set via the COMPOSER_PREFER_STABLE=1 env var).
+      --prefer-lowest                                  Prefer lowest versions of dependencies (can also be set via the COMPOSER_PREFER_LOWEST=1 env var).
+  -m, --minimal-changes                                During an update with -w/-W, only perform absolutely necessary changes to transitive dependencies (can also be set via the COMPOSER_MINIMAL_CHANGES=1 env var).
+      --sort-packages                                  Sorts packages when adding/updating a new dependency
+  -o, --optimize-autoloader                            Optimize autoloader during autoloader dump
+  -a, --classmap-authoritative                         Autoload classes from the classmap only. Implicitly enables `--optimize-autoloader`.
+      --apcu-autoloader                                Use APCu to cache found/not-found classes.
+      --apcu-autoloader-prefix=APCU-AUTOLOADER-PREFIX  Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader
+  -h, --help                                           Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                                          Do not output any message
+  -V, --version                                        Display this application version
+      --ansi|--no-ansi                                 Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                                 Do not ask any interactive question
+      --profile                                        Display timing and memory usage information
+      --no-plugins                                     Whether to disable plugins.
+      --no-scripts                                     Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR                        If specified, use the given directory as working directory.
+      --no-cache                                       Prevent use of the cache
+  -v|vv|vvv, --verbose                                 Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The require command adds required packages to your composer.json and installs them.
+  
+  If you do not specify a package, composer will prompt you to search for a package, and given results, provide a list of
+  matches to require.
+  
+  If you do not specify a version constraint, composer will choose a suitable one based on the available package versions.
+  
+  If you do not want to install the new dependencies immediately you can call it with --no-update
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#require-r

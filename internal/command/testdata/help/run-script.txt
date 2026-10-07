@@ -1,16 +1,19 @@
 Description:
-  List commands
+  Runs the scripts defined in composer.json
 
 Usage:
-  list [options] [--] [<namespace>]
+  run-script [options] [--] [<script> [<args>...]]
+  run
 
 Arguments:
-  namespace                      The namespace name
+  script                         Script name to run.
+  args                           
 
 Options:
-      --raw                      To output raw command list
-      --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
+      --timeout=TIMEOUT          Sets script timeout in seconds, or 0 for never.
+      --dev                      Sets the dev mode.
+      --no-dev                   Disables the dev mode.
+  -l, --list                     List scripts.
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +27,8 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  The run-script command runs scripts defined in composer.json:
   
-    composer list
+  php composer.phar run-script post-update-cmd
   
-  You can also display the commands for a specific namespace:
-  
-    composer list test
-  
-  You can also output the information in other formats by using the --format option:
-  
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw
+  Read more at https://getcomposer.org/doc/03-cli.md#run-script-run

@@ -1,16 +1,18 @@
 Description:
-  List commands
+  Shows which packages prevent the given package from being installed
 
 Usage:
-  list [options] [--] [<namespace>]
+  prohibits [options] [--] <package> <version>
+  why-not
 
 Arguments:
-  namespace                      The namespace name
+  package                        Package to inspect
+  version                        Version constraint, which version you expected to be installed
 
 Options:
-      --raw                      To output raw command list
-      --format=FORMAT            The output format (txt, xml, json, or md) [default: "txt"]
-      --short                    To skip describing commands' arguments
+  -r, --recursive                Recursively resolves up to the root package
+  -t, --tree                     Prints the results as a nested tree
+      --locked                   Read dependency information from composer.lock
   -h, --help                     Display help for the given command. When no command is given display help for the list command
   -q, --quiet                    Do not output any message
   -V, --version                  Display this application version
@@ -24,18 +26,8 @@ Options:
   -v|vv|vvv, --verbose           Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The list command lists all commands:
+  Displays detailed information about why a package cannot be installed.
   
-    composer list
+  php composer.phar prohibits composer/composer
   
-  You can also display the commands for a specific namespace:
-  
-    composer list test
-  
-  You can also output the information in other formats by using the --format option:
-  
-    composer list --format=xml
-  
-  It's also possible to get raw list of commands (useful for embedding command runner):
-  
-    composer list --raw
+  Read more at https://getcomposer.org/doc/03-cli.md#prohibits-why-not

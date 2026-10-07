@@ -1,0 +1,84 @@
+Description:
+  Updates your dependencies to the latest version according to composer.json, and updates the composer.lock file
+
+Usage:
+  update [options] [--] [<packages>...]
+  u
+  upgrade
+
+Arguments:
+  packages                                             Packages that should be updated, if not provided all packages are.
+
+Options:
+      --with=WITH                                      Temporary version constraint to add, e.g. foo/bar:1.0.0 or foo/bar=1.0.0 (multiple values allowed)
+      --prefer-source                                  Forces installation from package sources when possible, including VCS information.
+      --prefer-dist                                    Forces installation from package dist (default behavior).
+      --prefer-install=PREFER-INSTALL                  Forces installation from package dist|source|auto (auto chooses source for dev versions, dist for the rest).
+      --dry-run                                        Outputs the operations but will not execute anything (implicitly enables --verbose).
+      --dev                                            DEPRECATED: Enables installation of require-dev packages (enabled by default, only present for BC).
+      --no-dev                                         Disables installation of require-dev packages.
+      --lock                                           Overwrites the lock file hash to suppress warning about the lock file being out of date without updating package versions. Package metadata like mirrors and URLs are updated if they changed.
+      --no-install                                     Skip the install step after updating the composer.lock file.
+      --no-audit                                       Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).
+      --audit-format=AUDIT-FORMAT                      Audit output format. Must be "table", "plain", "json", or "summary". [default: "summary"]
+      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
+      --no-blocking                                    Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --no-autoloader                                  Skips autoloader generation
+      --no-suggest                                     DEPRECATED: This flag does not exist anymore.
+      --no-progress                                    Do not output download progress.
+  -w, --with-dependencies                              Update also dependencies of packages in the argument list, except those which are root requirements (can also be set via the COMPOSER_WITH_DEPENDENCIES=1 env var).
+  -W, --with-all-dependencies                          Update also dependencies of packages in the argument list, including those which are root requirements (can also be set via the COMPOSER_WITH_ALL_DEPENDENCIES=1 env var).
+  -o, --optimize-autoloader                            Optimize autoloader during autoloader dump.
+  -a, --classmap-authoritative                         Autoload classes from the classmap only. Implicitly enables `--optimize-autoloader`.
+      --strict-psr-autoloader                          Return a failed status code (6) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize-autoloader to work.
+      --apcu-autoloader                                Use APCu to cache found/not-found classes.
+      --apcu-autoloader-prefix=APCU-AUTOLOADER-PREFIX  Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader
+      --ignore-platform-req=IGNORE-PLATFORM-REQ        Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
+      --ignore-platform-reqs                           Ignore all platform requirements (php & ext- packages).
+      --prefer-stable                                  Prefer stable versions of dependencies (can also be set via the COMPOSER_PREFER_STABLE=1 env var).
+      --prefer-lowest                                  Prefer lowest versions of dependencies (can also be set via the COMPOSER_PREFER_LOWEST=1 env var).
+  -m, --minimal-changes                                Only perform absolutely necessary changes to dependencies. If packages cannot be kept at their currently locked version they are updated. For partial updates the allow-listed packages are always updated fully. (can also be set via the COMPOSER_MINIMAL_CHANGES=1 env var).
+      --patch-only                                     Only allow patch version updates for currently installed dependencies.
+  -i, --interactive                                    Interactive interface with autocompletion to select the packages to update.
+      --root-reqs                                      Restricts the update to your first degree dependencies.
+      --bump-after-update[=BUMP-AFTER-UPDATE]          Runs bump after performing the update. [default: false]
+  -h, --help                                           Display help for the given command. When no command is given display help for the list command
+  -q, --quiet                                          Do not output any message
+  -V, --version                                        Display this application version
+      --ansi|--no-ansi                                 Force (or disable --no-ansi) ANSI output
+  -n, --no-interaction                                 Do not ask any interactive question
+      --profile                                        Display timing and memory usage information
+      --no-plugins                                     Whether to disable plugins.
+      --no-scripts                                     Skips the execution of all scripts defined in composer.json file.
+  -d, --working-dir=WORKING-DIR                        If specified, use the given directory as working directory.
+      --no-cache                                       Prevent use of the cache
+  -v|vv|vvv, --verbose                                 Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
+
+Help:
+  The update command reads the composer.json file from the
+  current directory, processes it, and updates, removes or installs all the
+  dependencies.
+  
+  php composer.phar update
+  
+  To limit the update operation to a few packages, you can list the package(s)
+  you want to update as such:
+  
+  php composer.phar update vendor/package1 foo/mypackage [...]
+  
+  You may also use an asterisk (*) pattern to limit the update operation to package(s)
+  from a specific vendor:
+  
+  php composer.phar update vendor/package1 foo/* [...]
+  
+  To run an update with more restrictive constraints you can use:
+  
+  php composer.phar update --with vendor/package:1.0.*
+  
+  To run a partial update with more restrictive constraints you can use the shorthand:
+  
+  php composer.phar update vendor/package:1.0.*
+  
+  To select packages names interactively with auto-completion use -i.
+  
+  Read more at https://getcomposer.org/doc/03-cli.md#update-u-upgrade
