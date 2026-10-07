@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -97,8 +98,9 @@ func TestOracle_Comparer(t *testing.T) {
 		var asString string
 		_ = json.Unmarshal(c[4], &asString)
 
-		if os.Geteuid() == 0 && slices.ContainsFunc(append(source, update...), func(e entry) bool { return e[1] == "unreadable" }) {
-			// root reads what nobody may
+		if (os.Geteuid() == 0 || runtime.GOOS == "windows") && slices.ContainsFunc(append(source, update...), func(e entry) bool { return e[1] == "unreadable" }) {
+			// root reads what nobody may, and on Windows a mode of 0 only
+			// makes a file read-only
 			continue
 		}
 
