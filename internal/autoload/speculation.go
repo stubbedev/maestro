@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/php"
@@ -24,6 +25,14 @@ type speculation struct {
 	done     chan struct{}
 	classMap *classmap.ClassMap
 	err      error
+	// warnings are what scan prints about classMap, which is completed
+	// as scan completes it (analyseClassMap, without strictAmbiguous).
+	warnings []string
+	// ahead is the dump of a target dir "composer" with the class map's
+	// files built (dump.classmap), nil without one; current are the
+	// files the dump writes as they were then (readCurrent).
+	ahead   *dump
+	current map[string]currentFile
 
 	// devMode is installed.json's "dev" as the speculation read it, from
 	// the file installedJSON describes (nil when it was not read, or
@@ -96,11 +105,116 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 		installedPath:   installedPath,
 		installedJSON:   installedJSON,
 	}
+	ahead := aheadDump(d, "composer")
 	g.speculation = s
 	go func() {
 		defer close(s.done)
 		s.classMap, s.err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages)
+		if s.err != nil {
+			return
+		}
+		if s.warnings, s.err = analyseClassMap(s.classMap, d.vendorPath, false); s.err != nil {
+			return
+		}
+		if ahead != nil && ahead.classmap(s.classMap) == nil {
+			s.ahead = ahead
+			s.current = readCurrent(ahead)
+		}
 	}()
+}
+
+// aheadDump is the dump newDump(config, targetDir) makes for the base and
+// vendor paths of d, when vendor-dir/targetDir exists (newDump would
+// create it); nil otherwise.
+func aheadDump(d *dump, targetDir string) *dump {
+	ahead := &dump{basePath: d.basePath, vendorPath: d.vendorPath, targetDir: d.vendorPath + "/" + targetDir}
+	var ok bool
+	if ahead.realTarget, ok = util.RealpathOK(ahead.targetDir); !ok {
+		return nil
+	}
+	var err error
+	if ahead.vendorPathCode, err = util.FindShortestPathCode(ahead.realTarget, ahead.vendorPath, true, false, false); err != nil {
+		return nil
+	}
+	if ahead.vendorPathToTargetDirCode, err = util.FindShortestPathCode(ahead.vendorPath, ahead.realTarget, true, false, false); err != nil {
+		return nil
+	}
+	if ahead.appBaseDirCode, err = util.FindShortestPathCode(ahead.vendorPath, ahead.basePath, true, false, false); err != nil {
+		return nil
+	}
+	ahead.appBaseDirCode = strings.ReplaceAll(ahead.appBaseDirCode, "__DIR__", "$vendorDir")
+	ahead.vendorDir = evalPathCode(ahead.vendorPathCode, ahead.realTarget, "")
+	ahead.baseDir = evalPathCode(ahead.appBaseDirCode, "", ahead.vendorDir)
+
+	return ahead
+}
+
+// samePaths reports whether a and b have the same paths and codes for
+// them, which is all dump.classmap reads besides the class map.
+func samePaths(a, b *dump) bool {
+	return a.basePath == b.basePath && a.vendorPath == b.vendorPath && a.targetDir == b.targetDir && a.realTarget == b.realTarget &&
+		a.vendorPathCode == b.vendorPathCode && a.vendorPathToTargetDirCode == b.vendorPathToTargetDirCode && a.appBaseDirCode == b.appBaseDirCode &&
+		a.vendorDir == b.vendorDir && a.baseDir == b.baseDir
+}
+
+// currentFile is a file's contents, and its description from before and
+// after they were read.
+type currentFile struct {
+	content []byte
+	info    fs.FileInfo
+}
+
+// readCurrent reads the files of d a dump writes with putIfModified, for
+// it to compare them with what it writes without reading them again
+// while they did not change (unchanged).
+func readCurrent(d *dump) map[string]currentFile {
+	current := make(map[string]currentFile, len(dumpFiles)+1)
+	read := func(path string) {
+		before, err := os.Stat(path)
+		if err != nil || !before.Mode().IsRegular() {
+			return
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		if after, err := os.Stat(path); err == nil && sameFileStamp(before, after) {
+			current[path] = currentFile{content, after}
+		}
+	}
+	for _, name := range dumpFiles {
+		read(d.targetDir + "/" + name)
+	}
+	read(d.vendorPath + "/autoload.php")
+
+	return current
+}
+
+// dumpFiles are the files of the target dir write writes.
+var dumpFiles = []string{"autoload_namespaces.php", "autoload_psr4.php", "autoload_classmap.php", "include_paths.php", "autoload_files.php", "autoload_static.php", "platform_check.php", "autoload_real.php", "ClassLoader.php", "LICENSE"}
+
+// unchanged reports whether path holds content, as the speculation read
+// it, when it did not change since.
+func (s *speculation) unchanged(path, content string) bool {
+	f, ok := s.current[path]
+	if !ok || string(f.content) != content {
+		return false
+	}
+	now, err := os.Stat(path)
+
+	return err == nil && sameFileStamp(f.info, now)
+}
+
+// takeClassmap sets d's class map files to those the speculation built,
+// when it built them for d's paths.
+func (s *speculation) takeClassmap(d *dump) bool {
+	a := s.ahead
+	if a == nil || !samePaths(a, d) {
+		return false
+	}
+	d.classes, d.classPaths, d.classmapFile, d.staticClassMap = a.classes, a.classPaths, a.classmapFile, a.staticClassMap
+
+	return true
 }
 
 // installedDevModeStamped is installedDevMode, also returning the path of
@@ -159,19 +273,19 @@ func (g *Generator) DiscardSpeculation() {
 	}
 }
 
-// takeSpeculation is the class map of the speculated scan when it scanned
-// what a Dump with these values scans, nil otherwise.
-func (g *Generator) takeSpeculation(d *dump, autoloads *Autoloads, scanPsrPackages bool) *classmap.ClassMap {
+// takeSpeculation is the speculated scan when it scanned what a Dump with
+// these values scans, and analysed it as that Dump does; nil otherwise.
+func (g *Generator) takeSpeculation(d *dump, autoloads *Autoloads, scanPsrPackages, strictAmbiguous bool) *speculation {
 	s := g.speculation
 	if s == nil {
 		return nil
 	}
 	g.DiscardSpeculation()
-	if s.err != nil || s.parser != g.Parser || s.scanPsrPackages != scanPsrPackages || s.basePath != d.basePath || s.vendorPath != d.vendorPath || !sameScans(s.autoloads, autoloads) {
+	if s.err != nil || strictAmbiguous || s.parser != g.Parser || s.scanPsrPackages != scanPsrPackages || s.basePath != d.basePath || s.vendorPath != d.vendorPath || !sameScans(s.autoloads, autoloads) {
 		return nil
 	}
 
-	return s.classMap
+	return s
 }
 
 // sameScans reports whether a and b give the same scans: the same

@@ -55,6 +55,9 @@ type Generator struct {
 	// speculation is the class map scan Speculate started, nil without
 	// one.
 	speculation *speculation
+	// ahead is the speculation the running Dump took, nil without one:
+	// write compares with the files as it read them.
+	ahead *speculation
 	// recordDir keeps the class maps of the scans (UseScanRecords), ""
 	// for none.
 	recordDir string
@@ -178,14 +181,19 @@ func (g *Generator) Dump(config Config, localRepo InstalledRepository, rootPacka
 		return nil, err
 	}
 
-	classMap, err := g.scan(d, autoloads, packageMap, scanPsrPackages, strictAmbiguous, g.takeSpeculation(d, autoloads, scanPsrPackages))
+	ahead := g.takeSpeculation(d, autoloads, scanPsrPackages, strictAmbiguous)
+	classMap, err := g.scan(d, autoloads, packageMap, scanPsrPackages, strictAmbiguous, ahead)
 	if err != nil {
 		return nil, err
 	}
 	g.parseCache.Save()
-	if err := d.classmap(classMap); err != nil {
-		return nil, err
+	if ahead == nil || !ahead.takeClassmap(d) {
+		if err := d.classmap(classMap); err != nil {
+			return nil, err
+		}
 	}
+	g.ahead = ahead
+	defer func() { g.ahead = nil }()
 
 	g.suffixValue = nil
 	if suffix, err = g.suffix(config, d.vendorPath, suffix, locker); err != nil {
@@ -344,16 +352,37 @@ func (g *Generator) devModeArg() error {
 
 // scan builds the class map: the classmap rules, plus the PSR-0/4 dirs
 // with scanPsrPackages, reporting ambiguous classes and PSR violations.
-// scanned is the class map of these scans when a speculation found it
-// already, nil to scan now.
-func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapEntry, scanPsrPackages, strictAmbiguous bool, scanned *classmap.ClassMap) (*classmap.ClassMap, error) {
-	classMap := scanned
-	if classMap == nil {
-		var err error
-		if classMap, err = g.scanClassMap(d, autoloads, packageMap, scanPsrPackages); err != nil {
-			return nil, err
+// ahead is what a speculation found of it already, nil to scan now.
+func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapEntry, scanPsrPackages, strictAmbiguous bool, ahead *speculation) (*classmap.ClassMap, error) {
+	if ahead != nil {
+		// the speculation analysed its scan as this would (takeSpeculation)
+		for _, msg := range ahead.warnings {
+			g.io.WriteError(msg, true, io.Normal)
 		}
+
+		return ahead.classMap, nil
 	}
+	classMap, err := g.scanClassMap(d, autoloads, packageMap, scanPsrPackages)
+	if err != nil {
+		return nil, err
+	}
+	warnings, err := analyseClassMap(classMap, d.vendorPath, strictAmbiguous)
+	for _, msg := range warnings {
+		g.io.WriteError(msg, true, io.Normal)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return classMap, nil
+}
+
+// analyseClassMap is the part of scan after the scans: it returns the
+// warnings about ambiguous classes and PSR violations scan prints (each
+// with WriteError at Normal verbosity; on error, those printed before it),
+// and completes the class map. It reads and changes nothing but classMap.
+func analyseClassMap(classMap *classmap.ClassMap, vendorPath string, strictAmbiguous bool) ([]string, error) {
+	var warnings []string
 	filter := classmap.DefaultDuplicatesFilter
 	if strictAmbiguous {
 		filter = nil
@@ -365,31 +394,31 @@ func (g *Generator) scan(d *dump, autoloads *Autoloads, packageMap []PackageMapE
 	for _, ambiguous := range ambiguousClasses {
 		classPath, err := classMap.ClassPath(ambiguous.Class)
 		if err != nil {
-			return nil, err
+			return warnings, err
 		}
 		paths := strings.Join(ambiguous.Paths, `", "`)
 		if len(ambiguous.Paths) > 1 {
-			g.io.WriteError(`<warning>Warning: Ambiguous class resolution, "`+ambiguous.Class+`"`+
-				` was found `+php.ToString(int64(len(ambiguous.Paths)+1))+`x: in "`+classPath+`" and "`+paths+`", the first will be used.</warning>`, true, io.Normal)
+			warnings = append(warnings, `<warning>Warning: Ambiguous class resolution, "`+ambiguous.Class+`"`+
+				` was found `+php.ToString(int64(len(ambiguous.Paths)+1))+`x: in "`+classPath+`" and "`+paths+`", the first will be used.</warning>`)
 		} else {
-			g.io.WriteError(`<warning>Warning: Ambiguous class resolution, "`+ambiguous.Class+`"`+
-				` was found in both "`+classPath+`" and "`+paths+`", the first will be used.</warning>`, true, io.Normal)
+			warnings = append(warnings, `<warning>Warning: Ambiguous class resolution, "`+ambiguous.Class+`"`+
+				` was found in both "`+classPath+`" and "`+paths+`", the first will be used.</warning>`)
 		}
 	}
 	if len(ambiguousClasses) > 0 {
-		g.io.WriteError("<info>To resolve ambiguity in classes not under your control you can ignore them by path using <href="+console.Escape("https://getcomposer.org/doc/04-schema.md#exclude-files-from-classmaps")+">exclude-from-classmap</>", true, io.Normal)
+		warnings = append(warnings, "<info>To resolve ambiguity in classes not under your control you can ignore them by path using <href="+console.Escape("https://getcomposer.org/doc/04-schema.md#exclude-files-from-classmaps")+">exclude-from-classmap</>")
 	}
 
 	// output PSR violations which are not coming from the vendor dir
-	classMap.ClearPsrViolationsByPath(d.vendorPath)
+	classMap.ClearPsrViolationsByPath(vendorPath)
 	for _, msg := range classMap.PsrViolations() {
-		g.io.WriteError("<warning>"+msg+"</warning>", true, io.Normal)
+		warnings = append(warnings, "<warning>"+msg+"</warning>")
 	}
 
-	classMap.AddClass(`Composer\InstalledVersions`, d.vendorPath+"/composer/InstalledVersions.php")
+	classMap.AddClass(`Composer\InstalledVersions`, vendorPath+"/composer/InstalledVersions.php")
 	classMap.Sort()
 
-	return classMap, nil
+	return warnings, nil
 }
 
 // scanClassMap is the part of scan that scans: it prints nothing, and
@@ -539,13 +568,13 @@ func randomHex(n int) string {
 
 // write writes the autoloader files.
 func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, autoloads *Autoloads, devPackageNames []string, targetDirLoader, suffix string) error {
-	if err := putIfModified(d.targetDir+"/autoload_namespaces.php", d.namespacesFile); err != nil {
+	if err := g.put(d.targetDir+"/autoload_namespaces.php", d.namespacesFile); err != nil {
 		return err
 	}
-	if err := putIfModified(d.targetDir+"/autoload_psr4.php", d.psr4File); err != nil {
+	if err := g.put(d.targetDir+"/autoload_psr4.php", d.psr4File); err != nil {
 		return err
 	}
-	if err := putIfModified(d.targetDir+"/autoload_classmap.php", d.classmapFile); err != nil {
+	if err := g.put(d.targetDir+"/autoload_classmap.php", d.classmapFile); err != nil {
 		return err
 	}
 
@@ -553,7 +582,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	if err != nil {
 		return err
 	}
-	if err := putOrRemove(d.targetDir+"/include_paths.php", includePathsFile); err != nil {
+	if err := g.putOrRemove(d.targetDir+"/include_paths.php", includePathsFile); err != nil {
 		return err
 	}
 
@@ -561,7 +590,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	if err != nil {
 		return err
 	}
-	if err := putOrRemove(d.targetDir+"/autoload_files.php", includeFilesFile); err != nil {
+	if err := g.putOrRemove(d.targetDir+"/autoload_files.php", includeFilesFile); err != nil {
 		return err
 	}
 
@@ -572,7 +601,7 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 	if err != nil {
 		return err
 	}
-	if err := putIfModified(d.targetDir+"/autoload_static.php", staticFile); err != nil {
+	if err := g.put(d.targetDir+"/autoload_static.php", staticFile); err != nil {
 		return err
 	}
 
@@ -591,11 +620,11 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 		}
 		checkPlatform = platformCheckContent != ""
 	}
-	if err := putOrRemove(d.targetDir+"/platform_check.php", platformCheckContent); err != nil {
+	if err := g.putOrRemove(d.targetDir+"/platform_check.php", platformCheckContent); err != nil {
 		return err
 	}
 
-	if err := putIfModified(d.vendorPath+"/autoload.php", autoloadFile(d.vendorPathToTargetDirCode, suffix)); err != nil {
+	if err := g.put(d.vendorPath+"/autoload.php", autoloadFile(d.vendorPathToTargetDirCode, suffix)); err != nil {
 		return err
 	}
 
@@ -608,15 +637,15 @@ func (g *Generator) write(d *dump, config Config, packageMap []PackageMapEntry, 
 		return err
 	}
 	realFile := g.autoloadRealFile(includePathsFile != "", targetDirLoader, includeFilesFile != "", suffix, php.ToBool(useGlobalIncludePath), prependAutoloader != false, checkPlatform)
-	if err := putIfModified(d.targetDir+"/autoload_real.php", realFile); err != nil {
+	if err := g.put(d.targetDir+"/autoload_real.php", realFile); err != nil {
 		return err
 	}
 
-	if err := putIfModified(d.targetDir+"/ClassLoader.php", ClassLoaderPHP); err != nil {
+	if err := g.put(d.targetDir+"/ClassLoader.php", ClassLoaderPHP); err != nil {
 		return err
 	}
 
-	return putIfModified(d.targetDir+"/LICENSE", License)
+	return g.put(d.targetDir+"/LICENSE", License)
 }
 
 // putIfModified is Filesystem::filePutContentsIfModified.
@@ -626,10 +655,20 @@ func putIfModified(path, content string) error {
 	return err
 }
 
+// put is putIfModified, without reading path when the speculation the
+// dump took read it and it did not change since.
+func (g *Generator) put(path, content string) error {
+	if g.ahead != nil && g.ahead.unchanged(path, content) {
+		return nil
+	}
+
+	return putIfModified(path, content)
+}
+
 // putOrRemove writes content to path, or removes path for no content.
-func putOrRemove(path, content string) error {
+func (g *Generator) putOrRemove(path, content string) error {
 	if content != "" {
-		return putIfModified(path, content)
+		return g.put(path, content)
 	}
 	if _, err := os.Lstat(path); err == nil {
 		return util.Unlink(path)

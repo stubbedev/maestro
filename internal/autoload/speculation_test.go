@@ -1,6 +1,8 @@
 package autoload
 
 import (
+	"maps"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -66,6 +68,74 @@ func TestGenerator_DumpTakesSpeculation(t *testing.T) {
 	}
 	if e.generator.speculation != nil {
 		t.Error("the speculation was kept after the dump")
+	}
+}
+
+// generatedFiles are the files a dump of e wrote, by name.
+func (e *env) generatedFiles() map[string]string {
+	e.t.Helper()
+	files := map[string]string{}
+	for _, path := range append([]string{e.vendorDir + "/autoload.php"}, func() []string {
+		var paths []string
+		for _, name := range dumpFiles {
+			paths = append(paths, e.vendorDir+"/composer/"+name)
+		}
+
+		return paths
+	}()...) {
+		if content, err := os.ReadFile(path); err == nil {
+			files[strings.TrimPrefix(path, e.vendorDir)] = strings.ReplaceAll(string(content), e.workingDir, "<dir>")
+		}
+	}
+
+	return files
+}
+
+// A dump that takes the speculation writes and prints what one without
+// it does, the files it found unchanged included.
+func TestGenerator_DumpAheadIsTheDump(t *testing.T) {
+	want, p := speculationEnv(t)
+	want.dump(p, true, "_1")
+	wantOut := strings.ReplaceAll(want.io.Output(), want.workingDir, "<dir>")
+	wantFiles := want.generatedFiles()
+
+	e, p := speculationEnv(t)
+	e.dump(p, true, "_1") // the files a no-op install finds
+	e.io = newBufferIO(t)
+	e.generator = NewGenerator(e.dispatcher, e.io)
+	e.generator.Speculate(e.config, e.repo, p, e.im, true)
+	<-e.generator.speculation.done
+	if e.generator.speculation.ahead == nil || len(e.generator.speculation.current) == 0 {
+		t.Fatal("the speculation built no class map files")
+	}
+	// changed since the speculation read it: written again
+	e.write(e.vendorDir+"/composer/autoload_psr4.php", "<?php return array( );\n")
+	e.dump(p, true, "_1")
+
+	if got := strings.ReplaceAll(e.io.Output(), e.workingDir, "<dir>"); got != wantOut {
+		t.Errorf("output %q, want %q", got, wantOut)
+	}
+	if got := e.generatedFiles(); !maps.Equal(got, wantFiles) {
+		for name, content := range wantFiles {
+			if got[name] != content {
+				t.Errorf("%s:\n%s\nwant:\n%s", name, got[name], content)
+			}
+		}
+	}
+}
+
+// A dump with strictAmbiguous does not take the speculation, which
+// analysed its scan without.
+func TestGenerator_DumpStrictAmbiguousScans(t *testing.T) {
+	e, p := speculationEnv(t)
+	e.generator.Speculate(e.config, e.repo, p, e.im, true)
+	e.speculated()
+	if _, err := e.generator.Dump(e.config, e.repo, p, e.im, "composer", true, "_1", nil, true); err != nil {
+		t.Fatal(err)
+	}
+
+	if !e.classmapHas("Late") {
+		t.Error("the strict dump took the speculation: Late is missing from the class map")
 	}
 }
 
