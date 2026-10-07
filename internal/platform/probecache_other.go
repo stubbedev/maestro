@@ -5,8 +5,10 @@
 
 package platform
 
+import "time"
+
 func probeCacheKey(string) string { return "" }
 
 func loadProbeCache(string, string) *Snapshot { return nil }
 
-func storeProbeCache(string, string, *Snapshot, []byte) {}
+func storeProbeCache(string, string, *Snapshot, []byte, time.Time) {}
