@@ -10,6 +10,12 @@
  * rendered as PHP source, so tools/shimgen writes stubs from this output
  * and the parity test compares the shim's reflection with it verbatim.
  *
+ * A string value below the declaring class's directory (Composer's
+ * `__DIR__ . '/../../../res/composer-schema.json'`) is rendered as that
+ * expression, not as the absolute path it evaluates to: the golden then
+ * does not depend on where the checkout or the extracted shim lives, and
+ * the shim, which keeps Composer's relative layout, matches it.
+ *
  * Usage:
  *   php reflect.php ref <composer checkout>          Composer's src/
  *   php reflect.php shim <extracted shim root>      the shim's Composer classes
@@ -93,7 +99,7 @@ function reflectClass(ReflectionClass $r): array
         }
         $c['constants'][$const->getName()] = [
             'visibility' => $const->isProtected() ? 'protected' : 'public',
-            'value' => export($const->getValue()),
+            'value' => export($const->getValue(), dirOf($r)),
         ];
     }
     ksort($c['constants']);
@@ -107,7 +113,7 @@ function reflectClass(ReflectionClass $r): array
             'visibility' => $prop->isProtected() ? 'protected' : 'public',
             'static' => $prop->isStatic(),
             'type' => typeString($prop->getType()),
-            'default' => array_key_exists($prop->getName(), $defaults) ? export($defaults[$prop->getName()]) : null,
+            'default' => array_key_exists($prop->getName(), $defaults) ? export($defaults[$prop->getName()], dirOf($r)) : null,
         ];
     }
     ksort($c['properties']);
@@ -252,14 +258,28 @@ function defaultString(ReflectionParameter $p): ?string
         return '\\'.$name;
     }
 
-    return export($p->getDefaultValue());
+    return export($p->getDefaultValue(), dirOf($p->getDeclaringClass()));
 }
 
 /**
- * A constant value as PHP source.
+ * The directory of the file that declares a class: its __DIR__.
  */
-function export($v): string
+function dirOf(?ReflectionClass $r): ?string
 {
+    $file = $r === null ? false : $r->getFileName();
+
+    return $file === false ? null : dirname($file);
+}
+
+/**
+ * A constant value as PHP source. A string below $dir, the declaring
+ * file's directory, is written relative to __DIR__.
+ */
+function export($v, ?string $dir = null): string
+{
+    if (is_string($v) && $dir !== null && strpos($v, $dir.'/') === 0) {
+        return '__DIR__ . '.var_export(substr($v, strlen($dir)), true);
+    }
     if (is_array($v)) {
         if ($v === []) {
             return '[]';
@@ -267,7 +287,7 @@ function export($v): string
         $isList = array_keys($v) === range(0, count($v) - 1);
         $parts = [];
         foreach ($v as $k => $item) {
-            $parts[] = ($isList ? '' : var_export($k, true).' => ').export($item);
+            $parts[] = ($isList ? '' : var_export($k, true).' => ').export($item, $dir);
         }
 
         return '['.implode(', ', $parts).']';

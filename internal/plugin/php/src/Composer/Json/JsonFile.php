@@ -34,14 +34,16 @@ class JsonFile
     }
 
     public const AUTH_SCHEMA = 3;
-    public const COMPOSER_SCHEMA_PATH = '/home/stubbe/git/private/maestro/.ref/composer/src/Composer/Json/../../../res/composer-schema.json';
+    // Composer's res/ schemas, which the extracted shim holds at the same
+    // place relative to this file as the phar does (shimbuild.VirtualFiles).
+    public const COMPOSER_SCHEMA_PATH = __DIR__ . '/../../../res/composer-schema.json';
     public const INDENT_DEFAULT = '    ';
     public const JSON_PRETTY_PRINT = 128;
     public const JSON_UNESCAPED_SLASHES = 64;
     public const JSON_UNESCAPED_UNICODE = 256;
     public const LAX_SCHEMA = 1;
     public const LOCK_SCHEMA = 4;
-    public const LOCK_SCHEMA_PATH = '/home/stubbe/git/private/maestro/.ref/composer/src/Composer/Json/../../../res/composer-lock-schema.json';
+    public const LOCK_SCHEMA_PATH = __DIR__ . '/../../../res/composer-lock-schema.json';
     public const STRICT_SCHEMA = 2;
 
     public function __construct(string $path, ?\Composer\Util\HttpDownloader $httpDownloader = null, ?\Composer\IO\IOInterface $io = null)

@@ -7,6 +7,7 @@ use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\Installer\PackageEvents;
 use Composer\IO\IOInterface;
+use Composer\Json\JsonFile;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
 use Composer\Script\ScriptEvents;
@@ -102,6 +103,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             'process: '.trim($output),
             'locked: '.var_export($this->composer->getLocker()->isLocked(), true),
             'running command: '.var_export(Composer::getRunningCommand(), true),
+            // As ConfigCommand reads it: the schemas Composer ships in res/.
+            'schemas: '.hash('sha256', (string) file_get_contents(JsonFile::COMPOSER_SCHEMA_PATH)).' '.hash('sha256', (string) file_get_contents(JsonFile::LOCK_SCHEMA_PATH)),
         ]);
     }
 }

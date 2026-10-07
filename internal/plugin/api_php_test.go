@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/json/res"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -150,6 +153,9 @@ func TestPlugins_API(t *testing.T) {
 		"installed versions: 1.2.3",
 		"process: captured",
 		"locked: true",
+		// JsonFile::COMPOSER_SCHEMA_PATH and LOCK_SCHEMA_PATH name the
+		// schemas, wherever the shim is (issue #38).
+		"schemas: " + sha256Hex(res.ComposerSchema()) + " " + sha256Hex(res.LockSchema()),
 	} {
 		if !strings.Contains(output, want) {
 			t.Errorf("update output lacks %q:\n%s\nchild:\n%s", want, output, p.childOutput())
@@ -334,4 +340,10 @@ func TestPlugins_Installers(t *testing.T) {
 	if final := p.rt.Finish(0); final != 0 {
 		t.Errorf("Finish = %d", final)
 	}
+}
+
+func sha256Hex(s string) string {
+	sum := sha256.Sum256([]byte(s))
+
+	return hex.EncodeToString(sum[:])
 }

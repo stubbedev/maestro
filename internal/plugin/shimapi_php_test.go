@@ -12,6 +12,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/json/res"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
@@ -270,6 +271,57 @@ func TestShimAPI_Utilities(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "x.json")); err != nil {
 		t.Error(err)
+	}
+}
+
+// TestShimAPI_SchemaPaths: JsonFile::COMPOSER_SCHEMA_PATH and
+// LOCK_SCHEMA_PATH name Composer's schemas in the extracted shim, as they
+// name the phar's res/ files (issue #38), so a plugin that reads them, as
+// ConfigCommand does, gets internal/json's schemas byte for byte.
+func TestShimAPI_SchemaPaths(t *testing.T) {
+	requirePHP(t)
+
+	rt, _, _ := newTestRuntime(t)
+	start(t, rt)
+	shim, err := rt.ShimDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := evalPHP(t, rt, `
+		return [
+			'composer' => \Composer\Json\JsonFile::COMPOSER_SCHEMA_PATH,
+			'lock' => \Composer\Json\JsonFile::LOCK_SCHEMA_PATH,
+			'composerReal' => realpath(\Composer\Json\JsonFile::COMPOSER_SCHEMA_PATH),
+			'lockReal' => realpath(\Composer\Json\JsonFile::LOCK_SCHEMA_PATH),
+			'composerData' => file_get_contents(\Composer\Json\JsonFile::COMPOSER_SCHEMA_PATH),
+			'lockData' => file_get_contents(\Composer\Json\JsonFile::LOCK_SCHEMA_PATH),
+			'parsed' => \Composer\Json\JsonFile::parseJson((string) file_get_contents(\Composer\Json\JsonFile::COMPOSER_SCHEMA_PATH))['properties']['name']['type'],
+		];
+	`, nil)
+	a := got.(*php.Array)
+
+	realShim, err := filepath.EvalSymlinks(shim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ key, file, data string }{
+		{"composer", "composer-schema.json", res.ComposerSchema()},
+		{"lock", "composer-lock-schema.json", res.LockSchema()},
+	} {
+		path, _ := a.GetString(c.key)
+		if want := filepath.Join(shim, "src", "Composer", "Json") + "/../../../res/" + c.file; path != want {
+			t.Errorf("%s path %q, want %q", c.key, path, want)
+		}
+		if real, _ := a.GetString(c.key + "Real"); real != filepath.Join(realShim, "res", c.file) {
+			t.Errorf("%s resolves to %q", c.key, real)
+		}
+		if data, _ := a.GetString(c.key + "Data"); data != c.data {
+			t.Errorf("%s schema differs from internal/json's (%d bytes, want %d)", c.key, len(data), len(c.data))
+		}
+	}
+	if v, _ := a.GetString("parsed"); v != "string" {
+		t.Errorf("parsed schema: name type %q", v)
 	}
 }
 

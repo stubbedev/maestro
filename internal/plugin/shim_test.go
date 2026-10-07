@@ -105,7 +105,7 @@ func TestShim_Extract(t *testing.T) {
 	for rel, content := range shimbuild.VirtualFiles() {
 		data, err := os.ReadFile(filepath.Join(dir, rel))
 		if err != nil || string(data) != content {
-			t.Errorf("%s differs from internal/autoload's", rel)
+			t.Errorf("%s differs from its embedded source", rel)
 		}
 	}
 	if info, err := os.Stat(filepath.Dir(dir)); err != nil || unix && info.Mode().Perm() != 0o700 {

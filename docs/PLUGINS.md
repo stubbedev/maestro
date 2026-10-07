@@ -344,6 +344,8 @@ internal/plugin/                      Go (ports Composer\Plugin\*; hosts the bri
     autoload.php      the generated static class map and `files` list (the index)
     MANIFEST          "<sha256> <path>" per file; the cache directory is named after its sha256
     bin/composer      the COMPOSER_BINARY launcher (D13)
+    res/              Composer's res/*.json schemas, from internal/json's embed (not in the source tree),
+                      where JsonFile::COMPOSER_SCHEMA_PATH and LOCK_SCHEMA_PATH point, as in the phar
 tools/shimgen/        generator: reflects .ref/composer/src (as plugins-survey/tools/apiindex.php does),
                       writes stubs for every class not hand-written, and a parity golden used by tests
 tools/shimvendor/     copies the exact library versions from .ref/composer/vendor (per .ref/composer/composer.lock)
@@ -392,8 +394,9 @@ directories `0700`), write `MANIFEST` last, rename into place. A directory is
 valid when its `MANIFEST` equals the embedded one; a broken one is moved
 aside and extracted again. Directories stay writable for their owner so that
 clearing the cache can delete the shim. `ClassLoader.php` and
-`InstalledVersions.php` are written from `internal/autoload`'s embed (they are
-not in the source tree). The shim is reused across runs and projects.
+`InstalledVersions.php` are written from `internal/autoload`'s embed, and
+`res/*.json` from `internal/json/res`'s (they are not in the source tree,
+`shimbuild.VirtualFiles`). The shim is reused across runs and projects.
 
 ### 5.2 Process model and lifecycle
 
@@ -2321,8 +2324,10 @@ name the exact method, so these reports are actionable.
   `internal/plugin/testdata/apiparity.json` from `.ref/composer/src` by
   reflection: class kind, parent, interfaces, and for each public or
   protected method its name, parameter names, types, defaults, by-ref,
-  return type, static and visibility; constants with values. The test
-  reflects the shim in a real php and requires an exact match, except for an
+  return type, static and visibility; constants with values (a string below
+  the declaring file's directory as `__DIR__ . '/…'`, so the golden does
+  not hold the checkout's path and the shim matches it on any machine). The
+  test reflects the shim in a real php and requires an exact match, except for an
   explicit allowlist (for example `Compiler`). It also requires that no
   extra `Composer\*` classes exist.
 - **Vendored drift.** The vendored library versions equal

@@ -14,15 +14,21 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/autoload"
+	"github.com/stubbedev/maestro/internal/json/res"
 )
 
 // ManifestFile is the manifest's path, relative to the shim root.
 const ManifestFile = "MANIFEST"
 
 // VirtualFiles are the files the extracted shim holds that are not in its
-// source tree (see VirtualClasses), by path.
+// source tree, by path: the verbatim classes (see VirtualClasses) and
+// Composer's res/ schemas, which the phar ships and JsonFile::COMPOSER_SCHEMA_PATH
+// and LOCK_SCHEMA_PATH point to, from internal/json's embed.
 func VirtualFiles() map[string]string {
 	return map[string]string{
+		"res/composer-schema.json":                      res.ComposerSchema(),
+		"res/composer-lock-schema.json":                 res.LockSchema(),
+		"res/composer-repository-schema.json":           res.RepositorySchema(),
 		VirtualClasses[`Composer\Autoload\ClassLoader`]: autoload.ClassLoaderPHP,
 		VirtualClasses[`Composer\InstalledVersions`]:    autoload.InstalledVersionsPHP,
 	}
