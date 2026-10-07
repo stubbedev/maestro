@@ -33,6 +33,16 @@ type ShowCommand struct {
 	versionParser *pkg.VersionParser
 	colors        []string
 	repositorySet *repository.RepositorySet
+	// treePackages are the packages addTree found in this execution.
+	treePackages map[treePackageKey]pkg.CompletePackageInterface
+}
+
+// treePackageKey is a getPackage lookup of addTree: the package name and
+// the requirement's pretty constraint, or the string form of a
+// self.version requirement's constraint.
+type treePackageKey struct {
+	name, constraint string
+	selfVersion      bool
 }
 
 // NewShowCommand creates the show command.
@@ -157,6 +167,7 @@ func (ls showLists) set(typ, name string, e showEntry) {
 // Execute ports ShowCommand::execute.
 func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, error) {
 	c.versionParser = pkg.NewVersionParser()
+	c.treePackages = map[treePackageKey]pkg.CompletePackageInterface{}
 	if console.BoolOption(input, "tree") {
 		if err := c.initStyles(output); err != nil {
 			return 0, err
@@ -1870,13 +1881,21 @@ func (c *ShowCommand) addTree(name string, link *pkg.Link, installedRepo *reposi
 	if err != nil {
 		return nil, err
 	}
+	key := treePackageKey{name: php.Strtolower(name), constraint: prettyConstraint}
 	var ver any = prettyConstraint
 	if prettyConstraint == "self.version" {
 		ver = link.Constraint()
+		key.constraint, key.selfVersion = link.Constraint().String(), true
 	}
-	p, _, err := c.getPackage(installedRepo, remoteRepos, name, ver)
-	if err != nil {
-		return nil, err
+	// a tree asks for the same requirements under many nodes, and
+	// getPackage's answer does not change while show runs (it builds a
+	// pool of its own each time)
+	p, ok := c.treePackages[key]
+	if !ok {
+		if p, _, err = c.getPackage(installedRepo, remoteRepos, name, ver); err != nil {
+			return nil, err
+		}
+		c.treePackages[key] = p
 	}
 	if p != nil {
 		for _, require := range sortedLinks(p.Requires()) {

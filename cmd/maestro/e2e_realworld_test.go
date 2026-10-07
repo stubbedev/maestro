@@ -44,6 +44,7 @@ func realWorldScenarios() []scenario {
 				// 52,520 lines: every branch's circular cut points
 				{args: with("why", "-t", "psr/container"), dir: "app"},
 				{args: with("why-not", "-t", "symfony/http-kernel", "8.0"), dir: "app"},
+				{args: with("show", "-t"), dir: "app"},
 			},
 		},
 		{
