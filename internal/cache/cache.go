@@ -38,17 +38,3 @@ func Dir() string {
 
 	return filepath.Join(os.TempDir(), "maestro")
 }
-
-// Store is the package store's directory (internal/store). The version
-// segment lets a later layout live next to this one.
-func Store() string {
-	return filepath.Join(Dir(), "store", "v1")
-}
-
-// DecodedMetadata is where the repository metadata files read from
-// Composer's repository cache are kept decoded (internal/repository/
-// composerrepo, deliberate deviation 3), one directory per version of
-// their form.
-func DecodedMetadata() string {
-	return filepath.Join(Dir(), "p2")
-}

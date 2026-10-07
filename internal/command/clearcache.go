@@ -20,12 +20,15 @@ func init() {
 
 // ClearCacheCommand is Composer\Command\ClearCacheCommand.
 //
-// maestro's package store (docs/PORTING.md deviation 1) holds the extracted
-// form of the files cache, so it follows cache-files-dir: a full clear
-// empties it and --gc prunes what was unused for cache-files-ttl. Both are
-// silent, so the output stays Composer's. Likewise the decoded repository
-// metadata (deviation 3) follows cache-repo-dir: a full clear removes it
-// and --gc removes what was not written for cache-ttl.
+// It also clears maestro's own caches (cache.Owned, docs/PORTING.md
+// "maestro's own caches"), silently, so the output stays Composer's. Each
+// follows a Composer cache directory: the package store holds the
+// extracted form of the files cache, so it follows cache-files-dir (a full
+// clear empties it, --gc prunes what was unused for cache-files-ttl); the
+// decoded repository metadata follows cache-repo-dir (a full clear removes
+// it, --gc removes what was not written for cache-ttl); the others follow
+// cache-dir, so a full clear leaves none of maestro's derived data behind
+// either. --gc leaves those alone: each bounds its own size.
 type ClearCacheCommand struct{ *BaseCommand }
 
 // NewClearCacheCommand ports new ClearCacheCommand().
@@ -142,11 +145,11 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 			if err != nil {
 				return 0, err
 			}
-			switch {
-			case key == "cache-files-dir":
+			if key == "cache-files-dir" {
 				pruneStore(0)
-			case key == "cache-repo-dir" && cleared:
-				_ = cache.ClearDecoded(cache.DecodedMetadata())
+			}
+			if cleared {
+				_ = cache.ClearOwned(key)
 			}
 		}
 	}

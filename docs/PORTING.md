@@ -191,10 +191,9 @@ These change frozen behaviour on purpose; nothing else may.
    cloned again when the mirror, the reference, git and its configuration
    are unchanged; their reflog times, index stat data and untracked-cache
    ident (the work tree path) are rewritten to what a fresh clone would hold (`internal/downloader/vcs/gitstore.go`).
-   The store lives in maestro's own cache directory
-   (`MAESTRO_CACHE_DIR`, else `$XDG_CACHE_HOME/maestro`, else the platform
-   cache directory; `internal/cache.Dir`). Releases not used for `cache-files-ttl` are pruned, at most once
-   a day, by a command that installed packages, once it is done.
+   The store lives in maestro's own cache directory ("maestro's own
+   caches"). Releases not used for `cache-files-ttl` are pruned, at most
+   once a day, by a command that installed packages, once it is done.
 2. **No external extractors.** zip/tar/gz/bz2/xz extraction is native Go
    (`internal/archive`), reproducing exactly what Composer's preferred path
    (system `unzip -qq`, `tar`) produces on Unix. In macOS's C locale, unzip
@@ -202,7 +201,8 @@ These change frozen behaviour on purpose; nothing else may.
    back to ZipArchive; maestro refuses such names there rather than
    escaping them as glibc's unzip does. On Windows, where Composer extracts
    zips with ZipArchive or 7-Zip, maestro extracts as unzip would on Unix.
-3. **Speed.** Parallelism and caching wherever results stay identical.
+3. **Speed.** Parallelism and caching wherever results stay identical
+   (see "maestro's own caches" for what is kept between runs).
    One request goes elsewhere: a zip dist at Packagist's
    `https://api.github.com/repos/{owner}/{repo}/zipball/{ref}`, which
    GitHub only redirects to
@@ -230,6 +230,41 @@ These change frozen behaviour on purpose; nothing else may.
    commands below it, `list --raw` and `list --format=json|xml|md` stay
    Composer's (`TestHelp_List` and the e2e tests compare all of it but the
    banner).
+
+### maestro's own caches
+
+Besides Composer's caches, which it keeps exactly as Composer does,
+maestro keeps caches of its own in its cache directory (`MAESTRO_CACHE_DIR`,
+else `$XDG_CACHE_HOME/maestro`, else the platform cache directory;
+`internal/cache.Dir`). `internal/cache` (`own.go`) names every one of them,
+and a test fails when this table and it disagree.
+
+Every entry is used only when it provably matches what it was made from:
+the same bytes (decoded JSON), the same content hash (parse results), or
+the same identity of every file it depends on (device, inode, mode, size,
+modification and change times; an identity too close to the time the
+entry was written is not trusted, as git treats racily clean index
+entries). Parse results and schema validations are used only by the
+binary that made them. Anything else is computed again and the entry
+overwritten, so a stale entry costs time and never changes frozen output.
+
+`clear-cache` clears each together with a Composer cache directory,
+silently (its output stays Composer's): what follows `cache-dir` goes
+with a full clear of it, so a full `clear-cache` leaves none of maestro's
+derived data behind; `--gc` ages only the store and the decoded metadata,
+as each other cache bounds its own size.
+
+| Path | Holds | Used while | `clear-cache` |
+| --- | --- | --- | --- |
+| `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
+| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded | the JSON is byte-identical | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
+| `decoded` | large local JSON files read on most runs (`vendor/composer/installed.json`), decoded; at most 64 | the JSON is byte-identical | with `cache-dir` |
+| `classmap/v1.bin` | the classes found in each file content seen, by SHA-256 and parser settings, and each file's content hash by its identity | the same maestro binary; the content hash, or the file's identity | with `cache-dir` |
+| `classmap/records` | a project's class map with the identity of every file and directory its scans depended on; at most 64 | the same scans, and every identity unchanged | with `cache-dir` |
+| `platform` | php's probed platform (Linux), keyed on the php binary, its ini files, the environment that can change what it reports and the files it loaded; at most 64 | all of those unchanged, for 24 hours at most | with `cache-dir` |
+| `git-version` | `git --version` (Linux, real process executor only, never at `-vvv`), keyed on the git binary's identity | the binary unchanged, for 24 hours at most | with `cache-dir` |
+| `schema/validated` | the SHA-256 of the last 64 documents that validated against Composer's schemas without a finding | the same maestro binary and document | with `cache-dir` |
+| `cacert` | the embedded CA bundle written out as a file, for what needs a path to one (`CaBundle::getBundledCaBundlePath`) | named by its hash | with `cache-dir` |
 
 ## Layout
 

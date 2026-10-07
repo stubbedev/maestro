@@ -420,7 +420,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	composerrepo.UseDecodedCache(cache.DecodedMetadata())
 	json.UseDecodedFiles(cache.DecodedFiles())
 	// so is git's version, which the root package's version guess asks
-	vcsutil.UseVersionCache(cache.Dir() + "/git-version")
+	vcsutil.UseVersionCache(cache.GitVersion())
 	rm := repository.Manager(out, cfg, httpDownloader, dispatcher, process, repository.ExternalTypes{
 		Composer: composerrepo.Constructor,
 		VCS:      rvcs.NewRepository,
@@ -484,8 +484,8 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		}
 		// classes found in files seen before, and in package store
 		// releases (deliberate deviation 3)
-		generator.UseParseCacheFile(cache.Dir() + "/classmap/v1.bin")
-		generator.UseScanRecords(cache.Dir() + "/classmap/records")
+		generator.UseParseCacheFile(cache.ClassMapParse())
+		generator.UseScanRecords(cache.ClassMapRecords())
 		if st, err := store.Open(cache.Store(), nil); err == nil {
 			generator.UseStore(st)
 		}

@@ -167,7 +167,7 @@ func TestDecodedCacheClearAndGc(t *testing.T) {
 		t.Error("slot not read back after gc")
 	}
 
-	if err := cache.ClearDecoded(root); err != nil {
+	if err := os.RemoveAll(root); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(root); !os.IsNotExist(err) {

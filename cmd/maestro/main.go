@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/command"
@@ -64,7 +63,7 @@ func run() int {
 
 	// composer.json is validated against the schema once per content
 	// (deliberate deviation 3)
-	json.UseSchemaMemo(filepath.Join(cache.Dir(), "schema", "validated"))
+	json.UseSchemaMemo(cache.SchemaMemo())
 
 	// The plugin runtime (docs/PLUGINS.md): plugins, PHP scripts, and
 	// Platform::putEnv('COMPOSER_BINARY', realpath($_SERVER['argv'][0])),

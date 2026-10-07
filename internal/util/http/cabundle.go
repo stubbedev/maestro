@@ -137,7 +137,7 @@ func SystemCaRootBundlePath(logger Logger) (string, error) {
 // of Composer writes it to a temporary file).
 func BundledCaBundlePath() (string, error) {
 	sum := sha256.Sum256(bundledCaCert)
-	path := filepath.Join(cache.Dir(), "cacert-"+hex.EncodeToString(sum[:8])+".pem")
+	path := filepath.Join(cache.CABundles(), hex.EncodeToString(sum[:8])+".pem")
 
 	if fi, err := os.Stat(path); err == nil && fi.Size() == int64(len(bundledCaCert)) {
 		return path, nil

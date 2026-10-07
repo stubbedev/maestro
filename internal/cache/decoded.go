@@ -116,12 +116,6 @@ func (d *Decoded) bound(dir string) {
 	}
 }
 
-// ClearDecoded removes the decoded documents under root, every version
-// of them.
-func ClearDecoded(root string) error {
-	return os.RemoveAll(root)
-}
-
 // GcDecoded removes the slots under root not written for ttl seconds. A
 // slot is written when its document is first decoded after a change, so
 // it ages with that document; slots of another version are aged the same
@@ -149,10 +143,4 @@ func GcDecoded(root string, ttl int) error {
 
 		return nil
 	})
-}
-
-// DecodedFiles is where the large local JSON files read on most runs are
-// kept decoded (vendor/composer/installed.json; json.UseDecodedFiles).
-func DecodedFiles() string {
-	return filepath.Join(Dir(), "decoded")
 }

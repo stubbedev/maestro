@@ -358,7 +358,7 @@ func probeCachePath(key string) string {
 }
 
 func probeCacheDir() string {
-	return filepath.Join(cache.Dir(), "platform")
+	return cache.PlatformProbes()
 }
 
 // loadProbeCache returns the cached snapshot of binary under key, if

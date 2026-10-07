@@ -4,10 +4,12 @@ package command_test
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -98,6 +100,51 @@ func TestClearCacheCommand_DecodedMetadata(t *testing.T) {
 		_, errNew := os.Stat(slots + "/new.bin")
 		if !os.IsNotExist(errOld) || gc == os.IsNotExist(errNew) {
 			t.Errorf("gc=%v: old %v, new %v", gc, errOld, errNew)
+		}
+	}
+}
+
+// A full clear-cache removes every one of maestro's own caches but the
+// store (pruned, not removed) with the Composer cache directory it
+// follows, without output of its own; --gc leaves the fresh ones.
+func TestClearCacheCommand_OwnCaches(t *testing.T) {
+	for _, gc := range []bool{false, true} {
+		appTester := clearCacheTester(t)
+		home, _ := util.GetEnv("COMPOSER_HOME")
+		for _, dir := range []string{"/cache/repo", "/cache/files", "/cache/vcs"} {
+			if err := os.MkdirAll(home+dir, 0o777); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, o := range cache.Owned() {
+			if o.Path == "store/v1" {
+				continue
+			}
+			p := filepath.Join(home, "maestro", filepath.FromSlash(o.Path), "entry")
+			if err := os.MkdirAll(filepath.Dir(p), 0o777); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		args := []any{"command", "clear-cache"}
+		if gc {
+			args = append(args, "--gc", true)
+		}
+		output := runCommandSuccessfully(t, appTester, args...)
+		if strings.Contains(output, home+"/maestro") {
+			t.Errorf("gc=%v: output %q", gc, output)
+		}
+		for _, o := range cache.Owned() {
+			if o.Path == "store/v1" {
+				continue
+			}
+			_, err := os.Stat(filepath.Join(home, "maestro", filepath.FromSlash(o.Path)))
+			if gone := os.IsNotExist(err); gone == gc {
+				t.Errorf("gc=%v: %s removed %v", gc, o.Path, gone)
+			}
 		}
 	}
 }
