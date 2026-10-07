@@ -806,16 +806,16 @@ func (m *Manager) NotifyInstalls(mio.IO) {
 // their responses are ignored and, below -vvv, nothing about them is
 // printed, so the caller can go on and wait at its end. The requests run
 // as synchronous requests on their own goroutine, so that waiting for them
-// runs nothing else of the loop.
+// runs nothing else of the loop. At -vvv, or when out or the downloader's
+// IO was created in PHP (which sees every call, in Composer's order), it
+// is NotifyInstalls.
 func (m *Manager) NotifyInstallsAsync(out mio.IO) (waitFor func()) {
 	if m.loop == nil {
 		m.Reset()
 
 		return func() {}
 	}
-	// a downloader writing to an IO created in PHP makes its calls of it
-	// as Composer does, in Composer's order: no shortcut
-	if mio.IsForeign(m.loop.HttpDownloader().IO()) {
+	if out.IsDebug() || mio.IsForeign(out) || mio.IsForeign(m.loop.HttpDownloader().IO()) {
 		m.NotifyInstalls(out)
 
 		return func() {}

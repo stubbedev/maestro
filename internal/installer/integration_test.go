@@ -393,6 +393,58 @@ func TestInstallationManager_NotifyInstallsAsyncForeignIO(t *testing.T) {
 	}
 }
 
+// TestInstallationManager_NotifyInstallsAsyncByVerbosity: below -vvv the
+// notifications are still in flight when NotifyInstallsAsync returns; at
+// -vvv, where their requests are printed, they are sent as Composer sends
+// them, waited for at once.
+func TestInstallationManager_NotifyInstallsAsyncByVerbosity(t *testing.T) {
+	for _, verbosity := range []int{console.VerbosityNormal, console.VerbosityDebug} {
+		release := make(chan struct{})
+		var answered atomic.Int32
+		srv := httptest.NewServer(nethttp.HandlerFunc(func(nethttp.ResponseWriter, *nethttp.Request) {
+			if verbosity != console.VerbosityDebug {
+				<-release
+			}
+			answered.Add(1)
+		}))
+
+		out, err := mio.NewBufferIO("", verbosity, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg := config.New(false, "")
+		if err := cfg.Merge(php.ArrayOf("config", php.ArrayOf("secure-http", false)), "test"); err != nil {
+			t.Fatal(err)
+		}
+		h, err := http.NewHttpDownloader(out, cfg.ForHTTP(), nil, true, http.NewStaticRuntime("8.4.0", "2.10.3"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		manager := NewManager(http.NewLoop(h, nil), out, nil)
+		manager.AddInstaller(NewNoopInstaller())
+		p := pkg.NewPackage("a/a", "1.2.0.0", "v1.2.0")
+		p.SetNotificationURL(srv.URL + "/downloads/")
+		if _, err := manager.Install(newMockRepo(t), operation.NewInstallOperation(p)); err != nil {
+			t.Fatal(err)
+		}
+
+		wait := manager.NotifyInstallsAsync(out)
+		want := int32(0)
+		if verbosity == console.VerbosityDebug {
+			want = 1
+		}
+		if n := answered.Load(); n != want {
+			t.Errorf("verbosity %v: %d notifications answered when NotifyInstallsAsync returned, want %d", verbosity, n, want)
+		}
+		close(release)
+		wait()
+		if n := answered.Load(); n != 1 {
+			t.Errorf("verbosity %v: %d notifications answered after waiting, want 1", verbosity, n)
+		}
+		srv.Close()
+	}
+}
+
 // TestInstallationManager_ExecuteFailureLeavesProgressLine: Loop::wait
 // throws the rejection, so waitOnPromises never clears the progress bar or
 // writes the line break ending it (the exception's rendering does).

@@ -39,6 +39,9 @@ type CreateProjectCommand struct {
 	*BaseCommand
 
 	suggestedPackagesReporter *installer.SuggestedPackagesReporter
+	// rootNotified waits for the root package's install notification,
+	// sent while the project's dependencies install
+	rootNotified func()
 }
 
 // NewCreateProjectCommand ports new CreateProjectCommand() (configure()).
@@ -253,6 +256,14 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 	installedFromVcs := false
 	if o.PackageName != nil {
 		installedFromVcs, err = c.installRootPackage(in, cio, cfg, *o.PackageName, platformRequirementFilter, o)
+		// the notification is waited for once the project is installed
+		// (deliberate deviation 3: nothing shows when it completes)
+		defer func() {
+			if c.rootNotified != nil {
+				c.rootNotified()
+				c.rootNotified = nil
+			}
+		}()
 		if err != nil {
 			return 0, err
 		}
@@ -780,7 +791,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	if err := im.Execute(installedRepo, []operation.Operation{operation.NewInstallOperation(p)}, true, true, false); err != nil {
 		return false, err
 	}
-	im.NotifyInstalls(cio)
+	c.rootNotified = im.NotifyInstallsAsync(cio)
 
 	// collect suggestions
 	c.suggestedPackagesReporter.AddSuggestionsFromPackage(p)
