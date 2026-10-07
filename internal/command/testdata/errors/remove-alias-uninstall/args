@@ -1,0 +1,4 @@
+uninstall
+--dev
+x/dev
+--dry-run

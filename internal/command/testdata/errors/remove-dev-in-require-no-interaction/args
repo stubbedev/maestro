@@ -1,0 +1,4 @@
+remove
+--dev
+x/foo
+-n

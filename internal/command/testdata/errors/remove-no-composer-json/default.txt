@@ -1,0 +1,11 @@
+
+In JsonFile.php line 118:
+                                               
+  Could not read ./composer.json               
+                                               
+  The file "./composer.json" is not readable.  
+                                               
+
+remove [--dev] [--dry-run] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-all-dependencies] [--no-update-with-dependencies] [-m|--minimal-changes] [--unused] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+
+exit 1

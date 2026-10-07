@@ -3,7 +3,9 @@
 package command_test
 
 import (
+	"bytes"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -422,4 +424,74 @@ func TestRemoveCommand_UpdateInheritedDependenciesFlagIsPassedToPostRemoveInstal
 			assertEmptyValue(t, projectJSONKey(t, "./composer.lock", "packages"))
 		})
 	}
+}
+
+// removeProject requires root/req and root/another, and root/dev in
+// require-dev (plus extra requirements, a JSON fragment), all locked and
+// installed metapackages.
+func removeProject(extra string) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		commandtest.InitTempComposer(t, `{"repositories": {"packages": {"type": "package", "package": [
+			{"name": "root/req", "version": "1.0.0", "type": "metapackage"},
+			{"name": "root/another", "version": "1.0.0", "type": "metapackage"},
+			{"name": "root/dev", "version": "1.0.0", "type": "metapackage"}]}},
+			"require": {"root/req": "1.*", "root/another": "1.*"`+extra+`},
+			"require-dev": {"root/dev": "1.*"}}`, nil, nil, true)
+		packages := []pkg.PackageInterface{metapackage(t, "root/req"), metapackage(t, "root/another")}
+		devPackages := []pkg.PackageInterface{metapackage(t, "root/dev")}
+		commandtest.CreateInstalledJSON(t, packages, devPackages, true)
+		commandtest.CreateComposerLock(t, packages, devPackages)
+	}
+}
+
+const removingDev = "  - Removing root/dev (1.0.0)"
+
+func TestRemoveCommand_Options(t *testing.T) {
+	runCommandCases(t, removeProject(""), []commandCase{
+		{
+			name:     "dev packages stay installed",
+			params:   cmd("remove", "packages", []string{"root/req"}, "--no-audit", true),
+			contains: []string{"  - Removing root/req (1.0.0)"},
+			excludes: []string{removingDev},
+		},
+		{
+			name:     "--update-no-dev",
+			params:   cmd("remove", "packages", []string{"root/req"}, "--no-audit", true, "--update-no-dev", true),
+			contains: []string{"  - Removing root/req (1.0.0)", removingDev},
+		},
+		{
+			name:     "COMPOSER_NO_DEV is --update-no-dev",
+			params:   cmd("remove", "packages", []string{"root/req"}, "--no-audit", true),
+			env:      map[string]string{"COMPOSER_NO_DEV": "1"},
+			contains: []string{"  - Removing root/req (1.0.0)", removingDev},
+		},
+	})
+}
+
+func TestRemoveCommand_RevertsComposerJSONWhenTheUpdateFails(t *testing.T) {
+	var original []byte
+	runCommandCases(t, func(t *testing.T) {
+		t.Helper()
+		removeProject(`, "root/missing": "^1.0"`)(t)
+		var err error
+		if original, err = os.ReadFile("composer.json"); err != nil {
+			t.Fatal(err)
+		}
+	}, []commandCase{{
+		name:     "an unresolvable requirement",
+		params:   cmd("remove", "packages", []string{"root/req"}, "--no-audit", true),
+		code:     2,
+		contains: []string{"Removal failed, reverting ./composer.json to its original content."},
+		check: func(t *testing.T) {
+			t.Helper()
+			got, err := os.ReadFile("composer.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, original) {
+				t.Errorf("composer.json not reverted:\n%s\nwant:\n%s", got, original)
+			}
+		},
+	}})
 }

@@ -1,0 +1,9 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+                                               
+  Not enough arguments (missing: "packages").  
+                                               
+
+remove [--dev] [--dry-run] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-all-dependencies] [--no-update-with-dependencies] [-m|--minimal-changes] [--unused] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+
+exit 1

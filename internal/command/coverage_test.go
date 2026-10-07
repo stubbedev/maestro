@@ -240,7 +240,12 @@ var coverage = []entry{
 	cover(command.NewRemoveCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestRemoveCommand_RemovePackageByName)),
+			Positive(Go(TestRemoveCommand_Options)),
+			Positive(E2E("require-remove", "rm", "psr/clock", "--no-install")),
+			Positive(E2E("require-remove", "remove", "psr/*")),
+			Positive(E2E("plugin-grumphp", "remove", "--dev", "phpro/grumphp")),
 			Negative(Go(TestRemoveCommand_ExceptionRunningWithNoRemovePackages)),
+			Negative(Go(TestRemoveCommand_RevertsComposerJSONWhenTheUpdateFails)),
 		},
 	}),
 	cover(command.NewHomeCommand, Coverage{

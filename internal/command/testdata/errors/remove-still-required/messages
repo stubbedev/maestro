@@ -1,0 +1,1 @@
+Removal failed, x/foo is still present, it may be required by another package. See `composer why x/foo`.

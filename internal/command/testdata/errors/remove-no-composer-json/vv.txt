@@ -1,0 +1,23 @@
+
+In JsonFile.php line 118:
+                                               
+  [RuntimeException]                           
+  Could not read ./composer.json               
+                                               
+  The file "./composer.json" is not readable.  
+                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:118
+ Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Command/RemoveCommand.php:142
+ Composer\Command\RemoveCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+remove [--dev] [--dry-run] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-all-dependencies] [--no-update-with-dependencies] [-m|--minimal-changes] [--unused] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+
+exit 1

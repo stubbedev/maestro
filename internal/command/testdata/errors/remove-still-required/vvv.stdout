@@ -1,0 +1,3 @@
+Pool optimizer completed in @TIME@ seconds
+Found @N@ package versions referenced in your dependency graph. @N@ were optimized away.
+No security vulnerability advisories found.
