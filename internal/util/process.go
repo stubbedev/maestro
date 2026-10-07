@@ -290,10 +290,31 @@ func (p *Process) startCmd(cmd *exec.Cmd, commandline string, env []string, dire
 		cmd.WaitDelay = pipeDrainTimeout
 	}
 
+	// On Windows the output goes through files, as Symfony's WindowsPipes
+	// have it (redirectToFiles).
+	var pipes *filePipes
+
+	stdout, stderr := cmd.Stdout, cmd.Stderr
+
+	if !p.tty && !direct {
+		var err error
+		if pipes, err = redirectToFiles(cmd); err != nil {
+			for _, f := range closers {
+				_ = f.Close()
+			}
+
+			return err
+		}
+	}
+
 	err := cmd.Start()
 
 	for _, f := range closers {
 		_ = f.Close()
+	}
+
+	if err != nil {
+		pipes.cleanup()
 	}
 
 	if err != nil && direct {
@@ -326,7 +347,9 @@ func (p *Process) startCmd(cmd *exec.Cmd, commandline string, env []string, dire
 		})
 	}
 
-	go p.wait(cmd, p.done)
+	pipes.start(stdout, stderr)
+
+	go p.wait(cmd, pipes, p.done)
 
 	return nil
 }
@@ -404,8 +427,9 @@ func (p *Process) awaitDelivering(done <-chan struct{}) {
 	}
 }
 
-func (p *Process) wait(cmd *exec.Cmd, done chan struct{}) {
+func (p *Process) wait(cmd *exec.Cmd, pipes *filePipes, done chan struct{}) {
 	_ = cmd.Wait()
+	pipes.finish()
 
 	p.mu.Lock()
 	if p.timer != nil {

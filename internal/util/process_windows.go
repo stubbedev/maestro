@@ -42,6 +42,25 @@ func shellCommand(commandline string, env *[]string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
+// redirectToFiles makes cmd (cmd.exe running a command line) write its
+// output to files as Symfony's WindowsPipes do: cmd.exe gets the null
+// device for stdout and stderr, and the command line ends with
+// " 1>file 2>file". What cmd.exe itself writes outside the redirections
+// (its "... was unexpected at this time." for a line it cannot parse) is
+// lost, as it is with Composer.
+func redirectToFiles(cmd *exec.Cmd) (*filePipes, error) {
+	fp, err := newFilePipes()
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.SysProcAttr.CmdLine += fp.redirections()
+	cmd.Stdout, cmd.Stderr = nil, nil
+	cmd.WaitDelay = 0
+
+	return fp, nil
+}
+
 func exitStatus(state *os.ProcessState) (code, termSig int) {
 	if state == nil {
 		return -1, 0

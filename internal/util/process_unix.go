@@ -28,6 +28,9 @@ func shellCommand(commandline string, _ *[]string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
+// redirectToFiles: on Unix the output comes through pipes.
+func redirectToFiles(*exec.Cmd) (*filePipes, error) { return nil, nil }
+
 // directTools are the programs directCommand starts without a shell:
 // version control tools, which read neither the variables a shell adds to
 // the environment (SHLVL, _, PWD) nor anything else it could change.
