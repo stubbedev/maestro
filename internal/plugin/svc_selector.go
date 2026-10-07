@@ -148,10 +148,7 @@ func (r *Runtime) registerSelectors() {
 			opts.EventDispatcher = ed
 		}
 		if a.has(5) {
-			opts.AllowedTypes = stringList(a.at(5))
-			if opts.AllowedTypes == nil {
-				opts.AllowedTypes = []string{}
-			}
+			opts.AllowedTypes = php.Some(stringList(a.at(5)))
 		}
 		pool, err := resolver.CreatePool(s, req, out, opts)
 		if err != nil {

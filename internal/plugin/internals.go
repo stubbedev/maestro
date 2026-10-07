@@ -154,8 +154,8 @@ func (r *Runtime) installerProps(s composer.InstallerState) (*php.Array, error) 
 		apcuPrefix = *s.ApcuAutoloaderPrefix
 	}
 	var allowed, allowList any
-	if s.AllowedTypes != nil {
-		allowed = php.StringList(s.AllowedTypes)
+	if types, ok := s.AllowedTypes.Get(); ok {
+		allowed = php.StringList(types)
 	}
 	if s.UpdateAllowList != nil {
 		allowList = php.StringList(s.UpdateAllowList)
@@ -328,13 +328,9 @@ func (r *Runtime) applyInstallerFields(inst *composer.Installer, fields *php.Arr
 	}
 	if v, ok := get("allowedTypes"); ok {
 		if v == nil {
-			inst.SetAllowedTypes(nil)
+			inst.SetAllowedTypes(php.Null[[]string]())
 		} else {
-			types := stringList(v)
-			if types == nil {
-				types = []string{}
-			}
-			inst.SetAllowedTypes(types)
+			inst.SetAllowedTypes(php.Some(stringList(v)))
 		}
 	}
 	if v, ok := get("updateAllowList"); ok {

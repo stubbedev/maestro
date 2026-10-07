@@ -89,11 +89,12 @@ type ComposerRepository struct {
 	// packages this repository might provide is expressed in the
 	// repository root.
 	hasAvailablePackageList bool
-	// availablePackages is nil for null; availablePackageSet holds the
-	// same names.
-	availablePackages        []string
+	// availablePackages and availablePackagePatterns are null without an
+	// available-packages (available-package-patterns) list; availablePackageSet
+	// holds the same names.
+	availablePackages        php.Nullable[[]string]
 	availablePackageSet      map[string]struct{}
-	availablePackagePatterns []*php.Regexp // nil for null
+	availablePackagePatterns php.Nullable[[]*php.Regexp]
 	lazyProvidersURL         string
 	// providerListing maps provider names to their sha256; nil for null.
 	providerListing   *repository.NameMap[string]
@@ -488,9 +489,9 @@ func (r *ComposerRepository) Packages() ([]pkg.PackageInterface, error) {
 	}
 
 	if r.lazyProvidersURL != "" {
-		if r.availablePackages != nil && r.availablePackagePatterns == nil {
+		if names, ok := r.availablePackages.Get(); ok && r.availablePackagePatterns.IsNull() {
 			packageMap := &repository.ConstraintMap{}
-			for _, name := range r.availablePackages {
+			for _, name := range names {
 				packageMap.Set(name, semver.NewMatchAllConstraint())
 			}
 
@@ -571,8 +572,8 @@ func (r *ComposerRepository) PackageNames(packageFilter string) ([]string, error
 	}
 
 	if r.lazyProvidersURL != "" {
-		if r.availablePackages != nil {
-			return filterResults(r.availablePackages)
+		if names, ok := r.availablePackages.Get(); ok {
+			return filterResults(names)
 		}
 
 		if r.listURL != "" {

@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/installer"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/locker"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/policy"
@@ -46,8 +47,8 @@ type InstallerState struct {
 	StrictPsrAutoloader                                                 bool
 	AuditFormat                                                         string
 	IgnoredTypes                                                        []string
-	// AllowedTypes is nil for PHP's null.
-	AllowedTypes  []string
+	// AllowedTypes is ?array: null allows every type, [] none.
+	AllowedTypes  php.Nullable[[]string]
 	UpdateMirrors bool
 	// UpdateAllowList is nil for PHP's null.
 	UpdateAllowList                   []string
@@ -96,7 +97,7 @@ func (i *Installer) State() InstallerState {
 		StrictPsrAutoloader:               i.strictPsrAutoloader,
 		AuditFormat:                       i.auditFormat,
 		IgnoredTypes:                      slices.Clone(i.ignoredTypes),
-		AllowedTypes:                      slices.Clone(i.allowedTypes),
+		AllowedTypes:                      cloneNullableStrings(i.allowedTypes),
 		UpdateMirrors:                     i.updateMirrors,
 		UpdateAllowList:                   slices.Clone(i.updateAllowList),
 		UpdateAllowTransitiveDependencies: i.updateAllowTransitiveDependencies,
@@ -121,4 +122,14 @@ func (i *Installer) State() InstallerState {
 	}
 
 	return s
+}
+
+// cloneNullableStrings copies a ?array of strings, keeping null null and
+// [] an empty array.
+func cloneNullableStrings(n php.Nullable[[]string]) php.Nullable[[]string] {
+	if v, ok := n.Get(); ok {
+		return php.Some(slices.Clone(v))
+	}
+
+	return n
 }

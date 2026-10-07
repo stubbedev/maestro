@@ -255,12 +255,9 @@ func CreateComposerLock(t testing.TB, packages, devPackages []pkg.PackageInterfa
 	if err != nil {
 		t.Fatal(err)
 	}
-	if devPackages == nil {
-		devPackages = []pkg.PackageInterface{}
-	}
 	if _, err := l.SetLockData(locker.LockDataInput{
 		Packages:          packages,
-		DevPackages:       devPackages,
+		DevPackages:       php.Some(devPackages), // $devPackages = []: never null
 		PlatformReqs:      php.NewArray(),
 		PlatformDevReqs:   php.NewArray(),
 		Aliases:           php.NewArray(),

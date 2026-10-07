@@ -520,9 +520,9 @@ func (l *Locker) LockData() (*php.Array, error) {
 // LockDataInput are the arguments of Locker::setLockData.
 type LockDataInput struct {
 	Packages []pkg.PackageInterface
-	// DevPackages are the dev packages; nil is null (installed without
-	// --dev), an empty non-nil slice is [].
-	DevPackages []pkg.PackageInterface
+	// DevPackages are the dev packages, or null (installed without --dev),
+	// which writes "packages-dev": null where [] writes an empty list.
+	DevPackages php.Nullable[[]pkg.PackageInterface]
 	// PlatformReqs and PlatformDevReqs are package name => constraint.
 	PlatformReqs    *php.Array
 	PlatformDevReqs *php.Array
@@ -584,8 +584,8 @@ func (l *Locker) SetLockData(in LockDataInput, write bool) (bool, error) {
 		"prefer-lowest", in.PreferLowest,
 	)
 
-	if in.DevPackages != nil {
-		devPackages, err := l.lockPackages(in.DevPackages)
+	if dev, ok := in.DevPackages.Get(); ok {
+		devPackages, err := l.lockPackages(dev)
 		if err != nil {
 			return false, err
 		}

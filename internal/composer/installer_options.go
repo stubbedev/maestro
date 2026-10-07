@@ -26,8 +26,8 @@ func (i *Installer) SetIgnoredTypes(types []string) *Installer {
 }
 
 // SetAllowedTypes ports setAllowedTypes: only packages of those types are
-// allowed when non-nil.
-func (i *Installer) SetAllowedTypes(types []string) *Installer {
+// allowed; null allows every type, and [] none.
+func (i *Installer) SetAllowedTypes(types php.Nullable[[]string]) *Installer {
 	i.allowedTypes = types
 
 	return i

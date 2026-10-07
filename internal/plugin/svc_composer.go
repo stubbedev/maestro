@@ -372,7 +372,7 @@ func (r *Runtime) registerLocker() {
 			if err != nil {
 				return nil, err
 			}
-			in.DevPackages = append([]pkg.PackageInterface{}, dev...)
+			in.DevPackages = php.Some(dev)
 		}
 
 		return l.SetLockData(in, !a.has(11) || a.boolean(11))

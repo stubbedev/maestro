@@ -234,15 +234,16 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 	// while if no list is there lazyProvidersUrl is used when looking for any package name to see if the repo knows it
 	if availablePackages := get(data, "available-packages"); php.ToBool(availablePackages) {
 		list := asArray(availablePackages)
-		r.availablePackages = []string{}
+		var names []string
 		r.availablePackageSet = map[string]struct{}{}
 		for _, v := range list.All() {
 			name := php.Strtolower(php.ToString(v))
 			if _, ok := r.availablePackageSet[name]; !ok {
 				r.availablePackageSet[name] = struct{}{}
-				r.availablePackages = append(r.availablePackages, name)
+				names = append(names, name)
 			}
 		}
+		r.availablePackages = php.Some(names)
 		r.hasAvailablePackageList = true
 	}
 
@@ -251,14 +252,15 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 	// Over-specifying covered packages is safe, but may result in increased traffic to your repository.
 	if patterns := get(data, "available-package-patterns"); php.ToBool(patterns) {
 		list := asArray(patterns)
-		r.availablePackagePatterns = []*php.Regexp{}
+		var regexps []*php.Regexp
 		for _, v := range list.All() {
 			re, err := php.Compile(pkg.PackageNameToRegexp(php.ToString(v), "{^%s$}i"))
 			if err != nil {
 				return err
 			}
-			r.availablePackagePatterns = append(r.availablePackagePatterns, re)
+			regexps = append(regexps, re)
 		}
+		r.availablePackagePatterns = php.Some(regexps)
 		r.hasAvailablePackageList = true
 	}
 
@@ -617,7 +619,8 @@ func (r *ComposerRepository) lazyProvidersRepoContains(name string) (bool, error
 		return true, nil
 	}
 
-	for _, providerRegex := range r.availablePackagePatterns {
+	patterns, _ := r.availablePackagePatterns.Get()
+	for _, providerRegex := range patterns {
 		if m, err := providerRegex.IsMatch(name); err != nil || m {
 			return m, err
 		}

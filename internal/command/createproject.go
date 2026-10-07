@@ -147,11 +147,11 @@ func (c *CreateProjectCommand) Execute(in console.Input, _ console.Output) (int,
 		in.SetArgument("directory", answer)
 	}
 
-	var repositories []string
+	var repositories php.Nullable[[]string]
 	if repos := console.StringsOption(in, "repository"); len(repos) > 0 {
-		repositories = repos
+		repositories = php.Some(repos)
 	} else if url := nullableString(in.Option("repository-url")); url != nil {
-		repositories = []string{*url}
+		repositories = php.Some([]string{*url})
 	}
 
 	platformFilter, err := c.PlatformRequirementFilter(in)
@@ -190,7 +190,7 @@ type InstallProjectOptions struct {
 	PreferSource              bool
 	PreferDist                bool
 	InstallDevPackages        bool
-	Repositories              []string // nil is null
+	Repositories              php.Nullable[[]string] // string|array|null, as an array or null
 	DisablePlugins            bool
 	DisableScripts            bool
 	NoProgress                bool
@@ -264,8 +264,8 @@ func (c *CreateProjectCommand) InstallProject(cio io.IO, cfg *config.Config, in 
 	flushLockFile := false
 
 	// add the repository to the composer.json and use it for the install run later
-	if o.Repositories != nil && o.AddRepository {
-		for index, repo := range o.Repositories {
+	if repos, ok := o.Repositories.Get(); ok && o.AddRepository {
+		for index, repo := range repos {
 			repoConfig, err := repository.ConfigFromString(repo, true, comp.RepositoryManager().HTTPDownloader())
 			if err != nil {
 				return 0, err
@@ -629,7 +629,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	if err != nil {
 		return false, err
 	}
-	if o.Repositories == nil {
+	if repos, ok := o.Repositories.Get(); !ok {
 		defaults, err := repository.DefaultRepos(cio, cfg, rm)
 		if err != nil {
 			return false, err
@@ -642,7 +642,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 			return false, err
 		}
 	} else {
-		for _, repo := range o.Repositories {
+		for _, repo := range repos {
 			repoConfig, err := repository.ConfigFromString(repo, true, rm.HTTPDownloader())
 			if err != nil {
 				return false, err

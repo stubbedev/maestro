@@ -71,7 +71,7 @@ type PoolBuilder struct {
 	updateAllowRegexps                []*php.Regexp
 	skippedLoad                       map[string][]pkg.PackageInterface
 	ignoredTypes                      []string
-	allowedTypes                      []string
+	allowedTypes                      php.Nullable[[]string]
 	restrictedPackagesList            map[string]bool
 	pathRepoUnlocked                  map[string]bool
 	maxExtendedReqs                   map[string]bool
@@ -120,8 +120,8 @@ func NewPoolBuilder(acceptableStabilities, stabilityFlags *php.Array, rootAliase
 func (b *PoolBuilder) SetIgnoredTypes(types []string) { b.ignoredTypes = types }
 
 // SetAllowedTypes ports setAllowedTypes: only packages of those types are
-// allowed; nil (PHP null) allows all.
-func (b *PoolBuilder) SetAllowedTypes(types []string) { b.allowedTypes = types }
+// allowed; null allows all, and [] none.
+func (b *PoolBuilder) SetAllowedTypes(types php.Nullable[[]string]) { b.allowedTypes = types }
 
 func (b *PoolBuilder) resetState() {
 	b.aliasMap = map[pkg.PackageInterface][]indexedAlias{}
@@ -556,7 +556,7 @@ func (b *PoolBuilder) loadPackagesMarkedForLoading(request *Request, repositorie
 				}
 				loaded[p.Name()][p.Version()] = p
 
-				if slices.Contains(b.ignoredTypes, p.Type()) || (b.allowedTypes != nil && !slices.Contains(b.allowedTypes, p.Type())) {
+				if allowed, ok := b.allowedTypes.Get(); slices.Contains(b.ignoredTypes, p.Type()) || (ok && !slices.Contains(allowed, p.Type())) {
 					continue
 				}
 				if err := b.loadPackage(request, repositories, p, !b.pathRepoUnlocked[p.Name()]); err != nil {

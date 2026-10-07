@@ -90,7 +90,7 @@ type Installer struct {
 	auditConfig           *advisory.AuditConfig
 	policyConfig          *policy.PolicyConfig
 	ignoredTypes          []string
-	allowedTypes          []string
+	allowedTypes          php.Nullable[[]string] // ?array: null allows every type, [] none
 
 	updateMirrors                     bool
 	updateAllowList                   []string
@@ -192,7 +192,7 @@ func CreateInstaller(out io.IO, c *Composer) (*Installer, error) {
 func (i *Installer) Clone() *Installer {
 	c := *i
 	c.ignoredTypes = slices.Clone(i.ignoredTypes)
-	c.allowedTypes = slices.Clone(i.allowedTypes)
+	c.allowedTypes = cloneNullableStrings(i.allowedTypes)
 	c.updateAllowList = slices.Clone(i.updateAllowList)
 	if i.temporaryConstraints != nil {
 		c.temporaryConstraints = i.temporaryConstraints.Clone()
@@ -834,9 +834,6 @@ func (i *Installer) setLockData(platformReqs, platformDevReqs, aliases *php.Arra
 	if err != nil {
 		return err
 	}
-	if devPackages == nil {
-		devPackages = []pkg.PackageInterface{}
-	}
 	platformOverrides, err := i.configArray("platform")
 	if err != nil {
 		return err
@@ -844,7 +841,7 @@ func (i *Installer) setLockData(platformReqs, platformDevReqs, aliases *php.Arra
 	write := i.writeLock && i.executeOperations
 	updatedLock, err := i.locker.SetLockData(locker.LockDataInput{
 		Packages:          packages,
-		DevPackages:       devPackages,
+		DevPackages:       php.Some(devPackages), // an array, empty when there are none: never null
 		PlatformReqs:      platformReqs,
 		PlatformDevReqs:   platformDevReqs,
 		Aliases:           i.lockTransaction.Aliases(aliases),

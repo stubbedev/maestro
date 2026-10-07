@@ -139,7 +139,7 @@ func TestLocker_SetLockData(t *testing.T) {
 
 	changed := must(locker.SetLockData(LockDataInput{
 		Packages:          []pkg.PackageInterface{getPackage("pkg1", "1.0.0-beta"), getPackage("pkg2", "0.1.10")},
-		DevPackages:       []pkg.PackageInterface{},
+		DevPackages:       php.Some([]pkg.PackageInterface{}),
 		MinimumStability:  "dev",
 		PlatformOverrides: php.ArrayOf("foo/bar", "1.0"),
 	}, true))
@@ -174,6 +174,45 @@ func TestLocker_SetLockData(t *testing.T) {
 	}
 }
 
+// TestLocker_SetLockDataPackagesDev checks that setLockData's ?array
+// $devPackages keeps null and [] apart in the lock file (#67): null
+// (installed without --dev, Locker::setLockData($p, null, ...)) writes
+// "packages-dev": null, and an empty list, even a nil slice, writes [].
+func TestLocker_SetLockDataPackagesDev(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dev  php.Nullable[[]pkg.PackageInterface]
+		want string
+	}{
+		{"null", php.Null[[]pkg.PackageInterface](), `"packages-dev": null,`},
+		{"empty", php.Some([]pkg.PackageInterface{}), `"packages-dev": [],`},
+		{"nil slice", php.Some[[]pkg.PackageInterface](nil), `"packages-dev": [],`},
+		{"packages", php.Some([]pkg.PackageInterface{getPackage("dev1", "2.0.0")}), `"packages-dev": [
+        {
+            "name": "dev1",
+            "version": "2.0.0",
+            "type": "library"
+        }
+    ],`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file := &jsonFileMock{}
+			locker := newLocker(t, file, getJSONContent(nil))
+			if !must(locker.SetLockData(LockDataInput{
+				Packages:         []pkg.PackageInterface{getPackage("pkg1", "1.0.0")},
+				DevPackages:      tc.dev,
+				MinimumStability: "stable",
+			}, true)) || len(file.written) != 1 {
+				t.Fatal("not written")
+			}
+			got := must(json.Encode(file.written[0], json.DefaultEncodeFlags, json.IndentDefault))
+			if !strings.Contains(got, "\n    "+tc.want+"\n") {
+				t.Errorf("lock file:\n%s\nwant it to hold %s", got, tc.want)
+			}
+		})
+	}
+}
+
 // looseEqualJSON compares two values as PHPUnit's == does on arrays whose
 // objects are empty stdClasses: by their decoded JSON, keys in any order.
 func looseEqualJSON(a, b any) bool {
@@ -191,7 +230,7 @@ func TestLocker_LockBadPackages(t *testing.T) {
 
 	package1 := pkg.NewPackage("pkg1", "", "")
 
-	_, err := locker.SetLockData(LockDataInput{Packages: []pkg.PackageInterface{package1}, DevPackages: []pkg.PackageInterface{}, MinimumStability: "dev"}, true)
+	_, err := locker.SetLockData(LockDataInput{Packages: []pkg.PackageInterface{package1}, DevPackages: php.Some([]pkg.PackageInterface{}), MinimumStability: "dev"}, true)
 	if _, ok := errors.AsType[*util.LogicError](err); !ok {
 		t.Fatal(err)
 	}
@@ -436,7 +475,7 @@ func TestLocker_Oracle(t *testing.T) {
 		in.PreferStable, _ = get("prefer_stable").(bool)
 		in.PreferLowest, _ = get("prefer_lowest").(bool)
 		if dev := arr("dev"); dev != nil {
-			in.DevPackages = load(dev)
+			in.DevPackages = php.Some(load(dev))
 		}
 
 		changed, err := locker.SetLockData(in, true)

@@ -221,11 +221,7 @@ func (r *Runtime) applyInstallerSettings(inst *composer.Installer, s settings) e
 	inst.SetApcuAutoloader(s.boolean("apcuAutoloader"), prefix)
 
 	if v := s.get("allowedTypes"); v != nil {
-		types := s.strings("allowedTypes")
-		if types == nil {
-			types = []string{}
-		}
-		inst.SetAllowedTypes(types)
+		inst.SetAllowedTypes(php.Some(s.strings("allowedTypes")))
 	}
 	if v := s.get("updateAllowTransitiveDependencies"); v != nil {
 		if _, err := inst.SetUpdateAllowTransitiveDependencies(php.ToNativeInt(v)); err != nil {

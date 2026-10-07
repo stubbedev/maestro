@@ -24,9 +24,9 @@ type CreatePoolOptions struct {
 	PoolOptimizer *PoolOptimizer
 	// IgnoredTypes are package types not to load.
 	IgnoredTypes []string
-	// AllowedTypes are the only package types to load; nil (PHP null)
-	// allows all.
-	AllowedTypes               []string
+	// AllowedTypes are the only package types to load: null (the zero
+	// value) allows all, [] loads no package at all.
+	AllowedTypes               php.Nullable[[]string]
 	SecurityAdvisoryPoolFilter *SecurityAdvisoryPoolFilter
 	FilterListPoolFilter       *FilterListPoolFilter
 }
