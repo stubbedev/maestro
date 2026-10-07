@@ -61,8 +61,7 @@ func TestParseCache_FollowsContents(t *testing.T) {
 	// a later run, from the file
 	for _, content := range []string{"<?php class Foo {}", "<?php class Bar {}", "<?php class Baz {}"} {
 		write(content)
-		later := NewParseCache()
-		later.UseFile(cacheFile)
+		later := readCache(cacheFile)
 		want := content[len("<?php class ") : len(content)-len(" {}")]
 		if got := scanWithCache(t, later, dir); !slices.Equal(got, []string{want}) {
 			t.Fatalf("later run with %q: %q", content, got)
@@ -114,11 +113,59 @@ func TestParseCache_IdentityIndex(t *testing.T) {
 	}
 }
 
+// readCache is a ParseCache using the cache file at path as a new process
+// would: read from the file, not shared with the earlier ones.
 func readCache(path string) *ParseCache {
+	diskCaches.Lock()
+	delete(diskCaches.byPath, path)
+	diskCaches.Unlock()
 	c := NewParseCache()
 	c.UseFile(path)
 
 	return c
+}
+
+// The cache file is read once per process, by the first scan that needs
+// it, and shared by the caches of the process: a cache that never scans
+// reads and writes nothing, and a later one sees the results of an
+// earlier one before they are saved.
+func TestParseCache_FileSharedAndLazy(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.php"), []byte("<?php class Foo {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cacheFile := filepath.Join(t.TempDir(), "cache.bin")
+
+	idle := readCache(cacheFile)
+	idle.Save()
+	if idle.disk.touched.Load() {
+		t.Fatal("a cache never used loaded its file")
+	}
+	if _, err := os.Stat(cacheFile); !os.IsNotExist(err) {
+		t.Fatalf("a cache never used wrote its file: %v", err)
+	}
+
+	first := NewParseCache()
+	first.UseFile(cacheFile)
+	if first.disk != idle.disk {
+		t.Fatal("two caches of one process read the file twice")
+	}
+	if got := scanWithCache(t, first, dir); !slices.Equal(got, []string{"Foo"}) {
+		t.Fatalf("first scan: %q", got)
+	}
+	second := NewParseCache()
+	second.UseFile(cacheFile)
+	if got := scanWithCache(t, second, dir); !slices.Equal(got, []string{"Foo"}) {
+		t.Fatalf("second scan: %q", got)
+	}
+	if n := second.reads.Load(); n != 1 {
+		t.Fatalf("second scan read %d files, want 1 (to hash it)", n)
+	}
+	if second.disk.added != 1 {
+		t.Errorf("the second scan parsed again: %d results", second.disk.added)
+	}
 }
 
 // memRelease is a Release kept in memory.

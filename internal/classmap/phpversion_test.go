@@ -29,8 +29,7 @@ func TestParser_FollowsPHPVersion(t *testing.T) {
 	cacheFile := filepath.Join(t.TempDir(), "cache.bin")
 	want := map[int][]string{70400: nil, 80000: {"A"}, 80100: {"A", "E"}, 0: {"A", "E"}}
 	for _, run := range []string{"first", "from the cache file"} {
-		cache := NewParseCache()
-		cache.UseFile(cacheFile)
+		cache := readCache(cacheFile)
 		for _, id := range []int{70400, 80000, 80100, 0} {
 			for range 2 { // the second scan reads the in-memory cache
 				g := NewGenerator(nil).SetParseCache(cache)

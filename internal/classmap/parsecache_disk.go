@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/util/fsstate"
@@ -35,7 +36,10 @@ const diskCacheMaxEntries = 1 << 19
 // since is not even read.
 type diskCache struct {
 	path, header string
-	loaded       chan struct{}
+	// once loads the file, on first use; touched is set from then on, so
+	// that saving a cache never used reads nothing.
+	once    sync.Once
+	touched atomic.Bool
 
 	mu      sync.Mutex
 	entries map[contentKey][]string
@@ -57,7 +61,9 @@ type diskCache struct {
 }
 
 // UseFile makes the cache keep its results in the file at path across
-// runs, starting to load it in the background. Results are only shared
+// runs. The file is read once per process, when a scan (or Warm) first
+// needs it, and shared by every ParseCache of the process using it: a
+// command that never scans never reads it. Results are only shared
 // between runs of the same maestro binary (its size and modification time
 // are part of the file's header), so a parser change never reads results
 // of another. Save writes the file.
@@ -65,12 +71,32 @@ func (c *ParseCache) UseFile(path string) {
 	if c == nil || c.disk != nil {
 		return
 	}
-	d := &diskCache{path: path, header: diskHeader(), loaded: make(chan struct{}), used: map[contentKey]struct{}{}}
-	c.disk = d
-	go func() {
-		defer close(d.loaded)
-		d.entries, d.stats, d.written = d.load()
-	}()
+	c.disk = sharedDiskCache(path)
+}
+
+// diskCaches holds the diskCache of each file path used in this process.
+var diskCaches = struct {
+	sync.Mutex
+	byPath map[string]*diskCache
+}{byPath: map[string]*diskCache{}}
+
+// sharedDiskCache is the process's diskCache of the file at path.
+func sharedDiskCache(path string) *diskCache {
+	diskCaches.Lock()
+	defer diskCaches.Unlock()
+	d, ok := diskCaches.byPath[path]
+	if !ok {
+		d = &diskCache{path: path, header: diskHeader(), used: map[contentKey]struct{}{}}
+		diskCaches.byPath[path] = d
+	}
+
+	return d
+}
+
+// ready loads the file unless it was loaded already, and waits for it.
+func (d *diskCache) ready() {
+	d.touched.Store(true)
+	d.once.Do(func() { d.entries, d.stats, d.written = d.load() })
 }
 
 // diskHeader is the first line of the file: format and binary.
@@ -130,7 +156,7 @@ func (d *diskCache) load() (map[contentKey][]string, map[fsstate.ID][32]byte, ti
 // statSum returns the content hash recorded for a file identity, if it
 // can be trusted (see diskCache.stats).
 func (d *diskCache) statSum(key fsstate.ID, trust fsstate.Margin) ([32]byte, bool) {
-	<-d.loaded
+	d.ready()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	sum, ok := d.stats[key]
@@ -148,7 +174,7 @@ func (d *diskCache) statSum(key fsstate.ID, trust fsstate.Margin) ([32]byte, boo
 
 // putStat records the content hash of a file this run read.
 func (d *diskCache) putStat(key fsstate.ID, sum [32]byte) {
-	<-d.loaded
+	d.ready()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if old, ok := d.stats[key]; !ok || old != sum {
@@ -158,7 +184,7 @@ func (d *diskCache) putStat(key fsstate.ID, sum [32]byte) {
 }
 
 func (d *diskCache) get(key contentKey) ([]string, bool) {
-	<-d.loaded
+	d.ready()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	classes, ok := d.entries[key]
@@ -170,7 +196,7 @@ func (d *diskCache) get(key contentKey) ([]string, bool) {
 }
 
 func (d *diskCache) put(key contentKey, classes []string) {
-	<-d.loaded
+	d.ready()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if _, ok := d.entries[key]; !ok {
@@ -194,7 +220,10 @@ func (c *ParseCache) Save() {
 		return
 	}
 	d := c.disk
-	<-d.loaded
+	if !d.touched.Load() {
+		return
+	}
+	d.ready()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.added == 0 && !d.statsChanged && !d.racy {
@@ -234,6 +263,11 @@ func (c *ParseCache) Save() {
 		return
 	}
 	d.added, d.statsChanged, d.racy = 0, false, false
+	// what is in memory is now what loading the file would give: its
+	// identities are trusted as of its new modification time
+	if info, err := os.Stat(d.path); err == nil {
+		d.written = info.ModTime()
+	}
 }
 
 // contentKeyOf is the contentKey of contents parsed by p.
