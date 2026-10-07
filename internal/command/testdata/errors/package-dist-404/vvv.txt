@@ -3,9 +3,7 @@ Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
 Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
-Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
-Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
@@ -39,45 +37,24 @@ Reading ./composer.lock (@DIR@/p/composer.lock)
 Package operations: 1 install, 0 updates, 0 removals
 Installs: x/y:1.0.0
   - Downloading x/y (1.0.0)
-Reading @SERVER@/status/404/x.zip
-  - Downloading x/y (1.0.0)
-Reading @SERVER@/status/404/x.zip
-  - Downloading x/y (1.0.0)
-Reading @SERVER@/status/404/x.zip
-  - Downloading x/y (1.0.0)
-Reading @SERVER@/status/404/x.zip
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+Downloading http://@SERVER@/status/404/x.zip
+[404] http://@SERVER@/status/404/x.zip
 
-In RemoteFilesystem.php line 481:
+In CurlDownloader.php line 686:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
-  The "@SERVER@/status/404/x.zip" file could not be downloaded: Failed to ope  
-  n stream: No such file or directory                                          
+  The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
+  (HTTP/1.1 404 Not Found)                                                     
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:481
- Composer\Util\RemoteFilesystem->get() at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:107
- Composer\Util\RemoteFilesystem->copy() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:251
- Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}() at @COMPOSER@/vendor/react/promise/src/Promise.php:284
- React\Promise\Promise->call() at @COMPOSER@/vendor/react/promise/src/Promise.php:41
- React\Promise\Promise->__construct() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:283
- Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:181
- Composer\Util\HttpDownloader->addCopy() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:196
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
- React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
- React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
- React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:302
- Composer\Downloader\FileDownloader->download() at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:100
- Composer\Downloader\ZipDownloader->download() at @COMPOSER@/src/Composer/Downloader/DownloadManager.php:252
- Composer\Downloader\DownloadManager->{closure:Composer\Downloader\DownloadManager::download():206}() at @COMPOSER@/src/Composer/Downloader/DownloadManager.php:264
- Composer\Downloader\DownloadManager->download() at @COMPOSER@/src/Composer/Installer/LibraryInstaller.php:111
- Composer\Installer\LibraryInstaller->download() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:280
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:86
+ Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:434
+ Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:289
  Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:221
  Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:876
  Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:686

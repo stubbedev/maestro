@@ -1,0 +1,3 @@
+install
+--prefer-source
+--prefer-install=dist

@@ -122,9 +122,15 @@ type UnexpectedValueError struct {
 	// \UnexpectedValueException (symfony/finder's AccessDeniedException);
 	// empty for \UnexpectedValueException itself.
 	Class string
+	// Code is $e->getCode() (ZipDownloader passes ZipArchive::open's
+	// error code), which the Application exits with.
+	Code int
 }
 
 func (e *UnexpectedValueError) Error() string { return e.Message }
+
+// PHPCode implements phperr.Coded.
+func (e *UnexpectedValueError) PHPCode() int { return e.Code }
 
 // PHPClass implements phperr.Exception.
 func (e *UnexpectedValueError) PHPClass() string {

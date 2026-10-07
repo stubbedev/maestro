@@ -1,0 +1,3 @@
+Your lock file does not contain a compatible set of packages. Please run composer update.
+- x/ext is locked to version 1.0.0 and an update of this package was not requested.
+- x/ext 1.0.0 requires ext-nonexistent * -> it is missing from your system. Install or enable PHP's nonexistent extension.

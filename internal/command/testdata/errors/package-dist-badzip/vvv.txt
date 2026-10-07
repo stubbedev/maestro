@@ -3,9 +3,7 @@ Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
 Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
-Checked CA file /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a file.
-Checked directory /etc/pki/tls/certs/ca-bundle.crt does not exist or it is not a directory.
-Checked CA file /etc/ssl/certs/ca-certificates.crt: valid
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
 Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
@@ -39,45 +37,53 @@ Reading ./composer.lock (@DIR@/p/composer.lock)
 Package operations: 1 install, 0 updates, 0 removals
 Installs: x/y:1.0.0
   - Downloading x/y (1.0.0)
-Reading @SERVER@/bad.zip
-  - Downloading x/y (1.0.0)
-Reading @SERVER@/bad.zip
-  - Downloading x/y (1.0.0)
-Reading @SERVER@/bad.zip
-  - Downloading x/y (1.0.0)
-Reading @SERVER@/bad.zip
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+Downloading http://@SERVER@/bad.zip
+[200] http://@SERVER@/bad.zip
+Writing @DIR@/cache/files/x/y/f2d737d04f0532602010eb0ad4bc1e4f33f2253e.zip into cache from @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip
+  - Installing x/y (1.0.0): Extracting archive
+Executing async command (CWD): '/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip' '-qq' '@DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip' '-d' '@DIR@/p/vendor/composer/cff5842a'
+    Failed to extract x/y: (9) /nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip -qq @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip -d @DIR@/p/vendor/composer/cff5842a
 
-In RemoteFilesystem.php line 481:
+[@DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip]
+  End-of-central-directory signature not found.  Either this file is not
+  a zipfile, or it constitutes one disk of a multi-part archive.  In the
+  latter case the central directory and zipfile comment will be found on
+  the last disk(s) of this archive.
+unzip:  cannot find zipfile directory in one of @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip or
+        @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip.zip, and cannot find @DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2edc7a038e139.zip.ZIP, period.
+
+    The archive may contain identical file names with different capitalization (which fails on case insensitive filesystems)
+    Unzip with unzip command failed, falling back to ZipArchive class
+Executing command (CWD): 'rm' '-rf' '@DIR@/p/vendor/composer/cff5842a'
+Executing command (CWD): 'rm' '-rf' '@DIR@/p/vendor/x/y'
+    Install of x/y failed
+
+In ZipDownloader.php line 255:
                                                                                
-  [Composer\Downloader\TransportException (100)]                               
-  The "@SERVER@/bad.zip" file could not be downloaded: Failed to open stream:  
-   No such file or directory                                                   
+  [UnexpectedValueException (19)]                                              
+  '@DIR@/p/vendor/composer/tmp-bf66166bd2309d5919f2e  
+  dc7a038e139.zip' is not a zip archive.                                       
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:481
- Composer\Util\RemoteFilesystem->get() at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:107
- Composer\Util\RemoteFilesystem->copy() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:251
- Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}() at @COMPOSER@/vendor/react/promise/src/Promise.php:284
- React\Promise\Promise->call() at @COMPOSER@/vendor/react/promise/src/Promise.php:41
- React\Promise\Promise->__construct() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:283
- Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:181
- Composer\Util\HttpDownloader->addCopy() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:196
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
- React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
- React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:281
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():249}() at @COMPOSER@/vendor/react/promise/src/Internal/RejectedPromise.php:73
- React\Promise\Internal\RejectedPromise->then() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:197
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():159}() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:302
- Composer\Downloader\FileDownloader->download() at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:100
- Composer\Downloader\ZipDownloader->download() at @COMPOSER@/src/Composer/Downloader/DownloadManager.php:252
- Composer\Downloader\DownloadManager->{closure:Composer\Downloader\DownloadManager::download():206}() at @COMPOSER@/src/Composer/Downloader/DownloadManager.php:264
- Composer\Downloader\DownloadManager->download() at @COMPOSER@/src/Composer/Installer/LibraryInstaller.php:111
- Composer\Installer\LibraryInstaller->download() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:280
+  at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:255
+ Composer\Downloader\ZipDownloader->extractWithZipArchive() at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:178
+ Composer\Downloader\ZipDownloader->{closure:Composer\Downloader\ZipDownloader::extractWithSystemUnzip():146}() at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:193
+ Composer\Downloader\ZipDownloader->{closure:Composer\Downloader\ZipDownloader::extractWithSystemUnzip():184}() at @COMPOSER@/vendor/react/promise/src/Internal/FulfilledPromise.php:47
+ React\Promise\Internal\FulfilledPromise->then() at @COMPOSER@/vendor/react/promise/src/Promise.php:174
+ React\Promise\Promise::{closure:{closure:React\Promise\Promise::resolver():172}:173}() at @COMPOSER@/vendor/react/promise/src/Promise.php:222
+ React\Promise\Promise->settle() at @COMPOSER@/vendor/react/promise/src/Promise.php:287
+ React\Promise\Promise::{closure:React\Promise\Promise::call():285}() at @COMPOSER@/vendor/react/promise/src/Internal/FulfilledPromise.php:47
+ React\Promise\Internal\FulfilledPromise->then() at @COMPOSER@/vendor/react/promise/src/Promise.php:181
+ React\Promise\Promise::{closure:{closure:React\Promise\Promise::resolver():172}:173}() at @COMPOSER@/vendor/react/promise/src/Promise.php:222
+ React\Promise\Promise->settle() at @COMPOSER@/vendor/react/promise/src/Promise.php:287
+ React\Promise\Promise::{closure:React\Promise\Promise::call():285}() at n/a:n/a
+ call_user_func() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:395
+ Composer\Util\ProcessExecutor->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:88
+ Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:434
+ Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:409
+ Composer\Installer\InstallationManager->executeBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:323
  Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:221
  Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:876
  Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:686
@@ -93,4 +99,4 @@ Exception trace:
 
 update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
 
-exit 100
+exit 19

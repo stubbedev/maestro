@@ -16,7 +16,10 @@
 //     recorded output too. Messages are compared without whitespace (box
 //     padding and wrapping, indentation and line breaks don't matter),
 //     box-drawing characters and PHP's TypeError call site
-//     (", called in X on line N").
+//     (", called in X on line N");
+//   - where the scenario has a files list, the content those files of the
+//     working directory have after the run (after/<path>, absent when
+//     Composer's run left no such file).
 //
 // The box, the exception class, the "In File.php line N:" heading, the
 // "Exception trace:" stack, the command synopsis and the rest of stderr
@@ -112,6 +115,12 @@ func TestErrors(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, "messages")); err == nil {
 			listed = readLines(t, filepath.Join(dir, "messages"))
 		}
+		if _, err := os.Stat(filepath.Join(dir, "readonly")); err == nil && os.Geteuid() == 0 {
+			// root writes read-only files.
+			t.Logf("%s: skipped, it makes files read-only and runs as root", name)
+
+			continue
+		}
 		for _, v := range verbosities {
 			golden := filepath.Join(dir, v.name)
 			recorded, err := os.ReadFile(golden + ".txt")
@@ -132,7 +141,9 @@ func TestErrors(t *testing.T) {
 			t.Run(name+"/"+v.name, func(t *testing.T) {
 				// Every run is a child process with directories of its own.
 				t.Parallel()
-				compare(t, golden, want, runScenario(t, dir, v.flag, server.URL))
+				got := runScenario(t, dir, v.flag, server.URL)
+				compare(t, golden, want, got)
+				compareFiles(t, dir, got)
 			})
 		}
 	}
@@ -152,6 +163,29 @@ type result struct {
 	code   int
 	stdout string
 	stderr string
+	// files are the scenario's listed files after the run, normalised,
+	// nil for those that don't exist.
+	files map[string]*string
+}
+
+// compareFiles checks the scenario's listed files against the content
+// Composer's run left (after/<path>).
+func compareFiles(t *testing.T, dir string, got result) {
+	t.Helper()
+	for path, content := range got.files {
+		want, err := os.ReadFile(filepath.Join(dir, "after", filepath.FromSlash(path)))
+		switch {
+		case errors.Is(err, os.ErrNotExist) && content != nil:
+			t.Errorf("%s exists after the run, Composer's run leaves none", path)
+		case errors.Is(err, os.ErrNotExist):
+		case err != nil:
+			t.Fatal(err)
+		case content == nil:
+			t.Errorf("%s missing after the run, Composer's run leaves it (%s)", path, filepath.Join(dir, "after", path))
+		case *content != string(want):
+			t.Errorf("%s after the run differs from Composer's (%s):\n%s", path, filepath.Join(dir, "after", path), lineDiff(string(want), *content))
+		}
+	}
 }
 
 func compare(t *testing.T, golden string, want expected, got result) {
@@ -192,12 +226,15 @@ func readGolden(recorded string, listed []string) (expected, error) {
 	want := expected{code: code}
 	if listed == nil {
 		want.messages, _ = testutil.ErrorRendering(output)
+		for i, m := range want.messages {
+			want.messages[i] = normalizeCompact(m)
+		}
 
 		return want, nil
 	}
-	all := testutil.CompactMessage(output)
+	all := normalizeCompact(testutil.CompactMessage(output))
 	for _, l := range listed {
-		c := testutil.CompactMessage(l)
+		c := normalizeCompact(testutil.CompactMessage(l))
 		if !strings.Contains(all, c) {
 			return expected{}, fmt.Errorf("listed message not in Composer's output: %q", l)
 		}
@@ -212,14 +249,33 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 	t.Helper()
 	work := t.TempDir()
 	run := filepath.Join(work, "run")
-	for _, d := range []string{"home", "cache"} {
+	for _, d := range []string{"home", "cache", "p"} {
 		if err := os.MkdirAll(filepath.Join(run, d), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	copyTree(t, filepath.Join(dir, "project"), filepath.Join(run, "p"))
+	if _, err := os.Stat(filepath.Join(dir, "base")); err == nil {
+		for _, l := range readLines(t, filepath.Join(dir, "base")) {
+			copyTree(t, filepath.Join(dataDir, "_projects", l), filepath.Join(run, "p"), serverURL)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "project")); err == nil {
+		copyTree(t, filepath.Join(dir, "project"), filepath.Join(run, "p"), serverURL)
+	}
 	if _, err := os.Stat(filepath.Join(dir, "home")); err == nil {
-		copyTree(t, filepath.Join(dir, "home"), filepath.Join(run, "home"))
+		copyTree(t, filepath.Join(dir, "home"), filepath.Join(run, "home"), serverURL)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "readonly")); err == nil {
+		for _, l := range readLines(t, filepath.Join(dir, "readonly")) {
+			path := filepath.Join(run, "p", filepath.FromSlash(l))
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(path, info.Mode().Perm()&^0o222); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 
 	args := readLines(t, filepath.Join(dir, "args"))
@@ -265,6 +321,23 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 
 	host := strings.TrimPrefix(serverURL, "http://")
 
+	var files map[string]*string
+	if _, err := os.Stat(filepath.Join(dir, "files")); err == nil {
+		files = map[string]*string{}
+		for _, l := range readLines(t, filepath.Join(dir, "files")) {
+			data, err := os.ReadFile(filepath.Join(run, "p", filepath.FromSlash(l)))
+			switch {
+			case errors.Is(err, os.ErrNotExist):
+				files[l] = nil
+			case err != nil:
+				t.Fatal(err)
+			default:
+				content := normalize(string(data), run, host)
+				files[l] = &content
+			}
+		}
+	}
+
 	// The goldens record Composer on Linux, where PHP_EOL is "\n". stderr
 	// is compacted before its paths are replaced: an error box may wrap a
 	// path anywhere.
@@ -272,6 +345,7 @@ func runScenario(t *testing.T, dir, flag, serverURL string) result {
 		code:   code,
 		stdout: normalize(php.NormalizeEOL(stdout.String()), run, host),
 		stderr: replacePaths(testutil.CompactMessage(stderr.String()), run, host),
+		files:  files,
 	}
 }
 
@@ -305,7 +379,28 @@ func replacePaths(s, run, host string) string {
 	s = strings.ReplaceAll(s, run, "@DIR@")
 	s = strings.ReplaceAll(s, host, "@SERVER@")
 
-	return compactPHPVersion.ReplaceAllString(s, "${1}@PHPVERSION@${2}")
+	return normalizeCompact(compactPHPVersion.ReplaceAllString(s, "${1}@PHPVERSION@${2}"))
+}
+
+// compactRandom are what differs between runs in a message that an error
+// box may wrap anywhere, out of reach of errors.sh's line-wise
+// normalisation: the server's port and the random name of the temporary
+// file a dist is downloaded to.
+var compactRandom = []struct {
+	re   *regexp.Regexp
+	repl string
+}{
+	{regexp.MustCompile(`127\.0\.0\.1:[0-9]+`), "@SERVER@"},
+	{regexp.MustCompile(`/tmp-[0-9a-f]{32}\.`), "/tmp-@RAND@."},
+}
+
+// normalizeCompact replaces compactRandom in a compacted message.
+func normalizeCompact(s string) string {
+	for _, r := range compactRandom {
+		s = r.re.ReplaceAllString(s, r.repl)
+	}
+
+	return s
 }
 
 var compactPHPVersion = regexp.MustCompile(`(butyourphpversion\()[^)]*(\)doesnotsatisfy)`)
@@ -357,8 +452,9 @@ func readLines(t *testing.T, path string) []string {
 	return lines
 }
 
-// copyTree copies src into dst, keeping file modes (cp -a).
-func copyTree(t *testing.T, src, dst string) {
+// copyTree copies src into dst, keeping file modes (cp -a), with
+// @SERVER@ in the files replaced by serverURL.
+func copyTree(t *testing.T, src, dst, serverURL string) {
 	t.Helper()
 	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -377,6 +473,8 @@ func copyTree(t *testing.T, src, dst string) {
 		if err != nil {
 			return err
 		}
+
+		data = bytes.ReplaceAll(data, []byte("@SERVER@"), []byte(serverURL))
 
 		return os.WriteFile(target, data, info.Mode().Perm())
 	})

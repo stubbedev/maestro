@@ -26,11 +26,22 @@
 #
 # A scenario is a directory holding:
 #   project/  the working directory (copied fresh for every run)
+#   base      optional names of directories of _projects/ copied into the
+#             working directory first, in order, project/ (then optional)
+#             over them: projects scenarios share
 #   args      the command line, one argument per line
-#   env       optional KEY=VALUE lines (@SERVER@ is the local HTTP server)
+#   env       optional KEY=VALUE lines
 #   home/     optional COMPOSER_HOME contents
 #   messages  optional lines of Composer's output that report the error,
 #             checked by TestErrors instead of the exception boxes' messages
+#   readonly  optional paths of the working directory made read-only
+#             before the run (the repository can't record file modes)
+#   files     optional paths of the working directory whose content after
+#             the run is frozen: -w records Composer's into after/<path>
+#             (normalised as the output is; no after/<path> when the run
+#             leaves no such file), which maestro's must equal
+# @SERVER@ in env and in the files of project/ and home/ is the local HTTP
+# server's URL.
 # The local HTTP server (tools/oracle/errors/router.php, `php -S`) serves
 # internal/command/testdata/errors/_server.
 #
@@ -113,8 +124,16 @@ run() {
 	local name=$1 bin=$2 out=$3 vflag=$4 separate=$5 dir=$data/$1
 	rm -rf "$work/run"
 	mkdir -p "$work/run/home" "$work/run/cache"
-	cp -a "$dir/project" "$work/run/p"
+	mkdir -p "$work/run/p"
+	if [ -f "$dir/base" ]; then
+		while IFS= read -r l; do [ -n "$l" ] && cp -a "$data/_projects/$l/." "$work/run/p/"; done < "$dir/base"
+	fi
+	[ -d "$dir/project" ] && cp -a "$dir/project/." "$work/run/p/"
 	[ -d "$dir/home" ] && cp -a "$dir/home/." "$work/run/home/"
+	grep -rlZF @SERVER@ "$work/run/p" "$work/run/home" | xargs -0r sed -i "s#@SERVER@#$server#g"
+	if [ -f "$dir/readonly" ]; then
+		while IFS= read -r l; do [ -n "$l" ] && chmod a-w "$work/run/p/$l"; done < "$dir/readonly"
+	fi
 	local -a args=() envs=()
 	mapfile -t args < "$dir/args"
 	[ -n "$vflag" ] && args+=("$vflag")
@@ -131,6 +150,13 @@ run() {
 			"${envs[@]}" $bin "${args[@]}" --no-ansi >&3 2>&4
 		echo "exit $?" > "$out.exit"
 	)
+	rm -rf "$out.files"
+	if [ -f "$dir/files" ]; then
+		while IFS= read -r l; do
+			[ -n "$l" ] && [ -f "$work/run/p/$l" ] && mkdir -p "$(dirname "$out.files/$l")" && normalize < "$work/run/p/$l" > "$out.files/$l"
+		done < "$dir/files"
+		mkdir -p "$out.files"
+	fi
 	if [ "$separate" = 1 ]; then
 		normalize < "$out" > "$out.stdout.n"
 	fi
@@ -150,14 +176,22 @@ for name in "$@"; do
 			cp "$work/c.all.n" "$golden.txt"
 			rm -f "$golden.stdout"
 			[ -s "$work/c.out.stdout.n" ] && cp "$work/c.out.stdout.n" "$golden.stdout"
+			if [ -z "$v" ] && [ -d "$work/c.out.files" ]; then
+				rm -rf "$data/$name/after"
+				cp -a "$work/c.out.files" "$data/$name/after"
+			fi
 		fi
 		run "$name" "$maestro" "$work/m.out" "$v" 1
 		if ! diff -u "$work/c.out.n" "$work/m.out.n" > "$work/diff"; then
 			fail=$((fail + 1))
 			echo "DIFF $name ${v:-(default)} (stdout, exit code)"
 			sed 's/^/    /' "$work/diff" | head -${DIFFLINES:-40}
+		elif [ -d "$work/c.out.files" ] && ! diff -ru "$work/c.out.files" "$work/m.out.files" > "$work/diff"; then
+			fail=$((fail + 1))
+			echo "DIFF $name ${v:-(default)} (files)"
+			sed 's/^/    /' "$work/diff" | head -${DIFFLINES:-40}
 		fi
 	done
 done
-echo "$((total - fail))/$total with Composer's exit code and stdout"
+echo "$((total - fail))/$total with Composer's exit code, stdout and files"
 [ $fail = 0 ]

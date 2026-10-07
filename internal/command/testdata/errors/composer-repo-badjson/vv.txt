@@ -1,24 +1,25 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
-Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
-Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Loading composer repositories with package information
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 
-In ComposerRepository.php line 184:
-                                                                      
-  [UnexpectedValueException]                                          
-  Invalid url given for Composer repository: http://@SERVER@/badrepo  
-                                                                      
+In Response.php line 98:
+                                                                              
+  [Seld\JsonLint\ParsingException]                                            
+  "http://@SERVER@/badrepo/packages.json" does not contain valid JSON  
+                                                                              
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:184
- Composer\Repository\ComposerRepository->__construct() at @COMPOSER@/src/Composer/Repository/RepositoryManager.php:141
- Composer\Repository\RepositoryManager->createRepository() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:168
- Composer\Repository\RepositoryFactory::createRepos() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:100
- Composer\Repository\RepositoryFactory::defaultRepos() at @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:197
- Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:394
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:629
- Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:103
- Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:136
+  at @COMPOSER@/src/Composer/Util/Http/Response.php:98
+ Composer\Util\Http\Response->decodeJson() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1786
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1095
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:549
+ Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:452
+ Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:289
+ Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:351
+ Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:534
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:306
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

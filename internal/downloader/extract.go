@@ -75,6 +75,10 @@ func (d *FileDownloader) extractionError(p pkg.PackageInterface, file, path stri
 	return nil, generic
 }
 
+// zipErNoZip is ZipArchive::ER_NOZIP, the code of ZipDownloader's
+// "is not a zip archive" exception.
+const zipErNoZip = 19
+
 // zipError is ZipDownloader's failure for an archive unzip rejects: unzip's
 // error, then ZipArchive's.
 func zipError(p pkg.PackageInterface, file, path string, ae *archive.Error, generic error) ([]string, error) {
@@ -100,12 +104,12 @@ func zipError(p pkg.PackageInterface, file, path string, ae *archive.Error, gene
 	}
 
 	if fi, err := os.Stat(file); err == nil && fi.Size() == 0 {
-		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is a corrupted zip archive (0 bytes), try again."}
+		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is a corrupted zip archive (0 bytes), try again.", Code: -1}
 	}
 
 	if ae.ExitCode == 9 {
 		// unzip found no zip structure: ZipArchive::open fails with ER_NOZIP
-		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is not a zip archive."}
+		return warnings, &util.UnexpectedValueError{Message: "'" + file + "' is not a zip archive.", Code: zipErNoZip}
 	}
 
 	return warnings, &util.RuntimeError{Message: `There was an error extracting the ZIP file for "` + p.Name() + `", it is either corrupted or using an invalid format.`}

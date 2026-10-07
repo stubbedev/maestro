@@ -1,0 +1,15 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "type": "package",
+            "package": {"name": "x/ext", "version": "1.0.0", "type": "metapackage", "require": {"ext-nonexistent": "*"}}
+        },
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/ext": "1.0.0"
+    }
+}

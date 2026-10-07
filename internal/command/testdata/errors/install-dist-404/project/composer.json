@@ -1,0 +1,14 @@
+{
+    "name": "acme/app",
+    "repositories": [
+        {
+            "packagist.org": false
+        }
+    ],
+    "require": {
+        "x/y": "1.0.0"
+    },
+    "config": {
+        "secure-http": false
+    }
+}

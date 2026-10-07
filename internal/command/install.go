@@ -127,8 +127,8 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 		return 0, err
 	}
 
-	if console.BoolOption(in, "strict-psr-autoloader") && !optimize && !authoritative {
-		return 0, NewError(ClassInvalidArgument, "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.")
+	if err := checkStrictPSRAutoloader(in, optimize, authoritative); err != nil {
+		return 0, err
 	}
 
 	setOutputProgress(c2.InstallationManager(), !console.BoolOption(in, "no-progress"))

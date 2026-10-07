@@ -1,0 +1,38 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Installing dependencies from lock file (including require-dev)
+Verifying lock file contents can be installed on current platform.
+Dependency resolution completed in @TIME@ seconds
+Package operations: 1 install, 0 updates, 0 removals
+Installs: x/y:1.0.0
+  - Downloading x/y (1.0.0)
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+
+In CurlDownloader.php line 686:
+                                                                               
+  [Composer\Downloader\TransportException (100)]                               
+  The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
+  (HTTP/1.1 404 Not Found)                                                     
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:86
+ Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:434
+ Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:289
+ Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:221
+ Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:876
+ Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:327
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/InstallCommand.php:152
+ Composer\Command\InstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+install [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--download-only] [--dev] [--no-suggest] [--no-dev] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-progress] [--no-install] [--audit] [--audit-format AUDIT-FORMAT] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<packages>...]
+
+exit 100

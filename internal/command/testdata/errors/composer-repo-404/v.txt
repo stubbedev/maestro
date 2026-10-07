@@ -1,24 +1,30 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
-Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
-Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Loading composer repositories with package information
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 
-In ComposerRepository.php line 184:
-                                                                         
-  [UnexpectedValueException]                                             
-  Invalid url given for Composer repository: http://@SERVER@/status/404  
-                                                                         
+In CurlDownloader.php line 686:
+                                                                               
+  [Composer\Downloader\TransportException (100)]                               
+  The "http://@SERVER@/status/404/packages.json" file could not be dow  
+  nloaded (HTTP/1.1 404 Not Found)                                             
+                                                                               
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:184
- Composer\Repository\ComposerRepository->__construct() at @COMPOSER@/src/Composer/Repository/RepositoryManager.php:141
- Composer\Repository\RepositoryManager->createRepository() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:168
- Composer\Repository\RepositoryFactory::createRepos() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:100
- Composer\Repository\RepositoryFactory::defaultRepos() at @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:197
- Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:394
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:629
- Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:103
- Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:136
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:366
+ Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:114
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1761
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1095
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:549
+ Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:452
+ Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:289
+ Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:351
+ Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:534
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:306
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
@@ -29,4 +35,4 @@ Exception trace:
 
 update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
 
-exit 1
+exit 100

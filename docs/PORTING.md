@@ -439,7 +439,10 @@ Cycle-breaking decisions already made:
    (`tools/oracle/errors`, `internal/command/errorstest`) compares exit
    codes and stdout exactly and checks that stderr reports the messages of
    Composer's exceptions (or a scenario's listed lines), whitespace-
-   insensitively, not how they are rendered.
+   insensitively, not how they are rendered. A scenario may also freeze
+   files the run leaves (composer.json restored after a failure, a lock
+   that must not be written), share a project from `_projects/`, and make
+   files read-only; see `tools/oracle/errors/errors.sh`.
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
    2.10.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare

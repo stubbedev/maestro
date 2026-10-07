@@ -141,3 +141,71 @@ Package operations: 1 install, 0 updates, 0 removals
   - Installing root/another (1.0.0)
 Generating autoload files`)
 }
+
+// installFromLockProject is the project of TestInstallCommand_InstallFromEmptyVendor:
+// root/req in require and root/another in require-dev, both locked.
+func installFromLockProject(t *testing.T) {
+	t.Helper()
+	commandtest.InitTempComposer(t, `{"require": {"root/req": "1.*"}, "require-dev": {"root/another": "1.*"}}`, nil, nil, true)
+	rootReq, another := rootMetapackages(t)
+	commandtest.CreateComposerLock(t, []pkg.PackageInterface{rootReq}, []pkg.PackageInterface{another})
+}
+
+const (
+	installingReq       = "  - Installing root/req (1.0.0)"
+	installingDev       = "  - Installing root/another (1.0.0)"
+	installingNoDevHead = "Installing dependencies from lock file\n"
+)
+
+func TestInstallCommand_Options(t *testing.T) {
+	runCommandCases(t, installFromLockProject, []commandCase{
+		{
+			name:     "--no-progress and --no-blocking are accepted",
+			params:   cmd("install", "--no-progress", true, "--no-blocking", true),
+			contains: []string{installingDev, installingReq},
+		},
+		{
+			name:     "COMPOSER_NO_DEV is --no-dev",
+			params:   cmd("install"),
+			env:      map[string]string{"COMPOSER_NO_DEV": "1"},
+			contains: []string{installingNoDevHead, installingReq},
+			excludes: []string{installingDev},
+		},
+		{
+			name:     "COMPOSER_IGNORE_PLATFORM_REQS is --ignore-platform-reqs, with a warning",
+			params:   cmd("install", "--dry-run", true),
+			env:      map[string]string{"COMPOSER_IGNORE_PLATFORM_REQS": "1"},
+			contains: []string{"COMPOSER_IGNORE_PLATFORM_REQS is set. You may experience unexpected errors."},
+		},
+		{
+			name:     "-o --strict-psr-autoloader on a clean project",
+			params:   cmd("install", "-o", true, "--strict-psr-autoloader", true),
+			contains: []string{installingReq},
+		},
+		{
+			name:   "--strict-psr-autoloader needs an optimized autoloader",
+			params: cmd("install", "--strict-psr-autoloader", true),
+			err:    "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.",
+		},
+		{
+			name:   "--prefer-install takes dist, source or auto",
+			params: cmd("install", "--prefer-install", "foo"),
+			err:    `--prefer-install accepts one of "dist", "source" or "auto", got foo`,
+		},
+		{
+			name:   "--prefer-source with --prefer-install",
+			params: cmd("install", "--prefer-source", true, "--prefer-install", "dist"),
+			err:    "--prefer-source can not be used together with --prefer-install",
+		},
+		{
+			name:   "--prefer-dist with --prefer-install",
+			params: cmd("install", "--prefer-dist", true, "--prefer-install", "source"),
+			err:    "--prefer-dist can not be used together with --prefer-install",
+		},
+		{
+			name:   "--audit-format takes a known format",
+			params: cmd("install", "--audit-format", "xml"),
+			err:    "--audit-format must be one of table, plain, json, summary.",
+		},
+	})
+}

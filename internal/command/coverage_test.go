@@ -76,7 +76,13 @@ var coverage = []entry{
 	cover(command.NewInstallCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestInstallCommand_InstallFromEmptyVendor)),
+			Positive(Go(TestInstallCommand_Options)),
+			Positive(E2E("install-from-lock", "i", "--dry-run")),
+			Positive(E2E("prefer-source", "install", "--prefer-install=source")),
 			Negative(Go(TestInstallCommand_InstallCommandErrors)),
+			Negative(Go(TestInstallCommand_Options)),
+			Negative(E2E("autoload", "install", "-o", "--strict-psr-autoloader")),
+			Negative(E2E("security", "install", "--audit")),
 		},
 	}),
 	cover(command.NewCreateProjectCommand, Coverage{
