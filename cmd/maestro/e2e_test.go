@@ -113,6 +113,12 @@ type step struct {
 	normalizeTree func(composer, maestro map[string]entry)
 	// coldOnly restricts the step to the cold phase.
 	coldOnly bool
+	// mustSucceed marks a step the later ones build on (a real-world
+	// project's create-project and install): Composer failing it means the
+	// environment cannot run the scenario (a missing PHP extension, the
+	// network), which is reported as such instead of as the differences
+	// the later steps then show.
+	mustSucceed bool
 }
 
 // scenario is a fixture project and the steps run in it.
@@ -567,6 +573,10 @@ func compareResults(t *testing.T, sc scenario, phase string, want, got []stepRes
 	for i, s := range steps {
 		w, g := want[i], got[i]
 		label := fmt.Sprintf("[%s] step %d `composer %s`", phase, i+1, strings.Join(s.args, " "))
+
+		if s.mustSucceed && w.code != 0 {
+			t.Errorf("%s: Composer itself failed (exit code %d), so the scenario cannot run here:\n%s", label, w.code, w.stderr)
+		}
 
 		if w.code != g.code {
 			t.Errorf("%s: exit code %d, Composer's %d", label, g.code, w.code)

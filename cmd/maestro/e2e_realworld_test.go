@@ -26,8 +26,8 @@ func realWorldScenarios() []scenario {
 		{
 			name: "laravel",
 			steps: []step{
-				{args: with("create-project", "laravel/laravel", "app", "v13.10.1"), dir: "."},
-				{args: with("install"), dir: "app", setup: removeDir("app/vendor")},
+				{args: with("create-project", "laravel/laravel", "app", "v13.10.1"), dir: ".", mustSucceed: true},
+				{args: with("install"), dir: "app", setup: removeDir("app/vendor"), mustSucceed: true},
 				{args: with("dump-autoload", "-o"), dir: "app"},
 				{args: with("show"), dir: "app"},
 				{args: with("update", "--dry-run"), dir: "app"},
@@ -36,9 +36,9 @@ func realWorldScenarios() []scenario {
 		{
 			name: "symfony",
 			steps: []step{
-				{args: with("create-project", "symfony/skeleton:v7.4.99", "app"), dir: "."},
-				{args: with("require", "symfony/webapp-pack"), dir: "app"},
-				{args: with("install"), dir: "app", setup: removeDir("app/vendor")},
+				{args: with("create-project", "symfony/skeleton:v7.4.99", "app"), dir: ".", mustSucceed: true},
+				{args: with("require", "symfony/webapp-pack"), dir: "app", mustSucceed: true},
+				{args: with("install"), dir: "app", setup: removeDir("app/vendor"), mustSucceed: true},
 				{args: with("dump-autoload", "--classmap-authoritative"), dir: "app"},
 				{args: with("why", "symfony/http-kernel"), dir: "app"},
 			},
