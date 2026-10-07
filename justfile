@@ -35,6 +35,15 @@ test-race:
 e2e:
     MAESTRO_E2E=1 MAESTRO_PHP_TESTS=1 go test -count=1 -timeout 4h -run 'TestE2E|TestAllFunctional' ./cmd/maestro
 
+# Build the current tree and run it in the directory you call just from,
+# e.g. `just dev install -v` inside a PHP project. The binary is ./maestro
+# (gitignored).
+[no-cd]
+[positional-arguments]
+dev *args:
+    @go build -C "{{ justfile_directory() }}" -o "{{ justfile_directory() }}/maestro" ./cmd/maestro
+    @"{{ justfile_directory() }}/maestro" "$@"
+
 # Recreate .ref/, the Composer sources the port follows (see docs/PORTING.md).
 ref:
     ref-sync
