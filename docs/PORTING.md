@@ -147,7 +147,12 @@ bubbles/huh for progress and prompts, ...), under these rules:
   constraints). `suggests --list` stays Composer's, as do `depends`,
   `prohibits` and every frozen format. A test strips the escape
   sequences of each command's decorated text output and compares it
-  with the undecorated output.
+  with the undecorated output. The one free format whose shape changes is
+  audit's `table`: decorated, its advisories are a report
+  (`ui.AdvisoryReport`) grouped by package, the most severe first, with
+  a severity badge, the title wrapped to the terminal and every other
+  field (IDs and URL as links, an ignored advisory's reason) beneath it;
+  undecorated it is Composer's tables, byte for byte.
 - The install/update summary. Each operation line's bullet is a
   mark (`ui.Mark`, through `operation.Item`/`InstallItem`/...): "-"
   undecorated, decorated a glyph in a role (`+` install, `↑` upgrade,

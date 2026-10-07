@@ -187,6 +187,10 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 		errorOrWarn = "warning"
 	}
 	if affectedPackagesCount > 0 || ignoredAdvisories.Len() > 0 {
+		versions := make(map[string]string, len(packages))
+		for _, p := range packages {
+			versions[p.Name()] = p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
+		}
 		passes := []struct {
 			advisories *Advisories
 			message    string
@@ -210,7 +214,7 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 					punctuation = "."
 				}
 				out.Write(fmt.Sprintf(pass.message, totalAdvisoryCount, plurality, pkgCount, pkgPlurality, punctuation), true, io.Normal)
-				if err := outputAdvisories(out, pass.advisories, format); err != nil {
+				if err := outputAdvisories(out, pass.advisories, versions, format); err != nil {
 					return 0, err
 				}
 			}
@@ -463,7 +467,7 @@ func consoleIO(out io.IO) (tableIO, error) {
 	return nil, &util.InvalidArgumentError{Message: "Cannot use table format with " + out.PHPClass()}
 }
 
-func outputAdvisories(out io.IO, advisories *Advisories, format string) error {
+func outputAdvisories(out io.IO, advisories *Advisories, versions map[string]string, format string) error {
 	switch format {
 	case FormatTable:
 		t, err := consoleIO(out)
@@ -471,7 +475,7 @@ func outputAdvisories(out io.IO, advisories *Advisories, format string) error {
 			return err
 		}
 
-		return outputAdvisoriesTable(t, advisories)
+		return outputAdvisoriesTable(t, advisories, versions)
 	case FormatPlain:
 		return outputAdvisoriesPlain(out, advisories)
 	case FormatSummary:
@@ -491,7 +495,54 @@ func securityAdvisory(advisory Advisory) (*SecurityAdvisory, error) {
 	return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Advisory\Auditor::getSeverity(): Argument #1 ($advisory) must be of type Composer\Advisory\SecurityAdvisory, Composer\Advisory\PartialSecurityAdvisory given`}
 }
 
-func outputAdvisoriesTable(out tableIO, advisories *Advisories) error {
+// advisoryReport is the decorated table format's report (ui.AdvisoryReport)
+// of advisories, with the audited packages' versions.
+func advisoryReport(advisories *Advisories, versions map[string]string) (ui.AdvisoryReport, error) {
+	report := ui.AdvisoryReport{Width: console.Terminal{}.Width(), Escape: console.Escape}
+	for name, packageAdvisories := range advisories.All() {
+		p := ui.AdvisoryPackage{Name: name, Version: versions[php.Strtolower(name)]}
+		for _, advisory := range packageAdvisories {
+			security, err := securityAdvisory(advisory)
+			if err != nil {
+				return report, err
+			}
+			a := ui.Advisory{
+				Severity:         severity(security),
+				ID:               security.AdvisoryID,
+				CVE:              "NO CVE",
+				Title:            security.Title,
+				URL:              security.Link.S,
+				AffectedVersions: security.AffectedVersions.PrettyString(),
+				ReportedAt:       security.ReportedAt.Format(dumper.RFC3339),
+			}
+			if strings.HasPrefix(security.AdvisoryID, "PKSA-") {
+				a.IDLink = "https://packagist.org/security-advisories/" + security.AdvisoryID
+			}
+			if security.CVE.Valid {
+				a.CVE, a.CVELink = security.CVE.S, "https://www.cve.org/CVERecord?id="+security.CVE.S
+			}
+			if ignored, ok := advisory.(*IgnoredSecurityAdvisory); ok {
+				a.Ignored, a.IgnoreReason = true, ignoreReason(ignored)
+			}
+			p.Advisories = append(p.Advisories, a)
+		}
+		report.Packages = append(report.Packages, p)
+	}
+
+	return report, nil
+}
+
+func outputAdvisoriesTable(out tableIO, advisories *Advisories, versions map[string]string) error {
+	if Formats.Surface(FormatTable) == ui.Free && out.IsDecorated() {
+		report, err := advisoryReport(advisories, versions)
+		if err != nil {
+			return err
+		}
+		out.WriteMessages(report.Markup(), true, io.Normal)
+
+		return nil
+	}
+
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
 			security, err := securityAdvisory(advisory)

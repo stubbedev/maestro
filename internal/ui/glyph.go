@@ -29,6 +29,8 @@ const (
 	GlyphUpgrade
 	// GlyphDowngrade marks a package downgraded.
 	GlyphDowngrade
+	// GlyphSeparator separates the items of a line.
+	GlyphSeparator
 	// GlyphRemove marks a package removed.
 	GlyphRemove
 
@@ -46,6 +48,7 @@ var glyphs = [numGlyphs][2]string{
 	GlyphInstall:   {"+", "+"},
 	GlyphUpgrade:   {"↑", "^"},
 	GlyphDowngrade: {"↓", "v"},
+	GlyphSeparator: {"·", "-"},
 	GlyphRemove:    {"−", "-"},
 }
 
