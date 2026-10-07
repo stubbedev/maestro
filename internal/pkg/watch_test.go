@@ -33,4 +33,10 @@ func TestChangeClock(t *testing.T) {
 	if moved(func() { other.SetID(5) }) {
 		t.Error("an unwatched package moved the clock")
 	}
+
+	// RevsSoFar follows Rev and FieldRev, the id apart
+	rev, fieldRev := RevsSoFar(p)
+	if rev != p.Rev() || fieldRev != p.FieldRev() || rev == fieldRev {
+		t.Errorf("RevsSoFar = %d, %d; Rev %d, FieldRev %d", rev, fieldRev, p.Rev(), p.FieldRev())
+	}
 }

@@ -55,8 +55,13 @@ func (m *packageMirror) PHPClass() string { return m.p.PHPClass() }
 // MirrorBase implements rpc.Mirror.
 func (*packageMirror) MirrorBase() string { return packageBase }
 
-// Rev implements rpc.Mirror.
-func (m *packageMirror) Rev() uint64 { return m.p.Rev() }
+// Rev implements rpc.Mirror: the package's revision without loading a
+// skeleton package (pkg.RevsSoFar), which PHP's core fields need not.
+func (m *packageMirror) Rev() uint64 {
+	rev, _ := pkg.RevsSoFar(m.p)
+
+	return rev
+}
 
 // packageFamily is the family of the package mirrors: their Revs move
 // with pkg.ChangeClock, which counts the changes of the packages PHP has
@@ -85,7 +90,7 @@ func (m *packageMirror) ApplyMirror(*php.Array) error {
 // PRE_POOL_CREATE sent them), the id alone.
 func (m *packageMirror) MirrorChanges(since uint64) (*php.Array, bool) {
 	sent := m.sent.Load()
-	if sent == nil || sent.rev != since || sent.fieldRev != m.p.FieldRev() {
+	if _, fieldRev := pkg.RevsSoFar(m.p); sent == nil || sent.rev != since || sent.fieldRev != fieldRev {
 		return nil, false
 	}
 	m.record()
@@ -121,7 +126,8 @@ type mirrorRevs struct {
 
 // record notes the package's revisions as what PHP gets.
 func (m *packageMirror) record() {
-	m.sent.Store(&mirrorRevs{rev: m.p.Rev(), fieldRev: m.p.FieldRev()})
+	rev, fieldRev := pkg.RevsSoFar(m.p)
+	m.sent.Store(&mirrorRevs{rev: rev, fieldRev: fieldRev})
 }
 
 // MirrorSnapshot implements rpc.Mirror: every property of the package's
@@ -139,7 +145,7 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 			"prettyName", p.PrettyName(),
 			"version", p.Version(),
 			"prettyVersion", p.PrettyVersion(),
-			"type", rawType(p).Value(),
+			"type", pkg.RawTypeSoFar(p).Value(),
 			"stability", p.Stability(),
 			"dev", p.IsDev(),
 			"lazy", true,
@@ -174,7 +180,7 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 // setRest sets the fields of a package but its id, names, extra and
 // links: the "rest" group of the lazy tier.
 func setRest(s *php.Array, p pkg.PackageInterface) {
-	s.Set("type", rawType(p).Value())
+	s.Set("type", pkg.RawTypeSoFar(p).Value())
 	s.Set("targetDir", p.TargetDir().Value())
 	s.Set("installationSource", p.InstallationSource().Value())
 	s.Set("sourceType", p.SourceType().Value())
@@ -236,15 +242,6 @@ func setLinks(s *php.Array, p pkg.PackageInterface) {
 	s.Set("conflicts", linksValue(p.Conflicts()))
 	s.Set("provides", linksValue(p.Provides()))
 	s.Set("replaces", linksValue(p.Replaces()))
-}
-
-// rawType is the $type property: null unless set.
-func rawType(p pkg.PackageInterface) pkg.NullString {
-	if pp, ok := pkg.AsPackage(p); ok {
-		return pp.RawType()
-	}
-
-	return pkg.Str(p.Type())
 }
 
 // nullArray is a ?array: a nil *php.Array is null.

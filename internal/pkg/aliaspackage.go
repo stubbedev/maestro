@@ -63,6 +63,12 @@ func (a *AliasPackage) Rev() uint64 { return a.rev + a.idRev + a.aliasOf.Rev() }
 // FieldRev returns Rev without the changes of either package's id.
 func (a *AliasPackage) FieldRev() uint64 { return a.rev + a.aliasOf.FieldRev() }
 
+func (a *AliasPackage) revsSoFar() (rev, fieldRev uint64) {
+	rev, fieldRev = RevsSoFar(a.aliasOf)
+
+	return a.rev + a.idRev + rev, a.rev + fieldRev
+}
+
 // Clone ports `clone $alias` (the aliased package stays shared).
 func (a *AliasPackage) Clone() *AliasPackage {
 	c := *a

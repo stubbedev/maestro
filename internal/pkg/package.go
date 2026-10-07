@@ -153,6 +153,35 @@ func (p *Package) FieldRev() uint64 {
 	return p.rev
 }
 
+// RevsSoFar returns Rev and FieldRev of p without loading a skeleton,
+// whose own counters they then are: those of a view that reads the
+// skeleton's properties only until something loads the rest (the
+// plugin runtime's mirror of a package's core fields). The load may move
+// them, as the configuring put off until then may change the package.
+func RevsSoFar(p PackageInterface) (rev, fieldRev uint64) {
+	if r, ok := p.(interface{ revsSoFar() (uint64, uint64) }); ok {
+		return r.revsSoFar()
+	}
+
+	return p.Rev(), p.FieldRev()
+}
+
+func (p *Package) revsSoFar() (rev, fieldRev uint64) { return p.rev + p.idRev, p.rev }
+
+// RawTypeSoFar is RawType without loading a skeleton, whose type is
+// always set (the loader's configureType sets it first, and the load
+// leaves it).
+func RawTypeSoFar(p PackageInterface) NullString {
+	if l := skeletonOf(p); l != nil && l.owner == p {
+		return Str(l.owner.typ)
+	}
+	if pp, ok := AsPackage(p); ok {
+		return pp.RawType()
+	}
+
+	return Str(p.Type())
+}
+
 // Clone ports `clone $package`.
 func (p *Package) Clone() *Package {
 	p.need()

@@ -621,7 +621,8 @@ Scanning is O(known handles) per transfer, but for the package mirrors
 (an `rpc.FamilyMirror` family), which can be more than 30k after
 PRE_POOL_CREATE: they are scanned only in a message after a package PHP
 holds changed, which `pkg.ChangeClock` counts (the package mirror watches
-its package, `pkg.Watch`).
+its package, `pkg.Watch`). A package mirror's revision does not load a
+skeleton package (`pkg.RevsSoFar`), nor does its core snapshot.
 
 **Lazy snapshot tiers (packages, PRE_POOL_CREATE's lists).** A
 package mirror arrives in one of two tiers:
