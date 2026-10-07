@@ -141,23 +141,38 @@ func (c *MultiConstraint) String() string {
 		return *s
 	}
 
+	s := string(c.appendString(nil))
+	c.str.Store(&s)
+
+	return s
+}
+
+// appendString appends String() to dst, without building (and memoising)
+// it when it is not memoised yet.
+func (c *MultiConstraint) appendString(dst []byte) []byte {
+	if s := c.str.Load(); s != nil {
+		return append(dst, *s...)
+	}
+
 	sep := " || "
 	if c.conjunctive {
 		sep = " "
 	}
-	var b strings.Builder
-	b.WriteByte('[')
+	dst = append(dst, '[')
 	for i, constraint := range c.constraints {
 		if i > 0 {
-			b.WriteString(sep)
+			dst = append(dst, sep...)
 		}
-		b.WriteString(constraint.String())
+		// a nested MultiConstraint through its memoised String(): the
+		// recursion would move every caller's buffer to the heap
+		if single, ok := constraint.(*Constraint); ok {
+			dst = single.appendString(dst)
+		} else {
+			dst = append(dst, constraint.String()...)
+		}
 	}
-	b.WriteByte(']')
-	s := b.String()
-	c.str.Store(&s)
 
-	return s
+	return append(dst, ']')
 }
 
 // LowerBound ports getLowerBound().

@@ -266,13 +266,16 @@ func (intervals) CompactConstraint(constraint ConstraintInterface) ConstraintInt
 }
 
 // Get ports Intervals::get(): the numeric intervals and branch constraints
-// representing a constraint, memoized by its string form.
+// representing a constraint, memoized by its string form. The form is
+// built on the stack (appendConstraintString): a lookup that hits
+// allocates nothing.
 func (intervals) Get(constraint ConstraintInterface) IntervalSet {
-	key := constraint.String()
+	var buf [256]byte
+	key := appendConstraintString(buf[:0], constraint)
 
 	c := &intervalsCache
 	c.RLock()
-	set, ok := c.m[key]
+	set, ok := c.m[string(key)]
 	c.RUnlock()
 	if ok {
 		return set
@@ -280,11 +283,11 @@ func (intervals) Get(constraint ConstraintInterface) IntervalSet {
 
 	set = generateIntervals(constraint, false)
 	c.Lock()
-	if cached, ok := c.m[key]; ok {
+	if cached, ok := c.m[string(key)]; ok {
 		// Another goroutine got there first; PHP would have kept that one.
 		set = cached
 	} else {
-		c.m[key] = set
+		c.m[string(key)] = set
 	}
 	c.Unlock()
 

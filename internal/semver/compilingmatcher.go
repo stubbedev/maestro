@@ -145,6 +145,8 @@ func appendConstraintString(dst []byte, constraint ConstraintInterface) []byte {
 	switch c := constraint.(type) {
 	case *Constraint:
 		return c.appendString(dst)
+	case *MultiConstraint:
+		return c.appendString(dst)
 	default:
 		return append(dst, c.String()...)
 	}

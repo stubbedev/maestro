@@ -133,3 +133,32 @@ func TestSubsets_MatchNoneIsNoSubsetNorSupersetExceptOfMatchAll(t *testing.T) {
 		t.Errorf("%s should be seen as a subset of %s", matchNone, empty)
 	}
 }
+
+// Get keys its memo on the constraint's string form, built without
+// memoising it (appendConstraintString), and a lookup that hits allocates
+// nothing: IsSubsetOf calls it for every requirement the pool builder
+// sees, on a MultiConstraint made for the call.
+func TestIntervals_GetKey(t *testing.T) {
+	constraints := []string{"^1.2 || ^2.0", ">=1.0 <2.0", "dev-main", "1.0.0", "^1.0 || dev-master || >= 3.0 <3.5"}
+	for _, s := range constraints {
+		for _, other := range constraints {
+			fresh := func() ConstraintInterface {
+				return newMultiConstraint([]ConstraintInterface{mustParse(t, s), mustParse(t, other)}, true)
+			}
+			if got, want := string(appendConstraintString(nil, fresh())), fresh().String(); got != want {
+				t.Errorf("key %q, want %q", got, want)
+			}
+		}
+	}
+
+	multi := newMultiConstraint([]ConstraintInterface{mustParse(t, "^1.2 || ^2.0"), mustParse(t, ">=1.0 <2.0")}, true)
+	Intervals.Get(multi)
+	single := newMultiConstraint([]ConstraintInterface{mustParse(t, "^1.2"), mustParse(t, ">=1.0")}, true)
+	Intervals.Get(single)
+	if allocs := testing.AllocsPerRun(100, func() {
+		Intervals.Get(newMultiConstraint(multi.constraints, true))
+		Intervals.Get(newMultiConstraint(single.constraints, true))
+	}); allocs > 2 {
+		t.Errorf("%v allocations for two lookups that hit, want only the two MultiConstraints", allocs)
+	}
+}
