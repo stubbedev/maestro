@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/console"
@@ -263,16 +264,33 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 
 	ioi.Write("Upgrading to version <info>"+updateVersion+"</info> ("+channelString+" channel).", true, io.Normal)
 
-	var checksums string
+	// the checksums download alongside the build (each is a redirect to
+	// GitHub's asset host and the transfer, two round trips at least)
+	var (
+		checksums string
+		sumErr    error
+		sums      sync.WaitGroup
+	)
 	if sumURL, ok := target.assets[checksumsAsset]; ok {
-		resp, err := httpDownloader.Get(sumURL, nil)
-		if err != nil {
-			return 0, err
-		}
-		checksums = resp.Body()
+		sums.Go(func() {
+			resp, err := httpDownloader.Get(sumURL, nil)
+			if err != nil {
+				sumErr = err
+
+				return
+			}
+			checksums = resp.Body()
+		})
 	}
 	ioi.WriteError("   ", false, io.Normal)
-	if _, err := httpDownloader.Copy(asset, tempFilename, nil); err != nil {
+	_, err = httpDownloader.Copy(asset, tempFilename, nil)
+	sums.Wait()
+	if sumErr != nil {
+		_ = os.Remove(tempFilename)
+
+		return 0, sumErr
+	}
+	if err != nil {
 		_ = os.Remove(tempFilename)
 
 		return 0, err

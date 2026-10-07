@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
@@ -239,6 +240,38 @@ func TestSelfUpdateCommand_SuccessfulUpdateAndRollback(t *testing.T) {
 	}
 	if got := readFile(t, bin2); got != "OLD" {
 		t.Errorf("binary after rollback = %q", got)
+	}
+}
+
+// TestSelfUpdateCommand_ChecksumsDownloadAlongsideTheBuild: the checksums
+// are requested together with the build, not before it.
+func TestSelfUpdateCommand_ChecksumsDownloadAlongsideTheBuild(t *testing.T) {
+	rs := newReleaseServer(t, "1.2.0", "NEW")
+	buildRequested := make(chan struct{})
+	var together atomic.Bool
+	rs.answers["/download/1.2.0/bin"] = func(w nethttp.ResponseWriter, _ *nethttp.Request) {
+		close(buildRequested)
+		fmt.Fprint(w, rs.binary)
+	}
+	rs.answers["/download/1.2.0/checksums.txt"] = func(w nethttp.ResponseWriter, _ *nethttp.Request) {
+		select {
+		case <-buildRequested:
+			together.Store(true)
+		case <-time.After(5 * time.Second):
+		}
+		fmt.Fprintf(w, "%s  %s\n", rs.checksum, releaseAsset())
+	}
+	appTester, bin, _ := selfUpdateTester(t, rs, "1.0.0+abc")
+
+	code, err := appTester.RunArgs(commandtest.Options{}, "command", "self-update")
+	if err != nil || code != 0 {
+		t.Fatalf("self-update: %d %v\n%s", code, err, appTester.Display(true))
+	}
+	if !together.Load() {
+		t.Error("the build was requested only once the checksums came")
+	}
+	if got := readFile(t, bin); got != "NEW" {
+		t.Errorf("binary = %q", got)
 	}
 }
 
