@@ -1,0 +1,8 @@
+
+                                                                
+  No arguments expected for "clearcache" command, got "extra".  
+                                                                
+
+clear-cache [--gc]
+
+exit 1

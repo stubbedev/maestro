@@ -521,7 +521,9 @@ func fixtureScenarios() []scenario {
 				{args: []string{"browse", "-s", "nope/nope-xyz"}, dir: "."},
 				{args: []string{"config", "homepage", "https://example.org/app"}},
 				{args: []string{"home", "-s"}},
+				{args: []string{"clear-cache", "--gc"}},
 				{args: []string{"clear-cache"}},
+				{args: []string{"cc"}},
 			},
 		},
 		{

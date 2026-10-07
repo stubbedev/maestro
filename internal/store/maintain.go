@@ -84,7 +84,8 @@ func (s *Store) prune(maxAge time.Duration) (PruneResult, error) {
 	releases := map[string]struct{}{}
 
 	err := s.walkIndexes(func(path string, st fileStat) error {
-		if st.mtime < cutoff {
+		// maxAge 0 is every release, also those used this second
+		if maxAge <= 0 || st.mtime < cutoff {
 			res.Releases++
 			return remove(path)
 		}

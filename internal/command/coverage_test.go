@@ -245,8 +245,13 @@ var coverage = []entry{
 		},
 	}),
 	cover(command.NewClearCacheCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestClearCacheCommand_Success))},
-		Pending: 52,
+		Tests: []Proof{
+			Positive(Go(TestClearCacheCommand_Success)),
+			Positive(Go(TestClearCacheCommand_Caches)),
+			Positive(Go(TestClearCacheCommand_Store)),
+			Positive(E2E("verbosity", "clear-cache", "--gc")),
+			Positive(E2E("verbosity", "cc")),
+		},
 	}),
 	cover(command.NewRemoveCommand, Coverage{
 		Tests: []Proof{

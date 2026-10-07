@@ -1,0 +1,8 @@
+
+                                       
+  The "--nope" option does not exist.  
+                                       
+
+clear-cache [--gc]
+
+exit 1
