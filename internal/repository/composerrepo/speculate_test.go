@@ -162,6 +162,52 @@ func TestDecodedFiles_Offer(t *testing.T) {
 	}
 }
 
+// TestDecodedFiles_Expect checks that a load waits for a file the
+// speculation is to offer for the same JSON, and only for that.
+func TestDecodedFiles_Expect(t *testing.T) {
+	var d decodedFiles
+	gen := d.startSpeculation()
+	data := php.NewArray()
+
+	// offered after the load started waiting
+	done := d.expect(gen, "k", "json")
+	got := make(chan *php.Array)
+	go func() { got <- d.take("k", "json") }()
+	d.offer(gen, "k", "json", data, nil)
+	done()
+	done() // more than once is harmless
+	if a := <-got; a != data {
+		t.Error("the load did not get the file offered")
+	}
+
+	// given up: the load decodes the file itself
+	done = d.expect(gen, "k", "json")
+	go func() { got <- d.take("k", "json") }()
+	done()
+	if a := <-got; a != nil {
+		t.Error("the load got a file never offered")
+	}
+
+	// another JSON (a fresh response): no waiting
+	done = d.expect(gen, "k", "json")
+	if a := d.take("k", "other"); a != nil {
+		t.Error("taken for another JSON")
+	}
+	done()
+
+	// a stopped speculation is not waited for
+	done = d.expect(gen, "k", "json")
+	d.stopSpeculation(gen)
+	if a := d.take("k", "json"); a != nil {
+		t.Error("taken from a stopped speculation")
+	}
+	done()
+	d.expect(gen, "k", "json") // never called: the generation is over
+	if a := d.take("k", "json"); a != nil {
+		t.Error("taken from a stopped speculation")
+	}
+}
+
 // TestPrebuilt_Take checks that a package built ahead is only taken by a
 // load that builds it alike: the same name and notify URL, and once.
 func TestPrebuilt_Take(t *testing.T) {
