@@ -292,7 +292,8 @@ Cycle-breaking decisions already made:
   Composer's exception classes, and docs/PLUGINS.md (D12) maps Go errors
   to them both ways. A class `util.PHPClassOf` cannot know is given by a
   `PHPClass()` method; a `$previous` exception goes in the type's previous
-  field (`phperr.Chained`, never Unwrap).
+  field (`phperr.Chained`, never Unwrap, which a test in `internal/phperr`
+  checks).
 - Errors carry no throw site or PHP call stack: rendering is maestro's
   own (#13), so Composer's file and line of a `new` expression, the
   frames of an exception's trace and PHP's TypeError call site (",

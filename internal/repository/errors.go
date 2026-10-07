@@ -42,9 +42,10 @@ type wrappedError struct {
 
 func (e *wrappedError) Error() string { return e.err.Error() }
 
-// Unwrap returns the exception itself and the previous one, so errors.As
-// finds both.
-func (e *wrappedError) Unwrap() []error { return []error{e.err, e.previous} }
+// Unwrap returns the exception itself, so errors.As finds its class; the
+// previous one is only getPrevious() (PHPPrevious), which `catch` does not
+// look at.
+func (e *wrappedError) Unwrap() error { return e.err }
 
 // PHPPrevious implements phperr.Chained.
 func (e *wrappedError) PHPPrevious() error { return e.previous }

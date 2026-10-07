@@ -52,7 +52,8 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string { return e.Message }
 
-func (e *ValidationError) Unwrap() error { return e.Prev }
+// PHPPrevious implements phperr.Chained.
+func (e *ValidationError) PHPPrevious() error { return e.Prev }
 
 // PHPClass implements util.PHPClasser.
 func (*ValidationError) PHPClass() (string, int) { return `Composer\Json\JsonValidationException`, 0 }

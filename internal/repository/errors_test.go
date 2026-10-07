@@ -1,8 +1,12 @@
 package repository
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -16,6 +20,29 @@ func TestErrorClasses(t *testing.T) {
 	} {
 		if got, _ := util.PHPClassOf(err); got != want {
 			t.Errorf("PHPClassOf(%T) = %s, want %s", err, got, want)
+		}
+	}
+}
+
+// An exception created with a previous one keeps its own class, whatever
+// the previous one is (PathRepository.php:229, ArtifactRepository.php's
+// catch): get_class() and catch never look at getPrevious() (#44).
+func TestWrappedErrorKeepsItsClass(t *testing.T) {
+	for _, prev := range []error{
+		loader.NewInvalidPackageError([]string{"bad"}, nil, php.NewArray()),
+		&util.UnexpectedValueError{Message: "bad"},
+		util.NewTransportError("bad", 404),
+	} {
+		for err, want := range map[error]string{
+			&wrappedError{err: &util.RuntimeError{Message: "x"}, previous: prev}:         "RuntimeException",
+			&wrappedError{err: &util.UnexpectedValueError{Message: "x"}, previous: prev}: "UnexpectedValueException",
+		} {
+			if got, _ := util.PHPClassOf(err); got != want {
+				t.Errorf("PHPClassOf(%s with previous %T) = %s", want, prev, got)
+			}
+			if !errors.Is(phperr.PreviousOf(err), prev) {
+				t.Errorf("PreviousOf(%s) = %v, want %v", want, phperr.PreviousOf(err), prev)
+			}
 		}
 	}
 }

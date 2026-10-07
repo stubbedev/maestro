@@ -30,9 +30,6 @@ func (e *FilesystemError) PHPClass() (string, int) {
 	return `Composer\Downloader\FilesystemException`, e.Code
 }
 
-// Unwrap returns the previous exception.
-func (e *FilesystemError) Unwrap() error { return e.Previous }
-
 // PHPPrevious implements phperr.Chained.
 func (e *FilesystemError) PHPPrevious() error { return e.Previous }
 

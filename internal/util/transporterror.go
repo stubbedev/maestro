@@ -13,7 +13,9 @@ type TransportError struct {
 	Message string
 	// Code is the exception code (400 unless given), which
 	// Application::doRun turns into the exit code.
-	Code     int
+	Code int
+	// Previous is getPrevious() (phperr.Chained). Unwrap must not return
+	// it: `catch (TransportException $e)` does not look at it.
 	Previous error
 
 	// Headers are the raw response header lines; nil is PHP's null.
@@ -32,9 +34,6 @@ func NewTransportError(message string, code int) *TransportError {
 }
 
 func (e *TransportError) Error() string { return e.Message }
-
-// Unwrap returns the previous exception.
-func (e *TransportError) Unwrap() error { return e.Previous }
 
 // PHPPrevious implements phperr.Chained.
 func (e *TransportError) PHPPrevious() error { return e.Previous }

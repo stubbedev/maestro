@@ -23,7 +23,8 @@ const (
 // Error is a PHP exception thrown by a command or the Application: Class
 // is get_class($e), Code getCode().
 // It unwraps to the util error of the same class (util.RuntimeError,
-// util.InvalidArgumentError, ...), so errors.As works as `catch` would.
+// util.InvalidArgumentError, ...), so errors.As works as `catch` would;
+// Prev is getPrevious() (phperr.Chained), which `catch` does not look at.
 type Error struct {
 	Class   string
 	Message string
@@ -38,24 +39,20 @@ func NewError(class, message string) *Error {
 
 func (e *Error) Error() string { return e.Message }
 
-// Unwrap returns the util error matching the class, for errors.As.
-func (e *Error) Unwrap() []error {
-	errs := make([]error, 0, 2)
+// Unwrap returns the util error matching the class, for errors.As, or nil.
+func (e *Error) Unwrap() error {
 	switch e.Class {
 	case ClassRuntime:
-		errs = append(errs, &util.RuntimeError{Message: e.Message})
+		return &util.RuntimeError{Message: e.Message}
 	case ClassInvalidArgument:
-		errs = append(errs, &util.InvalidArgumentError{Message: e.Message})
+		return &util.InvalidArgumentError{Message: e.Message}
 	case ClassLogic:
-		errs = append(errs, &util.LogicError{Message: e.Message})
+		return &util.LogicError{Message: e.Message}
 	case ClassUnexpectedValue:
-		errs = append(errs, &util.UnexpectedValueError{Message: e.Message})
-	}
-	if e.Prev != nil {
-		errs = append(errs, e.Prev)
+		return &util.UnexpectedValueError{Message: e.Message}
 	}
 
-	return errs
+	return nil
 }
 
 // ThrowableClass implements console.Throwable.

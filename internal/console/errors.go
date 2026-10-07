@@ -102,8 +102,6 @@ func (e *Error) Is(target error) bool {
 	return false
 }
 
-func (e *Error) Unwrap() error { return e.Prev }
-
 // ThrowableClass implements Throwable.
 func (e *Error) ThrowableClass() string { return kindClass[e.Kind] }
 

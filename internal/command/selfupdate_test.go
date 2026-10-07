@@ -19,6 +19,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -268,6 +269,17 @@ func TestSelfUpdateCommand_UnknownVersion(t *testing.T) {
 	_, err := appTester.RunArgs(commandtest.Options{}, "command", "self-update", "version", "9.9.9")
 	if err == nil || err.Error() != `Version "9.9.9" could not be found.` || !isPHPInstance(err, "InvalidArgumentException") {
 		t.Fatalf("got %v", err)
+	}
+	if phperr.PreviousOf(err) == nil {
+		t.Errorf("the 404 is not the previous exception of %v", err)
+	}
+
+	// The 404 is only the previous exception: the InvalidArgumentException
+	// is no TransportException, whose code would take over the exit code
+	// (#44).
+	appTester.Application.SetCatchExceptions(true)
+	if code, _ := appTester.RunArgs(commandtest.Options{}, "command", "self-update", "version", "9.9.9"); code != 1 {
+		t.Errorf("exit code %d, want 1\n%s", code, appTester.Display(true))
 	}
 }
 
