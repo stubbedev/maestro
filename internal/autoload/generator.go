@@ -302,6 +302,9 @@ func installedDevMode(config Config) (devMode, error) {
 	if err != nil || !installedJSON.Exists() {
 		return notDev, err
 	}
+	// the local repository read this content already: decoded, it is
+	// taken back instead of decoding the JSON again
+	installedJSON.KeepDecoded()
 	data, err := installedJSON.Read()
 	if err != nil {
 		return notDev, err
