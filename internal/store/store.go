@@ -126,8 +126,9 @@ const maxImportSlots = 8
 // ErrNotFound means a dist is not in the store.
 var ErrNotFound = errors.New("not in the package store")
 
-// MissingError means objects a release needs have gone from the store (or
-// were found corrupt and dropped), so its archive must be inserted again.
+// MissingError means objects a release needs have gone from the store or
+// were found corrupt with no intact copy left, so its archive must be
+// inserted again.
 type MissingError struct {
 	Path string
 }

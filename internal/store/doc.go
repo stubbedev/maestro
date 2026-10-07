@@ -147,8 +147,10 @@
 // that fails is removed again. An object that fails is healed before
 // use: its content is hashed while it is copied into a new file that
 // replaces it (the edited inode stays with the package files linked to it),
-// and when the hash is wrong the object is dropped and the release fails
-// with *MissingError. The caller then inserts the release again from the
+// and when the hash is wrong the release fails with *MissingError, the
+// stale object left for the next insert of its content to replace (another
+// import may have published an intact one by then, which removing it
+// would take away). The caller then inserts the release again from the
 // dist archive, which internal/downloader keeps in Composer's files cache
 // (cache-files-dir) as Composer does, and downloads only when that is gone
 // too.

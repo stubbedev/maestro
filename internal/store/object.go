@@ -212,7 +212,9 @@ func (s *Store) heal(e *Entry, perm fs.FileMode) error {
 		return nil
 	}
 
-	_ = os.Remove(path)
+	// The stale object stays: whatever publishes this content next (the
+	// release inserted again) replaces it. Removing it here could remove
+	// the intact object another import's insert published meanwhile.
 
 	// Every other mode of the same content: <62 hex>[-mode].
 	dir, base := filepath.Split(path)
