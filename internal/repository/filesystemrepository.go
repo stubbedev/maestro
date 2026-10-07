@@ -33,6 +33,8 @@ type FilesystemRepository struct {
 	// deferWrites and pending: see DeferWrites.
 	deferWrites bool
 	pending     *pendingWrite
+	// preparedWrite: see PrepareWrite.
+	preparedWrite *preparedWrite
 }
 
 // pendingWrite is a deferred Write: its arguments and the repository's
@@ -229,18 +231,60 @@ func (r *FilesystemRepository) write(devMode bool, im InstallationManager, canon
 	}
 	repoDir = util.NormalizePath(util.Realpath(repoDir))
 
-	pkgArrays := make([]*php.Array, 0, len(canonical))
+	in := writeInput{devMode, canonical, repoPackages, slices.Clone(r.devPackageNames), r.rootPackage, r.dumpVersions, repoDir}
+	if out := r.takePreparedWrite(in, im); out != nil {
+		return r.writeOutput(out)
+	}
+	out, err := in.build(func(p pkg.PackageInterface) (pkg.NullString, error) {
+		return r.relativeInstallPath(im, p, repoDir)
+	}, nil)
+	if err != nil {
+		return err
+	}
+
+	return r.writeOutput(out)
+}
+
+// writeInput is everything write's files are made of, but the install
+// paths.
+type writeInput struct {
+	devMode         bool
+	canonical       []pkg.PackageInterface
+	repoPackages    []pkg.PackageInterface
+	devPackageNames []string
+	rootPackage     pkg.RootPackageInterface
+	dumpVersions    bool
+	repoDir         string
+}
+
+// writeOutput is what write writes: installed.json's data (encoded when
+// it was built for a prepared write) and installed.php's.
+type writeOutput struct {
+	repoDir      string
+	data         *php.Array
+	encoded      string
+	encodedOK    bool
+	versions     *php.Array
+	code         string
+	versionsErr  error
+	unchangedFns [2]func() bool // installed.json and installed.php hold encoded and code (prepared writes)
+}
+
+// build makes write's output. installPath is the install path to record
+// for a package; encode, when given, encodes installed.json's data.
+func (in writeInput) build(installPath func(pkg.PackageInterface) (pkg.NullString, error), encode func(data *php.Array) (string, error)) (*writeOutput, error) {
+	pkgArrays := make([]*php.Array, 0, len(in.canonical))
 	devNames := php.NewArray()
-	installPaths := make(map[string]pkg.NullString, len(canonical))
+	installPaths := make(map[string]pkg.NullString, len(in.canonical))
 	var arrayDumper dumper.ArrayDumper
-	for _, p := range canonical {
+	for _, p := range in.canonical {
 		pkgArray, err := arrayDumper.Dump(p)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		installPath, err := r.relativeInstallPath(im, p, repoDir)
+		installPath, err := installPath(p)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		installPaths[p.Name()] = installPath
 
@@ -249,7 +293,7 @@ func (r *FilesystemRepository) write(devMode bool, im InstallationManager, canon
 
 		// only write to the files the names which are really installed, as we receive the full list
 		// of dev package names before they get installed during composer install
-		if slices.Contains(r.devPackageNames, p.Name()) {
+		if slices.Contains(in.devPackageNames, p.Name()) {
 			devNames.Append(p.Name())
 		}
 	}
@@ -266,33 +310,62 @@ func (r *FilesystemRepository) write(devMode bool, im InstallationManager, canon
 		packages.Append(a)
 	}
 
-	data := php.ArrayOf("packages", packages, "dev", devMode, "dev-package-names", devNames)
-	if err := r.file.Write(data, json.DefaultEncodeFlags); err != nil {
-		return err
+	out := &writeOutput{repoDir: in.repoDir, data: php.ArrayOf("packages", packages, "dev", in.devMode, "dev-package-names", devNames)}
+	if encode != nil {
+		var err error
+		out.encoded, err = encode(out.data)
+		out.encodedOK = err == nil
+	}
+
+	if !in.dumpVersions {
+		return out, nil
+	}
+
+	// errors here come after installed.json is written (writeOutput)
+	versions, err := generateInstalledVersions(in.repoPackages, installPaths, in.devMode, in.repoDir, in.devPackageNames, in.rootPackage)
+	if err != nil {
+		out.versionsErr = err
+
+		return out, nil
+	}
+	if out.code, err = dumpToPhpCode(versions, 0); err != nil {
+		out.versionsErr = err
+
+		return out, nil
+	}
+	out.code = "<?php return " + out.code + ";\n"
+	out.versions = versions
+
+	return out, nil
+}
+
+// writeOutput writes out's files.
+func (r *FilesystemRepository) writeOutput(out *writeOutput) error {
+	if out.unchangedFns[0] == nil || !out.unchangedFns[0]() {
+		if err := r.file.Write(out.data, json.DefaultEncodeFlags); err != nil {
+			return err
+		}
 	}
 
 	if !r.dumpVersions {
 		return nil
 	}
+	if out.versionsErr != nil {
+		return out.versionsErr
+	}
 
-	versions, err := r.generateInstalledVersions(repoPackages, installPaths, devMode, repoDir)
-	if err != nil {
-		return err
+	if out.unchangedFns[1] == nil || !out.unchangedFns[1]() {
+		if _, err := util.FilePutContentsIfModified(out.repoDir+"/installed.php", []byte(out.code)); err != nil {
+			return err
+		}
 	}
-	code, err := dumpToPhpCode(versions, 0)
-	if err != nil {
-		return err
-	}
-	if _, err := util.FilePutContentsIfModified(repoDir+"/installed.php", []byte("<?php return "+code+";\n")); err != nil {
-		return err
-	}
-	if _, err := util.FilePutContentsIfModified(repoDir+"/InstalledVersions.php", []byte(autoload.InstalledVersionsPHP)); err != nil {
+	if _, err := util.FilePutContentsIfModified(out.repoDir+"/InstalledVersions.php", []byte(autoload.InstalledVersionsPHP)); err != nil {
 		return err
 	}
 
 	// make sure the in memory state is up to date with on disk
 	if r.installedVersionsSink != nil {
-		r.installedVersionsSink(versions)
+		r.installedVersionsSink(out.versions)
 	}
 
 	return nil
@@ -384,16 +457,17 @@ func appendPhpCode(b *strings.Builder, array *php.Array, level int) error {
 
 // generateInstalledVersions ports FilesystemRepository::generateInstalledVersions:
 // the data of installed.php.
-func (r *FilesystemRepository) generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths map[string]pkg.NullString, devMode bool, repoDir string) (*php.Array, error) {
-	devPackages := make(map[string]struct{}, len(r.devPackageNames))
-	for _, name := range r.devPackageNames {
+// devPackageNames and rootPkg are the repository's.
+func generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths map[string]pkg.NullString, devMode bool, repoDir string, devPackageNames []string, rootPkg pkg.RootPackageInterface) (*php.Array, error) {
+	devPackages := make(map[string]struct{}, len(devPackageNames))
+	for _, name := range devPackageNames {
 		devPackages[name] = struct{}{}
 	}
-	if r.rootPackage == nil {
+	if rootPkg == nil {
 		return nil, &util.LogicError{Message: "It should not be possible to dump packages if no root package is given"}
 	}
-	packages := append(slices.Clone(repoPackages), r.rootPackage)
-	var rootPackage pkg.PackageInterface = r.rootPackage
+	packages := append(slices.Clone(repoPackages), pkg.PackageInterface(rootPkg))
+	var rootPackage pkg.PackageInterface = rootPkg
 	for {
 		alias, ok := rootPackage.(*pkg.RootAliasPackage)
 		if !ok {
@@ -407,7 +481,7 @@ func (r *FilesystemRepository) generateInstalledVersions(repoPackages []pkg.Pack
 		return nil, &util.LogicError{Message: "The root package alias does not alias a root package"}
 	}
 
-	rootData, err := r.dumpRootPackage(root, installPaths, devMode, repoDir, devPackages)
+	rootData, err := dumpRootPackage(root, installPaths, devMode, repoDir, devPackages)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +493,7 @@ func (r *FilesystemRepository) generateInstalledVersions(repoPackages []pkg.Pack
 		if _, ok := p.(pkg.Alias); ok {
 			continue
 		}
-		data, err := r.dumpInstalledPackage(p, installPaths, repoDir, devPackages)
+		data, err := dumpInstalledPackage(p, installPaths, repoDir, devPackages)
 		if err != nil {
 			return nil, err
 		}
@@ -501,7 +575,7 @@ func subArray(a *php.Array, key string) *php.Array {
 }
 
 // dumpInstalledPackage ports FilesystemRepository::dumpInstalledPackage.
-func (r *FilesystemRepository) dumpInstalledPackage(p pkg.PackageInterface, installPaths map[string]pkg.NullString, repoDir string, devPackages map[string]struct{}) (*php.Array, error) {
+func dumpInstalledPackage(p pkg.PackageInterface, installPaths map[string]pkg.NullString, repoDir string, devPackages map[string]struct{}) (*php.Array, error) {
 	var reference pkg.NullString
 	if source := p.InstallationSource(); php.ToBool(source.S) {
 		if source.S == "source" {
@@ -549,8 +623,8 @@ func (r *FilesystemRepository) dumpInstalledPackage(p pkg.PackageInterface, inst
 }
 
 // dumpRootPackage ports FilesystemRepository::dumpRootPackage.
-func (r *FilesystemRepository) dumpRootPackage(p pkg.RootPackageInterface, installPaths map[string]pkg.NullString, devMode bool, repoDir string, devPackages map[string]struct{}) (*php.Array, error) {
-	data, err := r.dumpInstalledPackage(p, installPaths, repoDir, devPackages)
+func dumpRootPackage(p pkg.RootPackageInterface, installPaths map[string]pkg.NullString, devMode bool, repoDir string, devPackages map[string]struct{}) (*php.Array, error) {
+	data, err := dumpInstalledPackage(p, installPaths, repoDir, devPackages)
 	if err != nil {
 		return nil, err
 	}

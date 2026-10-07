@@ -1018,6 +1018,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	if !alreadySolved {
 		defer i.prefetchDists(lockedRepository, localRepo)()
 		speculation = i.speculateAutoloads(lockedRepository, localRepo)
+		i.prepareLocalRepoWrite(lockedRepository, localRepo)
 		if code, err := i.verifyLock(lockedRepository); err != nil || code != 0 {
 			if speculation != nil {
 				speculation.DiscardAutoloadSpeculation()

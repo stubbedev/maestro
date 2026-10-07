@@ -209,16 +209,26 @@ func (f *File) Write(hash any, options php.JSONFlag) error {
 }
 
 func (f *File) write(hash any, options php.JSONFlag) error {
-	encoded, err := Encode(hash, options, f.indent)
+	encoded, err := f.Encoded(hash, options)
 	if err != nil {
 		return err
-	}
-	if options&php.JSONPrettyPrint != 0 {
-		encoded += "\n"
 	}
 	_, err = util.FilePutContentsIfModified(f.path, []byte(encoded))
 
 	return err
+}
+
+// Encoded is what Write(hash, options) writes to the file.
+func (f *File) Encoded(hash any, options php.JSONFlag) (string, error) {
+	encoded, err := Encode(hash, options, f.indent)
+	if err != nil {
+		return "", err
+	}
+	if options&php.JSONPrettyPrint != 0 {
+		encoded += "\n"
+	}
+
+	return encoded, nil
 }
 
 // ValidateSchema ports JsonFile::validateSchema; schemaFile "" is null.

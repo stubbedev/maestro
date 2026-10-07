@@ -1,5 +1,6 @@
-// Ports nothing: the installer's autoload scan ahead of the dump
-// (deliberate deviation 3, speed).
+// Ports nothing: the installer's autoload scan ahead of the dump, and
+// the local repository's write built ahead (deliberate deviation 3,
+// speed).
 
 package composer
 
@@ -29,6 +30,61 @@ type dispatchChecker interface {
 // runs: a listener could change the files the scan reads.
 var speculativeEvents = []string{eventdispatcher.PrePoolCreate, eventdispatcher.PreOperationsExec, autoload.PreAutoloadDump}
 
+// writePreparer is a local repository that can build its write ahead
+// (repository.FilesystemRepository).
+type writePreparer interface {
+	PrepareWrite(devMode bool, im repository.InstallationManager, devPackageNames []string)
+}
+
+// listenedTo reports whether a listener waits on one of events, true when
+// the event dispatcher cannot tell.
+func (i *Installer) listenedTo(events []string) bool {
+	if i.eventDispatcher == nil {
+		return true
+	}
+	checker, ok := i.eventDispatcher.(dispatchChecker)
+	if !ok {
+		return true
+	}
+	for _, name := range events {
+		if checker.WillDispatchTo(eventdispatcher.NewEvent(name, nil, nil)) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// noOperations reports whether the lock file asks for no package
+// operation on localRepo.
+func noOperations(lockedRepository *repository.LockArrayRepository, localRepo repository.InstalledRepositoryInterface) bool {
+	transaction, err := resolver.NewLocalRepoTransaction(lockedRepository, localRepo)
+
+	return err == nil && len(transaction.Operations()) == 0
+}
+
+// prepareLocalRepoWrite has the local repository build, while the lock
+// file is verified, the write that ends a no-op install (the installation
+// manager writes it after running no operation), when nothing between
+// them can change what it writes: the lock file asks for no package
+// operation and no listener waits on the events in between. The
+// repository builds the write again when what it is made of changed after
+// all (repository.FilesystemRepository.PrepareWrite).
+func (i *Installer) prepareLocalRepoWrite(lockedRepository *repository.LockArrayRepository, localRepo repository.InstalledRepositoryInterface) {
+	if !i.install || !i.executeOperations || i.dryRun || i.downloadOnly {
+		return
+	}
+	r, ok := localRepo.(writePreparer)
+	if !ok || i.listenedTo(speculativeEvents[:2]) || !noOperations(lockedRepository, localRepo) {
+		return
+	}
+	devPackageNames, err := i.locker.DevPackageNames()
+	if err != nil {
+		return
+	}
+	r.PrepareWrite(i.devMode, i.installationManager, devPackageNames)
+}
+
 // speculateAutoloads starts the class map scan of the autoload dump that
 // follows a no-op install while the lock file is verified (which waits on
 // the filter list's request), when nothing between them can change the
@@ -41,20 +97,7 @@ func (i *Installer) speculateAutoloads(lockedRepository *repository.LockArrayRep
 		return nil
 	}
 	s, ok := i.autoloadGenerator.(autoloadSpeculator)
-	if !ok || i.eventDispatcher == nil {
-		return nil
-	}
-	checker, ok := i.eventDispatcher.(dispatchChecker)
-	if !ok {
-		return nil
-	}
-	for _, name := range speculativeEvents {
-		if checker.WillDispatchTo(eventdispatcher.NewEvent(name, nil, nil)) {
-			return nil
-		}
-	}
-	transaction, err := resolver.NewLocalRepoTransaction(lockedRepository, localRepo)
-	if err != nil || len(transaction.Operations()) != 0 {
+	if !ok || i.listenedTo(speculativeEvents) || !noOperations(lockedRepository, localRepo) {
 		return nil
 	}
 	s.SpeculateAutoloads(i.config, localRepo, i.pkg, i.installationManager, i.optimizeAutoloader || i.classMapAuthoritative)
