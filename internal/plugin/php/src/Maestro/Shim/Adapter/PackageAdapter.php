@@ -104,7 +104,7 @@ final class PackageAdapter implements MirrorAdapter
         // getters of the rest fetch them first (LazyPackages).
         if (isset($fields['lazy'])) {
             unset($fields['lazy']);
-            \Maestro\Shim\LazyPackages::$pending[spl_object_id($object)] = true;
+            \Maestro\Shim\LazyPackages::$pending[spl_object_id($object)] = $object;
         } else {
             unset(\Maestro\Shim\LazyPackages::$pending[spl_object_id($object)]);
         }

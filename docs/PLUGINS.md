@@ -607,11 +607,16 @@ package mirror arrives in one of two tiers:
   stability, isDev, alias target handle, repository handle.
 - **full**: all remaining fields.
 
-PHP requests `pkg.load` the first time any non-core getter runs. Go sends
-full snapshots when it knows they will be used: local-repository packages,
-the root package, and the operation packages of package events. Go sends
-core snapshots for PRE_POOL_CREATE package lists, which can hold more than
-10k packages.
+PHP requests `pkg.load` the first time any non-core getter runs. One
+`pkg.load` fetches that package and the core-tier packages still without
+their fields that PHP received first, 64 in all at most: code that reads
+a field of one package of a list mostly reads it of the others in
+order, so a list read in full takes a round trip per 64 packages. Go
+sends full snapshots when it knows they will be used: local-repository
+packages, the root package, and the operation packages of package
+events. Go sends core snapshots for PRE_POOL_CREATE package lists, which
+can hold more than 10k packages, and for the package lists of
+transactions.
 
 **PHP-born data objects.** PHP-born events are adopted this way (a
 plugin's Event subclass passed to `dispatch()`: Go builds an

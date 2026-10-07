@@ -5,6 +5,7 @@ package plugin
 // is compared with what Go has.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,6 +183,79 @@ func TestShimAPI_Packages(t *testing.T) {
 	// And PHP sees the change at once.
 	if got := evalPHP(t, rt, `return $vars['p']->getDistUrl().'|'.implode(',', array_keys($vars['p']->getRequires()));`, php.ArrayOf("p", rt.packageObject(p))); got != "https://example.org/new.zip|x/y" {
 		t.Errorf("PHP sees %v", got)
+	}
+}
+
+// TestShimAPI_LazyPackages checks the lazy tier of packages
+// (docs/PLUGINS.md §5.3): PHP gets the fields of a list's packages it
+// reads, a batch of them per round trip.
+func TestShimAPI_LazyPackages(t *testing.T) {
+	requirePHP(t)
+
+	rt, _, _ := newTestRuntime(t)
+	start(t, rt)
+
+	loads := 0
+	rt.mu.Lock()
+	load := rt.handlers["pkg.load"]
+	rt.mu.Unlock()
+	rt.Handle("pkg.load", func(v any) (any, error) {
+		loads++
+
+		return load(v)
+	})
+
+	list := func(n int) ([]pkg.PackageInterface, *php.Array) {
+		packages := make([]pkg.PackageInterface, n)
+		for i := range packages {
+			packages[i] = loadPackage(t, fmt.Sprintf(`{"name": "acme/p%d", "version": "1.0.%d", "require": {"acme/dep%d": "^%d.0"}, "extra": {"i": %d}}`, i, i, i, i+1, i))
+		}
+
+		return packages, rt.lazyPackageList(packages)
+	}
+	readAll := `
+		$out = [];
+		foreach ($vars['list'] as $p) {
+			$out[] = implode(',', array_keys($p->getRequires())).'|'.$p->getExtra()['i'];
+		}
+		return implode(' ', $out);
+	`
+	want := func(packages []pkg.PackageInterface) string {
+		var out []string
+		for i := range packages {
+			out = append(out, fmt.Sprintf("acme/dep%d|%d", i, i))
+		}
+
+		return strings.Join(out, " ")
+	}
+
+	// A list read in full: a round trip per 64 packages.
+	packages, l := list(150)
+	if got := evalPHP(t, rt, readAll, php.ArrayOf("list", l)); got != want(packages) {
+		t.Errorf("PHP read %v", got)
+	}
+	if loads != 3 {
+		t.Errorf("150 packages took %d pkg.load calls, want 3", loads)
+	}
+
+	// One package of a list: its batch holds the first others, read
+	// without another round trip.
+	loads = 0
+	packages, l = list(10)
+	if got := evalPHP(t, rt, `return $vars['list'][5]->getExtra()['i'];`, php.ArrayOf("list", l)); got != int64(5) {
+		t.Errorf("PHP read %v", got)
+	}
+	if got := evalPHP(t, rt, readAll, php.ArrayOf("list", l)); got != want(packages) {
+		t.Errorf("PHP read %v", got)
+	}
+	if loads != 1 {
+		t.Errorf("10 packages took %d pkg.load calls, want 1", loads)
+	}
+
+	// A change maestro makes to a fetched package reaches PHP.
+	packages[3].(*pkg.CompletePackage).SetExtra(php.ArrayOf("i", int64(33)))
+	if got := evalPHP(t, rt, `return $vars['list'][3]->getExtra()['i'];`, php.ArrayOf("list", l)); got != int64(33) {
+		t.Errorf("PHP read %v after the change", got)
 	}
 }
 

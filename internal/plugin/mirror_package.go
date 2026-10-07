@@ -335,16 +335,25 @@ func (r *Runtime) registerPackages() {
 
 		return p.SetRepository(repo)
 	})
-	// The fields of a package PHP got with its core fields only.
+	// The fields of packages PHP got with their core fields only, in the
+	// order asked (LazyPackages fetches a batch per round trip).
 	r.Handle("pkg.load", func(v any) (any, error) {
 		a := argsOf("pkg.load", v)
-		m, ok := a.at(0).(*packageMirror)
-		if !ok {
-			return nil, a.errorf("param 0 is not a package maestro knows (a %T)", a.at(0))
+		out := php.NewArrayCap(len(a.list))
+		for i, p := range a.list {
+			m, ok := p.(*packageMirror)
+			if !ok {
+				return nil, a.errorf("param %d is not a package maestro knows (a %T)", i, p)
+			}
+			m.lazy.Store(false)
+			s, err := m.MirrorSnapshot()
+			if err != nil {
+				return nil, err
+			}
+			out.Append(s)
 		}
-		m.lazy.Store(false)
 
-		return m.MirrorSnapshot()
+		return out, nil
 	})
 	r.Handle("pkg.getRepository", func(v any) (any, error) {
 		a := argsOf("pkg.getRepository", v)
