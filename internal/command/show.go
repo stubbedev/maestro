@@ -492,7 +492,21 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 				hint += ", try using --available (-a) to show all available packages"
 			}
 
-			return 0, NewError(ClassInvalidArgument, `Package "`+packageFilter+`" not found`+hint+".")
+			e := NewError(ClassInvalidArgument, `Package "`+packageFilter+`" not found`+hint+".")
+			// the installed packages the name may have meant
+			if installedRepo != nil {
+				installed, err := installedRepo.Packages()
+				if err != nil {
+					return 0, err
+				}
+				names := make([]string, 0, len(installed))
+				for _, p := range installed {
+					names = append(names, p.PrettyName())
+				}
+				e.Alternatives = console.FindAlternatives(packageFilter, names)
+			}
+
+			return 0, e
 		}
 	}
 

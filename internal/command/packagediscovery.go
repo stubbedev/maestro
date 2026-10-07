@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -553,12 +554,10 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 				}
 			}
 
-			which := "this"
-			if len(similar) > 1 {
-				which = "one of these"
-			}
+			e := NewError(ClassInvalidArgument, "Could not find package "+name+"."+ui.DidYouMean(similar))
+			e.Alternatives = similar
 
-			return "", "", NewError(ClassInvalidArgument, "Could not find package "+name+".\n\nDid you mean "+which+"?\n    "+strings.Join(similar, "\n    "))
+			return "", "", e
 		}
 
 		return "", "", NewError(ClassInvalidArgument, "Could not find a matching version of package "+name+". Check the package spelling, your version constraint and that the package is available in a stability which matches your minimum-stability ("+effectiveMinimumStability+").")

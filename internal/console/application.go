@@ -629,15 +629,9 @@ func (a *Application) FindNamespace(namespace string) (string, error) {
 	if len(namespaces) == 0 {
 		message := `There are no commands defined in the "` + namespace + `" namespace.`
 
-		alternatives := a.findAlternatives(namespace, allNamespaces)
+		alternatives := FindAlternatives(namespace, allNamespaces)
 		if len(alternatives) > 0 {
-			if len(alternatives) == 1 {
-				message += "\n\nDid you mean this?\n    "
-			} else {
-				message += "\n\nDid you mean one of these?\n    "
-			}
-
-			message += strings.Join(alternatives, "\n    ")
+			message += ui.DidYouMean(alternatives)
 		}
 
 		e := newError(KindNamespaceNotFound, "%s", message)
@@ -699,7 +693,7 @@ func (a *Application) Find(name string) (Commander, error) {
 
 		message := `Command "` + name + `" is not defined.`
 
-		alternatives := a.findAlternatives(name, allCommands)
+		alternatives := FindAlternatives(name, allCommands)
 		if len(alternatives) > 0 {
 			// remove hidden commands
 			visible := alternatives[:0]
@@ -710,12 +704,7 @@ func (a *Application) Find(name string) (Commander, error) {
 			}
 			alternatives = visible
 
-			if len(alternatives) == 1 {
-				message += "\n\nDid you mean this?\n    "
-			} else {
-				message += "\n\nDid you mean one of these?\n    "
-			}
-			message += strings.Join(alternatives, "\n    ")
+			message += ui.DidYouMean(alternatives)
 		}
 
 		e := newError(KindCommandNotFound, "%s", message)
@@ -934,8 +923,11 @@ func ExtractNamespace(name string, limit int) string {
 	return strings.Join(parts, ":")
 }
 
-// findAlternatives finds alternatives of name among collection.
-func (*Application) findAlternatives(name string, collection []string) []string {
+// FindAlternatives ports Application::findAlternatives: the names of
+// collection close to name (a Levenshtein distance of at most a third of
+// its length, or containing it), per ":"-separated part and as a whole,
+// in natural order.
+func FindAlternatives(name string, collection []string) []string {
 	const threshold = 1000
 	alternatives := map[string]int{}
 	var order []string

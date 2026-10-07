@@ -74,9 +74,18 @@ own. "The contract" below says which is which.
 
 maestro's own format for errors, warnings, deprecation notices and hints
 is `internal/ui`'s: a labelled headline with the message,
-then its causes (previous errors), hints, the usage of a command given
-wrong input and, at `-v`, debugging details (Go error types, a plugin
-exception's PHP trace, the exit code). Other free output keeps Composer's
+then its causes (previous errors), what the input may have meant ("Did
+you mean this?"), hints, the usage of a command given wrong input
+(wrapped to the terminal when decorated) and, at `-v`, debugging details
+(Go error types, a plugin exception's PHP trace, the exit code). The
+alternatives come from the error (`console.Alternativer`): a command's
+or namespace's (Symfony's), a mistyped long option's and a package's
+that `require` could not find (Composer's), and the installed packages a
+name given to `show` may have meant (maestro's, by the same Levenshtein
+rule, `console.FindAlternatives`). The error's message keeps Composer's
+"Did you mean" block for plugins; `ui.DidYouMean` is the one definition
+of that block, so the rendering takes exactly it out of the message.
+Other free output keeps Composer's
 text without having to match it exactly, and nothing is built only to
 reproduce PHP's presentation.
 

@@ -6,6 +6,7 @@
 package console
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ func (a *Application) RenderThrowable(err error, out Output) {
 	d.Details = append(d.Details, "exit code "+strconv.Itoa(exitCodeOf(code)))
 
 	out.Write("", true, VerbosityQuiet)
-	for _, l := range d.Lines(ui.Options{Decorated: out.IsDecorated(), Verbose: out.Verbosity() >= VerbosityVerbose}) {
+	for _, l := range d.Lines(ui.Options{Decorated: out.IsDecorated(), Verbose: out.Verbosity() >= VerbosityVerbose, Width: a.terminal.Width()}) {
 		out.Write(l, true, VerbosityQuiet|OutputRaw)
 	}
 }
@@ -72,11 +73,24 @@ func (a *Application) ErrorDiagnostic(err error) ui.Diagnostic {
 		e = prev
 	}
 
+	// the error shown, or one a wrapper with its message stands for
+	if e, ok := errors.AsType[Alternativer](err); ok && php.Trim(e.Error()) == d.Message {
+		d.TakeAlternatives(e.ErrorAlternatives())
+	}
+
 	if a.runningCommand != nil && isConsoleExceptionValue(err) {
 		d.Usage = phpSprintf(a.runningCommand.Base().Synopsis(false), a.Name())
 	}
 
 	return d
+}
+
+// Alternativer is an error offering alternatives to what was typed (a
+// command, namespace, option or package name), which its rendering shows
+// as their own item (ui.Diagnostic.TakeAlternatives).
+type Alternativer interface {
+	error
+	ErrorAlternatives() []string
 }
 
 // exitCodeOf is the exit code of an uncaught exception with code: the

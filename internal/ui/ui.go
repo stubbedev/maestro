@@ -15,11 +15,13 @@
 // The layout: a labelled headline ("Error: ", "Warning: ",
 // "Deprecated: ", "Note: ") followed by the message, its further lines
 // indented under its first; then, indented by two spaces, one labelled
-// item per previous error ("Caused by: "), hint ("Hint: "), the command's
-// usage ("Usage: ") and, in verbose mode, debugging details
-// ("Debug: "). Indentation is spaces only, so a message's text and line
-// breaks survive as they are; long lines are left for the terminal to
-// wrap, keeping URLs and paths whole for copying.
+// item per previous error ("Caused by: "), the alternatives to what was
+// typed ("Did you mean this? "), hint ("Hint: "), the command's usage
+// ("Usage: ", wrapped to the terminal when decorated) and, in verbose
+// mode, debugging details ("Debug: "). Indentation is spaces only, so a
+// message's text and line breaks survive as they are; other long lines
+// are left for the terminal to wrap, keeping URLs and paths whole for
+// copying.
 package ui
 
 import "strings"
@@ -50,6 +52,9 @@ type Diagnostic struct {
 	Causes []string
 	// Hints say what may have caused it or what to do.
 	Hints []string
+	// Alternatives are what the input may have meant ("Did you mean
+	// this?"), shown after the causes.
+	Alternatives []string
 	// Usage is the synopsis of the command that failed on its input.
 	Usage string
 	// Details are debugging information, shown in verbose mode only.
@@ -62,6 +67,86 @@ type Options struct {
 	Decorated bool
 	// Verbose is whether the output is verbose (-v or more).
 	Verbose bool
+	// Width is the terminal's width, which a decorated usage is wrapped
+	// to (0: not wrapped).
+	Width int
+}
+
+// didYouMean starts every question offering alternatives.
+const didYouMean = "Did you mean"
+
+// didYouMeanQuestion is Symfony's question before n alternatives.
+func didYouMeanQuestion(n int) string {
+	if n == 1 {
+		return didYouMean + " this?"
+	}
+
+	return didYouMean + " one of these?"
+}
+
+// DidYouMean is the block Symfony and Composer append to a message to
+// offer alternatives ("\n\nDid you mean this?\n    install"): the one
+// definition of that text, so a Diagnostic can take it back out
+// (TakeAlternatives).
+func DidYouMean(alternatives []string) string {
+	return "\n\n" + didYouMeanQuestion(len(alternatives)) + "\n    " + strings.Join(alternatives, "\n    ")
+}
+
+// TakeAlternatives shows alternatives as the diagnostic's own item: out
+// of the message when it ends with their DidYouMean block; as they are
+// when the message asks no question of its own (alternatives maestro
+// adds); not again when the message offers them its own way (Symfony's
+// "is ambiguous.\nDid you mean one of these?" lists).
+func (d *Diagnostic) TakeAlternatives(alternatives []string) {
+	if len(alternatives) == 0 {
+		return
+	}
+	if message, ok := strings.CutSuffix(d.Message, DidYouMean(alternatives)); ok {
+		d.Message, d.Alternatives = message, alternatives
+
+		return
+	}
+	if !strings.Contains(d.Message, didYouMean) {
+		d.Alternatives = alternatives
+	}
+}
+
+// wrapUsage breaks a command's synopsis into lines of at most width
+// columns between its items (an option and its value, a bracketed group,
+// stay whole).
+func wrapUsage(usage string, width int) string {
+	var items []string
+	depth, start := 0, 0
+	for i, r := range usage {
+		switch r {
+		case '[', '<':
+			depth++
+		case ']', '>':
+			depth--
+		case ' ':
+			if depth == 0 {
+				items = append(items, usage[start:i])
+				start = i + 1
+			}
+		}
+	}
+	items = append(items, usage[start:])
+
+	var lines []string
+	line := ""
+	for _, item := range items {
+		switch {
+		case line == "":
+			line = item
+		case len(line)+1+len(item) > width:
+			lines = append(lines, line)
+			line = item
+		default:
+			line += " " + item
+		}
+	}
+
+	return strings.Join(append(lines, line), "\n")
 }
 
 var labels = [...]string{Error: "Error:", Warning: "Warning:", Deprecation: "Deprecated:", Note: "Note:"}
@@ -103,11 +188,26 @@ func (d Diagnostic) Lines(opts Options) []string {
 	for _, c := range d.Causes {
 		add("  ", "Caused by:", style(RoleNotice), c, text, text)
 	}
+	if len(d.Alternatives) > 0 {
+		question := didYouMeanQuestion(len(d.Alternatives))
+		if len(d.Alternatives) == 1 {
+			lines = append(lines, "  "+style(RoleSuccess)(question)+" "+style(RoleAccent)(d.Alternatives[0]))
+		} else {
+			lines = append(lines, "  "+style(RoleSuccess)(question))
+			for _, a := range d.Alternatives {
+				lines = append(lines, "      "+style(RoleAccent)(a))
+			}
+		}
+	}
 	for _, h := range d.Hints {
 		add("  ", "Hint:", style(RoleSuccess), h, text, text)
 	}
 	if d.Usage != "" {
-		add("  ", "Usage:", muted, d.Usage, text, text)
+		usage := d.Usage
+		if opts.Decorated && opts.Width > 0 {
+			usage = wrapUsage(usage, opts.Width-len("  Usage: "))
+		}
+		add("  ", "Usage:", muted, usage, text, text)
 	}
 	if opts.Verbose && len(d.Details) > 0 {
 		add("  ", "Debug:", muted, strings.Join(d.Details, "\n"), muted, muted)

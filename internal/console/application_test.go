@@ -477,7 +477,7 @@ func TestApplication_DontRunAlternativeNamespaceName(t *testing.T) {
 	app.SetAutoExit(false)
 	tester := newApplicationTester(app)
 	tester.Run([]Param{P("command", "foos:bar1")}, testerOptions{decorated: new(false)})
-	assertRendered(t, "\nError: There are no commands defined in the \"foos\" namespace.\n\n       Did you mean this?\n           foo\n", tester.Display())
+	assertRendered(t, "\nError: There are no commands defined in the \"foos\" namespace.\n  Did you mean this? foo\n", tester.Display())
 }
 
 func TestApplication_CanRunAlternativeCommandName(t *testing.T) {

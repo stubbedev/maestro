@@ -24,7 +24,13 @@ type Error struct {
 	Message string
 	Code    int
 	Prev    error
+	// Alternatives are what the input may have meant (a package name),
+	// which the rendering shows as their own item.
+	Alternatives []string
 }
+
+// ErrorAlternatives implements console.Alternativer.
+func (e *Error) ErrorAlternatives() []string { return e.Alternatives }
 
 // NewError returns an Error.
 func NewError(class, message string) *Error {

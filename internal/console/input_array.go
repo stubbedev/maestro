@@ -232,7 +232,10 @@ func (in *ArrayInput) addLongOption(name string, value any) error {
 	if o == nil {
 		optionName, ok := in.definition.negations[name]
 		if !ok {
-			return newError(KindInvalidOption, `The "--%s" option does not exist.`, name)
+			e := newError(KindInvalidOption, `The "--%s" option does not exist.`, name)
+			e.Alternatives = optionAlternatives(in.definition, name)
+
+			return e
 		}
 		in.options[optionName] = false
 

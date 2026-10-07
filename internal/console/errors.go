@@ -67,6 +67,9 @@ func newError(kind Kind, format string, args ...any) *Error {
 
 func (e *Error) Error() string { return e.Message }
 
+// ErrorAlternatives implements Alternativer.
+func (e *Error) ErrorAlternatives() []string { return e.Alternatives }
+
 // PHPClass implements phperr.Exception.
 func (e *Error) PHPClass() string { return kindClass[e.Kind] }
 

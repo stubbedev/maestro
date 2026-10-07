@@ -255,7 +255,10 @@ func (in *ArgvInput) addLongOption(name, value string, hasValue bool) error {
 	if o == nil {
 		optionName, ok := def.negations[name]
 		if !ok {
-			return newError(KindRuntime, `The "--%s" option does not exist.`, name)
+			e := newError(KindRuntime, `The "--%s" option does not exist.`, name)
+			e.Alternatives = optionAlternatives(def, name)
+
+			return e
 		}
 		if hasValue {
 			return newError(KindRuntime, `The "--%s" option does not accept a value.`, name)
@@ -535,4 +538,24 @@ func tokenizeString(input string) ([]string, error) {
 	}
 
 	return tokens, nil
+}
+
+// optionAlternatives are the long options of def, negations included,
+// that a mistyped name may have meant (FindAlternatives, as for
+// commands), each with its "--": maestro's suggestion, which Symfony's
+// exception does not make, so its message stays Symfony's.
+func optionAlternatives(def *InputDefinition, name string) []string {
+	names := make([]string, 0, len(def.options)+len(def.negations))
+	for _, o := range def.options {
+		names = append(names, o.Name())
+	}
+	for negation := range def.negations {
+		names = append(names, negation)
+	}
+	alternatives := FindAlternatives(name, names)
+	for i, a := range alternatives {
+		alternatives[i] = "--" + a
+	}
+
+	return alternatives
 }
