@@ -361,6 +361,44 @@ func TestPluginInstaller_RegisterPluginOnlyOneTime(t *testing.T) {
 	}
 }
 
+// TestPluginInstaller_NonStringClassIsATypeError: PluginManager.php
+// declares strict_types, so class_exists() refuses an extra.class that is
+// not a string, after registering the classes before it (#39).
+func TestPluginInstaller_NonStringClassIsATypeError(t *testing.T) {
+	requirePHP(t)
+
+	for _, tc := range []struct{ class, given string }{
+		{`["Installer\\Plugin", 42]`, "int"},
+		{`["Installer\\Plugin", true]`, "true"},
+		{`["Installer\\Plugin", 1.5]`, "float"},
+		{`["Installer\\Plugin", ["x"]]`, "array"},
+	} {
+		t.Run(tc.given, func(t *testing.T) {
+			pt := setUpPluginInstallerTest(t)
+			pt.composerWith()
+			if err := pt.pm.LoadInstalledPlugins(); err != nil {
+				t.Fatal(err)
+			}
+			p := pkg.Clone(pt.packages[0])
+			class, err := php.JSONDecode(tc.class, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.(interface{ SetExtra(*php.Array) }).SetExtra(php.ArrayOf("class", class))
+
+			err = pt.pm.RegisterPackage(p, true, false)
+			var pe *PHPException
+			want := "class_exists(): Argument #1 ($class) must be of type string, " + tc.given + " given"
+			if !errors.As(err, &pe) || pe.Class != "TypeError" || pe.Message != want {
+				t.Fatalf("err = %v, want TypeError %q", err, want)
+			}
+			if got := pt.output(); got != "activate v1\n" {
+				t.Errorf("output %q", got)
+			}
+		})
+	}
+}
+
 // pluginsWithAPIVersion ports setPluginApiVersionWithPlugins: a new plugin
 // manager whose getPluginApiVersion() is version, over a local repository
 // holding the composer-plugin-api package and plugins; it returns how many

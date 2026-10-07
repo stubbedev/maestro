@@ -75,6 +75,12 @@ final class Plugins
         $globally = $isGlobalPlugin || $a['runningInGlobalDir'];
 
         foreach ($a['classes'] as $class) {
+            // PluginManager.php declares strict_types: class_exists() refuses
+            // an extra.class that is not a string, which this file (written
+            // for PHP 7) would coerce
+            if (!is_string($class)) {
+                throw new \TypeError('class_exists(): Argument #1 ($class) must be of type string, '.self::zvalValueName($class).' given');
+            }
             if (class_exists($class, false)) {
                 $class = trim($class, '\\');
                 $path = $classLoader->findFile($class);
@@ -117,6 +123,24 @@ final class Plugins
         }
 
         return ['registered' => $registered];
+    }
+
+    /**
+     * PHP 8.3+'s name of a value's type in a TypeError: true, false, null,
+     * int, float, array or the class.
+     *
+     * @param mixed $value
+     */
+    private static function zvalValueName($value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_object($value)) {
+            return get_class($value);
+        }
+
+        return ['NULL' => 'null', 'integer' => 'int', 'double' => 'float'][gettype($value)] ?? gettype($value);
     }
 
     /**

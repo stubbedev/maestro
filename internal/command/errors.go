@@ -91,6 +91,16 @@ func (e *ExitError) Error() string { return "exit " + strconv.Itoa(e.Code) }
 // ExitCode implements ExitCoder.
 func (e *ExitError) ExitCode() int { return e.Code }
 
+// uncaughtExitCode is the exit status of PHP's uncaught fatal error.
+const uncaughtExitCode = 255
+
+// uncaught is a PHP \Error that escapes all of Composer's handling: thrown
+// in doRun before its try, or raised again by hintCommonErrors (whose
+// catch only takes \Exception). Symfony's run() does not catch \Error
+// either, so PHP ends with "Fatal error: Uncaught ..." and exit status
+// 255. maestro renders it as it renders any error (#13), with that status.
+func uncaught(err error) error { return asThrowable(err, uncaughtExitCode) }
+
 // throwable is how the Application presents an error that is not a
 // console.Throwable to the console: its PHP class (util.PHPClassOf), code
 // and previous exception (phperr.PreviousOf).

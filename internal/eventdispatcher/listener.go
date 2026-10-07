@@ -37,9 +37,15 @@ type PHPCallable struct {
 	Closure bool
 }
 
+// scriptValue is a composer.json "scripts" entry that is not a string (a
+// number, a bool, null or an array, which JSON allows inside a listener
+// list): doDispatch takes it for a callable, as PHP does.
+type scriptValue struct{ v any }
+
 func (Script) isListener()      {}
 func (GoFunc) isListener()      {}
 func (PHPCallable) isListener() {}
+func (scriptValue) isListener() {}
 
 // isArray reports whether c is an array callable [$objectOrClass, 'method'].
 func (c PHPCallable) isArray() bool { return c.Method != "" }

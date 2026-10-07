@@ -119,3 +119,24 @@ func TestFactory_CreateComposerMessagesUseWindowsEOL(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+// TestPluginAPIBefore22 checks parseAllowedPlugins' version_compare() of
+// the lock file's plugin-api-version, which strict_types refuses unless it
+// is a string (#39).
+func TestPluginAPIBefore22(t *testing.T) {
+	for api, want := range map[string]bool{"1.1.0": true, "2.1.9": true, "2.2.0": false, "2.9.0": false} {
+		if got, err := PluginAPIBefore22(api); err != nil || got != want {
+			t.Errorf("%s: %v, %v", api, got, err)
+		}
+	}
+	for _, tc := range []struct {
+		api   any
+		given string
+	}{{int64(220), "int"}, {2.2, "float"}, {true, "true"}, {php.ListOf("2.2.0"), "array"}} {
+		_, err := PluginAPIBefore22(tc.api)
+		var e *php.EngineError
+		if !errors.As(err, &e) || e.Class != "TypeError" || e.Message != "version_compare(): Argument #1 ($version1) must be of type string, "+tc.given+" given" {
+			t.Errorf("%v: %v", tc.api, err)
+		}
+	}
+}

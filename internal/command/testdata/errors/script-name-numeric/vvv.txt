@@ -1,0 +1,25 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Fatal error: Uncaught TypeError: strtoupper(): Argument #1 ($string) must be of type string, int given in @COMPOSER@/src/Composer/Console/Application.php:382
+Stack trace:
+#0 @COMPOSER@/src/Composer/Console/Application.php(382): strtoupper(123)
+#1 @COMPOSER@/vendor/symfony/console/Application.php(171): Composer\Console\Application->doRun(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#2 @COMPOSER@/src/Composer/Console/Application.php(141): Symfony\Component\Console\Application->run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#3 @COMPOSER@/bin/composer(113): Composer\Console\Application->run()
+#4 {main}
+  thrown in @COMPOSER@/src/Composer/Console/Application.php on line 382
+exit 255

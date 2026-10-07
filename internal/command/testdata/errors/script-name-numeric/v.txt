@@ -1,0 +1,9 @@
+Fatal error: Uncaught TypeError: strtoupper(): Argument #1 ($string) must be of type string, int given in @COMPOSER@/src/Composer/Console/Application.php:382
+Stack trace:
+#0 @COMPOSER@/src/Composer/Console/Application.php(382): strtoupper(123)
+#1 @COMPOSER@/vendor/symfony/console/Application.php(171): Composer\Console\Application->doRun(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#2 @COMPOSER@/src/Composer/Console/Application.php(141): Symfony\Component\Console\Application->run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#3 @COMPOSER@/bin/composer(113): Composer\Console\Application->run()
+#4 {main}
+  thrown in @COMPOSER@/src/Composer/Console/Application.php on line 382
+exit 255

@@ -26,6 +26,7 @@ import (
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	rvcs "github.com/stubbedev/maestro/internal/repository/vcs"
+	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -835,9 +836,27 @@ func readLockForAllowPlugins(c *Composer) error {
 	if !locked {
 		return nil
 	}
-	_, err = c.Locker().PluginAPI()
+	api, err := c.Locker().PluginAPI()
+	if err != nil {
+		return err
+	}
+	_, err = PluginAPIBefore22(api)
 
 	return err
+}
+
+// PluginAPIBefore22 is parseAllowedPlugins' version_compare(
+// $locker->getPluginApi(), '2.2.0', '<'). PluginManager.php declares
+// strict_types, so a plugin-api-version that is not a string is a
+// TypeError, which Application::hintCommonErrors' second Factory::create
+// raises again outside every catch: PHP's uncaught fatal error.
+func PluginAPIBefore22(api any) (bool, error) {
+	s, ok := api.(string)
+	if !ok {
+		return false, &php.EngineError{Class: "TypeError", Message: "version_compare(): Argument #1 ($version1) must be of type string, " + php.ZvalValueName(api) + " given"}
+	}
+
+	return semver.VersionCompare(s, "2.2.0") < 0, nil
 }
 
 func (f *Factory) createInstallationManager(loop *http.Loop, out io.IO, dispatcher *eventdispatcher.EventDispatcher) (InstallationManager, error) {

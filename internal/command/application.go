@@ -659,6 +659,11 @@ func (a *Application) addScriptCommands(cio *io.ConsoleIO) error {
 
 	projectLoaderRegistered := false
 	for key, value := range scripts.All() {
+		if key.IsInt() {
+			// strtoupper($script) of a numeric script name, an int key:
+			// a TypeError under strict_types, thrown before doRun's try
+			return uncaught(&php.EngineError{Class: "TypeError", Message: "strtoupper(): Argument #1 ($string) must be of type string, int given"})
+		}
 		script := key.String()
 		if scriptEventConstants[strings.ReplaceAll(strings.ToUpper(script), "-", "_")] {
 			continue
@@ -815,7 +820,11 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 
 	console.NewGithubActionError(func(m string) { cio.Write(m, true, io.Normal) }).Emit(err.Error(), "", 0)
 
-	a.errorHints = a.hintCommonErrors(err, out)
+	hints, fatal := a.hintCommonErrors(err, out)
+	if fatal != nil {
+		return 0, uncaught(fatal)
+	}
+	a.errorHints = hints
 
 	// override TransportException's code for the purpose of parent::run() using it as process exit code
 	// as http error codes are all beyond the 255 range of permitted exit codes
@@ -829,10 +838,10 @@ func (a *Application) handleRunError(err error, out console.Output, cio *io.Cons
 // hintCommonErrors ports hintCommonErrors: the hints about the likely
 // causes of exception, which RenderThrowable shows with it
 // (PresentError). Composer writes them before the exception, as errors;
-// their wording is maestro's (#13).
-func (a *Application) hintCommonErrors(exception error, out console.Output) []string {
-	var hints []string
-
+// their wording is maestro's (#13). fatal is a PHP \Error its
+// getComposer() raises, which escapes its catch (\Exception): the run ends
+// with that one, uncaught.
+func (a *Application) hintCommonErrors(exception error, out console.Output) (hints []string, fatal error) {
 	class := phpClass(exception)
 	if (class == ClassLogic || isPHPError(class)) && out.Verbosity() < console.VerbosityVerbose {
 		out.SetVerbosity(console.VerbosityVerbose)
@@ -841,6 +850,9 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) []st
 	util.SilencerSuppress()
 	c, err := a.getComposer(2, false, new(true), nil) // $this->getComposer(false, true)
 	util.SilencerRestore()
+	if err != nil && isPHPError(phpClass(err)) {
+		return nil, err
+	}
 	if err == nil && c != nil {
 		cfg := c.Config()
 		const minSpaceFree = 100 * 1024 * 1024
@@ -902,7 +914,7 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) []st
 		hints = append(hints, "To run without connecting to the internet, run the command again prefixed with COMPOSER_DISABLE_NETWORK=1 (offline mode).")
 	}
 
-	return hints
+	return hints, nil
 }
 
 // exceptionHint is one of HttpDownloader::getExceptionHints' lines as a

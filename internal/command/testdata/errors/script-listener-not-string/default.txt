@@ -1,0 +1,11 @@
+> echo before
+before
+
+In EventDispatcher.php line 225:
+                                        
+  Trying to access array offset on int  
+                                        
+
+run-script [--timeout TIMEOUT] [--dev] [--no-dev] [-l|--list] [--] [<script> [<args>...]]
+
+exit 1

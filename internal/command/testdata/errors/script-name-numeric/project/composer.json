@@ -1,0 +1,6 @@
+{
+    "scripts": {
+        "hello": "echo hi",
+        "123": "echo numeric"
+    }
+}

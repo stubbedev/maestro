@@ -126,7 +126,11 @@ func parseAllowedPlugins(allowPluginsConfig any, c *composer.Composer) (*allowRu
 			if err != nil {
 				return nil, err
 			}
-			if semver.VersionCompare(api, "2.2.0") < 0 {
+			before22, err := composer.PluginAPIBefore22(api)
+			if err != nil {
+				return nil, err
+			}
+			if before22 {
 				return nil, nil
 			}
 		}
@@ -365,13 +369,15 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 	if !php.ToBool(classValue) {
 		return &util.UnexpectedValueError{Message: "Error while installing " + p.PrettyName() + ", composer-plugin packages should have a class defined in their extra key to be usable."}
 	}
-	var classes []string
+	// the values as they are: the shim's class_exists() refuses those that
+	// are not strings, in order, as PluginManager's strict_types does
+	classes := php.NewArray()
 	if list, ok := classValue.(*php.Array); ok {
 		for _, v := range list.Values() {
-			classes = append(classes, php.ToString(v))
+			classes.Append(v)
 		}
 	} else {
-		classes = []string{php.ToString(classValue)}
+		classes.Append(classValue)
 	}
 
 	loader, files, err := m.autoloadPlan(p)
@@ -386,7 +392,7 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 	res, err := m.r.Call("plugin.load", m.r.framed(php.ArrayOf(
 		"pm", m,
 		"package", m.r.packageObject(p),
-		"classes", php.StringList(classes),
+		"classes", classes,
 		"loader", loader,
 		"files", files,
 		"isGlobal", isGlobalPlugin,

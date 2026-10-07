@@ -1,0 +1,1 @@
+version_compare(): Argument #1 ($version1) must be of type string, int given

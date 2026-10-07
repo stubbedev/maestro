@@ -436,14 +436,16 @@ func (l *Locker) Aliases() (*php.Array, error) {
 	return l.arrayOrEmpty("getAliases", "aliases")
 }
 
-// PluginAPI ports Locker::getPluginApi.
-func (l *Locker) PluginAPI() (string, error) {
+// PluginAPI ports Locker::getPluginApi: the lock file's
+// plugin-api-version as it is, which need not be a string (the method has
+// no return type), or "1.1.0" when it is missing or null.
+func (l *Locker) PluginAPI() (any, error) {
 	lockData, err := l.LockData()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if v, ok := lockData.Get("plugin-api-version"); ok && v != nil {
-		return php.ToString(v), nil
+		return v, nil
 	}
 
 	return "1.1.0", nil

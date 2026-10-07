@@ -1,0 +1,25 @@
+> foo: echo before
+before
+
+In EventDispatcher.php line 225:
+                                        
+  [ErrorException]                      
+  Trying to access array offset on int  
+                                        
+
+Exception trace:
+  at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:225
+ Composer\Util\ErrorHandler::handle() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:225
+ Composer\EventDispatcher\EventDispatcher->doDispatch() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:142
+ Composer\EventDispatcher\EventDispatcher->dispatchScript() at @COMPOSER@/src/Composer/Command/RunScriptCommand.php:140
+ Composer\Command\RunScriptCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+run-script [--timeout TIMEOUT] [--dev] [--no-dev] [-l|--list] [--] [<script> [<args>...]]
+
+exit 1

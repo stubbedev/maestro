@@ -1,0 +1,5 @@
+{
+    "scripts": {
+        "foo": ["echo before", 42, "echo after"]
+    }
+}

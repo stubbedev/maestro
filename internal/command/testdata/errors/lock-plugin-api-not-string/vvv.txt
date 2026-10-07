@@ -1,0 +1,45 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading ./composer.lock (@DIR@/p/composer.lock)
+Reading ./composer.json (@DIR@/p/composer.json)
+Loading config file ./composer.json (@DIR@/p/composer.json)
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading ./composer.lock (@DIR@/p/composer.lock)
+Fatal error: Uncaught TypeError: version_compare(): Argument #1 ($version1) must be of type string, int given in @COMPOSER@/src/Composer/Plugin/PluginManager.php:692
+Stack trace:
+#0 @COMPOSER@/src/Composer/Plugin/PluginManager.php(692): version_compare(220, '2.2.0', '<')
+#1 @COMPOSER@/src/Composer/Plugin/PluginManager.php(90): Composer\Plugin\PluginManager->parseAllowedPlugins(Array, Object(Composer\Package\Locker))
+#2 @COMPOSER@/src/Composer/Factory.php(576): Composer\Plugin\PluginManager->__construct(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
+#3 @COMPOSER@/src/Composer/Factory.php(441): Composer\Factory->createPluginManager(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
+#4 @COMPOSER@/src/Composer/Factory.php(631): Composer\Factory->createComposer(Object(Composer\IO\ConsoleIO), Array, true, '/tmp/maestro-er...', true, false)
+#5 @COMPOSER@/src/Composer/Console/Application.php(629): Composer\Factory::create(Object(Composer\IO\ConsoleIO), NULL, true, false)
+#6 @COMPOSER@/src/Composer/Console/Application.php(538): Composer\Console\Application->getComposer(false, true)
+#7 @COMPOSER@/src/Composer/Console/Application.php(485): Composer\Console\Application->hintCommonErrors(Object(TypeError), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#8 @COMPOSER@/vendor/symfony/console/Application.php(171): Composer\Console\Application->doRun(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#9 @COMPOSER@/src/Composer/Console/Application.php(141): Symfony\Component\Console\Application->run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+#10 @COMPOSER@/bin/composer(113): Composer\Console\Application->run()
+#11 {main}
+  thrown in @COMPOSER@/src/Composer/Plugin/PluginManager.php on line 692
+exit 255

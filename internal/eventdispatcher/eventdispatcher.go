@@ -256,6 +256,8 @@ func (d *EventDispatcher) runListener(event Event, callable Listener, st *dispat
 	switch l := callable.(type) {
 	case PHPCallable:
 		return d.callPHPListener(event, l, formattedEventNameWithArgs, st)
+	case scriptValue:
+		return d.callScriptValue(event, l.v, formattedEventNameWithArgs, st)
 	case GoFunc:
 		if err := d.makeAutoloader(event, "closure"); err != nil {
 			return 0, false, err
@@ -304,6 +306,115 @@ func (d *EventDispatcher) callPHPListener(event Event, l PHPCallable, formatted 
 	}
 
 	return boolToReturn(returnedFalse), false, nil
+}
+
+// callScriptValue runs a composer.json listener that is not a string as
+// doDispatch runs a non-string $callable: makeAutoloader() reads it as an
+// array callable, and is_callable() refuses all but ['Class', 'method'],
+// which is called as `$callable($event)`. A scalar fails where the
+// not-callable exception's message reads $callable[0], a warning
+// Composer's ErrorHandler throws.
+func (d *EventDispatcher) callScriptValue(event Event, v any, formatted string, st *dispatchState) (int, bool, error) {
+	arr, isArray := v.(*php.Array)
+	callableKey := "unknown"
+	if _, full := d.composer.(Composer); full && isArray {
+		key, err := arrayCallableKey(arr)
+		if err != nil {
+			return 0, false, err
+		}
+		callableKey = key
+	}
+	if err := d.makeAutoloader(event, callableKey); err != nil {
+		return 0, false, err
+	}
+
+	className, methodName, ok := staticCallable(arr)
+	if !ok {
+		return 0, false, notCallableError(event, v)
+	}
+	rt, err := d.enterRuntime(st, className+"::"+methodName)
+	if err != nil {
+		return 0, false, err
+	}
+	status, returnedFalse, err := rt.CallPHPScript(className, methodName, event, func() {
+		d.io.WriteError("> "+formatted+": "+className+"->"+methodName, true, io.Verbose)
+	})
+	if (status == StatusNotAutoloadable || status == StatusNotCallable) && err == nil {
+		return 0, false, notCallableError(event, v)
+	}
+	if err != nil {
+		return 0, false, err
+	}
+
+	return boolToReturn(returnedFalse), false, nil
+}
+
+// arrayCallableKey is makeAutoloader's $callableKey of an array callable:
+// `$callable[0] . '::' . $callable[1]`, or get_class($callable[0]) when
+// that is not a string.
+func arrayCallableKey(arr *php.Array) (string, error) {
+	first, ok := arr.GetKey(php.IntKey(0))
+	if !ok {
+		return "", &util.ErrorException{Message: "Undefined array key 0"}
+	}
+	class, isString := first.(string)
+	if !isString {
+		return "", &php.EngineError{Class: "TypeError", Message: "get_class(): Argument #1 ($object) must be of type object, " + php.ZvalValueName(first) + " given"}
+	}
+	method, err := arrayElementString(arr, 1)
+	if err != nil {
+		return "", err
+	}
+
+	return class + "::" + method, nil
+}
+
+// staticCallable reports whether arr has the shape is_callable() accepts
+// for a static method, ['Class', 'method'], and returns its parts.
+func staticCallable(arr *php.Array) (className, methodName string, ok bool) {
+	if arr == nil || arr.Len() != 2 {
+		return "", "", false
+	}
+	first, _ := arr.GetKey(php.IntKey(0))
+	second, _ := arr.GetKey(php.IntKey(1))
+	className, ok1 := first.(string)
+	methodName, ok2 := second.(string)
+
+	return className, methodName, ok1 && ok2
+}
+
+// notCallableError is doDispatch's exception for a listener is_callable()
+// refuses: 'Subscriber '.$callable[0].'::'.$callable[1].' ... is not
+// callable', or the warning reading those offsets raises first.
+func notCallableError(event Event, v any) error {
+	arr, ok := v.(*php.Array)
+	if !ok {
+		return &util.ErrorException{Message: "Trying to access array offset on " + php.ZvalValueName(v)}
+	}
+	className, err := arrayElementString(arr, 0)
+	if err != nil {
+		return err
+	}
+	methodName, err := arrayElementString(arr, 1)
+	if err != nil {
+		return err
+	}
+
+	return runtimeError("Subscriber " + className + "::" + methodName + " for event " + event.Name() + " is not callable, make sure the function is defined and public")
+}
+
+// arrayElementString is $arr[$i] in a string concatenation, with the
+// warnings Composer's ErrorHandler throws for a missing key or an array.
+func arrayElementString(arr *php.Array, i int64) (string, error) {
+	v, ok := arr.GetKey(php.IntKey(i))
+	if !ok {
+		return "", &util.ErrorException{Message: "Undefined array key " + strconv.FormatInt(i, 10)}
+	}
+	if _, isArray := v.(*php.Array); isArray {
+		return "", &util.ErrorException{Message: "Array to string conversion"}
+	}
+
+	return php.ToString(v), nil
 }
 
 // runComposerScript runs an @script reference or an @composer command.
@@ -829,7 +940,11 @@ func (d *EventDispatcher) getScriptListeners(event Event, notice bool) []Listene
 
 	listeners := make([]Listener, 0, list.Len())
 	for _, s := range list.All() {
-		listeners = append(listeners, Script(php.ToString(s)))
+		if str, ok := s.(string); ok {
+			listeners = append(listeners, Script(str))
+		} else {
+			listeners = append(listeners, scriptValue{s})
+		}
 	}
 
 	return listeners
