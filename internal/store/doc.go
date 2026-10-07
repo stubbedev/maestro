@@ -85,24 +85,29 @@
 // applied deepest first at the end (so a read-only directory can still be
 // filled); a setgid bit the package directory inherits from its parent is
 // kept on every directory, as unzip keeps it. Symlinks are created as
-// recorded and never followed. File modification times are not preserved:
+// recorded and never followed. The files of a directory are created by one
+// goroutine in the release's order (directories are spread over the
+// goroutines): readdir() lists a directory's entries in the order they
+// were created on some filesystems (btrfs), as unzip creates them, and
+// Composer and the dump follow readdir order. File modification times
+// are not preserved:
 // every imported file carries its object's stamp (below) instead, which
 // hardlinks share and clones and copies are given, so that a later run
 // can tell from one stat that a package file still holds the release's
 // content (Entry.ModTime; the autoload dump uses it instead of reading
 // the file).
 //
-// Install builds the package directory of a release it inserts while
-// inserting it: each file is created in the directory as soon as its
-// object is written. On Linux a new object is imported without checking
-// its stamp again, since no package file links to it yet. Under auto it is
-// hard-linked into the package wherever the hardlink has the file's mode
-// and the package is not unshared, whatever the filesystem: that project
-// and the store then share the inode, as under hardlink, while later
-// imports of the release clone where the filesystem can. Else it is
-// imported from its still open descriptor by the device's method (a clone,
-// or a copy of the content in memory). An object the store held already
-// is imported as Materialize imports it. A new release's files are so
+// Install builds the package directory of a release it inserts with the
+// insert: the directories and symlinks before the archive's files are
+// read, the files once they are all stored. On Linux an object the insert
+// created is imported without checking its stamp again, since no package
+// file links to it yet: under auto it is hard-linked into the package
+// wherever the hardlink has the file's mode and the package is not
+// unshared, whatever the filesystem (that project and the store then
+// share the inode, as under hardlink, while later imports of the release
+// clone where the filesystem can). Every other file, and one whose new
+// object another insert of the same content replaced meanwhile, is
+// imported as Materialize imports it. A new release's files are so
 // written once and linked into the package by one more call.
 //
 // Imports running at once share a few goroutines between them

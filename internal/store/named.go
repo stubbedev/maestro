@@ -195,7 +195,9 @@ func (s *Store) putFile(root string, e *Entry, h hash.Hash, buf []byte) error {
 
 		e.Hash = sha256.Sum256(data)
 
-		return s.putObject(data, &e.Hash, perm)
+		_, err = s.putObject(data, &e.Hash, perm)
+
+		return err
 	}
 
 	f, err := fsstate.Open(path)

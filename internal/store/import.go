@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -22,8 +23,8 @@ var errUnsupported = errors.New("reflinks unsupported")
 // Auto it only ever moves down: clone, hardlink, copy.
 type device struct {
 	method atomic.Int32
-	// noNewLinks: hardlinks from the store to this device fail (Linux's
-	// putImport).
+	// noNewLinks: hardlinks from the store to this device fail
+	// (importFresh).
 	noNewLinks atomic.Bool
 }
 
@@ -105,7 +106,7 @@ type tree struct {
 func (s *Store) build(entries []Entry, tmp string, unshared bool) error {
 	t, err := s.plant(entries, tmp, unshared)
 	if err == nil {
-		err = s.importFiles(t.dev, entries, t.files, t.base, unshared)
+		err = s.importFiles(t.dev, entries, t.files, t.base, unshared, nil)
 	}
 
 	if err == nil {
@@ -201,12 +202,19 @@ func (s *Store) mkdir(path string, mode fs.FileMode) (fs.FileMode, error) {
 	return mode, os.Chmod(path, mode)
 }
 
-// importFiles imports the files, in parallel for larger packages. The
-// caller holds an import slot and works through the files; it takes on
-// helpers while other slots are free and enough files are left (rechecking
-// as it goes, since the imports running beside it finish), so that
-// concurrent imports together keep to their slots.
-func (s *Store) importFiles(dev *device, entries []Entry, files []int, base string, unshared bool) error {
+// importFiles imports the files, in parallel for larger packages. fresh,
+// when not nil, marks the files whose objects this process has just
+// created (importFresh). The files of one directory are created by one
+// goroutine, in the release's order: readdir() lists a directory's
+// entries in the order they were created on some filesystems (btrfs), as
+// unzip creates them, and Composer and the dump follow readdir order. The
+// caller holds a slot and works through the directories; it takes on
+// helpers from the import slots while some are free and enough files are
+// left (rechecking as it goes, since the imports running beside it
+// finish), so that concurrent imports together keep to their slots.
+func (s *Store) importFiles(dev *device, entries []Entry, files []int, base string, unshared bool, fresh []bool) error {
+	dirs, ends := byDirectory(entries, files)
+
 	var (
 		next    atomic.Int64
 		failed  atomic.Bool
@@ -218,15 +226,16 @@ func (s *Store) importFiles(dev *device, entries []Entry, files []int, base stri
 	)
 
 	work = func(owner bool) {
-		for n := 0; !failed.Load(); n++ {
+		for !failed.Load() {
 			k := next.Add(1) - 1
-			if k >= int64(len(files)) {
+			if k >= int64(len(dirs)) {
 				return
 			}
 
-			if owner && n%importBatch == 0 {
+			if owner {
 				// another helper per importBatch files still to do
-				for helpers < cap(s.imports)-1 && (int64(len(files))-k)/importBatch > int64(helpers+1) {
+				left := int64(len(files) - ends[k])
+				for helpers < cap(s.imports)-1 && left/importBatch > int64(helpers) {
 					select {
 					case s.imports <- struct{}{}:
 						helpers++
@@ -245,10 +254,23 @@ func (s *Store) importFiles(dev *device, entries []Entry, files []int, base stri
 				}
 			}
 
-			e := &entries[files[k]]
-			if err := s.importFile(dev, e, base+filepath.FromSlash(e.Path), unshared); err != nil {
-				once.Do(func() { first = err })
-				failed.Store(true)
+			for _, i := range dirs[k] {
+				e := &entries[i]
+				dst := base + filepath.FromSlash(e.Path)
+
+				var err error
+				if fresh != nil && fresh[i] {
+					err = s.importFresh(dev, e, dst, unshared)
+				} else {
+					err = s.importFile(dev, e, dst, unshared)
+				}
+
+				if err != nil {
+					once.Do(func() { first = err })
+					failed.Store(true)
+
+					break
+				}
 			}
 		}
 	}
@@ -259,8 +281,67 @@ func (s *Store) importFiles(dev *device, entries []Entry, files []int, base stri
 	return first
 }
 
+// byDirectory groups the files by their directory, each group in the
+// files' order and the groups in the order of their first file; ends[k]
+// counts the files in groups 0 to k.
+func byDirectory(entries []Entry, files []int) (dirs [][]int, ends []int) {
+	at := map[string]int{}
+
+	for _, i := range files {
+		dir := path.Dir(entries[i].Path)
+
+		k, ok := at[dir]
+		if !ok {
+			k = len(dirs)
+			at[dir] = k
+			dirs = append(dirs, nil)
+		}
+
+		dirs[k] = append(dirs[k], i)
+	}
+
+	ends = make([]int, len(dirs))
+	n := 0
+
+	for k := range dirs {
+		n += len(dirs[k])
+		ends[k] = n
+	}
+
+	return dirs, ends
+}
+
 // importBatch is how many files are worth another goroutine.
 const importBatch = 64
+
+// importFresh creates dst from e's object, which this process has just
+// created: no package file links to it yet, so nothing but the store can
+// have written it, and under Auto it is hard-linked without checking its
+// stamp again wherever the hardlink has the file's mode and the package
+// is not unshared (whatever the filesystem: that project and the store
+// then share the inode, while later imports clone where they can). Else,
+// and when the object was replaced meanwhile (another insert of the same
+// content met it unfinished and wrote it again, which leaves the inode
+// created here without a name to link), it is imported as importFile does.
+func (s *Store) importFresh(dev *device, e *Entry, dst string, unshared bool) error {
+	perm := e.Perm(s.umask)
+	objPerm := objectPerm(perm)
+
+	if objPerm == perm && !unshared && s.method == Auto && !dev.noNewLinks.Load() {
+		err := os.Link(s.objectPath(&e.Hash, objPerm), dst)
+
+		switch {
+		case err == nil:
+			return nil
+		case linkUnsupported(err):
+			dev.noNewLinks.Store(true)
+		case !errors.Is(err, fs.ErrNotExist):
+			return err
+		}
+	}
+
+	return s.importFile(dev, e, dst, unshared)
+}
 
 // importFile creates dst from e's object, healing the object once if it
 // is missing or no longer matches its stamp. An object that still fails

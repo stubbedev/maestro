@@ -10,76 +10,21 @@ import (
 
 // putObject stores data as the object for sum and perm unless an intact
 // one is there already: created under its own name (createObject) when
-// there is none, else as writeObject does.
-func (s *Store) putObject(data []byte, sum *[32]byte, perm fs.FileMode) error {
+// there is none, else as writeObject does. fresh reports that this call
+// created it.
+func (s *Store) putObject(data []byte, sum *[32]byte, perm fs.FileMode) (fresh bool, err error) {
 	path := s.objectPath(sum, perm)
 
 	fd, err := s.createObject(path, data, sum, perm)
 	if errors.Is(err, fs.ErrExist) {
-		return s.writeObject(path, data, sum, perm)
+		return false, s.writeObject(path, data, sum, perm)
 	}
 
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	return closeRaw(fd, path)
-}
-
-// putImport stores e's content data and creates the package file dst from
-// it. An object it creates is imported without checking it against its
-// stamp again: no package file is linked to it yet, so nothing but the
-// store can have written it. Under Auto it is hard-linked where it may be;
-// else it is imported from its open descriptor by the device's method. An
-// object that is there already is imported as importFile does, and so is
-// the object that replaced this one's before it could be linked.
-func (s *Store) putImport(dev *device, e *Entry, data []byte, dst string, unshared bool) error {
-	perm := e.Perm(s.umask)
-	objPerm := objectPerm(perm)
-	path := s.objectPath(&e.Hash, objPerm)
-	linkable := objPerm == perm && !unshared
-
-	fd, err := s.createObject(path, data, &e.Hash, objPerm)
-	if errors.Is(err, fs.ErrExist) {
-		if err := s.writeObject(path, data, &e.Hash, objPerm); err != nil {
-			return err
-		}
-
-		return s.importFile(dev, e, dst, unshared)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	err = s.importNew(dev, newObject{fd: fd, path: path, data: data, umask: s.umask, mtime: stampTime(&e.Hash)}, dst, perm, linkable)
-	if cerr := closeRaw(fd, path); err == nil {
-		err = cerr
-	}
-
-	// Another insert of the same content met the object unfinished and
-	// replaced it (writeObject) before it was linked: the inode written
-	// here has no name left, and a link to it fails with ENOENT.
-	if errors.Is(err, fs.ErrNotExist) {
-		return s.importFile(dev, e, dst, unshared)
-	}
-
-	return err
-}
-
-// importNew creates dst from the object src just created: by hardlink
-// under Auto where the hardlink may be used, else by the device's method.
-func (s *Store) importNew(dev *device, src newObject, dst string, perm fs.FileMode, linkable bool) error {
-	if linkable && s.method == Auto && !dev.noNewLinks.Load() {
-		err := src.link(dst)
-		if err == nil || !linkUnsupported(err) {
-			return err
-		}
-
-		dev.noNewLinks.Store(true)
-	}
-
-	return s.importWith(dev, src, dst, perm, linkable)
+	return true, closeRaw(fd, path)
 }
 
 // createObject creates the object path holding data with mode perm under
@@ -87,12 +32,11 @@ func (s *Store) importNew(dev *device, src newObject, dst string, perm fs.FileMo
 // is there), write, stamp. The stamp, set last, marks the object complete:
 // until then, and after a crash in between, it fails every check as a
 // stale object does, and is replaced by the next insert of its content.
-// The descriptor is returned open for reading and writing.
 func (s *Store) createObject(path string, data []byte, sum *[32]byte, perm fs.FileMode) (int, error) {
 	fd := -1
 
 	err := s.intoShard(0, sum, path, func() (err error) {
-		fd, err = openRaw(path, unix.O_RDWR|unix.O_CREAT|unix.O_EXCL, uint32(perm))
+		fd, err = openRaw(path, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, uint32(perm))
 		return err
 	})
 	if err != nil {
@@ -107,41 +51,6 @@ func (s *Store) createObject(path string, data []byte, sum *[32]byte, perm fs.Fi
 	}
 
 	return fd, nil
-}
-
-// newObject is an object this insert has just created, still open.
-type newObject struct {
-	path  string
-	data  []byte
-	fd    int
-	mtime int64
-	umask fs.FileMode
-}
-
-func (o newObject) clone(dst string, perm fs.FileMode) error {
-	return cloneFd(o.fd, dst, perm, o.umask, o.mtime)
-}
-
-func (o newObject) link(dst string) error {
-	return os.Link(o.path, dst)
-}
-
-func (o newObject) copy(dst string, perm fs.FileMode) error {
-	fd, err := openRaw(dst, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, uint32(perm))
-	if err != nil {
-		return err
-	}
-
-	err = fill(fd, dst, o.data, perm, o.umask, o.mtime)
-	if cerr := closeRaw(fd, dst); err == nil {
-		err = cerr
-	}
-
-	if err != nil {
-		_ = os.Remove(dst)
-	}
-
-	return err
 }
 
 // fill writes data to the new file fd (path), gives it the permission

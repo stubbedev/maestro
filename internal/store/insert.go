@@ -40,11 +40,11 @@ func (s *Store) Insert(d Dist, path string, dv Deriver) (*Release, error) {
 }
 
 // insert is Insert, also creating the package directory dst from the
-// release when dst is not empty (Install): each file is imported as soon
-// as its object is written, from the object still open, so that a new
-// release's files are created once in the store and once in dst and
-// nothing is looked up, opened or checked twice. dst is assembled in a
-// temporary sibling and renamed onto it, as Materialize does.
+// release when dst is not empty (Install): its directories and symlinks
+// before the files are read, its files once they are all stored, the
+// objects this insert created imported without being looked up or
+// checked again (importFresh). dst is assembled in a temporary sibling
+// and renamed onto it, as Materialize does.
 func (s *Store) insert(d Dist, path, dst string, opts ImportOptions, dv Deriver) (*Release, error) {
 	format, aopts, err := s.options(&d)
 	if err != nil {
@@ -88,6 +88,8 @@ func (s *Store) insert(d Dist, path, dst string, opts ImportOptions, dv Deriver)
 		if in.tree, err = s.plant(entries, tmp, opts.Unshared); err != nil {
 			return nil, err
 		}
+
+		in.fresh = make([]bool, len(entries))
 	}
 
 	r, err := in.run(a, indexPath, id)
@@ -120,8 +122,13 @@ func (in *inserter) run(a *archive.Archive, indexPath string, id [32]byte) (*Rel
 		return nil, err
 	}
 
-	if in.tree != nil {
-		if err := in.tree.finish(); err != nil {
+	if t := in.tree; t != nil {
+		err := s.importFiles(t.dev, in.entries, t.files, t.base, t.unshared, in.fresh)
+		if err == nil {
+			err = t.finish()
+		}
+
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -151,7 +158,8 @@ type inserter struct {
 	err     error
 	s       *Store
 	derive  Deriver
-	tree    *tree // the package directory being built, if any
+	tree    *tree  // the package directory being built, if any
+	fresh   []bool // the files whose objects this insert created, with a tree
 	hash    hash.Hash
 	entries []Entry
 	batch   []insertJob
@@ -227,8 +235,7 @@ func (in *inserter) file(i int, r io.Reader) error {
 	return nil
 }
 
-// bigFile stores a file too large to hold in memory while reading it,
-// then imports it into the tree from the store.
+// bigFile stores a file too large to hold in memory while reading it.
 func (in *inserter) bigFile(e *Entry, r io.Reader) error {
 	if in.hash == nil {
 		in.hash, in.big = sha256.New(), make([]byte, 256<<10)
@@ -236,10 +243,6 @@ func (in *inserter) bigFile(e *Entry, r io.Reader) error {
 
 	sum, err := in.s.putObjectStream(r, e.Size, objectPerm(e.Perm(in.s.umask)), in.hash, in.big)
 	e.Hash = sum
-
-	if err == nil && in.tree != nil {
-		err = in.s.importFile(in.tree.dev, e, in.tree.path(e), in.tree.unshared)
-	}
 
 	return err
 }
@@ -273,7 +276,7 @@ func (in *inserter) dispatch(help bool) {
 	in.store(jobs)
 }
 
-// store hashes and stores a batch of files, importing each into the tree.
+// store hashes and stores a batch of files.
 func (in *inserter) store(jobs []insertJob) {
 	s := in.s
 
@@ -283,11 +286,9 @@ func (in *inserter) store(jobs []insertJob) {
 			data := (*j.buf)[:e.Size]
 			e.Hash = sha256.Sum256(data)
 
-			var err error
-			if in.tree != nil {
-				err = s.putImport(in.tree.dev, e, data, in.tree.path(e), in.tree.unshared)
-			} else {
-				err = s.putObject(data, &e.Hash, objectPerm(e.Perm(s.umask)))
+			fresh, err := s.putObject(data, &e.Hash, objectPerm(e.Perm(s.umask)))
+			if in.fresh != nil {
+				in.fresh[j.i] = fresh
 			}
 
 			if err != nil {
@@ -336,9 +337,4 @@ func expectEOF(r io.Reader, one []byte) error {
 			return err
 		}
 	}
-}
-
-// path is where entry e goes in the tree.
-func (t *tree) path(e *Entry) string {
-	return t.base + filepath.FromSlash(e.Path)
 }
