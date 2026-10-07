@@ -311,7 +311,8 @@ func TestShimAPI_SchemaPaths(t *testing.T) {
 		{"lock", "composer-lock-schema.json", res.LockSchema()},
 	} {
 		path, _ := a.GetString(c.key)
-		if want := filepath.Join(shim, "src", "Composer", "Json") + "/../../../res/" + c.file; path != want {
+		// __DIR__ is the file's resolved directory, as PHP includes it
+		if want := filepath.Join(realShim, "src", "Composer", "Json") + "/../../../res/" + c.file; path != want {
 			t.Errorf("%s path %q, want %q", c.key, path, want)
 		}
 		if real, _ := a.GetString(c.key + "Real"); real != filepath.Join(realShim, "res", c.file) {
