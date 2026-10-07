@@ -7,6 +7,8 @@ import (
 	"io"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // ZipGetComposerJSON ports Zip::getComposerJson: the root composer.json of
@@ -66,7 +68,7 @@ func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 			continue
 		}
 
-		dirname := phpDirname(name, windows)
+		dirname := php.DirnameOn(name, windows)
 
 		// Handle archives with a proper TOC.
 		if dirname == "." {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // pathBase is the variable a path code is relative to.
@@ -30,10 +31,10 @@ type pathRef struct {
 
 // pathRefOf ports getPathCode's decisions for path.
 func pathRefOf(basePath, vendorPath, path string) (pathRef, error) {
-	if !util.IsAbsolutePath(path) {
+	if !fspath.IsAbsolutePath(path) {
 		path = basePath + "/" + path
 	}
-	path = util.NormalizePath(path)
+	path = fspath.NormalizePath(path)
 
 	var ref pathRef
 	if isPathPrefix(path, vendorPath) {
@@ -44,8 +45,8 @@ func pathRefOf(basePath, vendorPath, path string) (pathRef, error) {
 		if err != nil {
 			return pathRef{}, err
 		}
-		ref.path = util.NormalizePath(shortest)
-		if !util.IsAbsolutePath(ref.path) {
+		ref.path = fspath.NormalizePath(shortest)
+		if !fspath.IsAbsolutePath(ref.path) {
 			ref.base = baseApp
 			ref.path = "/" + ref.path
 		}
@@ -168,7 +169,7 @@ func (e *pathCodeEvaluator) term() string {
 		inner := e.term()
 		e.pos++ // )
 
-		return util.Dirname(inner)
+		return php.Dirname(inner)
 	case strings.HasPrefix(rest, `"\0"`):
 		e.pos += 4
 

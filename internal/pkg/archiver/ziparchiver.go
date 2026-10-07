@@ -16,8 +16,10 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // libzip's header constants: "version made by" 6.3 on Unix, "version
@@ -56,11 +58,11 @@ type zipEntry struct {
 // level 9, or stored when that does not make them smaller; file
 // attributes are the files' modes and their times the modification times.
 func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, ignoreFilters bool) (string, error) {
-	if sourcesRealpath, ok := util.RealpathOK(sources); ok {
+	if sourcesRealpath, ok := php.Realpath(sources); ok {
 		sources = sourcesRealpath
 	}
 
-	sources = util.NormalizePath(sources)
+	sources = fspath.NormalizePath(sources)
 
 	files, err := NewArchivableFilesFinder(sources, excludes, ignoreFilters)
 	if err != nil {

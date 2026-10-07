@@ -20,7 +20,6 @@ import (
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/spdx"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 func init() {
@@ -526,7 +525,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 				return 0, err
 			}
 			if ok {
-				tok, _ := strtok(realpathString(path))
+				tok, _ := strtok(php.RealpathString(path))
 				io.Write(" "+tok, true, mio.Normal)
 			} else {
 				io.Write(" null", true, mio.Normal)
@@ -841,7 +840,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 						return 0, err
 					}
 					if ok {
-						if tok, found := strtok(realpathString(path)); found {
+						if tok, found := strtok(php.RealpathString(path)); found {
 							packageViewData.Set("path", tok)
 						} else {
 							packageViewData.Set("path", false)
@@ -1072,13 +1071,6 @@ func strtok(s string) (string, bool) {
 	}
 
 	return s, true
-}
-
-// realpathString is (string) realpath($path): "" when it fails.
-func realpathString(path string) string {
-	p, _ := util.RealpathOK(path)
-
-	return p
 }
 
 func (c *ShowCommand) printPackages(io mio.IO, packages []*php.Array, o printOptions) {
@@ -1359,7 +1351,7 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 			return err
 		}
 		if ok {
-			io.Write("<info>path</info>     : "+realpathString(path), true, mio.Normal)
+			io.Write("<info>path</info>     : "+php.RealpathString(path), true, mio.Normal)
 		} else {
 			io.Write("<info>path</info>     : null", true, mio.Normal)
 		}
@@ -1582,7 +1574,7 @@ func (c *ShowCommand) printPackageInfoAsJSON(p pkg.CompletePackageInterface, ver
 				return err
 			}
 			if ok {
-				if real, found := util.RealpathOK(path); found {
+				if real, found := php.Realpath(path); found {
 					j.Set("path", real)
 				}
 			} else {

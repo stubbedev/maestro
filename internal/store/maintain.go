@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // PruneResult is what Prune removed.
@@ -397,7 +398,7 @@ func Unshare(path string) error {
 // changes, the file is unshared first so the change stays in this project
 // and the store object keeps its stamp. Like chmod, it follows symlinks.
 func Chmod(path string, mode fs.FileMode) error {
-	real, err := filepath.EvalSymlinks(path)
+	real, err := php.EvalSymlinks(path)
 	if err != nil {
 		return err
 	}

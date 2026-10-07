@@ -62,7 +62,7 @@ func pathinfo(path string, component int) string {
 			return ""
 		}
 
-		return util.Dirname(path)
+		return php.Dirname(path)
 	case pathinfoBasename:
 		return base
 	case pathinfoExtension:

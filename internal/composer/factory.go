@@ -177,13 +177,10 @@ func isFile(path string) bool {
 	return err == nil && st.Mode().IsRegular()
 }
 
-// realpath is PHP's realpath(), false giving ok false.
-func realpath(path string) (string, bool) { return util.RealpathOK(path) }
-
 func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins DisablePlugins, cwd string, fullLoad, disableScripts bool) (*PartialComposer, *Composer, error) {
 	// if a custom composer.json path is given, we change the default cwd to be that file's directory
 	if s, ok := localConfig.(string); ok && isFile(s) && cwd == "" {
-		cwd = util.Dirname(s)
+		cwd = php.Dirname(s)
 	}
 
 	if cwd == "" {
@@ -267,8 +264,8 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	isGlobal := false
 	if localConfigSource != config.SourceUnknown {
 		home, _ := cfg.Get("home", 0)
-		homePath, homeOK := realpath(php.ToString(home))
-		dirPath, dirOK := realpath(util.Dirname(localConfigSource))
+		homePath, homeOK := php.Realpath(php.ToString(home))
+		dirPath, dirOK := php.Realpath(php.Dirname(localConfigSource))
 		isGlobal = homeOK == dirOK && homePath == dirPath
 	}
 	if mergeErr != nil {
@@ -281,7 +278,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	}
 
 	if composerFile != "" {
-		composerRealpath, _ := realpath(composerFile)
+		composerRealpath, _ := php.Realpath(composerFile)
 		out.WriteError("Loading config file "+composerFile+" ("+composerRealpath+")", true, io.Debug)
 		configFile, err := json.NewFile(composerRealpath, nil, out)
 		if err != nil {
@@ -289,7 +286,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		}
 		cfg.SetConfigSource(config.NewJSONConfigSource(configFile, false))
 
-		localAuthFile, err := json.NewFile(util.Dirname(composerRealpath)+"/auth.json", nil, out)
+		localAuthFile, err := json.NewFile(php.Dirname(composerRealpath)+"/auth.json", nil, out)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -666,7 +663,7 @@ func (f *Factory) addLocalRepository(out io.IO, rm *repository.RepositoryManager
 	sink := rt.installedVersionsSink
 	rt.mu.Unlock()
 	if sink != nil {
-		repoDir := util.Dirname(file.Path())
+		repoDir := php.Dirname(file.Path())
 		repo.SetInstalledVersionsSink(func(versions *php.Array) { sink(versions, repoDir) })
 	}
 	rm.SetLocalRepository(repo)

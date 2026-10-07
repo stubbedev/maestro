@@ -4,6 +4,7 @@ package vcs
 
 import (
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
@@ -46,7 +47,7 @@ func (d *HgDownloader) doInstall(p pkg.PackageInterface, path, url string) error
 		return err
 	}
 
-	return d.mustExecute([]string{"hg", "up", "--", p.SourceReference().S}, nil, realpathCwd(path))
+	return d.mustExecute([]string{"hg", "up", "--", p.SourceReference().S}, nil, php.RealpathString(path))
 }
 
 func (d *HgDownloader) doUpdate(_, target pkg.PackageInterface, path, url string) error {
@@ -76,7 +77,7 @@ func (d *HgDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.Nu
 	}
 
 	var output string
-	if _, err := d.execute([]string{"hg", "st"}, &output, realpathCwd(path)); err != nil {
+	if _, err := d.execute([]string{"hg", "st"}, &output, php.RealpathString(path)); err != nil {
 		return pkg.NullString{}, err
 	}
 
@@ -85,7 +86,7 @@ func (d *HgDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.Nu
 
 func (d *HgDownloader) commitLogs(fromReference, toReference, path string) (string, error) {
 	var output string
-	if err := d.mustExecute([]string{"hg", "log", "-r", fromReference + ":" + toReference, "--style", "compact"}, &output, realpathCwd(path)); err != nil {
+	if err := d.mustExecute([]string{"hg", "log", "-r", fromReference + ":" + toReference, "--style", "compact"}, &output, php.RealpathString(path)); err != nil {
 		return "", err
 	}
 

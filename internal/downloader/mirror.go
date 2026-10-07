@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg/archiver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -31,7 +32,7 @@ func mirror(originDir, targetDir string, files []archiver.File) error {
 
 	for _, f := range files {
 		file := f.Pathname
-		realPath, _ := util.RealpathOK(file)
+		realPath, _ := php.Realpath(file)
 		if file == targetDir || realPath == targetDir || filesCreatedWhileMirroring[realPath] {
 			continue
 		}
@@ -92,7 +93,7 @@ func symfonyCopy(originFile, targetFile string) error {
 		return &util.IOError{Message: `Failed to copy "` + originFile + `" because file does not exist.`, Path: originFile, Class: util.ClassFileNotFound}
 	}
 
-	if err := symfonyMkdir(util.Dirname(targetFile)); err != nil {
+	if err := symfonyMkdir(php.Dirname(targetFile)); err != nil {
 		return err
 	}
 
@@ -134,7 +135,7 @@ func symfonyCopy(originFile, targetFile string) error {
 
 // symfonySymlink is Symfony's Filesystem::symlink($originDir, $targetDir).
 func symfonySymlink(originDir, targetDir string) error {
-	if err := symfonyMkdir(util.Dirname(targetDir)); err != nil {
+	if err := symfonyMkdir(php.Dirname(targetDir)); err != nil {
 		return err
 	}
 

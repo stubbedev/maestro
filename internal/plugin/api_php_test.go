@@ -13,7 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json/res"
-	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // copyTree copies a fixture project into dir.
@@ -59,7 +59,7 @@ func newProject(t *testing.T, fixture string, verbosity int, configure ...func(*
 	t.Helper()
 
 	dir := t.TempDir()
-	if real, ok := util.RealpathOK(dir); ok {
+	if real, ok := php.Realpath(dir); ok {
 		dir = real
 	}
 	copyTree(t, filepath.Join("testdata", "projects", fixture), dir)

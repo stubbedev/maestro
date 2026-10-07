@@ -1,5 +1,5 @@
 // PHP runtime functions the Composer\Util ports depend on, with PHP's exact
-// semantics: dirname, basename, var_export of a string, strerror messages.
+// semantics: strerror messages and the warnings built from them.
 
 package util
 
@@ -9,75 +9,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 )
-
-// isPathSep reports whether c separates path segments for PHP's dirname and
-// basename: only '/' on Unix, '/' and '\' on Windows.
-func isPathSep(c byte, windows bool) bool {
-	return c == '/' || (windows && c == '\\')
-}
-
-// phpDirname ports zend_dirname (PHP's dirname with one level).
-func phpDirname(path string, windows bool) string {
-	if path == "" {
-		return ""
-	}
-
-	drive := ""
-	if windows && len(path) >= 2 && isASCIIAlpha(path[0]) && path[1] == ':' {
-		// The drive spec is kept as is; dirname("c:") is "c:".
-		drive, path = path[:2], path[2:]
-		if path == "" {
-			return drive
-		}
-	}
-
-	sep := "/"
-	if windows {
-		sep = `\`
-	}
-
-	end := len(path) - 1
-	for end >= 0 && isPathSep(path[end], windows) {
-		end--
-	}
-
-	if end < 0 {
-		return drive + sep
-	}
-
-	for end >= 0 && !isPathSep(path[end], windows) {
-		end--
-	}
-
-	if end < 0 {
-		return drive + "."
-	}
-
-	for end >= 0 && isPathSep(path[end], windows) {
-		end--
-	}
-
-	if end < 0 {
-		return drive + sep
-	}
-
-	return drive + path[:end+1]
-}
-
-// phpBasename ports php_basename without a suffix.
-func phpBasename(path string, windows bool) string {
-	end := len(path)
-	for end > 0 && isPathSep(path[end-1], windows) {
-		end--
-	}
-
-	start := end
-	for start > 0 && !isPathSep(path[start-1], windows) {
-		start--
-	}
-
-	return path[start:end]
-}
 
 func isASCIIAlpha(c byte) bool {
 	return (c|0x20) >= 'a' && (c|0x20) <= 'z'

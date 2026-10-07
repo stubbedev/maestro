@@ -11,7 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // testConfig is the stub Config of AutoloadGeneratorTest: a map of
@@ -214,7 +213,7 @@ func include(t *testing.T, path string) [][2]string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir, _ := util.RealpathOK(filepath.Dir(path))
+	dir, _ := php.Realpath(filepath.Dir(path))
 	lines := strings.Split(string(content), "\n")
 	var vendorDir, baseDir string
 	var entries [][2]string

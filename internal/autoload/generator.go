@@ -24,6 +24,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // Generator is Composer\Autoload\AutoloadGenerator.
@@ -256,11 +257,11 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	if d.basePath, err = realpath(cwd); err != nil {
 		return
 	}
-	d.basePath = util.NormalizePath(d.basePath)
+	d.basePath = fspath.NormalizePath(d.basePath)
 	if d.vendorPath, err = realpath(vendorDir); err != nil {
 		return
 	}
-	d.vendorPath = util.NormalizePath(d.vendorPath)
+	d.vendorPath = fspath.NormalizePath(d.vendorPath)
 
 	packageMap, err := g.BuildPackageMap(im, rootPackage, localRepo.CanonicalPackages())
 	if err != nil {

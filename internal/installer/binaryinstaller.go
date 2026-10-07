@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // Binaries is what LibraryInstaller asks of its BinaryInstaller; a PHP
@@ -83,12 +84,12 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 			continue
 		}
 
-		if !util.IsAbsolutePath(binPath) {
+		if !fspath.IsAbsolutePath(binPath) {
 			// in case a custom installer returned a relative path for the
 			// $package, we can now safely turn it into a absolute path (as
 			// we already checked the binary's existence). The following
 			// helpers will require absolute paths to work properly.
-			binPath, _ = util.RealpathOK(binPath)
+			binPath, _ = php.Realpath(binPath)
 		}
 
 		if err := b.initializeBinDir(); err != nil {
@@ -105,7 +106,7 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 				continue
 			}
 
-			if realpathOrFalse(link) == realpathOrFalse(binPath) {
+			if php.RealpathString(link) == php.RealpathString(binPath) {
 				// It is a linked binary from a previous installation, which
 				// can be replaced with a proxy file
 				if err := util.Unlink(link); err != nil {
@@ -242,7 +243,7 @@ func (b *BinaryInstaller) initializeBinDir() error {
 		return err
 	}
 
-	b.binDir = realpathOrFalse(b.binDir)
+	b.binDir = php.RealpathString(b.binDir)
 
 	return nil
 }
@@ -282,7 +283,7 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 		return "", err
 	}
 
-	binDir := util.Escape(util.Dirname(binPath))
+	binDir := util.Escape(php.Dirname(binPath))
 	binFile := php.Basename(binPath, "")
 
 	binContents, err := fileGetContents(bin, 500)
@@ -321,7 +322,7 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 	if b.vendorDir.Valid {
 		// ensure comparisons work accurately if the CWD is a symlink, as
 		// $link is realpath'd already
-		vendorDirReal, ok := util.RealpathOK(b.vendorDir.S)
+		vendorDirReal, ok := php.Realpath(b.vendorDir.S)
 		if !ok {
 			vendorDirReal = b.vendorDir.S
 		}
@@ -335,7 +336,7 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 	}
 
 	// Add workaround for PHPUnit process isolation
-	if util.NormalizePath(bin) == util.NormalizePath(b.vendorDir.S+"/phpunit/phpunit/phpunit") {
+	if fspath.NormalizePath(bin) == fspath.NormalizePath(b.vendorDir.S+"/phpunit/phpunit/phpunit") {
 		// workaround issue on PHPUnit 6.5+ running on PHP 8+
 		globalsCode += "$GLOBALS['__PHPUNIT_ISOLATION_EXCLUDE_LIST'] = $GLOBALS['__PHPUNIT_ISOLATION_BLACKLIST'] = array(realpath(" + binPathExported + "));\n"
 		// workaround issue on all PHPUnit versions running on PHP <8
@@ -390,13 +391,6 @@ func fileGetContents(path string, length int) (string, error) {
 	}
 
 	return string(buf[:n]), nil
-}
-
-// realpathOrFalse is realpath(), "" standing for false.
-func realpathOrFalse(path string) string {
-	real, _ := util.RealpathOK(path)
-
-	return real
 }
 
 // fileExists is file_exists() (it follows symlinks).

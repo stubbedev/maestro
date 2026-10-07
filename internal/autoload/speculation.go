@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
@@ -96,11 +97,11 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 	if d.basePath, err = realpath(cwd); err != nil {
 		return
 	}
-	d.basePath = util.NormalizePath(d.basePath)
+	d.basePath = fspath.NormalizePath(d.basePath)
 	if d.vendorPath, err = realpath(vendorDir); err != nil {
 		return
 	}
-	d.vendorPath = util.NormalizePath(d.vendorPath)
+	d.vendorPath = fspath.NormalizePath(d.vendorPath)
 
 	packageMap, err := g.BuildPackageMap(im, rootPackage, localRepo.CanonicalPackages())
 	if err != nil {
@@ -142,7 +143,7 @@ func (g *Generator) Speculate(config Config, localRepo InstalledRepository, root
 func aheadDump(d *dump, targetDir string) *dump {
 	ahead := &dump{basePath: d.basePath, vendorPath: d.vendorPath, targetDir: d.vendorPath + "/" + targetDir}
 	var ok bool
-	if ahead.realTarget, ok = util.RealpathOK(ahead.targetDir); !ok {
+	if ahead.realTarget, ok = php.Realpath(ahead.targetDir); !ok {
 		return nil
 	}
 	var err error

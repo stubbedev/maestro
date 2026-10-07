@@ -48,8 +48,8 @@ var shebangPattern = php.MustCompile(`{^#!/(?:usr/bin/env )?(?:[^/]+/)*(.+)$}m`)
 // a bin file resolves to a path inside the package's install directory
 // (GHSA-gjfg-22fp-rrxx, GHSA-96h3-5x6v-m776).
 func IsBinPathInsidePackage(installPath, binPath string) bool {
-	realBinPath, ok1 := RealpathOK(binPath)
-	realInstallPath, ok2 := RealpathOK(installPath)
+	realBinPath, ok1 := php.Realpath(binPath)
+	realInstallPath, ok2 := php.Realpath(installPath)
 
 	// fail closed if either path cannot be resolved
 	if !ok1 || !ok2 {

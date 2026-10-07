@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
@@ -97,11 +98,11 @@ func (r *FilesystemRepository) PrepareWrite(devMode bool, im InstallationManager
 		return
 	}
 	// write creates the directory; this writes nothing
-	repoDir := util.Dirname(r.file.Path())
+	repoDir := php.Dirname(r.file.Path())
 	if st, err := os.Stat(repoDir); err != nil || !st.IsDir() {
 		return
 	}
-	repoDir = util.NormalizePath(util.Realpath(repoDir))
+	repoDir = fspath.NormalizePath(util.Realpath(repoDir))
 	installPaths := make([]pkg.NullString, len(canonical))
 	for i, p := range canonical {
 		if installPaths[i], err = r.relativeInstallPath(im, p, repoDir); err != nil {

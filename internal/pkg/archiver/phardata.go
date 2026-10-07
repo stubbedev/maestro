@@ -20,6 +20,7 @@ import (
 
 	"github.com/dsnet/compress/bzip2"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -202,7 +203,7 @@ func isMagicPhar(name string) bool {
 // is named after the file's real path relative to base; files in the
 // magic .phar directory are skipped.
 func (p *pharData) addFile(base, pathname string) error {
-	fname, ok := util.RealpathOK(pathname)
+	fname, ok := php.Realpath(pathname)
 	if !ok {
 		fname = pathname
 	}

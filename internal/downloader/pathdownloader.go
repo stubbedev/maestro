@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // The install strategies of PathDownloader.
@@ -48,12 +49,12 @@ func (d *PathDownloader) download(_ call, p pkg.PackageInterface, path string, _
 		return nil, &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot download."}
 	}
 
-	realURL, ok := util.RealpathOK(url.S)
+	realURL, ok := php.Realpath(url.S)
 	if !ok || !isDir(realURL) {
 		return nil, &util.RuntimeError{Message: fmt.Sprintf("Source path \"%s\" is not found for package %s", url.S, p.Name())}
 	}
 
-	realPath, _ := util.RealpathOK(path)
+	realPath, _ := php.Realpath(path)
 	if realPath == realURL {
 		return resolved(""), nil
 	}
@@ -80,12 +81,12 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 		return nil, &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot install."}
 	}
 
-	realURL, ok := util.RealpathOK(url.S)
+	realURL, ok := php.Realpath(url.S)
 	if !ok {
 		return nil, &util.RuntimeError{Message: "Failed to realpath " + url.S}
 	}
 
-	if realPath, ok := util.RealpathOK(path); ok && realPath == realURL {
+	if realPath, ok := php.Realpath(path); ok && realPath == realURL {
 		if c.output {
 			// $this->getInstallOperationAppendix(): a subclass's, if any.
 			appendix, err := d.self.installOperationAppendix(p, path)
@@ -140,7 +141,7 @@ func (d *PathDownloader) install(c call, p pkg.PackageInterface, path string) (*
 	// Fallback if symlink failed or if symlink is not allowed for the
 	// package
 	if currentStrategy == strategyMirror {
-		realURL = util.NormalizePath(realURL)
+		realURL = fspath.NormalizePath(realURL)
 
 		if c.output {
 			indent := ""
@@ -190,7 +191,7 @@ func (d *PathDownloader) symlinkPackage(c call, transportOptions *php.Array, url
 	}
 
 	absolutePath := path
-	if !util.IsAbsolutePath(absolutePath) {
+	if !fspath.IsAbsolutePath(absolutePath) {
 		cwd, err := util.GetCwd(false)
 		if err != nil {
 			return err
@@ -254,7 +255,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 		return nil, err
 	}
 
-	if util.NormalizePath(absPath) == util.NormalizePath(absDistURL) {
+	if fspath.NormalizePath(absPath) == fspath.NormalizePath(absDistURL) {
 		if c.output {
 			c.io.WriteError("  - "+operation.FormatUninstall(p)+", source is still present in "+path, true, mio.Normal)
 		}
@@ -267,7 +268,7 @@ func (d *PathDownloader) remove(c call, p pkg.PackageInterface, path string) (*P
 
 // absolute is $fs->isAbsolutePath($path) ? $path : Platform::getCwd().'/'.$path.
 func absolute(path string) (string, error) {
-	if util.IsAbsolutePath(path) {
+	if fspath.IsAbsolutePath(path) {
 		return path, nil
 	}
 
@@ -303,12 +304,12 @@ func (d *PathDownloader) installOperationAppendix(p pkg.PackageInterface, path s
 		return "", &util.RuntimeError{Message: "The package " + p.PrettyName() + " has no dist url configured, cannot install."}
 	}
 
-	realURL, ok := util.RealpathOK(url.S)
+	realURL, ok := php.Realpath(url.S)
 	if !ok {
 		return "", &util.RuntimeError{Message: "Failed to realpath " + url.S}
 	}
 
-	if realPath, ok := util.RealpathOK(path); ok && realPath == realURL {
+	if realPath, ok := php.Realpath(path); ok && realPath == realURL {
 		return ": Source already present", nil
 	}
 

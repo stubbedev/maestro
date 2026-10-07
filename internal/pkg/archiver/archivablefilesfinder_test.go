@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // Ports tests/Composer/Test/Package/Archiver/ArchivableFilesFinderTest.php.
@@ -71,7 +73,7 @@ func archivableFilesFinderSetUp(t *testing.T) string {
 
 	for _, relativePath := range archivableFilesFinderTree {
 		path := sources + "/" + relativePath
-		if err := util.EnsureDirectoryExists(util.Dirname(path)); err != nil {
+		if err := util.EnsureDirectoryExists(php.Dirname(path)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -93,7 +95,7 @@ func uniqueTmpDirectory(t *testing.T) string {
 		t.Fatal(err)
 	}
 
-	return util.NormalizePath(dir)
+	return fspath.NormalizePath(dir)
 }
 
 // archivableFiles is the test case's getArchivableFiles: the finder's
@@ -110,7 +112,7 @@ func archivableFiles(t *testing.T, sources string, excludes []string, ignoreFilt
 
 	for _, f := range finder.Files() {
 		if !f.IsDir {
-			files = append(files, strings.TrimPrefix(util.NormalizePath(f.RealPath), sources))
+			files = append(files, strings.TrimPrefix(fspath.NormalizePath(f.RealPath), sources))
 		}
 	}
 

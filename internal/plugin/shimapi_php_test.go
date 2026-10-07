@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // evalPHP runs code (a function body getting $vars) in the shim.
@@ -241,7 +242,7 @@ func TestShimAPI_Utilities(t *testing.T) {
 	shortest, _ := util.FindShortestPath("/a/b/c", "/a/d/e", false, false)
 	code, _ := util.FindShortestPathCode("/a/b/c.php", "/a/d/e", true, false, false)
 	want := map[string]any{
-		"normalize": util.NormalizePath("/a/./b/../c//d/"),
+		"normalize": fspath.NormalizePath("/a/./b/../c//d/"),
 		"shortest":  shortest,
 		"code":      code,
 		"absolute":  "false",

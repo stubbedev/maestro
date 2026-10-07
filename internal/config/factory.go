@@ -325,22 +325,11 @@ func ComposerFile() (string, error) {
 
 // LockFile ports Factory::getLockFile: composer.json's lock file.
 func LockFile(composerFile string) string {
-	if pathinfoExtension(composerFile) == "json" {
+	if php.PathinfoExtension(composerFile) == "json" {
 		return composerFile[:len(composerFile)-4] + "lock"
 	}
 
 	return composerFile + ".lock"
-}
-
-// pathinfoExtension is pathinfo($path, PATHINFO_EXTENSION): the part of
-// the basename after its last dot.
-func pathinfoExtension(p string) string {
-	base := php.Basename(p, "")
-	if i := strings.LastIndexByte(base, '.'); i >= 0 {
-		return base[i+1:]
-	}
-
-	return ""
 }
 
 // LoadComposerAuthEnv ports Factory::loadComposerAuthEnv: merges the JSON

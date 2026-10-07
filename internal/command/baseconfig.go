@@ -73,8 +73,8 @@ func (c *BaseConfigCommand) Initialize(in console.Input, out console.Output) err
 			if err != nil {
 				return err
 			}
-			a, aok := util.RealpathOK(cwd)
-			b, bok := util.RealpathOK(php.ToString(home))
+			a, aok := php.Realpath(cwd)
+			b, bok := php.Realpath(php.ToString(home))
 			if aok == bok && a == b {
 				if err := os.WriteFile(configFile, []byte("{\n}\n"), 0o666); err != nil {
 					return &util.ErrorException{Message: "file_put_contents(" + configFile + "): Failed to open stream: " + err.Error()}
@@ -149,5 +149,5 @@ func (c *BaseConfigCommand) AuthConfigFile(in console.Input, cfg *config.Config)
 		return "", err
 	}
 
-	return util.Dirname(file) + "/auth.json", nil
+	return php.Dirname(file) + "/auth.json", nil
 }

@@ -22,9 +22,9 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // AutoloadType is the autoload standard whose mapping rules a scan applies.
@@ -264,9 +264,9 @@ func (g *Generator) scanItems(files []foundFile, cwd string) []scanItem {
 			continue
 		}
 		it := scanItem{}
-		if !isAbsolutePath(f.path) && !isStreamWrapperPath(f.path) {
+		if !fspath.IsAbsolutePath(f.path) && !isStreamWrapperPath(f.path) {
 			joined := cwd + "/" + f.path
-			it.filePath = normalizePath(joined)
+			it.filePath = fspath.NormalizePath(joined)
 			// The Finder's knowledge applies if the path still names the
 			// directory entry it read.
 			it.notLink = f.notLink && cwd != "" && it.filePath == joined
@@ -426,8 +426,8 @@ func (g *Generator) filterByNamespace(classes []string, filePath, baseNamespace 
 	if err != nil {
 		return nil, err
 	}
-	shortPath := replaceCwd(normalizePath(filePath), cwd)
-	shortBasePath := replaceCwd(normalizePath(basePath), cwd)
+	shortPath := replaceCwd(fspath.NormalizePath(filePath), cwd)
+	shortBasePath := replaceCwd(fspath.NormalizePath(basePath), cwd)
 	for _, class := range rejectedClasses {
 		g.classMap.AddPsrViolation("Class "+class+" located in "+shortPath+" does not comply with "+typ.String()+
 			" autoloading standard (rule: "+baseNamespace+" => "+shortBasePath+"). Skipping.", class, filePath)
@@ -457,10 +457,10 @@ func (g *Generator) violationCwd() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if real, ok := realpath(cwd); ok {
+	if real, ok := php.Realpath(cwd); ok {
 		cwd = real
 	}
-	cwd = normalizePath(cwd)
+	cwd = fspath.NormalizePath(cwd)
 	if g.pre != nil {
 		g.pre.cwd = cwd
 	}
@@ -475,12 +475,6 @@ func replaceCwd(path, cwd string) string {
 	}
 
 	return path
-}
-
-// isAbsolutePath checks if the given path is absolute (see
-// Composer\Util\Filesystem::isAbsolutePath).
-func isAbsolutePath(path string) bool {
-	return strings.HasPrefix(path, "/") || len(path) > 1 && path[1] == ':' || strings.HasPrefix(path, `\\`)
 }
 
 // streamWrappers are stream_get_wrappers() of a PHP CLI with the usual
@@ -531,113 +525,10 @@ func collapseSeparators(path string) string {
 	return string(b)
 }
 
-// normalizePath replaces backslashes with slashes, removes the ending slash
-// and collapses redundant separators and up-level references (see
-// Composer\Util\Filesystem::normalizePath).
-func normalizePath(path string) string {
-	if isNormalAbsolute(path) {
-		return path
-	}
-	path = strings.ReplaceAll(path, `\`, "/")
-	prefix, absolute := "", ""
-
-	// extract windows UNC paths e.g. \\foo\bar
-	if strings.HasPrefix(path, "//") && len(path) > 2 {
-		absolute = "//"
-		path = path[2:]
-	}
-
-	// extract a prefix being a protocol://, protocol:, protocol://drive: or
-	// simply drive:
-	if n := pathPrefixLen(path); n > 0 {
-		prefix = path[:n]
-		path = path[n:]
-	}
-
-	if strings.HasPrefix(path, "/") {
-		absolute = "/"
-		path = path[1:]
-	}
-
-	var parts []string
-	up := false
-	for chunk := range strings.SplitSeq(path, "/") {
-		if chunk == ".." && (absolute != "" || up) {
-			if len(parts) > 0 {
-				parts = parts[:len(parts)-1]
-			}
-			up = len(parts) > 0 && parts[len(parts)-1] != ".."
-		} else if chunk != "." && chunk != "" {
-			parts = append(parts, chunk)
-			up = chunk != ".."
-		}
-	}
-
-	// ensure c: is normalized to C:, matching '{(?:^|://)[a-z]:$}i'
-	if n := len(prefix); n >= 2 && prefix[n-1] == ':' && isASCIILetter(prefix[n-2]) &&
-		(n == 2 || strings.HasSuffix(prefix[:n-2], "://")) {
-		prefix = prefix[:n-2] + strings.ToUpper(prefix[n-2:n-1]) + ":"
-	}
-
-	return prefix + absolute + strings.Join(parts, "/")
-}
-
-// isNormalAbsolute reports whether normalizePath() returns path unchanged
-// because it is an absolute Unix path without empty, "." or ".." segments,
-// backslashes or a trailing slash.
-func isNormalAbsolute(path string) bool {
-	if path == "" || path[0] != '/' || strings.IndexByte(path, '\\') >= 0 {
-		return false
-	}
-	if len(path) == 1 {
-		return true
-	}
-	segStart := 1
-	for i := 1; i <= len(path); i++ {
-		if i < len(path) && path[i] != '/' {
-			continue
-		}
-		switch path[segStart:i] {
-		case "", ".", "..":
-			return false
-		}
-		segStart = i + 1
-	}
-
-	return true
-}
-
-// pathPrefixLen matches '{^( [0-9a-z]{2,}+: (?: // (?: [a-z]: )? )? | [a-z]: )}ix'
-// and returns the length of the match, or 0.
-func pathPrefixLen(path string) int {
-	n := 0
-	for n < len(path) && (isASCIILetter(path[n]) || path[n] >= '0' && path[n] <= '9') {
-		n++
-	}
-	if n >= 2 && n < len(path) && path[n] == ':' {
-		n++
-		if strings.HasPrefix(path[n:], "//") {
-			n += 2
-			if n+1 < len(path) && isASCIILetter(path[n]) && path[n+1] == ':' {
-				n += 2
-			}
-		}
-
-		return n
-	}
-	if len(path) >= 2 && isASCIILetter(path[0]) && path[1] == ':' {
-		return 2
-	}
-
-	return 0
-}
-
-func isASCIILetter(c byte) bool { return c|0x20 >= 'a' && c|0x20 <= 'z' }
-
 // getCwd is Composer\Util\Platform::getCwd(): getcwd(), which reports the
 // kernel's view of the working directory.
 func getCwd() (string, error) {
-	cwd, err := syscall.Getwd()
+	cwd, err := php.Getcwd()
 	if err != nil {
 		return "", newException(classRuntime, "Could not determine the current working directory")
 	}
@@ -651,7 +542,7 @@ func realCwd() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	real, _ := realpath(cwd)
+	real, _ := php.Realpath(cwd)
 
 	return real, nil
 }

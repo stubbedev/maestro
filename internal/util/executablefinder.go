@@ -72,7 +72,7 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 		}
 	}
 
-	if pathinfoExtension(name, windows) != "" {
+	if php.PathinfoExtensionOn(name, windows) != "" {
 		suffixes = append([]string{""}, suffixes...)
 	} else {
 		suffixes = append(suffixes, "")
@@ -91,7 +91,7 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 			}
 
 			// The cheap basename test goes first to spare a stat per dir.
-			if phpBasename(dir, windows) == name+suffix && !isDir(dir) && isExecutable(dir) {
+			if php.BasenameOn(dir, "", windows) == name+suffix && !isDir(dir) && isExecutable(dir) {
 				return dir, true
 			}
 		}
@@ -136,16 +136,6 @@ func phpExecLastLine(out string) string {
 	}
 
 	return strings.TrimRight(out, " \t\n\v\f\r")
-}
-
-// pathinfoExtension is pathinfo($path, PATHINFO_EXTENSION).
-func pathinfoExtension(path string, windows bool) string {
-	base := phpBasename(path, windows)
-	if i := strings.LastIndexByte(base, '.'); i >= 0 {
-		return base[i+1:]
-	}
-
-	return ""
 }
 
 // PhpExecutableFinder ports Symfony\Component\Process\PhpExecutableFinder.

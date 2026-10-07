@@ -779,7 +779,7 @@ func (l *Locker) packageTime(p pkg.PackageInterface) (string, error) {
 	if err != nil || !ok {
 		return "", err
 	}
-	path, ok = util.RealpathOK(path)
+	path, ok = php.Realpath(path)
 	sourceType := p.SourceType().S
 	if !ok || path == "" || (sourceType != "git" && sourceType != "hg") {
 		return "", nil

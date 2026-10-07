@@ -106,7 +106,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 		return err
 	}
 
-	if !util.IsWritable(util.Dirname(d.checkoutDir)) {
+	if !util.IsWritable(php.Dirname(d.checkoutDir)) {
 		return &util.RuntimeError{Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + d.checkoutDir + `" directory is not writable by the current user.`}
 	}
 

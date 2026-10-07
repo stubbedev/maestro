@@ -9,6 +9,7 @@ linters:
     - bodyclose
     - copyloopvar
     - errorlint
+    - forbidigo
     - gosec
     - intrange
     - misspell
@@ -29,6 +30,19 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # PHP's getcwd() and realpath() are internal/php's (#63): os.Getwd
+        # may answer $PWD (a symlinked path), filepath.Abs cleans ".."
+        # before symlinks are resolved, and filepath.EvalSymlinks misses
+        # Windows junctions.
+        - pattern: ^os\.Getwd$
+          msg: "use php.Getcwd (getcwd(), the physical directory) or util.GetCwd"
+        - pattern: ^filepath\.Abs$
+          msg: "use php.Realpath (realpath() resolves symlinks before it cleans ..)"
+        - pattern: ^filepath\.EvalSymlinks$
+          msg: "use php.Realpath or php.EvalSymlinks (junctions on Windows)"
     gosec:
       excludes:
         # A package manager's whole job is reading and writing paths it is
@@ -55,8 +69,14 @@ linters:
       - path: _test\.go
         linters:
           - errcheck
+          - forbidigo
           - gosec
           - unparam
+      # internal/php owns the path builtins; test helpers and build tools
+      # work with the test's or developer's directories as Go sees them
+      - path: ^(internal/php/|internal/testutil/|internal/command/commandtest/|internal/util/processmock/|internal/plugin/shimbuild/|tools/)
+        linters:
+          - forbidigo
 
 issues:
   max-issues-per-linter: 0

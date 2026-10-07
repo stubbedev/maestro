@@ -361,7 +361,7 @@ func excludePattern(path string, installPath *string) (pattern, resolved string,
 		*installPath = strings.ReplaceAll(cwd, `\`, "/")
 	}
 
-	resolved, ok = util.RealpathOK(*installPath + "/" + updir)
+	resolved, ok = php.Realpath(*installPath + "/" + updir)
 
 	return pattern, resolved, ok, nil
 }

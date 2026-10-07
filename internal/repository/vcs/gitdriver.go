@@ -57,7 +57,7 @@ func (d *GitDriver) Initialize() error {
 		}
 
 		d.repoDir = d.url
-		cacheURL, _ = util.RealpathOK(d.url)
+		cacheURL, _ = php.Realpath(d.url)
 	} else {
 		cacheVcsDir := php.ToString(d.config.Get("cache-vcs-dir"))
 		if !cache.IsUsable(cacheVcsDir) {
@@ -74,7 +74,7 @@ func (d *GitDriver) Initialize() error {
 			return err
 		}
 
-		parent := util.Dirname(d.repoDir)
+		parent := php.Dirname(d.repoDir)
 		if err := util.EnsureDirectoryExists(parent); err != nil {
 			return err
 		}

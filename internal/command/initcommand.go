@@ -229,9 +229,9 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 	}
 
 	if in.IsInteractive() && isDir(".git") {
-		ignoreFile, ok := util.RealpathOK(".gitignore")
+		ignoreFile, ok := php.Realpath(".gitignore")
 		if !ok {
-			cwd, _ := util.RealpathOK(".")
+			cwd, _ := php.Realpath(".")
 			ignoreFile = cwd + "/.gitignore"
 		}
 
@@ -880,7 +880,7 @@ func sanitizePackageNameComponent(name string) string {
 // defaultPackageName ports getDefaultPackageName.
 func (c *InitCommand) defaultPackageName() string {
 	git := c.getGitConfig()
-	cwd, _ := util.RealpathOK(".")
+	cwd, _ := php.Realpath(".")
 	name := sanitizePackageNameComponent(filepath.Base(cwd))
 
 	vendor := name

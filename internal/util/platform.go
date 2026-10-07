@@ -5,7 +5,6 @@ package util
 import (
 	"os"
 	"os/user"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -20,7 +19,7 @@ import (
 // GetCwd ports Platform::getCwd: the physical working directory (getcwd(3),
 // never $PWD), or "" when allowEmpty and it cannot be determined.
 func GetCwd(allowEmpty bool) (string, error) {
-	cwd, err := getwd()
+	cwd, err := php.Getcwd()
 	if err == nil {
 		return cwd, nil
 	}
@@ -34,33 +33,11 @@ func GetCwd(allowEmpty bool) (string, error) {
 
 // Realpath ports Platform::realpath: realpath(3), falling back on path.
 func Realpath(path string) string {
-	if real, ok := phpRealpath(path); ok {
+	if real, ok := php.Realpath(path); ok {
 		return real
 	}
 
 	return path
-}
-
-// phpRealpath ports PHP's realpath(): the absolute, symlink-free path of an
-// existing file; realpath("") is the working directory. Every component
-// must exist, also one followed by "..", so the path is not cleaned
-// lexically before resolving.
-func phpRealpath(path string) (string, bool) {
-	abs := path
-	if !filepath.IsAbs(path) {
-		cwd, err := getwd()
-		if err != nil {
-			return "", false
-		}
-		abs = cwd + string(filepath.Separator) + path
-	}
-
-	real, err := php.EvalSymlinks(abs)
-	if err != nil {
-		return "", false
-	}
-
-	return real, true
 }
 
 // GetEnv ports Platform::getEnv. PHP reads $_SERVER and $_ENV before

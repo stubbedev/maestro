@@ -13,7 +13,6 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	"github.com/stubbedev/maestro/internal/store"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 func init() {
@@ -79,7 +78,7 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 			continue
 		}
 
-		cachePath, ok := util.RealpathOK(php.ToString(v))
+		cachePath, ok := php.Realpath(php.ToString(v))
 		if !ok || cachePath == "" || cachePath == "0" {
 			// realpath()'s false prints as an empty string
 			out.WriteError("<info>Cache directory does not exist ("+key+"): </info>", true, io.Normal)

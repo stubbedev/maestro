@@ -177,7 +177,7 @@ func tempDir(t testing.TB) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	real, ok := util.RealpathOK(dir)
+	real, ok := php.Realpath(dir)
 	if !ok {
 		return dir
 	}

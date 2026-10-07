@@ -74,7 +74,7 @@ func (d *HgDriver) updateClone() error {
 		return err
 	}
 
-	if !util.IsWritable(util.Dirname(d.repoDir)) {
+	if !util.IsWritable(php.Dirname(d.repoDir)) {
 		return &util.RuntimeError{Message: "Can not clone " + util.SanitizeURL(d.url) + ` to access package information. The "` + cacheDir + `" directory is not writable by the current user.`}
 	}
 

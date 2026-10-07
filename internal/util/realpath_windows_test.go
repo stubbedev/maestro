@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/testutil"
 )
 
@@ -28,20 +29,20 @@ func TestRealpath_FollowsJunctions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, ok := RealpathOK(junction); !ok || got != target {
+	if got, ok := php.Realpath(junction); !ok || got != target {
 		t.Errorf("realpath(junction) = %q, %v, want %q", got, ok, target)
 	}
 
-	if got, ok := RealpathOK(filepath.Join(junction, "src")); !ok || got != filepath.Join(target, "src") {
+	if got, ok := php.Realpath(filepath.Join(junction, "src")); !ok || got != filepath.Join(target, "src") {
 		t.Errorf("realpath(junction/src) = %q, %v", got, ok)
 	}
 
 	// ".." applies after the junction is followed.
-	if got, ok := RealpathOK(junction + `\src\..\..\a`); !ok || got != target {
+	if got, ok := php.Realpath(junction + `\src\..\..\a`); !ok || got != target {
 		t.Errorf("realpath(junction/src/../../a) = %q, %v, want %q", got, ok, target)
 	}
 
-	if _, ok := RealpathOK(junction + `\missing\..`); ok {
+	if _, ok := php.Realpath(junction + `\missing\..`); ok {
 		t.Error("realpath() of a path through a missing component succeeded")
 	}
 
@@ -51,7 +52,7 @@ func TestRealpath_FollowsJunctions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, ok := RealpathOK(filepath.Join(outer, "a", "src")); !ok || got != filepath.Join(target, "src") {
+	if got, ok := php.Realpath(filepath.Join(outer, "a", "src")); !ok || got != filepath.Join(target, "src") {
 		t.Errorf("realpath(outer/a/src) = %q, %v", got, ok)
 	}
 }

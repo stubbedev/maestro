@@ -271,27 +271,6 @@ func isDirectory(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// realpath is PHP's realpath(): the absolute path with symlinks resolved,
-// false (ok == false) when it does not exist.
-func realpath(path string) (string, bool) {
-	if path == "" {
-		path = "."
-	}
-	if !filepath.IsAbs(path) {
-		cwd, err := getCwd()
-		if err != nil {
-			return "", false
-		}
-		path = cwd + "/" + path
-	}
-	real, err := php.EvalSymlinks(path)
-	if err != nil {
-		return "", false
-	}
-
-	return real, true
-}
-
 // realDirCache memoizes the realpath of directories during a scan, so that
 // resolving a file costs at most one lstat() (none when the Finder saw it
 // is not a symlink) and each directory one more.
@@ -299,14 +278,14 @@ type realDirCache struct {
 	m sync.Map // directory path -> realpath, "" if it does not resolve
 }
 
-// realpath is realpath(path) for an absolute path. notLink tells that path
+// realpath is php.Realpath(path) for an absolute path. notLink tells that path
 // is known not to be a symlink.
 func (c *realDirCache) realpath(path string, notLink bool) (string, bool) {
 	// The cache builds realpaths from slash-separated Unix paths; PHP's
 	// realpath() on Windows starts at a drive and answers with
 	// backslashes, so each file is resolved in full there.
 	if runtime.GOOS == "windows" {
-		return realpath(path)
+		return php.Realpath(path)
 	}
 	if !notLink {
 		info, err := os.Lstat(path)
@@ -314,7 +293,7 @@ func (c *realDirCache) realpath(path string, notLink bool) (string, bool) {
 			return "", false
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			return realpath(path)
+			return php.Realpath(path)
 		}
 	}
 	real := c.resolve(path, true)
@@ -337,7 +316,7 @@ func (c *realDirCache) resolve(path string, notLink bool) string {
 	name := path[slash+1:]
 	if slash < 0 || name == "" || name == "." || name == ".." {
 		// These also require the parent to be a directory.
-		r, _ := realpath(path)
+		r, _ := php.Realpath(path)
 
 		return r
 	}
@@ -354,7 +333,7 @@ func (c *realDirCache) resolve(path string, notLink bool) string {
 			case err != nil:
 				real = ""
 			case info.Mode()&os.ModeSymlink != 0:
-				real, _ = realpath(real)
+				real, _ = php.Realpath(real)
 			}
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -20,7 +21,7 @@ func writeDummyFiles(t *testing.T, dir string, files map[string]string) {
 	t.Helper()
 
 	for path, content := range files {
-		if err := util.EnsureDirectoryExists(util.Dirname(dir + "/" + path)); err != nil {
+		if err := util.EnsureDirectoryExists(php.Dirname(dir + "/" + path)); err != nil {
 			t.Fatal(err)
 		}
 

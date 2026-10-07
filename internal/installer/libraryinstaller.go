@@ -146,7 +146,7 @@ func (l *LibraryInstaller) IsInstalled(repo repository.InstalledRepositoryInterf
 	}
 
 	if isLink(installPath) {
-		if _, ok := util.RealpathOK(installPath); !ok {
+		if _, ok := php.Realpath(installPath); !ok {
 			return false, nil
 		}
 
@@ -347,7 +347,7 @@ func (l *LibraryInstaller) Uninstall(repo repository.InstalledRepositoryInterfac
 		}
 
 		if strings.Index(p.Name(), "/") > 0 {
-			packageVendorDir := util.Dirname(downloadPath)
+			packageVendorDir := php.Dirname(downloadPath)
 			if isDir(packageVendorDir) {
 				if empty, _ := util.IsDirEmpty(packageVendorDir); empty {
 					_ = os.Remove(packageVendorDir)
@@ -502,7 +502,7 @@ func (l *LibraryInstaller) InitializeVendorDir() error {
 		}
 	}
 
-	l.vendorDir = realpathOrFalse(l.vendorDir)
+	l.vendorDir = php.RealpathString(l.vendorDir)
 	l.realVendorDir, l.realVendorInfo = l.vendorDir, nil
 
 	if l.vendorDir != "" {

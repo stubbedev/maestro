@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // dump is the state of one dump(): the paths, the codes for them and the
@@ -87,11 +88,11 @@ func newDump(config Config, targetDir string) (*dump, error) {
 	if d.basePath, err = realpath(cwd); err != nil {
 		return nil, err
 	}
-	d.basePath = util.NormalizePath(d.basePath)
+	d.basePath = fspath.NormalizePath(d.basePath)
 	if d.vendorPath, err = realpath(vendorDir); err != nil {
 		return nil, err
 	}
-	d.vendorPath = util.NormalizePath(d.vendorPath)
+	d.vendorPath = fspath.NormalizePath(d.vendorPath)
 	d.targetDir = d.vendorPath + "/" + targetDir
 	if err := util.EnsureDirectoryExists(d.targetDir); err != nil {
 		return nil, err
@@ -121,7 +122,7 @@ func newDump(config Config, targetDir string) (*dump, error) {
 // Filesystem's strictly typed methods: when it fails, PHP throws a
 // TypeError for the false those methods receive in place of a path.
 func realpath(path string) (string, error) {
-	real, ok := util.RealpathOK(path)
+	real, ok := php.Realpath(path)
 	if !ok {
 		return "", &php.EngineError{Class: "TypeError", Message: "Could not resolve the real path of " + path}
 	}
@@ -352,7 +353,7 @@ func (d *dump) targetDirLoader(rootPackage pkg.RootPackageInterface) (string, er
 		return "", &php.EngineError{Class: "TypeError", Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(psr0) + " given"}
 	}
 
-	levels := strings.Count(util.NormalizePath(targetDir.S), "/") + 1
+	levels := strings.Count(fspath.NormalizePath(targetDir.S), "/") + 1
 	prefixes := make([]string, 0, rules.Len())
 	for prefix := range rules.All() {
 		prefixes = append(prefixes, php.VarExport(prefix.Value()))
@@ -426,10 +427,10 @@ func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 		for _, group := range groups[i] {
 			for _, v := range group.paths.Values() {
 				dir := php.ToString(v)
-				if !util.IsAbsolutePath(dir) {
+				if !fspath.IsAbsolutePath(dir) {
 					dir = d.basePath + "/" + dir
 				}
-				dir = util.NormalizePath(dir)
+				dir = fspath.NormalizePath(dir)
 				if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
 					continue
 				}

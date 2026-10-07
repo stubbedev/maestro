@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 type helpersOracle struct {
@@ -77,13 +79,13 @@ func unmarshal[T any](t *testing.T, raw json.RawMessage) T {
 func TestOracleHelpers(t *testing.T) {
 	h := loadHelpers(t)
 	for _, c := range h.NormalizePath {
-		if got := normalizePath(c[0]); got != c[1] {
+		if got := fspath.NormalizePath(c[0]); got != c[1] {
 			t.Errorf("normalizePath(%q) = %q, want %q", c[0], got, c[1])
 		}
 	}
 	for _, c := range h.IsAbsolutePath {
 		in, want := unmarshal[string](t, c[0]), unmarshal[bool](t, c[1])
-		if got := isAbsolutePath(in); got != want {
+		if got := fspath.IsAbsolutePath(in); got != want {
 			t.Errorf("isAbsolutePath(%q) = %v", in, got)
 		}
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/dumper"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // FilesystemRepository ports Composer\Repository\FilesystemRepository: a
@@ -225,11 +226,11 @@ func (r *FilesystemRepository) write(devMode bool, im InstallationManager, canon
 	// make sure the directory is created so we can realpath it
 	// as realpath() does some additional normalizations with network paths that normalizePath does not
 	// and we need to find shortest path correctly
-	repoDir := util.Dirname(r.file.Path())
+	repoDir := php.Dirname(r.file.Path())
 	if err := util.EnsureDirectoryExists(repoDir); err != nil {
 		return err
 	}
-	repoDir = util.NormalizePath(util.Realpath(repoDir))
+	repoDir = fspath.NormalizePath(util.Realpath(repoDir))
 
 	in := writeInput{devMode, canonical, repoPackages, slices.Clone(r.devPackageNames), r.rootPackage, r.dumpVersions, repoDir}
 	if out := r.takePreparedWrite(in, im); out != nil {
@@ -378,14 +379,14 @@ func (r *FilesystemRepository) relativeInstallPath(im InstallationManager, p pkg
 	if err != nil || !ok || path == "" {
 		return pkg.NullString{}, err
 	}
-	if !util.IsAbsolutePath(path) {
+	if !fspath.IsAbsolutePath(path) {
 		cwd, err := util.GetCwd(false)
 		if err != nil {
 			return pkg.NullString{}, err
 		}
 		path = cwd + "/" + path
 	}
-	shortest, err := util.FindShortestPath(repoDir, util.NormalizePath(path), true, false)
+	shortest, err := util.FindShortestPath(repoDir, fspath.NormalizePath(path), true, false)
 	if err != nil {
 		return pkg.NullString{}, err
 	}
@@ -427,7 +428,7 @@ func appendPhpCode(b *strings.Builder, array *php.Array, level int) error {
 				b.WriteString("array(),\n")
 			}
 		case string:
-			if key.IsString() && key.String() == "install_path" && !util.IsAbsolutePath(v) {
+			if key.IsString() && key.String() == "install_path" && !fspath.IsAbsolutePath(v) {
 				b.WriteString("__DIR__ . ")
 				v = "/" + v
 			}
@@ -600,7 +601,7 @@ func dumpInstalledPackage(p pkg.PackageInterface, installPaths map[string]pkg.Nu
 		if err != nil {
 			return nil, err
 		}
-		path, err := util.FindShortestPath(repoDir, util.NormalizePath(util.Realpath(cwd)), true, false)
+		path, err := util.FindShortestPath(repoDir, fspath.NormalizePath(util.Realpath(cwd)), true, false)
 		if err != nil {
 			return nil, err
 		}

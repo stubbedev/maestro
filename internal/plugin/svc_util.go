@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // commandArg is a $command param: a string (run through the shell) or a
@@ -68,9 +69,9 @@ func (r *Runtime) registerUtil() {
 	fs("findShortestPathCode", func(a args) (any, error) {
 		return util.FindShortestPathCode(a.str(0), a.str(1), a.boolean(2), a.boolean(3), a.boolean(4))
 	})
-	fs("isAbsolutePath", func(a args) (any, error) { return util.IsAbsolutePath(a.str(0)), nil })
+	fs("isAbsolutePath", func(a args) (any, error) { return fspath.IsAbsolutePath(a.str(0)), nil })
 	fs("size", func(a args) (any, error) { return util.Size(a.str(0)) })
-	fs("normalizePath", func(a args) (any, error) { return util.NormalizePath(a.str(0)), nil })
+	fs("normalizePath", func(a args) (any, error) { return fspath.NormalizePath(a.str(0)), nil })
 	fs("trimTrailingSlash", func(a args) (any, error) { return util.TrimTrailingSlash(a.str(0)), nil })
 	fs("isLocalPath", func(a args) (any, error) { return util.IsLocalPath(a.str(0)), nil })
 	fs("getPlatformPath", func(a args) (any, error) { return util.GetPlatformPath(a.str(0)), nil })

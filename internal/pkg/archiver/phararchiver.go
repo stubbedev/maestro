@@ -34,7 +34,7 @@ func NewPharArchiver() *PharArchiver { return &PharArchiver{now: time.Now} }
 
 // Archive ports PharArchiver::archive.
 func (a *PharArchiver) Archive(sources, target, format string, excludes []string, ignoreFilters bool) (string, error) {
-	sources, sourcesOK := util.RealpathOK(sources)
+	sources, sourcesOK := php.Realpath(sources)
 
 	// Phar would otherwise load the file which we don't want
 	if fileExists(target) {

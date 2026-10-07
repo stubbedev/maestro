@@ -71,7 +71,7 @@ func newSyncState(statics map[string]Static) syncState {
 		staticNames: slices.Sorted(maps.Keys(statics)),
 		sentStatics: maps.Clone(PHPStatics),
 	}
-	s.cwd, _ = os.Getwd()
+	s.cwd, _ = php.Getcwd()
 
 	return s
 }
@@ -176,7 +176,7 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 		commits = append(commits, func() { c.sync.env = env })
 	}
 
-	if wd, err := os.Getwd(); err == nil && wd != c.sync.cwd {
+	if wd, err := php.Getcwd(); err == nil && wd != c.sync.cwd {
 		v, _, _ := encodeString(wd)
 		s.Set("cwd", v)
 		commits = append(commits, func() { c.sync.cwd = wd })

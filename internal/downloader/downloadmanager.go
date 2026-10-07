@@ -177,7 +177,7 @@ func (m *DownloadManager) DownloaderType(d Downloader) (string, bool) {
 // from the preferred source, falling back to the other one where allowed.
 func (m *DownloadManager) Download(p pkg.PackageInterface, targetDir string, prev pkg.PackageInterface) (*Promise, error) {
 	targetDir = normalizeTargetDir(targetDir)
-	if err := util.EnsureDirectoryExists(util.Dirname(targetDir)); err != nil {
+	if err := util.EnsureDirectoryExists(php.Dirname(targetDir)); err != nil {
 		return nil, err
 	}
 

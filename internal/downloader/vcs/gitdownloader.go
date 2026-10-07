@@ -878,14 +878,14 @@ func (d *GitDownloader) normalizePath(path string) string {
 
 	for !isDir(basePath) && basePath != `\` {
 		removed = append([]string{php.Basename(basePath, "")}, removed...)
-		basePath = util.Dirname(basePath)
+		basePath = php.Dirname(basePath)
 	}
 
 	if basePath == `\` {
 		return path
 	}
 
-	real, _ := util.RealpathOK(basePath)
+	real, _ := php.Realpath(basePath)
 
 	return strings.TrimRight(real+"/"+strings.Join(removed, "/"), "/")
 }

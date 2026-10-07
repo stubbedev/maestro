@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/classmap"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // {^(([^.+*?\[^\]$(){}=!<>|:\\#-]+|\\[.+*?\[^\]$(){}=!<>|:#-])*).*}: the
@@ -49,15 +50,15 @@ func (c *exclusionRegexes) build(dir string, excluded []string) classmap.Matcher
 	if _, err := os.Stat(dir); err == nil {
 		// transform $dir in the same way that exclude-from-classmap
 		// patterns are transformed so we can match them against each other
-		real, _ := util.RealpathOK(dir)
+		real, _ := php.Realpath(dir)
 		dirMatch := php.PregQuote(strings.ReplaceAll(real, `\`, "/"), "")
 		// also match against the non-realpath version for symlinks
 		absDir := dir
-		if !util.IsAbsolutePath(dir) {
+		if !fspath.IsAbsolutePath(dir) {
 			cwd, _ := util.GetCwd(false)
 			absDir = util.Realpath(cwd) + "/" + dir
 		}
-		dirMatchNormalized := php.PregQuote(strings.ReplaceAll(util.NormalizePath(absDir), `\`, "/"), "")
+		dirMatchNormalized := php.PregQuote(strings.ReplaceAll(fspath.NormalizePath(absDir), `\`, "/"), "")
 		isSymlink := dirMatch != dirMatchNormalized
 
 		related := func(pattern, dir string) bool {

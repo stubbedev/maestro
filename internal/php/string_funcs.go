@@ -7,7 +7,6 @@
 package php
 
 import (
-	"runtime"
 	"strings"
 )
 
@@ -304,28 +303,6 @@ func hexDigitAt(s string, i int) (byte, bool) {
 		return c | 0x20 - 'a' + 10, true
 	}
 	return 0, false
-}
-
-// Basename ports basename($path, $suffix): the last component without
-// trailing separators, minus suffix when the component ends with it and
-// is longer than it. The separator is "/", and on Windows "\" too.
-func Basename(path, suffix string) string {
-	isSep := func(c byte) bool { return c == '/' || c == '\\' && runtime.GOOS == "windows" }
-	end := len(path)
-	for end > 0 && isSep(path[end-1]) {
-		end--
-	}
-	if end == 0 {
-		return ""
-	}
-	start := end
-	for start > 0 && !isSep(path[start-1]) {
-		start--
-	}
-	if len(suffix) < end-start && path[end-len(suffix):end] == suffix {
-		end -= len(suffix)
-	}
-	return path[start:end]
 }
 
 // Escapeshellarg ports escapeshellarg() on Unix: arg in single quotes,

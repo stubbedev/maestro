@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/vcs"
 )
 
@@ -85,7 +86,7 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 			}
 			r.options = arr
 		}
-		r.options.Set("relative", !util.IsAbsolutePath(r.url))
+		r.options.Set("relative", !fspath.IsAbsolutePath(r.url))
 	}
 
 	return r, nil
@@ -122,7 +123,7 @@ func (r *PathRepository) initialize() error {
 				if wildcard, _ := pathWildcard.IsMatch(url); !wildcard {
 					break
 				}
-				url = util.Dirname(url)
+				url = php.Dirname(url)
 			}
 			// the parent directory before any wildcard exists, so we assume it is correctly configured but simply empty
 			if info, err := os.Stat(url); err == nil && info.IsDir() {

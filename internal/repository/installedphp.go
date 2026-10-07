@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/util"
 )
 
 // installedPhpPattern is the grammar safelyLoadInstalledVersions accepts:
@@ -56,7 +55,7 @@ func SafelyLoadInstalledVersionsChecked(path string) (data *php.Array, ok bool, 
 	if err != nil || !matched {
 		return nil, false, err
 	}
-	code, _, err := installedPhpDir.Replace(installedVersionsData, "=> "+php.VarExport(util.Dirname(path))+" . $1", -1)
+	code, _, err := installedPhpDir.Replace(installedVersionsData, "=> "+php.VarExport(php.Dirname(path))+" . $1", -1)
 	if err != nil {
 		return nil, false, err
 	}

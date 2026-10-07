@@ -398,7 +398,7 @@ func prepareURLs(urls []string) []string {
 			url = php.Rawurldecode(url)
 		}
 
-		out[i], _ = util.RealpathOK(url)
+		out[i], _ = php.Realpath(url)
 
 		if isFileProtocol {
 			out[i] = fileProtocol + out[i]
@@ -406,14 +406,6 @@ func prepareURLs(urls []string) []string {
 	}
 
 	return out
-}
-
-// realpathCwd is realpath($path) used as a working directory: "" (the
-// current directory, as for false) when it cannot be resolved.
-func realpathCwd(path string) string {
-	real, _ := util.RealpathOK(path)
-
-	return real
 }
 
 // failedToExecute is `throw new \RuntimeException('Failed to execute ' .

@@ -205,7 +205,7 @@ func descApplications(withMbString bool) []descObject {
 // normalizeDescription is AbstractDescriptorTestCase::normalizeOutput().
 func normalizeDescription(s string) string {
 	self := phpSelf()
-	full := phpRealpath(self)
+	full, _ := php.Realpath(self)
 	shell := ""
 	if v, ok := os.LookupEnv("SHELL"); ok {
 		shell = php.Basename(v, "")

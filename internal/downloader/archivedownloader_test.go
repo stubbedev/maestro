@@ -241,7 +241,7 @@ func (pr *project) install(d Downloader, p pkg.PackageInterface) (string, error)
 	path := pr.vendor + "/" + p.PrettyName()
 
 	// As DownloadManager::download() does: a junction needs its parent.
-	if err := util.EnsureDirectoryExists(util.Dirname(path)); err != nil {
+	if err := util.EnsureDirectoryExists(php.Dirname(path)); err != nil {
 		return path, err
 	}
 

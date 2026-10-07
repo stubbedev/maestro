@@ -215,7 +215,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 	}
 
 	target := util.Realpath(targetDir) + "/" + packageName + "." + format
-	if err := util.EnsureDirectoryExists(util.Dirname(target)); err != nil {
+	if err := util.EnsureDirectoryExists(php.Dirname(target)); err != nil {
 		return "", err
 	}
 
@@ -225,7 +225,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 
 	// Create the archive
 	tempTarget := php.SysGetTempDir() + "/composer_archive" + randomHex(5) + "." + format
-	if err := util.EnsureDirectoryExists(util.Dirname(tempTarget)); err != nil {
+	if err := util.EnsureDirectoryExists(php.Dirname(tempTarget)); err != nil {
 		return "", err
 	}
 

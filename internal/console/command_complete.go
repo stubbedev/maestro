@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -328,7 +327,7 @@ func NewDumpCompletionCommand() *DumpCompletionCommand {
 
 	fullCommand := phpSelf()
 	commandName := php.Basename(fullCommand, "")
-	if real := phpRealpath(fullCommand); real != "" {
+	if real, ok := php.Realpath(fullCommand); ok {
 		fullCommand = real
 	}
 
@@ -362,20 +361,6 @@ Add this to the end of your shell configuration file (e.g. <info>"~/.bashrc"</>)
 		AddOption("debug", "", OptionValueNone, "Tail the completion debug log", nil)
 
 	return c
-}
-
-// phpRealpath is realpath(): absolute, symlinks resolved, "" if missing.
-func phpRealpath(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return ""
-	}
-	real, err := filepath.EvalSymlinks(abs)
-	if err != nil {
-		return ""
-	}
-
-	return real
 }
 
 // Complete implements Commander.

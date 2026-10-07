@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // Ports tests/Composer/Test/Util/FilesystemTest.php.
@@ -203,8 +205,8 @@ func TestFilesystem_NormalizePath(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if got := NormalizePath(c.actual); got != c.expected {
-			t.Errorf("NormalizePath(%q) = %q, want %q", c.actual, got, c.expected)
+		if got := fspath.NormalizePath(c.actual); got != c.expected {
+			t.Errorf("fspath.NormalizePath(%q) = %q, want %q", c.actual, got, c.expected)
 		}
 	}
 }
@@ -813,15 +815,6 @@ func TestFilesystem_PlatformVariants(t *testing.T) {
 		t.Errorf("getPlatformPath(posix) = %q", got)
 	}
 
-	// Windows dirname keeps the drive and uses backslashes.
-	for _, c := range []struct{ in, want string }{
-		{`c:\foo\bar`, `c:\foo`}, {`c:\foo`, `c:\`}, {"c:", "c:"}, {"c:foo", "c:."}, {`\\`, `\`}, {"/a/b", "/a"},
-	} {
-		if got := phpDirname(c.in, true); got != c.want {
-			t.Errorf("phpDirname(%q, windows) = %q, want %q", c.in, got, c.want)
-		}
-	}
-
 	got, err := findShortestPathCode("C:/vendor/composer", "C:/src", true, false, false, true)
 	if err != nil || got != "dirname(dirname(__DIR__)).'/src'" {
 		t.Errorf("findShortestPathCode(windows) = %q, %v", got, err)
@@ -829,18 +822,18 @@ func TestFilesystem_PlatformVariants(t *testing.T) {
 }
 
 func TestFilesystem_NormalizePathAllocations(t *testing.T) {
-	if allocs := testing.AllocsPerRun(100, func() { NormalizePath("/foo/bar/vendor/composer") }); allocs != 0 {
+	if allocs := testing.AllocsPerRun(100, func() { fspath.NormalizePath("/foo/bar/vendor/composer") }); allocs != 0 {
 		t.Errorf("NormalizePath of a normalized path allocates %v times", allocs)
 	}
 
-	if allocs := testing.AllocsPerRun(100, func() { NormalizePath("/foo/bar/../vendor/./composer/") }); allocs != 1 {
+	if allocs := testing.AllocsPerRun(100, func() { fspath.NormalizePath("/foo/bar/../vendor/./composer/") }); allocs != 1 {
 		t.Errorf("NormalizePath allocates %v times, want 1", allocs)
 	}
 }
 
 func BenchmarkNormalizePath(b *testing.B) {
 	for b.Loop() {
-		NormalizePath(`C:\projects\app\vendor\acme\pkg\..\..\composer\./autoload_real.php`)
+		fspath.NormalizePath(`C:\projects\app\vendor\acme\pkg\..\..\composer\./autoload_real.php`)
 	}
 }
 

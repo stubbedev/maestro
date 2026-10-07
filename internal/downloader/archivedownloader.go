@@ -14,6 +14,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/archive"
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
@@ -275,7 +276,7 @@ func (a *ArchiveDownloader) cleanupFailed(p pkg.PackageInterface, path, temporar
 
 	a.removeCleanupPath(p, temporaryDir)
 
-	if real, ok := util.RealpathOK(path); ok {
+	if real, ok := php.Realpath(path); ok {
 		a.removeCleanupPath(p, real)
 	}
 }
@@ -640,7 +641,7 @@ func (d *FileDownloader) importOptions(p pkg.PackageInterface) store.ImportOptio
 
 // isCwd is realpath($path) === Platform::getCwd().
 func isCwd(path string) bool {
-	real, ok := util.RealpathOK(path)
+	real, ok := php.Realpath(path)
 	if !ok {
 		return false
 	}

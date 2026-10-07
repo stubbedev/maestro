@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // TestRealDirCache checks the cached realpath against a plain realpath()
@@ -41,7 +43,7 @@ func TestRealDirCache(t *testing.T) {
 	var c realDirCache
 	for range 2 { // the second round hits the cache
 		for _, p := range paths {
-			want, wantOK := realpath(dir + p)
+			want, wantOK := php.Realpath(dir + p)
 			for _, notLink := range []bool{false, true} {
 				if notLink {
 					info, err := os.Lstat(dir + p)

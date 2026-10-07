@@ -596,7 +596,7 @@ func (r *Runtime) registerFilesystemRepositories() {
 		}
 		sink := func(versions *php.Array) {
 			// A failure is PHP ending, which the next call reports.
-			_ = r.ReloadInstalledVersions(versions, util.Dirname(a.str(1)))
+			_ = r.ReloadInstalledVersions(versions, php.Dirname(a.str(1)))
 		}
 		if a.boolean(5) {
 			repo, err := repository.NewInstalledFilesystemRepository(file, a.boolean(3), root)

@@ -185,7 +185,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 
 | Go package | Ports |
 | --- | --- |
-| `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, `basename`, ...), and its own PCRE2 10.48-compatible regex engine (internal/php/doc.go says why) |
+| `internal/php` | PHP runtime semantics the port relies on: arrays (ordered maps with PHP key coercion), `json_decode`/`json_encode` (all flags Composer uses), `var_export`, comparisons and sorts (PHP 8, stable), `version_compare`, `strnatcmp`, `+`, `sprintf`, string helpers (`strip_tags`, `levenshtein`, `stripcslashes`, `escapeshellarg`, ...), the path functions (`getcwd`, `realpath`, `dirname`, `basename`, `pathinfo`; the lint forbids Go's `os.Getwd`, `filepath.Abs` and `filepath.EvalSymlinks` elsewhere), and its own PCRE2 10.48-compatible regex engine (internal/php/doc.go says why) |
 | `internal/phperr` | an error's PHP previous exception (`Chained`, `PreviousOf`) and the root Composer's sources are reported under (see "Errors") |
 | `internal/semver` | composer/semver |
 | `internal/classmap` | composer/class-map-generator |
@@ -197,6 +197,7 @@ Go packages mirror Composer namespaces. `package` is reserved in Go, so
 | `internal/util` | Composer\Util (filesystem, ProcessExecutor, Platform, Url, Zip/Tar, Loop, ...) |
 | `internal/util/http` | Composer\Util\{HttpDownloader, RemoteFilesystem, AuthHelper, GitHub, GitLab, Bitbucket, Forgejo, StreamContextFactory, ProxyManager, Http\*}, composer/ca-bundle |
 | `internal/util/vcs` | Composer\Util\{Git, Hg, Svn, Perforce} |
+| `internal/util/fspath` | Composer\Util\Filesystem's path functions that touch no file (`normalizePath`, `isAbsolutePath`), for the packages below internal/util too |
 | `internal/util/fsstate` | nothing: how maestro's own caches (deviation 3) tell a file changed (`ID`, `Stamp`, the racy-timestamp `Margin`), read a file as it was at one moment (`ReadStable`), name entries (`KeyHash`) and replace files atomically (`WriteAtomic`) |
 | `internal/json` | Composer\Json + res/*.json schemas |
 | `internal/json/jsonlint` | seld/jsonlint |

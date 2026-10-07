@@ -10,7 +10,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // vcsPatterns is Finder::$vcsPatterns, the directories ignoreVCS(true)
@@ -51,12 +53,12 @@ type ArchivableFilesFinder struct {
 // ErrorExceptions of reading .gitattributes or of a pattern that does not
 // compile.
 func NewArchivableFilesFinder(sources string, excludes []string, ignoreFilters bool) (*ArchivableFilesFinder, error) {
-	sourcesRealPath, ok := util.RealpathOK(sources)
+	sourcesRealPath, ok := php.Realpath(sources)
 	if !ok {
 		return nil, &util.RuntimeError{Message: `Could not realpath() the source directory "` + sources + `"`}
 	}
 
-	sources = util.NormalizePath(sourcesRealPath)
+	sources = fspath.NormalizePath(sourcesRealPath)
 
 	var filters []excludeFilter
 
@@ -74,7 +76,7 @@ func NewArchivableFilesFinder(sources string, excludes []string, ignoreFilters b
 			return false, nil
 		}
 
-		relativePath := strings.TrimPrefix(util.NormalizePath(f.RealPath), sources)
+		relativePath := strings.TrimPrefix(fspath.NormalizePath(f.RealPath), sources)
 
 		exclude := false
 
@@ -171,7 +173,7 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 
 			// CustomFilterIterator
 			var ok bool
-			if f.RealPath, ok = util.RealpathOK(f.Pathname); ok {
+			if f.RealPath, ok = php.Realpath(f.Pathname); ok {
 				keep, err := filter(f, isLink)
 				if err != nil {
 					return err

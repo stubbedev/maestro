@@ -2,9 +2,10 @@ package vcs
 
 import (
 	"encoding/binary"
-	"path/filepath"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // statEntry writes path's lstat data into an index entry's stat fields
@@ -33,13 +34,8 @@ func statEntry(path string, e []byte) error {
 // untrackedIdent is the ident git's untracked cache records for
 // workTree: its real path and the kernel name.
 func untrackedIdent(workTree string) (string, error) {
-	abs, err := filepath.Abs(workTree)
-	if err != nil {
-		return "", errIndexFallback
-	}
-
-	real, err := filepath.EvalSymlinks(abs)
-	if err != nil {
+	real, ok := php.Realpath(workTree)
+	if !ok {
 		return "", errIndexFallback
 	}
 

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // bufferIO stands in for Composer's BufferIO at debug verbosity and records
@@ -653,12 +654,12 @@ func TestExecutableFinder_Find(t *testing.T) {
 
 func TestPathinfoExtension(t *testing.T) {
 	for in, want := range map[string]string{"php": "", "php.exe": "exe", "a.b/php": "", "php.": "", ".bashrc": "bashrc", "/a/b.tar.gz": "gz"} {
-		if got := pathinfoExtension(in, false); got != want {
-			t.Errorf("pathinfoExtension(%q) = %q, want %q", in, got, want)
+		if got := php.PathinfoExtensionOn(in, false); got != want {
+			t.Errorf("php.PathinfoExtensionOn(%q) = %q, want %q", in, got, want)
 		}
 	}
 
-	if got := pathinfoExtension(`a.b\php`, true); got != "" {
+	if got := php.PathinfoExtensionOn(`a.b\php`, true); got != "" {
 		t.Errorf("windows pathinfoExtension = %q", got)
 	}
 }

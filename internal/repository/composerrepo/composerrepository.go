@@ -207,7 +207,7 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 		return nil, err
 	}
 	if !hasScheme {
-		if localFilePath, ok := util.RealpathOK(url); ok {
+		if localFilePath, ok := php.Realpath(url); ok {
 			// it is a local path, add file scheme
 			url = "file://" + localFilePath
 		} else {

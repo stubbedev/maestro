@@ -100,12 +100,7 @@ func ConfigFromString(repository string, allowFilesystem bool, httpDownloader *h
 		}
 		data, _ := decoded.(*php.Array)
 		if data != nil && (nonEmpty(data, "packages") || nonEmpty(data, "includes") || nonEmpty(data, "provider-includes")) {
-			real := ""
-			if abs, err := filepath.Abs(repository); err == nil {
-				if resolved, err := filepath.EvalSymlinks(abs); err == nil {
-					real = resolved
-				}
-			}
+			real, _ := php.Realpath(repository) // false concatenates as ""
 
 			return php.ArrayOf("type", "composer", "url", "file://"+strings.ReplaceAll(real, `\`, "/")), nil
 		}

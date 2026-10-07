@@ -10,6 +10,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	uvcs "github.com/stubbedev/maestro/internal/util/vcs"
 )
 
@@ -424,7 +425,7 @@ func svnSupports(deps Deps, url string, deep bool) (bool, error) {
 // svnNormalizeURL ports SvnDriver::normalizeUrl: an absolute path becomes
 // a file:// url.
 func svnNormalizeURL(url string) string {
-	if util.IsAbsolutePath(url) {
+	if fspath.IsAbsolutePath(url) {
 		return "file://" + strings.ReplaceAll(url, `\`, "/")
 	}
 

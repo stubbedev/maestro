@@ -111,7 +111,7 @@ func currentExecutable() (string, error) {
 		return "", err
 	}
 
-	return filepath.EvalSymlinks(exe)
+	return php.EvalSymlinks(exe)
 }
 
 // assetName is the release asset of this platform.

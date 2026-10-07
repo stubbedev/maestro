@@ -27,6 +27,7 @@ import (
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -297,7 +298,7 @@ func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path stri
 		return nil, err
 	}
 
-	if err := util.EnsureDirectoryExists(util.Dirname(st.fileName)); err != nil {
+	if err := util.EnsureDirectoryExists(php.Dirname(st.fileName)); err != nil {
 		return nil, err
 	}
 
@@ -644,7 +645,7 @@ func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, 
 			return nil, err
 		}
 
-		if real, _ := util.RealpathOK(dir); empty && real != cwd {
+		if real, _ := php.Realpath(dir); empty && real != cwd {
 			if _, err := util.RemoveDirectoryPhp(dir); err != nil {
 				return nil, err
 			}
@@ -704,7 +705,7 @@ func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*
 // emptyUnlessContainsVendor empties path unless it contains the vendor
 // directory (create-project in the current directory).
 func (d *FileDownloader) emptyUnlessContainsVendor(path string) error {
-	if strings.Contains(util.NormalizePath(d.vendorDir()), util.NormalizePath(path+string(os.PathSeparator))) {
+	if strings.Contains(fspath.NormalizePath(d.vendorDir()), fspath.NormalizePath(path+string(os.PathSeparator))) {
 		return nil
 	}
 

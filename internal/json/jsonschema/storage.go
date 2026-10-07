@@ -7,7 +7,6 @@ package jsonschema
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -504,7 +503,7 @@ func isFilterURL(uri string) bool {
 // UriResolver::resolve does.
 func localFileURI(base string) string {
 	if fi, err := os.Stat(base); err == nil {
-		real := realpath(base)
+		real, _ := php.Realpath(base) // false concatenates as ""
 		if fi.Mode().IsRegular() {
 			return "file://" + real
 		}
@@ -512,21 +511,9 @@ func localFileURI(base string) string {
 			return "file://" + real + "/"
 		}
 	}
-	cwd, _ := os.Getwd()
+	cwd, _ := php.Getcwd() // false concatenates as ""
 
 	return "file://" + cwd + "/" + base
-}
-
-func realpath(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return path
-	}
-	if real, err := filepath.EvalSymlinks(abs); err == nil {
-		return real
-	}
-
-	return abs
 }
 
 var (
@@ -551,7 +538,7 @@ func combineRelativePathWithBasePath(relativePath, basePath string) string {
 
 	dirname := basePath
 	if basePath[len(basePath)-1] != '/' {
-		dirname = phpDirname(basePath)
+		dirname = php.Dirname(basePath)
 	}
 	combined := php.RtrimSet(dirname, "/") + "/" + php.LtrimSet(relativePath, "/")
 	collapsed := make([]string, 0, strings.Count(combined, "/")+1)
@@ -567,27 +554,6 @@ func combineRelativePathWithBasePath(relativePath, basePath string) string {
 	}
 
 	return strings.Join(collapsed, "/")
-}
-
-// phpDirname ports dirname() for Unix paths.
-func phpDirname(path string) string {
-	p := php.RtrimSet(path, "/")
-	if p == "" {
-		if strings.HasPrefix(path, "/") {
-			return "/"
-		}
-		return "."
-	}
-	i := strings.LastIndexByte(p, '/')
-	if i < 0 {
-		return "."
-	}
-	d := php.RtrimSet(p[:i], "/")
-	if d == "" {
-		return "/"
-	}
-
-	return d
 }
 
 // pointer is JsonSchema\Entity\JsonPointer built from a string.

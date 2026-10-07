@@ -94,7 +94,7 @@ func (r *ArtifactRepository) scanDirectory(path string) error {
 }
 
 func (r *ArtifactRepository) scanEntries(dir string, entries []os.DirEntry, active map[string]bool) error {
-	if real, err := filepath.EvalSymlinks(dir); err == nil {
+	if real, ok := php.Realpath(dir); ok {
 		if active[real] {
 			return nil
 		}

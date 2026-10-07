@@ -166,7 +166,7 @@ func (s *Snapshot) canRestart() bool {
 
 	// cmd.exe does not support UNC paths, before PHP 7.4.
 	if _, windows := s.Constant("PHP_WINDOWS_VERSION_BUILD"); windows && s.VersionID < 70400 {
-		wd, err := os.Getwd()
+		wd, err := php.Getcwd()
 		if err != nil || strings.HasPrefix(wd, `\\`) {
 			return false
 		}

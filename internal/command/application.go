@@ -421,7 +421,7 @@ func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, comma
 	}
 
 	cwd, _ := util.GetCwd(true)
-	dir := util.Dirname(cwd)
+	dir := php.Dirname(cwd)
 	homeEnv := os.Getenv("HOME")
 	if homeEnv == "" {
 		homeEnv = os.Getenv("USERPROFILE")
@@ -429,10 +429,10 @@ func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, comma
 	if homeEnv == "" {
 		homeEnv = "/"
 	}
-	home, homeOK := util.RealpathOK(homeEnv)
+	home, homeOK := php.Realpath(homeEnv)
 
 	// abort when we reach the home dir or top of the filesystem
-	for util.Dirname(dir) != dir && (!homeOK || dir != home) {
+	for php.Dirname(dir) != dir && (!homeOK || dir != home) {
 		if fileExists(dir + "/" + composerFile) {
 			isTrue := useParentDir == true
 			if !isTrue && !cio.IsInteractive() {
@@ -462,7 +462,7 @@ func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, comma
 
 			return "", nil
 		}
-		dir = util.Dirname(dir)
+		dir = php.Dirname(dir)
 	}
 
 	return "", nil
@@ -486,7 +486,7 @@ func (a *Application) addPluginCommands(cio *io.ConsoleIO) error {
 		if pe, ok := errors.AsType[*jsonlint.ParsingError](err); ok {
 			file := ""
 			if composerFile, ferr := composer.GetComposerFile(); ferr == nil {
-				file, _ = util.RealpathOK(composerFile)
+				file, _ = php.Realpath(composerFile)
 			}
 			line := pe.Details.Line
 			console.NewGithubActionError(func(m string) { cio.Write(m, true, io.Normal) }).Emit(pe.Message, file, line)

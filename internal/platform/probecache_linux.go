@@ -176,7 +176,7 @@ func unameString() string {
 // result is not cached: a script (version managers' shims choose a php
 // each run), or a file not named php*.
 func probeCacheKey(binary string) string {
-	resolved, err := filepath.EvalSymlinks(binary)
+	resolved, err := php.EvalSymlinks(binary)
 	if err != nil || !strings.HasPrefix(filepath.Base(resolved), "php") {
 		return ""
 	}
@@ -378,7 +378,7 @@ func loadProbeCache(key, binary string) *Snapshot {
 // another php) may choose its php by the working directory, so that is
 // part of its key.
 func wrapperKey(key string) string {
-	cwd, _ := os.Getwd()
+	cwd, _ := php.Getcwd()
 	sum := sha256.Sum256([]byte(key + "\x00" + cwd))
 
 	return hex.EncodeToString(sum[:])
@@ -466,7 +466,7 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.
 		return
 	}
 
-	resolved, err := filepath.EvalSymlinks(binary)
+	resolved, err := php.EvalSymlinks(binary)
 	if err != nil {
 		return
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/testutil"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
 // utilOracle is testdata/oracle/util.json.gz, written by
@@ -106,12 +107,12 @@ func TestOracle_FilesystemPaths(t *testing.T) {
 	o := utilOracleData(t)
 
 	for _, c := range o.Paths {
-		if got := NormalizePath(c.In); got != c.Normalized {
-			t.Errorf("NormalizePath(%q) = %q, want %q", c.In, got, c.Normalized)
+		if got := fspath.NormalizePath(c.In); got != c.Normalized {
+			t.Errorf("fspath.NormalizePath(%q) = %q, want %q", c.In, got, c.Normalized)
 		}
 
-		if got := IsAbsolutePath(c.In); got != c.Absolute {
-			t.Errorf("IsAbsolutePath(%q) = %v, want %v", c.In, got, c.Absolute)
+		if got := fspath.IsAbsolutePath(c.In); got != c.Absolute {
+			t.Errorf("fspath.IsAbsolutePath(%q) = %v, want %v", c.In, got, c.Absolute)
 		}
 
 		if got := TrimTrailingSlash(c.In); got != c.Trimmed {

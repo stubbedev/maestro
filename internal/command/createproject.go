@@ -25,6 +25,7 @@ import (
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -550,7 +551,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 
 	process := http.NewProcessExecutor(cio)
 	fs := util.NewFilesystem(process)
-	if !util.IsAbsolutePath(directory) {
+	if !fspath.IsAbsolutePath(directory) {
 		directory = cwd + string(filepath.Separator) + directory
 	}
 	if directory == "" {
@@ -744,7 +745,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	// handler Ctrl+C aborts gracefully
 	_ = os.MkdirAll(directory, 0o777)
 	unregister := func() {}
-	if realDir, ok := util.RealpathOK(directory); ok {
+	if realDir, ok := php.Realpath(directory); ok {
 		unregister = c.handleAbortSignals(realDir)
 	}
 	defer unregister()

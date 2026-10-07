@@ -73,7 +73,7 @@ func UniqueTmpDirectory(t testing.TB) string {
 	if err := os.Mkdir(dir, 0o777); err != nil {
 		t.Fatalf("Failed to create a unique temporary directory: %v", err)
 	}
-	real, ok := util.RealpathOK(dir)
+	real, ok := php.Realpath(dir)
 	if !ok {
 		real = dir
 	}

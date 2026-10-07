@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
@@ -20,7 +21,7 @@ func gitBinaryKey(found string, now time.Time, margin fsstate.Margin) string {
 	if found == "" {
 		return ""
 	}
-	resolved, err := filepath.EvalSymlinks(found)
+	resolved, err := php.EvalSymlinks(found)
 	if err != nil || filepath.Base(resolved) != "git" {
 		return ""
 	}
