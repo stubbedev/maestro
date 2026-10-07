@@ -111,6 +111,14 @@ type FileDownloader struct {
 	// staged maps the temporary file name of a package to its
 	// materialized tree (store-backed downloads).
 	staged map[string]*staged
+	// specs are the trees materialized ahead of their downloads
+	// (prefetchMaterial), by package; a taken one is nil.
+	specs map[pkg.PackageInterface]*specMaterial
+	// specCreated are the directories created for them, outermost first;
+	// specChecked and specReady tell whether their directory was looked
+	// at and is there.
+	specCreated            []string
+	specChecked, specReady bool
 }
 
 // NewFileDownloader is new FileDownloader($io, $config, $httpDownloader,

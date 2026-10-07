@@ -966,6 +966,26 @@ func (m *Manager) markForNotification(p pkg.PackageInterface) {
 	}
 }
 
+// PreconnectNotifications opens, in the background, the connections the
+// install notifications of these packages will be posted on, if they are
+// installed (deliberate deviation 3): install from a lock calls it while
+// the lock is verified, so that the notifications, sent once the
+// operations ran, do not wait for the handshakes.
+func (m *Manager) PreconnectNotifications(packages []pkg.PackageInterface) {
+	if m.loop == nil {
+		return
+	}
+
+	var seen []string
+
+	for _, p := range packages {
+		if url := p.NotificationURL(); url.Valid && !slices.Contains(seen, url.S) {
+			seen = append(seen, url.S)
+			m.loop.HttpDownloader().Preconnect(url.S, nil)
+		}
+	}
+}
+
 // runCleanup is runCleanup(): it aborts the running jobs and runs every
 // cleanup step. A cleanup that throws makes it fail with that error once
 // all of them ran; rejected cleanups are ignored.

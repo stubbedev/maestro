@@ -4,9 +4,16 @@
 package downloader
 
 import (
+	"errors"
+	iofs "io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -88,10 +95,180 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 	// start, nothing else
 	if d.cache != nil {
 		h, ok := d.cache.(interface{ Holds(file string) bool })
-		if !ok || h.Holds(cacheKey(p, processed)) {
+		if !ok {
+			return
+		}
+
+		if h.Holds(cacheKey(p, processed)) {
+			d.prefetchMaterial(p)
+
 			return
 		}
 	}
 
 	pf.PrefetchCopy(processed, p.TransportOptions())
+}
+
+// specMaterial is a package tree materialized from the store ahead of the
+// download that needs it (prefetchMaterial), in a directory of its own
+// next to the download's staging directories.
+type specMaterial struct {
+	rel  *store.Release
+	opts store.ImportOptions
+	dir  string
+	done chan struct{}
+	err  error
+}
+
+// prefetchMaterial starts materializing p's release from the store when
+// the files cache holds its archive: download() will then find a cache
+// hit and materialize that release (fromStore), and takes this tree
+// instead when it is of the same release with the same options
+// (takeMaterial), which is what materializing it then would give. Nothing
+// shows: the tree is in a directory of vendor/composer of its own, and
+// DiscardPrefetched removes what no download took, with vendor/composer
+// and vendor when they were created for it.
+func (d *FileDownloader) prefetchMaterial(p pkg.PackageInterface) {
+	rel := d.lookupStore(p)
+	if rel == nil {
+		return
+	}
+
+	base := d.vendorDir() + "/composer"
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if _, ok := d.specs[p]; ok {
+		return
+	}
+
+	if !d.specDirs(base) {
+		return
+	}
+
+	sp := &specMaterial{rel: rel, opts: d.importOptions(p), dir: d.randomDir(), done: make(chan struct{})}
+	if d.specs == nil {
+		d.specs = map[pkg.PackageInterface]*specMaterial{}
+	}
+
+	d.specs[p] = sp
+
+	go func() {
+		defer close(sp.done)
+
+		sp.err = d.store.Materialize(sp.rel, sp.dir, sp.opts)
+	}()
+}
+
+// specDirs makes sure the directory dir exists for the trees materialized
+// ahead, creating the missing ones of its ancestors (as mkdir -p does, the
+// umask applying) and remembering them; false when one is in the way
+// (anything but a directory, a symlink included) or cannot be created.
+// d.mu is held.
+func (d *FileDownloader) specDirs(dir string) bool {
+	if d.specChecked {
+		return d.specReady
+	}
+
+	d.specChecked = true
+
+	var missing []string
+
+	for p := filepath.Clean(dir); ; p = filepath.Dir(p) {
+		fi, err := os.Lstat(p)
+		if err == nil {
+			if !fi.IsDir() {
+				return false
+			}
+
+			break
+		}
+
+		if !errors.Is(err, iofs.ErrNotExist) || filepath.Dir(p) == p {
+			return false
+		}
+
+		missing = append(missing, p)
+	}
+
+	for _, p := range slices.Backward(missing) {
+		if err := os.Mkdir(p, 0o777); err != nil {
+			return false
+		}
+
+		d.specCreated = append(d.specCreated, p)
+	}
+
+	d.specReady = true
+
+	return true
+}
+
+// takeMaterial materializes rel at dst as d.store.Materialize does, taking
+// the tree prefetchMaterial made for p when it is of rel with opts.
+func (d *FileDownloader) takeMaterial(p pkg.PackageInterface, rel *store.Release, dst string, opts store.ImportOptions) error {
+	d.mu.Lock()
+	sp := d.specs[p]
+	if sp != nil {
+		d.specs[p] = nil
+	}
+	d.mu.Unlock()
+
+	if sp != nil {
+		<-sp.done
+
+		if sp.err == nil && sp.rel == rel && sp.opts == opts {
+			if err := os.Rename(sp.dir, dst); err == nil {
+				return nil
+			}
+		}
+
+		if sp.err == nil {
+			_ = os.RemoveAll(sp.dir)
+		}
+	}
+
+	return d.store.Materialize(rel, dst, opts)
+}
+
+// discardMaterial waits for the trees prefetchMaterial started, removes
+// those no download took, then the directories created for them that are
+// left empty.
+func (d *FileDownloader) discardMaterial() {
+	d.mu.Lock()
+	specs, created := d.specs, d.specCreated
+	d.specs, d.specCreated = nil, nil
+	d.specChecked, d.specReady = false, false
+	d.mu.Unlock()
+
+	for _, sp := range specs {
+		if sp == nil {
+			continue
+		}
+
+		<-sp.done
+
+		if sp.err == nil {
+			_ = os.RemoveAll(sp.dir)
+		}
+	}
+
+	for _, dir := range slices.Backward(created) {
+		_ = os.Remove(dir) // only while empty
+	}
+}
+
+// DiscardPrefetched ends what Prefetch started that no download took:
+// install from a lock calls it once the operations ran or failed, or the
+// lock did not verify.
+func (m *DownloadManager) DiscardPrefetched() {
+	seen := map[*FileDownloader]bool{}
+
+	for _, d := range m.downloaders {
+		if f := FileDownloaderOf(d); f != nil && !seen[f] {
+			seen[f] = true
+			f.discardMaterial()
+		}
+	}
 }

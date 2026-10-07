@@ -1016,7 +1016,7 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 	// we can skip this part if we're doing this as the second step after an update
 	var speculation autoloadSpeculator
 	if !alreadySolved {
-		i.prefetchDists(lockedRepository, localRepo)
+		defer i.prefetchDists(lockedRepository, localRepo)()
 		speculation = i.speculateAutoloads(lockedRepository, localRepo)
 		if code, err := i.verifyLock(lockedRepository); err != nil || code != 0 {
 			if speculation != nil {

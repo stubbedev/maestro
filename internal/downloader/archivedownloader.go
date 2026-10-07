@@ -459,7 +459,7 @@ func (d *FileDownloader) fromStore(st *dlState, url dlURL, checksum pkg.NullStri
 			}
 		}
 
-		err := d.store.Materialize(rel, s.dir, d.importOptions(p))
+		err := d.takeMaterial(p, rel, s.dir, d.importOptions(p))
 		if _, ok := errors.AsType[*store.MissingError](err); !ok {
 			return "", err
 		}
