@@ -1,0 +1,23 @@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+
+In Input.php line 76:
+                                                          
+  [Symfony\Component\Console\Exception\RuntimeException]  
+  Not enough arguments (missing: "command-name").         
+                                                          
+
+Exception trace:
+  at @COMPOSER@/vendor/symfony/console/Input/Input.php:76
+ Symfony\Component\Console\Input\Input->validate() at @COMPOSER@/vendor/symfony/console/Command/Command.php:293
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/src/Composer/Command/GlobalCommand.php:115
+ Composer\Command\GlobalCommand->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+global <command-name> [<args>...]
+
+exit 1

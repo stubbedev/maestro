@@ -1,0 +1,9 @@
+
+In Filesystem.php line 251:
+                                           
+  homefile exists and is not a directory.  
+                                           
+
+global <command-name> [<args>...]
+
+exit 1

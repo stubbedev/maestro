@@ -244,3 +244,56 @@ func TestGlobalCommand_GlobalMissingCommandName(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+// TestGlobalCommand_Abbreviations runs the sub-command after any
+// abbreviation of "global" the Application resolves: run() strips the
+// first abbreviation of the word, whichever the user typed.
+func TestGlobalCommand_Abbreviations(t *testing.T) {
+	globalNeedsCommand(t, "config")
+	for _, name := range []string{"global", "globa", "glob", "gl", "g"} {
+		t.Run(name, func(t *testing.T) {
+			globalTearDown(t)
+			composerHome := commandtest.InitTempComposer(t, `{"name": "test/global", "version": "1.0.0"}`, nil, nil, true)
+			util.PutEnv("COMPOSER_HOME", composerHome)
+			chdir(t, commandtest.UniqueTmpDirectory(t))
+
+			tester := commandtest.GetApplicationTester(t)
+			if _, err := tester.RunArgs(commandtest.Options{}, "command", name, "command-name", "config", "args", []string{"name"}); err != nil {
+				t.Fatal(err)
+			}
+
+			want := "Changed current directory to " + composerHome + "\ntest/global\n"
+			if code, display := tester.StatusCode(), tester.Display(true); code != 0 || display != want {
+				t.Errorf("status %d, display %q, want 0, %q", code, display, want)
+			}
+		})
+	}
+}
+
+// TestGlobalCommand_CannotSwitchToHome fails when COMPOSER_HOME exists but
+// can't be entered, with chdir()'s warning as the previous exception.
+func TestGlobalCommand_CannotSwitchToHome(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Getuid() == 0 {
+		t.Skip("needs a directory the user can't enter")
+	}
+	globalTearDown(t)
+	composerHome := commandtest.UniqueTmpDirectory(t)
+	if err := os.Chmod(composerHome, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(composerHome, 0o755) })
+	util.PutEnv("COMPOSER_HOME", composerHome)
+
+	tester := commandtest.GetApplicationTester(t)
+	_, err := tester.RunArgs(commandtest.Options{}, "command", "global", "command-name", "show", "--no-interaction", true)
+	want := `Could not switch to home directory "` + composerHome + `"`
+	if err == nil || err.Error() != want {
+		t.Fatalf("err %v, want %q", err, want)
+	}
+	if !phperr.InstanceOf(err, "RuntimeException") {
+		t.Errorf("err %T is not a RuntimeException", err)
+	}
+	if prev := phperr.PreviousOf(err); prev == nil || !strings.Contains(prev.Error(), "Permission denied") {
+		t.Errorf("previous %v, want chdir()'s permission warning", prev)
+	}
+}

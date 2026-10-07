@@ -1,0 +1,8 @@
+
+                                                   
+  Not enough arguments (missing: "command-name").  
+                                                   
+
+global <command-name> [<args>...]
+
+exit 1

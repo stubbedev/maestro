@@ -1,0 +1,37 @@
+Changed current directory to @DIR@/home
+
+In JsonFile.php line 398:
+                                                 
+  [Seld\JsonLint\ParsingException]               
+  "./composer.json" does not contain valid JSON  
+  Parse error on line 1:                         
+  {"require": {nope}}                            
+  ------------^                                  
+  Expected one of: 'STRING', '}'                 
+                                                 
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:398
+ Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:211
+ Composer\Json\JsonFile->validateSchema() at @COMPOSER@/src/Composer/Factory.php:313
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:629
+ Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:129
+ Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:240
+ Composer\Command\BaseCommand->initialize() at @COMPOSER@/vendor/symfony/console/Command/Command.php:264
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/src/Composer/Command/GlobalCommand.php:120
+ Composer\Command\GlobalCommand->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+show [--all] [--locked] [-i|--installed] [-p|--platform] [-a|--available] [-s|--self] [-N|--name-only] [-P|--path] [-t|--tree] [-l|--latest] [-o|--outdated] [--ignore IGNORE] [-M|--major-only] [-m|--minor-only] [--patch-only] [-A|--sort-by-age] [-D|--direct] [--strict] [-f|--format FORMAT] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<package> [<version>]]
+
+exit 1

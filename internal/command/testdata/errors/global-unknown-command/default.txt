@@ -1,0 +1,7 @@
+Changed current directory to @DIR@/home
+
+                                  
+  Command "nope" is not defined.  
+                                  
+
+exit 1

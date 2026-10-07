@@ -180,7 +180,14 @@ var coverage = []entry{
 	cover(command.NewGlobalCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestGlobalCommand_GlobalShow)),
+			Positive(Go(TestGlobalCommand_Abbreviations)),
+			Positive(E2E("global", "glob", "config", "home")),
+			Positive(E2E("global", "global", "show", "--format=json")),
+			Positive(E2E("global", "global", "exec", "pwd-tool")),
 			Negative(Go(TestGlobalCommand_GlobalMissingCommandName)),
+			Negative(Go(TestGlobalCommand_CannotCreateHome)),
+			Negative(Go(TestGlobalCommand_CannotSwitchToHome)),
+			Negative(E2E("global", "global", "require", "nothing/at-all")),
 		},
 	}),
 	cover(command.NewClearCacheCommand, Coverage{

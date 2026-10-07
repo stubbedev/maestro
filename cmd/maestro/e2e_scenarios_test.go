@@ -434,8 +434,27 @@ func fixtureScenarios() []scenario {
 			steps: []step{
 				{args: []string{"global", "require", "psr/log:^3.0"}},
 				{args: []string{"global", "show"}},
+				{args: []string{"glob", "config", "home"}},
+				{args: []string{"g", "show"}},
+				{args: []string{"global", "config", "home"}, env: []string{"COMPOSER=nope.json"}},
+				{args: []string{"global", "-v", "show"}},
+				{args: []string{"global", "show", "--format=json"}},
+				{args: []string{"_complete", "-n", "-c2", "--shell=bash", "-icomposer", "-iglobal", "-iconf"}},
+				{args: []string{"_complete", "-n", "-c3", "--shell=bash", "-icomposer", "-iglobal", "-iconfig", "-i--li"}},
 				{args: []string{"global", "update"}},
 				{args: []string{"global", "config", "--list"}},
+				{
+					args: []string{"global", "config", "repositories.tools", "path", "@ROOT@/tools/pwd"},
+					setup: setups(
+						writeFile("tools/pwd/composer.json", `{"name": "acme/pwd-tool", "version": "1.0.0", "bin": ["bin/pwd-tool"]}`),
+						writeFile("tools/pwd/bin/pwd-tool", "#!/usr/bin/env php\n<?php\necho getcwd(), \"\\n\";\n"),
+					),
+				},
+				{args: []string{"global", "require", "acme/pwd-tool"}},
+				// runs in the directory global was started from
+				{args: []string{"global", "exec", "pwd-tool"}},
+				{args: []string{"global", "require", "nothing/at-all"}},
+				{args: []string{"global", "remove", "not/required"}},
 				{args: []string{"global", "remove", "psr/log"}},
 			},
 		},
