@@ -24,13 +24,13 @@ const asciiWordmark = `                              __
 // rgb is a 24-bit colour.
 type rgb struct{ r, g, b int }
 
-// The ends of the logo's left-to-right gradient. Where the console has no
-// true colour, Symfony's formatter degrades each column to the nearest of
-// the 8 ANSI colours: violet to magenta, cyan to cyan, so the logo still
-// fades from one to the other.
+// The ends of the logo's left-to-right gradient, orange to yellow like
+// Composer's logo. Where the console has no true colour, Symfony's
+// formatter degrades each column to the nearest of the 8 ANSI colours: red
+// to yellow, so the logo still fades from one to the other.
 var (
-	logoFrom = rgb{0x8b, 0x5c, 0xf6}
-	logoTo   = rgb{0x06, 0xb6, 0xd4}
+	logoFrom = rgb{0xf9, 0x73, 0x16}
+	logoTo   = rgb{0xfa, 0xcc, 0x15}
 )
 
 // Logo is maestro's wordmark as formatter markup, each column coloured
