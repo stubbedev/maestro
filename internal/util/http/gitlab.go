@@ -146,7 +146,7 @@ func (g *GitLab) AuthorizeOAuthInteractively(scheme, originURL, message string) 
 			// 401 is bad credentials, 403 is max login attempts exceeded
 			if te.Code == 401 {
 				decoded, _ := php.JSONDecode(authString(te.Response), true)
-				if a, ok := decoded.(*php.Array); ok && arrayValue(a, "error") == "invalid_grant" {
+				if a, ok := decoded.(*php.Array); ok && a.At("error") == "invalid_grant" {
 					g.io.WriteError("Bad credentials. If you have two factor authentication enabled you will have to manually create a personal access token", true, io.Normal)
 				} else {
 					g.io.WriteError("Bad credentials.", true, io.Normal)
@@ -162,7 +162,7 @@ func (g *GitLab) AuthorizeOAuthInteractively(scheme, originURL, message string) 
 			continue
 		}
 
-		accessToken := php.ToString(arrayValue(response, "access_token"))
+		accessToken := php.ToString(response.At("access_token"))
 		g.io.SetAuthentication(originURL, accessToken, new("oauth2"))
 
 		authConfigSource := g.config.AuthConfigSource()
@@ -189,21 +189,10 @@ func (g *GitLab) AuthorizeOAuthInteractively(scheme, originURL, message string) 
 // oauthSetting is the gitlab-oauth entry of a token response.
 func oauthSetting(response *php.Array) *php.Array {
 	return php.ArrayOf(
-		"expires-at", php.ToInt(arrayValue(response, "created_at"))+php.ToInt(arrayValue(response, "expires_in")),
-		"refresh-token", arrayValue(response, "refresh_token"),
-		"token", arrayValue(response, "access_token"),
+		"expires-at", php.ToInt(response.At("created_at"))+php.ToInt(response.At("expires_in")),
+		"refresh-token", response.At("refresh_token"),
+		"token", response.At("access_token"),
 	)
-}
-
-// arrayValue is $array[$key] ?? null.
-func arrayValue(a *php.Array, key string) any {
-	if a == nil {
-		return nil
-	}
-
-	v, _ := a.Get(key)
-
-	return v
 }
 
 // AuthorizeOAuthRefresh is authorizeOAuthRefresh($scheme, $originUrl).
@@ -219,7 +208,7 @@ func (g *GitLab) AuthorizeOAuthRefresh(scheme, originURL string) (bool, error) {
 		return false, err
 	}
 
-	g.io.SetAuthentication(originURL, php.ToString(arrayValue(response, "access_token")), new("oauth2"))
+	g.io.SetAuthentication(originURL, php.ToString(response.At("access_token")), new("oauth2"))
 
 	// store value in user config in auth file
 	if err := g.config.AuthConfigSource().AddConfigSetting("gitlab-oauth."+originURL, oauthSetting(response)); err != nil {
@@ -260,8 +249,8 @@ func (g *GitLab) createToken(scheme, originURL string) (*php.Array, error) {
 func (g *GitLab) IsOAuthExpired(originURL string) bool {
 	authTokens, _ := g.config.Get("gitlab-oauth").(*php.Array)
 
-	entry, _ := arrayValue(authTokens, originURL).(*php.Array)
-	if expiresAt := arrayValue(entry, "expires-at"); expiresAt != nil {
+	entry, _ := authTokens.At(originURL).(*php.Array)
+	if expiresAt := entry.At("expires-at"); expiresAt != nil {
 		return php.Compare(expiresAt, g.now().Unix()) < 0
 	}
 
@@ -270,9 +259,9 @@ func (g *GitLab) IsOAuthExpired(originURL string) bool {
 
 func (g *GitLab) refreshToken(scheme, originURL string) (*php.Array, error) {
 	authTokens, _ := g.config.Get("gitlab-oauth").(*php.Array)
-	entry, _ := arrayValue(authTokens, originURL).(*php.Array)
+	entry, _ := authTokens.At(originURL).(*php.Array)
 
-	refreshToken := arrayValue(entry, "refresh-token")
+	refreshToken := entry.At("refresh-token")
 	if refreshToken == nil {
 		return nil, &util.RuntimeError{Message: "No GitLab refresh token present for " + originURL + "."}
 	}

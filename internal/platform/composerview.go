@@ -6,7 +6,6 @@ package platform
 
 import (
 	"maps"
-	"os"
 	"slices"
 	"strings"
 
@@ -156,7 +155,7 @@ func (s *Snapshot) canRestart() bool {
 	}
 
 	binary, _ := s.Constant("PHP_BINARY")
-	if path, _ := binary.(string); path == "" || !fileExists(path) {
+	if path, _ := binary.(string); path == "" || !php.FileExists(path) {
 		return false
 	}
 
@@ -175,12 +174,6 @@ func (s *Snapshot) canRestart() bool {
 	return true
 }
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
 // WithoutXdebug returns the snapshot of the php XdebugHandler restarts:
 // the same php without the xdebug extension, and with
 // opcache.enable_cli=0, which the restart's ini adds.
@@ -192,8 +185,8 @@ func (s *Snapshot) WithoutXdebug() *Snapshot {
 	c := *s
 	c.Xdebug = Xdebug{}
 
-	c.Extensions = slices.DeleteFunc(slices.Clone(s.Extensions), func(e Extension) bool { return strings.EqualFold(e.Name, "xdebug") })
-	c.ZendExtensions = slices.DeleteFunc(slices.Clone(s.ZendExtensions), func(n string) bool { return strings.EqualFold(n, "xdebug") })
+	c.Extensions = slices.DeleteFunc(slices.Clone(s.Extensions), func(e Extension) bool { return php.Strcasecmp(e.Name, "xdebug") == 0 })
+	c.ZendExtensions = slices.DeleteFunc(slices.Clone(s.ZendExtensions), func(n string) bool { return php.Strcasecmp(n, "xdebug") == 0 })
 
 	c.extIndex = make(map[string]int, len(c.Extensions))
 	for i, e := range c.Extensions {

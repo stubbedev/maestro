@@ -229,7 +229,7 @@ func plainIniValue(raw string) (string, bool) {
 	if i := strings.IndexByte(raw, ';'); i >= 0 {
 		raw = strings.TrimSpace(raw[:i])
 	}
-	switch strings.ToLower(raw) {
+	switch php.Strtolower(raw) {
 	case "on", "yes", "true":
 		return "1", true
 	case "off", "no", "false", "none", "null", "":

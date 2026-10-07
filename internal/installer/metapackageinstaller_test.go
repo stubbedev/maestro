@@ -124,7 +124,7 @@ func TestProjectInstaller(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !isDir(dir + "/project") {
+	if !php.IsDir(dir + "/project") {
 		t.Error("project dir not created")
 	}
 

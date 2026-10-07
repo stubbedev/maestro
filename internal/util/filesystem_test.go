@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util/fspath"
 )
 
@@ -222,7 +223,7 @@ func TestFilesystem_UnlinkSymlinkedDirectory(t *testing.T) {
 		t.Skip("Symbolic links for directories not supported on this platform")
 	}
 
-	if !isDir(symlinked) {
+	if !php.IsDir(symlinked) {
 		t.Fatal("Precondition assertion failed (is_dir is false on symbolic link to directory).")
 	}
 
@@ -246,11 +247,11 @@ func TestFilesystem_RemoveSymlinkedDirectoryWithTrailingSlash(t *testing.T) {
 		t.Skip("Symbolic links for directories not supported on this platform")
 	}
 
-	if !isDir(symlinked) {
+	if !php.IsDir(symlinked) {
 		t.Fatal("Precondition assertion failed (is_dir is false on symbolic link to directory).")
 	}
 
-	if !isDir(symlinkedTrailingSlash) {
+	if !php.IsDir(symlinkedTrailingSlash) {
 		t.Fatal("Precondition assertion failed (is_dir false w trailing slash).")
 	}
 
@@ -263,7 +264,7 @@ func TestFilesystem_RemoveSymlinkedDirectoryWithTrailingSlash(t *testing.T) {
 	assertNotExists(t, symlinked)
 
 	// The target survives.
-	if !fileExists(workingDir + "/real/FILE") {
+	if !php.FileExists(workingDir + "/real/FILE") {
 		t.Error("the symlink target was removed")
 	}
 }
@@ -316,7 +317,7 @@ func TestFilesystem_Junctions(t *testing.T) {
 	}
 
 	// Remove junction.
-	if !isDir(junction) {
+	if !php.IsDir(junction) {
 		t.Fatal(junction + " is not a directory")
 	}
 
@@ -324,7 +325,7 @@ func TestFilesystem_Junctions(t *testing.T) {
 		t.Fatalf("RemoveJunction = %v, %v", ok, err)
 	}
 
-	if isDir(junction) {
+	if php.IsDir(junction) {
 		t.Error(junction + " is still a directory")
 	}
 }
@@ -399,13 +400,13 @@ func TestFilesystem_Copy(t *testing.T) {
 	}
 
 	for _, dir := range []string{"/foop", "/foop/bar", "/foop/baz"} {
-		if !isDir(workingDir + dir) {
+		if !php.IsDir(workingDir + dir) {
 			t.Error("Not a directory: " + workingDir + dir)
 		}
 	}
 
 	for _, file := range []string{"/foop/foo.file", "/foop/bar/foobar.file", "/foop/baz/foobaz.file"} {
-		if !fileExists(workingDir + file) {
+		if !php.FileExists(workingDir + file) {
 			t.Error("Not a file: " + workingDir + file)
 		}
 	}
@@ -414,7 +415,7 @@ func TestFilesystem_Copy(t *testing.T) {
 		t.Fatalf("Copy = %v, %v", ok, err)
 	}
 
-	if !fileExists(workingDir + "/testfile.file") {
+	if !php.FileExists(workingDir + "/testfile.file") {
 		t.Error("Not a file: " + workingDir + "/testfile.file")
 	}
 
@@ -476,7 +477,7 @@ func TestFilesystem_RemoveDirectory(t *testing.T) {
 	}
 
 	for _, root := range []string{"/", "//", `\`, "C:/", "c:\\"} {
-		if !isDir(root) {
+		if !php.IsDir(root) {
 			continue
 		}
 
@@ -509,7 +510,7 @@ func TestFilesystem_RemoveDirectoryPhpSymlinks(t *testing.T) {
 
 	assertNotExists(t, workingDir+"/tree")
 
-	if !fileExists(workingDir + "/target/keep") {
+	if !php.FileExists(workingDir + "/target/keep") {
 		t.Error("a symlink target was removed")
 	}
 
@@ -524,7 +525,7 @@ func TestFilesystem_RemoveDirectoryPhpSymlinks(t *testing.T) {
 
 	_, err := RemoveDirectoryPhp(workingDir + "/tree2")
 	if runtime.GOOS == "windows" {
-		if err != nil || !fileExists(workingDir+"/target/keep") {
+		if err != nil || !php.FileExists(workingDir+"/target/keep") {
 			t.Errorf("RemoveDirectoryPhp(dir symlink) error = %v", err)
 		}
 
@@ -539,7 +540,7 @@ func TestFilesystem_RemoveDirectoryPhpSymlinks(t *testing.T) {
 func TestFilesystem_EnsureDirectoryExists(t *testing.T) {
 	workingDir := t.TempDir()
 
-	if err := EnsureDirectoryExists(workingDir + "/a/b/c"); err != nil || !isDir(workingDir+"/a/b/c") {
+	if err := EnsureDirectoryExists(workingDir + "/a/b/c"); err != nil || !php.IsDir(workingDir+"/a/b/c") {
 		t.Fatalf("EnsureDirectoryExists = %v", err)
 	}
 
@@ -571,7 +572,7 @@ func TestFilesystem_EnsureDirectoryExists(t *testing.T) {
 		t.Skip(err)
 	}
 
-	if err := EnsureDirectoryExists(workingDir + "/broken"); err != nil || isLink(workingDir+"/broken") || !isDir(workingDir+"/broken") {
+	if err := EnsureDirectoryExists(workingDir + "/broken"); err != nil || isLink(workingDir+"/broken") || !php.IsDir(workingDir+"/broken") {
 		t.Errorf("EnsureDirectoryExists(broken symlink) = %v", err)
 	}
 
@@ -580,7 +581,7 @@ func TestFilesystem_EnsureDirectoryExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := EnsureDirectoryExists(workingDir + "/broken2/../foo"); err != nil || !isDir(workingDir+"/foo") {
+	if err := EnsureDirectoryExists(workingDir + "/broken2/../foo"); err != nil || !php.IsDir(workingDir+"/foo") {
 		t.Errorf("EnsureDirectoryExists(broken2/../foo) = %v", err)
 	}
 }
@@ -626,11 +627,11 @@ func TestFilesystem_EmptyDirectory(t *testing.T) {
 		t.Errorf("IsDirEmpty after EmptyDirectory = %v, %v", empty, err)
 	}
 
-	if err := fs.EmptyDirectory(workingDir+"/new", true); err != nil || !isDir(workingDir+"/new") {
+	if err := fs.EmptyDirectory(workingDir+"/new", true); err != nil || !php.IsDir(workingDir+"/new") {
 		t.Errorf("EmptyDirectory(new) = %v", err)
 	}
 
-	if err := fs.EmptyDirectory(workingDir+"/other", false); err != nil || fileExists(workingDir+"/other") {
+	if err := fs.EmptyDirectory(workingDir+"/other", false); err != nil || php.FileExists(workingDir+"/other") {
 		t.Errorf("EmptyDirectory(other, false) = %v", err)
 	}
 
@@ -652,11 +653,11 @@ func TestFilesystem_Rename(t *testing.T) {
 
 	assertNotExists(t, workingDir+"/foo")
 
-	if !fileExists(workingDir + "/moved/bar/foobar.file") {
+	if !php.FileExists(workingDir + "/moved/bar/foobar.file") {
 		t.Error("rename lost a file")
 	}
 
-	if err := fs.Rename(testFile, workingDir+"/moved.file"); err != nil || !fileExists(workingDir+"/moved.file") {
+	if err := fs.Rename(testFile, workingDir+"/moved.file"); err != nil || !php.FileExists(workingDir+"/moved.file") {
 		t.Errorf("Rename(file) = %v", err)
 	}
 }

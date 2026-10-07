@@ -75,7 +75,7 @@ func (r *SnapshotRuntime) classConstant(class, constant string) (any, error) {
 	}
 
 	for k, v := range r.s.classConstants.All() {
-		if !strings.EqualFold(k.String(), class) {
+		if php.Strcasecmp(k.String(), class) != 0 {
 			continue
 		}
 

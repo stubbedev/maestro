@@ -171,15 +171,9 @@ func configMergeTypeError(localConfig any) error {
 	return &php.EngineError{Class: "TypeError", Message: "Composer\\Config::merge(): Argument #1 ($config) must be of type array, " + php.ZvalValueName(localConfig) + " given"}
 }
 
-func isFile(path string) bool {
-	st, err := os.Stat(path)
-
-	return err == nil && st.Mode().IsRegular()
-}
-
 func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins DisablePlugins, cwd string, fullLoad, disableScripts bool) (*PartialComposer, *Composer, error) {
 	// if a custom composer.json path is given, we change the default cwd to be that file's directory
-	if s, ok := localConfig.(string); ok && isFile(s) && cwd == "" {
+	if s, ok := localConfig.(string); ok && php.IsFile(s) && cwd == "" {
 		cwd = php.Dirname(s)
 	}
 
@@ -343,7 +337,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		// load existing Composer\InstalledVersions instance if available and scripts/plugins are allowed, as they might need it
 		// we only load if the InstalledVersions class wasn't defined yet so that this is only loaded once
 		installedVersionsPath := vendorDir + "/composer/installed.php"
-		if disablePlugins == PluginsEnabled && !disableScripts && fileExists(installedVersionsPath) && !rt.MarkInstalledVersionsLoaded() {
+		if disablePlugins == PluginsEnabled && !disableScripts && php.FileExists(installedVersionsPath) && !rt.MarkInstalledVersionsLoaded() {
 			if data, ok := repository.SafelyLoadInstalledVersions(installedVersionsPath); ok {
 				rt.SetInstalledVersions(data)
 			}
@@ -538,12 +532,6 @@ func preconnectRepositories(h *http.HttpDownloader, repos *php.Array) {
 	}
 }
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
 // initLocker is createComposer's "init locker if possible".
 func (f *Factory) initLocker(out io.IO, c *Composer, cfg *config.Config, composerFile string, localConfig *php.Array, process *util.ProcessExecutor) error {
 	var lockPath, contents string
@@ -553,7 +541,7 @@ func (f *Factory) initLocker(out io.IO, c *Composer, cfg *config.Config, compose
 		if err != nil {
 			return err
 		}
-		if !php.ToBool(lock) && fileExists(lockFile) {
+		if !php.ToBool(lock) && php.FileExists(lockFile) {
 			out.WriteError("<warning>"+lockFile+" is present but ignored as the \"lock\" config option is disabled.</warning>", true, io.Normal)
 		}
 

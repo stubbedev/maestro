@@ -514,8 +514,8 @@ func (g *VersionGuesser) guessFeatureVersion(packageConfig *php.Array, version p
 
 	// ignore feature branches if they have no branch-alias or self.version is used
 	// and find the branch they came from to use as a version instead
-	branchAlias := subArray(subArray(packageConfig, "extra"), "branch-alias")
-	if isset(branchAlias, version.S) && !strings.Contains(jsonEncode(packageConfig), `"self.version"`) {
+	branchAlias := packageConfig.ArrayAt("extra").ArrayAt("branch-alias")
+	if branchAlias.Isset(version.S) && !strings.Contains(jsonEncode(packageConfig), `"self.version"`) {
 		return version, prettyVersion, nil
 	}
 
@@ -623,7 +623,7 @@ func (g *VersionGuesser) guessFeatureVersion(packageConfig *php.Array, version p
 func isFeature(packageConfig *php.Array, branchName string) (bool, error) {
 	nonFeatureBranches := ""
 
-	if v := get(packageConfig, "non-feature-branches"); php.ToBool(v) {
+	if v := packageConfig.At("non-feature-branches"); php.ToBool(v) {
 		if list, ok := v.(*php.Array); ok {
 			parts := make([]string, 0, list.Len())
 			for _, s := range list.All() {
@@ -687,7 +687,7 @@ func (g *VersionGuesser) guessSvnVersion(packageConfig *php.Array, path string) 
 	}
 
 	pathOption := func(key, def string) string {
-		if v := get(packageConfig, key); v != nil {
+		if v := packageConfig.At(key); v != nil {
 			return php.PregQuote(php.ToString(v), "#")
 		}
 
@@ -784,24 +784,6 @@ func (p vcsProcess) ExecuteFunc(command util.Command, _ func(typ, buffer string)
 }
 
 // Helpers.
-
-func get(a *php.Array, k string) any {
-	if a == nil {
-		return nil
-	}
-
-	v, _ := a.Get(k)
-
-	return v
-}
-
-func subArray(a *php.Array, k string) *php.Array {
-	v, _ := get(a, k).(*php.Array)
-
-	return v
-}
-
-func isset(a *php.Array, k string) bool { return get(a, k) != nil }
 
 func jsonEncode(v any) string {
 	s, _ := php.JSONEncode(v, 0)

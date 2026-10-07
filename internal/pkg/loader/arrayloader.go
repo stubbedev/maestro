@@ -49,7 +49,7 @@ func (l *ArrayLoader) Load(config *php.Array, class string) (pkg.PackageInterfac
 	pp, _ := pkg.AsPackage(p)
 
 	for _, t := range pkg.SupportedLinkTypes() {
-		links := subArray(config, t.Type)
+		links := config.ArrayAt(t.Type)
 		if links == nil {
 			continue
 		}
@@ -131,28 +131,6 @@ func setLinks(p *pkg.Package, method string, links pkg.Links) {
 	}
 }
 
-// isset reports isset($a[$k]); a may be nil (a non-array).
-func isset(a *php.Array, k string) bool { return get(a, k) != nil }
-
-// get returns $a[$k] ?? null; a may be nil (a non-array).
-func get(a *php.Array, k string) any {
-	if a == nil {
-		return nil
-	}
-
-	// GetKey with a Key value: Get(k any) would box k.
-	v, _ := a.GetKey(php.StrKey(k))
-
-	return v
-}
-
-// subArray returns $a[$k] when it is an array, else nil.
-func subArray(a *php.Array, k string) *php.Array {
-	v, _ := get(a, k).(*php.Array)
-
-	return v
-}
-
 // empty reports empty($v).
 func empty(v any) bool { return !php.ToBool(v) }
 
@@ -204,11 +182,11 @@ func arrayArg(fn, param, expected string, v any) (*php.Array, error) {
 const packageClass = `Composer\Package\Package`
 
 func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.PackageInterface, error) {
-	if !isset(config, "name") {
+	if !config.Isset("name") {
 		return nil, &util.UnexpectedValueError{Message: "Unknown package has no name defined (" + jsonEncode(config) + ")."}
 	}
 
-	nameValue := get(config, "name")
+	nameValue := config.At("name")
 
 	versionValue, _ := config.Get("version")
 	if versionValue == nil || !isScalar(versionValue) {
@@ -220,7 +198,7 @@ func (l *ArrayLoader) createObject(config *php.Array, class string) (pkg.Package
 	var version string
 
 	// handle already normalized versions
-	if normalized, ok := get(config, "version_normalized").(string); ok {
+	if normalized, ok := config.At("version_normalized").(string); ok {
 		version = normalized
 
 		// handling of existing repos which need to remain composer v1 compatible, in case the version_normalized contained VersionParser::DEFAULT_BRANCH_ALIAS, we renormalize it
@@ -280,8 +258,8 @@ func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array)
 		return nil, err
 	}
 
-	if l.loadOptions && isset(config, "transport-options") {
-		options, err := arrayArg(packageClass+"::setTransportOptions", "options", "array", get(config, "transport-options"))
+	if l.loadOptions && config.Isset("transport-options") {
+		options, err := arrayArg(packageClass+"::setTransportOptions", "options", "array", config.At("transport-options"))
 		if err != nil {
 			return nil, err
 		}
@@ -327,7 +305,7 @@ func mustReplace(re *php.Regexp, subject, replacement string) string {
 func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	typ := "library"
 
-	if v := get(config, "type"); v != nil {
+	if v := config.At("type"); v != nil {
 		s, ok := v.(string)
 		if !ok {
 			return pkg.ArgumentTypeError("strtolower", 1, "string", "string", v)
@@ -338,8 +316,8 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 
 	p.SetType(typ)
 
-	if isset(config, "target-dir") {
-		targetDir, err := nullableString(packageClass+"::setTargetDir", "targetDir", get(config, "target-dir"))
+	if config.Isset("target-dir") {
+		targetDir, err := nullableString(packageClass+"::setTargetDir", "targetDir", config.At("target-dir"))
 		if err != nil {
 			return err
 		}
@@ -347,11 +325,11 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetTargetDir(targetDir)
 	}
 
-	if extra := subArray(config, "extra"); extra != nil {
+	if extra := config.ArrayAt("extra"); extra != nil {
 		p.SetExtra(extra)
 	}
 
-	if bin := get(config, "bin"); bin != nil {
+	if bin := config.At("bin"); bin != nil {
 		binaries, err := loadBinaries(bin)
 		if err != nil {
 			return err
@@ -360,8 +338,8 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetBinaries(binaries)
 	}
 
-	if isset(config, "installation-source") {
-		source, err := nullableString(packageClass+"::setInstallationSource", "type", get(config, "installation-source"))
+	if config.Isset("installation-source") {
+		source, err := nullableString(packageClass+"::setInstallationSource", "type", config.At("installation-source"))
 		if err != nil {
 			return err
 		}
@@ -369,7 +347,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetInstallationSource(source)
 	}
 
-	if get(config, "default-branch") == true {
+	if config.At("default-branch") == true {
 		p.SetIsDefaultBranch(true)
 	}
 
@@ -381,7 +359,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		return err
 	}
 
-	if suggest := subArray(config, "suggest"); suggest != nil {
+	if suggest := config.ArrayAt("suggest"); suggest != nil {
 		suggests, err := loadSuggests(suggest, p.PrettyVersion())
 		if err != nil {
 			return err
@@ -396,7 +374,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		{"include-path", "setIncludePaths", "includePaths", "array"},
 		{"php-ext", "setPhpExt", "phpExt", "?array"},
 	} {
-		v := get(config, f.key)
+		v := config.At(f.key)
 		if v == nil {
 			continue
 		}
@@ -418,7 +396,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		}
 	}
 
-	if t := get(config, "time"); !empty(t) {
+	if t := config.At("time"); !empty(t) {
 		s, ok := t.(string)
 		if !ok {
 			return pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", t)
@@ -433,7 +411,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		}
 	}
 
-	if u := get(config, "notification-url"); !empty(u) {
+	if u := config.At("notification-url"); !empty(u) {
 		s, ok := u.(string)
 		if !ok {
 			return pkg.ArgumentTypeError(packageClass+"::setNotificationUrl", 1, "notificationUrl", "string", u)
@@ -506,33 +484,33 @@ func loadSuggests(suggest *php.Array, prettyVersion string) (*php.Array, error) 
 }
 
 func configureSource(p *pkg.CompletePackage, config *php.Array) error {
-	if !isset(config, "source") {
+	if !config.Isset("source") {
 		return nil
 	}
 
-	source := subArray(config, "source")
-	if source == nil || !isset(source, "type") || !isset(source, "url") || !isset(source, "reference") {
-		return &util.UnexpectedValueError{Message: "Package " + php.ToString(get(config, "name")) +
+	source := config.ArrayAt("source")
+	if source == nil || !source.Isset("type") || !source.Isset("url") || !source.Isset("reference") {
+		return &util.UnexpectedValueError{Message: "Package " + php.ToString(config.At("name")) +
 			"'s source key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ...},\n" +
-			jsonEncode(get(config, "source")) + " given."}
+			jsonEncode(config.At("source")) + " given."}
 	}
 
-	typ, err := nullableString(packageClass+"::setSourceType", "type", get(source, "type"))
+	typ, err := nullableString(packageClass+"::setSourceType", "type", source.At("type"))
 	if err != nil {
 		return err
 	}
 
-	url, err := nullableString(packageClass+"::setSourceUrl", "url", get(source, "url"))
+	url, err := nullableString(packageClass+"::setSourceUrl", "url", source.At("url"))
 	if err != nil {
 		return err
 	}
 
 	p.SetSourceType(typ)
 	p.SetSourceURL(url)
-	p.SetSourceReference(pkg.Str(php.ToString(get(source, "reference"))))
+	p.SetSourceReference(pkg.Str(php.ToString(source.At("reference"))))
 
-	if isset(source, "mirrors") {
-		mirrors, err := arrayArg(packageClass+"::setSourceMirrors", "mirrors", "?array", get(source, "mirrors"))
+	if source.Isset("mirrors") {
+		mirrors, err := arrayArg(packageClass+"::setSourceMirrors", "mirrors", "?array", source.At("mirrors"))
 		if err != nil {
 			return err
 		}
@@ -544,28 +522,28 @@ func configureSource(p *pkg.CompletePackage, config *php.Array) error {
 }
 
 func configureDist(p *pkg.CompletePackage, config *php.Array) error {
-	if !isset(config, "dist") {
+	if !config.Isset("dist") {
 		return nil
 	}
 
-	dist := subArray(config, "dist")
-	if dist == nil || !isset(dist, "type") || !isset(dist, "url") {
-		return &util.UnexpectedValueError{Message: "Package " + php.ToString(get(config, "name")) +
+	dist := config.ArrayAt("dist")
+	if dist == nil || !dist.Isset("type") || !dist.Isset("url") {
+		return &util.UnexpectedValueError{Message: "Package " + php.ToString(config.At("name")) +
 			"'s dist key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ..., \"shasum\": ...},\n" +
-			jsonEncode(get(config, "dist")) + " given."}
+			jsonEncode(config.At("dist")) + " given."}
 	}
 
-	typ, err := nullableString(packageClass+"::setDistType", "type", get(dist, "type"))
+	typ, err := nullableString(packageClass+"::setDistType", "type", dist.At("type"))
 	if err != nil {
 		return err
 	}
 
-	url, err := nullableString(packageClass+"::setDistUrl", "url", get(dist, "url"))
+	url, err := nullableString(packageClass+"::setDistUrl", "url", dist.At("url"))
 	if err != nil {
 		return err
 	}
 
-	sum, err := nullableString(packageClass+"::setDistSha1Checksum", "sha1checksum", get(dist, "shasum"))
+	sum, err := nullableString(packageClass+"::setDistSha1Checksum", "sha1checksum", dist.At("shasum"))
 	if err != nil {
 		return err
 	}
@@ -573,7 +551,7 @@ func configureDist(p *pkg.CompletePackage, config *php.Array) error {
 	p.SetDistType(typ)
 	p.SetDistURL(url)
 
-	if ref := get(dist, "reference"); ref != nil {
+	if ref := dist.At("reference"); ref != nil {
 		p.SetDistReference(pkg.Str(php.ToString(ref)))
 	} else {
 		p.SetDistReference(pkg.NullString{})
@@ -581,8 +559,8 @@ func configureDist(p *pkg.CompletePackage, config *php.Array) error {
 
 	p.SetDistSha1Checksum(sum)
 
-	if isset(dist, "mirrors") {
-		mirrors, err := arrayArg(packageClass+"::setDistMirrors", "mirrors", "?array", get(dist, "mirrors"))
+	if dist.Isset("mirrors") {
+		mirrors, err := arrayArg(packageClass+"::setDistMirrors", "mirrors", "?array", dist.At("mirrors"))
 		if err != nil {
 			return err
 		}
@@ -598,9 +576,9 @@ const completePackageClass = `Composer\Package\CompletePackage`
 // configureCompleteFields sets the CompletePackage properties of
 // configureObject.
 func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
-	archive := subArray(config, "archive")
+	archive := config.ArrayAt("archive")
 
-	if name := get(archive, "name"); !empty(name) {
+	if name := archive.At("name"); !empty(name) {
 		s, ok := name.(string)
 		if !ok {
 			return pkg.ArgumentTypeError(completePackageClass+"::setArchiveName", 1, "name", "?string", name)
@@ -609,7 +587,7 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetArchiveName(pkg.Str(s))
 	}
 
-	if exclude := get(archive, "exclude"); !empty(exclude) {
+	if exclude := archive.At("exclude"); !empty(exclude) {
 		a, err := arrayArg(completePackageClass+"::setArchiveExcludes", "excludes", "array", exclude)
 		if err != nil {
 			return err
@@ -618,7 +596,7 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetArchiveExcludes(a)
 	}
 
-	if scripts := subArray(config, "scripts"); scripts != nil {
+	if scripts := config.ArrayAt("scripts"); scripts != nil {
 		scripts = castListeners(scripts)
 		for _, reserved := range [...]string{"composer", "php", "putenv"} {
 			if scripts.Has(reserved) {
@@ -629,19 +607,19 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetScripts(scripts)
 	}
 
-	if s, ok := get(config, "description").(string); ok && !empty(s) {
+	if s, ok := config.At("description").(string); ok && !empty(s) {
 		p.SetDescription(pkg.Str(s))
 	}
 
-	if s, ok := get(config, "homepage").(string); ok && !empty(s) {
+	if s, ok := config.At("homepage").(string); ok && !empty(s) {
 		p.SetHomepage(pkg.Str(s))
 	}
 
-	if keywords := subArray(config, "keywords"); keywords != nil && keywords.Len() > 0 {
+	if keywords := config.ArrayAt("keywords"); keywords != nil && keywords.Len() > 0 {
 		p.SetKeywords(stringValues(keywords))
 	}
 
-	if license := get(config, "license"); !empty(license) {
+	if license := config.At("license"); !empty(license) {
 		a, ok := license.(*php.Array)
 		if !ok {
 			a = php.ListOf(license)
@@ -650,19 +628,19 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetLicense(a)
 	}
 
-	if authors := subArray(config, "authors"); authors != nil && authors.Len() > 0 {
+	if authors := config.ArrayAt("authors"); authors != nil && authors.Len() > 0 {
 		p.SetAuthors(authors)
 	}
 
-	if support := subArray(config, "support"); support != nil {
+	if support := config.ArrayAt("support"); support != nil {
 		p.SetSupport(support)
 	}
 
-	if funding := subArray(config, "funding"); funding != nil && funding.Len() > 0 {
+	if funding := config.ArrayAt("funding"); funding != nil && funding.Len() > 0 {
 		p.SetFunding(funding)
 	}
 
-	if abandoned := get(config, "abandoned"); abandoned != nil {
+	if abandoned := config.At("abandoned"); abandoned != nil {
 		p.SetAbandoned(abandoned)
 	}
 
@@ -769,11 +747,11 @@ func (l *ArrayLoader) configureCachedLinks(cache *linkCache, p pkg.PackageInterf
 	for ti := range uint8(len(types)) {
 		t := types[ti]
 
-		if !isset(config, t.Type) {
+		if !config.Isset(t.Type) {
 			continue
 		}
 
-		links := subArray(config, t.Type)
+		links := config.ArrayAt(t.Type)
 
 		prev := &cache.prev[ti]
 		if links != nil && links == prev.config && name == prev.name && (!prev.selfVersion || prettyVersion == prev.prettyVersion) {
@@ -926,7 +904,7 @@ func (l *ArrayLoader) GetBranchAlias(config *php.Array) (string, bool, error) {
 		return "", false, nil
 	}
 
-	if aliases := subArray(subArray(config, "extra"), "branch-alias"); aliases != nil {
+	if aliases := config.ArrayAt("extra").ArrayAt("branch-alias"); aliases != nil {
 		for k, v := range aliases.All() {
 			sourceBranch := k.String()
 
@@ -966,7 +944,7 @@ func (l *ArrayLoader) GetBranchAlias(config *php.Array) (string, bool, error) {
 		}
 	}
 
-	if get(config, "default-branch") == true {
+	if config.At("default-branch") == true {
 		if _, ok := l.versionParser.ParseNumericAliasPrefix(mustReplace(leadingV, version, "")); !ok {
 			return pkg.DefaultBranchAlias, true, nil
 		}

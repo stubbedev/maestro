@@ -62,13 +62,13 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 
 	for _, bin := range binaries {
 		binPath := installPath + "/" + bin
-		if !fileExists(binPath) {
+		if !php.FileExists(binPath) {
 			b.io.WriteError("    <warning>Skipped installation of bin "+bin+" for package "+p.Name()+": file not found in package</warning>", true, mio.Normal)
 
 			continue
 		}
 
-		if isDir(binPath) {
+		if php.IsDir(binPath) {
 			b.io.WriteError("    <warning>Skipped installation of bin "+bin+" for package "+p.Name()+": found a directory at that path</warning>", true, mio.Normal)
 
 			continue
@@ -97,7 +97,7 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 		}
 
 		link := b.binDir + "/" + php.Basename(bin, "")
-		if fileExists(link) {
+		if php.FileExists(link) {
 			if !isLink(link) {
 				if warnOnOverwrite {
 					b.io.WriteError("    Skipped installation of bin "+bin+" for package "+p.Name()+": name conflicts with an existing file", true, mio.Normal)
@@ -156,13 +156,13 @@ func (b *BinaryInstaller) RemoveBinaries(p pkg.PackageInterface) error {
 
 	for _, bin := range binaries {
 		link := b.binDir + "/" + php.Basename(bin, "")
-		if isLink(link) || fileExists(link) { // still checking for symlinks here for legacy support
+		if isLink(link) || php.FileExists(link) { // still checking for symlinks here for legacy support
 			if err := util.Unlink(link); err != nil {
 				return err
 			}
 		}
 
-		if isFile(link + ".bat") {
+		if php.IsFile(link + ".bat") {
 			if err := util.Unlink(link + ".bat"); err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ func (b *BinaryInstaller) RemoveBinaries(p pkg.PackageInterface) error {
 	}
 
 	// attempt removing the bin dir in case it is left empty
-	if isDir(b.binDir) {
+	if php.IsDir(b.binDir) {
 		if empty, _ := util.IsDirEmpty(b.binDir); empty {
 			_ = os.Remove(b.binDir)
 		}
@@ -202,12 +202,12 @@ func (b *BinaryInstaller) installFullBinaries(binPath, link, bin string, p pkg.P
 		}
 
 		link += ".bat"
-		if fileExists(link) {
+		if php.FileExists(link) {
 			b.io.WriteError("    Skipped installation of bin "+bin+".bat proxy for package "+p.Name()+": a .bat proxy was already installed", true, mio.Normal)
 		}
 	}
 
-	if !fileExists(link) {
+	if !php.FileExists(link) {
 		code, err := b.generateWindowsProxyCode(binPath, link)
 		if err != nil {
 			return err
@@ -362,7 +362,7 @@ func silentChmod(path string) {
 // filePutContents is file_put_contents() under Composer's error handler.
 func filePutContents(path, data string) error {
 	if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
-		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	return nil
@@ -373,7 +373,7 @@ func filePutContents(path, data string) error {
 func fileGetContents(path string, length int) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", &util.ErrorException{Message: "file_get_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return "", &util.ErrorException{Message: "file_get_contents(" + path + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	defer func() { _ = f.Close() }()
@@ -391,27 +391,6 @@ func fileGetContents(path string, length int) (string, error) {
 	}
 
 	return string(buf[:n]), nil
-}
-
-// fileExists is file_exists() (it follows symlinks).
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
-// isDir is is_dir().
-func isDir(path string) bool {
-	st, err := os.Stat(path)
-
-	return err == nil && st.IsDir()
-}
-
-// isFile is is_file().
-func isFile(path string) bool {
-	st, err := os.Stat(path)
-
-	return err == nil && st.Mode().IsRegular()
 }
 
 // isLink is is_link().

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/util"
@@ -41,7 +42,7 @@ func (*ProjectInstaller) IsInstalled(repository.InstalledRepositoryInterface, pk
 // Download is download(): the project directory must be empty.
 func (i *ProjectInstaller) Download(p, prev pkg.PackageInterface) (*Promise, error) {
 	installPath := i.installPath
-	if fileExists(installPath) {
+	if php.FileExists(installPath) {
 		empty, err := util.IsDirEmpty(installPath)
 		if err != nil {
 			return nil, err
@@ -52,9 +53,9 @@ func (i *ProjectInstaller) Download(p, prev pkg.PackageInterface) (*Promise, err
 		}
 	}
 
-	if !isDir(installPath) {
+	if !php.IsDir(installPath) {
 		if err := os.MkdirAll(installPath, 0o777); err != nil {
-			return nil, &util.ErrorException{Message: "mkdir(): " + util.Strerror(err)}
+			return nil, &util.ErrorException{Message: "mkdir(): " + php.Strerror(err)}
 		}
 	}
 

@@ -81,7 +81,7 @@ func (l *ClassLoader) Add(prefix php.Key, paths *php.Array, prepend bool) error 
 		return err
 	}
 
-	byFirst := subArray(l.PrefixesPsr0, first)
+	byFirst := l.PrefixesPsr0.ArrayAtOrCreate(first)
 	current, ok := byFirst.GetKey(prefix)
 	if !ok {
 		byFirst.SetKey(prefix, paths)
@@ -128,7 +128,7 @@ func (l *ClassLoader) Set(prefix php.Key, paths *php.Array) error {
 	if err != nil {
 		return err
 	}
-	subArray(l.PrefixesPsr0, first).SetKey(prefix, paths)
+	l.PrefixesPsr0.ArrayAtOrCreate(first).SetKey(prefix, paths)
 
 	return nil
 }
@@ -150,7 +150,7 @@ func (l *ClassLoader) SetPsr4(prefix php.Key, paths *php.Array) error {
 	if s[len(s)-1] != '\\' {
 		return &util.InvalidArgumentError{Message: "A non-empty PSR-4 prefix must end with a namespace separator."}
 	}
-	subArray(l.PrefixLengthsPsr4, first).SetKey(prefix, int64(len(s)))
+	l.PrefixLengthsPsr4.ArrayAtOrCreate(first).SetKey(prefix, int64(len(s)))
 	l.PrefixDirsPsr4.SetKey(prefix, paths)
 
 	return nil
@@ -166,19 +166,6 @@ func firstByte(prefix php.Key) (php.Key, error) {
 	}
 
 	return php.StrKey(prefix.String()[:1]), nil
-}
-
-// subArray returns a[k], creating it as an empty array if unset.
-func subArray(a *php.Array, k php.Key) *php.Array {
-	if v, ok := a.GetKey(k); ok {
-		sub, _ := v.(*php.Array)
-
-		return sub
-	}
-	sub := php.NewArray()
-	a.SetKey(k, sub)
-
-	return sub
 }
 
 // mergeLists is array_merge($a, $b), or array_merge($b, $a) to prepend.

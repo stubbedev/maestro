@@ -3,7 +3,6 @@
 package vcs
 
 import (
-	"os"
 	"strings"
 	"sync"
 
@@ -482,34 +481,4 @@ func vcsRepoConfig(p pkg.PackageInterface) (*php.Array, bool) {
 	}
 
 	return repo.RepoConfig(), true
-}
-
-// arrayPath is $array[$k1][$k2]... with isset() semantics: nil when a key
-// is missing or a level is not an array.
-func arrayPath(a *php.Array, keys ...string) any {
-	var cur any = a
-	for _, k := range keys {
-		arr, ok := cur.(*php.Array)
-		if !ok || arr == nil {
-			return nil
-		}
-
-		cur, _ = arr.Get(k)
-	}
-
-	return cur
-}
-
-// isDir is is_dir($path).
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
-}
-
-// isFile is is_file($path).
-func isFile(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.Mode().IsRegular()
 }

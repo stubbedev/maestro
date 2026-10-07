@@ -52,7 +52,7 @@ func (d *GitDriver) Initialize() error {
 
 	if util.IsLocalPath(d.url) {
 		d.url = replaceInfallible(gitDirSuffix, "", d.url)
-		if !isDir(d.url) {
+		if !php.IsDir(d.url) {
 			return &util.RuntimeError{Message: "Failed to read package information from " + util.SanitizeURL(d.url) + " as the path does not exist"}
 		}
 
@@ -97,7 +97,7 @@ func (d *GitDriver) Initialize() error {
 		}
 
 		if !synced {
-			if !isDir(d.repoDir) {
+			if !php.IsDir(d.repoDir) {
 				return &util.RuntimeError{Message: "Failed to clone " + util.SanitizeURL(d.url) + " to read package information from it"}
 			}
 
@@ -322,7 +322,7 @@ func gitSupports(deps Deps, url string, deep bool) (bool, error) {
 	// local filesystem
 	if util.IsLocalPath(url) {
 		url = util.GetPlatformPath(url)
-		if !isDir(url) {
+		if !php.IsDir(url) {
 			return false, nil
 		}
 
@@ -357,11 +357,4 @@ func gitSupports(deps Deps, url string, deep bool) (bool, error) {
 	}
 
 	return true, nil
-}
-
-// isDir is is_dir($path).
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

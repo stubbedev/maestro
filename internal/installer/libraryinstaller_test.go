@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -58,7 +59,7 @@ func TestLibraryInstaller_InstallerCreationShouldNotCreateVendorDirectory(t *tes
 
 	f.installer(t, pkg.Str("library"), nil, nil)
 
-	if fileExists(f.vendorDir) {
+	if php.FileExists(f.vendorDir) {
 		t.Error("vendor dir created")
 	}
 }
@@ -69,7 +70,7 @@ func TestLibraryInstaller_InstallerCreationShouldNotCreateBinDirectory(t *testin
 
 	f.installer(t, pkg.Str("library"), nil, nil)
 
-	if fileExists(f.binDir) {
+	if php.FileExists(f.binDir) {
 		t.Error("bin dir created")
 	}
 }
@@ -159,11 +160,11 @@ func TestLibraryInstaller_Install(t *testing.T) {
 		t.Errorf("addPackage called %d times", n)
 	}
 
-	if !fileExists(f.vendorDir) {
+	if !php.FileExists(f.vendorDir) {
 		t.Error("Vendor dir should be created")
 	}
 
-	if !fileExists(f.binDir) {
+	if !php.FileExists(f.binDir) {
 		t.Error("Bin dir should be created")
 	}
 }
@@ -193,7 +194,7 @@ func TestLibraryInstaller_Update(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !isDir(f.vendorDir+"/vendor/package1/newtarget") || fileExists(f.vendorDir+"/vendor/package1/oldtarget") {
+	if !php.IsDir(f.vendorDir+"/vendor/package1/newtarget") || php.FileExists(f.vendorDir+"/vendor/package1/oldtarget") {
 		t.Error("initial dir not renamed to the target dir")
 	}
 
@@ -203,7 +204,7 @@ func TestLibraryInstaller_Update(t *testing.T) {
 		t.Errorf("repository calls: %v", repo.rec.list())
 	}
 
-	if !fileExists(f.vendorDir) || !fileExists(f.binDir) {
+	if !php.FileExists(f.vendorDir) || !php.FileExists(f.binDir) {
 		t.Error("vendor and bin dirs should exist")
 	}
 
@@ -375,7 +376,7 @@ func TestLibraryInstaller_InstallPathFollowsVendorDirChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got, _, err := library.InstallPath(p); err != nil || got != f.vendorDir+"/vendor/pkg" || !fileExists(f.vendorDir) {
+	if got, _, err := library.InstallPath(p); err != nil || got != f.vendorDir+"/vendor/pkg" || !php.FileExists(f.vendorDir) {
 		t.Fatalf("after removal: InstallPath = %q, %v", got, err)
 	}
 

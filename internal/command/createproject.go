@@ -141,7 +141,7 @@ func (c *CreateProjectCommand) Execute(in console.Input, _ console.Output) (int,
 		if packageName == nil {
 			return 0, NewError(ClassRuntime, `Not enough arguments (missing: "package").`)
 		}
-		parts := strings.SplitN(strings.ToLower(*packageName), "/", 2)
+		parts := strings.SplitN(php.Strtolower(*packageName), "/", 2)
 		answer, err := cio.Ask("New project directory [<comment>"+parts[len(parts)-1]+"</comment>]: ", nil)
 		if err != nil {
 			return 0, err
@@ -525,7 +525,7 @@ var stabilitySuffix = php.MustCompile(`{^[^,\s]*?@(` + strings.Join(pkg.Stabilit
 // installRootPackage ports installRootPackage.
 func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, cfg *config.Config, packageName string, platformRequirementFilter filter.PlatformRequirementFilter, o InstallProjectOptions) (bool, error) {
 	requirements := pkg.NewVersionParser().ParseNameVersionPairs([]string{packageName})
-	name := strings.ToLower(requirements[0].Name)
+	name := php.Strtolower(requirements[0].Name)
 	packageVersion := ""
 	if o.PackageVersion != nil {
 		packageVersion = *o.PackageVersion
@@ -798,7 +798,7 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	// ensure that the env var being set does not interfere with create-project
 	// as it is probably not meant to be used here, so we do not use it if a composer.json can be found
 	// in the project
-	if fileExists(directory + "/composer.json") {
+	if php.FileExists(directory + "/composer.json") {
 		if _, ok := util.GetEnv("COMPOSER"); ok {
 			util.ClearEnv("COMPOSER")
 		}

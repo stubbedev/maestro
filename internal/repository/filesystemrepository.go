@@ -513,7 +513,7 @@ func generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths
 				if pkg.IsPlatformPackage(link.Target()) {
 					continue
 				}
-				entry := subArray(all, link.Target())
+				entry := all.ArrayAtOrCreate(link.Target())
 				if v, _ := entry.Get("dev_requirement"); v == nil {
 					entry.Set("dev_requirement", isDevPackage)
 				} else if !isDevPackage {
@@ -528,7 +528,7 @@ func generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths
 				}
 				list, _ := entry.GetArray(l.key)
 				if list == nil || !php.InArray(constraint, list, true) {
-					subArray(entry, l.key).Append(constraint)
+					entry.ArrayAtOrCreate(l.key).Append(constraint)
 				}
 			}
 		}
@@ -539,9 +539,9 @@ func generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths
 		if _, ok := p.(pkg.Alias); !ok {
 			continue
 		}
-		subArray(subArray(all, p.Name()), "aliases").Append(p.PrettyVersion())
+		all.ArrayAtOrCreate(p.Name()).ArrayAtOrCreate("aliases").Append(p.PrettyVersion())
 		if _, ok := p.(pkg.RootPackageInterface); ok {
-			subArray(rootData, "aliases").Append(p.PrettyVersion())
+			rootData.ArrayAtOrCreate("aliases").Append(p.PrettyVersion())
 		}
 	}
 
@@ -561,18 +561,6 @@ func generateInstalledVersions(repoPackages []pkg.PackageInterface, installPaths
 	}
 
 	return versions, nil
-}
-
-// subArray returns $a[$key] as an array, creating it as PHP's
-// $a[$key][...] = ... does.
-func subArray(a *php.Array, key string) *php.Array {
-	if sub, ok := a.GetArray(key); ok {
-		return sub
-	}
-	sub := php.NewArray()
-	a.Set(key, sub)
-
-	return sub
 }
 
 // dumpInstalledPackage ports FilesystemRepository::dumpInstalledPackage.

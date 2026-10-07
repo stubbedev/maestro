@@ -121,7 +121,7 @@ func (f *ArchivableFilesFinder) Files() []File { return f.files }
 // ->ignoreDotFiles(false)->filter($filter)->sortByName(), where filter only
 // sees files that have a real path.
 func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]File, error) {
-	if !isDir(dir) {
+	if !php.IsDir(dir) {
 		return nil, &util.InvalidArgumentError{Class: util.ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`}
 	}
 
@@ -157,7 +157,7 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 
 		for _, name := range names {
 			f := File{Pathname: base + subPath + name, RelativePathname: subPath + name}
-			f.IsDir = isDir(f.Pathname)
+			f.IsDir = php.IsDir(f.Pathname)
 
 			// ExcludeDirectoryFilterIterator
 			if f.IsDir && slices.Contains(vcsPatterns, name) {
@@ -210,7 +210,7 @@ func findFiles(dir string, filter func(f File, isLink bool) (bool, error)) ([]Fi
 // openDirError is the UnexpectedValueException a SPL directory iterator
 // throws for a directory it cannot open.
 func openDirError(class, dir string, err error) error {
-	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + util.Strerror(err)}
+	return &util.UnexpectedValueError{Message: class + "::__construct(" + dir + "): Failed to open directory: " + php.Strerror(err)}
 }
 
 // readDirNames lists a directory's names in readdir() order.
@@ -223,11 +223,4 @@ func readDirNames(dir string) ([]string, error) {
 	defer func() { _ = f.Close() }()
 
 	return f.Readdirnames(-1)
-}
-
-// isDir is is_dir(): true for a directory or a link to one.
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

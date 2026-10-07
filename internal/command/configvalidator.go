@@ -151,7 +151,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		}
 	}
 
-	if flags&ConfigValidatorCheckVersion != 0 && isset(m, "version") {
+	if flags&ConfigValidatorCheckVersion != 0 && m.Isset("version") {
 		warnings = append(warnings, "The version field is present, it is recommended to leave it out if the package is published on Packagist.")
 	}
 
@@ -169,7 +169,7 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			suggestName = strings.ToLower(suggestName)
+			suggestName = php.Strtolower(suggestName)
 
 			publishErrors = append(publishErrors, `Name "`+s+`" does not match the best practice (e.g. lower-cased/with-dashes). We suggest using "`+suggestName+`" instead. As such you will not be able to submit it to Packagist.`)
 		}
@@ -180,9 +180,9 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	}
 
 	// check for require-dev overrides
-	if isset(m, "require") && isset(m, "require-dev") {
-		require, ok1 := arrayValue(m, "require")
-		requireDev, ok2 := arrayValue(m, "require-dev")
+	if m.Isset("require") && m.Isset("require-dev") {
+		require, ok1 := m.GetArray("require")
+		requireDev, ok2 := m.GetArray("require-dev")
 		if !ok1 || !ok2 {
 			// array_intersect_key()'s first parameter is named, the
 			// variadic rest is not
@@ -211,23 +211,23 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 
 	// check for meaningless provide/replace satisfying requirements
 	for _, linkType := range []string{"provide", "replace"} {
-		if !isset(m, linkType) {
+		if !m.Isset(linkType) {
 			continue
 		}
 		for _, requireType := range []string{"require", "require-dev"} {
-			if !isset(m, requireType) {
+			if !m.Isset(requireType) {
 				continue
 			}
-			links, ok := arrayValue(m, linkType)
+			links, ok := m.GetArray(linkType)
 			if !ok {
 				// the warning Composer's ErrorHandler turns into an exception
 				v, _ := m.Get(linkType)
 
 				return nil, nil, nil, &util.ErrorException{Message: "foreach() argument must be of type array|object, " + php.ZvalValueName(v) + " given"}
 			}
-			reqs, _ := arrayValue(m, requireType)
+			reqs, _ := m.GetArray(requireType)
 			for provide := range links.All() {
-				if reqs != nil && isset(reqs, provide) {
+				if reqs != nil && reqs.Isset(provide) {
 					warnings = append(warnings, "The package "+provide.String()+" in "+requireType+" is also listed in "+linkType+" which satisfies the requirement. Remove it from "+linkType+" if you wish to install it.")
 				}
 			}
@@ -307,11 +307,11 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	}
 
 	// check for empty psr-0/psr-4 namespace prefixes
-	if autoload, ok := arrayValue(m, "autoload"); ok {
-		if psr0, ok := arrayValue(autoload, "psr-0"); ok && isset(psr0, "") {
+	if autoload, ok := m.GetArray("autoload"); ok {
+		if psr0, ok := autoload.GetArray("psr-0"); ok && psr0.Isset("") {
 			warnings = append(warnings, "Defining autoload.psr-0 with an empty namespace prefix is a bad idea for performance")
 		}
-		if psr4, ok := arrayValue(autoload, "psr-4"); ok && isset(psr4, "") {
+		if psr4, ok := autoload.GetArray("psr-4"); ok && psr4.Isset("") {
 			warnings = append(warnings, "Defining autoload.psr-4 with an empty namespace prefix is a bad idea for performance")
 		}
 	}
@@ -330,10 +330,10 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 		m = arr
 	}
 	l := loader.NewValidatingArrayLoader(loader.NewArrayLoader(nil, true), nil, arrayLoaderValidationFlags)
-	if !isset(m, "version") {
+	if !m.Isset("version") {
 		m.Set("version", "1.0.0")
 	}
-	if !isset(m, "name") {
+	if !m.Isset("name") {
 		m.Set("name", "dummy/dummy")
 	}
 	_, lerr := l.Load(m, pkg.ClassCompletePackage)
@@ -348,24 +348,6 @@ func (v *ConfigValidator) Validate(file string, arrayLoaderValidationFlags, flag
 	warnings = append(warnings, l.Warnings()...)
 
 	return errs, publishErrors, warnings, nil
-}
-
-// isset is PHP's isset($a[$k]): present and not null.
-func isset(a *php.Array, k any) bool {
-	v, ok := a.Get(k)
-
-	return ok && v != nil
-}
-
-// arrayValue returns $a[$k] when it is an array.
-func arrayValue(a *php.Array, k any) (*php.Array, bool) {
-	v, ok := a.Get(k)
-	if !ok {
-		return nil, false
-	}
-	arr, ok := v.(*php.Array)
-
-	return arr, ok
 }
 
 // arrayOrEmpty is `$a[$k] ?? []`; ok is false when the value is set but not

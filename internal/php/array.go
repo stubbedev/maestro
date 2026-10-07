@@ -83,10 +83,19 @@ func StringList(values []string) *Array {
 }
 
 // Len returns count($a).
-func (a *Array) Len() int { return a.live }
+func (a *Array) Len() int {
+	if a == nil {
+		return 0
+	}
+
+	return a.live
+}
 
 // find returns the position of k in entries, or -1.
 func (a *Array) find(k Key) int {
+	if a == nil {
+		return -1
+	}
 	if a.packed {
 		if k.kind == kindInt && k.i >= 0 && k.i < int64(len(a.entries)) {
 			return int(k.i)
@@ -136,6 +145,51 @@ func (a *Array) GetString(k any) (string, bool) {
 	v, _ := a.Get(k)
 	s, ok := v.(string)
 	return s, ok
+}
+
+// At is $a[$k] ?? null.
+func (a *Array) At(k any) any {
+	v, _ := a.Get(k)
+
+	return v
+}
+
+// Isset is isset($a[$k]): the key exists and its value is not null.
+func (a *Array) Isset(k any) bool { return a.At(k) != nil }
+
+// ArrayAt is $a[$k] when it is an array, else nil.
+func (a *Array) ArrayAt(k any) *Array {
+	arr, _ := a.GetArray(k)
+
+	return arr
+}
+
+// ArrayAtOrCreate is $a[$k] when it is an array; otherwise it stores a new
+// empty array under k (PHP's autovivification of $a[$k][...] = ...) and
+// returns that. a must not be nil.
+func (a *Array) ArrayAtOrCreate(k any) *Array {
+	if arr, ok := a.GetArray(k); ok {
+		return arr
+	}
+	arr := NewArray()
+	a.Set(k, arr)
+
+	return arr
+}
+
+// Path is $a[$k1][$k2]... ?? null: nil as soon as a level is missing or
+// not an array.
+func (a *Array) Path(keys ...any) any {
+	var v any = a
+	for _, k := range keys {
+		arr, ok := v.(*Array)
+		if !ok {
+			return nil
+		}
+		v = arr.At(k)
+	}
+
+	return v
 }
 
 // GetArray returns $a[$k] when it exists and is an array.
@@ -314,6 +368,9 @@ func (a *Array) unpin() {
 // modified meanwhile.
 func (a *Array) All() iter.Seq2[Key, any] {
 	return func(yield func(Key, any) bool) {
+		if a == nil {
+			return
+		}
 		es := a.entries
 		if len(es) == 0 {
 			return
@@ -337,6 +394,9 @@ func (a *Array) All() iter.Seq2[Key, any] {
 
 // Keys returns array_keys($a) as Go keys.
 func (a *Array) Keys() []Key {
+	if a == nil {
+		return nil
+	}
 	ks := make([]Key, 0, a.live)
 	for i := range a.entries {
 		if k := a.entries[i].k; k.kind != kindDead {
@@ -348,6 +408,9 @@ func (a *Array) Keys() []Key {
 
 // Values returns array_values($a) as a Go slice.
 func (a *Array) Values() []any {
+	if a == nil {
+		return nil
+	}
 	vs := make([]any, 0, a.live)
 	for i := range a.entries {
 		if e := &a.entries[i]; e.k.kind != kindDead {
@@ -359,6 +422,9 @@ func (a *Array) Values() []any {
 
 // First returns the first key and value (reset/array_key_first).
 func (a *Array) First() (Key, any, bool) {
+	if a == nil {
+		return Key{}, nil, false
+	}
 	for i := range a.entries {
 		if e := &a.entries[i]; e.k.kind != kindDead {
 			return e.k, e.v, true
@@ -369,6 +435,9 @@ func (a *Array) First() (Key, any, bool) {
 
 // Last returns the last key and value (end/array_key_last).
 func (a *Array) Last() (Key, any, bool) {
+	if a == nil {
+		return Key{}, nil, false
+	}
 	for i := len(a.entries) - 1; i >= 0; i-- {
 		if e := &a.entries[i]; e.k.kind != kindDead {
 			return e.k, e.v, true
@@ -400,6 +469,9 @@ func (a *Array) IsList() bool {
 // PHP's copy-on-write would separate them on modification. The next free
 // index is kept.
 func (a *Array) Clone() *Array {
+	if a == nil {
+		return NewArray()
+	}
 	c := &Array{
 		entries: make([]entry, 0, a.live),
 		next:    a.next,

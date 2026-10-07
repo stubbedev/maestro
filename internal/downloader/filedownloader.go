@@ -376,7 +376,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			return nil, st.fileName, nil
 		}
 
-		if !fileExists(st.fileName) {
+		if !php.FileExists(st.fileName) {
 			return nil, "", &util.UnexpectedValueError{Message: util.SanitizeURL(url.base) + " could not be saved to " + st.fileName + ", make sure the directory is writable and you have internet connectivity"}
 		}
 
@@ -544,7 +544,7 @@ func (d *FileDownloader) accept(st *dlState, r *http.Response) string {
 // reject is download()'s $reject closure.
 func (d *FileDownloader) reject(st *dlState, e error) (*Promise, error) {
 	// clean up
-	if fileExists(st.fileName) {
+	if php.FileExists(st.fileName) {
 		if err := util.Unlink(st.fileName); err != nil {
 			return nil, err
 		}
@@ -612,7 +612,7 @@ func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, 
 	if err != nil {
 		return nil, err
 	}
-	if fileExists(fileName) {
+	if php.FileExists(fileName) {
 		if err := util.Unlink(fileName); err != nil {
 			return nil, err
 		}
@@ -636,7 +636,7 @@ func (d *FileDownloader) Cleanup(_ string, p pkg.PackageInterface, path string, 
 	cwd, _ := util.GetCwd(true)
 
 	for _, dir := range dirsToCleanUp {
-		if !isDir(dir) {
+		if !php.IsDir(dir) {
 			continue
 		}
 
@@ -685,7 +685,7 @@ func (d *FileDownloader) install(c call, p pkg.PackageInterface, path string) (*
 	// make sure if the file is a binary that it is executable
 	for _, bin := range p.Binaries().All() {
 		binPath := path + "/" + php.ToString(bin)
-		if !fileExists(binPath) || util.IsExecutable(binPath) {
+		if !php.FileExists(binPath) || util.IsExecutable(binPath) {
 			continue
 		}
 
@@ -842,7 +842,7 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 	targetDir := util.TrimTrailingSlash(path)
 
 	output, e := func() (string, error) {
-		if isDir(targetDir + "_compare") {
+		if php.IsDir(targetDir + "_compare") {
 			if _, err := d.fs.RemoveDirectory(targetDir + "_compare"); err != nil {
 				return "", err
 			}
@@ -925,7 +925,7 @@ func (d *FileDownloader) randomDir() string {
 		_, _ = rand.Read(b[:])
 
 		dir := base + hex.EncodeToString(b[:])
-		if !isDir(dir) {
+		if !php.IsDir(dir) {
 			return dir
 		}
 	}
@@ -945,18 +945,4 @@ func sha1File(path string) (string, error) {
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-// fileExists is PHP's file_exists().
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
-// isDir is PHP's is_dir().
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

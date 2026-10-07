@@ -110,7 +110,7 @@ func (r *ComposerRepository) aheadRoot(p prefetcher) (metadataURL, notifyURL str
 
 	data, _ := php.JSONDecode(cached, true)
 	root, _ := data.(*php.Array)
-	raw, ok := get(root, "metadata-url").(string)
+	raw, ok := root.At("metadata-url").(string)
 	if !ok || raw == "" {
 		return "", "", false
 	}
@@ -122,7 +122,7 @@ func (r *ComposerRepository) aheadRoot(p prefetcher) (metadataURL, notifyURL str
 	// as configureFromRoot sets it
 	notifyOK = true
 	for _, key := range []string{"notify-batch", "notify"} {
-		if v := get(root, key); php.ToBool(v) {
+		if v := root.At(key); php.ToBool(v) {
 			if notifyURL, err = r.canonicalizeURL(php.ToString(v)); err != nil {
 				notifyOK = false
 			}
@@ -175,7 +175,7 @@ func (r *ComposerRepository) PrefetchFilterSummary() {
 			p.Prefetch(r.packagesJSONURL(), r.conditionalOptions(cached))
 		}
 		data, _ := php.JSONDecode(cached, true)
-		if filter, ok := get(asArrayOrNil(data), "filter").(*php.Array); ok {
+		if filter, ok := asArrayOrNil(data).At("filter").(*php.Array); ok {
 			summaryURL = filterlist.ComposerRepositoryFilterInformationFromData(filter, func(url string) string {
 				canonical, _ := r.canonicalizeURL(url)
 

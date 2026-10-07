@@ -270,7 +270,7 @@ func (r *headRecorder) earlyResponse() (int, []byte, bool) {
 func isChunked(head []byte) bool {
 	for _, line := range bytes.Split(head, []byte("\n"))[1:] {
 		name, value, ok := bytes.Cut(line, []byte(":"))
-		if ok && strings.EqualFold(string(bytes.TrimSpace(name)), "transfer-encoding") && bytes.Contains(bytes.ToLower(value), []byte("chunked")) {
+		if ok && php.Strcasecmp(string(bytes.TrimSpace(name)), "transfer-encoding") == 0 && bytes.Contains(bytes.ToLower(value), []byte("chunked")) {
 			return true
 		}
 	}

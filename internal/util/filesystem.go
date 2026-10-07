@@ -40,11 +40,11 @@ func (fs *Filesystem) process() *ProcessExecutor {
 
 // Remove ports Filesystem::remove.
 func (fs *Filesystem) Remove(file string) (bool, error) {
-	if isDir(file) {
+	if php.IsDir(file) {
 		return fs.RemoveDirectory(file)
 	}
 
-	if fileExists(file) {
+	if php.FileExists(file) {
 		return true, Unlink(file)
 	}
 
@@ -59,7 +59,7 @@ func finderIn(dir string) (string, *os.File, error) {
 		dir = strings.TrimRight(dir, dirSeparators)
 	}
 
-	if !isDir(dir) {
+	if !php.IsDir(dir) {
 		// DirectoryNotFoundException.
 		return "", nil, &InvalidArgumentError{Class: ClassDirectoryNotFound, Message: `The "` + dir + `" directory does not exist.`}
 	}
@@ -95,7 +95,7 @@ func IsDirEmpty(dir string) (bool, error) {
 
 // EmptyDirectory ports Filesystem::emptyDirectory.
 func (fs *Filesystem) EmptyDirectory(dir string, ensureDirectoryExists bool) error {
-	if isLink(dir) && fileExists(dir) {
+	if isLink(dir) && php.FileExists(dir) {
 		if err := Unlink(dir); err != nil {
 			return err
 		}
@@ -107,7 +107,7 @@ func (fs *Filesystem) EmptyDirectory(dir string, ensureDirectoryExists bool) err
 		}
 	}
 
-	if !isDir(dir) {
+	if !php.IsDir(dir) {
 		return nil
 	}
 
@@ -179,7 +179,7 @@ func (fs *Filesystem) RemoveDirectory(directory string) (bool, error) {
 		return false, err
 	}
 
-	if code == 0 && !isDir(directory) {
+	if code == 0 && !php.IsDir(directory) {
 		return true, nil
 	}
 
@@ -203,7 +203,7 @@ func (fs *Filesystem) RemoveDirectoryAsync(directory string) (*Promise[bool], er
 	}
 
 	return Then(job, func(p *Process) (bool, error) {
-		if p.IsSuccessful() && !isDir(directory) {
+		if p.IsSuccessful() && !php.IsDir(directory) {
 			return true, nil
 		}
 
@@ -229,7 +229,7 @@ func RemoveEdgeCases(directory string) (result, done bool, err error) {
 // edge case was hit (always with an error), result is then whether removal
 // succeeded.
 func removeEdgeCases(directory string) (result, done bool, err error) {
-	dirOK := isDir(directory)
+	dirOK := php.IsDir(directory)
 	link := isLink(directory)
 
 	// isSymlinkedDirectory, then unlinkSymlinkedDirectory.
@@ -308,7 +308,7 @@ func RemoveDirectoryPhp(directory string) (bool, error) {
 		// https://github.com/composer/composer/issues/4009
 		time.Sleep(100 * time.Millisecond)
 
-		if !isDir(directory) {
+		if !php.IsDir(directory) {
 			return true, nil
 		}
 
@@ -382,11 +382,11 @@ func EnsureDirectoryExists(directory string) error {
 	}
 
 	// Maybe another process created it since we checked above?
-	if isDir(directory) {
+	if php.IsDir(directory) {
 		return nil
 	}
 
-	failure := &RuntimeError{Message: directory + " does not exist and could not be created: mkdir(): " + strerror(err)}
+	failure := &RuntimeError{Message: directory + " does not exist and could not be created: mkdir(): " + php.Strerror(err)}
 
 	// In pathological cases with paths like path/to/broken-symlink/../foo
 	// is_dir fails to detect path/to/foo, but normalizing the ../ away first
@@ -442,7 +442,7 @@ func retryDelete(path string, remove func(string) (string, error)) error {
 // unlinkImplementation removes a symlink or file; directory symlinks on
 // Windows need rmdir instead of unlink. It returns the PHP function used.
 func unlinkImplementation(path string) (string, error) {
-	if IsWindows() && isDir(path) && isLink(path) {
+	if IsWindows() && php.IsDir(path) && isLink(path) {
 		return "rmdir", rmdirPath(path)
 	}
 
@@ -455,7 +455,7 @@ func CopyThenRemove(source, target string) error {
 		return err
 	}
 
-	if !isDir(source) {
+	if !php.IsDir(source) {
 		return Unlink(source)
 	}
 
@@ -472,7 +472,7 @@ func Copy(source, target string) (bool, error) {
 	// Refs https://github.com/composer/composer/issues/11864
 	target = fspath.NormalizePath(target)
 
-	if !isDir(source) {
+	if !php.IsDir(source) {
 		return phpCopy(source, target)
 	}
 
@@ -974,7 +974,7 @@ func RelativeSymlink(target, link string) (bool, error) {
 
 // IsSymlinkedDirectory ports Filesystem::isSymlinkedDirectory.
 func IsSymlinkedDirectory(directory string) bool {
-	if !isDir(directory) {
+	if !php.IsDir(directory) {
 		return false
 	}
 
@@ -1013,7 +1013,7 @@ func FilePutContentsIfModified(path string, content []byte) (int, error) {
 // both exist with equal contents, then gives target source's mtime and
 // atime in whole seconds, as touch() does.
 func SafeCopy(source, target string) error {
-	if fileExists(target) && fileExists(source) {
+	if php.FileExists(target) && php.FileExists(source) {
 		equal, err := filesAreEqual(source, target)
 		if err != nil {
 			return err

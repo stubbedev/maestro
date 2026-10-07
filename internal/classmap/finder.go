@@ -25,7 +25,7 @@ var vcsPatterns = [...]string{".svn", "_svn", "CVS", "_darcs", ".arch-params", "
 // finderIn is Finder::in($dir): the directories to search, a directory or
 // the sorted directories a glob matches.
 func finderIn(dir string) ([]string, error) {
-	if isDir(dir) {
+	if php.IsDir(dir) {
 		return []string{finderNormalizeDir(dir)}, nil
 	}
 	dirs := phpGlobDirs(dir)
@@ -166,7 +166,7 @@ func (w *finderWalk) walk(dir, prefix, errClass string) error {
 	if err != nil {
 		// Symfony's iterator constructs the \RecursiveDirectoryIterator at
 		// line 48 and rethrows below the root as AccessDeniedException.
-		message := "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + strerror(err)
+		message := "RecursiveDirectoryIterator::__construct(" + dir + "): Failed to open directory: " + php.Strerror(err)
 		inner := newException(classUnexpectedValue, message)
 		if errClass != classAccessDenied {
 			return inner
@@ -192,7 +192,7 @@ func (w *finderWalk) walk(dir, prefix, errClass string) error {
 		isLink := entry.Type()&os.ModeSymlink != 0
 		isDir := entry.IsDir()
 		if isLink {
-			isDir = isDirectory(pathname)
+			isDir = php.IsDir(pathname)
 		}
 
 		// ExcludeDirectoryFilterIterator::accept()
@@ -251,24 +251,6 @@ func isDotPath(path string) bool {
 	}
 
 	return false
-}
-
-// isFile is PHP's is_file() (following symlinks).
-func isFile(path string) bool {
-	info, err := os.Stat(path)
-
-	return err == nil && info.Mode().IsRegular()
-}
-
-// isDir is PHP's is_dir() (following symlinks).
-func isDir(path string) bool {
-	return isDirectory(path)
-}
-
-func isDirectory(path string) bool {
-	info, err := os.Stat(path)
-
-	return err == nil && info.IsDir()
 }
 
 // realDirCache memoizes the realpath of directories during a scan, so that

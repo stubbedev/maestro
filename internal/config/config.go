@@ -207,13 +207,6 @@ func (c *Config) SetLocalAuthConfigSource(source ConfigSource) {
 // LocalAuthConfigSource ports Config::getLocalAuthConfigSource; nil is null.
 func (c *Config) LocalAuthConfigSource() ConfigSource { return c.localAuthConfigSource }
 
-// isset is isset($a[$k]) on an array.
-func isset(a *php.Array, k any) bool {
-	v, ok := a.Get(k)
-
-	return ok && v != nil
-}
-
 // arrayArgError is the TypeError PHP throws when an array function gets a
 // non-array argument.
 func arrayArgError(fn string, arg int, v any) error {
@@ -256,20 +249,20 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 	isStr := k.IsString()
 
 	switch {
-	case isStr && contains(authKeys[:], key) && isset(c.config, key):
+	case isStr && contains(authKeys[:], key) && c.config.Isset(key):
 		cur, _ := c.config.Get(key)
 		merged, err := arrayMerge(cur, val)
 		if err != nil {
 			return err
 		}
 		c.config.Set(key, merged)
-	case isStr && key == "allow-plugins" && isset(c.config, key) && isArray(val) && isArray(c.get(key)):
+	case isStr && key == "allow-plugins" && c.config.Isset(key) && isArray(val) && isArray(c.get(key)):
 		// merging $val first to get the local config on top of the global one, then appending the global config,
 		// then merging local one again to make sure the values from local win over global ones for keys present in both
 		v, _ := val.(*php.Array)
 		cur, _ := c.get(key).(*php.Array)
 		c.config.Set(key, php.ArrayMerge(v, cur, v))
-	case isStr && (key == "gitlab-domains" || key == "github-domains") && isset(c.config, key):
+	case isStr && (key == "gitlab-domains" || key == "github-domains") && c.config.Isset(key):
 		merged, err := arrayMerge(c.get(key), val)
 		if err != nil {
 			return err
@@ -281,7 +274,7 @@ func (c *Config) mergeKey(k php.Key, val any, source string) error {
 			}
 		}
 		c.config.Set(key, php.ArrayUnique(merged))
-	case isStr && key == "preferred-install" && isset(c.config, key):
+	case isStr && key == "preferred-install" && c.config.Isset(key):
 		cur := c.get(key)
 		if !isArray(val) && !isArray(cur) {
 			c.config.Set(key, val)
@@ -440,7 +433,7 @@ func (c *Config) mergeRepositories(repos *php.Array, source string) error {
 		}
 
 		// auto-deactivate the default packagist.org repo if it gets redefined
-		if isArr && isset(repo, "type") && isset(repo, "url") {
+		if isArr && repo.Isset("type") && repo.Isset("url") {
 			if typ, _ := repo.Get("type"); typ == "composer" {
 				u, _ := repo.Get("url")
 				url, ok := u.(string)
@@ -458,7 +451,7 @@ func (c *Config) mergeRepositories(repos *php.Array, source string) error {
 		// store repo
 		switch {
 		case name.IsInt():
-			if !isset(c.repositories, name.Value()) {
+			if !c.repositories.Isset(name.Value()) {
 				c.repositories.SetKey(name, repository)
 			} else {
 				c.repositories.Append(repository)
@@ -948,7 +941,7 @@ func (c *Config) getComposerEnv(name string) (string, bool) {
 }
 
 func (c *Config) disableRepoByName(name string) {
-	if isset(c.repositories, name) {
+	if c.repositories.Isset(name) {
 		c.repositories.Delete(name)
 	} else if name == "packagist" { // BC support for default "packagist" named repo
 		c.repositories.Delete("packagist.org")

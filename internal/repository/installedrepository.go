@@ -5,6 +5,7 @@ package repository
 import (
 	"slices"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
@@ -54,7 +55,7 @@ func (r *InstalledRepository) AddRepository(repository RepositoryInterface) erro
 // named name, and those providing or replacing it, whose version (or
 // provided/replaced constraint) matches constraint (nil: any).
 func (r *InstalledRepository) FindPackagesWithReplacersAndProviders(name string, constraint semver.ConstraintInterface) ([]pkg.PackageInterface, error) {
-	name = strtolower(name)
+	name = php.Strtolower(name)
 
 	var matches []pkg.PackageInterface
 	for _, repo := range r.repositories {
@@ -110,7 +111,7 @@ func (r *InstalledRepository) GetDependents(needle []string, constraint semver.C
 func (r *InstalledRepository) getDependents(needle []string, constraint semver.ConstraintInterface, invert, recurse bool, packagesFound []string) ([]Dependent, error) {
 	needles := make([]string, len(needle))
 	for i, n := range needle {
-		needles[i] = strtolower(n)
+		needles[i] = php.Strtolower(n)
 	}
 	var results []Dependent
 

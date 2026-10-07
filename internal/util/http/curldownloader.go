@@ -179,7 +179,7 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	if job.hasFile {
 		f, err := os.OpenFile(job.filename+"~", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // fopen(w+b) mode, umask applies
 		if err != nil {
-			return util.NewTransportError(`The "`+util.SanitizeURL(url)+`" file could not be written to `+job.filename+": Failed to open stream: "+util.Strerror(err), 400)
+			return util.NewTransportError(`The "`+util.SanitizeURL(url)+`" file could not be written to `+job.filename+": Failed to open stream: "+php.Strerror(err), 400)
 		}
 
 		bodyFile = f
@@ -254,7 +254,7 @@ func (c *CurlDownloader) buildTransfer(origin, url string, options *php.Array, a
 		return nil, nil, nil, err
 	}
 
-	ssl, _ := arrayValue(options, "ssl").(*php.Array)
+	ssl, _ := options.At("ssl").(*php.Array)
 
 	return c.buildRequest(url, options, ssl, proxy, attributes, bodyFile), proxy, options, nil
 }
@@ -273,7 +273,7 @@ func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent
 	if _, ok := path(options, "prevent_url_access_callable"); ok {
 		return nil
 	}
-	if ssl, _ := arrayValue(options, "ssl").(*php.Array); !caChecked(ssl) {
+	if ssl, _ := options.At("ssl").(*php.Array); !caChecked(ssl) {
 		return nil
 	}
 	if ok, _ := insecurePackagistRegex.IsMatch(url); !ok || (!strings.Contains(url, "$") && !strings.Contains(url, "%24")) {
@@ -663,7 +663,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 		// resolve promise
 		if job.hasFile {
 			if err := os.Rename(job.filename+"~", job.filename); err != nil {
-				return &util.ErrorException{Message: "rename(" + job.filename + "~," + job.filename + "): " + util.Strerror(err)}
+				return &util.ErrorException{Message: "rename(" + job.filename + "~," + job.filename + "): " + php.Strerror(err)}
 			}
 		}
 
@@ -858,7 +858,7 @@ func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMes
 	if err != nil {
 		return err
 	}
-	if ct := strings.ToLower(contentType); !warningsOutput && (ct == "application/json" || ct == "application/json; charset=utf-8") {
+	if ct := php.Strtolower(contentType); !warningsOutput && (ct == "application/json" || ct == "application/json; charset=utf-8") {
 		body := response.Body()
 		details = ":" + php.EOL + body[:min(200, len(body))]
 

@@ -75,7 +75,7 @@ func TestHttpDownloader_PrefetchIsTakenByTheSameRequest(t *testing.T) {
 		t.Fatalf("prefetched before the CA check: %d requests, output %q", n, b.Output()[start:])
 	}
 	// a TLS request would have validated the default options' cafile
-	ssl, _ := arrayValue(h.options, "ssl").(*php.Array)
+	ssl, _ := h.options.At("ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
 	mark := len(b.Output())
@@ -120,7 +120,7 @@ func TestHttpDownloader_PrefetchOnlyMatchesTheSameRequest(t *testing.T) {
 	defer srv.Close()
 
 	h, _ := newPrefetchDownloader(t)
-	ssl, _ := arrayValue(h.options, "ssl").(*php.Array)
+	ssl, _ := h.options.At("ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
 	h.Prefetch(srv.URL+"/p2/a/b.json", php.ArrayOf("http", php.ArrayOf("header", php.ListOf("If-Modified-Since: Thu, 21 May 2026 08:42:02 GMT"))))
@@ -156,7 +156,7 @@ func TestHttpDownloader_PrefetchQueue(t *testing.T) {
 	h, _ := newPrefetchDownloader(t)
 	const limit = 2 // below the connections per host
 	h.curl.pool.ahead.limit = limit
-	ssl, _ := arrayValue(h.options, "ssl").(*php.Array)
+	ssl, _ := h.options.At("ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
 

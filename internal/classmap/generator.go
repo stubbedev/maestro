@@ -129,8 +129,8 @@ func CreateMap(path string) (*ClassMap, error) {
 func (g *Generator) ScanPaths(path string, excluded Matcher, autoloadType AutoloadType, namespace string, excludedDirs []string) error {
 	var dirs []string
 	switch {
-	case isFile(path):
-	case isDir(path) || strings.Contains(path, "*"):
+	case php.IsFile(path):
+	case php.IsDir(path) || strings.Contains(path, "*"):
 		var err error
 		if dirs, err = finderIn(path); err != nil {
 			return err

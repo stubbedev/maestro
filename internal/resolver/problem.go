@@ -841,7 +841,7 @@ func condenseVersionList(versions []versionEntry, maxVersions, maxDev int) []ver
 // majorVersionKey is condenseVersionList's grouping key: "dev" for
 // branches, else Preg::replace('{^(\d+)\..*}', '$1', $version).
 func majorVersionKey(version string) string {
-	if len(version) >= 4 && strings.EqualFold(version[:4], "dev-") {
+	if len(version) >= 4 && php.Strcasecmp(version[:4], "dev-") == 0 {
 		return "dev"
 	}
 	i := 0

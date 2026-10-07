@@ -106,7 +106,7 @@ func TestAuthHelper_AddAuthenticationOptionsForClientCertificate(t *testing.T) {
 
 	options := h.AddAuthenticationOptions(php.NewArray(), "example.org", "file://"+thisFile(t))
 
-	if got := jsonOf(t, arrayValue(options, "ssl")); got != certificateConfiguration {
+	if got := jsonOf(t, options.At("ssl")); got != certificateConfiguration {
 		t.Fatalf("got %s", got)
 	}
 }

@@ -73,7 +73,7 @@ func nestedGet(v any, keys ...any) (any, bool) {
 
 // Execute implements console.Executor.
 func (c *PolicyCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	action := strings.ToLower(php.ToString(in.Argument("action")))
+	action := php.Strtolower(php.ToString(in.Argument("action")))
 	listName := in.Argument("name")
 	arg1 := in.Argument("arg1")
 	arg2 := in.Argument("arg2")

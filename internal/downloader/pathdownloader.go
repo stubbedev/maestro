@@ -50,7 +50,7 @@ func (d *PathDownloader) download(_ call, p pkg.PackageInterface, path string, _
 	}
 
 	realURL, ok := php.Realpath(url.S)
-	if !ok || !isDir(realURL) {
+	if !ok || !php.IsDir(realURL) {
 		return nil, &util.RuntimeError{Message: fmt.Sprintf("Source path \"%s\" is not found for package %s", url.S, p.Name())}
 	}
 

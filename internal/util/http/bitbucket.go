@@ -41,7 +41,7 @@ func NewBitbucket(ioi io.IO, config Config, process Process, httpDownloader Gett
 
 // Token is getToken(): the access token, "" when there is none.
 func (b *Bitbucket) Token() string {
-	return php.ToString(arrayValue(b.token, "access_token"))
+	return php.ToString(b.token.At("access_token"))
 }
 
 // AuthorizeOAuth is authorizeOAuth($originUrl): use the token in git
@@ -77,7 +77,7 @@ func (b *Bitbucket) requestAccessToken() (bool, error) {
 		var token *php.Array
 
 		if token, err = response.DecodeJSONArray(); err == nil {
-			if arrayValue(token, "expires_in") == nil || arrayValue(token, "access_token") == nil {
+			if token.At("expires_in") == nil || token.At("access_token") == nil {
 				encoded, _ := php.JSONEncode(decodedOrNull(token), 0)
 
 				return false, &util.LogicError{Message: "Expected a token configured with expires_in and access_token present, got " + encoded}
@@ -205,7 +205,7 @@ func (b *Bitbucket) AuthorizeOAuthInteractively(originURL, message string) (bool
 // when the consumer is refused.
 func (b *Bitbucket) RequestToken(originURL, consumerKey, consumerSecret string) (string, error) {
 	if b.token != nil || b.tokenFromConfig(originURL) {
-		return php.ToString(arrayValue(b.token, "access_token")), nil
+		return php.ToString(b.token.At("access_token")), nil
 	}
 
 	b.io.SetAuthentication(originURL, consumerKey, &consumerSecret)
@@ -223,11 +223,11 @@ func (b *Bitbucket) RequestToken(originURL, consumerKey, consumerSecret string) 
 		return "", err
 	}
 
-	if arrayValue(b.token, "access_token") == nil {
+	if b.token.At("access_token") == nil {
 		return "", &util.LogicError{Message: "Failed to initialize token above"}
 	}
 
-	return php.ToString(arrayValue(b.token, "access_token")), nil
+	return php.ToString(b.token.At("access_token")), nil
 }
 
 // storeInAuthConfig stores the consumer and its token. Like Composer, it
@@ -237,7 +237,7 @@ func (b *Bitbucket) storeInAuthConfig(_ ConfigSource, originURL, consumerKey, co
 		return err
 	}
 
-	if b.token == nil || arrayValue(b.token, "expires_in") == nil {
+	if b.token == nil || b.token.At("expires_in") == nil {
 		encoded, _ := php.JSONEncode(decodedOrNull(b.token), 0)
 
 		return &util.LogicError{Message: "Expected a token configured with expires_in present, got " + encoded}
@@ -251,8 +251,8 @@ func (b *Bitbucket) storeInAuthConfig(_ ConfigSource, originURL, consumerKey, co
 	consumer := php.ArrayOf(
 		"consumer-key", consumerKey,
 		"consumer-secret", consumerSecret,
-		"access-token", arrayValue(b.token, "access_token"),
-		"access-token-expiration", t+php.ToInt(arrayValue(b.token, "expires_in")),
+		"access-token", b.token.At("access_token"),
+		"access-token-expiration", t+php.ToInt(b.token.At("expires_in")),
 	)
 
 	return b.config.AuthConfigSource().AddConfigSetting("bitbucket-oauth."+originURL, consumer)
@@ -261,10 +261,10 @@ func (b *Bitbucket) storeInAuthConfig(_ ConfigSource, originURL, consumerKey, co
 // tokenFromConfig is getTokenFromConfig($originUrl).
 func (b *Bitbucket) tokenFromConfig(originURL string) bool {
 	authConfig, _ := b.config.Get("bitbucket-oauth").(*php.Array)
-	entry, _ := arrayValue(authConfig, originURL).(*php.Array)
+	entry, _ := authConfig.At(originURL).(*php.Array)
 
-	accessToken := arrayValue(entry, "access-token")
-	expiration := arrayValue(entry, "access-token-expiration")
+	accessToken := entry.At("access-token")
+	expiration := entry.At("access-token-expiration")
 
 	if accessToken == nil || expiration == nil || php.Compare(b.now().Unix(), expiration) > 0 {
 		return false

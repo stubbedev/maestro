@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Method is how files get from the store into a package directory.
@@ -54,7 +55,7 @@ const MethodEnv = "MAESTRO_PACKAGE_IMPORT_METHOD"
 // ParseMethod reads an import method name: auto (or empty), clone,
 // hardlink or copy.
 func ParseMethod(s string) (Method, error) {
-	switch strings.ToLower(strings.TrimSpace(s)) {
+	switch php.Strtolower(strings.TrimSpace(s)) {
 	case "", "auto":
 		return Auto, nil
 	case "clone":

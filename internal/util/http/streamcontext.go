@@ -5,7 +5,6 @@
 package http
 
 import (
-	"os"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -28,7 +27,7 @@ func GetContext(url string, defaultOptions *php.Array, rt Runtime) (*php.Array, 
 
 	options = php.ArrayReplaceRecursive(options, initialized)
 
-	defaults := cloneOptions(defaultOptions)
+	defaults := defaultOptions.Clone()
 	if h, ok := defaults.Get("http"); ok {
 		if a, ok := h.(*php.Array); ok {
 			a.Delete("header")
@@ -49,7 +48,7 @@ func GetContext(url string, defaultOptions *php.Array, rt Runtime) (*php.Array, 
 // streams) and the User-Agent header added when missing. options is not
 // modified.
 func InitOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php.Array, error) {
-	return initOptions(url, cloneOptions(options), forCurl, rt)
+	return initOptions(url, options.Clone(), forCurl, rt)
 }
 
 // initOptions is InitOptions modifying options, which the caller owns.
@@ -210,7 +209,7 @@ func GetTLSDefaults(options *php.Array, logger Logger) (*php.Array, error) {
 			return nil, err
 		}
 
-		if isDir(result) {
+		if php.IsDir(result) {
 			ssl.Set("capath", result)
 			hasCapath = true
 		} else {
@@ -228,7 +227,7 @@ func GetTLSDefaults(options *php.Array, logger Logger) (*php.Array, error) {
 
 	if hasCapath {
 		capath, _ := optionString(ssl, "capath")
-		if !isDir(capath) || !util.IsReadable(capath) {
+		if !php.IsDir(capath) || !util.IsReadable(capath) {
 			return nil, util.NewTransportError("The configured capath was not valid or could not be read.", 400)
 		}
 	}
@@ -308,11 +307,4 @@ func AppendHeader(httpOptions *php.Array, header string) {
 // $needle) !== false.
 func headerContains(options *php.Array, needle string) bool {
 	return php.Stripos(strings.Join(headerList(options), ""), needle) >= 0
-}
-
-// isDir is is_dir().
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

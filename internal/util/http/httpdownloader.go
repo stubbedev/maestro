@@ -690,11 +690,11 @@ func OutputWarnings(ioi io.IO, url string, data any) (bool, error) {
 
 	// legacy warning/info keys
 	for _, typ := range [2]string{"warning", "info"} {
-		if !php.ToBool(arrayValue(a, typ)) {
+		if !php.ToBool(a.At(typ)) {
 			continue
 		}
 
-		if versions := arrayValue(a, typ+"-versions"); php.ToBool(versions) {
+		if versions := a.At(typ + "-versions"); php.ToBool(versions) {
 			ok, err := matches(versions)
 			if err != nil {
 				return wrote, err
@@ -705,7 +705,7 @@ func OutputWarnings(ioi io.IO, url string, data any) (bool, error) {
 			}
 		}
 
-		if err := write(typ, arrayValue(a, typ)); err != nil {
+		if err := write(typ, a.At(typ)); err != nil {
 			return wrote, err
 		}
 	}
@@ -713,7 +713,7 @@ func OutputWarnings(ioi io.IO, url string, data any) (bool, error) {
 	// modern Composer 2.2+ format with support for multiple warning/info
 	// messages
 	for _, key := range [2]string{"warnings", "infos"} {
-		specs, _ := arrayValue(a, key).(*php.Array)
+		specs, _ := a.At(key).(*php.Array)
 		if specs == nil || specs.Len() == 0 {
 			continue
 		}
@@ -723,7 +723,7 @@ func OutputWarnings(ioi io.IO, url string, data any) (bool, error) {
 		for _, spec := range specs.All() {
 			s, _ := spec.(*php.Array)
 
-			ok, err := matches(arrayValue(s, "versions"))
+			ok, err := matches(s.At("versions"))
 			if err != nil {
 				return wrote, err
 			}
@@ -732,7 +732,7 @@ func OutputWarnings(ioi io.IO, url string, data any) (bool, error) {
 				continue
 			}
 
-			if err := write(typ, arrayValue(s, "message")); err != nil {
+			if err := write(typ, s.At("message")); err != nil {
 				return wrote, err
 			}
 		}

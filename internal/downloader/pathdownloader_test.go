@@ -90,7 +90,7 @@ func TestPathDownloader_SymlinkRelative(t *testing.T) {
 		}
 	}
 
-	if !fileExists(path + "/lib/A.php") {
+	if !php.FileExists(path + "/lib/A.php") {
 		t.Fatal("the symlink does not resolve to the source")
 	}
 
@@ -103,7 +103,7 @@ func TestPathDownloader_SymlinkRelative(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if fileExists(path) || !fileExists(src+"/lib/A.php") {
+	if php.FileExists(path) || !php.FileExists(src+"/lib/A.php") {
 		t.Fatal("remove went wrong")
 	}
 }
@@ -144,13 +144,13 @@ func TestPathDownloader_Mirror(t *testing.T) {
 	}
 
 	for _, f := range []string{"/composer.json", "/lib/A.php", "/.gitattributes", "/empty"} {
-		if !fileExists(path + f) {
+		if !php.FileExists(path + f) {
 			t.Errorf("%s was not mirrored", f)
 		}
 	}
 
 	for _, f := range []string{"/tests", "/.git"} {
-		if fileExists(path + f) {
+		if php.FileExists(path + f) {
 			t.Errorf("%s was mirrored", f)
 		}
 	}
@@ -194,7 +194,7 @@ func TestPathDownloader_SourceAlreadyPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !fileExists(src + "/composer.json") {
+	if !php.FileExists(src + "/composer.json") {
 		t.Fatal("the source was removed")
 	}
 

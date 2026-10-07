@@ -247,7 +247,7 @@ func caChecked(ssl *php.Array) bool {
 	}
 	_, known := caBundle.validity[caBundle.caPath]
 
-	return known || isDir(caBundle.caPath)
+	return known || php.IsDir(caBundle.caPath)
 }
 
 // ResetCaBundle is CaBundle::reset().

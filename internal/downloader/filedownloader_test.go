@@ -109,7 +109,7 @@ func TestFileDownloader_InstallDoesNotChmodBinOutsideOfPackage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !fileExists(path + "/script.js") {
+	if !php.FileExists(path + "/script.js") {
 		t.Fatal("script.js was not installed")
 	}
 

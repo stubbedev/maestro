@@ -96,7 +96,7 @@ func getURLData(url string) *noProxyRule {
 	}
 
 	if port == 0 {
-		switch strings.ToLower(u.scheme) {
+		switch php.Strtolower(u.scheme) {
 		case "http":
 			port = 80
 		case "https":

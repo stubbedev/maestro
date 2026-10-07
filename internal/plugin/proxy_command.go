@@ -13,7 +13,6 @@
 package plugin
 
 import (
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -727,7 +726,7 @@ func loaderMayDefine(l *eventdispatcher.LoaderContents, class string) bool {
 				continue
 			}
 			for _, dir := range loaderPaths(paths) {
-				if fileExists(dir + "/" + logicalPathPsr4[len(prefix):]) {
+				if php.FileExists(dir + "/" + logicalPathPsr4[len(prefix):]) {
 					return true
 				}
 			}
@@ -746,7 +745,7 @@ func loaderMayDefine(l *eventdispatcher.LoaderContents, class string) bool {
 				continue
 			}
 			for _, dir := range loaderPaths(paths) {
-				if fileExists(dir + "/" + logicalPathPsr0) {
+				if php.FileExists(dir + "/" + logicalPathPsr0) {
 					return true
 				}
 			}
@@ -763,11 +762,4 @@ func loaderPaths(v any) []string {
 	}
 
 	return []string{php.ToString(v)}
-}
-
-// fileExists is file_exists().
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
 }

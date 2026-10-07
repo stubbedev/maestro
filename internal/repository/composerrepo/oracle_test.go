@@ -43,13 +43,13 @@ type fakeServer struct {
 }
 
 func (s *fakeServer) Get(url string, options *php.Array) (*http.Response, error) {
-	s.log.Append(php.ListOf(url, cloneOptions(options)))
+	s.log.Append(php.ListOf(url, options.Clone()))
 
 	return s.serve(url, options)
 }
 
 func (s *fakeServer) Add(url string, options *php.Array) (*util.Promise[*http.Response], error) {
-	s.log.Append(php.ListOf(url, cloneOptions(options)))
+	s.log.Append(php.ListOf(url, options.Clone()))
 	r, err := s.serve(url, options)
 	if err != nil {
 		return util.Rejected[*http.Response](err), nil
@@ -59,12 +59,12 @@ func (s *fakeServer) Add(url string, options *php.Array) (*util.Promise[*http.Re
 }
 
 func (s *fakeServer) serve(url string, options *php.Array) (*http.Response, error) {
-	file, _ := get(s.files, url).(*php.Array)
+	file, _ := s.files.At(url).(*php.Array)
 	if file == nil {
 		file = php.ArrayOf("status", 404)
 	}
 	status := 200
-	if v := get(file, "status"); v != nil {
+	if v := file.At("status"); v != nil {
 		status = int(php.ToInt(v))
 	}
 	if status >= 400 {
@@ -77,7 +77,7 @@ func (s *fakeServer) serve(url string, options *php.Array) (*http.Response, erro
 	headers := []string{"HTTP/1.1 200 OK"}
 	if lastModified, ok := file.GetString("lastModified"); ok {
 		httpOptions, _ := options.GetArray("http")
-		if slices.Contains(asHeaderList(get(httpOptions, "header")), "If-Modified-Since: "+lastModified) {
+		if slices.Contains(asHeaderList(httpOptions.At("header")), "If-Modified-Since: "+lastModified) {
 			return http.NewResponse(url, 304, []string{"HTTP/1.1 304 Not Modified"}, ""), nil
 		}
 		headers = append(headers, "Last-Modified: "+lastModified)
@@ -190,10 +190,10 @@ func errorClass(err error) string { return phperr.Class(err) }
 func runStep(t *testing.T, r *ComposerRepository, step *php.Array) (any, error) {
 	t.Helper()
 
-	str := func(key string) string { return php.ToString(get(step, key)) }
-	arr := func(key string) *php.Array { return asArray(get(step, key)) }
+	str := func(key string) string { return php.ToString(step.At(key)) }
+	arr := func(key string) *php.Array { return asArray(step.At(key)) }
 	constraint := func() semver.ConstraintInterface {
-		if v := get(step, "constraint"); v != nil {
+		if v := step.At("constraint"); v != nil {
 			return must(repository.ParseConstraint(php.ToString(v)))
 		}
 
@@ -236,7 +236,7 @@ func runStep(t *testing.T, r *ComposerRepository, step *php.Array) (any, error) 
 
 		return strList(names), err
 	case "search":
-		results, err := r.Search(str("query"), int(php.ToInt(get(step, "mode"))), str("type"))
+		results, err := r.Search(str("query"), int(php.ToInt(step.At("mode"))), str("type"))
 		out := php.NewArray()
 		for _, result := range results {
 			if result.Raw != nil {
@@ -266,7 +266,7 @@ func runStep(t *testing.T, r *ComposerRepository, step *php.Array) (any, error) 
 	case "hasSecurityAdvisories":
 		return r.HasSecurityAdvisories()
 	case "getSecurityAdvisories":
-		result, err := r.SecurityAdvisories(constraintMap(t, arr("map")), php.ToBool(get(step, "partial")))
+		result, err := r.SecurityAdvisories(constraintMap(t, arr("map")), php.ToBool(step.At("partial")))
 		if err != nil {
 			return nil, err
 		}
@@ -374,18 +374,18 @@ func TestComposerRepository_Oracle(t *testing.T) {
 		t.Run(name.String(), func(t *testing.T) {
 			scenario := raw.(*php.Array)
 			tmp := t.TempDir()
-			server := &fakeServer{t: t, files: asArray(get(scenario, "files")).Clone()}
+			server := &fakeServer{t: t, files: asArray(scenario.At("files")).Clone()}
 			cfg := createConfig(t, "home", tmp, "cache-dir", tmp+"/cache")
 			cacheDir := tmp + "/cache/repo"
 
-			results := asArray(get(scenario, "results")).Values()
+			results := asArray(scenario.At("results")).Values()
 			var (
 				repo *ComposerRepository
 				out  *io.BufferIO
 			)
-			for i, rawStep := range asArray(get(scenario, "steps")).Values() {
+			for i, rawStep := range asArray(scenario.At("steps")).Values() {
 				step := rawStep.(*php.Array)
-				for url, file := range asArray(get(step, "files")).All() {
+				for url, file := range asArray(step.At("files")).All() {
 					server.files.Set(url.String(), file)
 				}
 				server.log = php.NewArray()
@@ -394,10 +394,10 @@ func TestComposerRepository_Oracle(t *testing.T) {
 					result any
 					err    error
 				)
-				if get(step, "op") == "new" {
+				if step.At("op") == "new" {
 					out = newBufferIO(t)
 					var r *ComposerRepository
-					r, err = New(asArray(get(step, "config")), out, cfg, server, nil)
+					r, err = New(asArray(step.At("config")), out, cfg, server, nil)
 					if err == nil {
 						repo = r
 						result = r.RepoName()
@@ -412,17 +412,17 @@ func TestComposerRepository_Oracle(t *testing.T) {
 				}
 
 				want := results[i].(*php.Array)
-				label := php.ToString(get(step, "op"))
-				if got, w := encodeOracle(t, server.log), encodeOracle(t, get(want, "requests")); got != w {
+				label := php.ToString(step.At("op"))
+				if got, w := encodeOracle(t, server.log), encodeOracle(t, want.At("requests")); got != w {
 					t.Errorf("step %d %s: requests\n got %s\nwant %s", i, label, got, w)
 				}
-				if got, w := encodeOracle(t, result), encodeOracle(t, get(want, "result")); got != w {
+				if got, w := encodeOracle(t, result), encodeOracle(t, want.At("result")); got != w {
 					t.Errorf("step %d %s: result\n got %s\nwant %s", i, label, got, w)
 				}
-				if got, w := php.NormalizeEOL(out.Output()), php.ToString(get(want, "output")); got != w {
+				if got, w := php.NormalizeEOL(out.Output()), php.ToString(want.At("output")); got != w {
 					t.Errorf("step %d %s: output\n got %q\nwant %q", i, label, got, w)
 				}
-				if got, w := encodeOracle(t, cacheFiles(t, cacheDir)), encodeOracle(t, get(want, "cache")); got != w {
+				if got, w := encodeOracle(t, cacheFiles(t, cacheDir)), encodeOracle(t, want.At("cache")); got != w {
 					t.Errorf("step %d %s: cache\n got %s\nwant %s", i, label, got, w)
 				}
 

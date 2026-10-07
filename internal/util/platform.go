@@ -181,7 +181,7 @@ func IsWindowsSubsystemForLinux() bool {
 		}
 
 		data, err := os.ReadFile("/proc/version")
-		isWSL = err == nil && strings.Contains(strings.ToLower(string(data)), "microsoft") && !IsDocker()
+		isWSL = err == nil && strings.Contains(php.Strtolower(string(data)), "microsoft") && !IsDocker()
 	})
 
 	return isWSL
@@ -206,7 +206,7 @@ func IsDocker() bool {
 
 func detectDocker() bool {
 	// .dockerenv and .containerenv are present in some cases but not reliably.
-	if slices.ContainsFunc([]string{"/.dockerenv", "/run/.containerenv", "/var/run/.containerenv"}, fileExists) {
+	if slices.ContainsFunc([]string{"/.dockerenv", "/run/.containerenv", "/var/run/.containerenv"}, php.FileExists) {
 		return true
 	}
 
@@ -312,27 +312,6 @@ func GetDevNull() string {
 	}
 
 	return "/dev/null"
-}
-
-// fileExists is PHP's file_exists: stat(2) succeeds, following symlinks.
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
-// isDir is PHP's is_dir, following symlinks.
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
-}
-
-// isFile is PHP's is_file, following symlinks.
-func isFile(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.Mode().IsRegular()
 }
 
 // isLink is PHP's is_link.

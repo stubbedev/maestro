@@ -70,7 +70,7 @@ func (h *HttpDownloader) Preconnect(url string, options *php.Array) {
 		return
 	}
 
-	ssl, _ := arrayValue(merged, "ssl").(*php.Array)
+	ssl, _ := merged.At("ssl").(*php.Array)
 	if proxyOptions := proxy.CurlOptions(ssl); proxyOptions.Proxy != "" {
 		return
 	}

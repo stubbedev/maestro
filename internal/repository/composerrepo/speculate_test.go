@@ -112,11 +112,11 @@ func TestSlimFile(t *testing.T) {
 		}
 	}
 	for _, key := range []string{"minified", "security-advisories", "last-modified", "filter"} {
-		if !php.StrictEquals(get(slim, key), get(data, key)) {
-			t.Errorf("%s: %v, want %v", key, get(slim, key), get(data, key))
+		if !php.StrictEquals(slim.At(key), data.At(key)) {
+			t.Errorf("%s: %v, want %v", key, slim.At(key), data.At(key))
 		}
 	}
-	if get(slim, "security-advisories") == advisories {
+	if slim.At("security-advisories") == advisories {
 		t.Error("the advisories are shared with the file")
 	}
 

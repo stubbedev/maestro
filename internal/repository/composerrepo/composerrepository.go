@@ -761,7 +761,7 @@ func (r *ComposerRepository) getJSON(url string, options *php.Array) (*php.Array
 
 // stringList returns the values of the list $data[$key] as strings.
 func stringList(data *php.Array, key string) []string {
-	list := asArray(get(data, key))
+	list := asArray(data.At(key))
 	out := make([]string, 0, list.Len())
 	for _, v := range list.All() {
 		out = append(out, php.ToString(v))
@@ -1041,7 +1041,7 @@ func (r *ComposerRepository) Providers(packageName string) ([]repository.Provide
 			return nil, err
 		}
 
-		for _, raw := range asArray(get(apiResult, "providers")).All() {
+		for _, raw := range asArray(apiResult.At("providers")).All() {
 			provider, _ := raw.(*php.Array)
 			info := providerInfo(provider, nil)
 			result.Set(info.Name, info)
@@ -1060,9 +1060,9 @@ func (r *ComposerRepository) Providers(packageName string) ([]repository.Provide
 		}
 		for _, versions := range r.partialPackagesByName.All() {
 			for _, candidate := range versions {
-				name := php.ToString(get(candidate, "name"))
+				name := php.ToString(candidate.At("name"))
 				provide, _ := candidate.GetArray("provide")
-				if result.Has(name) || get(provide, packageName) == nil {
+				if result.Has(name) || provide.At(packageName) == nil {
 					continue
 				}
 				result.Set(name, providerInfo(candidate, ""))
@@ -1088,15 +1088,15 @@ func (r *ComposerRepository) Providers(packageName string) ([]repository.Provide
 // providerInfo reads a provider's name, description and type; the
 // missing ones get def (nil keeps null, "" is PHP's ?? ”).
 func providerInfo(data *php.Array, def any) repository.ProviderInfo {
-	info := repository.ProviderInfo{Name: php.ToString(get(data, "name"))}
-	description := get(data, "description")
+	info := repository.ProviderInfo{Name: php.ToString(data.At("name"))}
+	description := data.At("description")
 	if description == nil {
 		description = def
 	}
 	if description != nil {
 		info.Description = pkg.Str(php.ToString(description))
 	}
-	typ := get(data, "type")
+	typ := data.At("type")
 	if typ == nil {
 		typ = def
 	}
@@ -1112,16 +1112,6 @@ func providerValues(m *repository.NameMap[repository.ProviderInfo]) []repository
 	}
 
 	return out
-}
-
-// get is $a[$key] ?? null.
-func get(a *php.Array, key string) any {
-	if a == nil {
-		return nil
-	}
-	v, _ := a.Get(key)
-
-	return v
 }
 
 // configurePackageTransportOptions ports configurePackageTransportOptions:

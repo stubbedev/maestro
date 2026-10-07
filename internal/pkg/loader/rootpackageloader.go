@@ -85,12 +85,12 @@ func (l *RootPackageLoader) Load(config *php.Array, class string) (pkg.PackageIn
 func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.PackageInterface, error) {
 	config = config.Clone()
 
-	if !isset(config, "name") {
+	if !config.Isset("name") {
 		config.Set("name", "__root__")
 	} else {
-		name, ok := get(config, "name").(string)
+		name, ok := config.At("name").(string)
 		if !ok {
-			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", get(config, "name"))
+			return nil, pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", config.At("name"))
 		}
 
 		if msg, bad, err := HasPackageNamingError(name, false); err != nil {
@@ -127,7 +127,7 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 		realPackage.ReplaceVersion(realPackage.Version(), pkg.DefaultPrettyVersion)
 	}
 
-	if ms := get(config, "minimum-stability"); ms != nil {
+	if ms := config.At("minimum-stability"); ms != nil {
 		// normalizeStability($stability) is untyped (composer/semver
 		// declares no strict_types) and starts with (string) $stability:
 		// a scalar is cast, an array is PHP's "Array to string
@@ -150,11 +150,11 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 		return nil, err
 	}
 
-	if pv := get(config, "prefer-stable"); pv != nil {
+	if pv := config.At("prefer-stable"); pv != nil {
 		realPackage.SetPreferStable(php.ToBool(pv))
 	}
 
-	if c := get(config, "config"); c != nil {
+	if c := config.At("config"); c != nil {
 		a, err := arrayArg(`Composer\Package\RootPackage::setConfig`, "config", "array", c)
 		if err != nil {
 			return nil, err
@@ -175,7 +175,7 @@ func (l *RootPackageLoader) LoadIn(config *php.Array, class, cwd string) (pkg.Pa
 // setVersion fills in the version when config has none, reporting whether
 // it fell back to 1.0.0.
 func (l *RootPackageLoader) setVersion(config *php.Array, cwd string) (bool, error) {
-	if isset(config, "version") {
+	if config.Isset("version") {
 		return false, nil
 	}
 
@@ -204,9 +204,9 @@ func (l *RootPackageLoader) setVersion(config *php.Array, cwd string) (bool, err
 
 	autoVersioned := false
 
-	if !isset(config, "version") {
-		name, _ := get(config, "name").(string)
-		typ, _ := get(config, "type").(string)
+	if !config.Isset("version") {
+		name, _ := config.At("name").(string)
+		typ, _ := config.At("type").(string)
 
 		if l.io != nil && name != "__root__" && typ != "project" {
 			l.io.Warning("Composer could not detect the root package ("+name+") version, defaulting to '1.0.0'. See https://getcomposer.org/root-version", nil)
@@ -233,7 +233,7 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 	references := php.NewArray()
 
 	for _, linkType := range [...]string{"require", "require-dev"} {
-		if !isset(config, linkType) {
+		if !config.Isset(linkType) {
 			continue
 		}
 
@@ -257,14 +257,14 @@ func (l *RootPackageLoader) setRequireData(config *php.Array, realPackage *pkg.R
 			return err
 		}
 
-		if name := get(config, "name"); links.Has(name) {
+		if name := config.At("name"); links.Has(name) {
 			return &util.RuntimeError{Message: "Root package '" + php.ToString(name) + "' cannot require itself in its composer.json" + php.EOL +
 				"Did you accidentally name your root package after an external package?"}
 		}
 	}
 
 	for _, t := range pkg.SupportedLinkTypes() {
-		links := subArray(config, t.Type)
+		links := config.ArrayAt(t.Type)
 		if links == nil {
 			continue
 		}

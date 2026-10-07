@@ -3,7 +3,6 @@
 package vcs
 
 import (
-	"os"
 	"strings"
 	"time"
 
@@ -54,7 +53,7 @@ func (d *FossilDriver) Initialize() error {
 
 	// Only if url points to a locally accessible directory, assume it's the checkout directory.
 	// Otherwise, it should be something fossil can clone from.
-	if util.IsLocalPath(d.url) && isDir(d.url) {
+	if util.IsLocalPath(d.url) && php.IsDir(d.url) {
 		d.checkoutDir = d.url
 	} else {
 		repoDir := php.ToString(d.config.Get("cache-repo-dir"))
@@ -113,7 +112,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 	var output string
 
 	// update the repo if it is a valid fossil repository
-	if isFile(d.repoFile) && isDir(d.checkoutDir) {
+	if php.IsFile(d.repoFile) && php.IsDir(d.checkoutDir) {
 		code, err := d.process.Execute(util.Cmd("fossil", "info"), &output, d.checkoutDir)
 		if err != nil {
 			return err
@@ -285,7 +284,7 @@ func fossilSupports(deps Deps, url string, _ bool) (bool, error) {
 	// local filesystem
 	if util.IsLocalPath(url) {
 		url = util.GetPlatformPath(url)
-		if !isDir(url) {
+		if !php.IsDir(url) {
 			return false, nil
 		}
 
@@ -298,11 +297,4 @@ func fossilSupports(deps Deps, url string, _ bool) (bool, error) {
 	}
 
 	return false, nil
-}
-
-// isFile is is_file($path).
-func isFile(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.Mode().IsRegular()
 }

@@ -307,7 +307,7 @@ func (g *Generator) parseAutoloadsType(packageMap []PackageMapEntry, typ autoloa
 					if typ == typePSR4 {
 						psr = a.PSR4
 					}
-					subArray(psr, namespace).Append(relativePath)
+					psr.ArrayAtOrCreate(namespace).Append(relativePath)
 				}
 			}
 		}

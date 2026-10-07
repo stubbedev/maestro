@@ -491,7 +491,7 @@ func isFilterURL(uri string) bool {
 	if !ok || rest == "" {
 		return false
 	}
-	switch strings.ToLower(scheme) {
+	switch php.Strtolower(scheme) {
 	case "mailto", "news", "file":
 		return true
 	}

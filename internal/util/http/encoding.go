@@ -15,6 +15,8 @@ import (
 
 	"github.com/dsnet/compress/brotli"
 	"github.com/klauspost/compress/zstd"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // curlAcceptEncoding is the Accept-Encoding header PHP's libcurl sends for
@@ -86,7 +88,7 @@ func decodingReaderFor(src io.Reader, header string, features int64) io.Reader {
 	var names []string
 
 	for name := range strings.SplitSeq(header, ",") {
-		name = strings.ToLower(strings.Trim(name, " \t"))
+		name = php.Strtolower(strings.Trim(name, " \t"))
 		if name != "" && name != "identity" && name != "none" {
 			names = append(names, name)
 		}

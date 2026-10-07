@@ -10,6 +10,8 @@ import (
 	"encoding/asn1"
 	"net"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // peerNameError is a certificate that does not name the peer: msg is
@@ -95,17 +97,17 @@ func curlHostMatch(pattern, host string) bool {
 	case pattern == "" || host == "":
 		return false
 	case !strings.HasPrefix(pattern, "*."):
-		return strings.EqualFold(pattern, host)
+		return php.Strcasecmp(pattern, host) == 0
 	case net.ParseIP(host) != nil:
 		return false
 	case strings.LastIndexByte(pattern, '.') == 1:
 		// a single dot: too wide a wildcard, compared as is
-		return strings.EqualFold(pattern, host)
+		return php.Strcasecmp(pattern, host) == 0
 	}
 
 	i := strings.IndexByte(host, '.')
 
-	return i >= 0 && strings.EqualFold(pattern[1:], host[i:])
+	return i >= 0 && php.Strcasecmp(pattern[1:], host[i:]) == 0
 }
 
 // phpCheckPeerName is ext/openssl/xp_ssl.c's peer name check (PHP 8.4,
@@ -144,7 +146,7 @@ func phpCheckPeerName(leaf *x509.Certificate, host string) error {
 // case, or a '*' in the first label standing for any run of characters
 // without a dot.
 func phpWildcardMatch(subject, certName string) bool {
-	if strings.EqualFold(subject, certName) {
+	if php.Strcasecmp(subject, certName) == 0 {
 		return true
 	}
 
@@ -154,13 +156,13 @@ func phpWildcardMatch(subject, certName string) bool {
 	}
 
 	prefix, suffix := certName[:wildcard], certName[wildcard+1:]
-	if len(prefix)+len(suffix) > len(subject) || !strings.EqualFold(subject[:len(prefix)], prefix) {
+	if len(prefix)+len(suffix) > len(subject) || php.Strcasecmp(subject[:len(prefix)], prefix) != 0 {
 		return false
 	}
 
 	end := len(subject) - len(suffix)
 
-	return strings.EqualFold(subject[end:], suffix) && strings.IndexByte(subject[len(prefix):end], '.') < 0
+	return php.Strcasecmp(subject[end:], suffix) == 0 && strings.IndexByte(subject[len(prefix):end], '.') < 0
 }
 
 var oidCommonName = asn1.ObjectIdentifier{2, 5, 4, 3}

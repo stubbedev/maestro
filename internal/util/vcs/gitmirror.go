@@ -33,6 +33,7 @@ import (
 	"sync"
 
 	mio "github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -135,7 +136,7 @@ func (g *Git) configUsable(dir string) bool {
 		}
 
 		key, value, _ := strings.Cut(records[i+1], "\n")
-		if !mirrorConfigSafe(strings.ToLower(key), strings.ToLower(value)) {
+		if !mirrorConfigSafe(php.Strtolower(key), php.Strtolower(value)) {
 			return false
 		}
 	}
@@ -267,7 +268,7 @@ func mirrorConfigFileSafe(path string) bool {
 		}
 
 		key, value, _ := strings.Cut(line, "=")
-		key = strings.ToLower(strings.TrimSpace(key))
+		key = php.Strtolower(strings.TrimSpace(key))
 		value = strings.TrimSpace(value)
 
 		if key == "" || strings.ContainsAny(key, " \t\"[]") {

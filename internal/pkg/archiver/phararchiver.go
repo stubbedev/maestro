@@ -37,9 +37,9 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 	sources, sourcesOK := php.Realpath(sources)
 
 	// Phar would otherwise load the file which we don't want
-	if fileExists(target) {
+	if php.FileExists(target) {
 		if err := os.Remove(target); err != nil {
-			return "", &util.ErrorException{Message: "unlink(" + target + "): " + util.Strerror(err)}
+			return "", &util.ErrorException{Message: "unlink(" + target + "): " + php.Strerror(err)}
 		}
 	}
 
@@ -89,7 +89,7 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 		return "", wrap(err)
 	}
 
-	if !fileExists(target) {
+	if !php.FileExists(target) {
 		target = filename + "." + format
 
 		return target, writeEmptyArchive(target, format)
@@ -98,7 +98,7 @@ func (a *PharArchiver) Archive(sources, target, format string, excludes []string
 	if pharCompressFormats[format] {
 		// Delete old tar
 		if err := os.Remove(target); err != nil {
-			return "", &util.ErrorException{Message: "unlink(" + target + "): " + util.Strerror(err)}
+			return "", &util.ErrorException{Message: "unlink(" + target + "): " + php.Strerror(err)}
 		}
 
 		// Compress the new tar
@@ -177,7 +177,7 @@ var emptyZip = []byte{0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 func writeEmptyArchive(target, format string) error {
 	write := func(data []byte) error {
 		if err := os.WriteFile(target, data, 0o666); err != nil {
-			return &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + util.Strerror(err)}
+			return &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + php.Strerror(err)}
 		}
 
 		return nil
@@ -209,11 +209,4 @@ func (a *PharArchiver) Supports(format string, _ pkg.NullString) bool {
 	_, ok := pharFormats[format]
 
 	return ok
-}
-
-// fileExists is file_exists().
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
 }

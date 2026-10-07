@@ -733,7 +733,7 @@ func (d *EventDispatcher) resolvePhpScriptPath(pathAndArgs string) (string, erro
 	}
 
 	name := m.Get(0)
-	if fileExists(name) {
+	if php.FileExists(name) {
 		return pathAndArgs, nil
 	}
 
@@ -748,7 +748,7 @@ func (d *EventDispatcher) resolvePhpScriptPath(pathAndArgs string) (string, erro
 			return "", err
 		}
 		// prefer non-extension file if it exists when executing with PHP
-		if fileExists(execWithoutExt) {
+		if php.FileExists(execWithoutExt) {
 			pathToExec = execWithoutExt
 		}
 	}
@@ -1004,7 +1004,7 @@ func (d *EventDispatcher) ensureBinDirIsInPath() error {
 		return err
 	}
 	binDir := php.ToString(v)
-	if !isDir(binDir) {
+	if !php.IsDir(binDir) {
 		return nil
 	}
 
@@ -1126,16 +1126,4 @@ func boolToReturn(returnedFalse bool) int {
 	}
 
 	return 0
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

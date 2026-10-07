@@ -149,7 +149,7 @@ func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string)
 
 	// avoid cleaning up $path if installing in "." for eg create-project as
 	// we can not delete the directory we are currently in on windows
-	if !isDir(path) || !isCwd(path) {
+	if !php.IsDir(path) || !isCwd(path) {
 		a.addCleanupPath(p, path)
 	}
 
@@ -204,7 +204,7 @@ func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string)
 // placeStaged is install()'s success callback for a staged tree: the
 // archive is deleted and the tree moved into place.
 func (a *ArchiveDownloader) placeStaged(p pkg.PackageInterface, fileName, dir, path string) error {
-	if fileExists(fileName) {
+	if php.FileExists(fileName) {
 		if err := util.Unlink(fileName); err != nil {
 			return err
 		}
@@ -221,7 +221,7 @@ func (a *ArchiveDownloader) installExtracted(p pkg.PackageInterface, path string
 	a.addCleanupPath(p, temporaryDir)
 	// avoid cleaning up $path if installing in "." for eg create-project as
 	// we can not delete the directory we are currently in on windows
-	if !isDir(path) || !isCwd(path) {
+	if !php.IsDir(path) || !isCwd(path) {
 		a.addCleanupPath(p, path)
 	}
 
@@ -240,7 +240,7 @@ func (a *ArchiveDownloader) installExtracted(p pkg.PackageInterface, path string
 		return nil, err
 	}
 
-	if fileExists(fileName) {
+	if php.FileExists(fileName) {
 		if err := util.Unlink(fileName); err != nil {
 			return rejected(err), nil
 		}
@@ -270,7 +270,7 @@ func (a *ArchiveDownloader) cleanupFailed(p pkg.PackageInterface, path, temporar
 
 	// clean up
 	_, _ = a.fs.RemoveDirectory(temporaryDir)
-	if isDir(path) && !isCwd(path) {
+	if php.IsDir(path) && !isCwd(path) {
 		_, _ = a.fs.RemoveDirectory(path)
 	}
 
@@ -288,7 +288,7 @@ func (a *ArchiveDownloader) cleanupFailed(p pkg.PackageInterface, path, temporar
 func (a *ArchiveDownloader) moveIntoPlace(p pkg.PackageInterface, extracted, path string, singleDir bool) error {
 	renameAsOne := false
 
-	if !fileExists(path) {
+	if !php.FileExists(path) {
 		renameAsOne = true
 	} else if empty, err := util.IsDirEmpty(path); err != nil {
 		return err
@@ -307,7 +307,7 @@ func (a *ArchiveDownloader) moveIntoPlace(p pkg.PackageInterface, extracted, pat
 			return err
 		}
 
-		if len(contentDir) == 1 && isDir(contentDir[0]) {
+		if len(contentDir) == 1 && php.IsDir(contentDir[0]) {
 			from = contentDir[0]
 		}
 	}
@@ -336,8 +336,8 @@ func (a *ArchiveDownloader) renameRecursively(p pkg.PackageInterface, from, to s
 	for _, file := range contentDir {
 		target := to + "/" + baseName(file)
 
-		if isDir(target) {
-			if !isDir(file) {
+		if php.IsDir(target) {
+			if !php.IsDir(file) {
 				return &util.RuntimeError{Message: "Installing " + p.String() + " would lead to overwriting the " + target + " directory with a file from the package, invalid operation."}
 			}
 

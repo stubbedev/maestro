@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // ScanRequest is one later ScanPaths call Prefetch prepares: its path and
@@ -95,9 +97,9 @@ func (g *Generator) prefetch(requests []ScanRequest) {
 		req := requests[i]
 		results[i].req = req
 		switch {
-		case isFile(req.Path):
+		case php.IsFile(req.Path):
 			results[i].files = []foundFile{{path: req.Path}}
-		case isDir(req.Path) || strings.Contains(req.Path, "*"):
+		case php.IsDir(req.Path) || strings.Contains(req.Path, "*"):
 			dirs, err := finderIn(req.Path)
 			if err != nil {
 				return

@@ -457,7 +457,7 @@ func (p *Perforce) ConnectClient() error {
 
 	spec, err := os.ReadFile(p.GetP4ClientSpec())
 	if err != nil {
-		return &util.ErrorException{Message: "file_get_contents(" + p.GetP4ClientSpec() + "): Failed to open stream: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "file_get_contents(" + p.GetP4ClientSpec() + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	process := util.NewProcess(p4CreateClientCommand, "", nil, symfonyProcessTimeout)
@@ -517,7 +517,7 @@ func (p *Perforce) WriteP4ClientSpec() error {
 
 	spec, err := os.Create(clientSpec)
 	if err != nil {
-		return &util.ErrorException{Message: "fopen(" + clientSpec + "): Failed to open stream: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "fopen(" + clientSpec + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	if err := p.WriteClientSpecToFile(spec); err != nil {

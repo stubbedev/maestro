@@ -102,16 +102,16 @@ func (d *GitBitbucketDriver) getRepoData() (bool, error) {
 		return false, nil
 	}
 
-	if err := d.parseCloneURLs(arrayPath(repoData, "links", "clone")); err != nil {
+	if err := d.parseCloneURLs(repoData.Path("links", "clone")); err != nil {
 		return false, err
 	}
 
-	d.hasIssues = php.ToBool(arrayPath(repoData, "has_issues"))
+	d.hasIssues = php.ToBool(repoData.Path("has_issues"))
 	d.branchesURL = pathString(repoData, "links", "branches", "href")
 	d.tagsURL = pathString(repoData, "links", "tags", "href")
 	d.homeURL = pathString(repoData, "links", "html", "href")
 	d.website = pathString(repoData, "website")
-	d.vcsType = arrayPath(repoData, "scm")
+	d.vcsType = repoData.Path("scm")
 
 	d.repoData = repoData
 
@@ -137,7 +137,7 @@ func (d *GitBitbucketDriver) ComposerInformation(identifier string) (*php.Array,
 		// specials for bitbucket
 		fixSupport(composer)
 
-		if !isset(composer, "support", "source") {
+		if composer.Path("support", "source") == nil {
 			source, err := d.sourceURL(identifier)
 			if err != nil {
 				return nil, err
@@ -146,11 +146,11 @@ func (d *GitBitbucketDriver) ComposerInformation(identifier string) (*php.Array,
 			supportArray(composer).Set("source", source)
 		}
 
-		if !isset(composer, "support", "issues") && d.hasIssues {
+		if composer.Path("support", "issues") == nil && d.hasIssues {
 			supportArray(composer).Set("issues", "https://"+d.originURL+"/"+d.owner+"/"+d.repository+"/issues")
 		}
 
-		if !isset(composer, "homepage") {
+		if composer.Path("homepage") == nil {
 			homepage := d.website
 			if !php.ToBool(homepage) {
 				homepage = d.homeURL
@@ -319,14 +319,14 @@ func (d *GitBitbucketDriver) references(url, fields string) (*php.Array, error) 
 			return nil, err
 		}
 
-		if values, ok := arrayPath(data, "values").(*php.Array); ok {
+		if values, ok := data.Path("values").(*php.Array); ok {
 			for _, v := range values.All() {
 				ref, _ := v.(*php.Array)
 				refs.Set(pathString(ref, "name"), pathString(ref, "target", "hash"))
 			}
 		}
 
-		next := arrayPath(data, "next")
+		next := data.Path("next")
 		if !php.ToBool(next) {
 			return refs, nil
 		}
@@ -412,7 +412,7 @@ func (d *GitBitbucketDriver) parseCloneURLs(cloneLinks any) error {
 
 	for _, v := range links.All() {
 		link, _ := v.(*php.Array)
-		if arrayPath(link, "name") == "https" {
+		if link.Path("name") == "https" {
 			// Format: https://(user@)bitbucket.org/{user}/{repo}
 			// Strip username from URL (only present in clone URL's for private repositories)
 			url, err := replace(cloneURLUser, "https://", pathString(link, "href"))
@@ -456,7 +456,7 @@ func (d *GitBitbucketDriver) RootIdentifier() (string, error) {
 	}
 
 	d.rootIdentifier = "master"
-	if name := arrayPath(d.repoData, "mainbranch", "name"); name != nil {
+	if name := d.repoData.Path("mainbranch", "name"); name != nil {
 		d.rootIdentifier = php.ToString(name)
 	}
 

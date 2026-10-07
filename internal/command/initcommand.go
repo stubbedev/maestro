@@ -228,7 +228,7 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 		}
 	}
 
-	if in.IsInteractive() && isDir(".git") {
+	if in.IsInteractive() && php.IsDir(".git") {
 		ignoreFile, ok := php.Realpath(".gitignore")
 		if !ok {
 			cwd, _ := php.Realpath(".")
@@ -870,7 +870,7 @@ func sanitizePackageNameComponent(name string) string {
 	// Fixed-width alternatives and single classes: these cannot fail on
 	// any input (and the input is a directory or user name).
 	name, _, _ = packageNameCamel.Replace(name, `\1\3-\2\4`, -1)
-	name = strings.ToLower(name)
+	name = php.Strtolower(name)
 	name, _, _ = packageNameTrim.Replace(name, "", -1)
 	name, _, _ = packageNameRepeats.Replace(name, "$1", -1)
 

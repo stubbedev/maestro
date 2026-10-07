@@ -3,7 +3,11 @@
 
 package classmap
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/stubbedev/maestro/internal/php"
+)
 
 // GlobOnlyDir ports PHP's glob($pattern, GLOB_MARK | GLOB_ONLYDIR |
 // GLOB_BRACE) with the marking slashes removed (Composer rtrims them): the
@@ -16,7 +20,7 @@ func GlobOnlyDir(pattern string) []string {
 		start := len(dirs)
 		for _, m := range globPattern(nil, alt) {
 			// PHP checks GLOB_ONLYDIR itself, as glibc only takes it as a hint.
-			if isDirectory(m) {
+			if php.IsDir(m) {
 				dirs = append(dirs, m)
 			}
 		}

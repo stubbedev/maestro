@@ -162,16 +162,6 @@ func optionString(options *php.Array, keys ...string) (string, bool) {
 	return php.ToString(v), true
 }
 
-// cloneOptions deep-copies an option array (nil gives an empty one), as
-// PHP's by-value arrays are copied before a callee modifies them.
-func cloneOptions(options *php.Array) *php.Array {
-	if options == nil {
-		return php.NewArray()
-	}
-
-	return options.Clone()
-}
-
 // Callables cannot live in a *php.Array, so the prevent_url_access_callable
 // and prevent_ip_access_callable options hold a handle RegisterCallable
 // returned instead.

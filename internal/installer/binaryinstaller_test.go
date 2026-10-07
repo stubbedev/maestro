@@ -127,7 +127,7 @@ func TestBinaryInstaller_InstallBinaryRejectsSymlinkEscapingPackageDir(t *testin
 		t.Fatal(err)
 	}
 
-	if fileExists(binDir + "/pwn") {
+	if php.FileExists(binDir + "/pwn") {
 		t.Error("No vendor/bin proxy must be created for an escaping symlink bin")
 	}
 
@@ -160,7 +160,7 @@ func TestBinaryInstaller_InstallBinaryRejectsTraversingBinPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if fileExists(binDir + "/victim.sh") {
+	if php.FileExists(binDir + "/victim.sh") {
 		t.Error("No vendor/bin proxy must be created for a traversing bin")
 	}
 

@@ -29,6 +29,7 @@ import (
 
 	"golang.org/x/net/http2/hpack"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -754,7 +755,7 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 			continue
 		}
 
-		switch strings.ToLower(name) {
+		switch php.Strtolower(name) {
 		case "host":
 			req.Host = value
 
@@ -762,7 +763,7 @@ func setRequestHeaders(req *http.Request, r *transferRequest) {
 		case "connection":
 			// net/http manages the connection; Composer always asks for
 			// keep-alive (curl) or close (streams).
-			if strings.EqualFold(value, "close") {
+			if php.Strcasecmp(value, "close") == 0 {
 				req.Close = true
 			}
 
@@ -908,7 +909,7 @@ func responseHeaderLines(resp *http.Response, curlStatus bool) []string {
 	for _, name := range names {
 		shown := name
 		if resp.ProtoMajor == 2 {
-			shown = strings.ToLower(name)
+			shown = php.Strtolower(name)
 		}
 
 		for _, v := range resp.Header[name] {

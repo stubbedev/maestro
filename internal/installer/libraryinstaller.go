@@ -348,7 +348,7 @@ func (l *LibraryInstaller) Uninstall(repo repository.InstalledRepositoryInterfac
 
 		if strings.Index(p.Name(), "/") > 0 {
 			packageVendorDir := php.Dirname(downloadPath)
-			if isDir(packageVendorDir) {
+			if php.IsDir(packageVendorDir) {
 				if empty, _ := util.IsDirEmpty(packageVendorDir); empty {
 					_ = os.Remove(packageVendorDir)
 				}

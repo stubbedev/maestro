@@ -4,7 +4,6 @@ package command
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
@@ -117,7 +116,7 @@ func (c *RunScriptCommand) Execute(in console.Input, out console.Output) (int, e
 	scriptName := php.ToString(scriptArg)
 
 	if !slices.Contains(runScriptEvents, scriptName) {
-		if scriptEventConstants[strings.ReplaceAll(strings.ToUpper(scriptName), "-", "_")] {
+		if isScriptEvent(scriptName) {
 			return 0, NewError(ClassInvalidArgument, `Script "`+scriptName+`" cannot be run with this command`)
 		}
 	}

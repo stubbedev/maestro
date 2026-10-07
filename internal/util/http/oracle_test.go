@@ -37,7 +37,7 @@ func oracleCases(t *testing.T, section string) []*php.Array {
 		t.Fatal(err)
 	}
 
-	cases, _ := arrayValue(o, section).(*php.Array)
+	cases, _ := o.At(section).(*php.Array)
 	if cases == nil || cases.Len() == 0 {
 		t.Fatalf("no %s cases", section)
 	}
@@ -51,7 +51,7 @@ func oracleCases(t *testing.T, section string) []*php.Array {
 	return out
 }
 
-func str(c *php.Array, key string) string { return php.ToString(arrayValue(c, key)) }
+func str(c *php.Array, key string) string { return php.ToString(c.At(key)) }
 
 // encode renders a php value as the goldens hold it.
 func encode(t *testing.T, v any) string {
@@ -78,7 +78,7 @@ func TestOracle_Proxies(t *testing.T) {
 		in := str(c, "in")
 
 		item, err := NewProxyItem(in, "https_proxy")
-		if want, ok := arrayValue(c, "error").(string); ok {
+		if want, ok := c.At("error").(string); ok {
 			if err == nil || err.Error() != want {
 				t.Errorf("%q: got %v, want error %q", in, err, want)
 			}
@@ -100,9 +100,9 @@ func TestOracle_Proxies(t *testing.T) {
 		}
 
 		if http.Status() != str(c, "status") || http.url != str(c, "url") ||
-			encode(t, http.ContextOptions()) != encode(t, arrayValue(c, "httpContext")) ||
-			encode(t, https.ContextOptions()) != encode(t, arrayValue(c, "httpsContext")) ||
-			encode(t, auth) != encode(t, arrayValue(c, "auth")) {
+			encode(t, http.ContextOptions()) != encode(t, c.At("httpContext")) ||
+			encode(t, https.ContextOptions()) != encode(t, c.At("httpsContext")) ||
+			encode(t, auth) != encode(t, c.At("auth")) {
 			t.Errorf("%q: got status %q url %q auth %v contexts %s %s, want %s", in, http.Status(), http.url, auth,
 				encode(t, http.ContextOptions()), encode(t, https.ContextOptions()), encode(t, c))
 		}
@@ -122,7 +122,7 @@ func TestOracle_Redirects(t *testing.T) {
 
 		target, err := c.handleRedirect(&curlJob{url: url}, NewResponse(url, 302, headers, ""))
 
-		if want, ok := arrayValue(tc, "error").(string); ok {
+		if want, ok := tc.At("error").(string); ok {
 			if err == nil || err.Error() != want {
 				t.Errorf("%s + %q: got %q %v, want error %q", url, location, target, err, want)
 			}
@@ -152,10 +152,10 @@ func stringsOf(a any) []string {
 
 func TestOracle_Headers(t *testing.T) {
 	for _, c := range oracleCases(t, "headers") {
-		headers := stringsOf(arrayValue(c, "headers"))
+		headers := stringsOf(c.At("headers"))
 		r := NewResponse("https://example.org", 200, headers, "")
 
-		values, _ := arrayValue(c, "values").(*php.Array)
+		values, _ := c.At("values").(*php.Array)
 		for k, want := range values.All() {
 			got := nullable(FindHeaderValue(headers, k.String()))
 			if encode(t, got) != encode(t, want) {
@@ -163,7 +163,7 @@ func TestOracle_Headers(t *testing.T) {
 			}
 		}
 
-		if got := nullable(r.StatusMessage()); encode(t, got) != encode(t, arrayValue(c, "statusMessage")) {
+		if got := nullable(r.StatusMessage()); encode(t, got) != encode(t, c.At("statusMessage")) {
 			t.Errorf("%q: status message %v", headers, got)
 		}
 
@@ -174,7 +174,7 @@ func TestOracle_Headers(t *testing.T) {
 			got = code
 		}
 
-		if encode(t, got) != encode(t, arrayValue(c, "statusCode")) {
+		if encode(t, got) != encode(t, c.At("statusCode")) {
 			t.Errorf("%q: status code %v", headers, got)
 		}
 	}
@@ -200,9 +200,9 @@ func TestOracle_AuthenticationOptions(t *testing.T) {
 		options := h.AddAuthenticationOptions(php.ArrayOf("http", php.ArrayOf("header", list("Accept: x"))), origin, url)
 		h.AddAuthenticationOptions(php.NewArray(), origin, url)
 
-		if encode(t, options) != encode(t, arrayValue(c, "options")) || php.NormalizeEOL(b.Output()) != str(c, "output") {
+		if encode(t, options) != encode(t, c.At("options")) || php.NormalizeEOL(b.Output()) != str(c, "output") {
 			t.Errorf("%s %s %s/%s: got %s %q, want %s %q", origin, url, str(c, "username"), str(c, "password"),
-				encode(t, options), php.NormalizeEOL(b.Output()), encode(t, arrayValue(c, "options")), str(c, "output"))
+				encode(t, options), php.NormalizeEOL(b.Output()), encode(t, c.At("options")), str(c, "output"))
 		}
 	}
 }
@@ -211,7 +211,7 @@ func TestOracle_GitHub(t *testing.T) {
 	g := NewGitHub(io.NewNullIO(), newFakeConfig(nil), &noProcess{}, failingGetter{})
 
 	for _, c := range oracleCases(t, "github") {
-		headers := stringsOf(arrayValue(c, "headers"))
+		headers := stringsOf(c.At("headers"))
 
 		rl := g.RateLimit(headers)
 
@@ -222,15 +222,15 @@ func TestOracle_GitHub(t *testing.T) {
 
 		got := php.ArrayOf("limit", limit, "reset", rl.Reset)
 
-		if encode(t, got) != encode(t, arrayValue(c, "rateLimit")) {
-			t.Errorf("%q: rate limit %s, want %s", headers, encode(t, got), encode(t, arrayValue(c, "rateLimit")))
+		if encode(t, got) != encode(t, c.At("rateLimit")) {
+			t.Errorf("%q: rate limit %s, want %s", headers, encode(t, got), encode(t, c.At("rateLimit")))
 		}
 
-		if sso := nullable(g.SSOURL(headers)); encode(t, sso) != encode(t, arrayValue(c, "sso")) {
+		if sso := nullable(g.SSOURL(headers)); encode(t, sso) != encode(t, c.At("sso")) {
 			t.Errorf("%q: sso %v", headers, sso)
 		}
 
-		if g.IsRateLimited(headers) != arrayValue(c, "rateLimited") || g.RequiresSSO(headers) != arrayValue(c, "requiresSso") {
+		if g.IsRateLimited(headers) != c.At("rateLimited") || g.RequiresSSO(headers) != c.At("requiresSso") {
 			t.Errorf("%q: rate limited %v, sso %v", headers, g.IsRateLimited(headers), g.RequiresSSO(headers))
 		}
 	}
@@ -249,15 +249,15 @@ func TestOracle_ForgejoURL(t *testing.T) {
 			got = php.ArrayOf("owner", f.Owner, "repository", f.Repository, "originUrl", f.OriginURL, "apiUrl", f.APIURL, "ssh", f.GenerateSSHURL())
 		}
 
-		if encode(t, got) != encode(t, arrayValue(c, "parsed")) {
-			t.Errorf("%s: got %s, want %s", url, encode(t, got), encode(t, arrayValue(c, "parsed")))
+		if encode(t, got) != encode(t, c.At("parsed")) {
+			t.Errorf("%s: got %s, want %s", url, encode(t, got), encode(t, c.At("parsed")))
 		}
 	}
 }
 
 func TestOracle_PublicBitbucketDownload(t *testing.T) {
 	for _, c := range oracleCases(t, "bitbucket") {
-		if got := IsPublicBitBucketDownload(str(c, "url")); got != arrayValue(c, "public") {
+		if got := IsPublicBitBucketDownload(str(c, "url")); got != c.At("public") {
 			t.Errorf("%s: got %v", str(c, "url"), got)
 		}
 	}
@@ -265,16 +265,16 @@ func TestOracle_PublicBitbucketDownload(t *testing.T) {
 
 func TestOracle_OutputWarnings(t *testing.T) {
 	for _, c := range oracleCases(t, "warnings") {
-		decorated := arrayValue(c, "decorated") == true
+		decorated := c.At("decorated") == true
 
 		b, err := io.NewBufferIO("", console.VerbosityNormal, console.NewOutputFormatter(decorated))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		wrote, err := OutputWarnings(b, "https://user:secret@repo.example.org", arrayValue(c, "data"))
-		if err != nil || wrote != arrayValue(c, "wrote") || php.NormalizeEOL(b.Output()) != str(c, "output") {
-			t.Errorf("%s decorated=%v: got %v %q %v, want %q", encode(t, arrayValue(c, "data")), decorated, wrote, php.NormalizeEOL(b.Output()), err, str(c, "output"))
+		wrote, err := OutputWarnings(b, "https://user:secret@repo.example.org", c.At("data"))
+		if err != nil || wrote != c.At("wrote") || php.NormalizeEOL(b.Output()) != str(c, "output") {
+			t.Errorf("%s decorated=%v: got %v %q %v, want %q", encode(t, c.At("data")), decorated, wrote, php.NormalizeEOL(b.Output()), err, str(c, "output"))
 		}
 	}
 }
@@ -285,19 +285,19 @@ func TestOracle_PromptAuthIfNeeded(t *testing.T) {
 	for _, c := range oracleCases(t, "prompts") {
 		h := NewAuthHelper(io.NewNullIO(), config)
 
-		result, err := h.PromptAuthIfNeeded(str(c, "url"), str(c, "origin"), int(php.ToInt(arrayValue(c, "status"))), str(c, "reason"), nil, 0, "")
+		result, err := h.PromptAuthIfNeeded(str(c, "url"), str(c, "origin"), int(php.ToInt(c.At("status"))), str(c, "reason"), nil, 0, "")
 
-		if want, ok := arrayValue(c, "error").(string); ok {
+		if want, ok := c.At("error").(string); ok {
 			te, isTransport := err.(*util.TransportError) //nolint:errorlint // thrown directly
-			if !isTransport || te.Message != want || int64(te.Code) != php.ToInt(arrayValue(c, "code")) {
-				t.Errorf("%s %v: got %v, want %q", str(c, "url"), arrayValue(c, "status"), err, want)
+			if !isTransport || te.Message != want || int64(te.Code) != php.ToInt(c.At("code")) {
+				t.Errorf("%s %v: got %v, want %q", str(c, "url"), c.At("status"), err, want)
 			}
 
 			continue
 		}
 
-		want, _ := arrayValue(c, "result").(*php.Array)
-		if err != nil || result.Retry != (arrayValue(want, "retry") == true) || result.StoreAuth != storeAuthOf(arrayValue(want, "storeAuth")) {
+		want, _ := c.At("result").(*php.Array)
+		if err != nil || result.Retry != (want.At("retry") == true) || result.StoreAuth != storeAuthOf(want.At("storeAuth")) {
 			t.Errorf("%s: got %+v %v", str(c, "url"), result, err)
 		}
 	}

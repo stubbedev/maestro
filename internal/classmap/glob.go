@@ -45,7 +45,7 @@ func phpGlobDirs(pattern string) []string {
 	// PHP checks GLOB_ONLYDIR itself, as glibc only takes it as a hint.
 	dirs := matches[:0]
 	for _, m := range matches {
-		if isDirectory(m) {
+		if php.IsDir(m) {
 			dirs = append(dirs, m)
 		}
 	}
@@ -121,14 +121,14 @@ func globPattern(dst []string, pattern string) []string {
 	if filePattern == "" {
 		// "dir/" matches the directory itself, with the slash.
 		if !hasGlobMagic(dirPattern) {
-			if isDirectory(unescapeGlob(dirPattern)) {
+			if php.IsDir(unescapeGlob(dirPattern)) {
 				return append(dst, unescapeGlob(dirPattern)+sep)
 			}
 
 			return dst
 		}
 		for _, d := range globPattern(nil, dirPattern) {
-			if isDirectory(d) {
+			if php.IsDir(d) {
 				dst = append(dst, d+sep)
 			}
 		}
@@ -141,7 +141,7 @@ func globPattern(dst []string, pattern string) []string {
 		return globInDir(dst, dir, dir, sep, filePattern)
 	}
 	for _, dir := range globPattern(nil, dirPattern) {
-		if isDirectory(dir) {
+		if php.IsDir(dir) {
 			dst = globInDir(dst, dir, dir, sep, filePattern)
 		}
 	}

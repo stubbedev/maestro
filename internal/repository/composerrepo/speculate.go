@@ -51,7 +51,7 @@ func (r *ComposerRepository) SpeculateLoads(roots *repository.ConstraintMap, ski
 		r:           r,
 		p:           p,
 		roots:       roots,
-		options:     cloneOptions(r.options),
+		options:     r.options.Clone(),
 		peek:        r.cache.Peeker(),
 		stabilities: acceptableStabilities,
 		flags:       stabilityFlags,
@@ -422,7 +422,7 @@ func (p *prebuilt) take(name, notifyURL string, i int) pkg.PackageInterface {
 // loader refuses are left to the load. The list is expanded up to the
 // last version accepted. exact versions are kept for the load.
 func (s *speculation) prebuild(name string, data *php.Array, versions []*speculatedVersion, exact bool) *prebuilt {
-	if get(data, "minified") != "composer/2.0" {
+	if data.At("minified") != "composer/2.0" {
 		return nil
 	}
 	raw, ok := packageVersions(data, name).(*php.Array)
@@ -460,7 +460,7 @@ func (s *speculation) prebuild(name string, data *php.Array, versions []*specula
 		if i > last {
 			return errStopExpanding
 		}
-		if normalized := get(v, "version_normalized"); !accepted[i] || normalized == nil || normalized == pkg.DefaultBranchAlias {
+		if normalized := v.At("version_normalized"); !accepted[i] || normalized == nil || normalized == pkg.DefaultBranchAlias {
 			return nil
 		}
 
@@ -522,11 +522,11 @@ func (s *speculation) versionsOf(name string, data *php.Array) (versions []*spec
 	index := -1
 	add := func(v *php.Array) {
 		index++
-		normalized, _ := get(v, "version_normalized").(string)
+		normalized, _ := v.At("version_normalized").(string)
 		if normalized == "" || normalized == pkg.DefaultBranchAlias {
 			exact = false
 			var err error
-			if normalized, err = s.r.versionParser.Normalize(php.ToString(get(v, "version"))); err != nil {
+			if normalized, err = s.r.versionParser.Normalize(php.ToString(v.At("version"))); err != nil {
 				return
 			}
 		}
@@ -543,7 +543,7 @@ func (s *speculation) versionsOf(name string, data *php.Array) (versions []*spec
 			return
 		}
 
-		require, _ := get(v, "require").(*php.Array)
+		require, _ := v.At("require").(*php.Array)
 		requires, ok := links[require]
 		if !ok && require != nil {
 			requires = make([]speculatedLink, 0, require.Len())
@@ -557,7 +557,7 @@ func (s *speculation) versionsOf(name string, data *php.Array) (versions []*spec
 		versions = append(versions, &speculatedVersion{index: index, normalized: normalized, alias: alias, requires: requires, stable: normalizedStable, aliasStable: aliasStable})
 	}
 
-	if get(data, "minified") == "composer/2.0" {
+	if data.At("minified") == "composer/2.0" {
 		if ok, _ := expandEach(items, func(v *php.Array, _ func() *php.Array) error { add(v); return nil }); ok {
 			return versions, exact
 		}
@@ -580,9 +580,9 @@ func (s *speculation) versionsOf(name string, data *php.Array) (versions []*spec
 
 // packageVersions is $data['packages'][$name] ?? null.
 func packageVersions(data *php.Array, name string) any {
-	packages, _ := get(data, "packages").(*php.Array)
+	packages, _ := data.At("packages").(*php.Array)
 
-	return get(packages, name)
+	return packages.At(name)
 }
 
 // stable tells whether name's version v has an acceptable stability.

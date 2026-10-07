@@ -11,7 +11,6 @@
 package vcs
 
 import (
-	"os"
 	"strings"
 	"sync"
 
@@ -135,11 +134,4 @@ func envTruthy(name string) (string, bool) {
 	v, ok := util.GetEnv(name)
 
 	return v, ok && php.ToBool(v)
-}
-
-// isDir is is_dir($path).
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

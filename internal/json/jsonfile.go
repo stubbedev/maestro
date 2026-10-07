@@ -88,13 +88,7 @@ func NewFile(path string, httpDownloader HTTPDownloader, io io.IO) (*File, error
 func (f *File) Path() string { return f.path }
 
 // Exists ports JsonFile::exists (is_file).
-func (f *File) Exists() bool { return isFile(f.path) }
-
-func isFile(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.Mode().IsRegular()
-}
+func (f *File) Exists() bool { return php.IsFile(f.path) }
 
 // Read ports JsonFile::read: the decoded file (json_decode with assoc), or
 // a *jsonlint.ParsingError, *util.UnexpectedValueError or

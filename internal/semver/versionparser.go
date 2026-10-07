@@ -49,11 +49,11 @@ func ParseStability(version string) string {
 	if match.word.nonEmpty() {
 		word := match.word.text(version)
 		switch {
-		case strings.EqualFold(word, "beta") || strings.EqualFold(word, "b"):
+		case php.Strcasecmp(word, "beta") == 0 || php.Strcasecmp(word, "b") == 0:
 			return StabilityBeta
-		case strings.EqualFold(word, "alpha") || strings.EqualFold(word, "a"):
+		case php.Strcasecmp(word, "alpha") == 0 || php.Strcasecmp(word, "a") == 0:
 			return StabilityAlpha
-		case strings.EqualFold(word, "rc"):
+		case php.Strcasecmp(word, "rc") == 0:
 			return StabilityRC
 		}
 	}

@@ -92,7 +92,7 @@ func (r *ComposerRepository) loadRootServerFile(rootMaxAge int64) (*php.Array, b
 		cachedData := decodeArray(cached)
 		if age, ok := r.cache.Age("packages.json"); rootMaxAge != noMaxAge && ok && age <= rootMaxAge {
 			data, hasSet = cachedData, cachedData != nil
-		} else if lastModified := get(cachedData, "last-modified"); lastModified != nil {
+		} else if lastModified := cachedData.At("last-modified"); lastModified != nil {
 			response, fresh, err := r.fetchFileIfLastModified(r.packagesJSONURL(), "packages.json", php.ToString(lastModified))
 			if err != nil {
 				return nil, false, err
@@ -128,7 +128,7 @@ func (r *ComposerRepository) loadRootServerFile(rootMaxAge int64) (*php.Array, b
 // data's settings.
 func (r *ComposerRepository) configureFromRoot(data *php.Array) error {
 	canonical := func(key string) (string, bool, error) {
-		v := get(data, key)
+		v := data.At(key)
 		if !php.ToBool(v) {
 			return "", false, nil
 		}
@@ -145,7 +145,7 @@ func (r *ComposerRepository) configureFromRoot(data *php.Array) error {
 		return err
 	}
 
-	if php.ToBool(get(data, "notify-batch")) {
+	if php.ToBool(data.At("notify-batch")) {
 		if err := setURL(&r.notifyURL, "notify-batch"); err != nil {
 			return err
 		}
@@ -160,13 +160,13 @@ func (r *ComposerRepository) configureFromRoot(data *php.Array) error {
 	if mirrors, _ := data.GetArray("mirrors"); mirrors != nil && mirrors.Len() > 0 {
 		for _, raw := range mirrors.All() {
 			m, _ := raw.(*php.Array)
-			preferred := php.ToBool(get(m, "preferred"))
+			preferred := php.ToBool(m.At("preferred"))
 			for _, typ := range [2]string{"git", "hg"} {
-				if url := get(m, typ+"-url"); php.ToBool(url) {
+				if url := m.At(typ + "-url"); php.ToBool(url) {
 					r.addSourceMirror(typ, mirror{url: url, preferred: preferred})
 				}
 			}
-			if url := get(m, "dist-url"); php.ToBool(url) {
+			if url := m.At("dist-url"); php.ToBool(url) {
 				canonicalURL, err := r.canonicalizeURL(php.ToString(url))
 				if err != nil {
 					return err
@@ -185,7 +185,7 @@ func (r *ComposerRepository) configureFromRoot(data *php.Array) error {
 		r.lazyProvidersURL = url
 		r.hasProviders = true
 
-		r.hasPartialPackages = isNonEmptyArray(get(data, "packages"))
+		r.hasPartialPackages = isNonEmptyArray(data.At("packages"))
 	}
 
 	// metadata-url indicates V2 repo protocol so it takes over from all the V1 types
@@ -215,7 +215,7 @@ func (r *ComposerRepository) configureFromRoot(data *php.Array) error {
 		return err
 	}
 
-	if php.ToBool(get(data, "providers")) || php.ToBool(get(data, "providers-includes")) {
+	if php.ToBool(data.At("providers")) || php.ToBool(data.At("providers-includes")) {
 		r.hasProviders = true
 	}
 
@@ -227,13 +227,13 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 	r.lazyProvidersURL = metadataURL
 	r.providersURL = ""
 	r.hasProviders = false
-	r.hasPartialPackages = isNonEmptyArray(get(data, "packages"))
+	r.hasPartialPackages = isNonEmptyArray(data.At("packages"))
 	r.allowSslDowngrade = false
 
 	// provides a list of package names that are available in this repo
 	// this disables lazy-provider behavior in the sense that if a list is available we assume it is finite and won't search for other packages in that repo
 	// while if no list is there lazyProvidersUrl is used when looking for any package name to see if the repo knows it
-	if availablePackages := get(data, "available-packages"); php.ToBool(availablePackages) {
+	if availablePackages := data.At("available-packages"); php.ToBool(availablePackages) {
 		list := asArray(availablePackages)
 		var names []string
 		r.availablePackageSet = map[string]struct{}{}
@@ -251,7 +251,7 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 	// Provides a list of package name patterns (using * wildcards to match any substring, e.g. "vendor/*") that are available in this repo
 	// Disables lazy-provider behavior as with available-packages, but may allow much more compact expression of packages covered by this repository.
 	// Over-specifying covered packages is safe, but may result in increased traffic to your repository.
-	if patterns := get(data, "available-package-patterns"); php.ToBool(patterns) {
+	if patterns := data.At("available-package-patterns"); php.ToBool(patterns) {
 		list := asArray(patterns)
 		var regexps []*php.Regexp
 		for _, v := range list.All() {
@@ -272,7 +272,7 @@ func (r *ComposerRepository) configureV2(data *php.Array, metadataURL string) er
 	data.Delete("providers-includes")
 
 	if advisories, ok := data.GetArray("security-advisories"); ok {
-		r.securityAdvisoryConfig = &securityAdvisoryConfig{metadata: php.ToBool(get(advisories, "metadata"))}
+		r.securityAdvisoryConfig = &securityAdvisoryConfig{metadata: php.ToBool(advisories.At("metadata"))}
 		if apiURL, ok := advisories.GetString("api-url"); ok {
 			url, err := r.canonicalizeURL(apiURL)
 			if err != nil {
@@ -383,7 +383,7 @@ func (r *ComposerRepository) loadProviderListings(data *php.Array) error {
 		}
 		for name, v := range asArray(providers).All() {
 			metadata, _ := v.(*php.Array)
-			r.providerListing.Set(name.String(), php.ToString(get(metadata, "sha256")))
+			r.providerListing.Set(name.String(), php.ToString(metadata.At("sha256")))
 		}
 	}
 
@@ -392,7 +392,7 @@ func (r *ComposerRepository) loadProviderListings(data *php.Array) error {
 		for k, v := range asArray(includes).All() {
 			include := k.String()
 			metadata, _ := v.(*php.Array)
-			sha256 := php.ToString(get(metadata, "sha256"))
+			sha256 := php.ToString(metadata.At("sha256"))
 			url := r.baseURL + "/" + strings.ReplaceAll(include, "%hash%", sha256)
 			cacheKey := strings.ReplaceAll(strings.ReplaceAll(include, "%hash%", ""), "$", "")
 
@@ -466,7 +466,7 @@ func (r *ComposerRepository) loadIncludes(data *php.Array) ([]*php.Array, error)
 			for _, rawMetadata := range asArray(raw).All() {
 				metadata, _ := rawMetadata.(*php.Array)
 				packages = append(packages, metadata)
-				metadataName := php.ToString(get(metadata, "name"))
+				metadataName := php.ToString(metadata.At("name"))
 				if !r.displayedWarningAboutNonMatchingPackageIndex && packageName != php.Strtolower(metadataName) {
 					r.displayedWarningAboutNonMatchingPackageIndex = true
 					r.io.WriteError("<warning>Warning: the packages key '"+k.String()+"' doesn't match the name defined in the package metadata '"+metadataName+"' in repository "+r.baseURL+"</warning>", true, io.Normal)
@@ -481,7 +481,7 @@ func (r *ComposerRepository) loadIncludes(data *php.Array) ([]*php.Array, error)
 			metadata, _ := raw.(*php.Array)
 
 			var includedData *php.Array
-			sha1 := get(metadata, "sha1")
+			sha1 := metadata.At("sha1")
 			cachedSha1, ok := "", false
 			if sha1 != nil {
 				var err error
@@ -590,10 +590,10 @@ func (r *ComposerRepository) initializePartialPackages() error {
 	}
 
 	r.partialPackagesByName = &repository.NameMap[[]*php.Array]{}
-	for k, raw := range asArray(get(rootData, "packages")).All() {
+	for k, raw := range asArray(rootData.At("packages")).All() {
 		for _, rawVersion := range asArray(raw).All() {
 			version, _ := rawVersion.(*php.Array)
-			versionName := php.ToString(get(version, "name"))
+			versionName := php.ToString(version.At("name"))
 			versionPackageName := php.Strtolower(versionName)
 			list, _ := r.partialPackagesByName.Get(versionPackageName)
 			r.partialPackagesByName.Set(versionPackageName, append(list, version))

@@ -173,7 +173,7 @@ func (r *ArrayRepository) LoadPackages(packageNameMap *ConstraintMap, acceptable
 
 // FindPackage ports ArrayRepository::findPackage.
 func (r *ArrayRepository) FindPackage(name string, constraint semver.ConstraintInterface) (pkg.PackageInterface, error) {
-	name = strtolower(name)
+	name = php.Strtolower(name)
 	packages, err := r.Packages()
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ func (r *ArrayRepository) FindPackage(name string, constraint semver.ConstraintI
 // FindPackages ports ArrayRepository::findPackages.
 func (r *ArrayRepository) FindPackages(name string, constraint semver.ConstraintInterface) ([]pkg.PackageInterface, error) {
 	// normalize name
-	name = strtolower(name)
+	name = php.Strtolower(name)
 	packages, err := r.Packages()
 	if err != nil {
 		return nil, err

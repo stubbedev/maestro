@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Comparer ports Composer\Package\Comparer\Comparer: it lists the files
@@ -211,7 +213,7 @@ func walk(base, dir string, t *tree) bool {
 		case info.Mode()&os.ModeSymlink != 0:
 			target, _ := os.Readlink(full)
 			t.set(dir, name, target)
-		case isDir(full):
+		case php.IsDir(full):
 			if !walk(base, rel, t) {
 				return false
 			}
@@ -223,12 +225,6 @@ func walk(base, dir string, t *tree) bool {
 	}
 
 	return true
-}
-
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-
-	return err == nil && info.IsDir()
 }
 
 func hashFile(path string) (string, bool) {

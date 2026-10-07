@@ -217,7 +217,7 @@ func (c *UpdateCommand) Execute(in console.Input, out console.Output) (int, erro
 	temporaryConstraints := &repository.ConstraintMap{}
 	rootRequirements := updateMergeLinks(rootPackage.Requires(), rootPackage.DevRequires())
 	for k, v := range reqs.All() {
-		packageName := strings.ToLower(k.String())
+		packageName := php.Strtolower(k.String())
 		constraint := php.ToString(v)
 		parsedConstraint, err := parser.ParseConstraints(constraint)
 		if err != nil {

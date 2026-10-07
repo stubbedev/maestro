@@ -7,6 +7,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // dirSeparators are '/' and DIRECTORY_SEPARATOR.
@@ -33,17 +35,17 @@ func rmdirPath(path string) error {
 
 // isReadableAccess is PHP's is_readable on Windows: the file exists.
 func isReadableAccess(path string) bool {
-	return fileExists(path)
+	return php.FileExists(path)
 }
 
 // isExecutable approximates PHP's is_executable on Windows, which asks
 // GetBinaryType: an existing .exe or .com file.
 func isExecutable(path string) bool {
-	if !isFile(path) {
+	if !php.IsFile(path) {
 		return false
 	}
 
-	ext := strings.ToLower(path[strings.LastIndexByte(path, '.')+1:])
+	ext := php.Strtolower(path[strings.LastIndexByte(path, '.')+1:])
 
 	return ext == "exe" || ext == "com"
 }
@@ -61,12 +63,12 @@ func fileAtime(fi os.FileInfo) time.Time {
 // Junction ports Filesystem::junction: creates an NTFS junction at junction
 // pointing to target.
 func (fs *Filesystem) Junction(target, junction string) error {
-	if !isDir(target) {
+	if !php.IsDir(target) {
 		return &IOError{Message: "Cannot junction to \"" + target + "\" as it is not a directory.", Path: target}
 	}
 
 	// Removing any previous junction to ensure clean execution.
-	if !isDir(junction) || IsJunction(junction) {
+	if !php.IsDir(junction) || IsJunction(junction) {
 		_ = rmdirPath(junction)
 	}
 
@@ -86,7 +88,7 @@ func (fs *Filesystem) Junction(target, junction string) error {
 // but whose own lstat mode is not a directory. Go reports junctions (mount
 // point reparse points) as irregular files.
 func IsJunction(junction string) bool {
-	if !isDir(junction) || isLink(junction) {
+	if !php.IsDir(junction) || isLink(junction) {
 		return false
 	}
 

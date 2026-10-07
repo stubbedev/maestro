@@ -108,7 +108,7 @@ func (d *GitLabDriver) Initialize() error {
 	switch {
 	case p.scheme == "https" || p.scheme == "http":
 		d.scheme = p.scheme
-	case arrayPath(d.repoConfig, "secure-http") == false:
+	case d.repoConfig.Path("secure-http") == false:
 		d.scheme = "http"
 	default:
 		d.scheme = "https"
@@ -174,7 +174,7 @@ func (d *GitLabDriver) ComposerInformation(identifier string) (*php.Array, error
 
 		webURL := pathString(d.project, "web_url")
 
-		if !isset(composer, "support", "source") && isset(d.project, "web_url") {
+		if composer.Path("support", "source") == nil && d.project.Path("web_url") != nil {
 			label, err := searchLabel(identifier, true, identifier, d.Tags, d.Branches)
 			if err != nil {
 				return nil, err
@@ -183,11 +183,11 @@ func (d *GitLabDriver) ComposerInformation(identifier string) (*php.Array, error
 			supportArray(composer).Set("source", webURL+"/-/tree/"+label)
 		}
 
-		if !isset(composer, "support", "issues") && php.ToBool(arrayPath(d.project, "issues_enabled")) && isset(d.project, "web_url") {
+		if composer.Path("support", "issues") == nil && php.ToBool(d.project.Path("issues_enabled")) && d.project.Path("web_url") != nil {
 			supportArray(composer).Set("issues", webURL+"/-/issues")
 		}
 
-		if !isset(composer, "abandoned") && php.ToBool(arrayPath(d.project, "archived")) {
+		if composer.Path("abandoned") == nil && php.ToBool(d.project.Path("archived")) {
 			composer.Set("abandoned", true)
 		}
 	}
@@ -385,7 +385,7 @@ func (d *GitLabDriver) references(typ string) (*php.Array, error) {
 
 			// Keep the last commit date of a reference to avoid
 			// unnecessary API call when retrieving the composer file.
-			commit, _ := arrayPath(datum, "commit").(*php.Array)
+			commit, _ := datum.Path("commit").(*php.Array)
 			d.commits[id] = commit
 		}
 
@@ -415,7 +415,7 @@ func (d *GitLabDriver) fetchProject() error {
 
 	d.project = project
 
-	if visibility := arrayPath(project, "visibility"); visibility != nil {
+	if visibility := project.Path("visibility"); visibility != nil {
 		d.isPrivate = visibility != "public"
 	} else {
 		// client is not authenticated, therefore repository has to be public
@@ -561,17 +561,17 @@ func (d *GitLabDriver) tryGetContents(url string, fetchingRepoData bool) (*http.
 	// Accessing the API with a token with Guest (10) or Planner (15) access will return
 	// more data than unauthenticated access but no default_branch data
 	// accessing files via the API will then also fail
-	if !isset(json, "default_branch") && isset(json, "permissions") {
-		d.isPrivate = arrayPath(json, "visibility") != "public"
+	if json.Path("default_branch") == nil && json.Path("permissions") != nil {
+		d.isPrivate = json.Path("visibility") != "public"
 
 		moreThanGuestAccess := false
 
 		// Check both access levels (e.g. project, group)
 		// - value will be null if no access is set
 		// - value will be array with key access_level if set
-		if permissions, ok := arrayPath(json, "permissions").(*php.Array); ok {
+		if permissions, ok := json.Path("permissions").(*php.Array); ok {
 			for _, permission := range permissions.All() {
-				if p, ok := permission.(*php.Array); ok && p.Len() > 0 && php.ToInt(arrayPath(p, "access_level")) >= 20 {
+				if p, ok := permission.(*php.Array); ok && p.Len() > 0 && php.ToInt(p.Path("access_level")) >= 20 {
 					moreThanGuestAccess = true
 				}
 			}
@@ -589,13 +589,13 @@ func (d *GitLabDriver) tryGetContents(url string, fetchingRepoData bool) (*http.
 	}
 
 	// force auth as the unauthenticated version of the API is broken
-	if !isset(json, "default_branch") {
+	if json.Path("default_branch") == nil {
 		// GitLab allows you to disable the repository inside a project to use a project only for issues and wiki
-		if arrayPath(json, "repository_access_level") == "disabled" {
+		if json.Path("repository_access_level") == "disabled" {
 			return nil, util.NewTransportError("The GitLab repository is disabled in the project", 400)
 		}
 
-		if php.ToBool(arrayPath(json, "id")) {
+		if php.ToBool(json.Path("id")) {
 			d.isPrivate = false
 		}
 

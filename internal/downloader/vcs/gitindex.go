@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // errIndexFallback means refreshIndex cannot rewrite this index itself:
@@ -34,7 +36,7 @@ func refreshIndex(workTree string) error {
 		return err
 	}
 
-	if strings.Contains(strings.ToLower(string(config)), "objectformat") {
+	if strings.Contains(php.Strtolower(string(config)), "objectformat") {
 		return errIndexFallback
 	}
 

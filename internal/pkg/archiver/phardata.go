@@ -150,7 +150,7 @@ func pharAnalyzePath(filename string) bool {
 		return true
 	}
 
-	return isDir(filename[:slash])
+	return php.IsDir(filename[:slash])
 }
 
 // pharPathCheck ports phar_path_check(): the entry name phar keeps (a

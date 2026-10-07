@@ -86,7 +86,7 @@ func (d *HgDriver) updateClone() error {
 	hgUtils := uvcs.NewHg(d.io, d.config, d.process)
 
 	// update the repo if it is a valid hg repository
-	if isDir(d.repoDir) {
+	if php.IsDir(d.repoDir) {
 		var output string
 
 		code, err := d.process.Execute(util.Cmd("hg", "summary"), &output, d.repoDir)
@@ -281,7 +281,7 @@ func hgSupports(deps Deps, url string, deep bool) (bool, error) {
 	// local filesystem
 	if util.IsLocalPath(url) {
 		url = util.GetPlatformPath(url)
-		if !isDir(url) {
+		if !php.IsDir(url) {
 			return false, nil
 		}
 

@@ -99,9 +99,9 @@ func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, igno
 		// libzip writes no file for an archive without entries: create
 		// minimal valid ZIP file (Empty Central Directory + End of Central
 		// Directory record)
-		if !fileExists(target) {
+		if !php.FileExists(target) {
 			if err := os.WriteFile(target, emptyZip, 0o666); err != nil {
-				return "", &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + util.Strerror(err)}
+				return "", &util.ErrorException{Message: "file_put_contents(" + target + "): Failed to open stream: " + php.Strerror(err)}
 			}
 		}
 
@@ -116,7 +116,7 @@ func (a *ZipArchiver) Archive(sources, target, _ string, excludes []string, igno
 func writeLibzip(target string, entries []zipEntry) error {
 	tmp, err := createTemp(target)
 	if err != nil {
-		return &util.ErrorException{Message: "ZipArchive::close(): Failure to create temporary file: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "ZipArchive::close(): Failure to create temporary file: " + php.Strerror(err)}
 	}
 
 	defer func() { _ = os.Remove(tmp.Name()) }()
@@ -134,7 +134,7 @@ func writeLibzip(target string, entries []zipEntry) error {
 	}
 
 	if cerr := tmp.Close(); err == nil && cerr != nil {
-		err = &util.ErrorException{Message: "ZipArchive::close(): Write error: " + util.Strerror(cerr)}
+		err = &util.ErrorException{Message: "ZipArchive::close(): Write error: " + php.Strerror(cerr)}
 	}
 
 	if err != nil {
@@ -142,7 +142,7 @@ func writeLibzip(target string, entries []zipEntry) error {
 	}
 
 	if err := os.Rename(tmp.Name(), target); err != nil {
-		return &util.ErrorException{Message: "ZipArchive::close(): Renaming temporary file failed: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "ZipArchive::close(): Renaming temporary file failed: " + php.Strerror(err)}
 	}
 
 	return nil
@@ -165,7 +165,7 @@ func writeLibzipEntries(zw *zip.Writer, entries []zipEntry) error {
 		if !e.isDir {
 			var err error
 			if data, err = os.ReadFile(e.source); err != nil {
-				return &util.ErrorException{Message: "ZipArchive::close(): Can't open file: " + util.Strerror(err)}
+				return &util.ErrorException{Message: "ZipArchive::close(): Can't open file: " + php.Strerror(err)}
 			}
 
 			h.ExternalAttrs = unixMode(e.mode) << 16
@@ -265,7 +265,7 @@ func statPerms(path string, mode fs.FileMode, windows bool) fs.FileMode {
 		return perms
 	}
 
-	switch strings.ToLower(path[len(path)-3:]) {
+	switch php.Strtolower(path[len(path)-3:]) {
 	case "exe", "com", "bat", "cmd":
 		perms |= 0o111
 	}

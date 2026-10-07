@@ -376,13 +376,6 @@ func (p *parser) performAction(token any, yytext string, yylineno, yystate int) 
 	return token, false, nil
 }
 
-// isset reports isset($a[$key]).
-func isset(a *php.Array, key string) bool {
-	v, ok := a.Get(key)
-
-	return ok && v != nil
-}
-
 func (p *parser) duplicateKeyError(key string, yylineno int) error {
 	return &DuplicateKeyError{ParsingError{
 		Message: "Parse error on line " + itoa(yylineno+1) + ":\n" + p.lexer.showPosition() + "\nDuplicate key: " + key,
@@ -394,13 +387,13 @@ func (p *parser) duplicateKeyError(key string, yylineno int) error {
 func (p *parser) addArrayMember(a *php.Array, m member, yylineno int) error {
 	key := m.key
 	switch {
-	case !isset(a, key):
+	case !a.Isset(key):
 		a.Set(key, m.value)
 	case p.flags&DetectKeyConflicts != 0:
 		return p.duplicateKeyError(key, yylineno)
 	case p.flags&AllowDuplicateKeys != 0:
 		for n := 1; ; n++ {
-			if duplicateKey := key + "." + itoa(n); !isset(a, duplicateKey) {
+			if duplicateKey := key + "." + itoa(n); !a.Isset(duplicateKey) {
 				a.Set(duplicateKey, m.value)
 
 				break

@@ -5,8 +5,9 @@ package platform
 
 import (
 	"slices"
-	"strings"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // DefaultTimezone is date_default_timezone_get() in the php the snapshot
@@ -54,7 +55,7 @@ func zoneNameFold(name string) (string, bool) {
 	}
 
 	for _, id := range timezoneIdentifiers {
-		if strings.EqualFold(id, name) {
+		if php.Strcasecmp(id, name) == 0 {
 			return id, true
 		}
 	}

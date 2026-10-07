@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Output types passed to Process callbacks (Process::OUT, Process::ERR).
@@ -220,7 +222,7 @@ func (p *Process) Start(callback func(typ, buffer string)) error {
 		}
 	}
 
-	if p.cwd != "" && !isDir(p.cwd) {
+	if p.cwd != "" && !php.IsDir(p.cwd) {
 		return &RuntimeError{Class: ClassProcessRuntime, Message: `The provided cwd "` + p.cwd + `" does not exist.`}
 	}
 
@@ -629,7 +631,7 @@ func mergeEnv(overrides, inherited []string, windows bool) []string {
 func lookupEnv(env []string, name string, windows bool) int {
 	for i, kv := range env {
 		k, _, _ := strings.Cut(kv, "=")
-		if k == name || (windows && strings.EqualFold(k, name)) {
+		if k == name || (windows && php.Strcasecmp(k, name) == 0) {
 			return i
 		}
 	}

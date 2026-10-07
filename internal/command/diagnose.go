@@ -106,7 +106,7 @@ func (c *DiagnoseCommand) extensionLoaded(name string) bool {
 		return false
 	}
 	for _, e := range c.view.Extensions {
-		if strings.EqualFold(e.Name, name) {
+		if php.Strcasecmp(e.Name, name) == 0 {
 			return true
 		}
 	}
@@ -144,7 +144,7 @@ func (c *DiagnoseCommand) iniGet(name string) string {
 
 // filterBool is filter_var($v, FILTER_VALIDATE_BOOLEAN).
 func filterBool(v string) bool {
-	switch strings.ToLower(php.Trim(v)) {
+	switch php.Strtolower(php.Trim(v)) {
 	case "1", "true", "on", "yes":
 		return true
 	}
@@ -557,7 +557,7 @@ func (c *DiagnoseCommand) checkGit() (any, error) {
 
 	var output string
 	_, _ = c.process.Execute(util.Cmd("git", "config", "color.ui"), &output, "")
-	if strings.ToLower(php.Trim(output)) == "always" {
+	if php.Strtolower(php.Trim(output)) == "always" {
 		return `<comment>Your git color.ui setting is set to always, this is known to create issues. Use "git config --global color.ui true" to set it correctly.</comment>`, nil
 	}
 

@@ -72,7 +72,7 @@ func (d *HgDownloader) doUpdate(_, target pkg.PackageInterface, path, url string
 
 // LocalChanges is getLocalChanges().
 func (d *HgDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.NullString, error) {
-	if !isDir(path + "/.hg") {
+	if !php.IsDir(path + "/.hg") {
 		return pkg.NullString{}, nil
 	}
 
@@ -94,5 +94,5 @@ func (d *HgDownloader) commitLogs(fromReference, toReference, path string) (stri
 }
 
 func (d *HgDownloader) hasMetadataRepository(path string) bool {
-	return isDir(path + "/.hg")
+	return php.IsDir(path + "/.hg")
 }

@@ -379,7 +379,7 @@ var uniqueConfigValues = map[string]configValidator{
 	"source-fallback":             boolPair,
 	"bump-after-update":           {oneOf("dev", "no-dev", "true", "false", "1", "0"), keywordOrBool("dev", "no-dev")},
 	"cafile": {
-		func(val string) (bool, error) { return fileExists(val) && util.IsReadable(val), nil },
+		func(val string) (bool, error) { return php.FileExists(val) && util.IsReadable(val), nil },
 		nullIfNull,
 	},
 	"capath": {

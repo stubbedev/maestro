@@ -164,7 +164,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 				continue
 			}
-			files[i].list, _ = get(response, "security-advisories").(*php.Array)
+			files[i].list, _ = response.At("security-advisories").(*php.Array)
 			if files[i].list != nil && files[i].list.Len() > 0 {
 				toCreate = append(toCreate, i)
 			}
@@ -223,7 +223,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 			return repository.AdvisoryResult{}, err
 		}
 		warned := false
-		for k, raw := range asArray(get(advisoryData, "advisories")).All() {
+		for k, raw := range asArray(advisoryData.At("advisories")).All() {
 			name := k.String()
 			if v, _ := packageConstraintMap.Get(name); v == nil {
 				if !warned {
@@ -304,7 +304,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 		if _, err := http.OutputWarnings(r.io, r.url, decoded); err != nil {
 			return nil, err
 		}
-		filter, ok := get(asArrayOrNil(decoded), "filter").(*php.Array)
+		filter, ok := asArrayOrNil(decoded).At("filter").(*php.Array)
 		if !ok {
 			return nil, util.NewTransportError("Filter api-url "+r.filterConfig.APIURL+" returned an unexpected response for "+r.RepoName(), 0)
 		}
@@ -370,7 +370,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 				return err
 			}
 
-			raw, ok := get(response, "filter").(*php.Array)
+			raw, ok := response.At("filter").(*php.Array)
 			if !ok {
 				return nil
 			}
@@ -434,7 +434,7 @@ func (r *ComposerRepository) loadFilterSummary() (*repository.NameMap[*repositor
 	}
 	if ok {
 		if contents = decodeArray(cached); contents != nil {
-			lastModified = php.ToString(get(contents, "last-modified"))
+			lastModified = php.ToString(contents.At("last-modified"))
 		}
 	}
 
@@ -452,7 +452,7 @@ func (r *ComposerRepository) loadFilterSummary() (*repository.NameMap[*repositor
 		data = contents
 	}
 
-	lists, ok := get(data, "filter").(*php.Array)
+	lists, ok := data.At("filter").(*php.Array)
 	if !ok {
 		return nil, util.NewTransportError("Filter summary URL "+r.filterConfig.SummaryURL+" returned 404 for "+r.RepoName(), 404)
 	}

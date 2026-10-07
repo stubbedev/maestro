@@ -112,7 +112,7 @@ func (d *GitDownloader) host(cachePath string) gitHost {
 		}
 
 		key, _, _ := strings.Cut(entry, "\n")
-		key = strings.ToLower(key)
+		key = php.Strtolower(key)
 
 		if slices.Contains(bypassConfig, key) || slices.ContainsFunc(bypassConfigPrefixes, func(p string) bool { return strings.HasPrefix(key, p) }) {
 			h.bypass = true
@@ -160,7 +160,7 @@ func keyParts(parts []string) []byte {
 // from the store: a clone from the mirror cache without
 // single_use_clone, nothing forcing the checkout, not on Windows.
 func (d *GitDownloader) storeEligible(p pkg.PackageInterface, path string) bool {
-	if d.store == nil || util.IsWindows() || php.ToBool(arrayPath(p.TransportOptions(), "git", "single_use_clone")) {
+	if d.store == nil || util.IsWindows() || php.ToBool(p.TransportOptions().Path("git", "single_use_clone")) {
 		return false
 	}
 

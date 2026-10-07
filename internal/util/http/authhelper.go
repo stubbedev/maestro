@@ -178,7 +178,7 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 			if responseBody != "" {
 				decoded, _ := php.JSONDecode(responseBody, true)
 				if a, ok := decoded.(*php.Array); ok {
-					apiMessage, hasAPIMessage = arrayValue(a, "message").(string)
+					apiMessage, hasAPIMessage = a.At("message").(string)
 				}
 			}
 
@@ -396,7 +396,7 @@ var gitHubAPIRegex = php.MustCompile(`{^https?://api\.github\.com/}`)
 // $url): a copy of options with the origin's credentials added as headers
 // (or ssl options for client certificates).
 func (h *AuthHelper) AddAuthenticationOptions(options *php.Array, origin, url string) *php.Array {
-	return h.addAuthenticationOptions(cloneOptions(options), origin, url)
+	return h.addAuthenticationOptions(options.Clone(), origin, url)
 }
 
 // addAuthenticationOptions is AddAuthenticationOptions modifying options,
@@ -404,9 +404,9 @@ func (h *AuthHelper) AddAuthenticationOptions(options *php.Array, origin, url st
 func (h *AuthHelper) addAuthenticationOptions(options *php.Array, origin, url string) *php.Array {
 	httpOptions := HTTPOptions(options)
 
-	headerLines, isArray := arrayValue(httpOptions, "header").(*php.Array)
+	headerLines, isArray := httpOptions.At("header").(*php.Array)
 	if !isArray {
-		existing := arrayValue(httpOptions, "header")
+		existing := httpOptions.At("header")
 		headerLines = php.NewArray()
 
 		if existing != nil {
@@ -461,7 +461,7 @@ func (h *AuthHelper) addAuthenticationOptions(options *php.Array, origin, url st
 			displayMessage = "Using Bitbucket OAuth token authentication"
 		}
 	case username == "client-certificate":
-		ssl, _ := arrayValue(options, "ssl").(*php.Array)
+		ssl, _ := options.At("ssl").(*php.Array)
 		if ssl == nil {
 			ssl = php.NewArray()
 		}

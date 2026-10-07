@@ -244,7 +244,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	r.lastHeaders = []string{}
 	r.redirects = 1 // The first request counts.
 
-	tempAdditionalOptions := cloneOptions(additionalOptions)
+	tempAdditionalOptions := additionalOptions.Clone()
 	if v, ok := path(tempAdditionalOptions, "retry-auth-failure"); ok {
 		retryAuthFailure = php.ToBool(v)
 		tempAdditionalOptions.Delete("retry-auth-failure")
@@ -540,7 +540,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 		}
 
 		if err := os.WriteFile(fileName, []byte(result), 0o666); err != nil {
-			return "", false, util.NewTransportError(`The "`+r.fileURL+`" file could not be written to `+fileName+": Failed to open stream: "+util.Strerror(err), 400)
+			return "", false, util.NewTransportError(`The "`+r.fileURL+`" file could not be written to `+fileName+": Failed to open stream: "+php.Strerror(err), 400)
 		}
 
 		result = "1"
@@ -658,7 +658,7 @@ func (r *RemoteFilesystem) promptAuthAndRetry(httpStatus int, reason string, hea
 func (r *RemoteFilesystem) optionsForURL(originURL string, additionalOptions *php.Array) *php.Array {
 	headers := []string{"Accept-Encoding: gzip"}
 
-	options := php.ArrayReplaceRecursive(r.options, cloneOptions(additionalOptions)).Clone()
+	options := php.ArrayReplaceRecursive(r.options, additionalOptions.Clone()).Clone()
 
 	if !r.degradedMode {
 		// degraded mode disables HTTP/1.1 which causes issues with some bad
@@ -729,7 +729,7 @@ func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOp
 		r.io.WriteError("", true, mio.Debug)
 		r.io.WriteError("Following redirect ("+strconv.Itoa(r.redirects)+") "+util.SanitizeURL(targetURL), true, mio.Debug)
 
-		options := cloneOptions(additionalOptions)
+		options := additionalOptions.Clone()
 		options.Set("redirects", r.redirects)
 
 		return r.get(util.URLHost(targetURL), targetURL, options, r.fileName, r.hasFileName, r.progress)
@@ -762,7 +762,7 @@ func (r *RemoteFilesystem) decodeResult(result string, ok bool, responseHeaders 
 		if err != nil {
 			return "", false, err
 		}
-		if found && php.ToBool(contentEncoding) && strings.ToLower(contentEncoding) == "gzip" {
+		if found && php.ToBool(contentEncoding) && php.Strtolower(contentEncoding) == "gzip" {
 			decoded, err := zlibDecode([]byte(result))
 			if err != nil {
 				return "", false, util.NewTransportError("Failed to decode zlib stream", 400)
@@ -808,7 +808,7 @@ func (r *RemoteFilesystem) remoteContents(_, fileURL string, ctx *php.Array, max
 		scheme, rest = "file", fileURL
 	}
 
-	switch strings.ToLower(scheme) {
+	switch php.Strtolower(scheme) {
 	case "http", "https":
 		return r.streamHTTP(fileURL, ctx, maxFileSize)
 	case "file":
@@ -819,7 +819,7 @@ func (r *RemoteFilesystem) remoteContents(_, fileURL string, ctx *php.Array, max
 
 	data, err := readFileLimit(rest, maxFileSize)
 	if err != nil {
-		out.warnings = append(out.warnings, "Failed to open stream: "+util.Strerror(err))
+		out.warnings = append(out.warnings, "Failed to open stream: "+php.Strerror(err))
 
 		return out, nil
 	}
@@ -853,7 +853,7 @@ func readFileLimit(path string, limit int64) ([]byte, error) {
 func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSize int64) (remoteContents, error) {
 	var out remoteContents
 
-	ssl, _ := arrayValue(ctx, "ssl").(*php.Array)
+	ssl, _ := ctx.At("ssl").(*php.Array)
 	req := &transferRequest{
 		url:            fileURL,
 		connectTimeout: 60 * time.Second,
@@ -882,7 +882,7 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 		req.connectTimeout = req.readTimeout
 	}
 
-	isHTTPS := strings.HasPrefix(strings.ToLower(fileURL), "https://")
+	isHTTPS := strings.HasPrefix(php.Strtolower(fileURL), "https://")
 
 	for _, line := range headerList(ctx) {
 		if php.Strncasecmp(line, "proxy-authorization:", 20) == 0 && isHTTPS {

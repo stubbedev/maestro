@@ -76,7 +76,7 @@ func isPackagist(name any) bool { return name == "packagist" || name == "packagi
 
 // Execute implements console.Executor.
 func (c *RepositoryCommand) Execute(in console.Input, _ console.Output) (int, error) {
-	action := strings.ToLower(php.ToString(in.Argument("action")))
+	action := php.Strtolower(php.ToString(in.Argument("action")))
 	name := in.Argument("name")
 	arg1 := in.Argument("arg1")
 	arg2 := in.Argument("arg2")

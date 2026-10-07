@@ -25,12 +25,6 @@ func getEnvTruthy(name string) (string, bool) {
 	return v, ok && php.ToBool(v)
 }
 
-func isDir(dir string) bool {
-	fi, err := os.Stat(dir)
-
-	return err == nil && fi.IsDir()
-}
-
 // HomeDir ports Factory::getHomeDir: COMPOSER_HOME, else the XDG config
 // directory or ~/.composer (whichever exists, the first otherwise).
 func HomeDir() (string, error) {
@@ -67,7 +61,7 @@ func HomeDir() (string, error) {
 
 	// select first dir which exists of: $XDG_CONFIG_HOME/composer or ~/.composer
 	for _, dir := range dirs {
-		if isDir(dir) {
+		if php.IsDir(dir) {
 			return dir, nil
 		}
 	}
@@ -103,14 +97,14 @@ func CacheDir(home string) (string, error) {
 	}
 	if runtime.GOOS == "darwin" {
 		// Migrate existing cache dir in old location if present
-		if isDir(home+"/cache") && !isDir(userDir+"/Library/Caches/composer") {
+		if php.IsDir(home+"/cache") && !php.IsDir(userDir+"/Library/Caches/composer") {
 			_ = os.Rename(home+"/cache", userDir+"/Library/Caches/composer")
 		}
 
 		return userDir + "/Library/Caches/composer", nil
 	}
 
-	if home == userDir+"/.composer" && isDir(home+"/cache") {
+	if home == userDir+"/.composer" && php.IsDir(home+"/cache") {
 		return home + "/cache", nil
 	}
 
@@ -296,7 +290,7 @@ func protectDirs(config *Config) error {
 			return err
 		}
 		if _, err := os.Stat(dir + "/.htaccess"); err != nil {
-			if !isDir(dir) {
+			if !php.IsDir(dir) {
 				_ = os.MkdirAll(dir, 0o777)
 			}
 			_ = os.WriteFile(dir+"/.htaccess", []byte("Deny from all"), 0o666)
@@ -312,7 +306,7 @@ func ComposerFile() (string, error) {
 	if env, ok := util.GetEnv("COMPOSER"); ok {
 		env = php.Trim(env)
 		if env != "" {
-			if isDir(env) {
+			if php.IsDir(env) {
 				return "", &util.RuntimeError{Message: "The COMPOSER environment variable is set to " + env + " which is a directory, this variable should point to a composer.json or be left unset."}
 			}
 
@@ -367,7 +361,7 @@ func useXdg() bool {
 		}
 	}
 
-	return isDir("/etc/xdg")
+	return php.IsDir("/etc/xdg")
 }
 
 // userDir ports Factory::getUserDir: $HOME with forward slashes and no

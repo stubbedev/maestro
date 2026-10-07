@@ -9,6 +9,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // filePollInterval is how long a file pipe waits for more output when it
@@ -48,7 +50,7 @@ func newFilePipes() (*filePipes, error) {
 		if err != nil {
 			fp.cleanup()
 
-			return nil, &RuntimeError{Class: ClassProcessRuntime, Message: "A temporary file could not be opened to write the process output: " + Strerror(err)}
+			return nil, &RuntimeError{Class: ClassProcessRuntime, Message: "A temporary file could not be opened to write the process output: " + php.Strerror(err)}
 		}
 
 		fp.files[i] = f

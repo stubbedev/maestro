@@ -48,7 +48,7 @@ func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo boo
 		}
 
 		if repoConfig == false {
-			if isset(cfg, "repositories") {
+			if cfg.Isset("repositories") {
 				repos, _ := cfg.Get("repositories")
 				if list, ok := repos.(*php.Array); ok {
 					disabled := php.ArrayOf(repo, repoConfig)
@@ -76,7 +76,7 @@ func (s *JSONConfigSource) AddRepository(name string, config any, appendRepo boo
 			return nil
 		}
 
-		if rc, ok := repoConfig.(*php.Array); ok && repo != "" && !isset(rc, "name") {
+		if rc, ok := repoConfig.(*php.Array); ok && repo != "" && !rc.Isset("name") {
 			repoConfig = prependName(repo, rc)
 		}
 
@@ -127,7 +127,7 @@ func (s *JSONConfigSource) InsertRepository(name string, config any, referenceNa
 			return &util.RuntimeError{Message: `The referenced repository "` + php.ToString(referenceName) + `" does not exist.`}
 		}
 
-		if rc, ok := repoConfig.(*php.Array); ok && name != "" && !isset(rc, "name") {
+		if rc, ok := repoConfig.(*php.Array); ok && name != "" && !rc.Isset("name") {
 			repoConfig = prependName(name, rc)
 		}
 
@@ -650,7 +650,7 @@ func convertRepositoriesToList(cfg *php.Array) error {
 		switch r, isArr := repository.(*php.Array); {
 		case index.IsString() && isArr:
 			// convert to list entry with name
-			if !isset(r, "name") {
+			if !r.Isset("name") {
 				r = prependName(index.String(), r)
 			}
 			list.Append(r)

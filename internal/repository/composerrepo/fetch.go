@@ -80,18 +80,10 @@ func (r *ComposerRepository) postFileDownload(checksum pkg.NullString, filename 
 // withIfModifiedSince returns a copy of options with the
 // If-Modified-Since header.
 func withIfModifiedSince(options *php.Array, lastModifiedTime string) *php.Array {
-	options = cloneOptions(options)
+	options = options.Clone()
 	http.AppendHeader(http.HTTPOptions(options), "If-Modified-Since: "+lastModifiedTime)
 
 	return options
-}
-
-func cloneOptions(options *php.Array) *php.Array {
-	if options == nil {
-		return php.NewArray()
-	}
-
-	return options.Clone()
 }
 
 // fetchFileRelative ports fetchFile($filename) without a cache key: the
@@ -594,7 +586,7 @@ func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames [
 
 	for _, d := range downloads {
 		var err error
-		if d.fetch, err = r.asyncFetchFile(d.url, d.cacheKey, php.ToString(get(d.contents, "last-modified"))); err != nil {
+		if d.fetch, err = r.asyncFetchFile(d.url, d.cacheKey, php.ToString(d.contents.At("last-modified"))); err != nil {
 			return nil, err
 		}
 	}
@@ -618,7 +610,7 @@ func (r *ComposerRepository) finishCachedDownload(d *cachedDownload) (*php.Array
 		response = d.contents
 	}
 
-	if packages, _ := get(response, "packages").(*php.Array); get(packages, d.packageName) == nil && get(response, "security-advisories") == nil && get(response, "filter") == nil {
+	if packages, _ := response.At("packages").(*php.Array); packages.At(d.packageName) == nil && response.At("security-advisories") == nil && response.At("filter") == nil {
 		return nil, packagesSource, nil
 	}
 

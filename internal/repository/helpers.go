@@ -78,18 +78,6 @@ func inArrayLoose(needle string, haystack []string) bool {
 	return false
 }
 
-// strtolower is strtolower(): ASCII only, without allocating for names
-// that are lowercase already.
-func strtolower(s string) string {
-	for i := range len(s) {
-		if c := s[i]; c >= 'A' && c <= 'Z' {
-			return php.Strtolower(s)
-		}
-	}
-
-	return s
-}
-
 // firstSegment is [$first] = explode('/', $s).
 func firstSegment(s string) string {
 	first, _, _ := strings.Cut(s, "/")

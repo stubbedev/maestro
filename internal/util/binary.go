@@ -23,7 +23,7 @@ func DetermineBinaryCaller(bin string) (string, error) {
 
 	f, err := os.Open(bin)
 	if err != nil {
-		return "", &ErrorException{Message: "fopen(" + bin + "): Failed to open stream: " + Strerror(err)}
+		return "", &ErrorException{Message: "fopen(" + bin + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	defer func() { _ = f.Close() }()

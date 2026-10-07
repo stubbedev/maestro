@@ -262,5 +262,5 @@ func (d *SvnDownloader) discardChanges(path string) error {
 }
 
 func (d *SvnDownloader) hasMetadataRepository(path string) bool {
-	return isDir(path + "/.svn")
+	return php.IsDir(path + "/.svn")
 }

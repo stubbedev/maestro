@@ -43,6 +43,12 @@ linters:
           msg: "use php.Realpath (realpath() resolves symlinks before it cleans ..)"
         - pattern: ^filepath\.EvalSymlinks$
           msg: "use php.Realpath or php.EvalSymlinks (junctions on Windows)"
+        # PHP 8's case mapping is ASCII-only; Go's is Unicode ("K", the
+        # Kelvin sign, lowers to "k") (#64).
+        - pattern: ^strings\.(ToLower|ToUpper)$
+          msg: "use php.Strtolower or php.Strtoupper (ASCII, as PHP)"
+        - pattern: ^strings\.EqualFold$
+          msg: "use php.Strcasecmp (ASCII, as PHP)"
     gosec:
       excludes:
         # A package manager's whole job is reading and writing paths it is

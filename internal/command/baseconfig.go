@@ -64,7 +64,7 @@ func (c *BaseConfigCommand) Initialize(in console.Input, out console.Output) err
 
 	// Create global composer.json if invoked using `composer global [config-cmd]`
 	if configFile == "composer.json" || configFile == "./composer.json" {
-		if !fileExists(configFile) {
+		if !php.FileExists(configFile) {
 			home, err := cfg.Get("home", 0)
 			if err != nil {
 				return err

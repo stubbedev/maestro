@@ -677,17 +677,17 @@ func (r *VcsRepository) preProcess(driver Driver, data *php.Array, identifier st
 		data.Set("name", name)
 	}
 
-	if !isset(data, "dist") {
+	if data.Path("dist") == nil {
 		data.Set("dist", nullable(driver.Dist(identifier)))
 	}
 
-	if !isset(data, "source") {
+	if data.Path("source") == nil {
 		data.Set("source", nullable(driver.Source(identifier)))
 	}
 
 	// if custom dist info is provided but does not provide a reference, copy the source reference to it
-	if dist, ok := data.GetArray("dist"); ok && !isset(dist, "reference") && isset(data, "source", "reference") {
-		dist.Set("reference", arrayPath(data, "source", "reference"))
+	if dist, ok := data.GetArray("dist"); ok && dist.Path("reference") == nil && data.Path("source", "reference") != nil {
+		dist.Set("reference", data.Path("source", "reference"))
 	}
 
 	return data

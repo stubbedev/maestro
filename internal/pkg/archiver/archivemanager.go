@@ -219,7 +219,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 		return "", err
 	}
 
-	if !m.overwriteFiles && fileExists(target) {
+	if !m.overwriteFiles && php.FileExists(target) {
 		return target, nil
 	}
 
@@ -266,7 +266,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 // applyArchiveConfig applies the archive name and excludes of a downloaded
 // package's composer.json, when there is one.
 func applyArchiveConfig(p pkg.CompletePackageInterface, composerJSONPath string) error {
-	if !fileExists(composerJSONPath) {
+	if !php.FileExists(composerJSONPath) {
 		return nil
 	}
 

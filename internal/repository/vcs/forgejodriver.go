@@ -75,7 +75,7 @@ func (d *ForgejoDriver) FileContent(file, identifier string) (string, bool, erro
 
 	// The Forgejo contents API only returns files up to 1MB as base64 encoded files
 	// larger files either need be fetched with a raw accept header or by using the git blob endpoint
-	if content := arrayPath(resource, "content"); (content == nil || content == "") && arrayPath(resource, "encoding") == "none" && isset(resource, "git_url") {
+	if content := resource.Path("content"); (content == nil || content == "") && resource.Path("encoding") == "none" && resource.Path("git_url") != nil {
 		resource, err = d.getJSON(pathString(resource, "git_url"), false)
 		if err != nil {
 			return "", false, err
@@ -209,7 +209,7 @@ func (d *ForgejoDriver) ComposerInformation(identifier string) (*php.Array, erro
 		// specials for forgejo
 		fixSupport(composer)
 
-		if !isset(composer, "support", "source") {
+		if composer.Path("support", "source") == nil {
 			source, err := d.sourceURL(identifier)
 			if err != nil {
 				return nil, err
@@ -218,11 +218,11 @@ func (d *ForgejoDriver) ComposerInformation(identifier string) (*php.Array, erro
 			supportArray(composer).Set("source", source)
 		}
 
-		if !isset(composer, "support", "issues") && d.repositoryData.HasIssues {
+		if composer.Path("support", "issues") == nil && d.repositoryData.HasIssues {
 			supportArray(composer).Set("issues", d.repositoryData.HTMLURL+"/issues")
 		}
 
-		if !isset(composer, "abandoned") && d.repositoryData.IsArchived {
+		if composer.Path("abandoned") == nil && d.repositoryData.IsArchived {
 			composer.Set("abandoned", true)
 		}
 	}

@@ -29,7 +29,7 @@ func TestHttpDownloader_PrefetchCopyIsTakenByTheCopy(t *testing.T) {
 	defer srv.Close()
 
 	h, b := newPrefetchDownloader(t)
-	ssl, _ := arrayValue(h.options, "ssl").(*php.Array)
+	ssl, _ := h.options.At("ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
 	mark := len(b.Output())

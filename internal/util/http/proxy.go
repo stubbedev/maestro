@@ -310,7 +310,7 @@ func (m *ProxyManager) proxyData(getenv func(string) (string, bool)) error {
 // proxyEnv is getProxyEnv: the lowercase variable wins over the uppercase
 // one; empty values are ignored.
 func proxyEnv(getenv func(string) (string, bool), envName string) (value, name string) {
-	for _, name := range [2]string{strings.ToLower(envName), strings.ToUpper(envName)} {
+	for _, name := range [2]string{php.Strtolower(envName), php.Strtoupper(envName)} {
 		if v, ok := getenv(name); ok && v != "" {
 			return v, name
 		}

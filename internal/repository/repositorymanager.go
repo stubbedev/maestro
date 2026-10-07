@@ -106,7 +106,7 @@ func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name
 	}
 
 	var filterConfig *php.Array
-	if isset(config, "only") || isset(config, "exclude") || isset(config, "canonical") {
+	if config.Isset("only") || config.Isset("exclude") || config.Isset("canonical") {
 		filterConfig = config
 		config = config.Clone()
 		config.Delete("only")
@@ -124,12 +124,6 @@ func (m *RepositoryManager) CreateRepository(typ string, config *php.Array, name
 	}
 
 	return repository, nil
-}
-
-func isset(a *php.Array, key string) bool {
-	v, _ := a.Get(key)
-
-	return v != nil
 }
 
 // SetRepositoryClass ports RepositoryManager::setRepositoryClass: the

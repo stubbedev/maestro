@@ -113,5 +113,5 @@ func (d *FossilDownloader) commitLogs(_, toReference, path string) (string, erro
 }
 
 func (d *FossilDownloader) hasMetadataRepository(path string) bool {
-	return isFile(path+"/.fslckout") || isFile(path+"/_FOSSIL_")
+	return php.IsFile(path+"/.fslckout") || php.IsFile(path+"/_FOSSIL_")
 }

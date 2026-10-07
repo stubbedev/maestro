@@ -106,7 +106,7 @@ func (c *Cache) IsEnabled() bool {
 	if c.enabled == 0 {
 		c.enabled = 1
 
-		if !c.readOnly && ((!isDir(c.root) && os.MkdirAll(c.root, 0o777) != nil) || !util.IsWritable(c.root)) {
+		if !c.readOnly && ((!php.IsDir(c.root) && os.MkdirAll(c.root, 0o777) != nil) || !util.IsWritable(c.root)) {
 			c.io.WriteError("<warning>Cannot create cache directory "+c.root+", or directory is not writable. Proceeding without cache. See also cache-read-only config if your filesystem is read-only.</warning>", true, mio.Normal)
 			c.enabled = -1
 		}
@@ -136,7 +136,7 @@ func (c *Cache) Read(file string) (string, bool, error) {
 	}
 
 	file = c.key(file)
-	if !fileExists(c.root + file) {
+	if !php.FileExists(c.root + file) {
 		return "", false, nil
 	}
 
@@ -144,7 +144,7 @@ func (c *Cache) Read(file string) (string, bool, error) {
 
 	data, err := readFile(c.root + file)
 	if err != nil {
-		return "", false, &util.ErrorException{Message: "file_get_contents(" + c.root + file + "): Failed to open stream: " + util.Strerror(err)}
+		return "", false, &util.ErrorException{Message: "file_get_contents(" + c.root + file + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	return data, true, nil
@@ -171,7 +171,7 @@ func (c *Cache) ReadAll(files []string, then func(i int, contents string)) ([]st
 		wg.Go(func() {
 			for i := range work {
 				paths[i] = c.root + c.key(files[i])
-				if !fileExists(paths[i]) {
+				if !php.FileExists(paths[i]) {
 					continue
 				}
 				found[i] = true
@@ -200,7 +200,7 @@ func (c *Cache) ReadAll(files []string, then func(i int, contents string)) ([]st
 		}
 		c.io.WriteError("Reading "+paths[i]+" from cache", true, mio.Debug)
 		if errs[i] != nil {
-			return nil, nil, &util.ErrorException{Message: "file_get_contents(" + paths[i] + "): Failed to open stream: " + util.Strerror(errs[i])}
+			return nil, nil, &util.ErrorException{Message: "file_get_contents(" + paths[i] + "): Failed to open stream: " + php.Strerror(errs[i])}
 		}
 	}
 
@@ -272,7 +272,7 @@ func (c *Cache) Write(file, contents string) (bool, error) {
 	forget(c.root + file)
 	if err == nil {
 		if rerr := os.Rename(tempFileName, c.root+file); rerr != nil {
-			err = &util.ErrorException{Message: "rename(" + tempFileName + "," + c.root + file + "): " + util.Strerror(rerr)}
+			err = &util.ErrorException{Message: "rename(" + tempFileName + "," + c.root + file + "): " + php.Strerror(rerr)}
 		}
 	}
 
@@ -308,7 +308,7 @@ func (c *Cache) Write(file, contents string) (bool, error) {
 func writeFile(path, contents string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // file_put_contents mode, umask applies
 	if err != nil {
-		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	n, werr := io.WriteString(f, contents)
@@ -333,7 +333,7 @@ func (c *Cache) CopyFrom(file, source string) (bool, error) {
 		return false, err
 	}
 
-	if !fileExists(source) {
+	if !php.FileExists(source) {
 		c.io.WriteError("<error>"+source+" does not exist, can not write into cache</error>", true, mio.Normal)
 	} else if c.io.IsDebug() {
 		c.io.WriteError("Writing "+c.root+file+" into cache from "+source, true, mio.Normal)
@@ -350,7 +350,7 @@ func (c *Cache) CopyTo(file, target string) (bool, error) {
 	}
 
 	file = c.key(file)
-	if !fileExists(c.root + file) {
+	if !php.FileExists(c.root + file) {
 		return false, nil
 	}
 
@@ -433,7 +433,7 @@ func (c *Cache) Remove(file string) (bool, error) {
 	}
 
 	file = c.key(file)
-	if !fileExists(c.root + file) {
+	if !php.FileExists(c.root + file) {
 		return false, nil
 	}
 
@@ -600,7 +600,7 @@ func (c *Cache) hash(file string, h hash.Hash) (string, bool, error) {
 	}
 
 	file = c.key(file)
-	if !fileExists(c.root + file) {
+	if !php.FileExists(c.root + file) {
 		return "", false, nil
 	}
 
@@ -681,16 +681,4 @@ func finderIgnored(name string) bool {
 	}
 
 	return false
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
-func isDir(path string) bool {
-	fi, err := os.Stat(path)
-
-	return err == nil && fi.IsDir()
 }

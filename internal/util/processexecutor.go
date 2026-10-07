@@ -162,7 +162,7 @@ func (p *ProcessExecutor) doExecute(command Command, cwd string, tty, capture bo
 
 	// Composer's RequiresGitDirEnv never holds (see there), so this is
 	// dormant in Composer too; it is kept for parity.
-	if cwd != "" && p.RequiresGitDirEnv(command) && !isDir(strings.TrimRight(cwd, "/")+"/.git") {
+	if cwd != "" && p.RequiresGitDirEnv(command) && !php.IsDir(strings.TrimRight(cwd, "/")+"/.git") {
 		var configValue string
 
 		if _, err := p.runProcess(Cmd("git", "config", "safe.bareRepository"), cwd, map[string]string{"GIT_DIR": cwd}, tty, capture, &configValue, nil); err != nil {
@@ -873,7 +873,7 @@ var (
 // getExecutable ports ProcessExecutor::getExecutable, resolving Windows
 // executable paths once.
 func getExecutable(name string) string {
-	if slices.Contains(cmdBuiltinCommands, strings.ToLower(name)) {
+	if slices.Contains(cmdBuiltinCommands, php.Strtolower(name)) {
 		return name
 	}
 

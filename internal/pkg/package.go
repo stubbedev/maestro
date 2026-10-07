@@ -538,7 +538,7 @@ func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, 
 			}
 
 			if !slices.ContainsFunc(urls, func(u string) bool { return php.LooseEquals(u, mirrorURL) }) {
-				if php.ToBool(arrayGet(mirror, "preferred")) {
+				if php.ToBool(mirror.At("preferred")) {
 					urls = slices.Insert(urls, 0, mirrorURL)
 				} else {
 					urls = append(urls, mirrorURL)
@@ -558,20 +558,8 @@ func (n NullString) ptr() *string {
 	return &n.S
 }
 
-// arrayGet returns $a[$k] (null when a is not an array or the key is
-// missing).
-func arrayGet(a *php.Array, k string) any {
-	if a == nil {
-		return nil
-	}
-
-	v, _ := a.GetKey(php.StrKey(k))
-
-	return v
-}
-
 // arrayString returns (string) $a[$k].
-func arrayString(a *php.Array, k string) string { return php.ToString(arrayGet(a, k)) }
+func arrayString(a *php.Array, k string) string { return php.ToString(a.At(k)) }
 
 // Methods implemented on top of the interface, as BasePackage's are.
 

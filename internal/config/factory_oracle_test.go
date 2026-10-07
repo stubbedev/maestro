@@ -69,7 +69,7 @@ func TestFactoryOracle(t *testing.T) {
 			unsetenv(t, name)
 		}
 	}
-	sameEtcXdg := isDir("/etc/xdg") == golden.EtcXdg
+	sameEtcXdg := php.IsDir("/etc/xdg") == golden.EtcXdg
 
 	for i, c := range golden.Cases {
 		base := filepath.Join(t.TempDir(), "b")

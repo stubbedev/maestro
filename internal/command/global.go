@@ -154,11 +154,11 @@ func (c *GlobalCommand) prepareSubcommandInput(in console.Input, quiet bool) (*c
 	}
 	home := php.ToString(homeValue)
 
-	if !isDir(home) {
+	if !php.IsDir(home) {
 		if err := util.EnsureDirectoryExists(home); err != nil {
 			return nil, err
 		}
-		if !isDir(home) {
+		if !php.IsDir(home) {
 			return nil, NewError(ClassRuntime, "Could not create home directory")
 		}
 	}
@@ -184,10 +184,4 @@ func (c *GlobalCommand) prepareSubcommandInput(in console.Input, quiet bool) (*c
 	app.ResetComposer()
 
 	return input, nil
-}
-
-func isDir(path string) bool {
-	st, err := os.Stat(path)
-
-	return err == nil && st.IsDir()
 }

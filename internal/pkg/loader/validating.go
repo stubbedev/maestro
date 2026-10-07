@@ -102,7 +102,7 @@ func (l *ValidatingArrayLoader) Load(config *php.Array, class string) (pkg.Packa
 func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 	l.validateString("name", true)
 
-	if name := get(config, "name"); name != nil {
+	if name := config.At("name"); name != nil {
 		s, ok := name.(string)
 		if !ok {
 			return pkg.ArgumentTypeError(`Composer\Package\Loader\ValidatingArrayLoader::hasPackageNamingError`, 1, "name", "string", name)
@@ -163,8 +163,8 @@ func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 		return err
 	}
 
-	if l.validateArray("suggest") && isset(l.config, "suggest") {
-		suggest := subArray(l.config, "suggest")
+	if l.validateArray("suggest") && l.config.Isset("suggest") {
+		suggest := l.config.ArrayAt("suggest")
 		for k, description := range suggest.All() {
 			if _, ok := description.(string); !ok {
 				l.errorf("suggest.", k.String(), " : invalid value, must be a string describing why the package is suggested")
@@ -173,8 +173,8 @@ func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 		}
 	}
 
-	if l.validateString("minimum-stability", false) && isset(l.config, "minimum-stability") {
-		ms, _ := get(l.config, "minimum-stability").(string)
+	if l.validateString("minimum-stability", false) && l.config.Isset("minimum-stability") {
+		ms, _ := l.config.At("minimum-stability").(string)
 		if _, ok := pkg.StabilityValue(php.Strtolower(ms)); !ok && ms != "RC" {
 			l.errorf("minimum-stability : invalid value (", ms, "), must be one of ", strings.Join(pkg.StabilityNames(), ", "))
 			l.config.Delete("minimum-stability")
@@ -200,7 +200,7 @@ func (l *ValidatingArrayLoader) validate(config *php.Array) error {
 }
 
 func (l *ValidatingArrayLoader) validateVersion() {
-	v := get(l.config, "version")
+	v := l.config.At("version")
 	if v == nil {
 		return
 	}
@@ -223,7 +223,7 @@ func (l *ValidatingArrayLoader) validateVersion() {
 }
 
 func (l *ValidatingArrayLoader) validatePlatform() error {
-	platform := get(subArray(l.config, "config"), "platform")
+	platform := l.config.ArrayAt("config").At("platform")
 	if platform == nil {
 		return nil
 	}
@@ -254,11 +254,11 @@ func (l *ValidatingArrayLoader) validatePlatform() error {
 }
 
 func (l *ValidatingArrayLoader) validateBin() error {
-	if !isset(l.config, "bin") {
+	if !l.config.Isset("bin") {
 		return nil
 	}
 
-	if _, ok := get(l.config, "bin").(string); ok {
+	if _, ok := l.config.At("bin").(string); ok {
 		l.validateString("bin", false)
 	} else if err := l.validateFlatArray("bin", ""); err != nil {
 		return err
@@ -266,7 +266,7 @@ func (l *ValidatingArrayLoader) validateBin() error {
 
 	// A ".." path segment in a bin escapes the package install directory and lets the
 	// package chmod/point at an arbitrary host file during install (GHSA-gjfg-22fp-rrxx).
-	switch bin := get(l.config, "bin").(type) {
+	switch bin := l.config.At("bin").(type) {
 	case string:
 		if mustMatch(binParentSegment, bin) {
 			l.errorf("bin : invalid value (", bin, "), must not contain a \"..\" path component")
@@ -287,7 +287,7 @@ func (l *ValidatingArrayLoader) validateBin() error {
 func (l *ValidatingArrayLoader) validateTime() (time.Time, bool) {
 	l.validateString("time", false)
 
-	s, ok := get(l.config, "time").(string)
+	s, ok := l.config.At("time").(string)
 	if !ok {
 		return time.Time{}, false
 	}
@@ -304,7 +304,7 @@ func (l *ValidatingArrayLoader) validateTime() (time.Time, bool) {
 }
 
 func (l *ValidatingArrayLoader) validateLicense(releaseDate time.Time, hasReleaseDate bool) {
-	license := get(l.config, "license")
+	license := l.config.At("license")
 	if license == nil {
 		return
 	}
@@ -365,7 +365,7 @@ func (l *ValidatingArrayLoader) validateAuthors() error {
 		return nil
 	}
 
-	authors := subArray(l.config, "authors")
+	authors := l.config.ArrayAt("authors")
 
 	for k, v := range authors.All() {
 		key := k.String()
@@ -382,7 +382,7 @@ func (l *ValidatingArrayLoader) validateAuthors() error {
 		original := author.Clone()
 
 		for _, field := range [...]string{"homepage", "email", "name", "role"} {
-			if fv := get(original, field); fv != nil {
+			if fv := original.At(field); fv != nil {
 				if _, ok := fv.(string); !ok {
 					l.errorf("authors.", key, ".", field, " : invalid value, must be a string")
 					author.Delete(field)
@@ -390,7 +390,7 @@ func (l *ValidatingArrayLoader) validateAuthors() error {
 			}
 		}
 
-		if homepage := get(original, "homepage"); homepage != nil {
+		if homepage := original.At("homepage"); homepage != nil {
 			ok, err := filterURL(homepage, "http", "https")
 			if err != nil {
 				return err
@@ -403,7 +403,7 @@ func (l *ValidatingArrayLoader) validateAuthors() error {
 		}
 
 		// filter_var() validates a scalar as its string; an array fails.
-		if email := get(original, "email"); email != nil && !isEmail(email) {
+		if email := original.At("email"); email != nil && !isEmail(email) {
 			l.warnf("authors.", key, ".email : invalid value (", php.ToString(email), "), must be a valid email address")
 			author.Delete("email")
 		}
@@ -425,13 +425,13 @@ func (l *ValidatingArrayLoader) validateSupport() error {
 		return nil
 	}
 
-	support := subArray(l.config, "support")
+	support := l.config.ArrayAt("support")
 	if support.Len() == 0 {
 		return nil
 	}
 
 	for _, key := range supportStringKeys {
-		if v := get(support, key); v != nil {
+		if v := support.At(key); v != nil {
 			if _, ok := v.(string); !ok {
 				l.errorf("support.", key, " : invalid value, must be a string")
 				support.Delete(key)
@@ -439,12 +439,12 @@ func (l *ValidatingArrayLoader) validateSupport() error {
 		}
 	}
 
-	if email, ok := get(support, "email").(string); ok && !util.FilterValidateEmail(email) {
+	if email, ok := support.At("email").(string); ok && !util.FilterValidateEmail(email) {
 		l.warnf("support.email : invalid value (", email, "), must be a valid email address")
 		support.Delete("email")
 	}
 
-	if irc, ok := get(support, "irc").(string); ok {
+	if irc, ok := support.At("irc").(string); ok {
 		if valid, _ := filterURL(irc, "irc", "ircs"); !valid {
 			l.warnf("support.irc : invalid value (", irc, "), must be a irc://<server>/<channel> or ircs:// URL")
 			support.Delete("irc")
@@ -452,7 +452,7 @@ func (l *ValidatingArrayLoader) validateSupport() error {
 	}
 
 	for _, key := range supportURLKeys {
-		if v, ok := get(support, key).(string); ok {
+		if v, ok := support.At(key).(string); ok {
 			if valid, _ := filterURL(v, "http", "https"); !valid {
 				l.warnf("support.", key, " : invalid value (", v, "), must be an http/https URL")
 				support.Delete(key)
@@ -472,7 +472,7 @@ func (l *ValidatingArrayLoader) validateFunding() error {
 		return nil
 	}
 
-	funding := subArray(l.config, "funding")
+	funding := l.config.ArrayAt("funding")
 	if funding.Len() == 0 {
 		return nil
 	}
@@ -491,7 +491,7 @@ func (l *ValidatingArrayLoader) validateFunding() error {
 		original := option.Clone()
 
 		for _, field := range [...]string{"type", "url"} {
-			if fv := get(original, field); fv != nil {
+			if fv := original.At(field); fv != nil {
 				if _, ok := fv.(string); !ok {
 					l.errorf("funding.", key, ".", field, " : invalid value, must be a string")
 					option.Delete(field)
@@ -499,7 +499,7 @@ func (l *ValidatingArrayLoader) validateFunding() error {
 			}
 		}
 
-		if url := get(original, "url"); url != nil {
+		if url := original.At("url"); url != nil {
 			ok, err := filterURL(url, "http", "https")
 			if err != nil {
 				return err
@@ -524,11 +524,11 @@ func (l *ValidatingArrayLoader) validateFunding() error {
 }
 
 func (l *ValidatingArrayLoader) validatePhpExt() {
-	if !isset(l.config, "php-ext") || !l.validateArray("php-ext") {
+	if !l.config.Isset("php-ext") || !l.validateArray("php-ext") {
 		return
 	}
 
-	if typ, _ := get(l.config, "type").(string); typ != "php-ext" && typ != "php-ext-zend" {
+	if typ, _ := l.config.At("type").(string); typ != "php-ext" && typ != "php-ext-zend" {
 		l.errorf(`php-ext can only be set by packages of type "php-ext" or "php-ext-zend" which must be C extensions`)
 		// PHP unsets it, then takes a reference to it, which brings the
 		// key back (at the end) holding null.
@@ -538,16 +538,16 @@ func (l *ValidatingArrayLoader) validatePhpExt() {
 		return
 	}
 
-	phpExt := subArray(l.config, "php-ext")
+	phpExt := l.config.ArrayAt("php-ext")
 
-	if v := get(phpExt, "extension-name"); v != nil {
+	if v := phpExt.At("extension-name"); v != nil {
 		if _, ok := v.(string); !ok {
 			l.errorf("php-ext.extension-name : should be a string, ", php.TypeName(v), " given")
 			phpExt.Delete("extension-name")
 		}
 	}
 
-	if v := get(phpExt, "priority"); v != nil {
+	if v := phpExt.At("priority"); v != nil {
 		if _, ok := v.(int64); !ok {
 			l.errorf("php-ext.priority : should be an integer, ", php.TypeName(v), " given")
 			phpExt.Delete("priority")
@@ -555,7 +555,7 @@ func (l *ValidatingArrayLoader) validatePhpExt() {
 	}
 
 	for _, field := range [...]string{"support-zts", "support-nts"} {
-		if v := get(phpExt, field); v != nil {
+		if v := phpExt.At(field); v != nil {
 			if _, ok := v.(bool); !ok {
 				l.errorf("php-ext.", field, " : should be a boolean, ", php.TypeName(v), " given")
 				phpExt.Delete(field)
@@ -563,7 +563,7 @@ func (l *ValidatingArrayLoader) validatePhpExt() {
 		}
 	}
 
-	if v := get(phpExt, "build-path"); v != nil {
+	if v := phpExt.At("build-path"); v != nil {
 		if _, ok := v.(string); !ok {
 			l.errorf("php-ext.build-path : should be a string or null, ", php.TypeName(v), " given")
 			phpExt.Delete("build-path")
@@ -581,7 +581,7 @@ func (l *ValidatingArrayLoader) validatePhpExt() {
 }
 
 func (l *ValidatingArrayLoader) validateDownloadURLMethod(phpExt *php.Array) {
-	v := get(phpExt, "download-url-method")
+	v := phpExt.At("download-url-method")
 	if v == nil {
 		return
 	}
@@ -622,7 +622,7 @@ func (l *ValidatingArrayLoader) validateDownloadURLMethod(phpExt *php.Array) {
 }
 
 func (l *ValidatingArrayLoader) validateOsFamilies(phpExt *php.Array) {
-	if isset(phpExt, "os-families") && isset(phpExt, "os-families-exclude") {
+	if phpExt.Isset("os-families") && phpExt.Isset("os-families-exclude") {
 		l.errorf("php-ext : os-families and os-families-exclude cannot both be specified")
 		phpExt.Delete("os-families")
 		phpExt.Delete("os-families-exclude")
@@ -631,7 +631,7 @@ func (l *ValidatingArrayLoader) validateOsFamilies(phpExt *php.Array) {
 	}
 
 	for _, field := range [...]string{"os-families", "os-families-exclude"} {
-		v := get(phpExt, field)
+		v := phpExt.At(field)
 		if v == nil {
 			continue
 		}
@@ -667,7 +667,7 @@ func (l *ValidatingArrayLoader) validateOsFamilies(phpExt *php.Array) {
 }
 
 func (l *ValidatingArrayLoader) validateConfigureOptions(phpExt *php.Array) {
-	v := get(phpExt, "configure-options")
+	v := phpExt.At("configure-options")
 	if v == nil {
 		return
 	}
@@ -691,7 +691,7 @@ func (l *ValidatingArrayLoader) validateConfigureOptions(phpExt *php.Array) {
 			continue
 		}
 
-		name := get(option, "name")
+		name := option.At("name")
 		if name == nil {
 			l.errorf("php-ext.configure-options.", key, ".name : must be present")
 			options.DeleteKey(k)
@@ -706,14 +706,14 @@ func (l *ValidatingArrayLoader) validateConfigureOptions(phpExt *php.Array) {
 			continue
 		}
 
-		if nv := get(option, "needs-value"); nv != nil {
+		if nv := option.At("needs-value"); nv != nil {
 			if _, ok := nv.(bool); !ok {
 				l.errorf("php-ext.configure-options.", key, ".needs-value : should be a boolean, ", php.TypeName(nv), " given")
 				option.Delete("needs-value")
 			}
 		}
 
-		if d := get(option, "description"); d != nil {
+		if d := option.At("description"); d != nil {
 			if _, ok := d.(string); !ok {
 				l.errorf("php-ext.configure-options.", key, ".description : should be a string, ", php.TypeName(d), " given")
 				option.Delete("description")
@@ -729,16 +729,16 @@ func (l *ValidatingArrayLoader) validateConfigureOptions(phpExt *php.Array) {
 func (l *ValidatingArrayLoader) validateLinks() error {
 	for _, t := range pkg.SupportedLinkTypes() {
 		linkType := t.Type
-		if !l.validateArray(linkType) || !isset(l.config, linkType) {
+		if !l.validateArray(linkType) || !l.config.Isset(linkType) {
 			continue
 		}
 
-		links := subArray(l.config, linkType)
+		links := l.config.ArrayAt(linkType)
 
 		for k, c := range links.All() {
 			name := k.String()
 
-			if configName, ok := get(l.config, "name").(string); ok && php.Strcasecmp(name, configName) == 0 {
+			if configName, ok := l.config.At("name").(string); ok && php.Strcasecmp(name, configName) == 0 {
 				l.errorf(linkType, ".", name, " : a package cannot set a ", linkType, " on itself")
 				links.DeleteKey(k)
 
@@ -776,10 +776,10 @@ func (l *ValidatingArrayLoader) validateLinks() error {
 				l.checkConstraint(linkType, name, constraint, linkConstraint)
 			}
 
-			if linkType == "conflict" && isset(l.config, "replace") {
-				replace, ok := get(l.config, "replace").(*php.Array)
+			if linkType == "conflict" && l.config.Isset("replace") {
+				replace, ok := l.config.At("replace").(*php.Array)
 				if !ok {
-					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", get(l.config, "replace"))
+					return pkg.ArgumentTypeError("array_intersect_key", 1, "array", "array", l.config.At("replace"))
 				}
 
 				if php.ArrayIntersectKey(replace, links).Len() > 0 {
@@ -811,8 +811,8 @@ func (l *ValidatingArrayLoader) checkConstraint(linkType, name, constraint strin
 }
 
 func (l *ValidatingArrayLoader) validateAutoload() {
-	if l.validateArray("autoload") && isset(l.config, "autoload") {
-		autoload := subArray(l.config, "autoload")
+	if l.validateArray("autoload") && l.config.Isset("autoload") {
+		autoload := l.config.ArrayAt("autoload")
 
 		for k, typeConfig := range autoload.All() {
 			typ := k.Value()
@@ -843,47 +843,47 @@ func (l *ValidatingArrayLoader) validateAutoload() {
 		}
 	}
 
-	if isset(subArray(l.config, "autoload"), "psr-4") && isset(l.config, "target-dir") {
+	if l.config.ArrayAt("autoload").Isset("psr-4") && l.config.Isset("target-dir") {
 		l.errorf("target-dir : this can not be used together with the autoload.psr-4 setting, remove target-dir to upgrade to psr-4")
 		// Unset the psr-4 setting, since unsetting target-dir might
 		// interfere with other settings.
-		subArray(l.config, "autoload").Delete("psr-4")
+		l.config.ArrayAt("autoload").Delete("psr-4")
 	}
 }
 
 func (l *ValidatingArrayLoader) validateSourceDist() error {
 	for _, srcType := range [...]string{"source", "dist"} {
-		if !l.validateArray(srcType) || empty(get(l.config, srcType)) {
+		if !l.validateArray(srcType) || empty(l.config.At(srcType)) {
 			continue
 		}
 
-		src := subArray(l.config, srcType)
+		src := l.config.ArrayAt(srcType)
 
-		if !isset(src, "type") {
+		if !src.Isset("type") {
 			l.errorf(srcType, ".type : must be present")
 		}
 
-		if !isset(src, "url") {
+		if !src.Isset("url") {
 			l.errorf(srcType, ".url : must be present")
 		}
 
-		if srcType == "source" && !isset(src, "reference") {
+		if srcType == "source" && !src.Isset("reference") {
 			l.errorf(srcType, ".reference : must be present")
 		}
 
-		if v := get(src, "type"); v != nil {
+		if v := src.At("type"); v != nil {
 			if _, ok := v.(string); !ok {
 				l.errorf(srcType, ".type : should be a string, ", php.TypeName(v), " given")
 			}
 		}
 
-		if v := get(src, "url"); v != nil {
+		if v := src.At("url"); v != nil {
 			if _, ok := v.(string); !ok {
 				l.errorf(srcType, ".url : should be a string, ", php.TypeName(v), " given")
 			}
 		}
 
-		if v := get(src, "reference"); v != nil {
+		if v := src.At("reference"); v != nil {
 			switch v.(type) {
 			case string, int64:
 			default:
@@ -895,13 +895,13 @@ func (l *ValidatingArrayLoader) validateSourceDist() error {
 			}
 		}
 
-		if v := get(src, "url"); v != nil && mustMatch(startsWithDash, php.ToString(v)) {
+		if v := src.At("url"); v != nil && mustMatch(startsWithDash, php.ToString(v)) {
 			l.errorf(srcType, ".url : must not start with a \"-\", \"", php.ToString(v), "\" given")
 		}
 
 		// a perforce url is passed to the p4 client as P4PORT, where rsh:/jsh: endpoints
 		// mean "run this command locally" (GHSA-rvx4-ffvw-m9q3)
-		if url, ok := get(src, "url").(string); ok && srcType == "source" && get(src, "type") == "perforce" && !vcs.IsValidPort(url) {
+		if url, ok := src.At("url").(string); ok && srcType == "source" && src.At("type") == "perforce" && !vcs.IsValidPort(url) {
 			l.errorf(srcType, ".url : invalid Perforce port (\"", url, "\"), it must be of the form [tcp|ssl:][host:]port")
 		}
 	}
@@ -910,7 +910,7 @@ func (l *ValidatingArrayLoader) validateSourceDist() error {
 }
 
 func (l *ValidatingArrayLoader) validateBranchAlias() error {
-	v := get(subArray(l.config, "extra"), "branch-alias")
+	v := l.config.ArrayAt("extra").At("branch-alias")
 	if v == nil {
 		return nil
 	}
@@ -965,7 +965,7 @@ func (l *ValidatingArrayLoader) validateRegex(property, regex string, mandatory 
 		return false, nil
 	}
 
-	value, _ := get(l.config, property).(string)
+	value, _ := l.config.At(property).(string)
 
 	ok, err := php.PregIsMatch("{^"+regex+"$}u", value)
 	if err != nil {
@@ -989,7 +989,7 @@ func (l *ValidatingArrayLoader) validateRegex(property, regex string, mandatory 
 }
 
 func (l *ValidatingArrayLoader) validateString(property string, mandatory bool) bool {
-	v := get(l.config, property)
+	v := l.config.At(property)
 
 	if v != nil {
 		if _, ok := v.(string); !ok {
@@ -1014,7 +1014,7 @@ func (l *ValidatingArrayLoader) validateString(property string, mandatory bool) 
 }
 
 func (l *ValidatingArrayLoader) validateArray(property string) bool {
-	v := get(l.config, property)
+	v := l.config.At(property)
 
 	if v != nil {
 		if _, ok := v.(*php.Array); !ok {
@@ -1040,7 +1040,7 @@ func (l *ValidatingArrayLoader) validateFlatArray(property, regex string) error 
 		return nil
 	}
 
-	a := subArray(l.config, property)
+	a := l.config.ArrayAt(property)
 
 	for k, v := range a.All() {
 		if _, ok := v.(string); !ok && !php.IsNumeric(v) {
@@ -1073,7 +1073,7 @@ func (l *ValidatingArrayLoader) validateURL(property string) {
 		return
 	}
 
-	value, _ := get(l.config, property).(string)
+	value, _ := l.config.At(property).(string)
 
 	if ok, _ := filterURL(value, "http", "https"); !ok {
 		l.warnf(property, " : invalid value (", value, "), must be an http/https URL")

@@ -147,7 +147,7 @@ var (
 func (d *PackageDiscovery) DetermineRequirements(in console.Input, _ console.Output, requires []string, platformRepo *repository.PlatformRepository, preferredStability string, useBestVersionConstraint, fixed bool) ([]string, error) {
 	if len(requires) > 0 {
 		for _, p := range requires {
-			if strings.ToLower(p) == "as" {
+			if php.Strtolower(p) == "as" {
 				return nil, NewError(ClassInvalidArgument, `Cannot use "`+p+`" as a separate argument. Quote the inline alias as one argument, e.g. "vendor/package:dev-main as 1.2.x-dev".`)
 			}
 		}

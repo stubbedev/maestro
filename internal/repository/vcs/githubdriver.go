@@ -173,7 +173,7 @@ func (d *GitHubDriver) ComposerInformation(identifier string) (*php.Array, error
 		// specials for github
 		fixSupport(composer)
 
-		if !isset(composer, "support", "source") {
+		if composer.Path("support", "source") == nil {
 			label, err := searchLabel(identifier, false, identifier, d.Tags, d.Branches)
 			if err != nil {
 				return nil, err
@@ -182,15 +182,15 @@ func (d *GitHubDriver) ComposerInformation(identifier string) (*php.Array, error
 			supportArray(composer).Set("source", "https://"+d.originURL+"/"+d.owner+"/"+d.repository+"/tree/"+label)
 		}
 
-		if !isset(composer, "support", "issues") && d.hasIssues {
+		if composer.Path("support", "issues") == nil && d.hasIssues {
 			supportArray(composer).Set("issues", "https://"+d.originURL+"/"+d.owner+"/"+d.repository+"/issues")
 		}
 
-		if !isset(composer, "abandoned") && d.isArchived {
+		if composer.Path("abandoned") == nil && d.isArchived {
 			composer.Set("abandoned", true)
 		}
 
-		if !isset(composer, "funding") {
+		if composer.Path("funding") == nil {
 			funding, err := d.getFundingInfo()
 			if err != nil {
 				return nil, err
@@ -271,8 +271,8 @@ func (d *GitHubDriver) fetchFundingFile() (string, error) {
 			return "", err
 		}
 
-		content, _ := arrayPath(response, "content").(string)
-		if !php.ToBool(arrayPath(response, "content")) || arrayPath(response, "encoding") != "base64" {
+		content, _ := response.Path("content").(string)
+		if !php.ToBool(response.Path("content")) || response.Path("encoding") != "base64" {
 			continue
 		}
 
@@ -448,7 +448,7 @@ func (d *GitHubDriver) FileContent(file, identifier string) (string, bool, error
 
 	// The GitHub contents API only returns files up to 1MB as base64 encoded files
 	// larger files either need be fetched with a raw accept header or by using the git blob endpoint
-	if content := arrayPath(resource, "content"); (content == nil || content == "") && arrayPath(resource, "encoding") == "none" && isset(resource, "git_url") {
+	if content := resource.Path("content"); (content == nil || content == "") && resource.Path("encoding") == "none" && resource.Path("git_url") != nil {
 		resource, err = d.getJSON(pathString(resource, "git_url"), false)
 		if err != nil {
 			return "", false, err
@@ -465,7 +465,7 @@ func (d *GitHubDriver) FileContent(file, identifier string) (string, bool, error
 // base64Content is the decoded content of a contents API response: ok is
 // false unless it is set, base64 encoded and decodable.
 func base64Content(resource *php.Array, strict bool) (string, bool) {
-	if !isset(resource, "content") || arrayPath(resource, "encoding") != "base64" {
+	if resource.Path("content") == nil || resource.Path("encoding") != "base64" {
 		return "", false
 	}
 
@@ -741,19 +741,19 @@ func (d *GitHubDriver) fetchRootIdentifier() error {
 	d.owner = pathString(d.repoData, "owner", "login")
 	d.repository = pathString(d.repoData, "name")
 
-	d.isPrivate = php.ToBool(arrayPath(d.repoData, "private"))
+	d.isPrivate = php.ToBool(d.repoData.Path("private"))
 
 	switch {
-	case isset(d.repoData, "default_branch"):
+	case d.repoData.Path("default_branch") != nil:
 		d.rootIdentifier = pathString(d.repoData, "default_branch")
-	case isset(d.repoData, "master_branch"):
+	case d.repoData.Path("master_branch") != nil:
 		d.rootIdentifier = pathString(d.repoData, "master_branch")
 	default:
 		d.rootIdentifier = "master"
 	}
 
-	d.hasIssues = php.ToBool(arrayPath(d.repoData, "has_issues"))
-	d.isArchived = php.ToBool(arrayPath(d.repoData, "archived"))
+	d.hasIssues = php.ToBool(d.repoData.Path("has_issues"))
+	d.isArchived = php.ToBool(d.repoData.Path("archived"))
 
 	return nil
 }

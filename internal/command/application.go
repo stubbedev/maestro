@@ -400,7 +400,7 @@ func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, comma
 	if err != nil {
 		return "", err
 	}
-	if fileExists(composerFile) {
+	if php.FileExists(composerFile) {
 		return "", nil
 	}
 	// if use-parent-dir is disabled we should not prompt
@@ -433,7 +433,7 @@ func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, comma
 
 	// abort when we reach the home dir or top of the filesystem
 	for php.Dirname(dir) != dir && (!homeOK || dir != home) {
-		if fileExists(dir + "/" + composerFile) {
+		if php.FileExists(dir + "/" + composerFile) {
 			isTrue := useParentDir == true
 			if !isTrue && !cio.IsInteractive() {
 				cio.WriteError("<info>No composer.json in current directory, to use the one at "+dir+" run interactively or set config.use-parent-dir to true</info>", true, io.Normal)
@@ -466,12 +466,6 @@ func (a *Application) promptParentDir(in console.Input, cio *io.ConsoleIO, comma
 	}
 
 	return "", nil
-}
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
 }
 
 // silentExec is Silencer::call('exec', $command).
@@ -615,7 +609,7 @@ func checkTempDir(cio *io.ConsoleIO) {
 		ok = err == nil && string(data) == applicationPath
 	}
 	if ok {
-		ok = os.Remove(tempfile) == nil && !fileExists(tempfile)
+		ok = os.Remove(tempfile) == nil && !php.FileExists(tempfile)
 	}
 	if !ok {
 		cio.WriteError("<error>PHP temp directory ("+tmp+") does not exist or is not writable to Composer. Set sys_temp_dir in your php.ini</error>", true, io.Normal)
@@ -627,6 +621,13 @@ var scriptEventConstants = map[string]bool{
 	"PRE_INSTALL_CMD": true, "POST_INSTALL_CMD": true, "PRE_UPDATE_CMD": true, "POST_UPDATE_CMD": true,
 	"PRE_STATUS_CMD": true, "POST_STATUS_CMD": true, "PRE_AUTOLOAD_DUMP": true, "POST_AUTOLOAD_DUMP": true,
 	"POST_ROOT_PACKAGE_INSTALL": true, "POST_CREATE_PROJECT_CMD": true, "PRE_ARCHIVE_CMD": true, "POST_ARCHIVE_CMD": true,
+}
+
+// isScriptEvent is defined(ScriptEvents::class.'::'.str_replace('-', '_',
+// strtoupper($name))): whether a script name is that of an event.
+// strtoupper is ASCII-only, so "post-inſtall-cmd" is no event.
+func isScriptEvent(name string) bool {
+	return scriptEventConstants[strings.ReplaceAll(php.Strtoupper(name), "-", "_")]
 }
 
 // addScriptCommands adds the composer.json scripts that are not events as
@@ -666,7 +667,7 @@ func (a *Application) addScriptCommands(cio *io.ConsoleIO) error {
 			return uncaught(&php.EngineError{Class: "TypeError", Message: "strtoupper(): Argument #1 ($string) must be of type string, int given"})
 		}
 		script := key.String()
-		if scriptEventConstants[strings.ReplaceAll(strings.ToUpper(script), "-", "_")] {
+		if isScriptEvent(script) {
 			continue
 		}
 		if a.Has(script) {

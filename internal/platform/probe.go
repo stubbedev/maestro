@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -67,7 +68,7 @@ func nameOnDisk(path string) string {
 	}
 
 	for _, e := range entries {
-		if strings.EqualFold(e.Name(), base) {
+		if php.Strcasecmp(e.Name(), base) == 0 {
 			return dir + e.Name()
 		}
 	}

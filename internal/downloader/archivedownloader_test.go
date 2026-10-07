@@ -784,7 +784,7 @@ func TestZipDownloader_ErrorMessages(t *testing.T) {
 		}
 	}
 
-	if isDir(path) {
+	if php.IsDir(path) {
 		t.Fatal("the failed install left its directory")
 	}
 
@@ -977,7 +977,7 @@ func TestArchiveDownloader_InstallWithoutDownload(t *testing.T) {
 
 	checkTree(t, path)
 
-	if fileExists(file) {
+	if php.FileExists(file) {
 		t.Fatal("the archive was left behind")
 	}
 }
@@ -1013,7 +1013,7 @@ func TestArchiveDownloader_MergesIntoExistingDirectory(t *testing.T) {
 
 	checkTree(t, root)
 
-	if !fileExists(root + "/keep.txt") {
+	if !php.FileExists(root + "/keep.txt") {
 		t.Fatal("the existing file was removed")
 	}
 }
@@ -1045,7 +1045,7 @@ func TestArchiveDownloader_LocalChanges(t *testing.T) {
 		t.Fatalf("changes %v, %v", changes, err)
 	}
 
-	if isDir(path + "_compare") {
+	if php.IsDir(path + "_compare") {
 		t.Fatal("the comparison directory was left behind")
 	}
 }
@@ -1090,7 +1090,7 @@ func TestArchiveDownloader_UpdateAndRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if fileExists(path) {
+	if php.FileExists(path) {
 		t.Fatal("the package was not removed")
 	}
 

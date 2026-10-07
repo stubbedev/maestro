@@ -49,7 +49,7 @@ func TestPharArchiver_TarArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !fileExists(target) {
+	if !php.FileExists(target) {
 		t.Fatalf("%s does not exist", target)
 	}
 }
@@ -64,7 +64,7 @@ func TestPharArchiver_ZipArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !fileExists(target) {
+	if !php.FileExists(target) {
 		t.Fatalf("%s does not exist", target)
 	}
 }

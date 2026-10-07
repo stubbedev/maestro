@@ -87,7 +87,7 @@ func (r *ArtifactRepository) scanDirectory(path string) error {
 	}
 	entries, err := util.ReadDirOrder(path)
 	if err != nil {
-		return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + path + "): Failed to open directory: " + util.Strerror(err)}
+		return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + path + "): Failed to open directory: " + php.Strerror(err)}
 	}
 
 	return r.scanEntries(path, entries, map[string]bool{})
@@ -111,7 +111,7 @@ func (r *ArtifactRepository) scanEntries(dir string, entries []os.DirEntry, acti
 		if info.IsDir() {
 			children, err := util.ReadDirOrder(pathname)
 			if err != nil {
-				return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + pathname + "): Failed to open directory: " + util.Strerror(err)}
+				return &util.UnexpectedValueError{Message: "RecursiveDirectoryIterator::__construct(" + pathname + "): Failed to open directory: " + php.Strerror(err)}
 			}
 			if err := r.scanEntries(pathname, children, active); err != nil {
 				return err

@@ -53,10 +53,6 @@ func URLPath(url string) string {
 	return u.path
 }
 
-// Strerror renders an OS error as PHP's warnings do ("No such file or
-// directory"), from the C library's strerror.
-func Strerror(err error) string { return strerror(err) }
-
 // FileAtime is a file's last access time (SplFileInfo::getATime()).
 func FileAtime(fi os.FileInfo) time.Time { return fileAtime(fi) }
 

@@ -27,6 +27,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // DateTimeError is the exception new \DateTime() throws for a string it
@@ -403,7 +405,7 @@ func ci(s string) string {
 
 	for _, r := range s {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-			b.WriteString("[" + strings.ToUpper(string(r)) + strings.ToLower(string(r)) + "]")
+			b.WriteString("[" + php.Strtoupper(string(r)) + php.Strtolower(string(r)) + "]")
 		} else {
 			b.WriteString(regexp.QuoteMeta(string(r)))
 		}
@@ -728,7 +730,7 @@ func (t *dtToken) skipDaySuffix() {
 		return
 	}
 
-	switch strings.ToLower(string([]byte{t.at(0), t.at(1)})) {
+	switch php.Strtolower(string([]byte{t.at(0), t.at(1)})) {
 	case "nd", "rd", "st", "th":
 		t.p += 2
 	}
@@ -749,7 +751,7 @@ func (t *dtToken) lookupMonth() int64 {
 		t.p++
 	}
 
-	return monthNames[strings.ToLower(string(t.b[begin:t.p]))]
+	return monthNames[php.Strtolower(string(t.b[begin:t.p]))]
 }
 
 // getMonth is timelib_get_month.
@@ -913,7 +915,7 @@ func (sc *dtScanner) parseZone(t *dtToken) bool {
 
 		// abbr_search; MAX_ABBR_LEN is 6
 		if len(word) < 6 {
-			lower := strings.ToLower(word)
+			lower := php.Strtolower(word)
 
 			abbr, ok := zoneAbbreviations[lower]
 			if lower == "utc" || lower == "gmt" {

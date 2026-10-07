@@ -117,7 +117,7 @@ func (d *GitDownloader) doDownload(p pkg.PackageInterface, _, url string, _ pkg.
 			return err
 		}
 
-		if inMirror && isDir(cachePath) {
+		if inMirror && php.IsDir(cachePath) {
 			d.mu.Lock()
 			if d.cachedPackages[p.ID()] == nil {
 				d.cachedPackages[p.ID()] = map[string]bool{}
@@ -174,7 +174,7 @@ func (d *GitDownloader) doInstall(p pkg.PackageInterface, path, url string) erro
 		}
 
 		cloneFlags := []string{"--dissociate", "--reference", cachePath}
-		if php.ToBool(arrayPath(p.TransportOptions(), "git", "single_use_clone")) {
+		if php.ToBool(p.TransportOptions().Path("git", "single_use_clone")) {
 			cloneFlags = nil
 		}
 
@@ -876,7 +876,7 @@ func (d *GitDownloader) normalizePath(path string) string {
 
 	var removed []string
 
-	for !isDir(basePath) && basePath != `\` {
+	for !php.IsDir(basePath) && basePath != `\` {
 		removed = append([]string{php.Basename(basePath, "")}, removed...)
 		basePath = php.Dirname(basePath)
 	}
@@ -891,7 +891,7 @@ func (d *GitDownloader) normalizePath(path string) string {
 }
 
 func (d *GitDownloader) hasMetadataRepository(path string) bool {
-	return isDir(d.normalizePath(path) + "/.git")
+	return php.IsDir(d.normalizePath(path) + "/.git")
 }
 
 // shortHash is getShortHash(). The pattern is anchored and fixed-length,

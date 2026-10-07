@@ -5,6 +5,8 @@ package php
 import (
 	"errors"
 	"syscall"
+	"unicode"
+	"unicode/utf8"
 )
 
 // CErrno is a C library errno PHP sets itself rather than taking it from
@@ -17,14 +19,17 @@ const ENOTDIR CErrno = 20
 func (e CErrno) Error() string { return cErrnoMessage(int(e)) }
 
 // Strerror renders an OS error as PHP's warnings do: the C library's
-// strerror() of the errno behind err. Errors that carry no errno render
-// as their own text.
+// strerror() of the errno behind err ("No such file or directory").
+// Errors that carry no errno render as their own text with its first
+// letter raised, as the C library's messages start ("No such host").
 func Strerror(err error) string {
 	if _, msg, ok := errnoOf(err); ok {
 		return msg
 	}
+	msg := err.Error()
+	r, size := utf8.DecodeRuneInString(msg)
 
-	return err.Error()
+	return string(unicode.ToUpper(r)) + msg[size:]
 }
 
 // Errno returns the C library errno PHP sees for err (as the "(errno N)"

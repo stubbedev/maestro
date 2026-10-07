@@ -3,6 +3,8 @@ package archive
 import (
 	"os"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // localeFromEnv classifies LC_CTYPE as setlocale(LC_CTYPE, "") would pick
@@ -30,7 +32,7 @@ func classifyLocale(name string) Locale {
 	}
 
 	codeset, _, _ = strings.Cut(codeset, "@")
-	codeset = strings.NewReplacer("-", "", "_", "").Replace(strings.ToLower(codeset))
+	codeset = strings.NewReplacer("-", "", "_", "").Replace(php.Strtolower(codeset))
 
 	if codeset == "utf8" {
 		return LocaleUTF8

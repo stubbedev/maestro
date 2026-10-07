@@ -181,7 +181,7 @@ func phpFile(path string) ([]string, error) {
 		// PHP opens directories, then fails to read them
 		return nil, &util.ErrorException{Message: "file(): Read of 8192 bytes failed with errno=21 Is a directory"}
 	case err != nil:
-		return nil, &util.ErrorException{Message: "file(" + path + "): Failed to open stream: " + util.Strerror(err)}
+		return nil, &util.ErrorException{Message: "file(" + path + "): Failed to open stream: " + php.Strerror(err)}
 	}
 
 	var lines []string

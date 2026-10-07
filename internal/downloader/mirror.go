@@ -73,12 +73,12 @@ func mirror(originDir, targetDir string, files []archiver.File) error {
 
 // symfonyMkdir is Symfony's Filesystem::mkdir($dir).
 func symfonyMkdir(dir string) error {
-	if isDir(dir) {
+	if php.IsDir(dir) {
 		return nil
 	}
 
-	if err := os.MkdirAll(dir, 0o777); err != nil && !isDir(dir) {
-		return &util.IOError{Message: `Failed to create "` + dir + `": ` + util.Strerror(err), Path: dir}
+	if err := os.MkdirAll(dir, 0o777); err != nil && !php.IsDir(dir) {
+		return &util.IOError{Message: `Failed to create "` + dir + `": ` + php.Strerror(err), Path: dir}
 	}
 
 	return nil
@@ -103,14 +103,14 @@ func symfonyCopy(originFile, targetFile string) error {
 
 	src, err := os.Open(originFile)
 	if err != nil {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because source file could not be opened for reading: ` + util.Strerror(err), Path: originFile}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because source file could not be opened for reading: ` + php.Strerror(err), Path: originFile}
 	}
 
 	defer func() { _ = src.Close() }()
 
 	dst, err := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // copy() creates files 0666 & ~umask
 	if err != nil {
-		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because target file could not be opened for writing: ` + util.Strerror(err), Path: originFile}
+		return &util.IOError{Message: `Failed to copy "` + originFile + `" to "` + targetFile + `" because target file could not be opened for writing: ` + php.Strerror(err), Path: originFile}
 	}
 
 	_, err = io.Copy(dst, src)
@@ -145,12 +145,12 @@ func symfonySymlink(originDir, targetDir string) error {
 		}
 
 		if err := os.Remove(targetDir); err != nil {
-			return &util.IOError{Message: `Failed to remove file "` + targetDir + `": ` + util.Strerror(err), Path: targetDir}
+			return &util.IOError{Message: `Failed to remove file "` + targetDir + `": ` + php.Strerror(err), Path: targetDir}
 		}
 	}
 
 	if err := os.Symlink(originDir, targetDir); err != nil {
-		return &util.IOError{Message: `Failed to create "symbolic" link from "` + originDir + `" to "` + targetDir + `": ` + util.Strerror(err), Path: targetDir}
+		return &util.IOError{Message: `Failed to create "symbolic" link from "` + originDir + `" to "` + targetDir + `": ` + php.Strerror(err), Path: targetDir}
 	}
 
 	return nil

@@ -59,3 +59,20 @@ func TestExceptionHint(t *testing.T) {
 		t.Errorf("exceptionHint() = %q, want %q", got, want)
 	}
 }
+
+// strtoupper() is ASCII-only: a script whose name only Unicode case
+// mapping turns into an event's (ſ upper-cases to S) is a script.
+func TestIsScriptEvent(t *testing.T) {
+	for name, want := range map[string]bool{
+		"post-install-cmd":  true,
+		"Post-Install-Cmd":  true,
+		"post_install_cmd":  true,
+		"post-inſtall-cmd":  false,
+		"post-install-cmd2": false,
+		"test":              false,
+	} {
+		if got := isScriptEvent(name); got != want {
+			t.Errorf("isScriptEvent(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

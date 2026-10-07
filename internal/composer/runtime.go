@@ -2,7 +2,6 @@ package composer
 
 import (
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -208,7 +207,7 @@ func (e environment) ExtensionLoaded(name string) bool {
 		return false
 	}
 	for _, ext := range view.Extensions {
-		if strings.EqualFold(ext.Name, name) {
+		if php.Strcasecmp(ext.Name, name) == 0 {
 			return true
 		}
 	}

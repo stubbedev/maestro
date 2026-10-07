@@ -665,7 +665,7 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		}
 		var versionString string
 		if a, ok := imageMagickVersion.(*php.Array); ok {
-			versionString = php.ToString(arrayValue(a, "versionString"))
+			versionString = php.ToString(a.At("versionString"))
 		}
 		// 6.x: ImageMagick 6.2.9 08/24/06 Q16 http://www.imagemagick.org
 		// 7.x: ImageMagick 7.0.8-34 Q16 x86_64 2019-03-23 https://imagemagick.org
@@ -1019,12 +1019,6 @@ func (r *PlatformRepository) addIntlLibraries(libraries platformLibraries, name 
 	}
 
 	return nil
-}
-
-func arrayValue(a *php.Array, key string) any {
-	v, _ := a.Get(key)
-
-	return v
 }
 
 // addConstantLibrary adds the library whose version is the constant.

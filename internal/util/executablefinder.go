@@ -50,7 +50,7 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 
 	// Windows built-in commands that are present in cmd.exe should not be
 	// resolved using PATH as they do not exist as exes.
-	if windows && slices.Contains(cmdBuiltins, strings.ToLower(name)) {
+	if windows && slices.Contains(cmdBuiltins, php.Strtolower(name)) {
 		return name, true
 	}
 
@@ -86,12 +86,12 @@ func (f *ExecutableFinder) Find(name string, extraDirs ...string) (string, bool)
 				dir = "."
 			}
 
-			if file := dir + sep + name + suffix; isFile(file) && (windows || isExecutable(file)) {
+			if file := dir + sep + name + suffix; php.IsFile(file) && (windows || isExecutable(file)) {
 				return file, true
 			}
 
 			// The cheap basename test goes first to spare a stat per dir.
-			if php.BasenameOn(dir, "", windows) == name+suffix && !isDir(dir) && isExecutable(dir) {
+			if php.BasenameOn(dir, "", windows) == name+suffix && !php.IsDir(dir) && isExecutable(dir) {
 				return dir, true
 			}
 		}
@@ -153,33 +153,33 @@ func NewPhpExecutableFinder() *PhpExecutableFinder {
 // Find ports PhpExecutableFinder::find: the PHP_BINARY, PHP_PATH or
 // PHP_PEAR_PHP_BIN environment variables, then php on the PATH.
 func (f *PhpExecutableFinder) Find() (string, bool) {
-	if php := os.Getenv("PHP_BINARY"); php != "" {
-		if !isExecutable(php) {
-			found, ok := f.finder.Find(php)
+	if bin := os.Getenv("PHP_BINARY"); bin != "" {
+		if !isExecutable(bin) {
+			found, ok := f.finder.Find(bin)
 			if !ok {
 				return "", false
 			}
 
-			php = found
+			bin = found
 		}
 
-		if isDir(php) {
+		if php.IsDir(bin) {
 			return "", false
 		}
 
-		return php, true
+		return bin, true
 	}
 
-	if php := os.Getenv("PHP_PATH"); php != "" {
-		if !isExecutable(php) || isDir(php) {
+	if bin := os.Getenv("PHP_PATH"); bin != "" {
+		if !isExecutable(bin) || php.IsDir(bin) {
 			return "", false
 		}
 
-		return php, true
+		return bin, true
 	}
 
-	if php := os.Getenv("PHP_PEAR_PHP_BIN"); php != "" && isExecutable(php) && !isDir(php) {
-		return php, true
+	if bin := os.Getenv("PHP_PEAR_PHP_BIN"); bin != "" && isExecutable(bin) && !php.IsDir(bin) {
+		return bin, true
 	}
 
 	var extra []string

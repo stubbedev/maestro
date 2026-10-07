@@ -100,7 +100,7 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 				if _, loaded := alreadyLoaded[name]; loaded {
 					packages = decoded
 					packagesSource = cachedSource
-				} else if lastModified := get(decoded, "last-modified"); lastModified != nil {
+				} else if lastModified := decoded.At("last-modified"); lastModified != nil {
 					response, fresh, err := r.fetchFileIfLastModified(url, cacheKey, php.ToString(lastModified))
 					if err != nil {
 						return nil, err
@@ -146,10 +146,10 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 	}
 
 	versionsToLoad := php.NewArray()
-	for _, rawVersions := range asArray(get(packages, "packages")).All() {
+	for _, rawVersions := range asArray(packages.At("packages")).All() {
 		for _, rawVersion := range asArray(rawVersions).All() {
 			data := asArray(rawVersion)
-			normalizedName := php.Strtolower(php.ToString(get(data, "name")))
+			normalizedName := php.Strtolower(php.ToString(data.At("name")))
 
 			// only load the actual named package, not other packages that might find themselves in the same file
 			if normalizedName != name {
@@ -160,7 +160,7 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 				continue
 			}
 
-			uid := get(data, "uid")
+			uid := data.At("uid")
 			if _, ok := uid.(*php.Array); ok {
 				return nil, &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type array in isset or empty"}
 			}
@@ -226,13 +226,13 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 // missing, or is the default branch alias that Composer v1 compatible
 // repositories put there, and returns it.
 func (r *ComposerRepository) normalizeVersionData(data *php.Array) (string, error) {
-	versionNormalized := get(data, "version_normalized")
+	versionNormalized := data.At("version_normalized")
 	if versionNormalized != nil && versionNormalized != pkg.DefaultBranchAlias {
 		return php.ToString(versionNormalized), nil
 	}
 
 	// handling of existing repos which need to remain composer v1 compatible, in case the version_normalized contained VersionParser::DEFAULT_BRANCH_ALIAS, we renormalize it
-	normalized, err := r.versionParser.Normalize(php.ToString(get(data, "version")))
+	normalized, err := r.versionParser.Normalize(php.ToString(data.At("version")))
 	if err != nil {
 		return "", err
 	}
@@ -319,7 +319,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 
 			continue
 		}
-		raw := get(get2(response, "packages"), realNames[i])
+		raw := get2(response, "packages").At(realNames[i])
 		if raw == nil {
 			continue
 		}
@@ -329,7 +329,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 		wg.Go(func() {
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			results[i].packages, results[i].err = r.buildPackages(raw, get(response, "minified") == "composer/2.0", packagesSource, realNames[i], constraints[i], acceptableStabilities, stabilityFlags, alreadyLoaded, pre)
+			results[i].packages, results[i].err = r.buildPackages(raw, response.At("minified") == "composer/2.0", packagesSource, realNames[i], constraints[i], acceptableStabilities, stabilityFlags, alreadyLoaded, pre)
 		})
 	}
 	wg.Wait()
@@ -396,7 +396,7 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 			index++
 			var versionNormalized string
 			normalized := true
-			if v := get(data, "version_normalized"); v != nil && v != pkg.DefaultBranchAlias {
+			if v := data.At("version_normalized"); v != nil && v != pkg.DefaultBranchAlias {
 				versionNormalized = php.ToString(v)
 			} else {
 				// normalizeVersionData sets it in the version
@@ -567,7 +567,7 @@ func shallowClone(a *php.Array) *php.Array {
 
 // get2 is get() for a value that may not be an array.
 func get2(v any, key string) *php.Array {
-	a, _ := get(asArrayOrNil(v), key).(*php.Array)
+	a, _ := asArrayOrNil(v).At(key).(*php.Array)
 
 	return a
 }

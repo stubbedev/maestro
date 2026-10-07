@@ -188,7 +188,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 	}
 
 	// ensure the maestro binary location is accessible
-	if !fileExists(localFilename) {
+	if !php.FileExists(localFilename) {
 		return 0, NewError(`Composer\Downloader\FilesystemException`, `Composer update failed: the "`+localFilename+`" is not accessible`)
 	}
 
@@ -279,7 +279,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 	}
 	ioi.WriteError("", true, io.Normal)
 
-	if !fileExists(tempFilename) || checksums == "" {
+	if !php.FileExists(tempFilename) || checksums == "" {
 		_ = os.Remove(tempFilename)
 		ioi.WriteError("<error>The download of the new composer version failed for an unexpected reason</error>", true, io.Normal)
 
@@ -301,7 +301,7 @@ func (c *SelfUpdateCommand) Execute(in console.Input, out console.Output) (int, 
 		return 0, err
 	}
 
-	if fileExists(backupFile) {
+	if php.FileExists(backupFile) {
 		ioi.WriteError("Use <info>composer self-update --rollback</info> to return to version <comment>"+current+"</comment>", true, io.Normal)
 	} else {
 		ioi.WriteError("<warning>A backup of the current version could not be written to "+backupFile+", no rollback possible</warning>", true, io.Normal)
@@ -457,7 +457,7 @@ func verifyChecksum(file, checksums, name string) error {
 	for line := range strings.SplitSeq(checksums, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 2 && strings.TrimPrefix(fields[1], "*") == name {
-			want = strings.ToLower(fields[0])
+			want = php.Strtolower(fields[0])
 		}
 	}
 	data, err := os.ReadFile(file)

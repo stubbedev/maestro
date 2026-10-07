@@ -591,7 +591,7 @@ func (g *Git) SyncMirror(url, dir string) (bool, error) {
 // isBareRepository is is_dir($dir) && 0 === git rev-parse --git-dir in
 // $dir && trim($output) === '.'.
 func (g *Git) isBareRepository(dir string) (bool, error) {
-	if !isDir(dir) {
+	if !php.IsDir(dir) {
 		return false, nil
 	}
 
@@ -624,7 +624,7 @@ var sha1Ref = php.MustCompile(`{^[a-f0-9]{40}$}`)
 // is null.
 func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, error) {
 	var m *mirror
-	if isDir(dir) {
+	if php.IsDir(dir) {
 		m = g.mirrorAt(dir)
 	}
 
@@ -698,7 +698,7 @@ func (g *Git) FetchRefOrSyncMirror(url, dir, ref, prettyVersion string) (bool, e
 	}
 
 	var synced *mirror
-	if isDir(dir) {
+	if php.IsDir(dir) {
 		synced = g.mirrorAt(dir)
 	}
 
@@ -734,7 +734,7 @@ func (g *Git) checkRefIsInMirror(dir, ref string, m *mirror) (bool, error) {
 	}
 
 	isMirror := false
-	if isDir(dir) {
+	if php.IsDir(dir) {
 		var err error
 		if isMirror, err = g.isBareMirror(dir, m); err != nil {
 			return false, err
