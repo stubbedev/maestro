@@ -1,0 +1,4 @@
+No package specified, opening homepage for the root package
+Composer could not find a composer.json file in @DIR@/p
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+exit 1

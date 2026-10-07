@@ -252,7 +252,16 @@ var coverage = []entry{
 		},
 	}),
 	cover(command.NewHomeCommand, Coverage{
-		Tests: []Proof{Positive(Go(TestHomeCommand_HomeCommandWithShowFlag))},
+		Tests: []Proof{
+			Positive(Go(TestHomeCommand_HomeCommandWithShowFlag)),
+			Positive(Go(TestHomeCommand_OpensBrowser)),
+			Positive(E2E("verbosity", "browse", "-s", "monolog/monolog")),
+			Positive(E2E("verbosity", "home", "-H", "-s", "monolog/monolog")),
+			Positive(E2E("verbosity", "home", "-s", "monolog/monolog", "psr/log")),
+			Positive(E2E("verbosity", "home", "-s")),
+			Negative(Go(TestHomeCommand_HomeCommandWithShowFlag)),
+			Negative(E2E("verbosity", "browse", "-s", "nope/nope-xyz")),
+		},
 	}),
 	cover(command.NewExecCommand, Coverage{
 		Tests: []Proof{

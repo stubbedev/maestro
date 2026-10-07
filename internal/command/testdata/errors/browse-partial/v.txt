@@ -1,0 +1,5 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+Invalid or missing homepage for x/foo
+Package x/nope not found
+Invalid or missing homepage for x/nope
+exit 1
