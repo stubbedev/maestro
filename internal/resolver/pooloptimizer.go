@@ -3,10 +3,8 @@
 package resolver
 
 import (
-	"runtime"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -96,15 +94,26 @@ func (o *PoolOptimizer) prepare(request *Request, pool *Pool) error {
 		o.extractConstraints(o.requireConstraintsPerPackage, require, constraint)
 	}
 
-	// First pass over all packages to extract information and mark package constraints irremovable
+	// First pass over all packages to extract information and mark package constraints irremovable.
+	// The loaders share the link objects of equal requirements between
+	// versions; a link's constraints are extracted once (again, they would
+	// only set the same strings to equal constraints).
+	extractedRequires := map[*pkg.Link]struct{}{}
+	extractedConflicts := map[*pkg.Link]struct{}{}
 	for _, p := range pool.Packages() {
 		// Extract package requirements
 		for link := range p.Requires().Values() {
-			o.extractConstraints(o.requireConstraintsPerPackage, link.Target(), link.Constraint())
+			if _, ok := extractedRequires[link]; !ok {
+				extractedRequires[link] = struct{}{}
+				o.extractConstraints(o.requireConstraintsPerPackage, link.Target(), link.Constraint())
+			}
 		}
 		// Extract package conflicts
 		for link := range p.Conflicts().Values() {
-			o.extractConstraints(o.conflictConstraintsPerPackage, link.Target(), link.Constraint())
+			if _, ok := extractedConflicts[link]; !ok {
+				extractedConflicts[link] = struct{}{}
+				o.extractConstraints(o.conflictConstraintsPerPackage, link.Target(), link.Constraint())
+			}
 		}
 
 		// Keep track of alias packages for every package so if either the alias or aliased is kept
@@ -183,13 +192,16 @@ func (o *PoolOptimizer) applyRemovalsToPool(pool *Pool) *Pool {
 }
 
 func (o *PoolOptimizer) optimizeByIdenticalDependencies(pool *Pool) error {
-	// package name => group hash => dependency hash => package ids
-	identicalDefinitionsPerPackage := &repository.NameMap[*repository.NameMap[*repository.NameMap[[]int32]]]{}
+	// package name => group hash => dependency hash => package ids, each
+	// level in insertion order; the hashes are ids of their strings
+	// (hashIDs), the names indexes of the names packageHashes returns
+	var nameOrder []int32
+	perName := map[int32]*orderedIDs[orderedIDs[[]int32]]{}
 
 	// The hashes of each package are computed in parallel (they only read
 	// the pool), then filed in pool order, as the PHP loop files them.
 	packages := pool.Packages()
-	hashes := o.packageHashes(packages)
+	names, hashes := o.packageHashes(packages)
 	for i, p := range packages {
 		// If that package was already marked irremovable, we can skip
 		// the entire process for it
@@ -203,26 +215,24 @@ func (o *PoolOptimizer) optimizeByIdenticalDependencies(pool *Pool) error {
 
 		h := &hashes[i]
 		for _, group := range h.groups {
-			groups, ok := identicalDefinitionsPerPackage.Get(group.packageName)
+			groups, ok := perName[group.name]
 			if !ok {
-				groups = &repository.NameMap[*repository.NameMap[[]int32]]{}
-				identicalDefinitionsPerPackage.Set(group.packageName, groups)
+				groups = &orderedIDs[orderedIDs[[]int32]]{}
+				perName[group.name] = groups
+				nameOrder = append(nameOrder, group.name)
 			}
-			byDependencies, ok := groups.Get(group.hash)
-			if !ok {
-				byDependencies = &repository.NameMap[[]int32]{}
-				groups.Set(group.hash, byDependencies)
-			}
-			ids, _ := byDependencies.Get(h.dependencyHash)
-			byDependencies.Set(h.dependencyHash, append(ids, literalOf(p.ID())))
+			byDependencies := groups.at(group.hash)
+			ids := byDependencies.at(h.dependencyHash)
+			*ids = append(*ids, literalOf(p.ID()))
 		}
 	}
 
 	var groups []identicalGroup
-	for packageName, constraintGroups := range identicalDefinitionsPerPackage.All() {
-		for _, constraintGroup := range constraintGroups.All() {
-			for _, packageIDs := range constraintGroup.All() {
-				groups = append(groups, identicalGroup{packageName: packageName, packageIDs: packageIDs})
+	for _, name := range nameOrder {
+		constraintGroups := perName[name]
+		for i := range constraintGroups.vals {
+			for _, packageIDs := range constraintGroups.vals[i].vals {
+				groups = append(groups, identicalGroup{packageName: names[name], packageIDs: packageIDs})
 			}
 		}
 	}
@@ -277,31 +287,37 @@ func (o *PoolOptimizer) selectGroups(pool *Pool, groups []identicalGroup) {
 	}
 
 	forkable, ok := o.policy.(forkablePolicy)
-	workers := runtime.GOMAXPROCS(0)
-	if !ok || len(groups) < minParallelPackages || workers < 2 {
+	if !ok {
 		compute(o.policy, 0, len(groups))
 
 		return
 	}
-	var wg sync.WaitGroup
-	size := (len(groups) + workers - 1) / workers
-	for from := 0; from < len(groups); from += size {
-		policy := forkable.Fork()
-		wg.Go(func() { compute(policy, from, min(from+size, len(groups))) })
-	}
-	wg.Wait()
+	first := true
+	parallelRanges(len(groups), func() func(from, to int) {
+		// the first worker (the only one on a small pool) uses the policy
+		policy := o.policy
+		if !first {
+			policy = forkable.Fork()
+		}
+		first = false
+
+		return func(from, to int) { compute(policy, from, to) }
+	})
 }
 
 // packageHashes are the hashes optimizeByIdenticalDependencies files a
-// package under: its dependency hash, and the group hash of each of its
-// names (and their require constraints) that has one.
+// package under, as ids of their strings (hashIDs): its dependency hash,
+// and the group hash of each of its names (and their require
+// constraints) that has one.
 type packageHashes struct {
-	dependencyHash string
+	dependencyHash int32
 	groups         []packageGroup
 }
 
+// packageGroup is a group hash of a package for one of its names (an
+// index of the names packageHashes returns).
 type packageGroup struct {
-	packageName, hash string
+	name, hash int32
 }
 
 // namedMatcher is a constraint of a constraintSet, by its string, as a
@@ -311,31 +327,38 @@ type namedMatcher struct {
 	matches func(version string) bool
 }
 
-// minParallelPackages is the number of packages (or groups of them) from
-// which the optimizer and the security advisory filter split their work
-// over several goroutines (a variable for the tests).
-var minParallelPackages = 512
-
 // packageHashes computes the hashes of each package of packages that is
-// not irremovable, in parallel; they are the same in any order.
-func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) []packageHashes {
-	matchers := func(perPackage map[string]*constraintSet) map[string][]namedMatcher {
-		out := make(map[string][]namedMatcher, len(perPackage))
-		for name, set := range perPackage {
-			list := make([]namedMatcher, 0, set.Len())
-			for str, constraint := range set.All() {
-				list = append(list, namedMatcher{str: str, matches: semver.CompilingMatcher.Matcher(constraint, semver.OpEQ)})
-			}
-			out[name] = list
+// not irremovable, in parallel; they are the same in any order. It
+// returns the names the groups refer to, and the hashes by package.
+func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string, []packageHashes) {
+	matchers := func(set *constraintSet) []namedMatcher {
+		list := make([]namedMatcher, 0, set.Len())
+		for str, constraint := range set.All() {
+			list = append(list, namedMatcher{str: "require:" + str, matches: semver.CompilingMatcher.Matcher(constraint, semver.OpEQ)})
 		}
 
-		return out
+		return list
 	}
-	requires := matchers(o.requireConstraintsPerPackage)
-	conflicts := matchers(o.conflictConstraintsPerPackage)
+	names := make([]string, 0, len(o.requireConstraintsPerPackage))
+	requires := make(map[string]int32, len(o.requireConstraintsPerPackage))
+	requireMatchers := make([][]namedMatcher, 0, len(o.requireConstraintsPerPackage))
+	for name, set := range o.requireConstraintsPerPackage {
+		requires[name] = int32(len(names)) //nolint:gosec // as many as the pool's names
+		names = append(names, name)
+		requireMatchers = append(requireMatchers, matchers(set))
+	}
+	conflicts := make(map[string][]namedMatcher, len(o.conflictConstraintsPerPackage))
+	for name, set := range o.conflictConstraintsPerPackage {
+		list := make([]namedMatcher, 0, set.Len())
+		for str, constraint := range set.All() {
+			list = append(list, namedMatcher{str: "conflict:" + str, matches: semver.CompilingMatcher.Matcher(constraint, semver.OpEQ)})
+		}
+		conflicts[name] = list
+	}
 
+	ids := newHashIDs()
 	out := make([]packageHashes, len(packages))
-	compute := func(from, to int) {
+	newWorker := func() func(from, to int) {
 		strs := map[semver.ConstraintInterface]string{}
 		constraintString := func(c semver.ConstraintInterface) string {
 			s, ok := strs[c]
@@ -346,101 +369,89 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) []package
 
 			return s
 		}
+		local := ids.local()
 
-		var groupHash strings.Builder
-		for i := from; i < to; i++ {
-			p := packages[i]
-			if o.irremovablePackages[p.ID()] {
-				continue
-			}
+		var buf, replacesPart, conflictPart []byte
 
-			h := &out[i]
-			h.dependencyHash = calculateDependencyHash(p, constraintString)
-			version := p.Version()
-
-			// The replaces and conflicts parts of the group hash only depend on
-			// the package (and name), so they are computed once rather than for
-			// every require constraint.
-			replacesPart, replacesDone := "", false
-
-			for _, packageName := range p.Names(false) {
-				requireMatchers, ok := requires[packageName]
-				if !ok {
+		return func(from, to int) {
+			for i := from; i < to; i++ {
+				p := packages[i]
+				if o.irremovablePackages[p.ID()] {
 					continue
 				}
 
-				if !replacesDone {
-					replacesPart, replacesDone = replacesHashPart(p, constraintString), true
-				}
-				conflictPart := conflictHashPart(conflicts[packageName], version)
+				h := &out[i]
+				buf = appendDependencyHash(buf[:0], p, constraintString)
+				h.dependencyHash = local.id(buf)
+				version := p.Version()
 
-				for _, require := range requireMatchers {
-					groupHash.Reset()
+				// The replaces and conflicts parts of the group hash only depend on
+				// the package (and name), so they are computed once rather than for
+				// every require constraint.
+				replacesDone := false
 
-					if require.matches(version) {
-						groupHash.WriteString("require:")
-						groupHash.WriteString(require.str)
-					}
-					groupHash.WriteString(replacesPart)
-					groupHash.WriteString(conflictPart)
-
-					if groupHash.Len() == 0 {
+				for _, packageName := range p.Names(false) {
+					name, ok := requires[packageName]
+					if !ok {
 						continue
 					}
-					h.groups = append(h.groups, packageGroup{packageName: packageName, hash: groupHash.String()})
+
+					if !replacesDone {
+						replacesPart, replacesDone = appendReplacesHashPart(replacesPart[:0], p, constraintString), true
+					}
+					conflictPart = appendConflictHashPart(conflictPart[:0], conflicts[packageName], version)
+
+					for _, require := range requireMatchers[name] {
+						buf = buf[:0]
+						if require.matches(version) {
+							buf = append(buf, require.str...)
+						}
+						buf = append(buf, replacesPart...)
+						buf = append(buf, conflictPart...)
+
+						if len(buf) == 0 {
+							continue
+						}
+						h.groups = append(h.groups, packageGroup{name: name, hash: local.id(buf)})
+					}
 				}
 			}
 		}
 	}
+	parallelRanges(len(packages), newWorker)
 
-	workers := runtime.GOMAXPROCS(0)
-	if len(packages) < minParallelPackages || workers < 2 {
-		compute(0, len(packages))
-
-		return out
-	}
-	var wg sync.WaitGroup
-	size := (len(packages) + workers - 1) / workers
-	for from := 0; from < len(packages); from += size {
-		wg.Go(func() { compute(from, min(from+size, len(packages))) })
-	}
-	wg.Wait()
-
-	return out
+	return names, out
 }
 
-// replacesHashPart is the part of a group hash for the replaces of p that
-// match its version.
-func replacesHashPart(p pkg.PackageInterface, constraintString func(semver.ConstraintInterface) string) string {
-	var part strings.Builder
+// appendReplacesHashPart appends the part of a group hash for the
+// replaces of p that match its version.
+func appendReplacesHashPart(dst []byte, p pkg.PackageInterface, constraintString func(semver.ConstraintInterface) string) []byte {
 	for link := range p.Replaces().Values() {
 		if semver.CompilingMatcher.Matcher(link.Constraint(), semver.OpEQ)(p.Version()) {
 			// Use the same hash part as the regular require hash because that's what the replacement does
-			part.WriteString("require:" + constraintString(link.Constraint()))
+			dst = append(dst, "require:"...)
+			dst = append(dst, constraintString(link.Constraint())...)
 		}
 	}
 
-	return part.String()
+	return dst
 }
 
-// conflictHashPart is the part of a group hash for the conflicts (of a
-// package name) that match version.
-func conflictHashPart(conflicts []namedMatcher, version string) string {
-	var part strings.Builder
+// appendConflictHashPart appends the part of a group hash for the
+// conflicts (of a package name) that match version.
+func appendConflictHashPart(dst []byte, conflicts []namedMatcher, version string) []byte {
 	for _, conflict := range conflicts {
 		if conflict.matches(version) {
-			part.WriteString("conflict:" + conflict.str)
+			dst = append(dst, conflict.str...)
 		}
 	}
 
-	return part.String()
+	return dst
 }
 
-// calculateDependencyHash ports calculateDependencyHash; constraintString
-// is (string) $constraint.
-func calculateDependencyHash(p pkg.PackageInterface, constraintString func(semver.ConstraintInterface) string) string {
-	var hash strings.Builder
-
+// appendDependencyHash appends what calculateDependencyHash returns;
+// constraintString is (string) $constraint.
+func appendDependencyHash(hash []byte, p pkg.PackageInterface, constraintString func(semver.ConstraintInterface) string) []byte {
 	for _, section := range [...]struct {
 		key   string
 		links pkg.Links
@@ -455,7 +466,8 @@ func calculateDependencyHash(p pkg.PackageInterface, constraintString func(semve
 		}
 
 		// start new hash section
-		hash.WriteString(section.key + ":")
+		hash = append(hash, section.key...)
+		hash = append(hash, ':')
 
 		// To get the best dependency hash matches we should use Intervals::compactConstraint() here.
 		// However, the majority of projects are going to specify their constraints already pretty
@@ -474,11 +486,13 @@ func calculateDependencyHash(p pkg.PackageInterface, constraintString func(semve
 		ksortStrings(targets)
 
 		for _, target := range targets {
-			hash.WriteString(target + "@" + subhash[target])
+			hash = append(hash, target...)
+			hash = append(hash, '@')
+			hash = append(hash, subhash[target]...)
 		}
 	}
 
-	return hash.String()
+	return hash
 }
 
 // ksortStrings orders array keys as ksort() does (SORT_REGULAR): byte

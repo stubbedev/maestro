@@ -88,8 +88,8 @@ func TestPoolOptimizer_PoolOptimizer(t *testing.T) {
 // TestPoolOptimizer_PoolOptimizerParallel runs the fixtures with the
 // package hashes computed on several goroutines whatever the pool size.
 func TestPoolOptimizer_PoolOptimizerParallel(t *testing.T) {
-	defer func(n int) { minParallelPackages = n }(minParallelPackages)
-	minParallelPackages = 1
+	defer func(n, chunk int) { minParallelPackages, parallelChunk = n, chunk }(minParallelPackages, parallelChunk)
+	minParallelPackages, parallelChunk = 1, 1
 
 	testPoolOptimizerFixtures(t)
 }
