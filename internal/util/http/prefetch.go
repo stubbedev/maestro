@@ -159,7 +159,7 @@ func (p *transportPool) runPrefetches() {
 // false when it failed.
 func (t *prefetchedTransfer) response() (status int, body string, ok bool) {
 	<-t.done
-	if res := t.res; res != nil && res.errno == 0 && res.err == nil {
+	if res := t.res; res != nil && res.fail.Errno == 0 && res.err == nil {
 		return res.status, string(res.body), true
 	}
 

@@ -56,6 +56,9 @@ type remoteContents struct {
 	ok       bool
 	headers  []string
 	warnings []string
+	// curl is the transfer's failure when the warnings word it as curl
+	// does (not as PHP's stream wrapper would), nil otherwise.
+	curl *util.CurlFailure
 }
 
 // RemoteFilesystem ports Composer\Util\RemoteFilesystem. A
@@ -413,7 +416,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	}
 
 	if caught != nil && !r.retry {
-		if !r.degradedMode && strings.Contains(caught.Error(), "Operation timed out") {
+		if te, ok := errors.AsType[*util.TransportError](caught); ok && !r.degradedMode && te.IsTransferTimeout() {
 			return r.retryDegraded(caught.Error(), additionalOptions)
 		}
 
@@ -567,11 +570,12 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 
 	if !resultOK {
 		e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded: `+errorMessage, 0)
+		e.Curl = contents.curl
 		if len(headers) > 0 && headers[0] != "" {
 			e.Headers = headers
 		}
 
-		if !r.degradedMode && strings.Contains(e.Message, "Operation timed out") {
+		if !r.degradedMode && e.IsTransferTimeout() {
 			return r.retryDegraded(e.Message, additionalOptions)
 		}
 
@@ -912,11 +916,12 @@ func (r *RemoteFilesystem) streamHTTP(fileURL string, ctx *php.Array, maxFileSiz
 		return out, res.err
 	}
 
-	if res.errno != 0 {
+	if res.fail.Errno != 0 {
 		if res.streamWarnings != nil {
 			out.warnings = append(out.warnings, res.streamWarnings...)
 		} else {
-			out.warnings = append(out.warnings, "Failed to open stream: "+res.errMsg)
+			out.warnings = append(out.warnings, "Failed to open stream: "+res.fail.Message)
+			out.curl = &res.fail
 		}
 
 		return out, nil

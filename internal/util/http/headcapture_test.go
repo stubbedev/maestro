@@ -263,8 +263,8 @@ func TestHeaderLines_ConnectTunnel(t *testing.T) {
 
 	for i, want := range [][]string{append(slices.Clone(connect), order...), order} {
 		res := pool.do(context.Background(), &transferRequest{url: "https://example.test/order", decode: true, curlStatusLines: true, key: key})
-		if res.errno != 0 || !slices.Equal(res.headers, want) || string(res.body) != "ok" {
-			t.Fatalf("request %d: got %d %q %q %q, want %q", i, res.errno, res.errMsg, res.headers, res.body, want)
+		if res.fail.Errno != 0 || !slices.Equal(res.headers, want) || string(res.body) != "ok" {
+			t.Fatalf("request %d: got %d %q %q %q, want %q", i, res.fail.Errno, res.fail.Message, res.headers, res.body, want)
 		}
 	}
 
@@ -316,8 +316,8 @@ func TestCurlError_Proxy(t *testing.T) {
 		var pool transportPool
 
 		res := pool.do(context.Background(), &transferRequest{url: tc.url, curlStatusLines: true, connectTimeout: 5 * time.Second, key: transportKey{proxy: "http://" + tc.proxy, fresh: true}})
-		if res.errno != tc.errno || !strings.HasPrefix(res.errMsg, tc.msg) {
-			t.Errorf("%s: got %d %q, want %d %q", tc.url, res.errno, res.errMsg, tc.errno, tc.msg)
+		if res.fail.Errno != tc.errno || !strings.HasPrefix(res.fail.Message, tc.msg) {
+			t.Errorf("%s: got %d %q, want %d %q", tc.url, res.fail.Errno, res.fail.Message, tc.errno, tc.msg)
 		}
 	}
 }

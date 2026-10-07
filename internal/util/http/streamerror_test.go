@@ -101,10 +101,10 @@ func TestStreamWarnings_Wording(t *testing.T) {
 		})
 
 		switch {
-		case tc.warnings != nil && (res.errno == 0 || !slices.Equal(res.streamWarnings, tc.warnings)):
-			t.Errorf("%s: got %d %q %q, want %q", tc.url, res.errno, res.errMsg, res.streamWarnings, tc.warnings)
-		case tc.warnings == nil && (res.errno != 0 || string(res.body) != tc.body):
-			t.Errorf("%s: got %d %q %q, want %q", tc.url, res.errno, res.errMsg, res.body, tc.body)
+		case tc.warnings != nil && (res.fail.Errno == 0 || !slices.Equal(res.streamWarnings, tc.warnings)):
+			t.Errorf("%s: got %d %q %q, want %q", tc.url, res.fail.Errno, res.fail.Message, res.streamWarnings, tc.warnings)
+		case tc.warnings == nil && (res.fail.Errno != 0 || string(res.body) != tc.body):
+			t.Errorf("%s: got %d %q %q, want %q", tc.url, res.fail.Errno, res.fail.Message, res.body, tc.body)
 		}
 	}
 }

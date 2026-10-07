@@ -325,3 +325,40 @@ func TestHttpDownloader_AllowSelfSignedUsesRemoteFilesystem(t *testing.T) {
 		t.Fatalf("got %v %v", r, err)
 	}
 }
+
+// RemoteFilesystem retries in degraded mode after a transfer that timed
+// out once connected, whatever the warning says (the words are maestro's
+// own), and not after one that timed out connecting.
+func TestRemoteFilesystem_DegradedModeOnTransferTimeout(t *testing.T) {
+	for _, c := range []struct {
+		timeout util.CurlTimeout
+		calls   int
+	}{
+		{util.TimeoutTransfer, 2},
+		{util.TimeoutConnecting, 1},
+	} {
+		r := newTestRFS(t, nil, nil, nil)
+		calls := 0
+		r.getRemoteContents = func(string, string, *php.Array, int64) (remoteContents, error) {
+			calls++
+			if calls == 1 {
+				fail := util.CurlFailure{Errno: util.CurleOperationTimedout, Message: "too slow", Timeout: c.timeout}
+
+				return remoteContents{warnings: []string{"Failed to open stream: too slow"}, curl: &fail}, nil
+			}
+
+			return remoteContents{ok: true, result: "contents", headers: []string{"HTTP/1.1 200 OK"}}, nil
+		}
+
+		contents, err := r.GetContents("http://example.org", "http://example.org/packages.json", false, nil)
+		if calls != c.calls {
+			t.Errorf("timeout %d: %d calls, want %d", c.timeout, calls, c.calls)
+		}
+		if c.calls == 2 && (err != nil || contents != "contents" || !r.degradedMode) {
+			t.Errorf("timeout %d: got %q, %v after the retry", c.timeout, contents, err)
+		}
+		if te, ok := errors.AsType[*util.TransportError](err); c.calls == 1 && (!ok || !te.IsTimeout() || te.IsTransferTimeout()) {
+			t.Errorf("timeout %d: got %v", c.timeout, err)
+		}
+	}
+}

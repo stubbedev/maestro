@@ -180,8 +180,8 @@ func TestHeaderLines_HTTP2(t *testing.T) {
 		{"/trailers", append(order("/trailers"), "", "x-trailer: t")},
 	} {
 		res := pool.do(context.Background(), &transferRequest{url: "https://" + addr + tc.path, decode: true, curlStatusLines: true, key: key})
-		if res.errno != 0 || !slices.Equal(res.headers, tc.want) || string(res.body) != "ok" {
-			t.Errorf("%s: got %d %q %q %q, want %q", tc.path, res.errno, res.errMsg, res.headers, res.body, tc.want)
+		if res.fail.Errno != 0 || !slices.Equal(res.headers, tc.want) || string(res.body) != "ok" {
+			t.Errorf("%s: got %d %q %q %q, want %q", tc.path, res.fail.Errno, res.fail.Message, res.headers, res.body, tc.want)
 		}
 	}
 
@@ -196,8 +196,8 @@ func TestHeaderLines_HTTP2(t *testing.T) {
 			}
 
 			res := pool.do(context.Background(), &transferRequest{url: "https://" + addr + path, decode: true, curlStatusLines: true, key: key})
-			if want := order(path); res.errno != 0 || !slices.Equal(res.headers, want) {
-				t.Errorf("%s: got %d %q %q, want %q", path, res.errno, res.errMsg, res.headers, want)
+			if want := order(path); res.fail.Errno != 0 || !slices.Equal(res.headers, want) {
+				t.Errorf("%s: got %d %q %q, want %q", path, res.fail.Errno, res.fail.Message, res.headers, want)
 			}
 		})
 	}

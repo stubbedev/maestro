@@ -5,6 +5,7 @@
 package http
 
 import (
+	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/des" //nolint:gosec // PBE-SHA1-3DES and PBES2 DES keys: OpenSSL reads them, so curl does
@@ -71,7 +72,7 @@ func loadClientCertificate(certFile, keyFile, passphrase string) (tls.Certificat
 
 	cert, err := tls.X509KeyPair(certPEM, pem.EncodeToMemory(keyBlock))
 	if err != nil {
-		if strings.Contains(err.Error(), "does not match") {
+		if keyMismatch(certPEM, keyBlock) {
 			return tls.Certificate{}, &clientCertError{curleSSLCertproblem, "Private key does not match the certificate public key"}
 		}
 
@@ -79,6 +80,37 @@ func loadClientCertificate(certFile, keyFile, passphrase string) (tls.Certificat
 	}
 
 	return cert, nil
+}
+
+// keyMismatch reports whether the private key and the first certificate
+// of certPEM both parse but belong to different key pairs (OpenSSL's
+// X509_check_private_key failing).
+func keyMismatch(certPEM []byte, keyBlock *pem.Block) bool {
+	var leaf *x509.Certificate
+	for rest := certPEM; leaf == nil; {
+		var block *pem.Block
+		if block, rest = pem.Decode(rest); block == nil {
+			return false
+		}
+		if block.Type == "CERTIFICATE" {
+			var err error
+			if leaf, err = x509.ParseCertificate(block.Bytes); err != nil {
+				return false
+			}
+		}
+	}
+
+	var priv crypto.Signer
+	if k, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes); err == nil {
+		priv = k
+	} else if k, err := x509.ParseECPrivateKey(keyBlock.Bytes); err == nil {
+		priv = k
+	} else if k, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes); err == nil {
+		priv, _ = k.(crypto.Signer)
+	}
+	pub, ok := leaf.PublicKey.(interface{ Equal(crypto.PublicKey) bool })
+
+	return priv != nil && ok && !pub.Equal(priv.Public())
 }
 
 func certLoadError(certFile, reason string) *clientCertError {

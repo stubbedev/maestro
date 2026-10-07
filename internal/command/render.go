@@ -8,7 +8,6 @@ package command
 import (
 	"errors"
 	"strconv"
-	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/ui"
@@ -46,16 +45,12 @@ var curlCausesWithDetail = map[int]bool{35: true, 60: true}
 // Found)", are left as they are.
 func transportDiagnostic(err error, d *ui.Diagnostic) {
 	te, ok := errors.AsType[*util.TransportError](err)
-	if !ok || te.ResponseInfo == nil || te.ResponseInfo.ErrorCode == 0 || php.Trim(te.Message) != d.Message {
+	if !ok || te.Curl == nil || te.ResponseInfo == nil || php.Trim(te.Message) != d.Message {
 		return
 	}
 
-	errno := te.ResponseInfo.ErrorCode
+	errno, curlText := te.Curl.Errno, te.Curl.Message
 	url := util.SanitizeURL(te.ResponseInfo.URL)
-	curlText, ok := strings.CutPrefix(te.Message, "curl error "+strconv.Itoa(errno)+" while downloading "+url+": ")
-	if !ok {
-		return
-	}
 
 	cause, known := curlCauses[errno]
 	switch {

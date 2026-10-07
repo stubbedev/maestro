@@ -152,17 +152,17 @@ func TestCheckPeerName_Transfer(t *testing.T) {
 		s := tlsSettings{cafile: rootFile, verifyPeer: true, verifyPeerName: true, stream: stream}
 
 		res := pool.do(context.Background(), &transferRequest{url: byName, curlStatusLines: !stream, key: transportKey{http1: stream, tls: s}})
-		if res.errno != 0 || string(res.body) != "ok" {
-			t.Errorf("stream %v: got %d %q %q", stream, res.errno, res.errMsg, res.body)
+		if res.fail.Errno != 0 || string(res.body) != "ok" {
+			t.Errorf("stream %v: got %d %q %q", stream, res.fail.Errno, res.fail.Message, res.body)
 		}
 
 		res = pool.do(context.Background(), &transferRequest{url: srv.URL, curlStatusLines: !stream, key: transportKey{http1: stream, tls: s}})
 
 		switch {
-		case !stream && (res.errno != 60 || res.errMsg != "SSL: certificate subject name 'localhost' does not match target hostname '127.0.0.1'"):
-			t.Errorf("curl: got %d %q", res.errno, res.errMsg)
+		case !stream && (res.fail.Errno != 60 || res.fail.Message != "SSL: certificate subject name 'localhost' does not match target hostname '127.0.0.1'"):
+			t.Errorf("curl: got %d %q", res.fail.Errno, res.fail.Message)
 		case stream && (len(res.streamWarnings) == 0 || res.streamWarnings[0] != "Peer certificate CN=`localhost' did not match expected CN=`127.0.0.1'"):
-			t.Errorf("stream: got %d %q", res.errno, res.streamWarnings)
+			t.Errorf("stream: got %d %q", res.fail.Errno, res.streamWarnings)
 		}
 	}
 }

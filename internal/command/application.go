@@ -867,11 +867,12 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) (hin
 
 	_, isTransport := errors.AsType[*util.TransportError](exception)
 	message := exception.Error()
+	// the text of ProxyManager::getProxyForRequest's exception (proxy.go)
 	if isTransport && strings.Contains(message, "Unable to use a proxy") {
 		hints = append(hints, "Your proxy seems to be misconfigured, see https://getcomposer.org/doc/faqs/how-to-use-composer-behind-a-proxy.md")
 	}
 
-	if util.IsWindows() && isTransport && strings.Contains(message, "unable to get local issuer certificate") {
+	if te, ok := errors.AsType[*util.TransportError](exception); ok && util.IsWindows() && te.Curl != nil && te.Curl.VerifyResult == util.X509VErrUnableToGetIssuerCertLocally {
 		if matches, _ := filepath.Glob(`C:\Program Files\Avast*`); len(matches) != 0 {
 			hints = append(hints, "The Avast Firewall may be the cause of this error, see https://getcomposer.org/local-issuer")
 		} else {
@@ -901,8 +902,7 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) (hin
 		hints = append(hints, exceptionHint(hint))
 	}
 
-	if isTransport && a.commandName != "self-update" &&
-		(strings.Contains(message, "curl error 28 ") || strings.Contains(message, "Resolving timed out") || strings.Contains(message, "Could not resolve host")) {
+	if te, ok := errors.AsType[*util.TransportError](exception); ok && a.commandName != "self-update" && (te.IsTimeout() || te.IsResolveFailure()) {
 		hints = append(hints, "To run without connecting to the internet, run the command again prefixed with COMPOSER_DISABLE_NETWORK=1 (offline mode).")
 	}
 

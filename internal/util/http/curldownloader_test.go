@@ -203,7 +203,9 @@ func TestHttpDownloader_GetExceptionHints(t *testing.T) {
 		t.Fatal("expected no hints")
 	}
 
+	// as the transport raises it: the failure travels with the message
 	e := util.NewTransportError("curl error 6 while downloading https://x: Could not resolve host: x", 400)
+	e.Curl = &util.CurlFailure{Errno: util.CurleCouldntResolveHost, Message: "Could not resolve host: x"}
 
 	connectivityCheck = func() bool { return true }
 	if h := GetExceptionHints(e); len(h) != 1 || h[0] != "<error>The following exception probably indicates you have misconfigured DNS resolver(s)</error>" {

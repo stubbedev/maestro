@@ -17,6 +17,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // listenFunc serves every connection with handle; it returns the address.
@@ -248,13 +250,26 @@ func TestCurlError_Wording(t *testing.T) {
 		}
 
 		res := pool.do(context.Background(), r)
-		if res.errno != tc.errno || !strings.HasPrefix(res.errMsg, tc.msg) || tc.msg == "" && res.errMsg != "" {
-			t.Errorf("%s: got %d %q, want %d %q", tc.url, res.errno, res.errMsg, tc.errno, tc.msg)
+		if res.fail.Errno != tc.errno || !strings.HasPrefix(res.fail.Message, tc.msg) || tc.msg == "" && res.fail.Message != "" {
+			t.Errorf("%s: got %d %q, want %d %q", tc.url, res.fail.Errno, res.fail.Message, tc.errno, tc.msg)
 		}
 
-		if strings.HasSuffix(tc.url, "/hang") && !strings.HasSuffix(res.errMsg, " milliseconds with 0 bytes received") ||
-			strings.HasSuffix(tc.url, "/slowbody") && !strings.HasSuffix(res.errMsg, " milliseconds with 3 out of 10 bytes received") {
-			t.Errorf("%s: got %q", tc.url, res.errMsg)
+		// what failed is told by the failure, not its words
+		wantTimeout := map[string]util.CurlTimeout{"Connection timed out": util.TimeoutConnecting, "Operation timed out": util.TimeoutTransfer}[strings.Join(strings.Fields(tc.msg)[:min(3, len(strings.Fields(tc.msg)))], " ")]
+		if res.fail.Timeout != wantTimeout {
+			t.Errorf("%s: timeout phase %d, want %d", tc.url, res.fail.Timeout, wantTimeout)
+		}
+		if strings.HasSuffix(tc.msg, "(20)") != (res.fail.VerifyResult == util.X509VErrUnableToGetIssuerCertLocally) {
+			t.Errorf("%s: verify result %d", tc.url, res.fail.VerifyResult)
+		}
+		te := &util.TransportError{Curl: &res.fail}
+		if te.IsTimeout() != (tc.errno == 28) || te.IsTransferTimeout() != (wantTimeout == util.TimeoutTransfer) || te.IsResolveFailure() {
+			t.Errorf("%s: IsTimeout %v, IsTransferTimeout %v, IsResolveFailure %v", tc.url, te.IsTimeout(), te.IsTransferTimeout(), te.IsResolveFailure())
+		}
+
+		if strings.HasSuffix(tc.url, "/hang") && !strings.HasSuffix(res.fail.Message, " milliseconds with 0 bytes received") ||
+			strings.HasSuffix(tc.url, "/slowbody") && !strings.HasSuffix(res.fail.Message, " milliseconds with 3 out of 10 bytes received") {
+			t.Errorf("%s: got %q", tc.url, res.fail.Message)
 		}
 	}
 }
@@ -277,7 +292,37 @@ func TestCurlError_AlertAfterHandshake(t *testing.T) {
 	})
 
 	want := "OpenSSL SSL_read: OpenSSL/3.6.4: error:0A00045C:SSL routines::tlsv13 alert certificate required, errno 0"
-	if res.errno != 56 || res.errMsg != want {
-		t.Fatalf("got %d %q", res.errno, res.errMsg)
+	if res.fail.Errno != 56 || res.fail.Message != want {
+		t.Fatalf("got %d %q", res.fail.Errno, res.fail.Message)
+	}
+}
+
+// A failed lookup is a resolve failure, whether the host is unknown or the
+// lookup timed out (CURLE_OPERATION_TIMEDOUT too, but not a transfer
+// timeout).
+func TestCurlError_Resolving(t *testing.T) {
+	old := connectivityCheck
+	t.Cleanup(func() { connectivityCheck = old })
+	connectivityCheck = func() bool { return true }
+
+	for _, c := range []struct {
+		err     *net.DNSError
+		errno   int
+		timeout util.CurlTimeout
+	}{
+		{&net.DNSError{Name: "repo.example", Err: "no such host", IsNotFound: true}, util.CurleCouldntResolveHost, util.TimeoutNone},
+		{&net.DNSError{Name: "repo.example", Err: "i/o timeout", IsTimeout: true}, util.CurleOperationTimedout, util.TimeoutResolving},
+	} {
+		f := curlError(context.Background(), c.err, "repo.example", "443", "", false, time.Millisecond, 0, -1)
+		if f.Errno != c.errno || f.Timeout != c.timeout {
+			t.Errorf("%v: %d %d, want %d %d", c.err, f.Errno, f.Timeout, c.errno, c.timeout)
+		}
+		te := &util.TransportError{Message: "reworded", Curl: &f}
+		if !te.IsResolveFailure() || te.IsTransferTimeout() || te.IsTimeout() != (c.errno == util.CurleOperationTimedout) {
+			t.Errorf("%v: IsResolveFailure %v, IsTransferTimeout %v, IsTimeout %v", c.err, te.IsResolveFailure(), te.IsTransferTimeout(), te.IsTimeout())
+		}
+		if len(GetExceptionHints(te)) != 1 {
+			t.Errorf("%v: no DNS hint for a reworded message", c.err)
+		}
 	}
 }

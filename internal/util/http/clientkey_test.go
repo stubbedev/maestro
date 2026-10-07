@@ -104,7 +104,7 @@ func TestClientCertificate_Handshake(t *testing.T) {
 		passphrase: "secret",
 	}}})
 
-	if res.errno != 0 || string(res.body) != "client" {
-		t.Fatalf("got %d %q %q", res.errno, res.errMsg, res.body)
+	if res.fail.Errno != 0 || string(res.body) != "client" {
+		t.Fatalf("got %d %q %q", res.fail.Errno, res.fail.Message, res.body)
 	}
 }

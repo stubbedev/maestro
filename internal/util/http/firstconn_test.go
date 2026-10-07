@@ -171,7 +171,7 @@ func TestTransportPool_ConcurrentTransfersShareOneHTTP2Connection(t *testing.T) 
 		wg.Go(func() {
 			res := p.do(context.Background(), &transferRequest{url: srv.URL + "/", connectTimeout: 5 * time.Second, key: transportKey{tls: tlsSettings{verifyPeer: false}}})
 			if res.status != http.StatusNotModified {
-				t.Errorf("got %d %d %q", res.status, res.errno, res.errMsg)
+				t.Errorf("got %d %d %q", res.status, res.fail.Errno, res.fail.Message)
 			}
 		})
 	}

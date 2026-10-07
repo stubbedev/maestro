@@ -111,8 +111,8 @@ func TestStreamSSL_VerifyDepth(t *testing.T) {
 			cafile: root, verifyPeer: true, verifyPeerName: true, verifyDepth: int64(depth), hasVerifyDepth: true,
 		}}})
 
-		if ok && res.errno != 0 || !ok && (res.errno != 60 || !slices.Equal(res.streamWarnings, failed)) {
-			t.Errorf("depth %d: got %d %q %q", depth, res.errno, res.errMsg, res.streamWarnings)
+		if ok && res.fail.Errno != 0 || !ok && (res.fail.Errno != 60 || !slices.Equal(res.streamWarnings, failed)) {
+			t.Errorf("depth %d: got %d %q %q", depth, res.fail.Errno, res.fail.Message, res.streamWarnings)
 		}
 	}
 
@@ -141,8 +141,8 @@ func TestStreamSSL_Ciphers(t *testing.T) {
 			cafile: root, verifyPeer: true, verifyPeerName: true, ciphers: tc.ciphers, hasCiphers: true,
 		}}})
 
-		if res.errno != 0 || string(res.body) != tc.want {
-			t.Errorf("%s: got %d %q %q", tc.ciphers, res.errno, res.errMsg, res.body)
+		if res.fail.Errno != 0 || string(res.body) != tc.want {
+			t.Errorf("%s: got %d %q %q", tc.ciphers, res.fail.Errno, res.fail.Message, res.body)
 		}
 	}
 
@@ -152,8 +152,8 @@ func TestStreamSSL_Ciphers(t *testing.T) {
 		cafile: root, verifyPeer: true, ciphers: "NOPE", hasCiphers: true,
 	}}})
 
-	if res.errno == 0 || !slices.Equal(res.streamWarnings, []string{"Failed to enable crypto", "Failed to open stream: operation failed"}) {
-		t.Fatalf("got %d %q", res.errno, res.streamWarnings)
+	if res.fail.Errno == 0 || !slices.Equal(res.streamWarnings, []string{"Failed to enable crypto", "Failed to open stream: operation failed"}) {
+		t.Fatalf("got %d %q", res.fail.Errno, res.streamWarnings)
 	}
 }
 
@@ -169,6 +169,6 @@ func TestStreamSSL_PeerName(t *testing.T) {
 
 	want := []string{"Peer certificate CN=`localhost' did not match expected CN=`127.0.0.1'", "Failed to enable crypto", "Failed to open stream: operation failed"}
 	if !slices.Equal(res.streamWarnings, want) {
-		t.Fatalf("got %d %q", res.errno, res.streamWarnings)
+		t.Fatalf("got %d %q", res.fail.Errno, res.streamWarnings)
 	}
 }

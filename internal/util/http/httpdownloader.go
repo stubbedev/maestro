@@ -776,7 +776,7 @@ func GetExceptionHints(e error) []string {
 		return nil
 	}
 
-	if !strings.Contains(te.Message, "Resolving timed out") && !strings.Contains(te.Message, "Could not resolve host") {
+	if !te.IsResolveFailure() {
 		return nil
 	}
 

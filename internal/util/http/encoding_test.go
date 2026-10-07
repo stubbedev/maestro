@@ -197,10 +197,10 @@ func TestDecodingReader_CurlParity(t *testing.T) {
 		switch {
 		case res.err != nil:
 			t.Errorf("%s %q: %v", tc.header, tc.body, res.err)
-		case tc.errno != 0 && (res.errno != tc.errno || res.errMsg != tc.want):
-			t.Errorf("%s %q: got %d %q, want %d %q", tc.header, tc.body, res.errno, res.errMsg, tc.errno, tc.want)
-		case tc.errno == 0 && (res.errno != 0 || string(res.body) != tc.want):
-			t.Errorf("%s %q: got %d %q %q, want %q", tc.header, tc.body, res.errno, res.errMsg, res.body, tc.want)
+		case tc.errno != 0 && (res.fail.Errno != tc.errno || res.fail.Message != tc.want):
+			t.Errorf("%s %q: got %d %q, want %d %q", tc.header, tc.body, res.fail.Errno, res.fail.Message, tc.errno, tc.want)
+		case tc.errno == 0 && (res.fail.Errno != 0 || string(res.body) != tc.want):
+			t.Errorf("%s %q: got %d %q %q, want %q", tc.header, tc.body, res.fail.Errno, res.fail.Message, res.body, tc.want)
 		}
 	}
 }

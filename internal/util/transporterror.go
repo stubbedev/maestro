@@ -26,6 +26,74 @@ type TransportError struct {
 	StatusCode int
 	// ResponseInfo describes the transfer (curl_getinfo); nil when unknown.
 	ResponseInfo *TransferInfo
+	// Curl is the failure of a transfer that ended before a response, as
+	// curl numbers and words it; nil otherwise. What failed is read from
+	// it (IsTimeout, IsResolveFailure), never from Message, which is
+	// maestro's own wording.
+	Curl *CurlFailure
+}
+
+// The curl error numbers maestro's hints and retries tell apart.
+const (
+	CurleCouldntResolveHost = 6
+	CurleOperationTimedout  = 28
+)
+
+// CurlFailure is a transfer that failed before a response, as curl
+// reports it.
+type CurlFailure struct {
+	// Errno is the CURLE_* number.
+	Errno int
+	// Message is curl's own text, without maestro's framing ("curl error
+	// N while downloading URL: ").
+	Message string
+	// Timeout says, for a CURLE_OPERATION_TIMEDOUT, what timed out (curl's
+	// "Resolving", "Connection" and "Operation timed out").
+	Timeout CurlTimeout
+	// Reset is set when the peer reset the connection ("Connection reset
+	// by peer", under CURLE_RECV_ERROR or CURLE_SSL_CONNECT_ERROR).
+	Reset bool
+	// VerifyResult is OpenSSL's verify result (X509_V_ERR_*) for a peer
+	// certificate it rejected (CURLE_PEER_FAILED_VERIFICATION), 0
+	// otherwise.
+	VerifyResult int
+}
+
+// X509VErrUnableToGetIssuerCertLocally is OpenSSL's verify result for a
+// certificate whose issuer is not in the CA bundle.
+const X509VErrUnableToGetIssuerCertLocally = 20
+
+// CurlTimeout is what a CURLE_OPERATION_TIMEDOUT timed out on.
+type CurlTimeout int
+
+// What timed out.
+const (
+	// TimeoutNone is any other failure.
+	TimeoutNone CurlTimeout = iota
+	// TimeoutResolving is resolving the host.
+	TimeoutResolving
+	// TimeoutConnecting is connecting to it.
+	TimeoutConnecting
+	// TimeoutTransfer is the transfer once connected.
+	TimeoutTransfer
+)
+
+// IsTimeout reports whether the transfer timed out, in any phase
+// (CURLE_OPERATION_TIMEDOUT).
+func (e *TransportError) IsTimeout() bool {
+	return e.Curl != nil && e.Curl.Errno == CurleOperationTimedout
+}
+
+// IsTransferTimeout reports whether the transfer timed out once connected
+// (curl's "Operation timed out").
+func (e *TransportError) IsTransferTimeout() bool {
+	return e.Curl != nil && e.Curl.Timeout == TimeoutTransfer
+}
+
+// IsResolveFailure reports whether the host could not be resolved, or
+// resolving it timed out.
+func (e *TransportError) IsResolveFailure() bool {
+	return e.Curl != nil && (e.Curl.Errno == CurleCouldntResolveHost || e.Curl.Timeout == TimeoutResolving)
 }
 
 // NewTransportError is new TransportException($message, $code).

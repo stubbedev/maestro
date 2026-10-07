@@ -52,7 +52,7 @@ func (t *prefetchedTransfer) handTo(ctx context.Context, p *transportPool, r *tr
 
 	defer func() { _ = spool.Close() }()
 
-	if res := t.res; res == nil || res.errno != 0 || res.err != nil {
+	if res := t.res; res == nil || res.fail.Errno != 0 || res.err != nil {
 		return t.res
 	}
 

@@ -315,6 +315,13 @@ Cycle-breaking decisions already made:
   exception goes in the type's previous field (`phperr.Chained`, never
   Unwrap, which a test in `internal/phperr` checks). PHP's engine errors
   (TypeError, ValueError, ...) are `php.EngineError`.
+- Behaviour never depends on the text of a message maestro words itself
+  (free output, reworded at will): what failed travels as data. A
+  transport failure carries curl's errno, text and phase
+  (`util.TransportError.Curl`: `IsTimeout`, `IsTransferTimeout`,
+  `IsResolveFailure`), which hints and retries read where Composer reads
+  curl's or PHP's message. Matching text stays only where the text comes
+  from outside maestro (a server, git, PHP), with a comment saying so.
 - Errors carry no throw site or PHP call stack: rendering is maestro's
   own (#13), so Composer's file and line of a `new` expression, the
   frames of an exception's trace and PHP's TypeError call site (",

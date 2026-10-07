@@ -523,12 +523,12 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 	)
 
 	err := func() error {
-		if result.errno != 0 {
-			errno := result.errno
+		if result.fail.Errno != 0 {
+			errno := result.fail.Errno
 			isGet := isGetRequest(job.options)
 
 			if isGet && (slices.Contains(retryCurlErrors, errno) ||
-				((errno == curleRecvError || errno == curleSSLConnectError) && strings.Contains(result.errMsg, "Connection reset by peer"))) &&
+				((errno == curleRecvError || errno == curleSSLConnectError) && result.fail.Reset)) &&
 				job.attributes.retries < c.maxRetries {
 				attributes := job.attributes
 				attributes.retries++
@@ -551,7 +551,10 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 				return c.restartJobWithDelay(job, job.url, attributes)
 			}
 
-			return util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(info.URL)+": "+result.errMsg, 400)
+			e := util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(info.URL)+": "+result.fail.Message, 400)
+			e.Curl = &result.fail
+
+			return e
 		}
 
 		status = result.status

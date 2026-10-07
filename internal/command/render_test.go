@@ -14,9 +14,13 @@ func TestTransportDiagnostic(t *testing.T) {
 	curl := func(errno int, text string) *util.TransportError {
 		e := util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(url)+": "+text, 400)
 		e.ResponseInfo = &util.TransferInfo{URL: url, ErrorCode: errno}
+		e.Curl = &util.CurlFailure{Errno: errno, Message: text}
 
 		return e
 	}
+	// the message is maestro's to word: the diagnostic reads the failure
+	reworded := curl(7, "Failed to connect to repo.example port 443 after 0 ms: Could not connect to server")
+	reworded.Message = "the connection to repo.example failed"
 
 	for _, c := range []struct {
 		err     error
@@ -37,6 +41,11 @@ func TestTransportDiagnostic(t *testing.T) {
 			curl(99, "Something else"),
 			"Could not download https://user:***@repo.example/packages.json: Something else",
 			[]string{"curl error 99: Something else"},
+		},
+		{
+			reworded,
+			"Could not download https://user:***@repo.example/packages.json: could not connect to the server",
+			[]string{"curl error 7: Failed to connect to repo.example port 443 after 0 ms: Could not connect to server"},
 		},
 		{
 			// an HTTP status: Composer's message says it already

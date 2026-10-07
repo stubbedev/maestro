@@ -36,12 +36,12 @@ import (
 // curl error numbers Composer distinguishes.
 const (
 	curleUnsupportedProtocol = 1
-	curleCouldntResolveHost  = 6
+	curleCouldntResolveHost  = util.CurleCouldntResolveHost
 	curleCouldntConnect      = 7
 	curleHTTP2               = 16
 	curlePartialFile         = 18
 	curleWriteError          = 23
-	curleOperationTimedout   = 28
+	curleOperationTimedout   = util.CurleOperationTimedout
 	curleSSLConnectError     = 35
 	curleGotNothing          = 52
 	curleSendError           = 55
@@ -118,9 +118,8 @@ type transferRequest struct {
 
 // transferResult is what a finished transfer reports.
 type transferResult struct {
-	// errno and errMsg are set when the transfer failed like curl fails.
-	errno  int
-	errMsg string
+	// fail is set (Errno != 0) when the transfer failed like curl fails.
+	fail util.CurlFailure
 	// err, when set, rejects the job as it is (max size, blocked IP).
 	err error
 	// streamWarnings, when set, are the warnings PHP's http stream wrapper
@@ -304,7 +303,7 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 	if s.cafile != "" || s.capath != "" {
 		pool, err := loadCertPool(s.cafile, s.capath)
 		if err != nil {
-			return nil, &transferResult{errno: curleSSLCacertBadfile, errMsg: "error setting certificate verify locations:  CAfile: " + orNone(s.cafile) + " CApath: " + orNone(s.capath)}
+			return nil, &transferResult{fail: util.CurlFailure{Errno: curleSSLCacertBadfile, Message: "error setting certificate verify locations:  CAfile: " + orNone(s.cafile) + " CApath: " + orNone(s.capath)}}
 		}
 
 		cfg.RootCAs = pool
@@ -313,7 +312,7 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 	if s.localCert != "" {
 		cert, failure := loadClientCertificate(s.localCert, s.localPK, s.passphrase)
 		if failure != nil {
-			return nil, &transferResult{errno: failure.errno, errMsg: failure.msg}
+			return nil, &transferResult{fail: util.CurlFailure{Errno: failure.errno, Message: failure.msg}}
 		}
 
 		cfg.Certificates = []tls.Certificate{cert}
@@ -323,7 +322,7 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 		suites, anyCipher := evalCipherList(s.ciphers)
 		if !anyCipher {
 			// SSL_CTX_set_cipher_list fails: no crypto for the stream
-			return nil, &transferResult{errno: curleSSLConnectError, errMsg: "operation failed", streamWarnings: []string{"Failed to enable crypto", "Failed to open stream: operation failed"}}
+			return nil, &transferResult{fail: util.CurlFailure{Errno: curleSSLConnectError, Message: "operation failed"}, streamWarnings: []string{"Failed to enable crypto", "Failed to open stream: operation failed"}}
 		}
 
 		if len(suites) == 0 {
@@ -474,8 +473,8 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 
 	finish := func() *transferResult {
 		res.info.TotalTime = time.Since(start).Seconds()
-		if res.errno != 0 {
-			res.info.ErrorCode = res.errno
+		if res.fail.Errno != 0 {
+			res.info.ErrorCode = res.fail.Errno
 		}
 
 		return res
@@ -527,7 +526,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 
 	req, err := http.NewRequestWithContext(ctx, method, r.url, bodyReader)
 	if err != nil {
-		res.errno, res.errMsg = curleUnsupportedProtocol, err.Error()
+		res.fail = util.CurlFailure{Errno: curleUnsupportedProtocol, Message: err.Error()}
 
 		return finish()
 	}
@@ -628,7 +627,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 			return finish()
 		}
 
-		res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0, -1)
+		res.fail = curlError(ctx, err, peerHost, peerPort, via, connected.Load(), time.Since(start), 0, -1)
 		if !r.curlStatusLines {
 			res.streamWarnings = streamWarnings(err, connected.Load())
 		}
@@ -693,7 +692,7 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	}
 
 	if err == nil && chunkFailure != "" {
-		res.errno, res.errMsg = curleRecvError, chunkFailure
+		res.fail = util.CurlFailure{Errno: curleRecvError, Message: chunkFailure}
 	}
 
 	if err != nil {
@@ -704,11 +703,11 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 
 		switch {
 		case errors.As(err, &encErr):
-			res.errno, res.errMsg = encErr.errno, encErr.msg
+			res.fail = util.CurlFailure{Errno: encErr.errno, Message: encErr.msg}
 		case errors.Is(err, errMaxSize):
 			res.err = util.NewMaxFileSizeExceededError("Maximum allowed download size reached. Downloaded " + strconv.FormatInt(counter.n, 10) + " of allowed " + strconv.FormatInt(r.maxFileSize, 10) + " bytes for " + r.safeURL)
 		case errors.As(err, &wErr):
-			res.errno, res.errMsg = curleWriteError, "Failure writing output to destination"
+			res.fail = util.CurlFailure{Errno: curleWriteError, Message: "Failure writing output to destination"}
 		default:
 			if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 				res.err = cause
@@ -717,12 +716,12 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				// connection failed, closed or timed out, without a
 				// warning (RemoteFilesystem then checks Content-Length)
 			} else if chunkFailure != "" {
-				res.errno, res.errMsg = curleRecvError, chunkFailure
+				res.fail = util.CurlFailure{Errno: curleRecvError, Message: chunkFailure}
 			} else {
-				res.errno, res.errMsg = curlError(ctx, err, peerHost, peerPort, via, true, time.Since(start), counter.n, resp.ContentLength)
-				if res.errno == curlePartialFile && resp.ContentLength > 0 {
+				res.fail = curlError(ctx, err, peerHost, peerPort, via, true, time.Since(start), counter.n, resp.ContentLength)
+				if res.fail.Errno == curlePartialFile && resp.ContentLength > 0 {
 					// lib/transfer.c (8.x)
-					res.errMsg = "end of response with " + strconv.FormatInt(resp.ContentLength-counter.n, 10) + " bytes missing"
+					res.fail.Message = "end of response with " + strconv.FormatInt(resp.ContentLength-counter.n, 10) + " bytes missing"
 				}
 			}
 		}
@@ -971,43 +970,43 @@ func (w fileWriter) Write(b []byte) (int, error) {
 // the same failures with php-curl. host and port name the peer, via the
 // proxy (" over proxy <host>", or ""); received is the body bytes read so
 // far and total the Content-Length (-1 when unknown).
-func curlError(ctx context.Context, err error, host, port, via string, connected bool, elapsed time.Duration, received, total int64) (int, string) {
+func curlError(ctx context.Context, err error, host, port, via string, connected bool, elapsed time.Duration, received, total int64) util.CurlFailure {
 	ms := strconv.FormatInt(elapsed.Milliseconds(), 10)
 
 	if te, ok := errors.AsType[*tunnelError](err); ok {
-		return te.errno, te.msg
+		return util.CurlFailure{Errno: te.errno, Message: te.msg}
 	}
 
 	if _, ok := errors.AsType[tlsHandshakeTimeoutError](err); ok || errors.Is(err, context.DeadlineExceeded) || errors.Is(context.Cause(ctx), context.DeadlineExceeded) {
 		if !connected {
-			return curleOperationTimedout, "Connection timed out after " + ms + " milliseconds"
+			return util.CurlFailure{Errno: curleOperationTimedout, Message: "Connection timed out after " + ms + " milliseconds", Timeout: util.TimeoutConnecting}
 		}
 
 		if total >= 0 {
-			return curleOperationTimedout, "Operation timed out after " + ms + " milliseconds with " + strconv.FormatInt(received, 10) + " out of " + strconv.FormatInt(total, 10) + " bytes received"
+			return util.CurlFailure{Errno: curleOperationTimedout, Message: "Operation timed out after " + ms + " milliseconds with " + strconv.FormatInt(received, 10) + " out of " + strconv.FormatInt(total, 10) + " bytes received", Timeout: util.TimeoutTransfer}
 		}
 
-		return curleOperationTimedout, "Operation timed out after " + ms + " milliseconds with " + strconv.FormatInt(received, 10) + " bytes received"
+		return util.CurlFailure{Errno: curleOperationTimedout, Message: "Operation timed out after " + ms + " milliseconds with " + strconv.FormatInt(received, 10) + " bytes received", Timeout: util.TimeoutTransfer}
 	}
 
 	if dnsErr, ok := errors.AsType[*net.DNSError](err); ok {
 		if dnsErr.IsTimeout {
-			return curleOperationTimedout, "Resolving timed out after " + ms + " milliseconds"
+			return util.CurlFailure{Errno: curleOperationTimedout, Message: "Resolving timed out after " + ms + " milliseconds", Timeout: util.TimeoutResolving}
 		}
 
-		return curleCouldntResolveHost, "Could not resolve host: " + host
+		return util.CurlFailure{Errno: curleCouldntResolveHost, Message: "Could not resolve host: " + host}
 	}
 
-	if errno, msg, ok := certificateError(err); ok {
-		return errno, msg
+	if f, ok := certificateError(err); ok {
+		return f
 	}
 
 	if opErr := dialError(err); opErr != nil {
 		if opErr.Timeout() {
-			return curleOperationTimedout, "Connection timed out after " + ms + " milliseconds"
+			return util.CurlFailure{Errno: curleOperationTimedout, Message: "Connection timed out after " + ms + " milliseconds", Timeout: util.TimeoutConnecting}
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + host + ":" + port + via + " after " + ms + " ms: Could not connect to server"
+		return util.CurlFailure{Errno: curleCouldntConnect, Message: "Failed to connect to " + host + ":" + port + via + " after " + ms + " ms: Could not connect to server"}
 	}
 
 	// the TLS handshake (Curl_ossl_connect): curl reports OpenSSL's error
@@ -1015,77 +1014,77 @@ func curlError(ctx context.Context, err error, host, port, via string, connected
 	if _, ok := errors.AsType[*tlsHandshakeError](err); ok {
 		switch {
 		case isConnReset(err):
-			return curleSSLConnectError, "Recv failure: Connection reset by peer"
+			return util.CurlFailure{Errno: curleSSLConnectError, Message: "Recv failure: Connection reset by peer", Reset: true}
 		case errors.Is(err, syscall.EPIPE):
-			return curleSSLConnectError, "Send failure: Broken pipe"
+			return util.CurlFailure{Errno: curleSSLConnectError, Message: "Send failure: Broken pipe"}
 		case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
-			return curleSSLConnectError, "TLS connect error: error:0A000126:SSL routines::unexpected eof while reading"
+			return util.CurlFailure{Errno: curleSSLConnectError, Message: "TLS connect error: error:0A000126:SSL routines::unexpected eof while reading"}
 		}
 
 		if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
-			return curleSSLConnectError, "TLS connect error: error:0A00010B:SSL routines::wrong version number"
+			return util.CurlFailure{Errno: curleSSLConnectError, Message: "TLS connect error: error:0A00010B:SSL routines::wrong version number"}
 		}
 
 		if code, reason, ok := opensslAlert(err); ok {
-			return curleSSLConnectError, "TLS connect error: error:" + code + ":SSL routines::" + reason
+			return util.CurlFailure{Errno: curleSSLConnectError, Message: "TLS connect error: error:" + code + ":SSL routines::" + reason}
 		}
 
-		return curleSSLConnectError, "TLS connect error: " + err.Error()
+		return util.CurlFailure{Errno: curleSSLConnectError, Message: "TLS connect error: " + err.Error()}
 	}
 
 	if errors.Is(err, http.ErrSchemeMismatch) {
-		return curleSSLConnectError, "TLS connect error: error:0A00010B:SSL routines::wrong version number"
+		return util.CurlFailure{Errno: curleSSLConnectError, Message: "TLS connect error: error:0A00010B:SSL routines::wrong version number"}
 	}
 
 	// an alert after the handshake, read with the response (a TLS 1.3
 	// server refusing the client certificate)
 	if code, reason, ok := opensslAlert(err); ok {
-		return curleRecvError, "OpenSSL SSL_read: " + curlInfo().SSLVersion + ": error:" + code + ":SSL routines::" + reason + ", errno 0"
+		return util.CurlFailure{Errno: curleRecvError, Message: "OpenSSL SSL_read: " + curlInfo().SSLVersion + ": error:" + code + ":SSL routines::" + reason + ", errno 0"}
 	}
 
 	if isConnReset(err) {
-		return curleRecvError, "Recv failure: Connection reset by peer"
+		return util.CurlFailure{Errno: curleRecvError, Message: "Recv failure: Connection reset by peer", Reset: true}
 	}
 
 	if errors.Is(err, syscall.EPIPE) {
-		return curleSendError, "Send failure: Broken pipe"
+		return util.CurlFailure{Errno: curleSendError, Message: "Send failure: Broken pipe"}
 	}
 
 	msg := err.Error()
 
 	switch {
 	case strings.Contains(msg, "stream error"):
-		return curleHTTP2Stream, "HTTP/2 stream was not closed cleanly: " + msg
+		return util.CurlFailure{Errno: curleHTTP2Stream, Message: "HTTP/2 stream was not closed cleanly: " + msg}
 	case strings.Contains(msg, "http2:"):
-		return curleHTTP2, "Error in the HTTP2 framing layer"
+		return util.CurlFailure{Errno: curleHTTP2, Message: "Error in the HTTP2 framing layer"}
 	case strings.Contains(msg, "malformed HTTP response") && !strings.Contains(msg, `response "HTTP/`):
 		// a status line not starting with "HTTP/" is HTTP/0.9 to curl
-		return curleUnsupportedProtocol, "Received HTTP/0.9 when not allowed"
+		return util.CurlFailure{Errno: curleUnsupportedProtocol, Message: "Received HTTP/0.9 when not allowed"}
 	case errors.Is(err, io.ErrUnexpectedEOF):
-		return curlePartialFile, "transfer closed with outstanding read data remaining"
+		return util.CurlFailure{Errno: curlePartialFile, Message: "transfer closed with outstanding read data remaining"}
 	case errors.Is(err, io.EOF), isServerClosedIdle(err):
 		if connected {
-			return curleGotNothing, "Empty reply from server"
+			return util.CurlFailure{Errno: curleGotNothing, Message: "Empty reply from server"}
 		}
 
-		return curleCouldntConnect, "Failed to connect to " + host + ":" + port + via + " after " + ms + " ms: Could not connect to server"
+		return util.CurlFailure{Errno: curleCouldntConnect, Message: "Failed to connect to " + host + ":" + port + via + " after " + ms + " ms: Could not connect to server"}
 	}
 
-	return curleRecvError, "Failure when receiving data from the peer: " + msg
+	return util.CurlFailure{Errno: curleRecvError, Message: "Failure when receiving data from the peer: " + msg}
 }
 
 // certificateError is curl's report of a peer certificate OpenSSL (or
 // curl's host name check) rejects: "SSL certificate OpenSSL verify
 // result: <X509_verify_cert_error_string> (<code>)".
-func certificateError(err error) (int, string, bool) {
+func certificateError(err error) (util.CurlFailure, bool) {
 	var (
 		unknownAuthority x509.UnknownAuthorityError
 		invalidCert      x509.CertificateInvalidError
 		verifyErr        *tls.CertificateVerificationError
 	)
 
-	result := func(text string, code int) (int, string, bool) {
-		return curlePeerFailedVerify, "SSL certificate OpenSSL verify result: " + text + " (" + strconv.Itoa(code) + ")", true
+	result := func(text string, code int) (util.CurlFailure, bool) {
+		return util.CurlFailure{Errno: curlePeerFailedVerify, Message: "SSL certificate OpenSSL verify result: " + text + " (" + strconv.Itoa(code) + ")", VerifyResult: code}, true
 	}
 
 	switch {
@@ -1095,7 +1094,7 @@ func certificateError(err error) (int, string, bool) {
 		// lib/vtls/openssl.c, ossl_verifyhost (curlCheckPeerName)
 		pe, _ := errors.AsType[*peerNameError](err)
 
-		return curlePeerFailedVerify, pe.Error(), true
+		return util.CurlFailure{Errno: curlePeerFailedVerify, Message: pe.Error()}, true
 	case errors.As(err, &unknownAuthority):
 		var chain []*x509.Certificate
 		if errors.As(err, &verifyErr) {
@@ -1109,7 +1108,7 @@ func certificateError(err error) (int, string, bool) {
 			return result("self-signed certificate in certificate chain", 19)
 		}
 
-		return result("unable to get local issuer certificate", 20)
+		return result("unable to get local issuer certificate", util.X509VErrUnableToGetIssuerCertLocally)
 	case errors.As(err, &invalidCert):
 		switch invalidCert.Reason {
 		case x509.Expired:
@@ -1131,7 +1130,7 @@ func certificateError(err error) (int, string, bool) {
 		return result("certificate signature failure", 7)
 	}
 
-	return 0, "", false
+	return util.CurlFailure{}, false
 }
 
 // isSelfSigned is OpenSSL's self-signed test: issued by its own subject,
@@ -1282,11 +1281,16 @@ func streamWarnings(err error, connected bool) []string {
 	return nil
 }
 
+// serverClosedIdleText is the text of net/http's errServerClosedIdle,
+// which it does not export; TestServerClosedIdleText fails when a Go
+// release changes it.
+const serverClosedIdleText = "http: server closed idle connection"
+
 // isServerClosedIdle is net/http's error for a connection the server
-// closed before the response began (errServerClosedIdle, unexported): to
-// curl and the stream wrapper, a connection closed without a reply.
+// closed before the response began (errServerClosedIdle): to curl and the
+// stream wrapper, a connection closed without a reply.
 func isServerClosedIdle(err error) bool {
-	return strings.Contains(err.Error(), "http: server closed idle connection")
+	return strings.Contains(err.Error(), serverClosedIdleText)
 }
 
 // gaiStrerror is the C library's gai_strerror() for a failed lookup:
