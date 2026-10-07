@@ -62,9 +62,11 @@ func run() int {
 	// The plugin runtime (docs/PLUGINS.md): plugins, PHP scripts, and
 	// Platform::putEnv('COMPOSER_BINARY', realpath($_SERVER['argv'][0])),
 	// the launcher that runs this maestro (D13). PHP starts only when a
-	// plugin or script needs it.
+	// plugin or script needs it. The cache-dir is only read here: the
+	// home and cache directories and their .htaccess are created where
+	// Composer calls Factory::createConfig, not on every run.
 	var plugins *plugin.Runtime
-	if cfg, err := config.CreateConfig(io.NewNullIO(), ""); err == nil {
+	if cfg, err := config.ReadConfig(io.NewNullIO(), ""); err == nil {
 		if cacheDir, err := cfg.Get("cache-dir", 0); err == nil {
 			if dir, ok := cacheDir.(string); ok && dir != "" {
 				if pr, err := plugin.Setup(factory, plugin.Options{CacheDir: dir}); err == nil {

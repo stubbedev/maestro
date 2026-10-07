@@ -162,8 +162,21 @@ func (c *Config) getString(key string) (string, error) {
 // CreateConfig ports Factory::createConfig: the global configuration
 // (defaults, COMPOSER_HOME/config.json, auth.json and COMPOSER_AUTH), with
 // cwd ("" for null: the working directory) as base directory. out may be
-// nil.
+// nil. With htaccess-protect on, the home, cache and data directories are
+// created and each is given a .htaccess, as Composer does.
 func CreateConfig(out io.IO, cwd string) (*Config, error) {
+	return createConfig(out, cwd, true)
+}
+
+// ReadConfig is CreateConfig without its side effects on the file system:
+// it reads the same configuration but creates no directory and writes no
+// .htaccess. It is for maestro's own lookups at startup, where Composer has
+// not called Factory::createConfig yet.
+func ReadConfig(out io.IO, cwd string) (*Config, error) {
+	return createConfig(out, cwd, false)
+}
+
+func createConfig(out io.IO, cwd string, protect bool) (*Config, error) {
 	if cwd == "" {
 		var err error
 		if cwd, err = util.GetCwd(true); err != nil {
@@ -224,25 +237,9 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 	}
 	config.SetConfigSource(NewJSONConfigSource(file, false))
 
-	htaccessProtect, err := config.Get("htaccess-protect", 0)
-	if err != nil {
-		return nil, err
-	}
-	if php.ToBool(htaccessProtect) {
-		// Protect directory against web access. Since HOME could be
-		// the www-data's user home and be web-accessible it is a
-		// potential security risk
-		for _, key := range [...]string{"home", "cache-dir", "data-dir"} {
-			dir, err := config.getString(key)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := os.Stat(dir + "/.htaccess"); err != nil {
-				if !isDir(dir) {
-					_ = os.MkdirAll(dir, 0o777)
-				}
-				_ = os.WriteFile(dir+"/.htaccess", []byte("Deny from all"), 0o666)
-			}
+	if protect {
+		if err := protectDirs(config); err != nil {
+			return nil, err
 		}
 	}
 
@@ -277,6 +274,36 @@ func CreateConfig(out io.IO, cwd string) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+// protectDirs is Factory::createConfig's htaccess-protect step: with it on,
+// the home, cache and data directories are created and get a .htaccess.
+func protectDirs(config *Config) error {
+	htaccessProtect, err := config.Get("htaccess-protect", 0)
+	if err != nil {
+		return err
+	}
+	if !php.ToBool(htaccessProtect) {
+		return nil
+	}
+
+	// Protect directory against web access. Since HOME could be
+	// the www-data's user home and be web-accessible it is a
+	// potential security risk
+	for _, key := range [...]string{"home", "cache-dir", "data-dir"} {
+		dir, err := config.getString(key)
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stat(dir + "/.htaccess"); err != nil {
+			if !isDir(dir) {
+				_ = os.MkdirAll(dir, 0o777)
+			}
+			_ = os.WriteFile(dir+"/.htaccess", []byte("Deny from all"), 0o666)
+		}
+	}
+
+	return nil
 }
 
 // ComposerFile ports Factory::getComposerFile: the COMPOSER environment

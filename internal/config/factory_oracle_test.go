@@ -143,28 +143,38 @@ func TestFactoryOracle(t *testing.T) {
 					}
 				}
 			}
-			rec := &verbosityIO{NullIO: io.NewNullIO()}
-			var out io.IO
-			if c.IO {
-				out = rec
-			}
 			cwd := ""
 			if c.Cwd != nil {
 				cwd = abs(*c.Cwd)
 			}
-			config, err := CreateConfig(out, cwd)
-			got := ""
-			if err == nil {
-				got = php.VarExport(php.ListOf(config.Raw(), config.ConfigSource().Name(), config.AuthConfigSource().Name()))
+			load := func(name string, create func(io.IO, string) (*Config, error)) {
+				t.Helper()
+				rec := &verbosityIO{NullIO: io.NewNullIO()}
+				var out io.IO
+				if c.IO {
+					out = rec
+				}
+				config, err := create(out, cwd)
+				got := ""
+				if err == nil {
+					got = php.VarExport(php.ListOf(config.Raw(), config.ConfigSource().Name(), config.AuthConfigSource().Name()))
+				}
+				check(name, got, err, c.R)
+				warnings := make([]string, len(rec.errors))
+				for j, w := range rec.errors {
+					warnings[j] = rel(w)
+				}
+				if strings.Join(warnings, "\n") != strings.Join(c.Warnings, "\n") {
+					t.Errorf("%s %s: warnings\n%q\nwant\n%q", where, name, warnings, c.Warnings)
+				}
 			}
-			check("createConfig", got, err, c.R)
-			warnings := make([]string, len(rec.errors))
-			for j, w := range rec.errors {
-				warnings[j] = rel(w)
+			// ReadConfig reads what CreateConfig reads and touches nothing.
+			before := treeOf(t, base)
+			load("readConfig", ReadConfig)
+			if after := treeOf(t, base); strings.Join(after, "\n") != strings.Join(before, "\n") {
+				t.Errorf("%s: readConfig changed the file system: %q, was %q", where, after, before)
 			}
-			if strings.Join(warnings, "\n") != strings.Join(c.Warnings, "\n") {
-				t.Errorf("%s: warnings\n%q\nwant\n%q", where, warnings, c.Warnings)
-			}
+			load("createConfig", CreateConfig)
 			var files []string
 			for _, f := range []string{"chome/.htaccess", "ccache/.htaccess", "chome/cache/.htaccess"} {
 				if data, err := os.ReadFile(filepath.Join(base, f)); err == nil {
@@ -190,6 +200,26 @@ func TestFactoryOracle(t *testing.T) {
 			}
 		}
 	}
+}
+
+// treeOf lists every path under root, relative to it.
+func treeOf(t *testing.T, root string) []string {
+	t.Helper()
+	var paths []string
+	err := filepath.WalkDir(root, func(path string, _ os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		paths = append(paths, rel)
+
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return paths
 }
 
 // relError keeps an error's type but reports a message with the scratch
