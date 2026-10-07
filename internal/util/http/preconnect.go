@@ -101,18 +101,11 @@ func (h *HttpDownloader) Preconnect(url string, options *php.Array) {
 }
 
 // preconnect opens a connection for the key's transport to addr in the
-// background, once per key and address.
+// background, once per key and address. The name resolution and the TCP
+// handshake start right away; the transport (its TLS configuration, the CA
+// bundle parsed) is set up meanwhile, as the TLS handshake needs it only
+// once the TCP connection is open.
 func (p *transportPool) preconnect(key transportKey, addr string, connectTimeout time.Duration) {
-	client, failure := p.client(key, connectTimeout)
-	if failure != nil {
-		return
-	}
-
-	t, ok := client.Transport.(*http.Transport)
-	if !ok || t.DialTLSContext == nil {
-		return
-	}
-
 	pk := preKey{tls: key.tls, ipResolve: key.ipResolve, http1: key.http1, addr: addr}
 
 	p.mu.Lock()
@@ -128,18 +121,51 @@ func (p *transportPool) preconnect(key transportKey, addr string, connectTimeout
 	p.pre[pk] = pc
 	p.mu.Unlock()
 
-	cfg := t.TLSClientConfig.Clone()
-	if key.http1 {
-		cfg.NextProtos = nil
-	} else {
-		// what net/http's HTTP/2 set-up gives the transport's TLS config
-		cfg.NextProtos = []string{"h2", "http/1.1"}
+	type dialed struct {
+		conn net.Conn
+		err  error
 	}
+
+	plain := make(chan dialed, 1)
+
+	go func() {
+		conn, err := newDialer(connectTimeout).DialContext(context.Background(), dialNetwork(key), addr)
+		plain <- dialed{conn, err}
+	}()
 
 	go func() {
 		defer close(pc.done)
 
-		pc.conn, pc.err = dialTLS(context.Background(), newDialer(connectTimeout), dialNetwork(key), addr, cfg, connectTimeout)
+		var t *http.Transport
+
+		client, failure := p.client(key, connectTimeout)
+		if failure == nil {
+			t, _ = client.Transport.(*http.Transport)
+		}
+
+		d := <-plain
+		if d.err != nil {
+			pc.err = d.err
+
+			return
+		}
+
+		if t == nil || t.DialTLSContext == nil {
+			_ = d.conn.Close()
+			pc.err = errPreconnUnusable
+
+			return
+		}
+
+		cfg := t.TLSClientConfig.Clone()
+		if key.http1 {
+			cfg.NextProtos = nil
+		} else {
+			// what net/http's HTTP/2 set-up gives the transport's TLS config
+			cfg.NextProtos = []string{"h2", "http/1.1"}
+		}
+
+		pc.conn, pc.err = tlsHandshake(context.Background(), d.conn, addr, cfg, connectTimeout)
 		pc.settled = time.Now()
 	}()
 }
@@ -190,6 +216,9 @@ func (p *transportPool) takePreconnected(ctx context.Context, key transportKey, 
 var (
 	closedChan      = func() chan struct{} { c := make(chan struct{}); close(c); return c }()
 	errPreconnTaken = &net.OpError{Op: "preconnect"}
+	// errPreconnUnusable is a connection opened ahead for a transport
+	// that could not be set up, or does not take it.
+	errPreconnUnusable = &net.OpError{Op: "preconnect"}
 )
 
 // newDialer is the dialer of a transport.
