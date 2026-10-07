@@ -120,7 +120,7 @@ func FuzzNormalize(f *testing.F) {
 }
 
 func FuzzVersionCompare(f *testing.F) {
-	for _, s := range [][2]string{{"1.0", "1.0.0"}, {"1.0-dev", "1.0"}, {"1.0#", "1.0pl"}, {"", "1"}, {"a.b", "1.a"}, {"6.4.12.0", "6.4.0.0-dev"}, {"1..2", "1.2."}, {".5", "0"}, {"10.0.0", "9.99999999999999999999.1"}} {
+	for _, s := range [][2]string{{"1.0", "1.0.0"}, {"1.0-dev", "1.0"}, {"1.0#", "1.0pl"}, {"", "1"}, {"a.b", "1.a"}, {"6.4.12.0", "6.4.0.0-dev"}, {"1..2", "1.2."}, {".5", "0"}, {"10.0.0", "9.99999999999999999999.1"}, {"007.1", "7.1.0"}, {"1.2\x00.5", "1.2"}, {"1.10\x002", "1.12"}, {"6.4.12.0", "6.4.3.0-beta"}, {"1.0.", "1.0.1"}, {"1.0.0", "1.0.a"}, {"999999999999999999.1", "9223372036854775807"}} {
 		f.Add(s[0], s[1])
 	}
 	// PHP's version_compare() is not antisymmetric (version_compare('.',
@@ -137,6 +137,13 @@ func FuzzVersionCompare(f *testing.F) {
 			}
 		}
 		Comparator.LessThan(a, b)
+
+		// the shortcut decides only as the C code's token loop would
+		if got, ok := compareLeadingNumbers(a, b); ok {
+			if want := phpVersionCompare(cString(a), cString(b)); got != want {
+				t.Fatalf("compareLeadingNumbers(%q, %q) = %d, php_version_compare() = %d", a, b, got, want)
+			}
+		}
 
 		// plain versions are copied as the C code would canonicalize them
 		for _, v := range []string{a, b} {

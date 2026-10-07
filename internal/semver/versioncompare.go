@@ -6,6 +6,8 @@
 package semver
 
 import (
+	"strings"
+
 	"github.com/stubbedev/maestro/internal/php"
 )
 
@@ -15,6 +17,10 @@ import (
 // Like PHP, which works on C strings here, both arguments end at their first
 // NUL byte. The comparison is allocation-free for versions up to 31 bytes.
 func VersionCompare(version1, version2 string) int {
+	if cmp, ok := compareLeadingNumbers(version1, version2); ok {
+		return cmp
+	}
+
 	return phpVersionCompare(cString(version1), cString(version2))
 }
 
@@ -86,6 +92,9 @@ func prepareVersion(version string) preparedVersion {
 
 // opWith is versionCompareOp(v, p.version, op).
 func (p *preparedVersion) opWith(v string, op Op) bool {
+	if cmp, ok := compareLeadingNumbers(v, p.version); ok {
+		return opResult(cmp, op)
+	}
 	v = cString(v)
 	if p.canonical == nil || v == "" {
 		return versionCompareOp(v, p.version, op)
@@ -97,6 +106,9 @@ func (p *preparedVersion) opWith(v string, op Op) bool {
 
 // opBefore is versionCompareOp(p.version, v, op).
 func (p *preparedVersion) opBefore(v string, op Op) bool {
+	if cmp, ok := compareLeadingNumbers(p.version, v); ok {
+		return opResult(cmp, op)
+	}
 	v = cString(v)
 	if p.canonical == nil || v == "" {
 		return versionCompareOp(p.version, v, op)
@@ -104,6 +116,77 @@ func (p *preparedVersion) opBefore(v string, op Op) bool {
 	var buf [canonicalBufSize]byte
 
 	return opResult(compareCanonical(p.canonical, canonicalVersion(buf[:0], v)), op)
+}
+
+// compareLeadingNumbers is php_version_compare() for the comparisons its
+// versions' leading numbers decide, read straight from the strings rather
+// than from canonical copies; ok is false for any other comparison.
+//
+// While both versions are runs of digits separated by single dots, a
+// prefix of each is its own canonical form, token for token: canonicalize
+// copies a digit after a digit or a dot, and a dot after a digit, and
+// whatever follows a run of digits (a dot, any other byte, the NUL that
+// ends a C string, or the end) ends that token. So the first pair of
+// numbers that differ decides, as strtol() reads them, whatever comes after
+// them; and when every number is equal, the versions are equal if both end
+// there, and the one that goes on with another number is greater if the
+// other ends. Anything else, including a number strtol() might saturate,
+// is left to phpVersionCompare.
+func compareLeadingNumbers(version1, version2 string) (cmp int, ok bool) {
+	i, j := 0, 0
+	for {
+		if i >= len(version1) || j >= len(version2) || !isDigit(version1[i]) || !isDigit(version2[j]) {
+			return 0, false
+		}
+		start1, start2 := i, j
+		for i < len(version1) && isDigit(version1[i]) {
+			i++
+		}
+		for j < len(version2) && isDigit(version2[j]) {
+			j++
+		}
+		cmp, ok = compareNumbers(version1[start1:i], version2[start2:j])
+		if !ok || cmp != 0 {
+			return cmp, ok
+		}
+		end1, end2 := i == len(version1), j == len(version2)
+		more1 := !end1 && version1[i] == '.' && i+1 < len(version1) && isDigit(version1[i+1])
+		more2 := !end2 && version2[j] == '.' && j+1 < len(version2) && isDigit(version2[j+1])
+		switch {
+		case end1 && end2:
+			return 0, true
+		case more1 && more2:
+			i, j = i+1, j+1
+		case more1 && end2:
+			return 1, true
+		case end1 && more2:
+			return -1, true
+		default:
+			return 0, false
+		}
+	}
+}
+
+// compareNumbers is sign(strtol(a) - strtol(b)) for two runs of digits;
+// ok is false when either might not fit in a C long, where strtol()
+// saturates.
+func compareNumbers(a, b string) (cmp int, ok bool) {
+	// a number of up to 18 significant digits is below LONG_MAX
+	const maxDigits = 18
+	for len(a) > 1 && a[0] == '0' {
+		a = a[1:]
+	}
+	for len(b) > 1 && b[0] == '0' {
+		b = b[1:]
+	}
+	if len(a) > maxDigits || len(b) > maxDigits {
+		return 0, false
+	}
+	if len(a) != len(b) {
+		return sign(len(a) - len(b)), true
+	}
+
+	return strings.Compare(a, b), true
 }
 
 // byteString is a version as php_version_compare sees it: the caller's
