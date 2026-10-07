@@ -31,12 +31,25 @@ final class LazyPackages
     const BATCH = 64;
 
     /**
-     * The packages still without each group, in the order they arrived
-     * (handles are never released, so an id stays its object's).
+     * The packages waiting for each group.
      *
-     * @var array<string, array<int, object>> group => spl_object_id => package
+     * @var array<string, array<int, true>> group => spl_object_id => true
      */
-    private static $pending = ['links' => [], 'extra' => [], 'rest' => []];
+    private static $waiting = ['links' => [], 'extra' => [], 'rest' => []];
+
+    /**
+     * The packages that waited for each group, in the order they started
+     * to: from $head on, each one waiting is there (handles are never
+     * released, so an id stays its object's). A queue rather than the
+     * order of $waiting: walking a PHP array from its start passes every
+     * entry removed before, over and over.
+     *
+     * @var array<string, list<object>>
+     */
+    private static $queue = ['links' => [], 'extra' => [], 'rest' => []];
+
+    /** @var array<string, int> */
+    private static $head = ['links' => 0, 'extra' => 0, 'rest' => 0];
 
     /**
      * A package arrived with its core fields only: every group is to be
@@ -48,7 +61,10 @@ final class LazyPackages
     {
         $id = spl_object_id($package);
         foreach (self::GROUPS as $group) {
-            self::$pending[$group][$id] = $package;
+            if (!isset(self::$waiting[$group][$id])) {
+                self::$waiting[$group][$id] = true;
+                self::$queue[$group][] = $package;
+            }
         }
     }
 
@@ -61,7 +77,7 @@ final class LazyPackages
     {
         $id = spl_object_id($package);
         foreach (self::GROUPS as $group) {
-            unset(self::$pending[$group][$id]);
+            unset(self::$waiting[$group][$id]);
         }
     }
 
@@ -75,19 +91,28 @@ final class LazyPackages
     public static function load($package, string $group = 'rest'): void
     {
         $id = spl_object_id($package);
-        if (!isset(self::$pending[$group][$id])) {
+        if (!isset(self::$waiting[$group][$id])) {
             return;
         }
 
         $batch = [$package];
-        unset(self::$pending[$group][$id]);
-        foreach (self::$pending[$group] as $other => $object) {
-            if (count($batch) === self::BATCH) {
-                break;
+        unset(self::$waiting[$group][$id]);
+        $queue = &self::$queue[$group];
+        $i = self::$head[$group];
+        for ($n = count($queue); $i < $n && count($batch) < self::BATCH; $i++) {
+            $other = spl_object_id($queue[$i]);
+            if (isset(self::$waiting[$group][$other])) {
+                $batch[] = $queue[$i];
+                unset(self::$waiting[$group][$other]);
             }
-            $batch[] = $object;
-            unset(self::$pending[$group][$other]);
         }
+        if ($i * 2 > $n) {
+            // the queue is mostly behind the head
+            $queue = array_slice($queue, $i);
+            $i = 0;
+        }
+        self::$head[$group] = $i;
+        unset($queue);
 
         $fields = Rpc::call('pkg.load', array_merge([$group], $batch));
         foreach ($batch as $i => $object) {
