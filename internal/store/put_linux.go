@@ -29,9 +29,10 @@ func (s *Store) putObject(data []byte, sum *[32]byte, perm fs.FileMode) error {
 // putImport stores e's content data and creates the package file dst from
 // it. An object it creates is imported without checking it against its
 // stamp again: no package file is linked to it yet, so nothing but the
-// store can have written it. Under Auto it is hard-linked where it may be
-// (newLink); else it is imported from its open descriptor by the device's
-// method. An object that is there already is imported as importFile does.
+// store can have written it. Under Auto it is hard-linked where it may be;
+// else it is imported from its open descriptor by the device's method. An
+// object that is there already is imported as importFile does, and so is
+// the object that replaced this one's before it could be linked.
 func (s *Store) putImport(dev *device, e *Entry, data []byte, dst string, unshared bool) error {
 	perm := e.Perm(s.umask)
 	objPerm := objectPerm(perm)
@@ -51,27 +52,34 @@ func (s *Store) putImport(dev *device, e *Entry, data []byte, dst string, unshar
 		return err
 	}
 
-	if linkable && s.method == Auto && !dev.noNewLinks.Load() {
-		err = os.Link(path, dst)
-		if err == nil || !linkUnsupported(err) {
-			if cerr := closeRaw(fd, path); err == nil {
-				err = cerr
-			}
+	err = s.importNew(dev, newObject{fd: fd, path: path, data: data, umask: s.umask, mtime: stampTime(&e.Hash)}, dst, perm, linkable)
+	if cerr := closeRaw(fd, path); err == nil {
+		err = cerr
+	}
 
+	// Another insert of the same content met the object unfinished and
+	// replaced it (writeObject) before it was linked: the inode written
+	// here has no name left, and a link to it fails with ENOENT.
+	if errors.Is(err, fs.ErrNotExist) {
+		return s.importFile(dev, e, dst, unshared)
+	}
+
+	return err
+}
+
+// importNew creates dst from the object src just created: by hardlink
+// under Auto where the hardlink may be used, else by the device's method.
+func (s *Store) importNew(dev *device, src newObject, dst string, perm fs.FileMode, linkable bool) error {
+	if linkable && s.method == Auto && !dev.noNewLinks.Load() {
+		err := src.link(dst)
+		if err == nil || !linkUnsupported(err) {
 			return err
 		}
 
 		dev.noNewLinks.Store(true)
 	}
 
-	src := newObject{fd: fd, path: path, data: data, umask: s.umask, mtime: stampTime(&e.Hash)}
-
-	err = s.importWith(dev, src, dst, perm, linkable)
-	if cerr := closeRaw(fd, path); err == nil {
-		err = cerr
-	}
-
-	return err
+	return s.importWith(dev, src, dst, perm, linkable)
 }
 
 // createObject creates the object path holding data with mode perm under

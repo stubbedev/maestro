@@ -34,7 +34,8 @@
 // Until then, and after a crash in between, it fails every check as a
 // modified object does, so a process that meets it meanwhile (inserting
 // the same content, or importing it) replaces it as it replaces a stale
-// one. On other systems, and to replace a stale object, an object is
+// one; the insert that was writing it then imports the replacement. On
+// other systems, and to replace a stale object, an object is
 // written into tmp/ and renamed into place: without replacing unless the
 // object there is stale, so that two processes inserting the same content
 // both succeed and one copy is dropped. An index is renamed into place
