@@ -647,7 +647,12 @@ func (d *FileDownloader) Cleanup(_ operation.Type, p pkg.PackageInterface, path 
 			return nil, err
 		}
 
-		if real, _ := php.Realpath(dir); empty && real != cwd {
+		// Composer's && resolves the path of empty directories only.
+		if !empty {
+			continue
+		}
+
+		if real, _ := php.Realpath(dir); real != cwd {
 			if _, err := util.RemoveDirectoryPhp(dir); err != nil {
 				return nil, err
 			}

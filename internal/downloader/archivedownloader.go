@@ -647,8 +647,17 @@ func (d *FileDownloader) importOptions(p pkg.PackageInterface) store.ImportOptio
 	return store.ImportOptions{Unshared: pkg.IsPluginType(p.Type())}
 }
 
-// isCwd is realpath($path) === Platform::getCwd().
+// isCwd is realpath($path) === Platform::getCwd(). The real path names the
+// inode path does, so a path that is not the working directory's inode
+// (".", which getcwd names) is told apart by two stats instead of an lstat
+// of every component.
 func isCwd(path string) bool {
+	if fi, err := os.Stat(path); err == nil {
+		if dot, err := os.Stat("."); err == nil && !os.SameFile(fi, dot) {
+			return false
+		}
+	}
+
 	real, ok := php.Realpath(path)
 	if !ok {
 		return false
