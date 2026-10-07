@@ -1,5 +1,109 @@
 # Benchmarks: maestro vs Composer 2.10.3
 
+## symfony's update: the optimizer, re-reads and double decodes (#29, 2026-10-07)
+
+"before" is caec675, "after" is b4140ab (the five commits listed below).
+Same projects, flags and method as #28 below: `update --dry-run
+--no-plugins --no-scripts -q`, COMPOSER_TEST_SUITE=1, each tool with its
+own COMPOSER_HOME, COMPOSER_CACHE_DIR and MAESTRO_CACHE_DIR, binaries
+interleaved run by run (order reversed every other round), 2 untimed
+warm-ups, medians of wall time, CPU (user + system) and peak RSS from
+wait4. "offline" is COMPOSER_DISABLE_NETWORK=1 (warm caches, no
+requests). Nothing else heavy ran; the 1-minute load average was 0.4 to 1.0
+at the start of each series (up to 2.5 at the end of the offline ones).
+**The CPU was in the `performance` profile this time** (intel_pstate
+energy preference "performance"; #28 measured in "power"): absolute
+times are lower than #28's for both tools, so compare the ratios within
+this section, not with #28's.
+
+| Project | Cache | Composer | before | after | speed-up before → after | CPU before → after |
+|---|---|---:|---:|---:|---:|---:|
+| symfony | warm (12 rounds) | 6.18 s | 572 ms | 441 ms | 10.8x → 14.0x | 2150 → 1777 ms |
+| symfony | offline (15) | | 508 ms | 365 ms | | 2188 → 1737 ms |
+| laravel | warm (12) | 2.12 s | 284 ms | 255 ms | 7.5x → 8.3x | 834 → 652 ms |
+| laravel | offline (15) | | 189 ms | 151 ms | | 819 → 615 ms |
+
+Peak RSS: symfony 259 → 216 MB, laravel about the same (138 → 141 MB
+warm, 153 → 134 MB offline). Installs are unchanged (no-op install
+symfony 107.9 → 107.6 ms, laravel 108.5 → 108.9 ms; warm install within
+2%). Interleaving two different maestro binaries on one
+MAESTRO_CACHE_DIR makes no-op installs alternate between ~108 and
+~215 ms: the platform cache is per binary, so each run of the other
+binary misses it. The no-op numbers above come from one binary at a
+time.
+
+Where symfony's offline update spent its time, from timing marks (not
+committed) after the loads, each filter, each optimizer step and the
+solver, medians of 8-11 runs in this profile: before, the security
+advisory filter took ~60 ms, the filter list filter ~12, the optimizer
+~175 (prepare 16, package hashes 50, filing them 46, preferred packages
+47, keeping them 10, applying 6) and the rules ~47; after, ~35, ~11, ~75
+and ~30. The loads (~150-200 ms, CPU-bound) are about the same. Under
+-vvv in the power-saver profile the optimizer alone had taken 0.15 to
+0.47 s.
+
+What changed (the -vvv pool statistics, the rule count, normal and -v
+output and the locks of laravel and symfony, updated with and without a
+lock, offline, are identical before and after; the e2e update,
+require-remove, laravel, symfony, security, outdated, commands,
+plugin-download-events, plugin-merge and plugin-flex scenarios pass):
+
+- **Optimizer hashes by id** (2ac867c). symfony's pool gave 287,726
+  group hashes (42 MB of strings, 3,711 distinct) filed in three levels
+  of string maps. Each distinct hash string now gets an id once, built
+  in a reused buffer, and packages are filed by name index and ids, in
+  the same insertion order. The links the loaders share between versions
+  are extracted once in prepare.
+- **Small chunks** (2ac867c). The optimizer's package hashes, preferred
+  packages and the security filter's matching gave each goroutine one
+  fixed range of the pool; a pool keeps a name's versions together and
+  their costs differ widely, so most goroutines waited for one. They now
+  take 64 items at a time.
+- **WhatProvides** (2ac867c) matches a name's own candidates with the
+  constraint's compiled checker, looked up once, instead of building
+  CompilingMatcher::match's cache key per candidate (rules ~35 → ~26 ms).
+- **Version comparisons** (6092520): a compiled constraint canonicalizes
+  its version once; plain versions ("6.4.12.0") are copied rather than
+  canonicalized byte by byte (version_compare of two plain versions
+  takes ~85 ns, of two with suffixes ~210 ns as before).
+- **Cache re-reads** (27e2b0d): each metadata file was read up to six
+  times per update (look-ahead, loads, advisories and filter lists of
+  the pool and of the audit), 24 MB each time for symfony. A read of a
+  file whose identity (device, inode, size, mtime, ctime) is unchanged
+  returns the contents read before (Linux): ~30 ms and 12% CPU less
+  offline, and less garbage.
+- **No double decodes** (93d9e32): ~50 of symfony's ~230 loads decoded a
+  cached file the speculation was decoding too (the first wave's large
+  root requirements among them). A load now waits for the speculation's
+  handover of a file it is to offer: ~17 ms less offline.
+- **Advisory lookups** (b4140ab): PackageVersionsConstraintMap, built
+  three times per update over the whole pool, uses one presized set; the
+  advisories of each file are created and matched in parallel, taken in
+  order.
+
+Online, the loads end ~90 ms later than offline: the root file's
+conditional request waits for the TLS connection (connect + TLS to
+repo.packagist.org take ~50 ms here, the response ~75 ms), and the first
+wave waits ~35 ms more for its prefetched responses, so CPU savings
+before ~130 ms do not show in warm runs.
+
+Not done (#29):
+
+- symfony under the power-saver profile was not measured again (the
+  machine had been switched to `performance`); before, it was 6.9x and
+  7.7x there. The CPU cuts above (17-21%) and the warm wall time (-23%)
+  suggest ≥8x, not shown.
+- The loads stay CPU-bound offline: decoding the decoded-cache slots
+  (~200 ms CPU per run), the speculation's prebuild (~190 ms), the
+  collector (~18% of CPU). A load waits for all of a wave's responses
+  (HttpDownloader.Wait) before building any of its files; building
+  each file as its response arrives would overlap the first wave's
+  ~30 ms of building with the round trips online, but changes how the
+  downloader is driven.
+- The optimizer's preferred packages (~30 ms wall, ~250 ms CPU, the
+  policy's sorting and comparisons) and keepPackageInGroup (~10 ms).
+- No-op install: not looked at.
+
 ## main vs Composer on a quiet machine; GOGC decided (#28, 2026-10-07)
 
 main at bca07d6 against composer.phar 2.10.3, the laravel and symfony
