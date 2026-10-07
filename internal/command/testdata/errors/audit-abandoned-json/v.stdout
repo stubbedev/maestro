@@ -1,0 +1,8 @@
+{
+    "advisories": [],
+    "abandoned": {
+        "x/dev": null,
+        "x/foo": "x/bar"
+    },
+    "filter": []
+}

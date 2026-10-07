@@ -1,0 +1,10 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+No security vulnerability advisories found.
+Found 2 abandoned packages:
++-------------------+----------------------------------------------------------------------------------+
+| Abandoned Package | Suggested Replacement                                                            |
++-------------------+----------------------------------------------------------------------------------+
+| x/dev             | none                                                                             |
+| x/foo             | x/bar                                                                            |
++-------------------+----------------------------------------------------------------------------------+
+exit 0

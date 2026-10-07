@@ -1,0 +1,12 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In Config.php line 712:
+                                                                               
+  Your configuration does not allow connections to http://@SERVER@/pac  
+  kages.json. See https://getcomposer.org/doc/06-config.md#secure-http for de  
+  tails.                                                                       
+                                                                               
+
+audit [--no-dev] [-f|--format FORMAT] [--locked] [--abandoned ABANDONED] [--ignore-severity IGNORE-SEVERITY] [--ignore-unreachable]
+
+exit 100

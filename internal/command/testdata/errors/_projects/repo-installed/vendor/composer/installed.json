@@ -1,0 +1,32 @@
+{
+    "packages": [
+        {
+            "name": "x/bar",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "require": {
+                "x/foo": "^1.0"
+            },
+            "type": "metapackage",
+            "install-path": null
+        },
+        {
+            "name": "x/dev",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "type": "metapackage",
+            "install-path": null
+        },
+        {
+            "name": "x/foo",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "type": "metapackage",
+            "install-path": null
+        }
+    ],
+    "dev": true,
+    "dev-package-names": [
+        "x/dev"
+    ]
+}

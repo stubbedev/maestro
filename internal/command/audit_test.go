@@ -3,6 +3,7 @@
 package command_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/advisory"
@@ -52,6 +53,55 @@ func TestAuditCommand_ErrorAuditWithNoInstalledPackages(t *testing.T) {
 		t.Errorf("status %d", appTester.StatusCode())
 	}
 	gbContains(t, gbTrim(appTester), `No installed packages found. Please run "composer install" before running "audit"`)
+}
+
+// The empty-project shortcut runs before the options are validated, as in
+// Composer: an invalid --format still skips the audit.
+func TestAuditCommand_NoPackagesSkipsBeforeValidatingOptions(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+
+	appTester := gbRun(t, gbParams("command", "audit", "--format", "xml"))
+	if appTester.StatusCode() != advisory.StatusOK {
+		t.Errorf("status %d", appTester.StatusCode())
+	}
+	gbAssertSame(t, "No packages - skipping audit.", gbTrim(appTester))
+}
+
+// An abandoned installed package fails the audit unless --abandoned
+// reports or ignores it; failing is the default.
+func TestAuditCommand_Abandoned(t *testing.T) {
+	cases := []struct {
+		abandoned string
+		status    int
+		listed    bool
+	}{
+		{"", advisory.StatusFailed, true},
+		{policy.AuditFail, advisory.StatusFailed, true},
+		{policy.AuditReport, advisory.StatusOK, true},
+		{policy.AuditIgnore, advisory.StatusOK, false},
+	}
+	for _, c := range cases {
+		t.Run("abandoned="+c.abandoned, func(t *testing.T) {
+			commandtest.InitTempComposer(t, nil, nil, nil, true)
+			abandoned := commandtest.GetPackage(t, "old/pkg", "1.0.0")
+			abandoned.SetAbandoned("new/pkg")
+			commandtest.CreateInstalledJSON(t, gbPkgs(abandoned), nil, true)
+
+			params := gbParams("command", "audit")
+			if c.abandoned != "" {
+				params = gbParams("command", "audit", "--abandoned", c.abandoned)
+			}
+			appTester := gbRun(t, params)
+			if appTester.StatusCode() != c.status {
+				t.Errorf("status %d, want %d", appTester.StatusCode(), c.status)
+			}
+			display := gbTrim(appTester)
+			gbContains(t, display, "No security vulnerability advisories found.")
+			if got := strings.Contains(display, "Found 1 abandoned package:"); got != c.listed {
+				t.Errorf("abandoned package listed: %v, want %v\n%s", got, c.listed, display)
+			}
+		})
+	}
 }
 
 func TestAuditCommand_AuditPackageWithNoDevOptionPassed(t *testing.T) {

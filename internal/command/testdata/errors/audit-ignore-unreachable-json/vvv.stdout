@@ -1,0 +1,9 @@
+{
+    "advisories": [],
+    "unreachable-repositories": [
+        "Your configuration does not allow connections to http://@SERVER@/packages.json. See https://getcomposer.org/doc/06-config.md#secure-http for details.",
+        "Your configuration does not allow connections to http://@SERVER@/packages.json. See https://getcomposer.org/doc/06-config.md#secure-http for details."
+    ],
+    "abandoned": [],
+    "filter": []
+}

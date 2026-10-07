@@ -128,7 +128,14 @@ var coverage = []entry{
 	cover(command.NewAuditCommand, Coverage{
 		Tests: []Proof{
 			Positive(Go(TestAuditCommand_AuditPackageWithNoSecurityVulnerabilities)),
+			Positive(Go(TestAuditCommand_NoPackagesSkipsBeforeValidatingOptions)),
+			Positive(Go(TestAuditCommand_Abandoned)),
+			Positive(E2E("security", "audit", "--ignore-severity=medium", "--ignore-severity=high")),
+			Positive(E2E("security", "audit", "--ignore-severity=medium", "--ignore-severity=high", "--format=json")),
 			Negative(Go(TestAuditCommand_ErrorAuditingLockFileWhenItIsMissing)),
+			Negative(Go(TestAuditCommand_Abandoned)),
+			Negative(E2E("security", "audit", "--format=summary")),
+			Negative(E2E("security", "audit", "--locked")),
 		},
 	}),
 	cover(command.NewShowCommand, Coverage{

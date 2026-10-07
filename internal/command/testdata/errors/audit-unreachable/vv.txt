@@ -1,0 +1,35 @@
+Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
+
+In Config.php line 712:
+                                                                               
+  [Composer\Downloader\TransportException (100)]                               
+  Your configuration does not allow connections to http://@SERVER@/pac  
+  kages.json. See https://getcomposer.org/doc/06-config.md#secure-http for de  
+  tails.                                                                       
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Config.php:712
+ Composer\Config->prohibitUrlByConfig() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:181
+ Composer\Util\Http\CurlDownloader->initDownload() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:150
+ Composer\Util\Http\CurlDownloader->download() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:344
+ Composer\Util\HttpDownloader->startJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:302
+ Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:110
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1761
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:689
+ Composer\Repository\ComposerRepository->hasSecurityAdvisories() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:285
+ Composer\Repository\RepositorySet->getSecurityAdvisoriesForConstraints() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:270
+ Composer\Repository\RepositorySet->getMatchingSecurityAdvisories() at @COMPOSER@/src/Composer/Advisory/Auditor.php:77
+ Composer\Advisory\Auditor->audit() at @COMPOSER@/src/Composer/Command/AuditCommand.php:101
+ Composer\Command\AuditCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+audit [--no-dev] [-f|--format FORMAT] [--locked] [--abandoned ABANDONED] [--ignore-severity IGNORE-SEVERITY] [--ignore-unreachable]
+
+exit 100

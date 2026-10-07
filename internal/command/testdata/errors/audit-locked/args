@@ -1,0 +1,4 @@
+audit
+--locked
+--no-dev
+--format=json
