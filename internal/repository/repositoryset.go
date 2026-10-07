@@ -268,9 +268,18 @@ func (s *RepositorySet) GetMatchingSecurityAdvisories(packages []pkg.PackageInte
 func PackageVersionsConstraintMap(packages []pkg.PackageInterface) *ConstraintMap {
 	type versions struct {
 		order []string
-		seen  map[string]struct{}
+	}
+	type nameVersion struct {
+		versions *versions
+		version  string
 	}
 	byName := &NameMap[*versions]{}
+	// one set for all names, sized once (a pool has tens of thousands of
+	// versions); a pool keeps a name's versions together, so the name
+	// looked up last is tried first
+	seen := make(map[nameVersion]struct{}, len(packages))
+	lastName := ""
+	var last *versions
 	for _, p := range packages {
 		// ignore root alias versions as they are not actual package versions and should not matter when it comes to vulnerabilities
 		if alias, ok := p.(pkg.Alias); ok && alias.IsRootPackageAlias() {
@@ -278,14 +287,19 @@ func PackageVersionsConstraintMap(packages []pkg.PackageInterface) *ConstraintMa
 		}
 		// key by version so duplicate versions collapse and the resulting OR constraint stays flat
 		// (nesting one MultiConstraint per version produces trees deep enough to blow the stack, see composer/semver#177)
-		v, ok := byName.Get(p.Name())
-		if !ok {
-			v = &versions{seen: make(map[string]struct{})}
-			byName.Set(p.Name(), v)
+		v := last
+		if name := p.Name(); last == nil || name != lastName {
+			var ok bool
+			if v, ok = byName.Get(name); !ok {
+				v = &versions{}
+				byName.Set(name, v)
+			}
+			lastName, last = name, v
 		}
-		if _, ok := v.seen[p.Version()]; !ok {
-			v.seen[p.Version()] = struct{}{}
-			v.order = append(v.order, p.Version())
+		key := nameVersion{v, p.Version()}
+		if _, ok := seen[key]; !ok {
+			seen[key] = struct{}{}
+			v.order = append(v.order, key.version)
 		}
 	}
 

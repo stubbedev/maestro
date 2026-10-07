@@ -5,8 +5,11 @@
 package composerrepo
 
 import (
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/io"
@@ -82,9 +85,8 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 		return repository.AdvisoryResult{}, err
 	}
 
-	parser := pkg.NewVersionParser()
 	// the $create closure, called by the closures array_map() runs
-	create := func(data any, name string) (repository.Advisory, error) {
+	create := func(parser *pkg.VersionParser, data any, name string) (repository.Advisory, error) {
 		dataArray, ok := data.(*php.Array)
 		if !ok {
 			return nil, pkg.ArgumentTypeError(`Composer\Repository\ComposerRepository::{closure:Composer\Repository\ComposerRepository::getSecurityAdvisories():724}`, 1, "data", "array", data)
@@ -122,10 +124,10 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 		return advisory, nil
 	}
-	createAll := func(list *php.Array, name string) ([]repository.Advisory, error) {
+	createAll := func(parser *pkg.VersionParser, list *php.Array, name string) ([]repository.Advisory, error) {
 		var out []repository.Advisory
 		for _, data := range list.All() {
-			advisory, err := create(data, name)
+			advisory, err := create(parser, data, name)
 			if err != nil {
 				return nil, err
 			}
@@ -145,27 +147,55 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 		}
 		r.waitDownloads(downloads)
 
-		var firstErr error
+		// the files' advisories are created and matched in parallel (they
+		// only read the lists and the constraint map), then taken in order
+		type fileAdvisories struct {
+			list    *php.Array
+			err     error // of finishCachedDownload
+			created []repository.Advisory
+			cerr    error // of createAll
+		}
+		files := make([]fileAdvisories, len(downloads))
+		var toCreate []int
 		for i, d := range downloads {
+			response, _, err := r.finishCachedDownload(d)
+			if err != nil {
+				files[i].err = err
+
+				continue
+			}
+			files[i].list, _ = get(response, "security-advisories").(*php.Array)
+			if files[i].list != nil && files[i].list.Len() > 0 {
+				toCreate = append(toCreate, i)
+			}
+		}
+		parallelEach(len(toCreate), func() func(j int) {
+			parser := pkg.NewVersionParser()
+
+			return func(j int) {
+				f := &files[toCreate[j]]
+				f.created, f.cerr = createAll(parser, f.list, names[toCreate[j]])
+			}
+		})
+
+		var firstErr error
+		for i := range downloads {
 			name := names[i]
 			err := func() error {
-				response, _, err := r.finishCachedDownload(d)
-				if err != nil {
-					return err
+				f := &files[i]
+				if f.err != nil {
+					return f.err
 				}
-
-				list, ok := get(response, "security-advisories").(*php.Array)
-				if !ok {
+				if f.list == nil {
 					return nil
 				}
 
 				namesFound.Set(name, struct{}{})
-				if list.Len() > 0 {
-					created, err := createAll(list, name)
-					if err != nil {
-						return err
+				if f.list.Len() > 0 {
+					if f.cerr != nil {
+						return f.cerr
 					}
-					advisories.Set(name, created)
+					advisories.Set(name, f.created)
 				}
 				packageConstraintMap.Delete(name)
 
@@ -181,6 +211,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 	}
 
 	if apiURL != "" && packageConstraintMap.Len() > 0 {
+		parser := pkg.NewVersionParser()
 		pairs := make([]string, 0, 2*packageConstraintMap.Len())
 		for i, name := range packageConstraintMap.Keys() {
 			pairs = append(pairs, "packages["+strconv.Itoa(i)+"]", name)
@@ -203,7 +234,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 				continue
 			}
 			if list := asArray(raw); list.Len() > 0 {
-				created, err := createAll(list, name)
+				created, err := createAll(parser, list, name)
 				if err != nil {
 					return repository.AdvisoryResult{}, err
 				}
@@ -481,4 +512,30 @@ func (r *ComposerRepository) FilterLists() ([]string, error) {
 	}
 
 	return lists, nil
+}
+
+// parallelEach runs work over the items [0, n) on up to GOMAXPROCS
+// goroutines, each taking the next item when done; newWorker gives each
+// goroutine its work function.
+func parallelEach(n int, newWorker func() func(i int)) {
+	workers := min(runtime.GOMAXPROCS(0), n)
+	if workers <= 1 {
+		if n == 1 {
+			newWorker()(0)
+		}
+
+		return
+	}
+
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	for range workers {
+		work := newWorker()
+		wg.Go(func() {
+			for i := int(next.Add(1)) - 1; i < n; i = int(next.Add(1)) - 1 {
+				work(i)
+			}
+		})
+	}
+	wg.Wait()
 }
