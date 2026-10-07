@@ -29,6 +29,7 @@ import (
 	"github.com/rivo/uniseg"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // QuestionHelper asks questions on the error output and reads the answers
@@ -120,6 +121,15 @@ func (h *QuestionHelper) Ask(in Input, out Output, q Questioner) (any, error) {
 	return answer, err
 }
 
+// stream is the stream answers are read from: the input's, else STDIN.
+func (h *QuestionHelper) stream() io.Reader {
+	if h.inputStream == nil {
+		return os.Stdin
+	}
+
+	return h.inputStream
+}
+
 func missingInput() error {
 	return newError(KindMissingInput, "Aborted.")
 }
@@ -128,10 +138,7 @@ func (h *QuestionHelper) doAsk(out Output, q Questioner) (any, error) {
 	h.writePrompt(out, q)
 
 	question := q.Q()
-	inputStream := h.inputStream
-	if inputStream == nil {
-		inputStream = os.Stdin
-	}
+	inputStream := h.stream()
 	autocomplete := question.AutocompleterCallback()
 
 	var ret string
@@ -239,10 +246,21 @@ func (h *QuestionHelper) writePrompt(out Output, q Questioner) {
 		return
 	}
 
-	message := q.Q().Question()
+	// maestro: on a decorated terminal read interactively, the question
+	// is marked as one (ui.Prompt).
+	styled := IsStyledTerminal(out) && isInteractiveInput(h.stream())
+	ask := func(message string) string {
+		if styled {
+			return ui.Prompt(message)
+		}
+
+		return message
+	}
+
+	message := ask(q.Q().Question())
 
 	if cq, ok := q.(*ChoiceQuestion); ok {
-		out.Writeln(cq.Question.Question())
+		out.Writeln(message)
 		WriteMessages(out, formatChoiceQuestionChoices(cq, "info"), true, OutputNormal)
 
 		message = cq.Prompt()

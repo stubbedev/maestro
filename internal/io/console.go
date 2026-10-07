@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // HelperGetter is the part of a HelperSet ConsoleIO uses; *console.HelperSet
@@ -387,8 +388,19 @@ func (c *ConsoleIO) Select(question string, choices *php.Array, def any, attempt
 }
 
 // ProgressBar returns a progress bar on the error output (getProgressBar).
+// On a decorated terminal it is drawn in maestro's style (ui.ProgressBar);
+// elsewhere it is Composer's.
 func (c *ConsoleIO) ProgressBar(maxSteps int) *console.ProgressBar {
-	return console.NewProgressBar(c.errorOutput(), maxSteps, console.DefaultMinSecondsBetweenRedraws)
+	out := c.errorOutput()
+	bar := console.NewProgressBar(out, maxSteps, console.DefaultMinSecondsBetweenRedraws)
+	if console.IsStyledTerminal(out) {
+		s := ui.ProgressBar()
+		bar.SetBarCharacter(s.Done)
+		bar.SetProgressCharacter(s.Head)
+		bar.SetEmptyBarCharacter(s.Todo)
+	}
+
+	return bar
 }
 
 // Table returns a table on the output (getTable).

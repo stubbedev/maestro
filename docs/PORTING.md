@@ -122,6 +122,17 @@ bubbles/huh for progress and prompts, ...), under these rules:
   Composer users know them; links stay OSC 8 hyperlinks. No package but
   `internal/ui` and the formatter engine in `internal/console` writes a
   colour or escape sequence of its own, which a test enforces.
+- Progress and prompts on a terminal (#35). When the error output is
+  decorated and a terminal (`console.IsStyledTerminal`), the progress
+  bar is drawn as a solid line in the theme (`ui.ProgressBar`), and a
+  question read from an interactive terminal is marked with an accent
+  `?` before its text (`ui.Prompt`). Both stay line-based, in
+  `internal/console`'s progress bar and question helper: Composer's
+  questions (autocompletion, hidden answers, attempts) and its one-line
+  redraw already work on every console, so no full-screen program takes
+  over the terminal. Glyphs (`ui.Glyph`) fall back to ASCII on a Windows
+  console without the UTF-8 code page or a non-UTF-8 locale. The texts,
+  defaults, answers and streams are Composer's.
 
 ## Reference sources
 

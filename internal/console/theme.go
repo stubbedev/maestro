@@ -4,7 +4,11 @@
 
 package console
 
-import "github.com/stubbedev/maestro/internal/ui"
+import (
+	"io"
+
+	"github.com/stubbedev/maestro/internal/ui"
+)
 
 // RoleStyle is the formatter style of a palette role: the role's SGR
 // sequences around the text. It is fixed, so its setters fail.
@@ -50,6 +54,16 @@ func ThemeStyles() []NamedStyle {
 	}
 
 	return styles
+}
+
+// IsStyledTerminal reports whether out (its error output for a console
+// output) is decorated and a terminal: where maestro styles progress and
+// prompts (ui.ProgressBar, ui.Prompt) beyond Composer's colours.
+func IsStyledTerminal(out Output) bool {
+	out = ErrorOutputOf(out)
+	s, ok := out.(interface{ Stream() io.Writer })
+
+	return ok && out.IsDecorated() && IsTTY(s.Stream())
 }
 
 // setRoleStyles registers every role's own tag (ui.Role.Tag) on f, so
