@@ -51,10 +51,19 @@ git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bo
 $refs}"
 git push -q origin "$branch"
 
-pr=$(gh pr create --base main --head "$branch" --title "upstream: pin Composer $tag" --body "\`tools/upstream/bump.sh $tag\` moved the pin (internal/upstream, the shim's constants, the docs). Port the release's changes on this branch before merging (docs/PORTING.md, \"Following upstream\").${refs:+
+# Without "Allow GitHub Actions to create and approve pull requests" in
+# the repository's settings the token cannot open the PR: the branch is
+# pushed either way, and the issue links whichever exists.
+if pr=$(gh pr create --base main --head "$branch" --title "upstream: pin Composer $tag" --body "\`tools/upstream/bump.sh $tag\` moved the pin (internal/upstream, the shim's constants, the docs). Port the release's changes on this branch before merging (docs/PORTING.md, \"Following upstream\").${refs:+
 
-$refs}")
-echo "$pr"
-if [ -n "$issue" ]; then
-	gh issue comment "$issue" --body "Bump PR: $pr"
+$refs}"); then
+	link="Bump PR: $pr"
+else
+	link="Bump branch (opening its PR failed; see the workflow run): $(gh repo view --json url -q .url)/compare/main...$branch"
+	status=1
 fi
+echo "$link"
+if [ -n "$issue" ]; then
+	gh issue comment "$issue" --body "$link"
+fi
+exit "${status:-0}"
