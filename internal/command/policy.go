@@ -53,8 +53,8 @@ func NewPolicyCommand() *PolicyCommand {
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*PolicyCommand) ClassName() string { return `Composer\Command\PolicyCommand` }
+// PHPClass implements php.Classer.
+func (*PolicyCommand) PHPClass() string { return `Composer\Command\PolicyCommand` }
 
 // nestedGet is `$a[k1][k2]... ?? null`.
 func nestedGet(v any, keys ...any) (any, bool) {

@@ -57,8 +57,8 @@ func AsComposite(repo RepositoryInterface) (*CompositeRepository, bool) {
 	return nil, false
 }
 
-// Class returns the PHP class name.
-func (r *CompositeRepository) Class() string { return `Composer\Repository\CompositeRepository` }
+// PHPClass returns the PHP class name.
+func (r *CompositeRepository) PHPClass() string { return `Composer\Repository\CompositeRepository` }
 
 // RepoName ports CompositeRepository::getRepoName.
 func (r *CompositeRepository) RepoName() string {

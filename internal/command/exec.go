@@ -51,8 +51,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#exec`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ExecCommand) ClassName() string { return `Composer\Command\ExecCommand` }
+// PHPClass implements php.Classer.
+func (*ExecCommand) PHPClass() string { return `Composer\Command\ExecCommand` }
 
 // Interact ports interact().
 func (c *ExecCommand) Interact(in console.Input, _ console.Output) error {

@@ -35,8 +35,8 @@ func (s *subclassDownloader) overrides(method string) bool {
 	return slices.Contains(s.overridden, method)
 }
 
-// Class gives the PHP class (downloader.Classer).
-func (s *subclassDownloader) Class() string { return s.php.obj.Class }
+// PHPClass implements php.Classer.
+func (s *subclassDownloader) PHPClass() string { return s.php.obj.Class }
 
 // InstallationSource implements downloader.Downloader.
 func (s *subclassDownloader) InstallationSource() string {

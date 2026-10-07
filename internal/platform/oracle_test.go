@@ -266,7 +266,7 @@ func checkOutcome(t *testing.T, what string, got any, err error, want any) {
 
 	if marker, isObject := value.(objectMarker); isObject {
 		obj, ok := got.(*probedObject)
-		if !ok || obj.Class() != marker.class {
+		if !ok || obj.PHPClass() != marker.class {
 			t.Errorf("%s = %#v, want a %s", what, got, marker.class)
 
 			return

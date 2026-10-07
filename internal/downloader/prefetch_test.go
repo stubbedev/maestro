@@ -45,23 +45,39 @@ func TestDownloadManager_Prefetch(t *testing.T) {
 	meta := zipPackage("a/meta")
 	meta.SetType("metapackage")
 
+	newZip := func(deps Deps) (Downloader, error) { return NewZipDownloader(deps) }
 	for _, tc := range []struct {
 		name         string
 		preferSource bool
 		events       EventDispatcher
-		want         []string
+		// downloader is the zip type's downloader, a ZipDownloader by
+		// default
+		downloader func(Deps) (Downloader, error)
+		want       []string
 	}{
 		{name: "dist", want: []string{"https://example.org/a/new.zip"}},
 		{name: "prefer source", preferSource: true},
 		// a listener might change the request: only a dispatcher that tells
 		// it has none allows the prefetch
 		{name: "unknown listeners", events: &fakeDispatcher{}},
+		// only FileDownloader's own download() is started ahead: not a
+		// class overriding it, in Go or in PHP
+		{name: "download overridden", downloader: func(deps Deps) (Downloader, error) { return NewPathDownloader(deps) }},
+		{name: "PHP subclass", downloader: func(deps Deps) (Downloader, error) {
+			zip, err := NewZipDownloader(deps)
+			zip.SetHooks(Hooks{Download: func(pkg.PackageInterface, string, pkg.PackageInterface, bool) (*Promise, error) { return nil, nil }})
+
+			return zip, err
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := &prefetchHTTP{}
 			c := &holdsCache{t: t, held: []string{cacheKey(cached, "https://example.org/a/cached.zip")}}
 
-			zip, err := NewZipDownloader(Deps{IO: nullIO(), Config: getConfig(t), HTTPDownloader: h, Cache: c, EventDispatcher: tc.events})
+			if tc.downloader == nil {
+				tc.downloader = newZip
+			}
+			zip, err := tc.downloader(Deps{IO: nullIO(), Config: getConfig(t), HTTPDownloader: h, Cache: c, EventDispatcher: tc.events})
 			if err != nil {
 				t.Fatal(err)
 			}

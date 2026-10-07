@@ -206,8 +206,8 @@ func (c *proxyCommand) Complete(in *console.CompletionInput, s *console.Completi
 // IsEnabled implements console.Enabler.
 func (c *proxyCommand) IsEnabled() bool { return c.php.enabled }
 
-// ClassName implements console.ClassNamer.
-func (c *proxyCommand) ClassName() string { return c.php.class }
+// PHPClass implements php.Classer.
+func (c *proxyCommand) PHPClass() string { return c.php.class }
 
 func (c *proxyCommand) phpObject() *rpc.PHPObject { return c.php.obj }
 
@@ -227,8 +227,8 @@ func (c *proxyBaseCommand) IsEnabled() bool { return c.php.enabled }
 // IsProxyCommand implements command.ProxyCommander.
 func (c *proxyBaseCommand) IsProxyCommand() bool { return c.php.proxy }
 
-// ClassName implements console.ClassNamer.
-func (c *proxyBaseCommand) ClassName() string { return c.php.class }
+// PHPClass implements php.Classer.
+func (c *proxyBaseCommand) PHPClass() string { return c.php.class }
 
 func (c *proxyBaseCommand) phpObject() *rpc.PHPObject { return c.php.obj }
 
@@ -325,19 +325,7 @@ type commandMirror struct{ cmd console.Commander }
 func (*commandMirror) PHPOpaque() {}
 
 // PHPClass implements rpc.Object.
-func (m *commandMirror) PHPClass() string {
-	if n, ok := m.cmd.(console.ClassNamer); ok {
-		return n.ClassName()
-	}
-	switch m.cmd.(type) {
-	case *console.CompleteCommand:
-		return `Symfony\Component\Console\Command\CompleteCommand`
-	case *console.DumpCompletionCommand:
-		return `Symfony\Component\Console\Command\DumpCompletionCommand`
-	}
-
-	return classSymfonyCmd
-}
+func (m *commandMirror) PHPClass() string { return m.cmd.PHPClass() }
 
 // MirrorBase implements rpc.Mirror.
 func (*commandMirror) MirrorBase() string { return commandBase }

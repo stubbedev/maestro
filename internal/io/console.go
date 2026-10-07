@@ -39,6 +39,9 @@ type ConsoleIO struct {
 	startTime time.Time
 }
 
+// PHPClass implements php.Classer.
+func (*ConsoleIO) PHPClass() string { return `Composer\IO\ConsoleIO` }
+
 // NewConsoleIO mirrors new ConsoleIO($input, $output, $helperSet).
 func NewConsoleIO(input console.Input, output console.Output, helperSet HelperGetter) *ConsoleIO {
 	c := &ConsoleIO{input: input, output: output, helperSet: helperSet}

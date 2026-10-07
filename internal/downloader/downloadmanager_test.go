@@ -33,6 +33,9 @@ type fakeDownloader struct {
 
 func (f *fakeDownloader) InstallationSource() string { return f.source }
 
+// PHPClass is the class of PHPUnit's mock.
+func (*fakeDownloader) PHPClass() string { return "Mock_DownloaderInterface" }
+
 func (f *fakeDownloader) record(call, path string) {
 	f.calls = append(f.calls, call)
 	f.paths = append(f.paths, path)

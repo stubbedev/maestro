@@ -41,8 +41,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#browse-home`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*HomeCommand) ClassName() string { return `Composer\Command\HomeCommand` }
+// PHPClass implements php.Classer.
+func (*HomeCommand) PHPClass() string { return `Composer\Command\HomeCommand` }
 
 // Execute ports execute().
 func (c *HomeCommand) Execute(in console.Input, _ console.Output) (int, error) {

@@ -18,12 +18,6 @@ type prefetcher interface {
 	Prefetch(url string, options *php.Array)
 }
 
-// listenerChecker tells whether an event would reach a listener
-// (eventdispatcher.EventDispatcher.WillDispatchTo).
-type listenerChecker interface {
-	WillDispatchTo(event eventdispatcher.Event) bool
-}
-
 // PrefetchPackages starts, without output, the conditional requests that
 // loading names will make: this repository's root file when it is not
 // loaded yet, and each name's v2 metadata file (and its ~dev file when dev
@@ -142,11 +136,8 @@ func (r *ComposerRepository) prefetcher() prefetcher {
 	if !ok || r.cache == nil {
 		return nil
 	}
-	if r.eventDispatcher != nil {
-		l, ok := r.eventDispatcher.(listenerChecker)
-		if !ok || l.WillDispatchTo(eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, nil, "", "metadata", &MetadataContext{Repository: r})) {
-			return nil
-		}
+	if eventdispatcher.MayListen(r.eventDispatcher, eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, nil, "", "metadata", &MetadataContext{Repository: r})) {
+		return nil
 	}
 
 	return p

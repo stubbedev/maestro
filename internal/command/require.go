@@ -62,8 +62,8 @@ type RequireCommand struct {
 	dependencyResolutionCompleted bool
 }
 
-// ClassName implements console.ClassNamer.
-func (*RequireCommand) ClassName() string { return `Composer\Command\RequireCommand` }
+// PHPClass implements php.Classer.
+func (*RequireCommand) PHPClass() string { return `Composer\Command\RequireCommand` }
 
 // NewRequireCommand ports new RequireCommand() (configure()).
 func NewRequireCommand() *RequireCommand {

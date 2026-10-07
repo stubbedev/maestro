@@ -99,10 +99,10 @@ func (a *Application) CallOn(function string, object any, args []any, fn func() 
 }
 
 // appClass is the class declaring the application's method: the
-// subclass's (ClassNamer) when it overrides it, Symfony's otherwise.
+// subclass's (php.Classer) when it overrides it, Symfony's otherwise.
 func (a *Application) appClass(overrides bool) string {
-	if n, ok := a.self.(ClassNamer); ok && overrides {
-		return n.ClassName()
+	if n, ok := a.self.(php.Classer); ok && overrides {
+		return n.PHPClass()
 	}
 
 	return `Symfony\Component\Console\Application`
@@ -446,7 +446,7 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	if base == nil {
 		// A type embedding a nil *Command: the parent constructor was never
 		// called.
-		return nil, newError(KindLogic, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
+		return nil, newError(KindLogic, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, command.PHPClass())
 	}
 	if base.self == nil {
 		base.self = command
@@ -460,11 +460,11 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	}
 
 	if base.definition == nil {
-		return nil, newError(KindLogic, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, commandClass(command))
+		return nil, newError(KindLogic, `Command class "%s" is not correctly initialized. You probably forgot to call the parent constructor.`, command.PHPClass())
 	}
 
 	if !base.hasName || base.Name() == "" || base.Name() == "0" {
-		return nil, newError(KindLogic, `The command defined in "%s" cannot have an empty name.`, commandClass(command))
+		return nil, newError(KindLogic, `The command defined in "%s" cannot have an empty name.`, command.PHPClass())
 	}
 
 	a.setCommand(base.Name(), command)
@@ -474,32 +474,6 @@ func (a *Application) Add(command Commander) (Commander, error) {
 	}
 
 	return command, nil
-}
-
-// ClassNamer is optionally implemented by commands (and other objects whose
-// class PHP reports with get_debug_type()) to name the PHP class they port,
-// e.g. `Composer\Command\InstallCommand`. Implement it on the concrete
-// type, never on a type meant to be embedded.
-type ClassNamer interface {
-	ClassName() string
-}
-
-// commandClass is get_debug_type($command): the ClassNamer name, the
-// Symfony class for a bare *Command, else the Go type name without its
-// package qualifier.
-func commandClass(c Commander) string {
-	if n, ok := c.(ClassNamer); ok {
-		return n.ClassName()
-	}
-	if _, ok := c.(*Command); ok {
-		return `Symfony\Component\Console\Command\Command`
-	}
-	name := typeString(c)
-	if i := strings.LastIndexByte(name, '.'); i >= 0 {
-		name = name[i+1:]
-	}
-
-	return name
 }
 
 func (a *Application) setCommand(name string, c Commander) {

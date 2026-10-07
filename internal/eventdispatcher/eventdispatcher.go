@@ -462,7 +462,7 @@ func (d *EventDispatcher) runComposerScript(event Event, callable, formatted str
 
 	ctx, ok := composerContext(event)
 	if !ok {
-		return 0, false, &Error{Class: "Error", Message: "Call to undefined method " + event.Class() + "::getComposer()"}
+		return 0, false, &Error{Class: "Error", Message: "Call to undefined method " + event.PHPClass() + "::getComposer()"}
 	}
 
 	scriptEvent := NewScriptEvent(scriptName, ctx.Composer, ctx.IO, ctx.DevMode, args, flags)
@@ -910,6 +910,27 @@ func (d *EventDispatcher) HasEventListeners(event Event) bool {
 // an event it dispatches later (which prints the output then).
 func (d *EventDispatcher) WillDispatchTo(event Event) bool {
 	return len(d.listenersOf(event, false)) > 0
+}
+
+// ListenerChecker is a dispatcher that tells whether dispatching an event
+// would call a listener (EventDispatcher.WillDispatchTo).
+type ListenerChecker interface {
+	WillDispatchTo(event Event) bool
+}
+
+var _ ListenerChecker = (*EventDispatcher)(nil)
+
+// MayListen reports whether event could reach a listener of dispatcher,
+// for code skipping work that only a listener would see: false for no
+// dispatcher, which dispatches nothing, and true for one that is not a
+// ListenerChecker (a speculation must then assume a listener).
+func MayListen(dispatcher any, event Event) bool {
+	if dispatcher == nil {
+		return false
+	}
+	l, ok := dispatcher.(ListenerChecker)
+
+	return !ok || l.WillDispatchTo(event)
 }
 
 // getScriptListeners returns the root package's scripts for an event.

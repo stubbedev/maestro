@@ -64,8 +64,8 @@ func NewPackageEvent(name string, composer Composer, io io.IO, devMode bool, loc
 	return e
 }
 
-// Class implements Event.
-func (*PackageEvent) Class() string { return `Composer\Installer\PackageEvent` }
+// PHPClass implements Event.
+func (*PackageEvent) PHPClass() string { return `Composer\Installer\PackageEvent` }
 
 // Composer is getComposer().
 func (e *PackageEvent) Composer() Composer { return e.composer }
@@ -104,8 +104,8 @@ func NewInstallerEvent(name string, composer Composer, io io.IO, devMode, execut
 	return e
 }
 
-// Class implements Event.
-func (*InstallerEvent) Class() string { return `Composer\Installer\InstallerEvent` }
+// PHPClass implements Event.
+func (*InstallerEvent) PHPClass() string { return `Composer\Installer\InstallerEvent` }
 
 // Composer is getComposer().
 func (e *InstallerEvent) Composer() Composer { return e.composer }

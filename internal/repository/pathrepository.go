@@ -90,8 +90,8 @@ func NewPathRepository(repoConfig *php.Array, out io.IO, process Process) (*Path
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *PathRepository) Class() string { return `Composer\Repository\PathRepository` }
+// PHPClass returns the PHP class name.
+func (r *PathRepository) PHPClass() string { return `Composer\Repository\PathRepository` }
 
 // RepoName ports PathRepository::getRepoName.
 func (r *PathRepository) RepoName() string {

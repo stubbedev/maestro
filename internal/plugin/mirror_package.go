@@ -37,7 +37,7 @@ type packageMirror struct {
 func (*packageMirror) PHPOpaque() {}
 
 // PHPClass implements rpc.Object.
-func (m *packageMirror) PHPClass() string { return m.p.Class() }
+func (m *packageMirror) PHPClass() string { return m.p.PHPClass() }
 
 // MirrorBase implements rpc.Mirror.
 func (*packageMirror) MirrorBase() string { return packageBase }
@@ -298,7 +298,7 @@ func (r *Runtime) registerPackages() {
 	asPackage := func(p pkg.PackageInterface, a args) (*pkg.Package, error) {
 		pp, ok := pkg.AsPackage(p)
 		if !ok {
-			return nil, a.errorf("%s has no such method", p.Class())
+			return nil, a.errorf("%s has no such method", p.PHPClass())
 		}
 
 		return pp, nil
@@ -317,7 +317,7 @@ func (r *Runtime) registerPackages() {
 		setter(method, func(p pkg.PackageInterface, a args) error {
 			c, ok := p.(pkg.CompletePackageInterface)
 			if !ok {
-				return a.errorf("%s has no such method", p.Class())
+				return a.errorf("%s has no such method", p.PHPClass())
 			}
 			fn(c, a)
 
@@ -328,7 +328,7 @@ func (r *Runtime) registerPackages() {
 		setter(method, func(p pkg.PackageInterface, a args) error {
 			rp, ok := p.(pkg.RootPackageInterface)
 			if !ok {
-				return a.errorf("%s has no such method", p.Class())
+				return a.errorf("%s has no such method", p.PHPClass())
 			}
 
 			return fn(rp, a)
@@ -501,7 +501,7 @@ func (r *Runtime) registerPackages() {
 			} else if pp, ok := pkg.AsPackage(p); ok {
 				target = pp
 			} else {
-				return a.errorf("%s has no such method", p.Class())
+				return a.errorf("%s has no such method", p.PHPClass())
 			}
 			switch method {
 			case "setRequires":
@@ -533,7 +533,7 @@ func (r *Runtime) registerPackages() {
 			} else if pp, ok := pkg.AsPackage(p); ok {
 				target = pp
 			} else {
-				return a.errorf("%s has no such method", p.Class())
+				return a.errorf("%s has no such method", p.PHPClass())
 			}
 			v := a.arrayOrEmpty(1)
 			switch method {
@@ -591,7 +591,7 @@ func (r *Runtime) registerPackages() {
 	setter("setRootPackageAlias", func(p pkg.PackageInterface, a args) error {
 		alias, ok := p.(pkg.Alias)
 		if !ok {
-			return a.errorf("%s has no such method", p.Class())
+			return a.errorf("%s has no such method", p.PHPClass())
 		}
 		alias.SetRootPackageAlias(a.boolean(1))
 

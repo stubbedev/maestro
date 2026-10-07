@@ -37,6 +37,7 @@ func (syncLoop) Await(promise http.Waitable, err error) error {
 type cloneDownloader struct{}
 
 func (cloneDownloader) InstallationSource() string { return "source" }
+func (cloneDownloader) PHPClass() string           { return "Mock_DownloaderInterface" }
 
 func (cloneDownloader) Download(pkg.PackageInterface, string, pkg.PackageInterface) (*downloader.Promise, error) {
 	return util.Resolved(""), nil

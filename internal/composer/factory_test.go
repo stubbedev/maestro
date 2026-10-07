@@ -140,3 +140,41 @@ func TestPluginAPIBefore22(t *testing.T) {
 		}
 	}
 }
+
+// Every downloader the factory registers names its own class
+// (get_class($downloader)), which DownloadManager's messages print and
+// plugins read: one of Composer's, and a class no other type has.
+func TestFactory_DownloadersNameTheirOwnPHPClass(t *testing.T) {
+	t.Setenv("MAESTRO_CACHE_DIR", t.TempDir())
+	out := newBufferIO(t)
+	cfg := config.New(false, "")
+	if err := cfg.Merge(php.ArrayOf("config", php.ArrayOf("cache-dir", t.TempDir())), config.SourceUnknown); err != nil {
+		t.Fatal(err)
+	}
+	f := &Factory{Runtime: testRuntime(t, 0)}
+	httpDownloader, err := f.CreateHttpDownloader(out, cfg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dm, err := f.CreateDownloadManager(out, cfg, httpDownloader, util.NewProcessExecutor(out), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	types := map[string]string{}
+	// Factory::createDownloadManager's types
+	for _, typ := range []string{"git", "svn", "fossil", "hg", "perforce", "zip", "rar", "tar", "gzip", "xz", "phar", "file", "path"} {
+		d, err := dm.Downloader(typ)
+		if err != nil {
+			t.Fatal(err)
+		}
+		class := d.PHPClass()
+		if !strings.HasPrefix(class, `Composer\Downloader\`) {
+			t.Errorf("the %s downloader is of class %q", typ, class)
+		}
+		if other, ok := types[class]; ok {
+			t.Errorf("the %s and %s downloaders are both of class %q", other, typ, class)
+		}
+		types[class] = typ
+	}
+}

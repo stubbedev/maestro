@@ -47,8 +47,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#clear-cache-clearcache-cc`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ClearCacheCommand) ClassName() string { return `Composer\Command\ClearCacheCommand` }
+// PHPClass implements php.Classer.
+func (*ClearCacheCommand) PHPClass() string { return `Composer\Command\ClearCacheCommand` }
 
 // Execute implements console.Executor.
 func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, error) {

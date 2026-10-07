@@ -101,8 +101,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#self-update-selfupdate`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*SelfUpdateCommand) ClassName() string { return `Composer\Command\SelfUpdateCommand` }
+// PHPClass implements php.Classer.
+func (*SelfUpdateCommand) PHPClass() string { return `Composer\Command\SelfUpdateCommand` }
 
 // currentExecutable is the running binary with symlinks resolved.
 func currentExecutable() (string, error) {

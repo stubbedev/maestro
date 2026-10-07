@@ -17,6 +17,7 @@ import (
 type repo struct{ name string }
 
 func (r *repo) RepoName() string { return r.name }
+func (*repo) PHPClass() string   { return "Mock_RepositoryInterface" }
 
 func TestBasePackage_SetSameRepository(t *testing.T) {
 	p := pkg.NewPackage("foo", "1.0.0.0", "1.0.0")

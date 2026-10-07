@@ -146,19 +146,10 @@ func (m *DownloadManager) DownloaderForPackage(p pkg.PackageInterface) (Download
 
 	if installationSource.S != d.InstallationSource() {
 		return nil, &util.LogicError{Message: fmt.Sprintf("Downloader \"%s\" is a %s type downloader and can not be used to download %s for package %s",
-			className(d), d.InstallationSource(), installationSource.S, p.String())}
+			d.PHPClass(), d.InstallationSource(), installationSource.S, p.String())}
 	}
 
 	return d, nil
-}
-
-// className is get_class($downloader).
-func className(d Downloader) string {
-	if c, ok := d.(Classer); ok {
-		return c.Class()
-	}
-
-	return fmt.Sprintf("%T", d)
 }
 
 // DownloaderType is getDownloaderType(): the type a downloader is

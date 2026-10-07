@@ -37,8 +37,8 @@ func NewGitDriver(repoConfig *php.Array, deps Deps) *GitDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *GitDriver) Class() string { return gitDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *GitDriver) PHPClass() string { return gitDriverType.Class }
 
 var (
 	gitDirSuffix      = php.MustCompile(`{[\\/]\.git/?$}`)

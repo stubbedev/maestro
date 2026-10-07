@@ -28,6 +28,9 @@ type phpIO struct {
 
 func (p *phpIO) phpObject() *rpc.PHPObject { return p.obj }
 
+// PHPClass implements php.Classer.
+func (p *phpIO) PHPClass() string { return p.obj.Class }
+
 // ForeignIO implements io.Foreign.
 func (*phpIO) ForeignIO() {}
 

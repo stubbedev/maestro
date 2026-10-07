@@ -166,8 +166,8 @@ func (a *Application) RunFrom(file string, line int, in console.Input, out conso
 	return a.Application.Run(in, out)
 }
 
-// ClassName implements console.ClassNamer.
-func (*Application) ClassName() string { return `Composer\Console\Application` }
+// PHPClass implements php.Classer.
+func (*Application) PHPClass() string { return `Composer\Console\Application` }
 
 // pushCallFrame is the console's CallHook: the methods Composer's PHP
 // stack holds while they run, with their objects and arguments, go on the
@@ -488,7 +488,7 @@ func (a *Application) addPluginCommands(cio *io.ConsoleIO) error {
 	for _, command := range commands {
 		name := command.Base().Name()
 		if a.Has(name) {
-			cio.WriteError("<warning>Plugin command "+name+" ("+commandClassName(command)+") would override a Composer command and has been skipped</warning>", true, io.Normal)
+			cio.WriteError("<warning>Plugin command "+name+" ("+command.PHPClass()+") would override a Composer command and has been skipped</warning>", true, io.Normal)
 		} else if _, err := a.Add(command); err != nil {
 			return err
 		}
@@ -1071,7 +1071,7 @@ func (a *Application) commandNameBeforeBinding(in console.Input) string {
 
 // telemetryCommandName ports getTelemetryCommandName.
 func telemetryCommandName(cmd console.Commander) string {
-	class := commandClassName(cmd)
+	class := cmd.PHPClass()
 	if class == scriptAliasClass {
 		return "script"
 	}
@@ -1084,23 +1084,6 @@ func telemetryCommandName(cmd console.Commander) string {
 
 // scriptAliasClass is ScriptAliasCommand's class name.
 const scriptAliasClass = `Composer\Command\ScriptAliasCommand`
-
-// commandClassName is get_class($command).
-func commandClassName(cmd console.Commander) string {
-	if n, ok := cmd.(console.ClassNamer); ok {
-		return n.ClassName()
-	}
-	switch cmd.(type) {
-	case *console.Command:
-		return `Symfony\Component\Console\Command\Command`
-	case *console.CompleteCommand:
-		return `Symfony\Component\Console\Command\CompleteCommand`
-	case *console.DumpCompletionCommand:
-		return `Symfony\Component\Console\Command\DumpCompletionCommand`
-	}
-
-	return "plugin"
-}
 
 // LongVersion ports getLongVersion.
 func (a *Application) LongVersion() string {

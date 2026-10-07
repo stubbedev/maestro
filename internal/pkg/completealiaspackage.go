@@ -20,8 +20,8 @@ func NewCompleteAliasPackage(aliasOf CompletePackageInterface, version, prettyVe
 	return a
 }
 
-// Class returns ClassCompleteAliasPackage.
-func (a *CompleteAliasPackage) Class() string { return ClassCompleteAliasPackage }
+// PHPClass returns ClassCompleteAliasPackage.
+func (a *CompleteAliasPackage) PHPClass() string { return ClassCompleteAliasPackage }
 
 // Clone ports `clone $alias` (the aliased package stays shared).
 func (a *CompleteAliasPackage) Clone() *CompleteAliasPackage {

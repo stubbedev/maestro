@@ -48,8 +48,8 @@ type WritableArrayRepository struct {
 
 var _ WritableRepository = (*WritableArrayRepository)(nil)
 
-// Class returns the PHP class name.
-func (r *WritableArrayRepository) Class() string {
+// PHPClass returns the PHP class name.
+func (r *WritableArrayRepository) PHPClass() string {
 	return `Composer\Repository\WritableArrayRepository`
 }
 
@@ -107,8 +107,8 @@ func NewInstalledArrayRepository(packages []pkg.PackageInterface) (*InstalledArr
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *InstalledArrayRepository) Class() string {
+// PHPClass returns the PHP class name.
+func (r *InstalledArrayRepository) PHPClass() string {
 	return `Composer\Repository\InstalledArrayRepository`
 }
 
@@ -144,8 +144,8 @@ func NewLockArrayRepository(packages []pkg.PackageInterface) (*LockArrayReposito
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *LockArrayRepository) Class() string { return `Composer\Repository\LockArrayRepository` }
+// PHPClass returns the PHP class name.
+func (r *LockArrayRepository) PHPClass() string { return `Composer\Repository\LockArrayRepository` }
 
 // RepoName ports LockArrayRepository::getRepoName.
 func (r *LockArrayRepository) RepoName() string { return "lock repo" }
@@ -177,8 +177,8 @@ func NewRootPackageRepository(root pkg.RootPackageInterface) (*RootPackageReposi
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *RootPackageRepository) Class() string { return `Composer\Repository\RootPackageRepository` }
+// PHPClass returns the PHP class name.
+func (r *RootPackageRepository) PHPClass() string { return `Composer\Repository\RootPackageRepository` }
 
 // RepoName ports RootPackageRepository::getRepoName.
 func (r *RootPackageRepository) RepoName() string { return "root package repo" }

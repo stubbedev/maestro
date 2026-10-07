@@ -64,8 +64,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#install-i`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*InstallCommand) ClassName() string { return `Composer\Command\InstallCommand` }
+// PHPClass implements php.Classer.
+func (*InstallCommand) PHPClass() string { return `Composer\Command\InstallCommand` }
 
 // Execute ports execute().
 func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, error) {

@@ -67,8 +67,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#init`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*InitCommand) ClassName() string { return `Composer\Command\InitCommand` }
+// PHPClass implements php.Classer.
+func (*InitCommand) PHPClass() string { return `Composer\Command\InitCommand` }
 
 // packageNameRegexp is the package name check of execute() and interact().
 var packageNameRegexp = php.MustCompile(`{^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$}D`)

@@ -69,6 +69,7 @@ func NewPharDownloader(deps Deps) (*ArchiveDownloader, error) {
 func newArchiveDownloader(deps Deps, class string, format archive.Format) (*ArchiveDownloader, error) {
 	d := newFileDownloader(deps, class)
 	d.format = format
+	d.stockDownload = true
 	a := &ArchiveDownloader{FileDownloader: d}
 	d.self = a
 

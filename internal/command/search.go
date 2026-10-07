@@ -41,8 +41,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#search`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*SearchCommand) ClassName() string { return `Composer\Command\SearchCommand` }
+// PHPClass implements php.Classer.
+func (*SearchCommand) PHPClass() string { return `Composer\Command\SearchCommand` }
 
 // Execute ports execute().
 func (c *SearchCommand) Execute(in console.Input, out console.Output) (int, error) {

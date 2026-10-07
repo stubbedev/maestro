@@ -33,8 +33,8 @@ func NewCompletePackage(name, version, prettyVersion string) *CompletePackage {
 	return p
 }
 
-// Class returns ClassCompletePackage.
-func (p *CompletePackage) Class() string { return ClassCompletePackage }
+// PHPClass returns ClassCompletePackage.
+func (p *CompletePackage) PHPClass() string { return ClassCompletePackage }
 
 // Clone ports `clone $package`.
 func (p *CompletePackage) Clone() *CompletePackage {

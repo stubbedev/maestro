@@ -83,8 +83,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#run-script-run`)
 	return c, nil
 }
 
-// ClassName implements console.ClassNamer.
-func (*ScriptAliasCommand) ClassName() string { return `Composer\Command\ScriptAliasCommand` }
+// PHPClass implements php.Classer.
+func (*ScriptAliasCommand) PHPClass() string { return `Composer\Command\ScriptAliasCommand` }
 
 // Execute ports execute().
 func (c *ScriptAliasCommand) Execute(in console.Input, _ console.Output) (int, error) {

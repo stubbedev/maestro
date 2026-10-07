@@ -123,7 +123,7 @@ func (r *Runtime) registerResolverEvents() {
 	poolEvent := func(e eventdispatcher.Event, a args) (*eventdispatcher.PrePoolCreateEvent, error) {
 		p, ok := e.(*eventdispatcher.PrePoolCreateEvent)
 		if !ok {
-			return nil, a.errorf("%s is not a PrePoolCreateEvent", e.Class())
+			return nil, a.errorf("%s is not a PrePoolCreateEvent", e.PHPClass())
 		}
 
 		return p, nil
@@ -131,7 +131,7 @@ func (r *Runtime) registerResolverEvents() {
 	downloadEvent := func(e eventdispatcher.Event, a args) (*eventdispatcher.PreFileDownloadEvent, error) {
 		p, ok := e.(*eventdispatcher.PreFileDownloadEvent)
 		if !ok {
-			return nil, a.errorf("%s is not a PreFileDownloadEvent", e.Class())
+			return nil, a.errorf("%s is not a PreFileDownloadEvent", e.PHPClass())
 		}
 
 		return p, nil

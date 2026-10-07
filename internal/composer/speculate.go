@@ -22,12 +22,6 @@ type autoloadSpeculator interface {
 	DiscardAutoloadSpeculation()
 }
 
-// dispatchChecker is an EventDispatcher that tells whether an event would
-// reach a listener (eventdispatcher.EventDispatcher).
-type dispatchChecker interface {
-	WillDispatchTo(event eventdispatcher.Event) bool
-}
-
 // speculativeEvents are the events dispatched between doInstall's lock
 // verification and the autoload dump's scan when no package operation
 // runs: a listener could change the files the scan reads.
@@ -115,23 +109,12 @@ func (a *aheadWork) Discard() {
 	a.discardNoOperations()
 }
 
-// listenedTo reports whether a listener waits on one of events, true when
-// the event dispatcher cannot tell.
+// listenedTo reports whether a listener may wait on one of events
+// (eventdispatcher.MayListen).
 func (i *Installer) listenedTo(events []string) bool {
-	if i.eventDispatcher == nil {
-		return true
-	}
-	checker, ok := i.eventDispatcher.(dispatchChecker)
-	if !ok {
-		return true
-	}
-	for _, name := range events {
-		if checker.WillDispatchTo(eventdispatcher.NewEvent(name, nil, nil)) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(events, func(name string) bool {
+		return eventdispatcher.MayListen(i.eventDispatcher, eventdispatcher.NewEvent(name, nil, nil))
+	})
 }
 
 // prepareLocalRepoWrite has the local repository build, while the lock

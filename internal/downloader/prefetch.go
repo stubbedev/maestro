@@ -46,15 +46,7 @@ func (m *DownloadManager) Prefetch(p, prev pkg.PackageInterface) {
 		return
 	}
 
-	switch className(d) {
-	case `Composer\Downloader\ZipDownloader`, `Composer\Downloader\TarDownloader`, `Composer\Downloader\GzipDownloader`,
-		`Composer\Downloader\XzDownloader`, `Composer\Downloader\RarDownloader`, `Composer\Downloader\PharDownloader`,
-		`Composer\Downloader\FileDownloader`:
-	default:
-		return
-	}
-
-	if f := FileDownloaderOf(d); f != nil {
+	if f := FileDownloaderOf(d); f != nil && f.stockDownload {
 		f.prefetch(p)
 	}
 }
@@ -82,21 +74,11 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 		return
 	}
 
-	postListened := false
-
-	if d.events != nil {
-		l, ok := d.events.(listenerChecker)
-		if !ok {
-			return
-		}
-
-		getter, _ := d.http.(http.Getter)
-		if l.WillDispatchTo(eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, getter, processed, "package", p)) {
-			return
-		}
-
-		postListened = l.WillDispatchTo(eventdispatcher.NewPostFileDownloadEvent(eventdispatcher.PostFileDownload, pkg.NullString{}, p.DistSha1Checksum(), processed, "package", p))
+	getter, _ := d.http.(http.Getter)
+	if eventdispatcher.MayListen(d.events, eventdispatcher.NewPreFileDownloadEvent(eventdispatcher.PreFileDownload, getter, processed, "package", p)) {
+		return
 	}
+	postListened := eventdispatcher.MayListen(d.events, eventdispatcher.NewPostFileDownloadEvent(eventdispatcher.PostFileDownload, pkg.NullString{}, p.DistSha1Checksum(), processed, "package", p))
 
 	// a cached archive is taken as a hit without hashing it (download()
 	// hashes it when there is a checksum): a corrupt one costs the head

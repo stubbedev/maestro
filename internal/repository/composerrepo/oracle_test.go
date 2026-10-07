@@ -140,7 +140,7 @@ func describe(t *testing.T, p pkg.PackageInterface) any {
 	sum := sha256.Sum256([]byte(encoded))
 
 	return php.ListOf(
-		shortClass(p.Class()),
+		shortClass(p.PHPClass()),
 		p.UniqueName(),
 		p.PrettyVersion(),
 		aliasOf,

@@ -50,8 +50,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#dump-autoload-dumpautoload`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*DumpAutoloadCommand) ClassName() string { return `Composer\Command\DumpAutoloadCommand` }
+// PHPClass implements php.Classer.
+func (*DumpAutoloadCommand) PHPClass() string { return `Composer\Command\DumpAutoloadCommand` }
 
 // Execute ports execute().
 func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int, error) {

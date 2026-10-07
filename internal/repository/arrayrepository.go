@@ -84,8 +84,8 @@ func (r *ArrayRepository) countLoaded() int {
 	return len(r.packages)
 }
 
-// Class returns the PHP class name.
-func (r *ArrayRepository) Class() string { return `Composer\Repository\ArrayRepository` }
+// PHPClass returns the PHP class name.
+func (r *ArrayRepository) PHPClass() string { return `Composer\Repository\ArrayRepository` }
 
 // Rev changes whenever the package list changes.
 func (r *ArrayRepository) Rev() uint64 { return r.rev }

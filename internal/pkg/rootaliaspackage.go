@@ -21,8 +21,8 @@ func NewRootAliasPackage(aliasOf RootPackageInterface, version, prettyVersion st
 	return a
 }
 
-// Class returns ClassRootAliasPackage.
-func (a *RootAliasPackage) Class() string { return ClassRootAliasPackage }
+// PHPClass returns ClassRootAliasPackage.
+func (a *RootAliasPackage) PHPClass() string { return ClassRootAliasPackage }
 
 // Clone ports RootAliasPackage::__clone: the aliased root package is
 // cloned too.

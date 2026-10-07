@@ -76,8 +76,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#show-info`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ShowCommand) ClassName() string { return `Composer\Command\ShowCommand` }
+// PHPClass implements php.Classer.
+func (*ShowCommand) PHPClass() string { return `Composer\Command\ShowCommand` }
 
 func (c *ShowCommand) suggestPackageBasedOnMode() console.SuggestFunc {
 	return func(input *console.CompletionInput, suggestions *console.CompletionSuggestions) []console.Suggestion {
@@ -1266,7 +1266,7 @@ func (c *ShowCommand) getPackage(installedRepo *repository.InstalledRepository, 
 	}
 	cp, ok := matchedPackage.(pkg.CompletePackageInterface)
 	if !ok {
-		return nil, nil, NewError(ClassLogic, "ShowCommand::getPackage can only work with CompletePackageInterface, but got "+matchedPackage.Class())
+		return nil, nil, NewError(ClassLogic, "ShowCommand::getPackage can only work with CompletePackageInterface, but got "+matchedPackage.PHPClass())
 	}
 
 	return cp, versions, nil

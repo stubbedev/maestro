@@ -29,8 +29,8 @@ func NewRootPackage(name, version, prettyVersion string) *RootPackage {
 	return p
 }
 
-// Class returns ClassRootPackage.
-func (p *RootPackage) Class() string { return ClassRootPackage }
+// PHPClass returns ClassRootPackage.
+func (p *RootPackage) PHPClass() string { return ClassRootPackage }
 
 // Clone ports `clone $package`.
 func (p *RootPackage) Clone() *RootPackage {

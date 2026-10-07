@@ -83,8 +83,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#archive`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ArchiveCommand) ClassName() string { return `Composer\Command\ArchiveCommand` }
+// PHPClass implements php.Classer.
+func (*ArchiveCommand) PHPClass() string { return `Composer\Command\ArchiveCommand` }
 
 func (c *ArchiveCommand) tryComposer() (*composer.Composer, error) {
 	if c.tryComposerFunc != nil {
@@ -343,7 +343,7 @@ func (c *ArchiveCommand) selectPackage(out io.IO, packageName string, ver pkg.Nu
 
 	cp, ok := p.(pkg.CompletePackageInterface)
 	if !ok {
-		return nil, NewError(ClassLogic, "Expected a CompletePackageInterface instance but found "+p.Class())
+		return nil, NewError(ClassLogic, "Expected a CompletePackageInterface instance but found "+p.PHPClass())
 	}
 	// every Go package is a BasePackage (ArchiveCommand.php line 207)
 

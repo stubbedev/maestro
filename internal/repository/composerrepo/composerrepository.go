@@ -342,8 +342,8 @@ func (r *ComposerRepository) RepoName() string {
 	return "composer repo (" + util.SanitizeURL(r.url) + ")"
 }
 
-// Class returns the PHP class name.
-func (r *ComposerRepository) Class() string { return Class }
+// PHPClass returns the PHP class name.
+func (r *ComposerRepository) PHPClass() string { return Class }
 
 // RepoConfig ports getRepoConfig.
 func (r *ComposerRepository) RepoConfig() *php.Array { return r.repoConfig }

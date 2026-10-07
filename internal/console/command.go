@@ -31,7 +31,7 @@ type MethodClasser interface {
 // MethodClasser's answer, else the command's class for the hooks it
 // implements and Symfony's Command for run().
 func methodClass(cmd Commander, method string) string {
-	class := commandClass(cmd)
+	class := cmd.PHPClass()
 	if m, ok := cmd.(MethodClasser); ok {
 		return m.MethodClass(class, method)
 	}
@@ -45,6 +45,9 @@ func methodClass(cmd Commander, method string) string {
 // Commander is implemented by every command: *Command itself, and types
 // embedding *Command, which may override Run and Complete.
 type Commander interface {
+	// PHPClass is get_class($command); every type embedding *Command
+	// names its own.
+	php.Classer
 	Base() *Command
 	Run(in Input, out Output) (int, error)
 	Complete(in *CompletionInput, suggestions *CompletionSuggestions)
@@ -121,6 +124,10 @@ func (c *Command) impl() Commander {
 
 // Base implements Commander.
 func (c *Command) Base() *Command { return c }
+
+// PHPClass implements php.Classer: a bare Command's class. It is promoted
+// to the commands embedding *Command, each of which names its own.
+func (*Command) PHPClass() string { return `Symfony\Component\Console\Command\Command` }
 
 // IgnoreValidationErrors makes Run tolerate binding errors.
 func (c *Command) IgnoreValidationErrors() { c.ignoreValidationErrors = true }

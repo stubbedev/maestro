@@ -54,8 +54,8 @@ func NewGitLabDriver(repoConfig *php.Array, deps Deps) *GitLabDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *GitLabDriver) Class() string { return gitLabDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *GitLabDriver) PHPClass() string { return gitLabDriverType.Class }
 
 var dotGitSuffix = php.MustCompile(`#(\.git)$#`)
 

@@ -305,7 +305,7 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 			}
 			complete, ok := p.(pkg.CompletePackageInterface)
 			if !ok {
-				return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.Class() + " given"}
+				return nil, &php.EngineError{Class: php.ClassTypeError, Message: `Composer\Package\CompleteAliasPackage::__construct(): Argument #1 ($aliasOf) must be of type Composer\Package\CompletePackage, ` + p.PHPClass() + " given"}
 			}
 			aliasPkg := pkg.NewCompleteAliasPackage(complete, args[0], args[1])
 			aliasPkg.SetRootPackageAlias(true)

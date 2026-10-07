@@ -59,12 +59,7 @@ func (r *Runtime) downloaderObject(d downloader.Downloader) any {
 		// downloader it extends).
 		d = s.Downloader
 	}
-	class := `Composer\Downloader\DownloaderInterface`
-	if c, ok := d.(downloader.Classer); ok {
-		class = c.Class()
-	}
-
-	return r.serviceObject(d, class)
+	return r.serviceObject(d, d.PHPClass())
 }
 
 func (r *Runtime) registerHTTP() {

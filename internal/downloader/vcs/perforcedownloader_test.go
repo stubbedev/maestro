@@ -21,7 +21,7 @@ type fakeVcsRepository struct {
 }
 
 func (r *fakeVcsRepository) RepoName() string { return "vcs repo" }
-func (r *fakeVcsRepository) Class() string    { return `Composer\Repository\VcsRepository` }
+func (r *fakeVcsRepository) PHPClass() string { return `Composer\Repository\VcsRepository` }
 
 func (r *fakeVcsRepository) RepoConfig() *php.Array {
 	r.calls++

@@ -102,8 +102,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#create-project`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*CreateProjectCommand) ClassName() string { return `Composer\Command\CreateProjectCommand` }
+// PHPClass implements php.Classer.
+func (*CreateProjectCommand) PHPClass() string { return `Composer\Command\CreateProjectCommand` }
 
 // nullableString is a PHP ?string input value: nil for null.
 func nullableString(v any) *string {

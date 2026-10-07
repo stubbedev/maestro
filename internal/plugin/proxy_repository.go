@@ -117,8 +117,8 @@ func (p *proxyRepository) RepoName() string {
 	return php.ToString(v)
 }
 
-// Class implements repository.RepositoryInterface.
-func (p *proxyRepository) Class() string { return p.obj.Class }
+// PHPClass implements repository.RepositoryInterface.
+func (p *proxyRepository) PHPClass() string { return p.obj.Class }
 
 // HasPackage implements repository.RepositoryInterface.
 func (p *proxyRepository) HasPackage(pk pkg.PackageInterface) (bool, error) {
@@ -323,8 +323,8 @@ func (r *Runtime) phpDownloader(obj *rpc.PHPObject) *proxyDownloader {
 	return d
 }
 
-// Class gives the PHP class (downloader.Classer).
-func (d *proxyDownloader) Class() string { return d.obj.Class }
+// PHPClass implements php.Classer.
+func (d *proxyDownloader) PHPClass() string { return d.obj.Class }
 
 // promise calls a method returning ?PromiseInterface: PHP hands its
 // promise over as Promises::watch does (`object.promise`).

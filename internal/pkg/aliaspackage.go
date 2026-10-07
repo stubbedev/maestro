@@ -54,8 +54,8 @@ func (a *AliasPackage) init(aliasOf PackageInterface, version, prettyVersion str
 	a.replaces = a.replaceSelfVersionDependencies(aliasOf.Replaces(), TypeReplace)
 }
 
-// Class returns ClassAliasPackage.
-func (a *AliasPackage) Class() string { return ClassAliasPackage }
+// PHPClass returns ClassAliasPackage.
+func (a *AliasPackage) PHPClass() string { return ClassAliasPackage }
 
 // Rev returns the change counter of the alias plus the aliased package's.
 func (a *AliasPackage) Rev() uint64 { return a.rev + a.aliasOf.Rev() }

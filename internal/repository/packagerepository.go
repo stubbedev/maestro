@@ -59,8 +59,8 @@ func arrayOrEmpty(config *php.Array, key string) *php.Array {
 	return php.NewArray()
 }
 
-// Class returns the PHP class name.
-func (r *PackageRepository) Class() string { return `Composer\Repository\PackageRepository` }
+// PHPClass returns the PHP class name.
+func (r *PackageRepository) PHPClass() string { return `Composer\Repository\PackageRepository` }
 
 // RepoName ports PackageRepository::getRepoName.
 func (r *PackageRepository) RepoName() string {

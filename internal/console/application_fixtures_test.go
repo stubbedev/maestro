@@ -160,6 +160,8 @@ func newFoo4Command() *Foo4Command {
 // Foo5Command does not call the parent constructor.
 type Foo5Command struct{ *Command }
 
+func (*Foo5Command) PHPClass() string { return "Foo5Command" }
+
 type Foo6Command struct{ fixtureCommand }
 
 func newFoo6Command() *Foo6Command {

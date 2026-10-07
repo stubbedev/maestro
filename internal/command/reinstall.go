@@ -56,8 +56,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#reinstall`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ReinstallCommand) ClassName() string { return `Composer\Command\ReinstallCommand` }
+// PHPClass implements php.Classer.
+func (*ReinstallCommand) PHPClass() string { return `Composer\Command\ReinstallCommand` }
 
 // Execute ports execute().
 func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, error) {

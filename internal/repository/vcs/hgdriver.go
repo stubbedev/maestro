@@ -34,8 +34,8 @@ func NewHgDriver(repoConfig *php.Array, deps Deps) *HgDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *HgDriver) Class() string { return hgDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *HgDriver) PHPClass() string { return hgDriverType.Class }
 
 var alnumOnly = php.MustCompile(`{[^a-z0-9]}i`)
 

@@ -111,8 +111,8 @@ func NewPlatformRepository(packages []pkg.PackageInterface, overrides *php.Array
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *PlatformRepository) Class() string { return `Composer\Repository\PlatformRepository` }
+// PHPClass returns the PHP class name.
+func (r *PlatformRepository) PHPClass() string { return `Composer\Repository\PlatformRepository` }
 
 // IsPlatformRepository implements pkg.PlatformRepositoryMarker.
 func (r *PlatformRepository) IsPlatformRepository() bool { return true }
@@ -1037,7 +1037,7 @@ func (r *PlatformRepository) addConstantLibrary(libraries platformLibraries, lib
 func (r *PlatformRepository) addPackage(p pkg.PackageInterface) error {
 	complete, ok := p.(pkg.CompletePackageInterface)
 	if _, isComplete := pkg.AsCompletePackage(p); !ok || !isComplete {
-		return &util.UnexpectedValueError{Message: "Expected CompletePackage but got " + p.Class()}
+		return &util.UnexpectedValueError{Message: "Expected CompletePackage but got " + p.PHPClass()}
 	}
 
 	// Skip if overridden

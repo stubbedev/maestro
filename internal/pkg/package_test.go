@@ -44,7 +44,7 @@ func TestClass(t *testing.T) {
 		{pkg.NewCompleteAliasPackage(c, "2.0.0.0", "2.0.0"), pkg.ClassCompleteAliasPackage},
 		{pkg.NewRootAliasPackage(r, "2.0.0.0", "2.0.0"), pkg.ClassRootAliasPackage},
 	} {
-		if got := x.p.Class(); got != x.want {
+		if got := x.p.PHPClass(); got != x.want {
 			t.Errorf("%T: %q", x.p, got)
 		}
 	}

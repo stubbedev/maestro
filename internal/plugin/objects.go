@@ -193,16 +193,7 @@ func (m *ioMirror) state() ioState {
 func (*ioMirror) PHPOpaque() {}
 
 // PHPClass implements rpc.Object.
-func (m *ioMirror) PHPClass() string {
-	switch m.io.(type) {
-	case *io.NullIO:
-		return `Composer\IO\NullIO`
-	case *io.BufferIO:
-		return `Composer\IO\BufferIO`
-	}
-
-	return `Composer\IO\ConsoleIO`
-}
+func (m *ioMirror) PHPClass() string { return m.io.PHPClass() }
 
 // MirrorBase implements rpc.Mirror.
 func (*ioMirror) MirrorBase() string { return `Composer\IO\BaseIO` }

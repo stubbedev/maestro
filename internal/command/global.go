@@ -48,8 +48,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#global`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*GlobalCommand) ClassName() string { return `Composer\Command\GlobalCommand` }
+// PHPClass implements php.Classer.
+func (*GlobalCommand) PHPClass() string { return `Composer\Command\GlobalCommand` }
 
 // IsProxyCommand ports isProxyCommand.
 func (*GlobalCommand) IsProxyCommand() bool { return true }

@@ -34,6 +34,8 @@ const (
 // package classes use.
 type Repository interface {
 	RepoName() string
+	// PHPClass is get_class($repository).
+	php.Classer
 }
 
 // PlatformRepositoryMarker is implemented by Composer\Repository\PlatformRepository
@@ -109,8 +111,8 @@ type PackageInterface interface {
 	// Rev changes whenever a setter changes the package (or, for an
 	// alias, the aliased package).
 	Rev() uint64
-	// Class returns the concrete PHP class name (Class* constants).
-	Class() string
+	// PHPClass returns the concrete PHP class name (PHPClass* constants).
+	PHPClass() string
 
 	base() *basePackage
 }
@@ -228,5 +230,5 @@ func Clone(p PackageInterface) PackageInterface {
 		return p.Clone()
 	}
 
-	panic("pkg: Clone of unknown package type " + p.Class())
+	panic("pkg: Clone of unknown package type " + p.PHPClass())
 }

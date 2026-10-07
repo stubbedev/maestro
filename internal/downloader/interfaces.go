@@ -24,6 +24,8 @@ type Promise = util.Promise[string]
 // is an exception thrown synchronously; the promise is never nil without
 // one.
 type Downloader interface {
+	// PHPClass is get_class($downloader).
+	php.Classer
 	// InstallationSource is getInstallationSource(): "dist" or "source".
 	InstallationSource() string
 	Download(p pkg.PackageInterface, path string, prev pkg.PackageInterface) (*Promise, error)
@@ -50,13 +52,6 @@ type DvcsDownloader interface {
 type VcsCapableDownloader interface {
 	// VcsReference is getVcsReference().
 	VcsReference(p pkg.PackageInterface, path string) (pkg.NullString, error)
-}
-
-// Classer gives a downloader's PHP class name (get_class()), used in
-// DownloadManager's messages and by the plugin mirrors. Downloaders that do
-// not implement it are named by their Go type.
-type Classer interface {
-	Class() string
 }
 
 // Config is the part of Composer\Config the downloaders read; internal/config
@@ -101,15 +96,7 @@ type EventDispatcher interface {
 	Dispatch(eventName string, event eventdispatcher.Event) (int, error)
 }
 
-// listenerChecker is what an EventDispatcher may implement to tell whether
-// an event would reach a listener, so that the downloaders can skip work
-// only a listener would see (EventDispatcher.WillDispatchTo).
-type listenerChecker interface {
-	WillDispatchTo(event eventdispatcher.Event) bool
-}
-
 var (
 	_ HTTPDownloader  = (*http.HttpDownloader)(nil)
 	_ EventDispatcher = (*eventdispatcher.EventDispatcher)(nil)
-	_ listenerChecker = (*eventdispatcher.EventDispatcher)(nil)
 )

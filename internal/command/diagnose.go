@@ -89,8 +89,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#diagnose`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*DiagnoseCommand) ClassName() string { return `Composer\Command\DiagnoseCommand` }
+// PHPClass implements php.Classer.
+func (*DiagnoseCommand) PHPClass() string { return `Composer\Command\DiagnoseCommand` }
 
 func (c *DiagnoseCommand) runtime() *composer.Runtime {
 	if app := c.application(); app != nil {

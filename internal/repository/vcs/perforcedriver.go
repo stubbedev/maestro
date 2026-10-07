@@ -52,8 +52,8 @@ func NewPerforceDriver(repoConfig *php.Array, deps Deps) *PerforceDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *PerforceDriver) Class() string { return perforceDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *PerforceDriver) PHPClass() string { return perforceDriverType.Class }
 
 // Initialize ports PerforceDriver::initialize.
 func (d *PerforceDriver) Initialize() error {

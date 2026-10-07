@@ -453,16 +453,7 @@ func consoleIO(out io.IO) (tableIO, error) {
 		return t, nil
 	}
 
-	return nil, &util.InvalidArgumentError{Message: "Cannot use table format with " + className(out)}
-}
-
-// className is get_class($io).
-func className(out io.IO) string {
-	if _, ok := out.(*io.NullIO); ok {
-		return `Composer\IO\NullIO`
-	}
-
-	return fmt.Sprintf("%T", out)
+	return nil, &util.InvalidArgumentError{Message: "Cannot use table format with " + out.PHPClass()}
 }
 
 func outputAdvisories(out io.IO, advisories *Advisories, format string) error {

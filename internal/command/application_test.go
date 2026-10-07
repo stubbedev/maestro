@@ -129,7 +129,7 @@ func TestApplication_ScriptCommandTakesPriorityOverAbbreviatedBuiltinCommand(t *
 
 type pluginCommand struct{ *console.Command }
 
-func (pluginCommand) ClassName() string { return `Acme\Plugin\FooCommand` }
+func (pluginCommand) PHPClass() string { return `Acme\Plugin\FooCommand` }
 
 func TestApplication_GetTelemetryCommandName(t *testing.T) {
 	cases := []struct {

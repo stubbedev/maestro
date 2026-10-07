@@ -229,8 +229,8 @@ type probedObject struct {
 	methods []probeCall
 }
 
-// Class is the object's class name.
-func (o *probedObject) Class() string { return o.class }
+// PHPClass is the object's class name.
+func (o *probedObject) PHPClass() string { return o.class }
 
 // Call returns the recorded outcome of $object->method(...$arguments).
 func (o *probedObject) Call(method string, arguments ...any) (any, error) {

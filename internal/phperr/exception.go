@@ -3,6 +3,8 @@ package phperr
 import (
 	"errors"
 	"slices"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Exception is implemented by a Go error that stands for a PHP exception:
@@ -10,7 +12,7 @@ import (
 // also implement Coded ($e->getCode()) and Chained ($e->getPrevious()).
 type Exception interface {
 	error
-	PHPClass() string
+	php.Classer
 }
 
 // Coded is implemented by an Exception whose code ($e->getCode()) is not

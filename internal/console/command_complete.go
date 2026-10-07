@@ -62,6 +62,9 @@ type CompleteCommand struct {
 	isDebug           bool
 }
 
+// PHPClass implements php.Classer.
+func (*CompleteCommand) PHPClass() string { return `Symfony\Component\Console\Command\CompleteCommand` }
+
 // NewCompleteCommand mirrors new CompleteCommand($completionOutputs): the
 // given outputs come first, bash is added unless overridden.
 func NewCompleteCommand(outputs ...ShellCompletionOutput) *CompleteCommand {
@@ -208,12 +211,12 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 		}
 
 		if completionInput.CompletionType() == CompletionTypeOptionName {
-			c.log("  Completing option names for the <comment>" + commandClass(command) + "</> command.")
+			c.log("  Completing option names for the <comment>" + command.PHPClass() + "</> command.")
 
 			suggestions.SuggestOptions(base.Definition().Options()...)
 		} else {
 			c.log(
-				"  Completing using the <comment>"+commandClass(command)+"</> class.",
+				"  Completing using the <comment>"+command.PHPClass()+"</> class.",
 				"  Completing <comment>"+completionInput.CompletionType()+"</> for <comment>"+completionInput.CompletionName()+"</>",
 			)
 			c.log("  Current value: <comment>" + completionInput.CompletionValue() + "</>")
@@ -317,6 +320,11 @@ func (c *CompleteCommand) log(messages ...string) {
 // DumpCompletionCommand dumps the shell completion script.
 type DumpCompletionCommand struct {
 	*Command
+}
+
+// PHPClass implements php.Classer.
+func (*DumpCompletionCommand) PHPClass() string {
+	return `Symfony\Component\Console\Command\DumpCompletionCommand`
 }
 
 // NewDumpCompletionCommand configures the completion command.

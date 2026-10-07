@@ -28,7 +28,7 @@ type eventMirror struct {
 func (*eventMirror) PHPOpaque() {}
 
 // PHPClass implements rpc.Object.
-func (m *eventMirror) PHPClass() string { return m.e.Class() }
+func (m *eventMirror) PHPClass() string { return m.e.PHPClass() }
 
 // MirrorBase implements rpc.Mirror.
 func (*eventMirror) MirrorBase() string { return eventBase }
@@ -458,7 +458,7 @@ func (r *Runtime) registerEvents() {
 		}
 		se, ok := e.(*eventdispatcher.ScriptEvent)
 		if !ok {
-			return nil, a.errorf("%s has no originating event", e.Class())
+			return nil, a.errorf("%s has no originating event", e.PHPClass())
 		}
 		orig, err := eventParam(a, 1)
 		if err != nil {

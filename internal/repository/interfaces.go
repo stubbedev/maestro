@@ -64,8 +64,8 @@ type RepositoryInterface interface {
 	// RepoName ports getRepoName: a name representing the repository to
 	// the user.
 	RepoName() string
-	// Class returns the PHP class name, for the plugin shim's mirrors.
-	Class() string
+	// PHPClass returns the PHP class name, for the plugin shim's mirrors.
+	PHPClass() string
 	// HasPackage ports hasPackage.
 	HasPackage(p pkg.PackageInterface) (bool, error)
 	// FindPackage ports findPackage: the first package with the name

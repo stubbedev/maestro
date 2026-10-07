@@ -41,8 +41,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#licenses`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*LicensesCommand) ClassName() string { return `Composer\Command\LicensesCommand` }
+// PHPClass implements php.Classer.
+func (*LicensesCommand) PHPClass() string { return `Composer\Command\LicensesCommand` }
 
 // licensesOf is `$package instanceof CompletePackageInterface ?
 // $package->getLicense() : []`.

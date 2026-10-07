@@ -19,6 +19,12 @@ type Opaque interface {
 	PHPOpaque()
 }
 
+// Classer is implemented by a Go value that stands for a PHP object:
+// PHPClass is get_class() of that object.
+type Classer interface {
+	PHPClass() string
+}
+
 // normalize validates a value stored into an Array or Object, converting
 // a Go int to int64.
 func normalize(v any) any {

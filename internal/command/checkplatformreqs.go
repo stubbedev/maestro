@@ -43,8 +43,8 @@ Unlike update/install, this command will ignore config.platform settings and che
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*CheckPlatformReqsCommand) ClassName() string {
+// PHPClass implements php.Classer.
+func (*CheckPlatformReqsCommand) PHPClass() string {
 	return `Composer\Command\CheckPlatformReqsCommand`
 }
 

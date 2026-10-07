@@ -84,6 +84,8 @@ type Config interface {
 // return the answer in the internal/php value model, and an error where PHP
 // throws.
 type IO interface {
+	// PHPClass is get_class($io).
+	php.Classer
 	IsInteractive() bool
 	IsVerbose() bool
 	IsVeryVerbose() bool

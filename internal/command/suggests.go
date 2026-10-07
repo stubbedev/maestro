@@ -41,8 +41,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#suggests`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*SuggestsCommand) ClassName() string { return `Composer\Command\SuggestsCommand` }
+// PHPClass implements php.Classer.
+func (*SuggestsCommand) PHPClass() string { return `Composer\Command\SuggestsCommand` }
 
 // Execute ports execute().
 func (c *SuggestsCommand) Execute(in console.Input, _ console.Output) (int, error) {

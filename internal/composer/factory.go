@@ -402,7 +402,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	}
 	root, ok := loaded.(pkg.RootPackageInterface)
 	if !ok {
-		return nil, nil, &util.LogicError{Message: "the root package loader returned a " + loaded.Class()}
+		return nil, nil, &util.LogicError{Message: "the root package loader returned a " + loaded.PHPClass()}
 	}
 	partial.SetPackage(root)
 

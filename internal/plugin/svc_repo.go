@@ -30,12 +30,7 @@ func (r *Runtime) repositoryObject(repo pkg.Repository) any {
 	if p, ok := repo.(*proxyRepository); ok {
 		return p.obj
 	}
-	class := `Composer\Repository\RepositoryInterface`
-	if c, ok := repo.(interface{ Class() string }); ok {
-		class = c.Class()
-	}
-
-	return r.bridge.object(repo, func() rpc.Object { return &service{v: repo, class: class} })
+	return r.bridge.object(repo, func() rpc.Object { return &service{v: repo, class: repo.PHPClass()} })
 }
 
 // goRepository returns the maestro repository a PHP value stands for.
@@ -103,7 +98,7 @@ func (r *Runtime) registerRepositories() {
 		repoMethod(method, func(repo repository.RepositoryInterface, a args) (any, error) {
 			w, ok := repo.(repository.WritableRepository)
 			if !ok {
-				return nil, a.errorf("%s is not writable", repo.Class())
+				return nil, a.errorf("%s is not writable", repo.PHPClass())
 			}
 
 			return fn(w, a)
@@ -113,7 +108,7 @@ func (r *Runtime) registerRepositories() {
 		repoMethod(method, func(repo repository.RepositoryInterface, a args) (any, error) {
 			w, ok := repo.(repository.InstalledRepositoryInterface)
 			if !ok {
-				return nil, a.errorf("%s is not an installed repository", repo.Class())
+				return nil, a.errorf("%s is not an installed repository", repo.PHPClass())
 			}
 
 			return fn(w, a)
@@ -470,7 +465,7 @@ func (r *Runtime) registerRepositoriesPhase5() {
 		repoMethod(method, func(repo repository.RepositoryInterface, a args) (any, error) {
 			p, ok := repo.(*repository.PlatformRepository)
 			if !ok {
-				return nil, a.errorf("%s is not a platform repository", repo.Class())
+				return nil, a.errorf("%s is not a platform repository", repo.PHPClass())
 			}
 
 			return fn(p, a)
@@ -496,7 +491,7 @@ func (r *Runtime) registerRepositoriesPhase5() {
 		repoMethod(method, func(repo repository.RepositoryInterface, a args) (any, error) {
 			c, ok := repo.(composite)
 			if !ok {
-				return nil, a.errorf("%s is not a composite repository", repo.Class())
+				return nil, a.errorf("%s is not a composite repository", repo.PHPClass())
 			}
 
 			return fn(c, a)
@@ -523,7 +518,7 @@ func (r *Runtime) registerRepositoriesPhase5() {
 		repoMethod(method, func(repo repository.RepositoryInterface, a args) (any, error) {
 			c, ok := repo.(*repository.InstalledRepository)
 			if !ok {
-				return nil, a.errorf("%s is not an InstalledRepository", repo.Class())
+				return nil, a.errorf("%s is not an InstalledRepository", repo.PHPClass())
 			}
 
 			return fn(c, a)

@@ -30,8 +30,8 @@ func init() {
 // BumpCommand is Composer\Command\BumpCommand.
 type BumpCommand struct{ *BaseCommand }
 
-// ClassName implements console.ClassNamer.
-func (*BumpCommand) ClassName() string { return `Composer\Command\BumpCommand` }
+// PHPClass implements php.Classer.
+func (*BumpCommand) PHPClass() string { return `Composer\Command\BumpCommand` }
 
 // NewBumpCommand ports new BumpCommand() (configure()).
 func NewBumpCommand() *BumpCommand {

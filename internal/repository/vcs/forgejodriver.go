@@ -38,8 +38,8 @@ func NewForgejoDriver(repoConfig *php.Array, deps Deps) *ForgejoDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *ForgejoDriver) Class() string { return forgejoDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *ForgejoDriver) PHPClass() string { return forgejoDriverType.Class }
 
 // Initialize ports ForgejoDriver::initialize.
 func (d *ForgejoDriver) Initialize() error {

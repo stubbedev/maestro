@@ -49,8 +49,8 @@ func NewGitHubDriver(repoConfig *php.Array, deps Deps) *GitHubDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *GitHubDriver) Class() string { return gitHubDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *GitHubDriver) PHPClass() string { return gitHubDriverType.Class }
 
 var (
 	gitHubRepoURL     = php.MustCompile(`#^(?:(?:https?|git)://([^/]+)/|git@([^:]+):/?)([^/]+)/([^/]+?)(?:\.git|/)?$#`)

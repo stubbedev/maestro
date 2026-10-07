@@ -48,8 +48,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#audit`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*AuditCommand) ClassName() string { return `Composer\Command\AuditCommand` }
+// PHPClass implements php.Classer.
+func (*AuditCommand) PHPClass() string { return `Composer\Command\AuditCommand` }
 
 // Execute ports execute().
 func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) {

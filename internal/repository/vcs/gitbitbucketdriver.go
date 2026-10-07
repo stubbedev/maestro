@@ -50,8 +50,8 @@ func NewGitBitbucketDriver(repoConfig *php.Array, deps Deps) *GitBitbucketDriver
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *GitBitbucketDriver) Class() string { return gitBitbucketDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *GitBitbucketDriver) PHPClass() string { return gitBitbucketDriverType.Class }
 
 var (
 	bitbucketRepoURL     = php.MustCompile(`#^https?://bitbucket\.org/([^/]+)/([^/]+?)(?:\.git|/?)?$#i`)

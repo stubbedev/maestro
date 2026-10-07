@@ -27,8 +27,8 @@ func NewScriptEvent(name string, composer Composer, io io.IO, devMode bool, args
 	return e
 }
 
-// Class implements Event.
-func (*ScriptEvent) Class() string { return `Composer\Script\Event` }
+// PHPClass implements Event.
+func (*ScriptEvent) PHPClass() string { return `Composer\Script\Event` }
 
 // Composer is getComposer().
 func (e *ScriptEvent) Composer() Composer { return e.composer }

@@ -67,8 +67,8 @@ Use --file to alter a specific file.`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*RepositoryCommand) ClassName() string { return `Composer\Command\RepositoryCommand` }
+// PHPClass implements php.Classer.
+func (*RepositoryCommand) PHPClass() string { return `Composer\Command\RepositoryCommand` }
 
 var jsonConfigStart = php.MustCompile(`{^\s*\{}`)
 

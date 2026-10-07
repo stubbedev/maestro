@@ -35,8 +35,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#depends-why`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*DependsCommand) ClassName() string { return `Composer\Command\DependsCommand` }
+// PHPClass implements php.Classer.
+func (*DependsCommand) PHPClass() string { return `Composer\Command\DependsCommand` }
 
 // Execute ports execute().
 func (c *DependsCommand) Execute(in console.Input, out console.Output) (int, error) {

@@ -25,8 +25,8 @@ func init() {
 // RemoveCommand is Composer\Command\RemoveCommand.
 type RemoveCommand struct{ *BaseCommand }
 
-// ClassName implements console.ClassNamer.
-func (*RemoveCommand) ClassName() string { return `Composer\Command\RemoveCommand` }
+// PHPClass implements php.Classer.
+func (*RemoveCommand) PHPClass() string { return `Composer\Command\RemoveCommand` }
 
 // NewRemoveCommand ports new RemoveCommand() (configure()).
 func NewRemoveCommand() *RemoveCommand {

@@ -53,8 +53,8 @@ func NewCommandEvent(name, commandName string, input console.Input, output conso
 	return e
 }
 
-// Class implements Event.
-func (*CommandEvent) Class() string { return `Composer\Plugin\CommandEvent` }
+// PHPClass implements Event.
+func (*CommandEvent) PHPClass() string { return `Composer\Plugin\CommandEvent` }
 
 // Input is getInput().
 func (e *CommandEvent) Input() console.Input { return e.input }
@@ -80,8 +80,8 @@ func NewPreCommandRunEvent(name string, input console.Input, command string) *Pr
 	return e
 }
 
-// Class implements Event.
-func (*PreCommandRunEvent) Class() string { return `Composer\Plugin\PreCommandRunEvent` }
+// PHPClass implements Event.
+func (*PreCommandRunEvent) PHPClass() string { return `Composer\Plugin\PreCommandRunEvent` }
 
 // Input is getInput().
 func (e *PreCommandRunEvent) Input() console.Input { return e.input }
@@ -110,8 +110,8 @@ func NewPreFileDownloadEvent(name string, httpDownloader http.Getter, processedU
 	return e
 }
 
-// Class implements Event.
-func (*PreFileDownloadEvent) Class() string { return `Composer\Plugin\PreFileDownloadEvent` }
+// PHPClass implements Event.
+func (*PreFileDownloadEvent) PHPClass() string { return `Composer\Plugin\PreFileDownloadEvent` }
 
 // HttpDownloader is getHttpDownloader(); in production a
 // *http.HttpDownloader.
@@ -169,8 +169,8 @@ func NewPostFileDownloadEvent(name string, fileName, checksum pkg.NullString, ur
 	return e
 }
 
-// Class implements Event.
-func (*PostFileDownloadEvent) Class() string { return `Composer\Plugin\PostFileDownloadEvent` }
+// PHPClass implements Event.
+func (*PostFileDownloadEvent) PHPClass() string { return `Composer\Plugin\PostFileDownloadEvent` }
 
 // FileName is getFileName(): the downloaded file, null for metadata.
 func (e *PostFileDownloadEvent) FileName() pkg.NullString { return e.fileName }
@@ -221,8 +221,8 @@ func NewPrePoolCreateEvent(name string, repositories []pkg.Repository, request a
 	return e
 }
 
-// Class implements Event.
-func (*PrePoolCreateEvent) Class() string { return `Composer\Plugin\PrePoolCreateEvent` }
+// PHPClass implements Event.
+func (*PrePoolCreateEvent) PHPClass() string { return `Composer\Plugin\PrePoolCreateEvent` }
 
 // Repositories is getRepositories().
 func (e *PrePoolCreateEvent) Repositories() []pkg.Repository { return e.repositories }

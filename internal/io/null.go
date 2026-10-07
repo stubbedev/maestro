@@ -12,6 +12,9 @@ type NullIO struct {
 	BaseIO
 }
 
+// PHPClass implements php.Classer.
+func (*NullIO) PHPClass() string { return `Composer\IO\NullIO` }
+
 // NewNullIO returns a NullIO.
 func NewNullIO() *NullIO {
 	n := &NullIO{}

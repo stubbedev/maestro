@@ -139,8 +139,8 @@ func NewConfigCommand() *ConfigCommand {
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ConfigCommand) ClassName() string { return `Composer\Command\ConfigCommand` }
+// PHPClass implements php.Classer.
+func (*ConfigCommand) PHPClass() string { return `Composer\Command\ConfigCommand` }
 
 // Initialize ports initialize.
 func (c *ConfigCommand) Initialize(in console.Input, out console.Output) error {

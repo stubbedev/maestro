@@ -67,8 +67,8 @@ func filterOption(repo RepositoryInterface, options *php.Array, key string) (*ph
 	return php.Compile(pkg.PackageNamesToRegexp(php.ToStrings(names), "{^(?:%s)$}iD"))
 }
 
-// Class returns the PHP class name.
-func (r *FilterRepository) Class() string { return `Composer\Repository\FilterRepository` }
+// PHPClass returns the PHP class name.
+func (r *FilterRepository) PHPClass() string { return `Composer\Repository\FilterRepository` }
 
 // RepoName ports FilterRepository::getRepoName: the wrapped repository's.
 func (r *FilterRepository) RepoName() string { return r.repo.RepoName() }

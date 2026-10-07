@@ -17,6 +17,9 @@ type BufferIO struct {
 	buffer *bytes.Buffer
 }
 
+// PHPClass implements php.Classer.
+func (*BufferIO) PHPClass() string { return `Composer\IO\BufferIO` }
+
 // NewBufferIO mirrors new BufferIO($input, $verbosity, $formatter): input is
 // parsed as a StringInput and the IO is not interactive. A zero verbosity
 // is VERBOSITY_NORMAL; a nil formatter means an undecorated default one.

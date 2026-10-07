@@ -56,8 +56,8 @@ func NewSvnDriver(repoConfig *php.Array, deps Deps) *SvnDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *SvnDriver) Class() string { return svnDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *SvnDriver) PHPClass() string { return svnDriverType.Class }
 
 // configPath reads a layout path from the repository config (isset()).
 func (d *SvnDriver) configPath(key string, p *svnPath) {

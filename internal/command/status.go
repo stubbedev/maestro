@@ -48,8 +48,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#status`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*StatusCommand) ClassName() string { return `Composer\Command\StatusCommand` }
+// PHPClass implements php.Classer.
+func (*StatusCommand) PHPClass() string { return `Composer\Command\StatusCommand` }
 
 // Execute ports execute().
 func (c *StatusCommand) Execute(in console.Input, out console.Output) (int, error) {

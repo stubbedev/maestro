@@ -331,7 +331,7 @@ func TestVcsRepository_RegisteredTypes(t *testing.T) {
 	noErr(t, err)
 
 	vcsRepo, ok := r.(*VcsRepository)
-	if !ok || vcsRepo.Class() != VcsRepositoryClass {
+	if !ok || vcsRepo.PHPClass() != VcsRepositoryClass {
 		t.Fatalf("got %T", r)
 	}
 

@@ -51,8 +51,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#outdated`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*OutdatedCommand) ClassName() string { return `Composer\Command\OutdatedCommand` }
+// PHPClass implements php.Classer.
+func (*OutdatedCommand) PHPClass() string { return `Composer\Command\OutdatedCommand` }
 
 // IsProxyCommand ports isProxyCommand.
 func (*OutdatedCommand) IsProxyCommand() bool { return true }

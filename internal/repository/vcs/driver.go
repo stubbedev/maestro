@@ -47,8 +47,8 @@ type Driver interface {
 	HasComposerFile(identifier string) (bool, error)
 	// Cleanup is cleanup().
 	Cleanup() error
-	// Class is the PHP class name (get_class()).
-	Class() string
+	// PHPClass is the PHP class name (get_class()).
+	PHPClass() string
 }
 
 // Deps are the collaborators of a driver, the constructor arguments of

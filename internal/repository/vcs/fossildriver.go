@@ -36,8 +36,8 @@ func NewFossilDriver(repoConfig *php.Array, deps Deps) *FossilDriver {
 	return d
 }
 
-// Class returns the PHP class name.
-func (d *FossilDriver) Class() string { return fossilDriverType.Class }
+// PHPClass returns the PHP class name.
+func (d *FossilDriver) PHPClass() string { return fossilDriverType.Class }
 
 // Initialize ports FossilDriver::initialize.
 func (d *FossilDriver) Initialize() error {

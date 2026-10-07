@@ -57,8 +57,8 @@ func NewArtifactRepository(repoConfig *php.Array, out mio.IO) (*ArtifactReposito
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *ArtifactRepository) Class() string { return `Composer\Repository\ArtifactRepository` }
+// PHPClass returns the PHP class name.
+func (r *ArtifactRepository) PHPClass() string { return `Composer\Repository\ArtifactRepository` }
 
 // RepoName ports ArtifactRepository::getRepoName.
 func (r *ArtifactRepository) RepoName() string { return "artifact repo (" + r.lookup + ")" }

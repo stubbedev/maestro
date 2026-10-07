@@ -50,8 +50,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#validate`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ValidateCommand) ClassName() string { return `Composer\Command\ValidateCommand` }
+// PHPClass implements php.Classer.
+func (*ValidateCommand) PHPClass() string { return `Composer\Command\ValidateCommand` }
 
 // validateExitCode is `count($errors) > 0 ? 2 : (($isStrict &&
 // count($warnings) > 0) ? 1 : 0)`.

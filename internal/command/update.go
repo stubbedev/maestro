@@ -103,8 +103,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#update-u-upgrade`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*UpdateCommand) ClassName() string { return `Composer\Command\UpdateCommand` }
+// PHPClass implements php.Classer.
+func (*UpdateCommand) PHPClass() string { return `Composer\Command\UpdateCommand` }
 
 // updateLink is an entry of a PHP array of links keyed by package name.
 type updateLink struct {

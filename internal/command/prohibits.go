@@ -36,8 +36,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#prohibits-why-not`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*ProhibitsCommand) ClassName() string { return `Composer\Command\ProhibitsCommand` }
+// PHPClass implements php.Classer.
+func (*ProhibitsCommand) PHPClass() string { return `Composer\Command\ProhibitsCommand` }
 
 // Execute ports execute().
 func (c *ProhibitsCommand) Execute(in console.Input, out console.Output) (int, error) {

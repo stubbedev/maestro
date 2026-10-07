@@ -31,8 +31,8 @@ func NewInstalledRepository(repositories []RepositoryInterface) (*InstalledRepos
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *InstalledRepository) Class() string { return `Composer\Repository\InstalledRepository` }
+// PHPClass returns the PHP class name.
+func (r *InstalledRepository) PHPClass() string { return `Composer\Repository\InstalledRepository` }
 
 // RepoName ports InstalledRepository::getRepoName.
 func (r *InstalledRepository) RepoName() string {
@@ -47,7 +47,7 @@ func (r *InstalledRepository) AddRepository(repository RepositoryInterface) erro
 		return r.CompositeRepository.AddRepository(repository)
 	}
 
-	return &util.LogicError{Message: "An InstalledRepository can not contain a repository of type " + repository.Class() + " (" + repository.RepoName() + ")"}
+	return &util.LogicError{Message: "An InstalledRepository can not contain a repository of type " + repository.PHPClass() + " (" + repository.RepoName() + ")"}
 }
 
 // FindPackagesWithReplacersAndProviders ports

@@ -97,6 +97,11 @@ type FileDownloader struct {
 	// hooks are the overrides of a subclass written in PHP (SetHooks).
 	hooks *Hooks
 	class string
+	// stockDownload is set by the constructors of the classes whose
+	// download() is FileDownloader's (FileDownloader and the archive
+	// downloaders): Prefetch may start what it requests. A class
+	// overriding it (PathDownloader) leaves it unset.
+	stockDownload bool
 	// format is the archive format store-backed downloaders extract (0
 	// for none).
 	format archive.Format
@@ -127,6 +132,7 @@ type FileDownloader struct {
 // cache garbage collection it may run fails.
 func NewFileDownloader(deps Deps) (*FileDownloader, error) {
 	d := newFileDownloader(deps, `Composer\Downloader\FileDownloader`)
+	d.stockDownload = true
 
 	return d, d.collectGarbage()
 }
@@ -197,8 +203,8 @@ func (d *FileDownloader) collectGarbage() error {
 	return nil
 }
 
-// Class is get_class().
-func (d *FileDownloader) Class() string { return d.class }
+// PHPClass implements php.Classer: get_class().
+func (d *FileDownloader) PHPClass() string { return d.class }
 
 // InstallationSource is getInstallationSource().
 func (d *FileDownloader) InstallationSource() string { return "dist" }
@@ -491,17 +497,10 @@ func sameSha1(path, sum string) bool {
 	return err == nil && after == sum
 }
 
-// postListened reports whether dispatchPost would reach a listener, which
-// may read the file it names. A dispatcher that cannot tell counts as
-// having one.
+// postListened reports whether dispatchPost may reach a listener, which
+// may read the file it names (eventdispatcher.MayListen).
 func (d *FileDownloader) postListened(st *dlState, url dlURL, checksum pkg.NullString) bool {
-	if d.events == nil {
-		return false
-	}
-
-	l, ok := d.events.(listenerChecker)
-
-	return !ok || l.WillDispatchTo(postFileDownloadEvent(st, url, checksum))
+	return eventdispatcher.MayListen(d.events, postFileDownloadEvent(st, url, checksum))
 }
 
 func postFileDownloadEvent(st *dlState, url dlURL, checksum pkg.NullString) *eventdispatcher.PostFileDownloadEvent {

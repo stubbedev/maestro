@@ -28,7 +28,7 @@ func (Handle) PHPOpaque() {}
 type Object interface {
 	php.Opaque
 	// PHPClass is the PHP class of the object's proxy or mirror.
-	PHPClass() string
+	php.Classer
 }
 
 // Mirror is a Go-owned data object PHP keeps a copy of

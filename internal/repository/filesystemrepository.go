@@ -79,8 +79,8 @@ func (r *FilesystemRepository) SetInstalledVersionsSink(sink func(versions *php.
 	r.installedVersionsSink = sink
 }
 
-// Class returns the PHP class name.
-func (r *FilesystemRepository) Class() string { return `Composer\Repository\FilesystemRepository` }
+// PHPClass returns the PHP class name.
+func (r *FilesystemRepository) PHPClass() string { return `Composer\Repository\FilesystemRepository` }
 
 // RepoName ports getRepoName (ArrayRepository's).
 func (r *FilesystemRepository) RepoName() string { return r.ArrayRepository.RepoName() }
@@ -652,8 +652,8 @@ func NewInstalledFilesystemRepository(file JSONFile, dumpVersions bool, rootPack
 	return r, nil
 }
 
-// Class returns the PHP class name.
-func (r *InstalledFilesystemRepository) Class() string {
+// PHPClass returns the PHP class name.
+func (r *InstalledFilesystemRepository) PHPClass() string {
 	return `Composer\Repository\InstalledFilesystemRepository`
 }
 

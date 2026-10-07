@@ -936,3 +936,12 @@ func TestAuditor_NeedsCompleteAdvisoryLoad(t *testing.T) {
 		})
 	}
 }
+
+// The table format needs a ConsoleIO, and the error names the IO's class
+// as get_class() does.
+func TestAuditor_TableFormatNeedsConsoleIO(t *testing.T) {
+	_, err := advisory.Auditor{}.Audit(io.NewNullIO(), getRepoSet(t), createPolicyConfig(policyOptions{abandoned: policy.AuditFail}), []pkg.PackageInterface{newCompletePackage("vendor/abandoned", "1.0.0", true)}, advisory.FormatTable, false, nil)
+	if want := `Cannot use table format with Composer\IO\NullIO`; err == nil || err.Error() != want {
+		t.Errorf("error = %v, want %s", err, want)
+	}
+}

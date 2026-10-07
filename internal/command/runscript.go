@@ -72,8 +72,8 @@ Read more at https://getcomposer.org/doc/03-cli.md#run-script-run`)
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*RunScriptCommand) ClassName() string { return `Composer\Command\RunScriptCommand` }
+// PHPClass implements php.Classer.
+func (*RunScriptCommand) PHPClass() string { return `Composer\Command\RunScriptCommand` }
 
 // Interact ports interact().
 func (c *RunScriptCommand) Interact(in console.Input, _ console.Output) error {

@@ -132,8 +132,8 @@ func orEmpty(a *php.Array) *php.Array {
 	return a
 }
 
-// Class returns ClassPackage.
-func (p *Package) Class() string { return ClassPackage }
+// PHPClass returns ClassPackage.
+func (p *Package) PHPClass() string { return ClassPackage }
 
 // Rev returns the change counter.
 func (p *Package) Rev() uint64 { return p.rev }

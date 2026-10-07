@@ -115,7 +115,7 @@ func checkException(t *testing.T, what string, err error, class, message string)
 }
 
 func shortClass(p pkg.PackageInterface) string {
-	c := p.Class()
+	c := p.PHPClass()
 
 	return c[strings.LastIndexByte(c, '\\')+1:]
 }

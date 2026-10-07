@@ -23,7 +23,7 @@ type Event interface {
 	IsPropagationStopped() bool
 	StopPropagation()
 	Rev() uint64
-	Class() string
+	PHPClass() string
 }
 
 // ComposerEvent is an event carrying the Composer instance, the IO and the
@@ -82,8 +82,8 @@ func (e *BaseEvent) StopPropagation() {
 // Rev implements Event.
 func (e *BaseEvent) Rev() uint64 { return e.rev }
 
-// Class implements Event.
-func (*BaseEvent) Class() string { return `Composer\EventDispatcher\Event` }
+// PHPClass implements Event.
+func (*BaseEvent) PHPClass() string { return `Composer\EventDispatcher\Event` }
 
 // bump records a change made by a subclass setter.
 func (e *BaseEvent) bump() { e.rev++ }
@@ -108,23 +108,23 @@ type PHPEvent struct {
 	BaseEvent
 	// H is the PHP handle of the event object.
 	H Handle
-	// PHPClass is the event's PHP class.
-	PHPClass string
-	// Context is non-nil when PHPClass extends Script\Event, PackageEvent or
+	// class is the event's PHP class.
+	class string
+	// Context is non-nil when the class extends Script\Event, PackageEvent or
 	// InstallerEvent.
 	Context *EventContext
 }
 
 // NewPHPEvent returns the Go side of the PHP event object h.
 func NewPHPEvent(h Handle, class, name string, args []string, flags *php.Array, ctx *EventContext) *PHPEvent {
-	e := &PHPEvent{H: h, PHPClass: class, Context: ctx}
+	e := &PHPEvent{H: h, class: class, Context: ctx}
 	e.init(name, args, flags)
 
 	return e
 }
 
-// Class implements Event.
-func (e *PHPEvent) Class() string { return e.PHPClass }
+// PHPClass implements Event.
+func (e *PHPEvent) PHPClass() string { return e.class }
 
 // composerContext is the Composer, IO and dev mode of an event that has
 // them (`$event instanceof ScriptEvent || PackageEvent || InstallerEvent`).

@@ -125,11 +125,10 @@ var (
 	_ downloader.ChangeReporter       = (*GitDownloader)(nil)
 	_ downloader.VcsCapableDownloader = (*GitDownloader)(nil)
 	_ downloader.DvcsDownloader       = (*GitDownloader)(nil)
-	_ downloader.Classer              = (*GitDownloader)(nil)
 )
 
-// Class returns the PHP class name.
-func (d *vcsDownloader) Class() string { return d.class }
+// PHPClass implements php.Classer.
+func (d *vcsDownloader) PHPClass() string { return d.class }
 
 // InstallationSource is getInstallationSource().
 func (d *vcsDownloader) InstallationSource() string { return "source" }
@@ -472,13 +471,11 @@ func askString(answer any) string {
 // VcsRepository (internal/repository/vcs, which this package cannot
 // import).
 func vcsRepoConfig(p pkg.PackageInterface) (*php.Array, bool) {
-	repo, ok := p.Repository().(interface {
-		Class() string
-		RepoConfig() *php.Array
-	})
-	if !ok || repo.Class() != `Composer\Repository\VcsRepository` {
+	repo := p.Repository()
+	c, ok := repo.(interface{ RepoConfig() *php.Array })
+	if !ok || repo.PHPClass() != `Composer\Repository\VcsRepository` {
 		return nil, false
 	}
 
-	return repo.RepoConfig(), true
+	return c.RepoConfig(), true
 }

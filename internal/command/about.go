@@ -26,8 +26,8 @@ func NewAboutCommand() *AboutCommand {
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*AboutCommand) ClassName() string { return `Composer\Command\AboutCommand` }
+// PHPClass implements php.Classer.
+func (*AboutCommand) PHPClass() string { return `Composer\Command\AboutCommand` }
 
 // Execute implements console.Executor.
 func (c *AboutCommand) Execute(console.Input, console.Output) (int, error) {

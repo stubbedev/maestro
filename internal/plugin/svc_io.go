@@ -222,7 +222,7 @@ func (r *Runtime) registerIO() {
 	method("enableDebugging", func(out io.IO, a args) (any, error) {
 		c, ok := out.(interface{ EnableDebugging(time.Time) })
 		if !ok {
-			return nil, unsupportedf("maestro does not support %s::enableDebugging() in plugins yet", ioClass(out))
+			return nil, unsupportedf("maestro does not support %s::enableDebugging() in plugins yet", out.PHPClass())
 		}
 		sec, frac := math.Modf(php.ToFloat(a.at(1)))
 		c.EnableDebugging(time.Unix(int64(sec), int64(frac*1e9)))
@@ -237,7 +237,7 @@ func (r *Runtime) registerIO() {
 			EnableTimestampsFunc(func(time.Time) string)
 		})
 		if !ok {
-			return nil, unsupportedf("maestro does not support %s::enableTimestamps() in plugins yet", ioClass(out))
+			return nil, unsupportedf("maestro does not support %s::enableTimestamps() in plugins yet", out.PHPClass())
 		}
 		loc, err := time.LoadLocation(a.str(2))
 		if err != nil {
@@ -300,9 +300,6 @@ func joinMessages(messages []string, newline bool) string {
 
 	return strings.Join(messages, "")
 }
-
-// ioClass is the PHP class maestro's IO crosses as.
-func ioClass(out io.IO) string { return (&ioMirror{io: out}).PHPClass() }
 
 // diagnosticKinds are the kinds of `ui.diagnostic`.
 var diagnosticKinds = map[string]ui.Kind{"deprecation": ui.Deprecation, "note": ui.Note, "warning": ui.Warning}

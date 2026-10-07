@@ -135,8 +135,8 @@ func NewRepository(config *php.Array, deps repository.Deps) (repository.Reposito
 	return NewVcsRepository(config, deps.IO, deps.Config.ForHTTP(), httpDownloader, process, Options{})
 }
 
-// Class returns the PHP class name.
-func (r *VcsRepository) Class() string { return VcsRepositoryClass }
+// PHPClass returns the PHP class name.
+func (r *VcsRepository) PHPClass() string { return VcsRepositoryClass }
 
 // RepoName ports VcsRepository::getRepoName. When no driver can be set
 // up, where PHP throws, the configured type names the driver.
@@ -144,7 +144,7 @@ func (r *VcsRepository) RepoName() string {
 	driverType := r.typ
 
 	if driver, err := r.Driver(); err == nil && driver != nil {
-		driverType = driver.Class()
+		driverType = driver.PHPClass()
 
 		for _, d := range r.drivers {
 			if d.Type.Class == driverType {

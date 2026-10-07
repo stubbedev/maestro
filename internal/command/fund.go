@@ -34,8 +34,8 @@ func NewFundCommand() *FundCommand {
 	return c
 }
 
-// ClassName implements console.ClassNamer.
-func (*FundCommand) ClassName() string { return `Composer\Command\FundCommand` }
+// PHPClass implements php.Classer.
+func (*FundCommand) PHPClass() string { return `Composer\Command\FundCommand` }
 
 // Execute ports execute().
 func (c *FundCommand) Execute(in console.Input, _ console.Output) (int, error) {
