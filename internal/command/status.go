@@ -125,6 +125,17 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 	guesser := version.NewVersionGuesser(version.NewProcessExecutor(process), out)
 	var arrayDumper dumper.ArrayDumper
 
+	// the local changes of each package, in package order: a downloader
+	// that can compares in the background while the next packages are
+	// looked at (deliberate deviation 3), but at -vvv, where a failure
+	// stops the command at its package
+	type localChanges struct {
+		targetDir string
+		symlink   bool
+		changes   func() (pkg.NullString, error)
+	}
+	var reported []localChanges
+
 	// list packages
 	packages, err := installedRepo.CanonicalPackages()
 	if err != nil {
@@ -144,17 +155,21 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 		}
 
 		if reporter, ok := dl.(downloader.ChangeReporter); ok {
+			r := localChanges{targetDir: targetDir}
 			if fi, err := os.Lstat(targetDir); err == nil && fi.Mode()&os.ModeSymlink != 0 {
-				errs.Set(targetDir, targetDir+" is a symbolic link.")
+				r.symlink = true
 			}
 
-			changes, err := reporter.LocalChanges(p, targetDir)
-			if err != nil {
-				return 0, err
+			if async, ok := dl.(downloader.AsyncChangeReporter); ok && !out.IsDebug() {
+				r.changes = async.LocalChangesAsync(p, targetDir)
+			} else {
+				changes, err := reporter.LocalChanges(p, targetDir)
+				if err != nil {
+					return 0, err
+				}
+				r.changes = func() (pkg.NullString, error) { return changes, nil }
 			}
-			if changes.Valid {
-				errs.Set(targetDir, changes.S)
-			}
+			reported = append(reported, r)
 		}
 
 		if vcs, ok := dl.(downloader.VcsCapableDownloader); ok {
@@ -212,6 +227,19 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 			if unpushed.Valid && php.ToBool(unpushed.S) {
 				unpushedChanges.Set(targetDir, unpushed.S)
 			}
+		}
+	}
+
+	for _, r := range reported {
+		if r.symlink {
+			errs.Set(r.targetDir, r.targetDir+" is a symbolic link.")
+		}
+		changes, err := r.changes()
+		if err != nil {
+			return 0, err
+		}
+		if changes.Valid {
+			errs.Set(r.targetDir, changes.S)
 		}
 	}
 

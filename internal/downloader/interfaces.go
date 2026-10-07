@@ -43,6 +43,13 @@ type ChangeReporter interface {
 	LocalChanges(p pkg.PackageInterface, path string) (pkg.NullString, error)
 }
 
+// AsyncChangeReporter is a ChangeReporter that can compare in the
+// background: LocalChangesAsync starts what LocalChanges does and returns
+// what waits for its result.
+type AsyncChangeReporter interface {
+	LocalChangesAsync(p pkg.PackageInterface, path string) func() (pkg.NullString, error)
+}
+
 // DvcsDownloader is DvcsDownloaderInterface.
 type DvcsDownloader interface {
 	// UnpushedChanges is getUnpushedChanges().

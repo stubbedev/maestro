@@ -31,6 +31,9 @@ func realWorldScenarios() []scenario {
 				{args: with("dump-autoload", "-o"), dir: "app"},
 				{args: with("show"), dir: "app"},
 				{args: with("update", "--dry-run"), dir: "app"},
+				// local changes: several in one directory, in its order
+				{args: with("status"), dir: "app", setup: editVendor},
+				{args: with("status", "-v"), dir: "app"},
 				// the latest versions: looked up one after another, their
 				// requests started at once
 				{args: with("outdated"), dir: "app"},
@@ -80,6 +83,36 @@ func realWorldScenarios() []scenario {
 				{args: with("validate")},
 			},
 		},
+	}
+}
+
+// editVendor changes the laravel project's installed files as status
+// reports them: files appended to, one added (and one empty, which is
+// not compared), one removed, several in one directory.
+func editVendor(t *testing.T, root string) {
+	t.Helper()
+
+	vendor := filepath.Join(root, "app", "vendor")
+	for _, rel := range []string{"laravel/framework/src/Illuminate/Support/Str.php", "nesbot/carbon/src/Carbon/Carbon.php", "nesbot/carbon/src/Carbon/CarbonImmutable.php"} {
+		f, err := os.OpenFile(filepath.Join(vendor, rel), os.O_APPEND|os.O_WRONLY, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = f.WriteString("// changed\n")
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	for rel, content := range map[string]string{"laravel/framework/src/Illuminate/Support/Added.php": "<?php\n", "psr/log/src/Empty.php": ""} {
+		if err := os.WriteFile(filepath.Join(vendor, rel), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Remove(filepath.Join(vendor, "symfony/console/Application.php")); err != nil {
+		t.Fatal(err)
 	}
 }
 

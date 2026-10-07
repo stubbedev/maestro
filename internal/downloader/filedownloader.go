@@ -11,6 +11,7 @@ import (
 	"fmt"
 	iofs "io/fs"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -836,34 +837,49 @@ func (d *FileDownloader) ownProcessURL(p pkg.PackageInterface, url string) (stri
 
 // LocalChanges is getLocalChanges($package, $path).
 func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.NullString, error) {
+	return d.localChanges(p, path, false)()
+}
+
+// LocalChangesAsync is LocalChanges with the comparison of the trees and
+// the removal of the one downloaded (without its rm -rf process, which
+// only -vvv shows) run in the background, the waiting for which the
+// function it returns does; the download and install of that tree, which
+// dispatch events and use the files cache, run at once.
+func (d *FileDownloader) LocalChangesAsync(p pkg.PackageInterface, path string) func() (pkg.NullString, error) {
+	return d.localChanges(p, path, true)
+}
+
+// compareSlots bounds the comparisons LocalChangesAsync runs at once.
+var compareSlots = make(chan struct{}, runtime.GOMAXPROCS(0))
+
+// localChanges is getLocalChanges(), its comparison and removal of the
+// downloaded tree run in the background with async.
+func (d *FileDownloader) localChanges(p pkg.PackageInterface, path string, async bool) func() (pkg.NullString, error) {
 	c := call{mio.NewNullIO(), false}
 	targetDir := util.TrimTrailingSlash(path)
+	compareDir := targetDir + "_compare"
 
-	output, e := func() (string, error) {
-		if php.IsDir(targetDir + "_compare") {
-			if _, err := d.fs.RemoveDirectory(targetDir + "_compare"); err != nil {
-				return "", err
+	result := func(output string, e error) (pkg.NullString, error) {
+		if e != nil {
+			if d.io.IsDebug() {
+				return pkg.NullString{}, e
 			}
+
+			class, _ := phperr.ClassOf(e)
+
+			return pkg.Str("Failed to detect changes: [" + class + "] " + e.Error()), nil
 		}
 
-		promise, err := d.self.download(c, p, targetDir+"_compare", nil)
-		if err != nil {
-			return "", err
-		}
+		return pkg.NonEmpty(php.Trim(output)), nil
+	}
 
-		d.http.Wait()
+	if err := d.downloadToCompare(c, p, compareDir); err != nil {
+		return func() (pkg.NullString, error) { return result("", err) }
+	}
 
-		// the download may still extract into the store after its request
-		if _, err := promise.Await(); err != nil {
-			return "", err
-		}
-
-		if err := await(d.self.install(c, p, targetDir+"_compare")); err != nil {
-			return "", err
-		}
-
+	compare := func(remove func(string) (bool, error)) (string, error) {
 		var cmp comparer.Comparer
-		cmp.SetSource(targetDir + "_compare")
+		cmp.SetSource(compareDir)
 		cmp.SetUpdate(targetDir)
 
 		if err := cmp.DoCompare(); err != nil {
@@ -872,24 +888,53 @@ func (d *FileDownloader) LocalChanges(p pkg.PackageInterface, path string) (pkg.
 
 		output := cmp.GetChangedAsString(true, false)
 
-		if _, err := d.fs.RemoveDirectory(targetDir + "_compare"); err != nil {
+		if _, err := remove(compareDir); err != nil {
 			return "", err
 		}
 
 		return output, nil
-	}()
-
-	if e != nil {
-		if d.io.IsDebug() {
-			return pkg.NullString{}, e
-		}
-
-		class, _ := phperr.ClassOf(e)
-
-		return pkg.Str("Failed to detect changes: [" + class + "] " + e.Error()), nil
 	}
 
-	return pkg.NonEmpty(php.Trim(output)), nil
+	if !async {
+		output, err := compare(d.fs.RemoveDirectory)
+
+		return func() (pkg.NullString, error) { return result(output, err) }
+	}
+
+	done := make(chan func() (pkg.NullString, error), 1)
+	go func() {
+		compareSlots <- struct{}{}
+		defer func() { <-compareSlots }()
+
+		output, err := compare(util.RemoveDirectoryPhp)
+		done <- func() (pkg.NullString, error) { return result(output, err) }
+	}()
+
+	return func() (pkg.NullString, error) { return (<-done)() }
+}
+
+// downloadToCompare is getLocalChanges()'s download and install of the
+// package into compareDir, emptied first.
+func (d *FileDownloader) downloadToCompare(c call, p pkg.PackageInterface, compareDir string) error {
+	if php.IsDir(compareDir) {
+		if _, err := d.fs.RemoveDirectory(compareDir); err != nil {
+			return err
+		}
+	}
+
+	promise, err := d.self.download(c, p, compareDir, nil)
+	if err != nil {
+		return err
+	}
+
+	d.http.Wait()
+
+	// the download may still extract into the store after its request
+	if _, err := promise.Await(); err != nil {
+		return err
+	}
+
+	return await(d.self.install(c, p, compareDir))
 }
 
 // vendorDir is $this->config->get('vendor-dir').

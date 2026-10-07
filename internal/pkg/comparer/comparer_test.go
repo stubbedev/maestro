@@ -36,8 +36,12 @@ func build(t *testing.T, dir string, entries []entry) {
 			err = os.MkdirAll(full, 0o777)
 		case "link":
 			err = os.Symlink(e[2], full)
+		case "hardlink":
+			err = os.Link(filepath.Join(filepath.Dir(dir), "source", e[2]), full)
 		default:
-			err = os.WriteFile(full, []byte(e[2]), 0o666)
+			if err = os.WriteFile(full, []byte(e[2]), 0o666); err == nil && e[1] == "unreadable" {
+				err = os.Chmod(full, 0)
+			}
 		}
 
 		if err != nil {
@@ -92,6 +96,11 @@ func TestOracle_Comparer(t *testing.T) {
 
 		var asString string
 		_ = json.Unmarshal(c[4], &asString)
+
+		if os.Geteuid() == 0 && slices.ContainsFunc(append(source, update...), func(e entry) bool { return e[1] == "unreadable" }) {
+			// root reads what nobody may
+			continue
+		}
 
 		base := t.TempDir()
 		build(t, filepath.Join(base, "source"), source)
