@@ -372,6 +372,9 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string
 		local := ids.local()
 
 		var buf, replacesPart, conflictPart []byte
+		hasher := dependencyHasher{constraintString: constraintString}
+		// the groups of the worker's packages, each package's a slice of it
+		var groups []packageGroup
 
 		return func(from, to int) {
 			for i := from; i < to; i++ {
@@ -381,7 +384,7 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string
 				}
 
 				h := &out[i]
-				buf = appendDependencyHash(buf[:0], p, constraintString)
+				buf = hasher.appendHash(buf[:0], p)
 				h.dependencyHash = local.id(buf)
 				version := p.Version()
 
@@ -389,6 +392,7 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string
 				// the package (and name), so they are computed once rather than for
 				// every require constraint.
 				replacesDone := false
+				groupsStart := len(groups)
 
 				for _, packageName := range p.Names(false) {
 					name, ok := requires[packageName]
@@ -412,9 +416,10 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string
 						if len(buf) == 0 {
 							continue
 						}
-						h.groups = append(h.groups, packageGroup{name: name, hash: local.id(buf)})
+						groups = append(groups, packageGroup{name: name, hash: local.id(buf)})
 					}
 				}
+				h.groups = groups[groupsStart:len(groups):len(groups)]
 			}
 		}
 	}
@@ -449,8 +454,74 @@ func appendConflictHashPart(dst []byte, conflicts []namedMatcher, version string
 	return dst
 }
 
+// dependencyHasher appends what calculateDependencyHash returns, reusing
+// its scratch space from one package to the next.
+type dependencyHasher struct {
+	// constraintString is (string) $constraint.
+	constraintString func(semver.ConstraintInterface) string
+	entries          []dependencyEntry
+}
+
+// dependencyEntry is an entry of calculateDependencyHash's $subhash.
+type dependencyEntry struct {
+	target     string
+	constraint semver.ConstraintInterface
+}
+
+// appendHash appends calculateDependencyHash($p).
+func (h *dependencyHasher) appendHash(hash []byte, p pkg.PackageInterface) []byte {
+	start := len(hash)
+	for _, section := range [...]struct {
+		key   string
+		links pkg.Links
+	}{
+		{"requires", p.Requires()},
+		{"conflicts", p.Conflicts()},
+		{"replaces", p.Replaces()},
+		{"provides", p.Provides()},
+	} {
+		if section.links.Len() == 0 {
+			continue
+		}
+
+		// start new hash section
+		hash = append(hash, section.key...)
+		hash = append(hash, ':')
+
+		// $subhash[$link->getTarget()] = (string) $link->getConstraint(),
+		// then ksort($subhash): in byte order, unless a target can be a
+		// numeric key, when ksort() is left to do it.
+		h.entries = h.entries[:0]
+		for link := range section.links.Values() {
+			target := link.Target()
+			if target == "" || strings.IndexByte(numericKeyStart, target[0]) >= 0 {
+				return appendDependencyHash(hash[:start], p, h.constraintString)
+			}
+			h.entries = append(h.entries, dependencyEntry{target: target, constraint: link.Constraint()})
+		}
+		// stable, so that of the entries of one target the last one, whose
+		// constraint $subhash keeps, is the last of its run
+		slices.SortStableFunc(h.entries, func(a, b dependencyEntry) int { return strings.Compare(a.target, b.target) })
+		for i, entry := range h.entries {
+			if i+1 < len(h.entries) && h.entries[i+1].target == entry.target {
+				continue
+			}
+			hash = append(hash, entry.target...)
+			hash = append(hash, '@')
+			hash = append(hash, h.constraintString(entry.constraint)...)
+		}
+	}
+
+	return hash
+}
+
+// numericKeyStart are the bytes an array key that PHP may treat as a
+// number (or compare as one) can start with.
+const numericKeyStart = "0123456789+-. \t\n\r\v\f"
+
 // appendDependencyHash appends what calculateDependencyHash returns;
-// constraintString is (string) $constraint.
+// constraintString is (string) $constraint. It follows the PHP code step by
+// step, for the packages whose targets dependencyHasher leaves to ksort().
 func appendDependencyHash(hash []byte, p pkg.PackageInterface, constraintString func(semver.ConstraintInterface) string) []byte {
 	for _, section := range [...]struct {
 		key   string
@@ -500,7 +571,7 @@ func appendDependencyHash(hash []byte, p pkg.PackageInterface, constraintString 
 func ksortStrings(keys []string) {
 	numeric := false
 	for _, k := range keys {
-		if k == "" || strings.IndexByte("0123456789+-. \t\n\r\v\f", k[0]) >= 0 {
+		if k == "" || strings.IndexByte(numericKeyStart, k[0]) >= 0 {
 			numeric = true
 
 			break
