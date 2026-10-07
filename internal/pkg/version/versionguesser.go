@@ -7,7 +7,6 @@ package version
 import (
 	"math"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -82,12 +81,13 @@ func absentTool(command []string) bool {
 		return false
 	}
 
-	for _, dir := range filepath.SplitList(path) {
-		if !filepath.IsAbs(dir) {
-			return false
-		}
+	search := util.SearchPath(path, command[0])
+	if search.Relative {
+		return false
+	}
 
-		if fi, err := os.Stat(filepath.Join(dir, command[0])); err == nil && !fi.IsDir() {
+	for _, hit := range search.Hits {
+		if !hit.Dir {
 			return false
 		}
 	}

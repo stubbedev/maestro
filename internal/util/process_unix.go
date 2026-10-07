@@ -6,11 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -54,23 +51,17 @@ func directCommand(args []string, env []string) *exec.Cmd {
 		}
 	}
 
-	for _, dir := range filepath.SplitList(path) {
-		// the shell resolves a relative entry against the child's
-		// directory: leave those to it
-		if !filepath.IsAbs(dir) {
-			return nil
-		}
-
-		file := dir + "/" + args[0]
-		if fi, err := os.Stat(file); err == nil && fi.Mode().IsRegular() && unix.Access(file, unix.X_OK) == nil {
-			cmd := exec.Command(file, args[1:]...) //nolint:gosec // running VCS commands is the point.
-			cmd.Args[0] = args[0]
-
-			return cmd
-		}
+	// a relative entry, which the shell resolves against the child's
+	// directory, leaves the rest to the shell
+	file := SearchPath(path, args[0]).Executable()
+	if file == "" {
+		return nil
 	}
 
-	return nil
+	cmd := exec.Command(file, args[1:]...) //nolint:gosec // running VCS commands is the point.
+	cmd.Args[0] = args[0]
+
+	return cmd
 }
 
 // ExitStatus returns the exit code, 128+signal for a process killed by a
