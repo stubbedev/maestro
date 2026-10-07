@@ -138,7 +138,7 @@ func (p *CompletePackage) adoptRest(full *CompletePackage) {
 // SkeletonMatches reports whether skeleton, a skeleton package (or its
 // alias) whose other properties are then loaded, is the package (or
 // alias) eager, the same version loaded in full: equal in every property
-// but the change counter.
+// but the change counters.
 func SkeletonMatches(skeleton, eager PackageInterface) bool {
 	sa, sIsAlias := skeleton.(*CompleteAliasPackage)
 	ea, eIsAlias := eager.(*CompleteAliasPackage)
@@ -148,6 +148,7 @@ func SkeletonMatches(skeleton, eager PackageInterface) bool {
 	if sIsAlias {
 		s, e := sa.AliasPackage, ea.AliasPackage
 		s.rev, e.rev = 0, 0
+		s.idRev, e.idRev = 0, 0
 		s.aliasOf, e.aliasOf = nil, nil
 		if !reflect.DeepEqual(s, e) {
 			return false
@@ -163,6 +164,7 @@ func SkeletonMatches(skeleton, eager PackageInterface) bool {
 	s.need()
 	sc, ec := *s, *e
 	sc.rev, ec.rev = 0, 0
+	sc.idRev, ec.idRev = 0, 0
 	sc.lazy = nil
 
 	return reflect.DeepEqual(sc, ec)

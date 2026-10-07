@@ -138,6 +138,9 @@ type PackageInterface interface {
 	// Rev changes whenever a setter changes the package (or, for an
 	// alias, the aliased package).
 	Rev() uint64
+	// FieldRev is Rev without the changes of the id (SetID), which the
+	// pool numbers the packages with.
+	FieldRev() uint64
 	// PHPClass returns the concrete PHP class name (PHPClass* constants).
 	PHPClass() string
 

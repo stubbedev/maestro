@@ -88,7 +88,7 @@ class Package extends BasePackage
 
     public function getExtra(): array
     {
-        \Maestro\Shim\LazyPackages::load($this);
+        \Maestro\Shim\LazyPackages::load($this, 'extra');
         return $this->extra;
     }
 
@@ -202,31 +202,31 @@ class Package extends BasePackage
 
     public function getRequires(): array
     {
-        \Maestro\Shim\LazyPackages::load($this);
+        \Maestro\Shim\LazyPackages::load($this, 'links');
         return $this->requires;
     }
 
     public function getConflicts(): array
     {
-        \Maestro\Shim\LazyPackages::load($this);
+        \Maestro\Shim\LazyPackages::load($this, 'links');
         return $this->conflicts;
     }
 
     public function getProvides(): array
     {
-        \Maestro\Shim\LazyPackages::load($this);
+        \Maestro\Shim\LazyPackages::load($this, 'links');
         return $this->provides;
     }
 
     public function getReplaces(): array
     {
-        \Maestro\Shim\LazyPackages::load($this);
+        \Maestro\Shim\LazyPackages::load($this, 'links');
         return $this->replaces;
     }
 
     public function getDevRequires(): array
     {
-        \Maestro\Shim\LazyPackages::load($this);
+        \Maestro\Shim\LazyPackages::load($this, 'links');
         return $this->devRequires;
     }
 

@@ -58,7 +58,10 @@ func (a *AliasPackage) init(aliasOf PackageInterface, version, prettyVersion str
 func (a *AliasPackage) PHPClass() string { return ClassAliasPackage }
 
 // Rev returns the change counter of the alias plus the aliased package's.
-func (a *AliasPackage) Rev() uint64 { return a.rev + a.aliasOf.Rev() }
+func (a *AliasPackage) Rev() uint64 { return a.rev + a.idRev + a.aliasOf.Rev() }
+
+// FieldRev returns Rev without the changes of either package's id.
+func (a *AliasPackage) FieldRev() uint64 { return a.rev + a.aliasOf.FieldRev() }
 
 // Clone ports `clone $alias` (the aliased package stays shared).
 func (a *AliasPackage) Clone() *AliasPackage {

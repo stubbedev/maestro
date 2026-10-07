@@ -104,7 +104,10 @@ type basePackage struct {
 	name       string
 	prettyName string
 	repository Repository
-	rev        uint64
+	// rev counts the changes of every field but the id, idRev those of
+	// the id (Rev is their sum).
+	rev   uint64
+	idRev uint64
 }
 
 func newBasePackage(name string) basePackage {
@@ -122,7 +125,7 @@ func (b *basePackage) PrettyName() string { return b.prettyName }
 // SetID ports BasePackage::setId.
 func (b *basePackage) SetID(id int) {
 	b.id = id
-	b.rev++
+	b.idRev++
 }
 
 // ID ports BasePackage::getId.

@@ -23,6 +23,13 @@ const packageBase = `Composer\Package\BasePackage`
 // back.
 const releaseDateLayout = "2006-01-02T15:04:05.000000-07:00"
 
+// lazyGroups are the groups of fields PHP fetches the fields of a lazy
+// package by (Maestro\Shim\LazyPackages::GROUPS), as bits.
+var lazyGroups = map[string]uint32{"links": 1, "extra": 2, "rest": 4}
+
+// allLazyGroups has every bit of lazyGroups.
+const allLazyGroups = 7
+
 // packageMirror is a maestro package as PHP mirrors it.
 type packageMirror struct {
 	r *Runtime
@@ -31,6 +38,12 @@ type packageMirror struct {
 	// §5.3 "Lazy snapshot tiers"): PRE_POOL_CREATE's package lists send
 	// them, PHP asks for the rest (`pkg.load`) when a getter needs it.
 	lazy atomic.Bool
+	// loaded are the groups of fields PHP fetched since it last got the
+	// core fields (lazyGroups); lazy ends when it has them all.
+	loaded atomic.Uint32
+	// sent are the revisions of the last snapshot or changes made for
+	// PHP (MirrorChanges sends the id alone when only it changed since).
+	sent atomic.Pointer[mirrorRevs]
 }
 
 // PHPOpaque implements php.Opaque.
@@ -51,11 +64,59 @@ func (m *packageMirror) ApplyMirror(*php.Array) error {
 	return &rpc.ProtocolError{Message: "package fields are not synced from PHP"}
 }
 
+// MirrorChanges implements rpc.DeltaMirror: when only the id changed
+// since PHP last got the package (the pool numbers the packages after
+// PRE_POOL_CREATE sent them), the id alone.
+func (m *packageMirror) MirrorChanges(since uint64) (*php.Array, bool) {
+	sent := m.sent.Load()
+	if sent == nil || sent.rev != since || sent.fieldRev != m.p.FieldRev() {
+		return nil, false
+	}
+	m.record()
+
+	// without the name: PHP leaves the fields it waits for waiting
+	return php.ArrayOf("id", int64(m.p.ID())), true
+}
+
+// group returns a group of the fields of a lazy package (lazyGroups) for
+// PHP, which then has it.
+func (m *packageMirror) group(group uint32) *php.Array {
+	s := php.NewArrayCap(32)
+	switch group {
+	case lazyGroups["links"]:
+		setLinks(s, m.p)
+	case lazyGroups["extra"]:
+		s.Set("extra", m.p.Extra())
+	default:
+		setRest(s, m.p)
+	}
+	if m.loaded.Or(group)|group == allLazyGroups {
+		m.lazy.Store(false)
+	}
+
+	return s
+}
+
+// mirrorRevs are the revisions of a package as PHP last got it: Rev and
+// FieldRev.
+type mirrorRevs struct {
+	rev, fieldRev uint64
+}
+
+// record notes the package's revisions as what PHP gets.
+func (m *packageMirror) record() {
+	m.sent.Store(&mirrorRevs{rev: m.p.Rev(), fieldRev: m.p.FieldRev()})
+}
+
 // MirrorSnapshot implements rpc.Mirror: every property of the package's
 // class (Maestro\Shim\Adapter\PackageAdapter).
 func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
+	m.record()
 	p := m.p
 	if m.lazy.Load() {
+		// PHP fetches every group again
+		m.loaded.Store(0)
+
 		return php.ArrayOf(
 			"id", int64(p.ID()),
 			"name", p.Name(),
@@ -87,6 +148,16 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 		return s, nil
 	}
 
+	setRest(s, p)
+	s.Set("extra", p.Extra())
+	setLinks(s, p)
+
+	return s, nil
+}
+
+// setRest sets the fields of a package but its id, names, extra and
+// links: the "rest" group of the lazy tier.
+func setRest(s *php.Array, p pkg.PackageInterface) {
 	s.Set("type", rawType(p).Value())
 	s.Set("targetDir", p.TargetDir().Value())
 	s.Set("installationSource", p.InstallationSource().Value())
@@ -106,12 +177,10 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 	} else {
 		s.Set("releaseDate", nil)
 	}
-	s.Set("extra", p.Extra())
 	s.Set("binaries", p.Binaries())
 	s.Set("dev", p.IsDev())
 	s.Set("stability", p.Stability())
 	s.Set("notificationUrl", p.NotificationURL().Value())
-	setLinks(s, p)
 	s.Set("suggests", p.Suggests())
 	s.Set("autoload", p.Autoload())
 	s.Set("devAutoload", p.DevAutoload())
@@ -143,8 +212,6 @@ func (m *packageMirror) MirrorSnapshot() (*php.Array, error) {
 		s.Set("references", r.References())
 		s.Set("aliases", r.Aliases())
 	}
-
-	return s, nil
 }
 
 func setLinks(s *php.Array, p pkg.PackageInterface) {
@@ -335,22 +402,22 @@ func (r *Runtime) registerPackages() {
 
 		return p.SetRepository(repo)
 	})
-	// The fields of packages PHP got with their core fields only, in the
-	// order asked (LazyPackages fetches a batch per round trip).
+	// A group of fields of packages PHP got with their core fields only
+	// (param 0 names it), in the order asked: LazyPackages fetches a batch
+	// per round trip.
 	r.Handle("pkg.load", func(v any) (any, error) {
 		a := argsOf("pkg.load", v)
-		out := php.NewArrayCap(len(a.list))
-		for i, p := range a.list {
+		group, ok := lazyGroups[a.str(0)]
+		if !ok {
+			return nil, a.errorf("no group of fields %q", a.str(0))
+		}
+		out := php.NewArrayCap(len(a.list) - 1)
+		for i, p := range a.list[1:] {
 			m, ok := p.(*packageMirror)
 			if !ok {
-				return nil, a.errorf("param %d is not a package maestro knows (a %T)", i, p)
+				return nil, a.errorf("param %d is not a package maestro knows (a %T)", i+1, p)
 			}
-			m.lazy.Store(false)
-			s, err := m.MirrorSnapshot()
-			if err != nil {
-				return nil, err
-			}
-			out.Append(s)
+			out.Append(m.group(group))
 		}
 
 		return out, nil

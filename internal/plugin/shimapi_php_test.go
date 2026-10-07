@@ -187,8 +187,8 @@ func TestShimAPI_Packages(t *testing.T) {
 }
 
 // TestShimAPI_LazyPackages checks the lazy tier of packages
-// (docs/PLUGINS.md §5.3): PHP gets the fields of a list's packages it
-// reads, a batch of them per round trip.
+// (docs/PLUGINS.md §5.3): PHP gets the group of fields (links, extra, the
+// rest) of a list's packages it reads, a batch of them per round trip.
 func TestShimAPI_LazyPackages(t *testing.T) {
 	requirePHP(t)
 
@@ -229,17 +229,18 @@ func TestShimAPI_LazyPackages(t *testing.T) {
 		return strings.Join(out, " ")
 	}
 
-	// A list read in full: a round trip per 64 packages.
+	// A list's links and extra read in full: a round trip per group and
+	// 64 packages.
 	packages, l := list(150)
 	if got := evalPHP(t, rt, readAll, php.ArrayOf("list", l)); got != want(packages) {
 		t.Errorf("PHP read %v", got)
 	}
-	if loads != 3 {
-		t.Errorf("150 packages took %d pkg.load calls, want 3", loads)
+	if loads != 6 {
+		t.Errorf("150 packages took %d pkg.load calls, want 6", loads)
 	}
 
 	// One package of a list: its batch holds the first others, read
-	// without another round trip.
+	// without another round trip for the same group.
 	loads = 0
 	packages, l = list(10)
 	if got := evalPHP(t, rt, `return $vars['list'][5]->getExtra()['i'];`, php.ArrayOf("list", l)); got != int64(5) {
@@ -248,14 +249,38 @@ func TestShimAPI_LazyPackages(t *testing.T) {
 	if got := evalPHP(t, rt, readAll, php.ArrayOf("list", l)); got != want(packages) {
 		t.Errorf("PHP read %v", got)
 	}
-	if loads != 1 {
-		t.Errorf("10 packages took %d pkg.load calls, want 1", loads)
+	if loads != 2 {
+		t.Errorf("10 packages took %d pkg.load calls, want 2", loads)
+	}
+	// the rest
+	if got := evalPHP(t, rt, `return [$vars['list'][7]->getPrettyVersion(), $vars['list'][7]->getAutoload(), $vars['list'][7]->getBinaries()];`, php.ArrayOf("list", l)).(*php.Array).Values(); got[0] != "1.0.7" {
+		t.Errorf("PHP read %v", got)
+	}
+	if loads != 3 {
+		t.Errorf("10 packages took %d pkg.load calls, want 3", loads)
 	}
 
 	// A change maestro makes to a fetched package reaches PHP.
 	packages[3].(*pkg.CompletePackage).SetExtra(php.ArrayOf("i", int64(33)))
 	if got := evalPHP(t, rt, `return $vars['list'][3]->getExtra()['i'];`, php.ArrayOf("list", l)); got != int64(33) {
 		t.Errorf("PHP read %v after the change", got)
+	}
+
+	// The ids the pool gives packages reach PHP alone: a package still
+	// waiting for its fields fetches them when read.
+	loads = 0
+	packages, l = list(3)
+	if got := evalPHP(t, rt, `return $vars['list'][0]->getId();`, php.ArrayOf("list", l)); got == int64(100) {
+		t.Fatalf("id %v before the pool", got)
+	}
+	for i, p := range packages {
+		p.SetID(100 + i)
+	}
+	if got := evalPHP(t, rt, `return [$vars['list'][2]->getId(), $vars['list'][1]->getExtra()['i'], $vars['list'][1]->getId()];`, php.ArrayOf("list", l)).(*php.Array).Values(); got[0] != int64(102) || got[1] != int64(1) || got[2] != int64(101) {
+		t.Errorf("PHP read %v after the ids", got)
+	}
+	if loads != 1 {
+		t.Errorf("%d pkg.load calls after the ids, want 1", loads)
 	}
 }
 

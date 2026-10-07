@@ -101,13 +101,27 @@ final class PackageAdapter implements MirrorAdapter
     public function apply($object, array $fields): void
     {
         // A snapshot of the core fields only (docs/PLUGINS.md §5.3): the
-        // getters of the rest fetch them first (LazyPackages).
+        // getters of the rest fetch them first (LazyPackages). Any other
+        // snapshot has them all; the changes maestro sends for the id
+        // alone (the pool's numbering) have no name and change neither.
         if (isset($fields['lazy'])) {
             unset($fields['lazy']);
-            \Maestro\Shim\LazyPackages::$pending[spl_object_id($object)] = $object;
-        } else {
-            unset(\Maestro\Shim\LazyPackages::$pending[spl_object_id($object)]);
+            \Maestro\Shim\LazyPackages::pend($object);
+        } elseif (isset($fields['name'])) {
+            \Maestro\Shim\LazyPackages::settle($object);
         }
+        $this->fill($object, $fields);
+    }
+
+    /**
+     * Writes fields into a package: those of a snapshot, or a group of
+     * them LazyPackages fetched.
+     *
+     * @param object $object
+     * @param array<string, mixed> $fields
+     */
+    public function fill($object, array $fields): void
+    {
         if (isset($fields['releaseDate'])) {
             $fields['releaseDate'] = new \DateTime($fields['releaseDate']);
         }

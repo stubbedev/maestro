@@ -143,6 +143,13 @@ func (p *Package) PHPClass() string { return ClassPackage }
 func (p *Package) Rev() uint64 {
 	p.need()
 
+	return p.rev + p.idRev
+}
+
+// FieldRev returns the change counter of every field but the id.
+func (p *Package) FieldRev() uint64 {
+	p.need()
+
 	return p.rev
 }
 

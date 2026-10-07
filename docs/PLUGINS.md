@@ -577,7 +577,9 @@ fields, `setRepository` refusing a second repository) are maestro's
 code; the changed `Rev` sends the new snapshot with the reply, before the
 setter returns in PHP. Dirty-field sync remains for mirrors whose setters
 are plain fields (tests use it). Snapshots are full, except the core tier
-of PRE_POOL_CREATE's package lists (below). Service objects (Composer, Config, the
+of PRE_POOL_CREATE's package lists (below), and a package whose id alone
+changed since PHP got it (the pool numbers the packages after
+PRE_POOL_CREATE) sends its id alone. Service objects (Composer, Config, the
 managers, repositories, the Locker, the AutoloadGenerator) are not mirrors:
 PHP holds an instance of their Composer class built without its
 constructor, whose methods are RPCs; a stub class's methods throw
@@ -618,13 +620,18 @@ package mirror arrives in one of two tiers:
 
 - **core**: id, class, name, prettyName, version, prettyVersion, type,
   stability, isDev, alias target handle, repository handle.
-- **full**: all remaining fields.
+- **full**: all remaining fields, which PHP fetches in three groups: the
+  links (requires, devRequires, conflicts, provides, replaces), the
+  extra, and the rest.
 
-PHP requests `pkg.load` the first time any non-core getter runs. One
-`pkg.load` fetches that package and the core-tier packages still without
-their fields that PHP received first, 64 in all at most: code that reads
-a field of one package of a list mostly reads it of the others in
-order, so a list read in full takes a round trip per 64 packages. Go
+PHP requests `pkg.load` the first time a getter of a group it does not
+have runs. One `pkg.load` fetches that group for that package and for the
+core-tier packages still without it that PHP received first, 64 in all at
+most: code that reads a field of one package of a list mostly reads it of
+the others in order, so a list read in full takes a round trip per group
+it reads and 64 packages. symfony/flex's PRE_POOL_CREATE listener reads
+the extra of most packages of the pool, its transaction of an install the
+provides and replaces (getNames()) of every package. Go
 sends full snapshots when it knows they will be used: local-repository
 packages, the root package, and the operation packages of package
 events. Go sends core snapshots for PRE_POOL_CREATE package lists, which
@@ -2030,7 +2037,7 @@ What crosses and how:
   the pool is built from them. The packages of these lists PHP does not
   know yet cross with their core fields only (id, names, versions, type,
   stability, dev: the lazy tier of §5.3); the getters of the other fields
-  fetch them (`pkg.load`, `Maestro\Shim\LazyPackages`). PRE_OPERATIONS_EXEC:
+  fetch their group (`pkg.load`, `Maestro\Shim\LazyPackages`). PRE_OPERATIONS_EXEC:
   `Transaction::getOperations()` of maestro's transactions. PRE/POST_FILE_DOWNLOAD:
   mirrors whose setters (URL, cache key, transport options) are maestro's;
   a metadata event's context is `['repository' => ..., 'response' =>
