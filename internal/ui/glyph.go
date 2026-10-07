@@ -2,7 +2,7 @@ package ui
 
 import (
 	"os"
-	"strings"
+	"regexp"
 	"sync"
 )
 
@@ -58,6 +58,10 @@ func (g Glyph) String() string {
 	return glyphs[g][1]
 }
 
+// utf8LocaleRe matches a locale of the UTF-8 encoding ("en_US.UTF-8",
+// "C.utf8").
+var utf8LocaleRe = regexp.MustCompile(`(?i)utf-?8`)
+
 // unicodeConsole is whether the console shows Unicode: on Windows, when
 // its output code page is UTF-8; elsewhere, unless the locale (LC_ALL,
 // LC_CTYPE, LANG, the first one set) names another encoding.
@@ -67,9 +71,7 @@ var unicodeConsole = sync.OnceValue(func() bool {
 	}
 	for _, name := range []string{"LC_ALL", "LC_CTYPE", "LANG"} {
 		if v := os.Getenv(name); v != "" {
-			v = strings.ToLower(v)
-
-			return strings.Contains(v, "utf-8") || strings.Contains(v, "utf8")
+			return utf8LocaleRe.MatchString(v)
 		}
 	}
 

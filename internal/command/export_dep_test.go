@@ -8,7 +8,7 @@ import (
 // Test hooks of BaseDependencyCommand and PackageDiscovery.
 
 // InitStylesForTest is initStyles.
-func (c *BaseDependencyCommand) InitStylesForTest(out console.Output) { c.initStyles(out) }
+func (c *BaseDependencyCommand) InitStylesForTest() { c.initStyles() }
 
 // PrintTreeForTest is printTree($results).
 func (c *BaseDependencyCommand) PrintTreeForTest(results []repository.Dependent) error {

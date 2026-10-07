@@ -39,7 +39,7 @@ func TestBaseDependencyCommand_PrintTree(t *testing.T) {
 	}
 	c := command.NewBaseDependencyCommand("depends")
 	c.SetIO(bio)
-	c.InitStylesForTest(console.NewStreamOutput(&bytes.Buffer{}, console.VerbosityNormal, new(false), formatter))
+	c.InitStylesForTest()
 	if err := c.PrintTreeForTest(dependentsFixture()); err != nil {
 		t.Fatal(err)
 	}

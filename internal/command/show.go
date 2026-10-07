@@ -170,9 +170,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 	c.versionParser = pkg.NewVersionParser()
 	c.treePackages = map[treePackageKey]pkg.CompletePackageInterface{}
 	if console.BoolOption(input, "tree") {
-		if err := c.initStyles(output); err != nil {
-			return 0, err
-		}
+		c.initStyles()
 	}
 
 	comp, err := c.TryComposer(nil, nil)
@@ -1727,11 +1725,7 @@ func appendLinks(j *php.Array, p pkg.CompletePackageInterface) error {
 
 // initStyles ports ShowCommand::initStyles: the tags of the tree's
 // levels, Composer's colours as maestro's theme's roles.
-func (c *ShowCommand) initStyles(output console.Output) error {
-	c.colors = ui.TreeTags()
-
-	return nil
-}
+func (c *ShowCommand) initStyles() { c.colors = ui.TreeTags() }
 
 // treeNode is an entry of the package tree arrays.
 type treeNode struct {

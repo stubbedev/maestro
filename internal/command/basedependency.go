@@ -256,7 +256,7 @@ func (c *BaseDependencyCommand) DoExecute(in console.Input, out console.Output, 
 			ret = 1
 		}
 	case renderTree:
-		c.initStyles(out)
+		c.initStyles()
 		root := packages[0]
 		description := ""
 		if cp, ok := root.(pkg.CompletePackageInterface); ok {
@@ -343,7 +343,7 @@ func (c *BaseDependencyCommand) printTable(out console.Output, results []reposit
 }
 
 // initStyles ports initStyles.
-func (c *BaseDependencyCommand) initStyles(out console.Output) {
+func (c *BaseDependencyCommand) initStyles() {
 	c.colors = ui.TreeTags()
 }
 

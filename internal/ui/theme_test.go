@@ -36,8 +36,8 @@ func TestRolesRender(t *testing.T) {
 		}
 		for _, m := range sgrRe.FindAllStringSubmatch(got, -1) {
 			for p := range strings.SplitSeq(m[1], ";") {
-				if !slices.Contains([]string{"0", "1", "2", "4", "22", "24", "39", "49"}, p) &&
-					!(len(p) == 2 && (p[0] == '3' || p[0] == '4') && p[1] <= '7') {
+				basic := len(p) == 2 && (p[0] == '3' || p[0] == '4') && p[1] <= '7'
+				if !basic && !slices.Contains([]string{"0", "1", "2", "4", "22", "24", "39", "49"}, p) {
 					t.Errorf("%s: %q has SGR parameter %q outside the 16 ANSI colours", r, got, p)
 				}
 			}
