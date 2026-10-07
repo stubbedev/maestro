@@ -44,8 +44,9 @@ func UseVersionCache(dir string) {
 // however unchanged the binary looks.
 const versionCacheMaxAge = 24 * time.Hour
 
-// versionCacheHeader starts an entry; the version follows it.
-const versionCacheHeader = "maestro git version 1\n"
+// versionFormat is the version of the entries; its Header starts one, the
+// version follows it.
+var versionFormat = fsstate.Format{Name: "git-version", Version: 1}
 
 // executor is a Process that runs commands with a *util.ProcessExecutor
 // (VersionGuesser's adapter).
@@ -88,7 +89,7 @@ func loadVersion(path string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	version, ok := strings.CutPrefix(string(data), versionCacheHeader)
+	version, ok := strings.CutPrefix(string(data), versionFormat.Header())
 	if !ok || version == "" || strings.ContainsAny(version, "\n\x00") {
 		return "", false
 	}
@@ -101,5 +102,5 @@ func storeVersion(path, version string) {
 	if path == "" {
 		return
 	}
-	_ = fsstate.WriteAtomic(path, []byte(versionCacheHeader+version))
+	_ = fsstate.WriteAtomic(path, []byte(versionFormat.Header()+version))
 }

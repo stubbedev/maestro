@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/json/res"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // JsonFile::*_SCHEMA.
@@ -75,7 +76,10 @@ type File struct {
 
 // decodedFiles keeps the files read with KeepDecoded decoded between
 // runs, a slot per file (cache.Decoded), at most decodedFilesSlots.
-var decodedFiles = cache.NewDecoded("maestro-json-v2\n", 4096, decodedFilesSlots)
+var decodedFiles = cache.NewDecoded(decodedFormat, 4096, decodedFilesSlots)
+
+// decodedFormat is the version of decodedFiles' slots.
+var decodedFormat = fsstate.Format{Name: "json", Version: 2}
 
 // decodedFilesSlots is how many files' slots decodedFiles keeps: a slot
 // per project of the machine's most recent ones.

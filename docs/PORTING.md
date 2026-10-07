@@ -335,19 +335,25 @@ entry was written is not trusted, as git treats racily clean index
 entries). Anything else is computed again and the entry overwritten, so
 a stale entry costs time and never changes frozen output.
 
-The class map parse results, the class map records and the schema memo
-also carry the version of their format (`fsstate.Format`), which covers
-how an entry is written and read and the code computing what it holds:
-the class map parser, the scans, the schema validation and Composer's
-schemas. An entry is used by any maestro of the same version, whichever
-build wrote it, so upgrading maestro keeps them unless that code
-changed. `internal/cache`'s `TestOwnFormats` keeps the versions honest:
+Every entry also carries the version of its format (`fsstate.Format`,
+named in the table), which covers how an entry is written and read and
+the code computing what it holds: the class map parser and scans, the
+JSON decoder and php's binary form, the p2 codec and the speculation
+whose loads the p2 indexes record, the schema validation and Composer's
+schemas, the archive extraction rules. An entry is used by any maestro of
+the same version, whichever build wrote it, so upgrading maestro keeps
+the caches unless that code changed; nothing is keyed on maestro's own
+binary. `internal/cache`'s `TestOwnFormats` keeps the versions honest:
 it fingerprints the declarations each version covers (from its roots,
 every function, method, type, constant and variable of the module they
-refer to, transitively, as tokens without comments, with the files they
-embed) and fails when a fingerprint is not the one recorded for the
-current version in `internal/cache/testdata/formats.txt`, so a change to
-that code cannot land without a new version.
+refer to, transitively, the methods interface calls and the standard
+library can reach, the init functions of the packages whose variables
+they read, as tokens without comments, with the files they embed) and
+fails when a fingerprint is not the one recorded for the current version
+in `internal/cache/testdata/formats.txt`, so a change to that code cannot
+land without a new version. What an entry is keyed on as it is used (the
+probe script, a release's archive rules) is left out of the fingerprint.
+Only `cacert`, named by the hash of what it holds, has no version.
 
 `clear-cache` clears each together with a Composer cache directory,
 silently (its output stays Composer's): what follows `cache-dir` goes
@@ -357,13 +363,13 @@ as each other cache bounds its own size.
 
 | Path | Holds | Used while | `clear-cache` |
 | --- | --- | --- | --- |
-| `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it; the scan results, the same format version (`classmap-parse`) | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
-| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded: where each package's versions are in the JSON (a version is decoded from its bytes when read), the expanded version every 16 versions as the versions its values come from, and an index of what the loads read of each version (and of its skeleton); the run that decodes a file builds its index from the versions it scanned and loaded, checking only the others | the JSON is byte-identical: the cached file's identity is the one a read that could trust it saw (a timestamp tick old), or else a copy of the JSON compares equal | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
-| `decoded` | large local JSON files read on most runs (`vendor/composer/installed.json`), decoded; at most 64 | the JSON is byte-identical | with `cache-dir` |
+| `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it; a release's index, the same format version (`index`) and archive rules (`archive-rules`); the scan results, the same `classmap-parse` | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
+| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded: where each package's versions are in the JSON (a version is decoded from its bytes when read), the expanded version every 16 versions as the versions its values come from, and an index of what the loads read of each version (and of its skeleton); the run that decodes a file builds its index from the versions it scanned and loaded, checking only the others | the same format version (`p2`), and the JSON is byte-identical: the cached file's identity is the one a read that could trust it saw (a timestamp tick old), or else a copy of the JSON compares equal | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
+| `decoded` | large local JSON files read on most runs (`vendor/composer/installed.json`), decoded; at most 64 | the same format version (`json`), and the JSON is byte-identical | with `cache-dir` |
 | `classmap/v1.bin` | the classes found in each file content seen, by SHA-256 and parser settings, and each file's content hash by its identity | the same format version (`classmap-parse`); the content hash, or the file's identity | with `cache-dir` |
 | `classmap/records` | a project's class map with the identity of every file and directory its scans depended on; at most 64 | the same format version (`classmap-record`) and scans, and every identity unchanged | with `cache-dir` |
-| `platform` | php's probed platform (Linux), keyed on the php binary, its ini files, the environment that can change what it reports and the files it loaded; at most 64 | all of those unchanged, for 24 hours at most | with `cache-dir` |
-| `git-version` | `git --version` (Linux, real process executor only, never at `-vvv`), keyed on the git binary's identity | the binary unchanged, for 24 hours at most | with `cache-dir` |
+| `platform` | php's probed platform (Linux), keyed on the php binary, its ini files, the environment that can change what it reports and the files it loaded; at most 64 | the same format version (`probe-cache`) and probe script, all of those unchanged, for 24 hours at most | with `cache-dir` |
+| `git-version` | `git --version` (Linux, real process executor only, never at `-vvv`), keyed on the git binary's identity | the same format version (`git-version`), the binary unchanged, for 24 hours at most | with `cache-dir` |
 | `schema/validated` | the SHA-256 of the last 64 documents that validated against Composer's schemas without a finding | the same format version (`schema-memo`) and document | with `cache-dir` |
 | `cacert` | the embedded CA bundle written out as a file, for what needs a path to one (`CaBundle::getBundledCaBundlePath`) | named by its hash | with `cache-dir` |
 

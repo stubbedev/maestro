@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/archive"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Entry is one node of a stored package tree: the extracted entry and,
@@ -44,13 +46,17 @@ func (r *Release) Entries() []Entry {
 
 // index file layout, all integers unsigned varints:
 //
-//	magic "maestro-index-1\n"
+//	magic "maestro-index-<indexFormat.Version>\n"
 //	count
 //	count × entry: kind byte, mode (permission bits | 1<<9 when the umask
 //	    applies), path length, path, then for a file: size, 32-byte SHA-256;
 //	    for a symlink: target length, target
 //	SHA-256 of everything before it
-const indexMagic = "maestro-index-1\n"
+var indexMagic = "maestro-index-" + strconv.Itoa(indexFormat.Version) + "\n"
+
+// indexFormat is the version of the index files: of their layout and of
+// what the store records of a tree in them.
+var indexFormat = fsstate.Format{Name: "index", Version: 1}
 
 var errCorruptIndex = errors.New("corrupt store index")
 

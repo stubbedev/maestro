@@ -60,17 +60,16 @@ func (f Format) String() string {
 	return "format(" + strconv.Itoa(int(f)) + ")"
 }
 
-// rulesVersion is bumped whenever a change to this package can change the
-// tree some archive extracts to, so trees cached under the old rules are not
-// reused.
-const rulesVersion = "1"
+// rulesFormat is the version of this package's rules: of the tree an
+// archive extracts to, so trees cached under other rules are not reused.
+var rulesFormat = fsstate.Format{Name: "archive-rules", Version: 1}
 
 // Rules identifies everything that decides the tree an archive of format f
 // extracts to, besides the archive and the umask: this package's rules and,
 // for zip, the locale class unzip decodes names in. Caches of extracted trees
 // key on it.
 func Rules(f Format, opts *Options) string {
-	r := f.String() + "/" + rulesVersion
+	r := f.String() + "/" + strconv.Itoa(rulesFormat.Version)
 	if f == Zip {
 		l := opts.locale()
 		r += "/" + l.String()

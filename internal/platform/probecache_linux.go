@@ -31,9 +31,9 @@ const probeCacheMaxAge = 24 * time.Hour
 // probeCacheMaxAge). An entry is about 180 KB.
 const probeCacheMaxEntries = 64
 
-// probeCacheFormat changes whenever what an entry holds or how it is
-// keyed does.
-const probeCacheFormat = "maestro-probe-cache-4"
+// probeCacheFormat is the version of the entries: of what they hold, how they
+// are keyed and what they are trusted on.
+var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 4}
 
 // probeEnvPrefixes and probeEnvNames are the environment variables that
 // may change what probe.php reports whatever php is probed, and so key
@@ -211,7 +211,7 @@ func probeCacheKey(binary string) string {
 	slices.Sort(env)
 
 	k := fsstate.NewKeyHash()
-	for _, part := range [...]string{probeCacheFormat, probeScript, binary, resolved} {
+	for _, part := range [...]string{probeCacheFormat.String(), probeScript, binary, resolved} {
 		k.String(part)
 	}
 	k.ID(id)
@@ -421,7 +421,7 @@ func loadProbeCacheEntry(path, binary string) *Snapshot {
 	}
 
 	var header probeCacheHeader
-	if json.Unmarshal(line, &header) != nil || header.Format != probeCacheFormat {
+	if json.Unmarshal(line, &header) != nil || header.Format != probeCacheFormat.String() {
 		return nil
 	}
 
@@ -480,7 +480,7 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.
 		return
 	}
 
-	header := probeCacheHeader{Format: probeCacheFormat, Created: time.Now(), Uname: unameString()}
+	header := probeCacheHeader{Format: probeCacheFormat.String(), Created: time.Now(), Uname: unameString()}
 
 	// the first mapping is the executable; another file than the one
 	// found means a wrapper started it, which may read any variable it

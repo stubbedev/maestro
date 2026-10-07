@@ -26,7 +26,8 @@ func TestDecoded_ByOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := NewDecoded("test\n", 0, 0)
+	format := fsstate.Format{Name: "test", Version: 1}
+	d := NewDecoded(format, 0, 0)
 	slots := t.TempDir()
 	d.Use(slots)
 	decodes := 0
@@ -78,7 +79,7 @@ func TestDecoded_ByOrigin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		return data[len("test\n")]
+		return data[len(format.Header())]
 	}
 
 	// a file just written: its identity cannot be trusted yet

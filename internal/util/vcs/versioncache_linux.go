@@ -39,7 +39,7 @@ func gitBinaryKey(found string, now time.Time, margin fsstate.Margin) string {
 	}
 
 	k := fsstate.NewKeyHash()
-	for _, s := range [...]string{versionCacheHeader, found, resolved} {
+	for _, s := range [...]string{versionFormat.Header(), found, resolved} {
 		k.String(s)
 	}
 	k.ID(id)

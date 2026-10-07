@@ -20,15 +20,22 @@ import (
 type ownFormat struct {
 	// format is the Format variable, "<package>.<name>".
 	format string
+	// caches are the owned caches (own.go) holding entries of the format.
+	caches []string
 	// roots are what computes the entries the caches keep, writes them and
 	// reads them back (see fingerprint).
 	roots []string
+	// keyed are declarations and packages the roots depend on whose own
+	// version or contents the entries are keyed on as they are used,
+	// which the fingerprint leaves out.
+	keyed []string
 }
 
 // ownFormats are the versions of what maestro's own caches keep.
 var ownFormats = []ownFormat{
 	{
 		format: "internal/classmap.parseFormat",
+		caches: []string{classMapParsePath, storePath},
 		roots: []string{
 			"internal/classmap.Parser.classesIn", "internal/classmap.Parser.key",
 			"internal/classmap.diskCache.load", "internal/classmap.ParseCache.Save",
@@ -38,6 +45,7 @@ var ownFormats = []ownFormat{
 	},
 	{
 		format: "internal/classmap.recordFormat",
+		caches: []string{classMapRecordsPath},
 		roots: []string{
 			"internal/classmap.NewRecord", "internal/classmap.Record",
 			"internal/classmap.Generator",
@@ -47,11 +55,72 @@ var ownFormats = []ownFormat{
 	},
 	{
 		format: "internal/json.schemaFormat",
+		caches: []string{schemaMemoPath},
 		roots: []string{
 			"internal/json.ValidateJSONSchema", "internal/json.schemaMemo", "internal/json.schemaKey",
 		},
 	},
+	{
+		format: "internal/json.decodedFormat",
+		caches: []string{decodedFilesPath},
+		roots: []string{
+			"internal/json.File.parse", "internal/cache.Decoded",
+			"internal/php.AppendBinary", "internal/php.DecodeBinary",
+		},
+	},
+	{
+		format: "internal/repository/composerrepo.decodedFormat",
+		caches: []string{decodedMetadataPath},
+		roots: []string{
+			"internal/cache.Decoded", "internal/repository/composerrepo.ComposerRepository.decodeCached",
+			"internal/repository/composerrepo.appendP2", "internal/repository/composerrepo.decodeP2",
+			"internal/repository/composerrepo.decodeFile", "internal/repository/composerrepo.p2File",
+			"internal/repository/composerrepo.p2Slot", "internal/repository/composerrepo.p2Index",
+			// what the slots' indexes keep of the versions, found by
+			// the speculation's loads
+			"internal/repository/composerrepo.indexDraft", "internal/repository/composerrepo.indexBuilder",
+			"internal/repository/composerrepo.scanVersions", "internal/repository/composerrepo.fitsSkeleton",
+			"internal/repository/composerrepo.speculation",
+		},
+	},
+	{
+		format: "internal/platform.probeCacheFormat",
+		caches: []string{platformProbesPath},
+		roots: []string{
+			"internal/platform.probeCacheKey", "internal/platform.storeProbeCache",
+			"internal/platform.loadProbeCache", "internal/platform.loadProbeCacheEntry",
+		},
+		// the script is part of every entry's key
+		keyed: []string{"internal/platform.probeScript"},
+	},
+	{
+		format: "internal/util/vcs.versionFormat",
+		caches: []string{gitVersionPath},
+		roots: []string{
+			"internal/util/vcs.GetVersion", "internal/util/vcs.versionCachePath",
+			"internal/util/vcs.loadVersion", "internal/util/vcs.storeVersion",
+		},
+	},
+	{
+		format: "internal/archive.rulesFormat",
+		caches: []string{storePath},
+		roots:  []string{"internal/archive.Open", "internal/archive.Archive", "internal/archive.Rules"},
+	},
+	{
+		format: "internal/store.indexFormat",
+		caches: []string{storePath},
+		roots: []string{
+			"internal/store.encodeIndex", "internal/store.decodeIndex",
+			"internal/store.inserter", "internal/store.Store.InsertDir",
+		},
+		// a release's index is keyed on archive.Rules (archive.rulesFormat)
+		keyed: []string{"internal/archive"},
+	},
 }
+
+// contentAddressed are the owned caches whose entries are named by the
+// hash of what they hold, so that no code can make one stale.
+var contentAddressed = []string{caBundlesPath}
 
 // formatsFile records, for each version of each Format, the fingerprint of
 // the code it covers. It only grows: a version, once recorded, keeps its
@@ -79,14 +148,15 @@ func TestOwnFormats(t *testing.T) {
 	update := os.Getenv(switches.UpdateFormats) == "1"
 	var added []string
 	for _, f := range ownFormats {
-		obj, name, version, err := l.formatOf(f.format)
+		name, version, err := l.formatOf(f.format)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fp, _, err := l.fingerprint(f.roots, []types.Object{obj})
+		fp, keys, err := l.fingerprint(f.roots, append([]string{f.format}, f.keyed...))
 		if err != nil {
 			t.Fatalf("%s: %v", f.format, err)
 		}
+		t.Logf("%s %d covers %d declarations", name, version, len(keys))
 		versions := recorded[name]
 		last := 0
 		for v := range versions {
@@ -152,19 +222,19 @@ func readFormats() (map[string]map[int]string, error) {
 	return recorded, nil
 }
 
-// formatOf is the Format variable spec names, with its Name and Version.
-func (l *srcLoader) formatOf(spec string) (types.Object, string, int, error) {
+// formatOf is the Name and Version of the Format variable spec names.
+func (l *srcLoader) formatOf(spec string) (string, int, error) {
 	obj, err := l.lookup(spec)
 	if err != nil {
-		return nil, "", 0, err
+		return "", 0, err
 	}
 	if t, ok := obj.Type().(*types.Named); !ok || t.Obj().Name() != "Format" || t.Obj().Pkg().Path() != l.modPath+"/internal/util/fsstate" {
-		return nil, "", 0, fmt.Errorf("%s is not a fsstate.Format", spec)
+		return "", 0, fmt.Errorf("%s is not a fsstate.Format", spec)
 	}
 	p := l.pkgs[obj.Pkg().Path()]
 	vs, ok := p.decls[obj].(*ast.ValueSpec)
 	if !ok || len(vs.Values) != len(vs.Names) {
-		return nil, "", 0, fmt.Errorf("%s: not a variable with a value", spec)
+		return "", 0, fmt.Errorf("%s: not a variable with a value", spec)
 	}
 	var lit *ast.CompositeLit
 	for i, n := range vs.Names {
@@ -173,17 +243,17 @@ func (l *srcLoader) formatOf(spec string) (types.Object, string, int, error) {
 		}
 	}
 	if lit == nil {
-		return nil, "", 0, fmt.Errorf("%s is not a composite literal", spec)
+		return "", 0, fmt.Errorf("%s is not a composite literal", spec)
 	}
 	name, version := "", 0
 	for _, e := range lit.Elts {
 		kv, ok := e.(*ast.KeyValueExpr)
 		if !ok {
-			return nil, "", 0, fmt.Errorf("%s: fields without names", spec)
+			return "", 0, fmt.Errorf("%s: fields without names", spec)
 		}
 		val := p.info.Types[kv.Value].Value
 		if val == nil {
-			return nil, "", 0, fmt.Errorf("%s: %s is not a constant", spec, kv.Key)
+			return "", 0, fmt.Errorf("%s: %s is not a constant", spec, kv.Key)
 		}
 		switch kv.Key.(*ast.Ident).Name {
 		case "Name":
@@ -194,14 +264,15 @@ func (l *srcLoader) formatOf(spec string) (types.Object, string, int, error) {
 		}
 	}
 	if name == "" || strings.ContainsAny(name, " \t\n") || version < 1 {
-		return nil, "", 0, fmt.Errorf("%s: name %q, version %d", spec, name, version)
+		return "", 0, fmt.Errorf("%s: name %q, version %d", spec, name, version)
 	}
 
-	return obj, name, version, nil
+	return name, version, nil
 }
 
-// Each Format names another cache.
-func TestOwnFormatsNamed(t *testing.T) {
+// Each Format names another cache, and every owned cache holds the
+// entries of a Format or is content-addressed.
+func TestOwnFormatsCover(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("fingerprints are taken on Linux")
 	}
@@ -210,8 +281,12 @@ func TestOwnFormatsNamed(t *testing.T) {
 		t.Fatal(err)
 	}
 	seen := map[string]string{}
+	covered := map[string]bool{}
+	for _, c := range contentAddressed {
+		covered[c] = true
+	}
 	for _, f := range ownFormats {
-		_, name, _, err := l.formatOf(f.format)
+		name, _, err := l.formatOf(f.format)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -219,5 +294,13 @@ func TestOwnFormatsNamed(t *testing.T) {
 			t.Errorf("%s and %s are both named %q", other, f.format, name)
 		}
 		seen[name] = f.format
+		for _, c := range f.caches {
+			covered[c] = true
+		}
+	}
+	for _, o := range owned {
+		if !covered[o.Path] {
+			t.Errorf("no Format covers %s", o.Path)
+		}
 	}
 }

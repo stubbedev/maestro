@@ -247,13 +247,14 @@ func (l *srcLoader) lookup(spec string) (types.Object, error) {
 // closure is what a fingerprint covers.
 type closure struct {
 	l *srcLoader
-	// skip are declarations left out (the Format variables themselves).
-	skip    map[types.Object]bool
-	seen    map[types.Object]bool
-	inits   map[*srcPkg]bool
-	queue   []types.Object
-	named   []*types.Named // the module's named types included
-	methods map[string]bool
+	// skip are declarations left out, skipPkgs packages left out.
+	skip     map[types.Object]bool
+	skipPkgs map[string]bool
+	seen     map[types.Object]bool
+	inits    map[*srcPkg]bool
+	queue    []types.Object
+	named    []*types.Named // the module's named types included
+	methods  map[string]bool
 	// entries are the fingerprinted declarations, by key.
 	entries map[string][]byte
 }
@@ -269,7 +270,7 @@ func (c *closure) add(obj types.Object) {
 	if _, isFunc := obj.(*types.Func); !isFunc && obj.Parent() != obj.Pkg().Scope() {
 		return // a field, or local to a declaration counted with it
 	}
-	if c.seen[obj] || c.skip[obj] {
+	if c.seen[obj] || c.skip[obj] || c.skipPkgs[obj.Pkg().Path()] {
 		return
 	}
 	c.seen[obj] = true
@@ -296,11 +297,25 @@ func (c *closure) addMethodsNamed(n *types.Named, name string) {
 }
 
 // fingerprint is the fingerprint of the declarations roots depend on,
-// leaving out those of skip, and the keys of those declarations.
-func (l *srcLoader) fingerprint(roots []string, skip []types.Object) (string, []string, error) {
-	c := &closure{l: l, skip: map[types.Object]bool{}, seen: map[types.Object]bool{}, inits: map[*srcPkg]bool{}, methods: map[string]bool{}, entries: map[string][]byte{}}
+// leaving out the declarations and packages skip names (as lookup takes
+// them, or a package path in the module), and the keys of those
+// declarations.
+func (l *srcLoader) fingerprint(roots, skip []string) (string, []string, error) {
+	c := &closure{l: l, skip: map[types.Object]bool{}, skipPkgs: map[string]bool{}, seen: map[types.Object]bool{}, inits: map[*srcPkg]bool{}, methods: map[string]bool{}, entries: map[string][]byte{}}
 	for _, s := range skip {
-		c.skip[s] = true
+		if !strings.Contains(s[strings.LastIndex(s, "/")+1:], ".") {
+			if _, err := l.load(l.modPath + "/" + s); err != nil {
+				return "", nil, err
+			}
+			c.skipPkgs[l.modPath+"/"+s] = true
+
+			continue
+		}
+		obj, err := l.lookup(s)
+		if err != nil {
+			return "", nil, err
+		}
+		c.skip[obj] = true
 	}
 	for _, name := range dispatched {
 		c.methods[name] = true

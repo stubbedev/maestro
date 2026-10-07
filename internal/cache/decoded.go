@@ -38,7 +38,7 @@ import (
 //
 // A slot is overwritten when its source's JSON changes.
 type Decoded struct {
-	// magic starts a slot; it changes with the slot's form.
+	// magic starts a slot: the Header of its Format.
 	magic string
 	// minSize is the size under which JSON is decoded at once: reading a
 	// small slot back costs more than decoding it.
@@ -76,14 +76,15 @@ type DecodedCodec struct {
 var binaryCodec = DecodedCodec{Append: php.AppendBinary, Decode: func(data []byte, _ string) (any, error) { return php.DecodeBinary(data) }}
 
 // NewDecoded returns a Decoded keeping nothing until Use, values in their
-// binary form (php.AppendBinary).
-func NewDecoded(magic string, minSize, maxSlots int) *Decoded {
-	return NewDecodedWith(magic, minSize, maxSlots, binaryCodec)
+// binary form (php.AppendBinary), its slots those of format: a version
+// covering the slot's form, the codec's and the decoding.
+func NewDecoded(format fsstate.Format, minSize, maxSlots int) *Decoded {
+	return NewDecodedWith(format, minSize, maxSlots, binaryCodec)
 }
 
 // NewDecodedWith is NewDecoded keeping values in codec's form.
-func NewDecodedWith(magic string, minSize, maxSlots int, codec DecodedCodec) *Decoded {
-	return &Decoded{magic: magic, minSize: minSize, maxSlots: maxSlots, codec: codec}
+func NewDecodedWith(format fsstate.Format, minSize, maxSlots int, codec DecodedCodec) *Decoded {
+	return &Decoded{magic: format.Header(), minSize: minSize, maxSlots: maxSlots, codec: codec}
 }
 
 // Use keeps the slots in dir; "" keeps none. It may be called again

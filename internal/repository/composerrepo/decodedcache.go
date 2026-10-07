@@ -7,12 +7,14 @@ package composerrepo
 import (
 	"errors"
 	"path/filepath"
+	"strconv"
 
 	"github.com/stubbedev/maestro/internal/cache"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // decodedP2 keeps the decoded metadata files; see UseDecodedCache.
-var decodedP2 = cache.NewDecodedWith(decodedMagic, decodedMinSize, 0, cache.DecodedCodec{Append: appendP2, Decode: decodeP2})
+var decodedP2 = cache.NewDecodedWith(decodedFormat, decodedMinSize, 0, cache.DecodedCodec{Append: appendP2, Decode: decodeP2})
 
 // UseDecodedCache keeps, under root (cache.DecodedMetadata), the decoded
 // form of the cached metadata files the repositories decode, for later
@@ -26,13 +28,14 @@ func UseDecodedCache(root string) {
 	decodedP2.Use(dir)
 }
 
-// decodedVersion is the directory, under the root, of the slots of the
-// current form; it changes with decodedMagic.
-const decodedVersion = "v5"
+// decodedFormat is the version of the decoded files: of the slot's form
+// (cache.Decoded), the p2 codec's (appendP2), the binary form and what
+// the slots' indexes hold.
+var decodedFormat = fsstate.Format{Name: "p2", Version: 5}
 
-// decodedMagic starts a decoded file; its version changes with the slot's
-// form (cache.Decoded), the p2 codec's (appendP2) and the binary form.
-const decodedMagic = "maestro-p2-v5\n"
+// decodedVersion is the directory, under the root, of the slots of
+// decodedFormat.
+var decodedVersion = "v" + strconv.Itoa(decodedFormat.Version)
 
 // decodedMinSize is the size under which JSON is decoded at once: reading
 // a small file back costs more than decoding it.

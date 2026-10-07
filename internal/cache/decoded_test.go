@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
 // Decoded keeps at most maxSlots slots, dropping the least recently
 // written.
 func TestDecoded_BoundsItsSlots(t *testing.T) {
 	dir := t.TempDir()
-	d := NewDecoded("test\n", 0, 2)
+	d := NewDecoded(fsstate.Format{Name: "test", Version: 1}, 0, 2)
 	d.Use(dir)
 	decode := func(json string) (any, error) { return php.JSONDecode(json, true) }
 	json := `{"a": "` + strings.Repeat("x", 64) + `"}`
