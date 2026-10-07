@@ -12,7 +12,6 @@ package classmap
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -266,7 +265,7 @@ func (c *realDirCache) realpath(path string, notLink bool) (string, bool) {
 	// The cache builds realpaths from slash-separated Unix paths; PHP's
 	// realpath() on Windows starts at a drive and answers with
 	// backslashes, so each file is resolved in full there.
-	if runtime.GOOS == "windows" {
+	if php.IsWindows() {
 		return php.Realpath(path)
 	}
 	if !notLink {

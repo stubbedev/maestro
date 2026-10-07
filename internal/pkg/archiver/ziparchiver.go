@@ -212,7 +212,7 @@ func writeLibzipEntries(zw *zip.Writer, entries []zipEntry) error {
 // permissions a new file gets.
 func createTemp(target string) (*os.File, error) {
 	for {
-		f, err := os.OpenFile(target+"."+randomHex(3), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666) //nolint:gosec // a new archive is 0666 & ~umask, as libzip makes it
+		f, err := os.OpenFile(target+"."+php.RandomHex(3), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666) //nolint:gosec // a new archive is 0666 & ~umask, as libzip makes it
 		if !errors.Is(err, fs.ErrExist) {
 			return f, err
 		}

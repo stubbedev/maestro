@@ -691,7 +691,7 @@ func TestArchiveDownloader_ShasumMatch(t *testing.T) {
 	tmp := filepath.Join(t.TempDir(), "a.zip")
 	writeFile(t, tmp, data, 0o644)
 
-	sum, err := sha1File(tmp)
+	sum, err := php.Sha1File(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,10 +12,10 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"sync"
 
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -75,7 +75,7 @@ type spawned struct {
 func spawn(cmd *exec.Cmd, transport Transport) (*spawned, error) {
 	if transport == TransportDefault {
 		transport = TransportPipes
-		if runtime.GOOS == "windows" {
+		if php.IsWindows() {
 			transport = TransportTCP
 		}
 	}

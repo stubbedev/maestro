@@ -359,7 +359,7 @@ func (f *OutputFormatter) applyCurrentStyle(out *strings.Builder, text string, w
 	}
 
 	if *currentLineLength == 0 && current > 0 {
-		text = strings.TrimLeft(text, " \t\n\r\x00\x0B")
+		text = strings.TrimLeft(text, php.TrimChars)
 	}
 
 	prefix := ""

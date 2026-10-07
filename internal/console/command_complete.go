@@ -151,7 +151,7 @@ func throwableString(err error) string {
 
 func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 	shell := in.Option("shell")
-	if !phpTruthy(shell) {
+	if !inputTruthy(shell) {
 		return 0, newError(KindSPLRuntime, `The "--shell" option must be set.`)
 	}
 
@@ -246,7 +246,7 @@ func (c *CompleteCommand) execute(in Input, out Output) (int, error) {
 
 func (c *CompleteCommand) createCompletionInput(in Input) (*CompletionInput, error) {
 	currentIndex := phpToString(in.Option("current"))
-	if !phpTruthy(in.Option("current")) || !ctypeDigit(currentIndex) {
+	if !inputTruthy(in.Option("current")) || !ctypeDigit(currentIndex) {
 		return nil, newError(KindSPLRuntime, `The "--current" option must be set and it must be an integer.`)
 	}
 

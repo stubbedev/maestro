@@ -117,7 +117,7 @@ func currentExecutable() (string, error) {
 // assetName is the release asset of this platform.
 func assetName() string {
 	name := "maestro_" + runtime.GOOS + "_" + runtime.GOARCH
-	if runtime.GOOS == "windows" {
+	if php.IsWindows() {
 		name += ".exe"
 	}
 
@@ -514,7 +514,7 @@ func (c *SelfUpdateCommand) setLocalBinary(localFilename, newFilename, backupTar
 // and moved back when src can not take its place; the .old file of a
 // binary still running is removed by the next update.
 func replaceFile(src, dst string) error {
-	if runtime.GOOS != "windows" {
+	if !php.IsWindows() {
 		return os.Rename(src, dst)
 	}
 	old := dst + ".old"
@@ -651,7 +651,7 @@ func (c *SelfUpdateCommand) verifyBackup(d *http.HttpDownloader, version, file s
 // group or others, and reports whether it did. Like Composer without the
 // POSIX functions, it checks nothing on Windows.
 func warnIfUntrustedPath(ioi io.IO, path, label string) bool {
-	if runtime.GOOS == "windows" {
+	if php.IsWindows() {
 		return false
 	}
 	st, err := os.Stat(path)

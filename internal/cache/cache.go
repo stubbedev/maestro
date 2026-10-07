@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Dir is maestro's cache directory: MAESTRO_CACHE_DIR, else the XDG (or
@@ -22,7 +24,7 @@ func Dir() string {
 		return filepath.Join(dir, "maestro")
 	}
 
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+	if php.IsWindows() || runtime.GOOS == "darwin" {
 		if dir, err := os.UserCacheDir(); err == nil {
 			return filepath.Join(dir, "maestro")
 		}

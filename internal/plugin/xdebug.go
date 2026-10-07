@@ -16,7 +16,6 @@ package plugin
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -51,7 +50,7 @@ func planXdebugRestart(raw *platform.Snapshot, getenv func(string) (string, bool
 	}
 
 	eol := "\n"
-	if runtime.GOOS == "windows" {
+	if php.IsWindows() {
 		eol = "\r\n"
 	}
 

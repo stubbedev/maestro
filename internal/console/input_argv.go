@@ -212,7 +212,7 @@ func (in *ArgvInput) parseArgument(token string) error {
 	// $symfonyCommandName is only used when truthy ("0" is not).
 	symfonyCommandName := ""
 	if len(all) > 0 && all[0].Name() == "command" {
-		if v := in.arguments["command"]; phpTruthy(v) {
+		if v := in.arguments["command"]; inputTruthy(v) {
 			symfonyCommandName = phpToString(v)
 		}
 		all = all[1:]

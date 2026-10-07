@@ -11,7 +11,6 @@ package classmap
 
 import (
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -19,7 +18,7 @@ import (
 
 // globEscape tells whether a backslash quotes the next character of a
 // pattern rather than separating directories (Windows).
-var globEscape = runtime.GOOS != "windows"
+var globEscape = !php.IsWindows()
 
 // isGlobQuote reports whether c quotes the next character of a pattern.
 func isGlobQuote(c byte) bool {

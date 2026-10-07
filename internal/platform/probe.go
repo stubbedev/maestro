@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -50,7 +49,7 @@ func (e *PHPNotFoundError) Is(target error) bool { return target == ErrPHPNotFou
 // PATHEXT's extension in its own case, "php.EXE".
 func FindPHP() (string, bool) {
 	path, ok := util.NewExecutableFinder().Find("php")
-	if ok && runtime.GOOS == "windows" {
+	if ok && php.IsWindows() {
 		path = nameOnDisk(path)
 	}
 

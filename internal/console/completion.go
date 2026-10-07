@@ -333,5 +333,5 @@ func (in *CompletionInput) String() string {
 		b.WriteByte('|')
 	}
 
-	return strings.TrimRight(b.String(), " \t\n\r\x00\x0B")
+	return strings.TrimRight(b.String(), php.TrimChars)
 }

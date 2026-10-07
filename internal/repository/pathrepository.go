@@ -3,8 +3,6 @@
 package repository
 
 import (
-	"crypto/sha1" //nolint:gosec // PathRepository's references are sha1 hashes, as Composer computes them
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,7 +164,7 @@ func (r *PathRepository) initialize() error {
 		case "none":
 			dist.Set("reference", nil)
 		case "config", "auto":
-			dist.Set("reference", sha1Hex(jsonContent+php.Serialize(r.options)))
+			dist.Set("reference", php.Sha1(jsonContent+php.Serialize(r.options)))
 		}
 
 		// copy symlink/relative options to transport options
@@ -294,10 +292,4 @@ func (r *PathRepository) urlMatches() []string {
 	}
 
 	return matches
-}
-
-func sha1Hex(s string) string {
-	sum := sha1.Sum([]byte(s)) //nolint:gosec // see the import
-
-	return hex.EncodeToString(sum[:])
 }

@@ -522,7 +522,7 @@ func (c *DiagnoseCommand) checkComposerSchema() (any, error) {
 			}
 		}
 
-		return strings.TrimRight(output.String(), " \t\n\r\x00\x0B"), nil
+		return strings.TrimRight(output.String(), php.TrimChars), nil
 	}
 
 	return true, nil

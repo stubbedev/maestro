@@ -6,8 +6,6 @@
 package locker
 
 import (
-	"crypto/md5" //nolint:gosec // the lock file's hashes are md5, as Composer computes them
-	"encoding/hex"
 	"errors"
 	"os"
 	"strconv"
@@ -72,17 +70,11 @@ func New(out io.IO, lockFile repository.JSONFile, installationManager repository
 	return &Locker{
 		lockFile:            lockFile,
 		installationManager: installationManager,
-		hash:                md5Hex(composerFileContents),
+		hash:                php.Md5(composerFileContents),
 		contentHash:         contentHash,
 		loader:              loader.NewArrayLoader(nil, true),
 		process:             process,
 	}, nil
-}
-
-func md5Hex(s string) string {
-	sum := md5.Sum([]byte(s)) //nolint:gosec // see the import
-
-	return hex.EncodeToString(sum[:])
 }
 
 // JSONFile ports getJsonFile.
@@ -134,7 +126,7 @@ func GetContentHash(composerFileContents string) (string, error) {
 		return "", err
 	}
 
-	return md5Hex(encoded), nil
+	return php.Md5(encoded), nil
 }
 
 // IsLocked ports Locker::isLocked: whether a lock file with packages

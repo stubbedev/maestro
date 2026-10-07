@@ -3,9 +3,6 @@
 package comparer
 
 import (
-	"crypto/sha1" //nolint:gosec // a content fingerprint, not security
-	"encoding/hex"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,7 +89,7 @@ func (c *Comparer) GetChangedAsString(toString, explicated bool) string {
 		}
 	}
 
-	return strings.Trim(strings.Join(strs, "\r\n"), " \n\r\t\v\x00")
+	return strings.Trim(strings.Join(strs, "\r\n"), php.TrimChars)
 }
 
 // DoCompare ports Comparer::doCompare. PHP changes into each directory and
@@ -218,26 +215,11 @@ func walk(base, dir string, t *tree) bool {
 				return false
 			}
 		case info.Mode().IsRegular() && info.Size() > 0:
-			if hash, ok := hashFile(full); ok {
+			if hash, err := php.Sha1File(full); err == nil {
 				t.set(dir, name, hash)
 			}
 		}
 	}
 
 	return true
-}
-
-func hashFile(path string) (string, bool) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", false
-	}
-	defer f.Close()
-
-	h := sha1.New() //nolint:gosec // a content fingerprint, not security
-	if _, err := io.Copy(h, f); err != nil {
-		return "", false
-	}
-
-	return hex.EncodeToString(h.Sum(nil)), true
 }

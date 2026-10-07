@@ -560,7 +560,7 @@ func (c *ConfigCommand) openEditor(in console.Input) (int, error) {
 		} else {
 			for _, candidate := range []string{"editor", "vim", "vi", "nano", "pico", "ed"} {
 				outp, _ := exec.Command("/bin/sh", "-c", "which "+candidate).Output() //nolint:gosec // exec('which '.$candidate), a fixed list
-				lines := strings.Split(strings.TrimRight(string(outp), " \t\n\r\x00\x0B"), "\n")
+				lines := strings.Split(strings.TrimRight(string(outp), php.TrimChars), "\n")
 				if last := lines[len(lines)-1]; php.Truthy(last) {
 					editor = candidate
 

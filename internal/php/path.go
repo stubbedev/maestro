@@ -14,6 +14,9 @@ import (
 // onWindows is PHP_OS_FAMILY === 'Windows' for the running maestro.
 const onWindows = runtime.GOOS == "windows"
 
+// IsWindows is PHP_OS_FAMILY === 'Windows' (Platform::isWindows).
+func IsWindows() bool { return onWindows }
+
 // Getcwd ports getcwd(): the physical working directory, as getcwd(3)
 // reports it, never $PWD.
 func Getcwd() (string, error) { return getwd() }

@@ -178,7 +178,7 @@ func (in *BaseInput) Option(name string) any {
 			return nil
 		}
 
-		return !phpTruthy(v)
+		return !inputTruthy(v)
 	}
 
 	o := in.definition.opt(name)
@@ -197,7 +197,7 @@ func (in *BaseInput) Option(name string) any {
 func (in *BaseInput) SetOption(name string, value any) {
 	if in.definition.HasNegation(name) {
 		n, _ := in.definition.NegationToName(name)
-		in.options[n] = !phpTruthy(value)
+		in.options[n] = !inputTruthy(value)
 
 		return
 	}
@@ -244,7 +244,7 @@ func (in *BaseInput) Stream() io.Reader { return in.stream }
 func StringOption(in Input, name string) string { return phpToString(in.Option(name)) }
 
 // BoolOption returns an option value converted like PHP's (bool) cast.
-func BoolOption(in Input, name string) bool { return phpTruthy(in.Option(name)) }
+func BoolOption(in Input, name string) bool { return inputTruthy(in.Option(name)) }
 
 // StringsOption returns an array option value.
 func StringsOption(in Input, name string) []string { return toStrings(in.Option(name)) }

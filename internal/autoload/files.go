@@ -646,7 +646,7 @@ class ComposerAutoloaderInit` + suffix + `
 		if g.apcuPrefix != nil {
 			prefix = *g.apcuPrefix
 		} else {
-			prefix = randomHex(10)
+			prefix = php.RandomHex(10)
 		}
 		b.WriteString("        $loader->setApcuPrefix(" + php.VarExport(prefix) + ");\n")
 	}

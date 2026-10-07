@@ -8,8 +8,6 @@
 package autoload
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"os"
 	"strconv"
 	"strings"
@@ -556,15 +554,7 @@ func (g *Generator) suffix(config Config, vendorPath, suffix string, locker Lock
 		}
 	}
 
-	return randomHex(16), nil
-}
-
-// randomHex is bin2hex(random_bytes(n)).
-func randomHex(n int) string {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-
-	return hex.EncodeToString(b)
+	return php.RandomHex(16), nil
 }
 
 // write writes the autoloader files.

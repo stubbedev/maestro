@@ -199,7 +199,7 @@ func IsWindowsSubsystemForLinux() bool {
 
 // IsWindows ports Platform::isWindows.
 func IsWindows() bool {
-	return runtime.GOOS == "windows"
+	return php.IsWindows()
 }
 
 var (

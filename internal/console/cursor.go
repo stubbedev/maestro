@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // Cursor moves the terminal cursor with ANSI escape sequences written to an
@@ -110,7 +112,7 @@ func (c *Cursor) CurrentPosition() (col, row int) {
 
 	buf := make([]byte, 1024)
 	n, _ := c.input.Read(buf)
-	code := strings.Trim(string(buf[:n]), " \t\n\r\x00\x0B")
+	code := strings.Trim(string(buf[:n]), php.TrimChars)
 
 	shellExec("stty " + sttyMode)
 

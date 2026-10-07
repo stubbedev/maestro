@@ -250,7 +250,7 @@ func (m *Manipulator) AddLink(typ, pkg, constraint string, sortPackages bool) (b
 	}
 
 	// no link of that type yet
-	if !isset(decoded, typ) {
+	if !issetIndex(decoded, typ) {
 		return m.AddMainKey(typ, php.ArrayOf(pkg, constraint))
 	}
 
@@ -776,7 +776,7 @@ func (m *Manipulator) AddSubNode(mainNode, name string, value any, appendItem bo
 	name, subName := splitSubName(mainNode, name)
 
 	// no main node yet
-	if !isset(decoded, mainNode) {
+	if !issetIndex(decoded, mainNode) {
 		if subName != nil {
 			_, err = m.AddMainKey(mainNode, php.ArrayOf(name, php.ArrayOf(*subName, value)))
 		} else {
@@ -929,7 +929,7 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 
 	// no node to remove
 	node := index(decoded, mainNode)
-	if !isset(node, name) || (subName != nil && *subName != "" && *subName != "0" && !isset(index(node, name), *subName)) {
+	if !issetIndex(node, name) || (subName != nil && *subName != "" && *subName != "0" && !issetIndex(index(node, name), *subName)) {
 		return true, nil
 	}
 
@@ -1088,7 +1088,7 @@ func (m *Manipulator) AddListItem(mainNode string, value any, appendItem bool) (
 	}
 
 	// no main node yet
-	if !isset(decoded, mainNode) {
+	if !issetIndex(decoded, mainNode) {
 		if ok, err := m.AddMainKey(mainNode, php.NewArray()); err != nil || !ok {
 			return false, err
 		}
@@ -1194,7 +1194,7 @@ func (m *Manipulator) InsertListItem(mainNode string, value any, idx int) (bool,
 	}
 
 	// no main node yet
-	if !isset(decoded, mainNode) {
+	if !issetIndex(decoded, mainNode) {
 		if ok, err := m.AddMainKey(mainNode, php.NewArray()); err != nil || !ok {
 			return false, err
 		}
@@ -1280,7 +1280,7 @@ func (m *Manipulator) RemoveListItem(mainNode string, nodeIndex int) (bool, erro
 	}
 
 	// no node to remove
-	if !isset(index(decoded, mainNode), nodeIndex) {
+	if !issetIndex(index(decoded, mainNode), nodeIndex) {
 		return true, nil
 	}
 
@@ -1336,7 +1336,7 @@ func (m *Manipulator) AddMainKey(key string, content any) (bool, error) {
 	}
 
 	// key exists already
-	if isset(decoded, key) {
+	if issetIndex(decoded, key) {
 		matches, err := m.match(mainKeyRegex(encodedKey, "key", ""), m.contents)
 		if err != nil {
 			return false, err
@@ -1587,8 +1587,8 @@ func stringOffset(s string, key any) (int, bool) {
 	return int(i), true
 }
 
-// isset is isset($container[$key]).
-func isset(container, key any) bool { return index(container, key) != nil }
+// issetIndex is isset($container[$key]) for any container, a string too.
+func issetIndex(container, key any) bool { return index(container, key) != nil }
 
 // property is $object->name ?? null.
 func property(object any, name string) any {

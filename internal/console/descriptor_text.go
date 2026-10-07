@@ -23,7 +23,7 @@ func (d *TextDescriptor) Describe(out Output, object any, options DescriptorOpti
 func (d *TextDescriptor) describeInputArgument(argument *InputArgument, options DescriptorOptions) {
 	def := argument.Default()
 	defaultText := ""
-	if def != nil && (!isArrayValue(def) || phpTruthy(def)) {
+	if def != nil && (!isArrayValue(def) || inputTruthy(def)) {
 		defaultText = "<comment> [default: " + formatDefaultValueJSON(def) + "]</comment>"
 	}
 
@@ -42,7 +42,7 @@ func (d *TextDescriptor) describeInputArgument(argument *InputArgument, options 
 func (d *TextDescriptor) describeInputOption(option *InputOption, options DescriptorOptions) {
 	def := option.Default()
 	defaultText := ""
-	if option.AcceptValue() && def != nil && (!isArrayValue(def) || phpTruthy(def)) {
+	if option.AcceptValue() && def != nil && (!isArrayValue(def) || inputTruthy(def)) {
 		defaultText = "<comment> [default: " + formatDefaultValueJSON(def) + "]</comment>"
 	}
 

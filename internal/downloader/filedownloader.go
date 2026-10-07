@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	iofs "io/fs"
 	"os"
 	"strconv"
@@ -384,7 +383,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 
 		if checksum.S != "" {
 			var err error
-			if sum, err = sha1File(st.fileName); err != nil {
+			if sum, err = php.Sha1File(st.fileName); err != nil {
 				return nil, "", err
 			}
 
@@ -471,7 +470,7 @@ func (d *FileDownloader) dispatchPostWatched(st *dlState, url dlURL, checksum pk
 
 	if sum == "" {
 		var err error
-		if sum, err = sha1File(st.fileName); err != nil {
+		if sum, err = php.Sha1File(st.fileName); err != nil {
 			return err
 		}
 	}
@@ -487,7 +486,7 @@ func (d *FileDownloader) dispatchPostWatched(st *dlState, url dlURL, checksum pk
 
 // sameSha1 reports whether the file at path still has the sha1 sum.
 func sameSha1(path, sum string) bool {
-	after, err := sha1File(path)
+	after, err := php.Sha1File(path)
 
 	return err == nil && after == sum
 }
@@ -914,20 +913,4 @@ func (d *FileDownloader) randomDir() string {
 			return dir
 		}
 	}
-}
-
-func sha1File(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() { _ = f.Close() }()
-
-	h := sha1.New() //nolint:gosec // the dist shasum is SHA-1
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

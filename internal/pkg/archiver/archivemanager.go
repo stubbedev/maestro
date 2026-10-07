@@ -4,7 +4,6 @@
 package archiver
 
 import (
-	"crypto/rand"
 	"crypto/sha1" //nolint:gosec // hash('sha1') names archives, as in Composer
 	"encoding/hex"
 	"slices"
@@ -176,7 +175,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 		sourcePath = util.Realpath(".")
 	} else {
 		// Directory used to download the sources
-		sourcePath = php.SysGetTempDir() + "/composer_archive" + randomHex(5)
+		sourcePath = php.SysGetTempDir() + "/composer_archive" + php.RandomHex(5)
 		if err := util.EnsureDirectoryExists(sourcePath); err != nil {
 			return "", err
 		}
@@ -224,7 +223,7 @@ func (m *ArchiveManager) Archive(p pkg.CompletePackageInterface, format, targetD
 	}
 
 	// Create the archive
-	tempTarget := php.SysGetTempDir() + "/composer_archive" + randomHex(5) + "." + format
+	tempTarget := php.SysGetTempDir() + "/composer_archive" + php.RandomHex(5) + "." + format
 	if err := util.EnsureDirectoryExists(php.Dirname(tempTarget)); err != nil {
 		return "", err
 	}
@@ -381,12 +380,4 @@ func (m *ArchiveManager) supportedFormats() []string {
 	}
 
 	return unique
-}
-
-// randomHex is bin2hex(random_bytes(n)).
-func randomHex(n int) string {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-
-	return hex.EncodeToString(b)
 }

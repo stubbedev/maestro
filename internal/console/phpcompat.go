@@ -28,8 +28,9 @@ func phpValue(v any) any {
 	return v
 }
 
-// phpTruthy is PHP's (bool) cast of an input value.
-func phpTruthy(v any) bool {
+// inputTruthy is PHP's (bool) cast of an input value (an option's or an
+// argument's, which may be a list).
+func inputTruthy(v any) bool {
 	switch x := v.(type) {
 	case []string:
 		return len(x) > 0

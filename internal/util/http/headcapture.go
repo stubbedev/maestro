@@ -401,7 +401,7 @@ func cutTerminator(line []byte) (body, term []byte) {
 // curlHeaderLines is Composer's explode("\r\n", rtrim($headerText)) of
 // the header text curl wrote.
 func curlHeaderLines(text string) []string {
-	return strings.Split(strings.TrimRight(text, " \t\n\r\x00\x0B"), "\r\n")
+	return strings.Split(strings.TrimRight(text, php.TrimChars), "\r\n")
 }
 
 // streamHeaderLines is $http_response_header for a recorded final head as

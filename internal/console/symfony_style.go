@@ -9,7 +9,6 @@ package console
 import (
 	"iter"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -33,7 +32,7 @@ func NewSymfonyStyle(in Input, out Output) *SymfonyStyle {
 	// The history holds the last two line breaks: two PHP_EOLs, 4 bytes on
 	// Windows (DIRECTORY_SEPARATOR === '\\').
 	historyLength, windows := 2, 0
-	if runtime.GOOS == "windows" {
+	if php.IsWindows() {
 		historyLength, windows = 4, 1
 	}
 	buffered, _ := NewTrimmedBufferOutput(historyLength, out.Verbosity(), false, cloneFormatter(out.Formatter()))
@@ -388,7 +387,7 @@ func (s *SymfonyStyle) CreateTable() *Table {
 // CreateProgressBar returns a progress bar with the shaded bar characters.
 func (s *SymfonyStyle) CreateProgressBar(maxSteps int) *ProgressBar {
 	bar := NewProgressBar(s.output, maxSteps, DefaultMinSecondsBetweenRedraws)
-	if runtime.GOOS != "windows" || os.Getenv("TERM_PROGRAM") == "Hyper" {
+	if !php.IsWindows() || os.Getenv("TERM_PROGRAM") == "Hyper" {
 		bar.SetEmptyBarCharacter("░") // light shade character \u2591
 		bar.SetProgressCharacter("")
 		bar.SetBarCharacter("▓") // dark shade character \u2593

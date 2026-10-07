@@ -3,8 +3,6 @@
 package util
 
 import (
-	"crypto/md5" //nolint:gosec // Composer names mirror paths by md5, not for security.
-	"encoding/hex"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -26,13 +24,13 @@ func ComposerMirrorProcessURL(mirrorURL, packageName, version string, reference,
 		if php.Truthy(ref) {
 			// [a-f0-9]* is possessive before $: Preg::isMatch cannot throw.
 			if isRef, _ := mirrorReference.IsMatch(ref); !isRef {
-				ref = md5Hex(ref)
+				ref = php.Md5(ref)
 			}
 		}
 	}
 
 	if strings.IndexByte(version, '/') >= 0 {
-		version = md5Hex(version)
+		version = php.Md5(version)
 	}
 
 	// str_replace with arrays replaces each pair in turn over the whole
@@ -81,12 +79,6 @@ func ComposerMirrorProcessGitURL(mirrorURL, packageName, url string, typ *string
 // ComposerMirrorProcessHgURL ports ComposerMirror::processHgUrl.
 func ComposerMirrorProcessHgURL(mirrorURL, packageName, url, typ string) string {
 	return ComposerMirrorProcessGitURL(mirrorURL, packageName, url, &typ)
-}
-
-func md5Hex(s string) string {
-	sum := md5.Sum([]byte(s)) //nolint:gosec // See the import.
-
-	return hex.EncodeToString(sum[:])
 }
 
 func deref(s *string) string {

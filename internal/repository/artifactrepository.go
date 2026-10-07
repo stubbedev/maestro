@@ -4,9 +4,6 @@
 package repository
 
 import (
-	"crypto/sha1" //nolint:gosec // the dist shasum Composer records is a sha1
-	"encoding/hex"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,7 +177,7 @@ func (r *ArtifactRepository) composerInformation(pathname string) (pkg.PackageIn
 	if !isArray {
 		return nil, &util.ErrorException{Message: "Cannot use a scalar value as an array"}
 	}
-	shasum, err := sha1File(util.Realpath(pathname))
+	shasum, err := php.Sha1File(util.Realpath(pathname))
 	if err != nil {
 		return nil, err
 	}
@@ -196,20 +193,6 @@ func (r *ArtifactRepository) composerInformation(pathname string) (pkg.PackageIn
 	}
 
 	return p, err
-}
-
-func sha1File(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha1.New() //nolint:gosec // see the import
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // NewPearRepository ports new PearRepository(): PEAR repositories are gone.

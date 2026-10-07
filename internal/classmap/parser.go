@@ -69,7 +69,7 @@ func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error)
 	v := p.phpVersion()
 	b.strip = b.lex.strip(b.strip[:0], b.src, n, p.ShortOpenTag, v)
 	if len(b.strip) == 0 {
-		if len(bytes.Trim(b.src[:n], " \t\n\r\x00\x0B")) == 0 {
+		if len(bytes.Trim(b.src[:n], php.TrimChars)) == 0 {
 			// The input file was really empty and thus contains no classes
 			return nil, nil
 		}

@@ -26,7 +26,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -176,7 +175,7 @@ type mirror struct {
 // mirrorAt returns the reader for the mirror at dir, or nil when git must
 // be asked: dir is not certainly a bare repository git would use as is.
 func (g *Git) mirrorAt(dir string) *mirror {
-	if runtime.GOOS == "windows" || !mirrorEnvSafe() {
+	if php.IsWindows() || !mirrorEnvSafe() {
 		return nil
 	}
 

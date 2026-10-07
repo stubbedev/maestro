@@ -890,7 +890,7 @@ func (*Application) ConfigureIO(in Input, out Output) {
 			out.SetVerbosity(VerbosityVeryVerbose)
 			shellVerbosity = 2
 		case in.HasParameterOption([]string{"-v"}, true) || in.HasParameterOption([]string{"--verbose=1"}, true) ||
-			in.HasParameterOption([]string{"--verbose"}, true) || phpTruthy(verbose):
+			in.HasParameterOption([]string{"--verbose"}, true) || inputTruthy(verbose):
 			out.SetVerbosity(VerbosityVerbose)
 			shellVerbosity = 1
 		}

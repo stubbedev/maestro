@@ -184,7 +184,7 @@ func xmlDefaults(def any) []string {
 
 		return []string{"false"}
 	}
-	if phpTruthy(def) {
+	if inputTruthy(def) {
 		return []string{phpToString(def)}
 	}
 
