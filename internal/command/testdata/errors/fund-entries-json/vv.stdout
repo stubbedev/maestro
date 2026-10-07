@@ -1,0 +1,16 @@
+{
+    "first": {
+        "https://example.org": [
+            "other",
+            "pkg"
+        ],
+        "https://github.com/org/repo": [
+            "pkg"
+        ]
+    },
+    "second": {
+        "https://github.com/sponsors/someone": [
+            "pkg"
+        ]
+    }
+}

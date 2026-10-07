@@ -3,6 +3,7 @@
 package command_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
@@ -140,5 +141,24 @@ Thank you!`,
 			}
 			gbAssertSame(t, php.Trim(tt.expected), gbTrim(appTester))
 		})
+	}
+}
+
+// TestFundCommand_DecoratedLinks: decorated, each funding link is an
+// OSC 8 hyperlink, as Composer's <href=...> renders it, also where the
+// theme styles the link.
+func TestFundCommand_DecoratedLinks(t *testing.T) {
+	commandtest.InitTempComposer(t, `{"repositories": [], "require": {"first/pkg": "^2.0"}}`, nil, nil, true)
+	p := commandtest.GetPackage(t, "first/pkg", "2.3.4")
+	p.SetFunding(php.ListOf(php.ArrayOf("type", "github", "url", "https://github.com/composer-test-data")))
+	commandtest.CreateInstalledJSON(t, []pkg.PackageInterface{p}, nil, true)
+
+	appTester := commandtest.GetApplicationTester(t)
+	if code, err := appTester.RunArgs(commandtest.Options{Decorated: new(true)}, "command", "fund"); err != nil || code != 0 {
+		t.Fatalf("run: %d %v", code, err)
+	}
+	const url = "https://github.com/sponsors/composer-test-data"
+	if want := "\x1b]8;;" + url + "\x1b\\"; !strings.Contains(appTester.Display(true), want) {
+		t.Errorf("no hyperlink to %s in %q", url, appTester.Display(true))
 	}
 }

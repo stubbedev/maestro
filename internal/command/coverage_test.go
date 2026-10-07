@@ -296,8 +296,10 @@ var coverage = []entry{
 		},
 	}),
 	cover(command.NewFundCommand, Coverage{
-		Tests:   []Proof{Positive(Go(TestFundCommand_FundCommand))},
-		Pending: 49,
+		Tests: []Proof{
+			Positive(Go(TestFundCommand_FundCommand)),
+			Positive(Go(TestFundCommand_DecoratedLinks)),
+		},
 	}),
 	cover(command.NewReinstallCommand, Coverage{
 		Tests: []Proof{

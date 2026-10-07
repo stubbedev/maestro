@@ -128,7 +128,8 @@ func TestFreeTextFormatsAreColourOnly(t *testing.T) {
 		{[]any{"command", "licenses"}, []string{
 			muted("Name:"), ui.RoleSuccess.Styled("MIT"), ui.RoleNotice.Styled("proprietary"), ui.RoleDanger.Styled("none"),
 		}},
-		{[]any{"command", "fund"}, []string{accent("first"), ui.RoleLink.Styled("https://example.org/fund")}},
+		// The link keeps its OSC 8 hyperlink, in the link role.
+		{[]any{"command", "fund"}, []string{accent("first"), "\x1b]8;;https://example.org/fund\x1b\\https://example.org/fund\x1b]8;;\x1b\\"}},
 		{[]any{"command", "check-platform-reqs"}, []string{muted("provided by third/pkg")}},
 		{[]any{"command", "suggests"}, []string{accent("first/pkg"), muted("helps")}},
 		{[]any{"command", "suggests", "--by-suggestion", true}, []string{accent("vendor/other"), muted("helps")}},

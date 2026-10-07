@@ -41,6 +41,19 @@ func (s Surface) Style(r Role, text string) string {
 	return r.Wrap(text)
 }
 
+// Href is text linking to url (already escaped for the formatter, as
+// OutputFormatter::escape does), in role on the free surface. The link
+// and the role are one inline style: a role's tag nested inside
+// <href=...> would replace the hyperlink, which must stay.
+func (s Surface) Href(r Role, escapedURL, text string) string {
+	style := "href=" + escapedURL
+	if inline := r.Inline(); s == Free && inline != "" {
+		style = inline + ";" + style
+	}
+
+	return "<" + style + ">" + text + "</>"
+}
+
 // Format is a value of a command's --format option and the surface the
 // output it selects is on.
 type Format struct {

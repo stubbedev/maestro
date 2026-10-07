@@ -1,0 +1,39 @@
+{
+    "packages": [
+        {
+            "name": "first/other",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "type": "library",
+            "funding": [
+                {"type": "custom", "url": "https://example.org"}
+            ],
+            "install-path": "../first/other"
+        },
+        {
+            "name": "first/pkg",
+            "version": "2.3.4",
+            "version_normalized": "2.3.4.0",
+            "type": "library",
+            "funding": [
+                {"type": "github"},
+                {"type": "custom", "url": ""},
+                {"type": "github", "url": "https://github.com/org/repo"},
+                {"type": "custom", "url": "https://example.org"}
+            ],
+            "install-path": "../first/pkg"
+        },
+        {
+            "name": "second/pkg",
+            "version": "1.0.0",
+            "version_normalized": "1.0.0.0",
+            "type": "library",
+            "funding": [
+                {"type": "github", "url": "https://github.com/someone"}
+            ],
+            "install-path": "../second/pkg"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}
