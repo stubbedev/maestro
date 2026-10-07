@@ -9,13 +9,19 @@ import (
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
-// downloadManagerAdapter is a *downloader.DownloadManager as the
+// DownloadManagerAdapter is a *downloader.DownloadManager as the
 // Installer's DownloadManager.
-type downloadManagerAdapter struct{ m *downloader.DownloadManager }
+type DownloadManagerAdapter struct{ *downloader.DownloadManager }
 
-func (a downloadManagerAdapter) SetPreferSource(preferSource bool) { a.m.SetPreferSource(preferSource) }
+// SetPreferSource implements DownloadManager.
+func (a DownloadManagerAdapter) SetPreferSource(preferSource bool) {
+	a.DownloadManager.SetPreferSource(preferSource)
+}
 
-func (a downloadManagerAdapter) SetPreferDist(preferDist bool) { a.m.SetPreferDist(preferDist) }
+// SetPreferDist implements DownloadManager.
+func (a DownloadManagerAdapter) SetPreferDist(preferDist bool) {
+	a.DownloadManager.SetPreferDist(preferDist)
+}
 
 // GeneratorAdapter is a *autoload.Generator as the Installer's
 // AutoloadGenerator.

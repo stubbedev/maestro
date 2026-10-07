@@ -109,13 +109,8 @@ func (i *Installer) State() InstallerState {
 		PolicyConfig:                      i.policyConfig,
 		LockTransaction:                   i.lockTransaction,
 	}
-	switch a := i.downloadManager.(type) {
-	case downloadManagerAdapter:
-		s.DownloadManager = a.m
-	case interface {
-		Manager() *downloader.DownloadManager
-	}:
-		s.DownloadManager = a.Manager()
+	if a, ok := i.downloadManager.(DownloadManagerAdapter); ok {
+		s.DownloadManager = a.DownloadManager
 	}
 	if g, ok := i.autoloadGenerator.(GeneratorAdapter); ok {
 		s.AutoloadGenerator = g.Generator

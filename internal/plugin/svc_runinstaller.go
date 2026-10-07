@@ -25,18 +25,6 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-// installerDownloadManager is a DownloadManager as the Installer's.
-type installerDownloadManager struct{ m *downloader.DownloadManager }
-
-func (a installerDownloadManager) SetPreferSource(preferSource bool) {
-	a.m.SetPreferSource(preferSource)
-}
-
-func (a installerDownloadManager) SetPreferDist(preferDist bool) { a.m.SetPreferDist(preferDist) }
-
-// Manager returns the DownloadManager (composer.Installer.State's).
-func (a installerDownloadManager) Manager() *downloader.DownloadManager { return a.m }
-
 // composerOf returns the Composer instance PHP got whose repository
 // manager is rm (the process runtime and executor of the services a PHP
 // Installer was built from); nil when there is none.
@@ -163,7 +151,7 @@ func (r *Runtime) newInstallerFromSettings(a args) (*composer.Installer, error) 
 		deps.Process = util.NewProcessExecutor(out)
 	}
 	if dm != nil {
-		deps.DownloadManager = installerDownloadManager{dm}
+		deps.DownloadManager = composer.DownloadManagerAdapter{DownloadManager: dm}
 	}
 	if ed != nil {
 		deps.EventDispatcher = ed

@@ -221,7 +221,7 @@ func TestBinaryInstaller_DetermineBinaryCaller(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got, err := DetermineBinaryCaller(path); err != nil || got != tc.want {
+		if got, err := util.DetermineBinaryCaller(path); err != nil || got != tc.want {
 			t.Errorf("%s: %q, %v; want %q", tc.name, got, err, tc.want)
 		}
 	}

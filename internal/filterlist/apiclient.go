@@ -49,17 +49,11 @@ func PostOptions(options *php.Array, contentTypeHeader, content string) *php.Arr
 		options = options.Clone()
 	}
 
-	httpOptions := HTTPOptions(options)
+	httpOptions := http.HTTPOptions(options)
 	httpOptions.Set("method", "POST")
-	AppendHeader(httpOptions, contentTypeHeader)
+	http.AppendHeader(httpOptions, contentTypeHeader)
 	httpOptions.Set("timeout", int64(10))
 	httpOptions.Set("content", content)
 
 	return options
 }
-
-// HTTPOptions forwards to http.HTTPOptions, which owns it.
-func HTTPOptions(options *php.Array) *php.Array { return http.HTTPOptions(options) }
-
-// AppendHeader forwards to http.AppendHeader, which owns it.
-func AppendHeader(httpOptions *php.Array, header string) { http.AppendHeader(httpOptions, header) }

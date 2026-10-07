@@ -178,10 +178,6 @@ func (b *BinaryInstaller) RemoveBinaries(p pkg.PackageInterface) error {
 	return nil
 }
 
-// DetermineBinaryCaller is BinaryInstaller::determineBinaryCaller (shared
-// with the event dispatcher through internal/util).
-func DetermineBinaryCaller(bin string) (string, error) { return util.DetermineBinaryCaller(bin) }
-
 // IsBinPathInsidePackage is BinaryInstaller::isBinPathInsidePackage (shared
 // with the downloaders through internal/util).
 func IsBinPathInsidePackage(installPath, binPath string) bool {

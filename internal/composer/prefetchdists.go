@@ -4,7 +4,6 @@
 package composer
 
 import (
-	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
@@ -26,20 +25,11 @@ func (i *Installer) prefetchDists(transaction *resolver.Transaction) func() {
 		return nil
 	}
 
-	var m *downloader.DownloadManager
-
-	switch a := i.downloadManager.(type) {
-	case downloadManagerAdapter:
-		m = a.m
-	case interface {
-		Manager() *downloader.DownloadManager
-	}:
-		m = a.Manager()
-	}
-
-	if m == nil {
+	a, ok := i.downloadManager.(DownloadManagerAdapter)
+	if !ok || a.DownloadManager == nil {
 		return nil
 	}
+	m := a.DownloadManager
 
 	var installed []pkg.PackageInterface
 

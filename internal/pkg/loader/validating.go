@@ -402,7 +402,8 @@ func (l *ValidatingArrayLoader) validateAuthors() error {
 			}
 		}
 
-		if email := get(original, "email"); email != nil && !filterEmail(email) {
+		// filter_var() validates a scalar as its string; an array fails.
+		if email := get(original, "email"); email != nil && !isEmail(email) {
 			l.warnf("authors.", key, ".email : invalid value (", php.ToString(email), "), must be a valid email address")
 			author.Delete("email")
 		}
@@ -438,7 +439,7 @@ func (l *ValidatingArrayLoader) validateSupport() error {
 		}
 	}
 
-	if email, ok := get(support, "email").(string); ok && !filterEmail(email) {
+	if email, ok := get(support, "email").(string); ok && !util.FilterValidateEmail(email) {
 		l.warnf("support.email : invalid value (", email, "), must be a valid email address")
 		support.Delete("email")
 	}
@@ -900,7 +901,7 @@ func (l *ValidatingArrayLoader) validateSourceDist() error {
 
 		// a perforce url is passed to the p4 client as P4PORT, where rsh:/jsh: endpoints
 		// mean "run this command locally" (GHSA-rvx4-ffvw-m9q3)
-		if url, ok := get(src, "url").(string); ok && srcType == "source" && get(src, "type") == "perforce" && !IsValidPerforcePort(url) {
+		if url, ok := get(src, "url").(string); ok && srcType == "source" && get(src, "type") == "perforce" && !vcs.IsValidPort(url) {
 			l.errorf(srcType, ".url : invalid Perforce port (\"", url, "\"), it must be of the form [tcp|ssl:][host:]port")
 		}
 	}
@@ -1080,6 +1081,16 @@ func (l *ValidatingArrayLoader) validateURL(property string) {
 	}
 }
 
+// isEmail is filter_var($v, FILTER_VALIDATE_EMAIL) !== false: a scalar is
+// validated as its string, an array fails.
+func isEmail(v any) bool {
+	if _, ok := v.(*php.Array); ok {
+		return false
+	}
+
+	return util.FilterValidateEmail(php.ToString(v))
+}
+
 // filterURL ports ValidatingArrayLoader::filterUrl; a non-string value is
 // the TypeError parse_url raises under strict types.
 func filterURL(value any, schemes ...string) (bool, error) {
@@ -1146,10 +1157,6 @@ func HasPackageNamingError(name string, isLink bool) (string, bool, error) {
 	return "", false, nil
 }
 
-// IsValidPerforcePort is Perforce::isValidPort, which vcs.IsValidPort
-// owns; it is kept for existing callers.
-func IsValidPerforcePort(url string) bool { return vcs.IsValidPort(url) }
-
 // ValidatePackage ports ValidatingArrayLoader::validatePackage: it rejects
 // names, URLs, references and binaries that could be abused, failing with
 // a *pkg.SecurityError. Root packages are not checked.
@@ -1188,7 +1195,7 @@ func ValidatePackage(p pkg.PackageInterface) error {
 	// A perforce source.url ends up as the p4 client's P4PORT, and a "rsh:"/"jsh:" endpoint
 	// there makes the client execute the rest of the value as a local command instead of
 	// connecting to a server (GHSA-rvx4-ffvw-m9q3), so only accept network endpoints.
-	if sourceURL := p.SourceURL(); p.SourceType() == pkg.Str("perforce") && sourceURL.Valid && !IsValidPerforcePort(sourceURL.S) {
+	if sourceURL := p.SourceURL(); p.SourceType() == pkg.Str("perforce") && sourceURL.Valid && !vcs.IsValidPort(sourceURL.S) {
 		return &pkg.SecurityError{Message: p.Name() + " has an invalid source.url, it must be a Perforce port of the form [tcp|ssl:][host:]port: " + sourceURL.S}
 	}
 

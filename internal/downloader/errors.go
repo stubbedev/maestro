@@ -18,6 +18,3 @@ func isIrrecoverable(err error) bool {
 
 	return errors.As(err, &e)
 }
-
-// PHPClassOf forwards to util.PHPClassOf, which owns it.
-func PHPClassOf(err error) (string, int) { return util.PHPClassOf(err) }

@@ -199,7 +199,7 @@ func checkOracle(t *testing.T, s *Snapshot, g *php.Array) {
 
 	for _, row := range rows(g, "html_entity_decode") {
 		in, _ := row[0].(string)
-		if got := HTMLEntityDecode(in); got != row[1] {
+		if got := php.HTMLEntityDecode(in); got != row[1] {
 			t.Errorf("HTMLEntityDecode(%q) = %q, want %q", in, got, row[1])
 		}
 	}

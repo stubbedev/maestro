@@ -176,7 +176,7 @@ func CreateInstaller(out io.IO, c *Composer) (*Installer, error) {
 		Process:             c.process,
 	}
 	if dm := c.DownloadManager(); dm != nil {
-		deps.DownloadManager = downloadManagerAdapter{dm}
+		deps.DownloadManager = DownloadManagerAdapter{dm}
 	}
 	if ed := c.EventDispatcher(); ed != nil {
 		deps.EventDispatcher = ed

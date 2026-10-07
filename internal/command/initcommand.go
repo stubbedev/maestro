@@ -16,7 +16,6 @@ import (
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
-	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	rvcs "github.com/stubbedev/maestro/internal/repository/vcs"
@@ -802,20 +801,9 @@ func addVendorIgnore(ignoreFile, vendor string) {
 	_ = os.WriteFile(ignoreFile, []byte(contents+vendor+"\n"), 0o666)
 }
 
-// isValidEmail ports isValidEmail: filter_var($email,
-// FILTER_VALIDATE_EMAIL) !== false. internal/pkg/loader owns the port of
-// that filter (unexported); ValidatingArrayLoader applies it to
-// support.email, which this asks it to validate.
+// isValidEmail ports isValidEmail.
 func isValidEmail(email string) bool {
-	l := loader.NewValidatingArrayLoader(loader.NewArrayLoader(nil, false), nil, 0)
-	_, _ = l.Load(php.ArrayOf("name", "a/b", "version", "1.0.0", "support", php.ArrayOf("email", email)), "")
-	for _, w := range l.Warnings() {
-		if strings.HasPrefix(w, "support.email : ") {
-			return false
-		}
-	}
-
-	return true
+	return util.FilterValidateEmail(email)
 }
 
 // updateDependencies ports updateDependencies.

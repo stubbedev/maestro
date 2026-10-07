@@ -15,6 +15,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // p2Inputs returns the expanded versions of every p2 file.
@@ -298,7 +299,7 @@ func TestOracle_Formats(t *testing.T) {
 		_ = json.Unmarshal(c[0], &s)
 		_ = json.Unmarshal(c[1], &want)
 
-		if got := loader.FilterEmail(s); got != want {
+		if got := util.FilterValidateEmail(s); got != want {
 			t.Errorf("filter_var(%q, FILTER_VALIDATE_EMAIL) = %v, want %v", s, got, want)
 		}
 	}
