@@ -446,6 +446,14 @@ func (a *Array) Last() (Key, any, bool) {
 	return Key{}, nil, false
 }
 
+// IsAppended reports whether a is in the state appending its values to a
+// new array leaves (ListOf(a.Values()...)), its next free index and
+// internal layout included; false for an empty array.
+func (a *Array) IsAppended() bool {
+	return a != nil && a.packed && !a.indexed && len(a.entries) > 0 && a.live == len(a.entries) &&
+		a.next == int64(len(a.entries))
+}
+
 // IsList reports array_is_list($a): the keys are 0, 1, 2, ... in order.
 func (a *Array) IsList() bool {
 	if a.packed {

@@ -164,7 +164,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 				continue
 			}
-			files[i].list, _ = response.At("security-advisories").(*php.Array)
+			files[i].list, _ = response.at("security-advisories").(*php.Array)
 			if files[i].list != nil && files[i].list.Len() > 0 {
 				toCreate = append(toCreate, i)
 			}
@@ -370,7 +370,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 				return err
 			}
 
-			raw, ok := response.At("filter").(*php.Array)
+			raw, ok := response.at("filter").(*php.Array)
 			if !ok {
 				return nil
 			}

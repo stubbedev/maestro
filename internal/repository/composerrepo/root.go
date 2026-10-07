@@ -562,12 +562,31 @@ func (r *ComposerRepository) createPackages(packages []*php.Array, source string
 
 // configureLoaded is the part of createPackages after loading: the
 // repository's mirrors and transport options.
-func (r *ComposerRepository) configureLoaded(p pkg.PackageInterface) {
-	if mirrors, ok := r.sourceMirrors[p.SourceType().S]; ok && p.SourceType().Valid {
+func (r *ComposerRepository) configureLoaded(p pkg.PackageInterface) { r.loadedConfig().configure(p) }
+
+// loadedConfig is what configureLoaded gives packages, as the repository
+// holds it now.
+func (r *ComposerRepository) loadedConfig() loadedConfig {
+	return loadedConfig{sourceMirrors: r.sourceMirrors, distMirrors: r.distMirrors, options: r.options, baseURL: r.baseURL}
+}
+
+// loadedConfig is the state of the repository configureLoaded gives
+// packages: its mirrors, transport options and base URL.
+type loadedConfig struct {
+	sourceMirrors map[string]*php.Array
+	distMirrors   *php.Array
+	options       *php.Array
+	baseURL       string
+}
+
+// configure is configureLoaded with c. It only reads and sets the
+// package's sources, dists and transport options.
+func (c loadedConfig) configure(p pkg.PackageInterface) {
+	if mirrors, ok := c.sourceMirrors[p.SourceType().S]; ok && p.SourceType().Valid {
 		p.SetSourceMirrors(mirrors)
 	}
-	p.SetDistMirrors(r.distMirrors)
-	r.configurePackageTransportOptions(p)
+	p.SetDistMirrors(c.distMirrors)
+	c.configureTransportOptions(p)
 }
 
 // notificationURL is the notification-url createPackages gives versions

@@ -319,8 +319,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 
 			continue
 		}
-		raw := get2(response, "packages").At(realNames[i])
-		if raw == nil {
+		if !response.hasVersions(realNames[i]) {
 			continue
 		}
 		results[i].found = true
@@ -329,7 +328,7 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 		wg.Go(func() {
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			results[i].packages, results[i].err = r.buildPackages(raw, response.At("minified") == "composer/2.0", packagesSource, realNames[i], constraints[i], acceptableStabilities, stabilityFlags, alreadyLoaded, pre)
+			results[i].packages, results[i].err = r.buildPackages(response, packagesSource, realNames[i], constraints[i], acceptableStabilities, stabilityFlags, alreadyLoaded, pre)
 		})
 	}
 	wg.Wait()
@@ -369,13 +368,32 @@ func (r *ComposerRepository) loadAsyncPackages(packageNames *repository.Constrai
 }
 
 // buildPackages is the part of loadAsyncPackages' callback that builds
-// the packages of a file's version list (raw, minified or not). It only
-// reads the repository, so files are built in parallel.
-func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSource, realName string, constraint semver.ConstraintInterface, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, error) {
-	items := asArray(raw).Values()
-	if minified {
-		if versions := pre.versionsFor(realName, len(items), acceptableStabilities, stabilityFlags); versions != nil {
-			if packages, ok, err := r.buildFromVersions(items, versions, packagesSource, realName, constraint, alreadyLoaded, pre); ok {
+// the packages of realName's version list in file (minified or not). It
+// only reads the repository, so files are built in parallel.
+func (r *ComposerRepository) buildPackages(file *p2File, packagesSource, realName string, constraint semver.ConstraintInterface, acceptableStabilities, stabilityFlags *php.Array, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, error) {
+	// the list is decoded when it is read
+	var items []any
+	decoded := false
+	itemsOf := func() []any {
+		if !decoded {
+			items, decoded = asArray(file.versions(realName)).Values(), true
+		}
+
+		return items
+	}
+	if file.at("minified") == "composer/2.0" {
+		idx := file.index(realName)
+		var versions []*speculatedVersion
+		if idx != nil {
+			versions = pre.versionsFor(realName, len(idx.scanned), acceptableStabilities, stabilityFlags)
+			if versions == nil && idx.exact {
+				versions = acceptedVersions(realName, idx.scanned, acceptableStabilities, stabilityFlags)
+			}
+		} else {
+			versions = pre.versionsFor(realName, len(itemsOf()), acceptableStabilities, stabilityFlags)
+		}
+		if versions != nil {
+			if packages, ok, err := r.buildFromVersions(file, itemsOf, versions, packagesSource, realName, constraint, alreadyLoaded, pre); ok {
 				if r.observe.versionsShared != nil {
 					r.observe.versionsShared()
 				}
@@ -383,6 +401,7 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 				return packages, err
 			}
 		}
+		itemsOf()
 
 		// the versions loaded are copied out of the expansion, the others
 		// only looked at; the packages a speculation built from them
@@ -442,6 +461,7 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 			return nil, err
 		}
 	}
+	itemsOf()
 	versions := make([]*php.Array, 0, len(items))
 	for _, v := range items {
 		data, ok := v.(*php.Array)
@@ -484,7 +504,7 @@ func (r *ComposerRepository) buildPackages(raw any, minified bool, packagesSourc
 // the list; it is expanded only up to the last version loaded that the
 // speculation did not build already (pre). ok is false, and nothing
 // created, if the list does not expand as versionsOf read it.
-func (r *ComposerRepository) buildFromVersions(items []any, versions []*speculatedVersion, packagesSource, realName string, constraint semver.ConstraintInterface, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, bool, error) {
+func (r *ComposerRepository) buildFromVersions(file *p2File, itemsOf func() []any, versions []*speculatedVersion, packagesSource, realName string, constraint semver.ConstraintInterface, alreadyLoaded repository.AlreadyLoaded, pre *prebuilt) ([]pkg.PackageInterface, bool, error) {
 	matches := func(string) bool { return true }
 	if constraint != nil {
 		matches = semver.CompilingMatcher.Matcher(constraint, semver.OpEQ)
@@ -493,6 +513,7 @@ func (r *ComposerRepository) buildFromVersions(items []any, versions []*speculat
 	var (
 		loaded []pkg.PackageInterface // nil where the version is to be loaded
 		load   = map[int]bool{}       // the indexes of those
+		toLoad []int                  // in order
 		last   = -1
 	)
 	for _, v := range versions {
@@ -506,15 +527,22 @@ func (r *ComposerRepository) buildFromVersions(items []any, versions []*speculat
 		built := pre.take(realName, r.notifyURL, v.index)
 		if built == nil {
 			load[v.index] = true
+			toLoad = append(toLoad, v.index)
 			last = v.index
 		}
 		loaded = append(loaded, built)
 	}
 
+	if last >= 0 && file.index(realName) != nil {
+		packages, err := r.createIndexed(file, realName, toLoad, loaded, packagesSource)
+
+		return packages, true, err
+	}
+
 	var versionsToLoad []*php.Array
 	if last >= 0 {
 		index := -1
-		ok, err := expandEach(items, func(_ *php.Array, keep func() *php.Array) error {
+		ok, err := expandEach(itemsOf(), func(_ *php.Array, keep func() *php.Array) error {
 			index++
 			if index > last {
 				return errStopExpanding
@@ -540,18 +568,74 @@ func (r *ComposerRepository) buildFromVersions(items []any, versions []*speculat
 // packages it creates.
 func (r *ComposerRepository) createAround(versionsToLoad []*php.Array, loaded []pkg.PackageInterface, packagesSource string) ([]pkg.PackageInterface, error) {
 	created, err := r.createPackages(versionsToLoad, packagesSource)
-	if err != nil || len(created) == len(loaded) {
-		return created, err
+	if err != nil {
+		return nil, err
 	}
+
+	return r.placeAround(created, loaded), nil
+}
+
+// createIndexed is createAround for the versions at indexes (in order) of
+// name's version list in file, which has an index: they are created as
+// createPackages creates them, as skeletons when the index tells they all
+// load as ones (loader.LoadSkeleton), else in full from their expanded
+// versions.
+func (r *ComposerRepository) createIndexed(file *p2File, name string, indexes []int, loaded []pkg.PackageInterface, packagesSource string) ([]pkg.PackageInterface, error) {
+	idx := file.index(name)
+	skeletons := make([]*php.Array, len(indexes))
+	for j, i := range indexes {
+		if skeletons[j] = idx.skeleton(i); skeletons[j] == nil {
+			return r.createIndexedInFull(file, name, indexes, loaded, packagesSource)
+		}
+	}
+
+	notifyURL := notificationURL(r.notifyURL)
+	config := r.loadedConfig()
+	batch := r.loader.Batch()
+	created := make([]pkg.PackageInterface, len(indexes))
+	for j, i := range indexes {
+		p, err := batch.LoadSkeleton(skeletons[j], file.slot.loadedVersion(name, i, notifyURL))
+		if err != nil {
+			// not for a version the index tells loads as a skeleton; the
+			// full load fails as it fails
+			return r.createIndexedInFull(file, name, indexes, loaded, packagesSource)
+		}
+		pkg.ConfigureLater(p, config.configure)
+		created[j] = p
+	}
+
+	return r.placeAround(created, loaded), nil
+}
+
+// createIndexedInFull is createIndexed creating the packages in full.
+func (r *ComposerRepository) createIndexedInFull(file *p2File, name string, indexes []int, loaded []pkg.PackageInterface, packagesSource string) ([]pkg.PackageInterface, error) {
+	versionsToLoad := make([]*php.Array, len(indexes))
+	for j, i := range indexes {
+		versionsToLoad[j], _ = file.slot.expanded(name, i)
+	}
+
+	return r.createAround(versionsToLoad, loaded, packagesSource)
+}
+
+// placeAround returns created in the places loaded leaves for them (nil
+// entries), between the packages it holds, which it configures as
+// createPackages configures the packages it creates.
+func (r *ComposerRepository) placeAround(created, loaded []pkg.PackageInterface) []pkg.PackageInterface {
+	if len(created) == len(loaded) {
+		return created
+	}
+	config := r.loadedConfig()
 	for i, p := range loaded {
 		if p == nil {
 			loaded[i], created = created[0], created[1:]
 		} else {
-			r.configureLoaded(p)
+			// a skeleton is configured when it is completed, as it would
+			// be now
+			pkg.ConfigureLater(p, config.configure)
 		}
 	}
 
-	return loaded, nil
+	return loaded
 }
 
 // errStopExpanding stops expandEach where the versions needed end.
@@ -563,13 +647,6 @@ func shallowClone(a *php.Array) *php.Array {
 		return nil
 	}
 	return a.ShallowClone()
-}
-
-// get2 is get() for a value that may not be an array.
-func get2(v any, key string) *php.Array {
-	a, _ := asArrayOrNil(v).At(key).(*php.Array)
-
-	return a
 }
 
 func asArrayOrNil(v any) *php.Array {
@@ -627,18 +704,9 @@ func versionOffsetError(v any) error {
 // fn's first error. ok is false, and fn not called, for lists that are
 // not all arrays with string keys only (expandVersions handles those).
 func expandEach(items []any, fn func(data *php.Array, keep func() *php.Array) error) (ok bool, err error) {
-	arrays := make([]*php.Array, len(items))
-	for i, v := range items {
-		a, ok := v.(*php.Array)
-		if !ok {
-			return false, nil
-		}
-		for k := range a.All() {
-			if k.IsInt() {
-				return false, nil
-			}
-		}
-		arrays[i] = a
+	arrays, ok := expandable(items)
+	if !ok {
+		return false, nil
 	}
 
 	// working is the expanded version, kept up to date in place: with
@@ -646,23 +714,15 @@ func expandEach(items []any, fn func(data *php.Array, keep func() *php.Array) er
 	// order and values of the copy expand makes.
 	var working *php.Array
 	for _, versionData := range arrays {
-		if working == nil || working.Len() == 0 {
+		var restarted bool
+		if working, restarted = expandNext(working, versionData); restarted {
 			// expand takes the entry itself; it is copied before fn may
 			// have it changed
-			working = shallowClone(versionData)
 			if err := fn(working, func() *php.Array { return versionData }); err != nil {
 				return true, err
 			}
 
 			continue
-		}
-
-		for k, v := range versionData.All() {
-			if v == "__unset" {
-				working.DeleteKey(k)
-			} else {
-				working.SetKey(k, v)
-			}
 		}
 		if err := fn(working, func() *php.Array { return shallowClone(working) }); err != nil {
 			return true, err
@@ -670,6 +730,46 @@ func expandEach(items []any, fn func(data *php.Array, keep func() *php.Array) er
 	}
 
 	return true, nil
+}
+
+// expandable returns the entries of a version list that expandEach
+// expands: ok is false unless they are all arrays with string keys only.
+func expandable(items []any) (arrays []*php.Array, ok bool) {
+	arrays = make([]*php.Array, len(items))
+	for i, v := range items {
+		a, ok := v.(*php.Array)
+		if !ok {
+			return nil, false
+		}
+		for k := range a.All() {
+			if k.IsInt() {
+				return nil, false
+			}
+		}
+		arrays[i] = a
+	}
+
+	return arrays, true
+}
+
+// expandNext is a step of expandEach: working (nil before the first
+// version), the expanded version before versionData, becomes
+// versionData's expanded version, changed in place, or a copy of
+// versionData when the expansion restarts from it (restarted).
+func expandNext(working, versionData *php.Array) (next *php.Array, restarted bool) {
+	if working == nil || working.Len() == 0 {
+		return shallowClone(versionData), true
+	}
+
+	for k, v := range versionData.All() {
+		if v == "__unset" {
+			working.DeleteKey(k)
+		} else {
+			working.SetKey(k, v)
+		}
+	}
+
+	return working, false
 }
 
 // expandVersions is MetadataMinifier::expand($versions). Entries that are

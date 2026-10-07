@@ -25,14 +25,14 @@ import (
 // so it is what decoding that JSON gives.
 type decodedFiles struct {
 	mu   sync.Mutex
-	slim map[string]decodedFile
+	slim map[string]slimEntry
 	// ahead are the files decoded by the speculation of generation gen;
 	// requested the URLs the package loads requested.
 	ahead     map[string]decodedFile
 	gen       int
 	requested map[string]struct{}
 	// prebuilt are the packages built ahead from the files taken.
-	prebuilt map[*php.Array]*prebuilt
+	prebuilt map[*p2File]*prebuilt
 	// expected are the cached files the speculation of generation gen
 	// decodes and hands over without waiting for anything else
 	expected map[string]*expectedFile
@@ -47,45 +47,51 @@ type expectedFile struct {
 
 type decodedFile struct {
 	json string
-	data *php.Array
+	file *p2File
 	pre  *prebuilt
 }
 
-// rememberSlim keeps the slim form of data, decoded from json, for the
+// slimEntry is the slim form of the file last decoded from json.
+type slimEntry struct {
+	json string
+	data *php.Array
+}
+
+// rememberSlim keeps the slim form of file, decoded from json, for the
 // file cached under cacheKey.
-func (d *decodedFiles) rememberSlim(cacheKey, json string, data *php.Array) {
-	if json == "" || data == nil {
+func (d *decodedFiles) rememberSlim(cacheKey, json string, file *p2File) {
+	if json == "" || file == nil {
 		return
 	}
-	slim := slimFile(data)
+	slim := file.slim()
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if d.slim == nil {
-		d.slim = map[string]decodedFile{}
+		d.slim = map[string]slimEntry{}
 	}
-	d.slim[cacheKey] = decodedFile{json: json, data: slim}
+	d.slim[cacheKey] = slimEntry{json: json, data: slim}
 }
 
 // slimOf is (a copy of) the slim form of the file cached under cacheKey
 // when json is the JSON it was decoded from, else nil.
-func (d *decodedFiles) slimOf(cacheKey, json string) *php.Array {
+func (d *decodedFiles) slimOf(cacheKey, json string) *p2File {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if e, ok := d.slim[cacheKey]; ok && e.json == json {
-		return e.data.Clone()
+		return eagerFile(e.data.Clone())
 	}
 
 	return nil
 }
 
-// offer hands data, decoded from json by the speculation of generation
+// offer hands file, decoded from json by the speculation of generation
 // gen, and the packages it built ahead from it (pre, may be nil) to the
 // next package load of the file cached under cacheKey; the speculation
 // must not use them any more.
-func (d *decodedFiles) offer(gen int, cacheKey, json string, data *php.Array, pre *prebuilt) {
+func (d *decodedFiles) offer(gen int, cacheKey, json string, file *p2File, pre *prebuilt) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -95,7 +101,7 @@ func (d *decodedFiles) offer(gen int, cacheKey, json string, data *php.Array, pr
 	if d.ahead == nil {
 		d.ahead = map[string]decodedFile{}
 	}
-	d.ahead[cacheKey] = decodedFile{json: json, data: data, pre: pre}
+	d.ahead[cacheKey] = decodedFile{json: json, file: file, pre: pre}
 }
 
 // expect notes that the speculation of generation gen is to offer the
@@ -129,11 +135,11 @@ func (d *decodedFiles) expect(gen int, cacheKey, json string) (done func()) {
 	}
 }
 
-// take returns, once, the data offered for the file cached under cacheKey
-// when json is what it was decoded from, else nil; when the speculation
-// is to offer it (expect), it waits for that. The packages built ahead
-// from it are then prebuiltFor(data).
-func (d *decodedFiles) take(cacheKey, json string) *php.Array {
+// take returns, once, the file offered for the file cached under
+// cacheKey when json is what it was decoded from, else nil; when the
+// speculation is to offer it (expect), it waits for that. The packages
+// built ahead from it are then prebuiltFor(file).
+func (d *decodedFiles) take(cacheKey, json string) *p2File {
 	if d == nil {
 		return nil
 	}
@@ -154,22 +160,22 @@ func (d *decodedFiles) take(cacheKey, json string) *php.Array {
 	delete(d.ahead, cacheKey)
 	if e.pre != nil {
 		if d.prebuilt == nil {
-			d.prebuilt = map[*php.Array]*prebuilt{}
+			d.prebuilt = map[*p2File]*prebuilt{}
 		}
-		d.prebuilt[e.data] = e.pre
+		d.prebuilt[e.file] = e.pre
 	}
 
-	return e.data
+	return e.file
 }
 
-// prebuiltFor returns, once, the packages built ahead from data, a file
+// prebuiltFor returns, once, the packages built ahead from file, a file
 // take returned (nil for none).
-func (d *decodedFiles) prebuiltFor(data *php.Array) *prebuilt {
+func (d *decodedFiles) prebuiltFor(file *p2File) *prebuilt {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	pre := d.prebuilt[data]
-	delete(d.prebuilt, data)
+	pre := d.prebuilt[file]
+	delete(d.prebuilt, file)
 
 	return pre
 }
@@ -225,6 +231,12 @@ func (d *decodedFiles) wasRequested(url string) bool {
 // with each package's versions replaced by true, or kept null, since only
 // isset($response['packages'][$name]) is asked of it.
 func slimFile(data *php.Array) *php.Array {
+	return slimFileOf(data, func(php.Key) bool { return false })
+}
+
+// slimFileOf is slimFile of data, a file whose version lists are null
+// where slotted tells that they are set (a p2Slot's top).
+func slimFileOf(data *php.Array, slotted func(name php.Key) bool) *php.Array {
 	slim := php.NewArrayCap(data.Len())
 	for k, v := range data.All() {
 		switch a := v.(type) {
@@ -232,7 +244,7 @@ func slimFile(data *php.Array) *php.Array {
 			if k == php.StrKey("packages") {
 				names := php.NewArrayCap(a.Len())
 				for name, versions := range a.All() {
-					if versions == nil {
+					if versions == nil && !slotted(name) {
 						names.SetKey(name, nil)
 					} else {
 						names.SetKey(name, true)

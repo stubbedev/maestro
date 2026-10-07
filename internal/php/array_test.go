@@ -4,6 +4,7 @@ import (
 	"maps"
 	"math"
 	"math/rand/v2"
+	"reflect"
 	"slices"
 	"sync"
 	"testing"
@@ -299,5 +300,34 @@ func TestSortSlice(t *testing.T) {
 	SortSlice(s, func(x, y string) int { return int(x[0]) - int(y[0]) })
 	if want := []string{"a1", "a2", "a3", "b2", "b1", "b3", "c"}; !slices.Equal(s, want) {
 		t.Errorf("got %v", s)
+	}
+}
+
+// IsAppended tells an array that appending its values to a new one
+// rebuilds.
+func TestArray_IsAppended(t *testing.T) {
+	decoded, _ := JSONDecode(`[1, 2]`, true)
+	object, _ := JSONDecode(`{"0": 1, "1": 2}`, true)
+	unset := ListOf(1, 2, 3)
+	unset.Delete(2)
+	for name, c := range map[string]struct {
+		a    *Array
+		want bool
+	}{
+		"list":         {ListOf(1, 2), true},
+		"decoded list": {decoded.(*Array), true},
+		"empty":        {NewArray(), false},
+		"last unset":   {unset, false},
+		"string keys":  {ArrayOf("a", 1), false},
+		"nil":          {nil, false},
+	} {
+		if got := c.a.IsAppended(); got != c.want {
+			t.Errorf("%s: %v", name, got)
+		}
+	}
+	for name, a := range map[string]*Array{"list": ListOf(1, 2), "decoded list": decoded.(*Array), "object": object.(*Array)} {
+		if a.IsAppended() && !reflect.DeepEqual(ListOf(a.Values()...), a) {
+			t.Errorf("%s: appended, but its values rebuild another array", name)
+		}
 	}
 }

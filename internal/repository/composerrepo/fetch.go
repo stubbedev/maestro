@@ -407,7 +407,7 @@ func (f *asyncFetch) decode() {
 
 	// a body the speculation decoded already (it decodes to an array, as
 	// DecodeJSON would)
-	if f.data = f.decoded.take(f.cacheKey, f.response.Body()); f.data == nil {
+	if f.data = f.decoded.take(f.cacheKey, f.response.Body()).array(); f.data == nil {
 		decoded, err := f.response.DecodeJSON()
 		if err != nil {
 			f.decodeErr = err
@@ -482,7 +482,7 @@ func (r *ComposerRepository) acceptFetch(f *asyncFetch) (fetchResult, error) {
 		if _, err := r.cache.Write(f.cacheKey, f.json); err != nil {
 			return fetchResult{}, err
 		}
-		r.decoded.rememberSlim(f.cacheKey, f.json, f.data)
+		r.decoded.rememberSlim(f.cacheKey, f.json, eagerFile(f.data))
 	}
 	r.freshMetadataUrls[f.filename] = struct{}{}
 
@@ -523,7 +523,7 @@ type cachedDownload struct {
 	packageName string
 	// contents is the cached file, decoded (nil when missing or not an
 	// array).
-	contents *php.Array
+	contents *p2File
 	fetch    *asyncFetch
 }
 
@@ -586,7 +586,7 @@ func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames [
 
 	for _, d := range downloads {
 		var err error
-		if d.fetch, err = r.asyncFetchFile(d.url, d.cacheKey, php.ToString(d.contents.At("last-modified"))); err != nil {
+		if d.fetch, err = r.asyncFetchFile(d.url, d.cacheKey, php.ToString(d.contents.at("last-modified"))); err != nil {
 			return nil, err
 		}
 	}
@@ -597,20 +597,20 @@ func (r *ComposerRepository) startCachedAsyncDownloads(fileNames, packageNames [
 // finishCachedDownload ports startCachedAsyncDownload's callback: the
 // file's data (nil for null when it has neither the package, nor
 // security advisories, nor filter entries) and where it came from.
-func (r *ComposerRepository) finishCachedDownload(d *cachedDownload) (*php.Array, string, error) {
+func (r *ComposerRepository) finishCachedDownload(d *cachedDownload) (*p2File, string, error) {
 	res, err := r.finishFetch(d.fetch)
 	if err != nil {
 		return nil, "", err
 	}
 
 	packagesSource := "downloaded file (" + util.SanitizeURL(d.url) + ")"
-	response := res.data
+	response := eagerFile(res.data)
 	if res.fresh {
 		packagesSource = "cached file (" + d.cacheKey + " originating from " + util.SanitizeURL(d.url) + ")"
 		response = d.contents
 	}
 
-	if packages, _ := response.At("packages").(*php.Array); packages.At(d.packageName) == nil && response.At("security-advisories") == nil && response.At("filter") == nil {
+	if !response.hasVersions(d.packageName) && response.at("security-advisories") == nil && response.at("filter") == nil {
 		return nil, packagesSource, nil
 	}
 

@@ -1117,9 +1117,14 @@ func providerValues(m *repository.NameMap[repository.ProviderInfo]) []repository
 // configurePackageTransportOptions ports configurePackageTransportOptions:
 // packages downloaded from this repository get its transport options.
 func (r *ComposerRepository) configurePackageTransportOptions(p pkg.PackageInterface) {
+	r.loadedConfig().configureTransportOptions(p)
+}
+
+// configureTransportOptions is configurePackageTransportOptions with c.
+func (c loadedConfig) configureTransportOptions(p pkg.PackageInterface) {
 	for _, url := range p.DistURLs() {
-		if strings.HasPrefix(url, r.baseURL) {
-			p.SetTransportOptions(r.options)
+		if strings.HasPrefix(url, c.baseURL) {
+			p.SetTransportOptions(c.options)
 
 			return
 		}

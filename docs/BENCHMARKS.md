@@ -211,16 +211,21 @@ Metadata and resolution:
   builds the versions the constraints seen accept, and the loads take
   those for the exact same JSON. Minified versions are expanded once,
   only as far as needed.
+- **Skeleton packages.** A version read back from the decoded metadata
+  cache is built with what the solver reads only, from the cache's index
+  of the file; its other properties are loaded the first time they are
+  used, from the version decoded alone. Of the ~30,000 versions a
+  symfony update builds, about 120 are ever loaded in full.
 - **One connection per host**: transfers to an https host wait for the
   first one's connection and share its HTTP/2 connection, sending in
   request order, as curl's CURLOPT_PIPEWAIT does. Connections to the first
   https repositories open while the project loads.
 - **Decoded caches.** p2 metadata files and installed.json are kept
-  decoded in a binary form, read back only for byte-identical JSON (3.1 ms
-  instead of 7.5 ms for laravel/framework's file), which a metadata file's
-  unchanged identity tells without a copy of the JSON to compare; a
-  metadata file whose identity is unchanged is not read again within a
-  run.
+  decoded in a binary form, read back only for byte-identical JSON, which
+  a metadata file's unchanged identity tells without a copy of the JSON
+  to compare; a metadata file whose identity is unchanged is not read
+  again within a run. A metadata file's versions are decoded only when
+  they are read, one by one.
 - **Parallel CPU work**: the pool optimizer (packages filed by interned
   hash ids, 64 items per work chunk), the advisory filter, cache reads and
   their slim copies, and autoload_classmap.php and autoload_static.php

@@ -21,7 +21,7 @@ import (
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
-// Decoded keeps, in a directory, the decoded form (php.AppendBinary) of
+// Decoded keeps, in a directory, the decoded form (its DecodedCodec) of
 // JSON documents for later runs, one slot per source of a document. A slot
 // is only read back for the exact JSON it was decoded from, so what it
 // gives is what decoding the JSON gives. It tells that JSON in one of two
@@ -48,6 +48,8 @@ type Decoded struct {
 	maxSlots int
 	// margin is what origins are trusted with (zero: the default).
 	margin fsstate.Margin
+	// codec is the decoded form of a value.
+	codec DecodedCodec
 
 	dir atomic.Pointer[string]
 }
@@ -61,9 +63,26 @@ const (
 	slotByCopy byte = 'c'
 )
 
-// NewDecoded returns a Decoded keeping nothing until Use.
+// DecodedCodec is the form a Decoded keeps values in: Append appends a
+// value's (false when it cannot), Decode reads it back. Decode may keep
+// parts of data, which nothing changes.
+type DecodedCodec struct {
+	Append func(dst []byte, v any) ([]byte, bool)
+	Decode func(data []byte) (any, error)
+}
+
+// binaryCodec keeps values in their binary form (php.AppendBinary).
+var binaryCodec = DecodedCodec{Append: php.AppendBinary, Decode: php.DecodeBinary}
+
+// NewDecoded returns a Decoded keeping nothing until Use, values in their
+// binary form (php.AppendBinary).
 func NewDecoded(magic string, minSize, maxSlots int) *Decoded {
-	return &Decoded{magic: magic, minSize: minSize, maxSlots: maxSlots}
+	return NewDecodedWith(magic, minSize, maxSlots, binaryCodec)
+}
+
+// NewDecodedWith is NewDecoded keeping values in codec's form.
+func NewDecodedWith(magic string, minSize, maxSlots int, codec DecodedCodec) *Decoded {
+	return &Decoded{magic: magic, minSize: minSize, maxSlots: maxSlots, codec: codec}
 }
 
 // Use keeps the slots in dir; "" keeps none. It may be called again
@@ -92,7 +111,7 @@ func (d *Decoded) Decode(source string, origin Origin, json string, decode func(
 	byOrigin := origin.ok && origin.id.Trusted(origin.seen, d.margin)
 	if data, err := os.ReadFile(path); err == nil {
 		if form, decoded, ok := d.holds(data, origin, json); ok {
-			if v, err := php.DecodeBinary(decoded); err == nil {
+			if v, err := d.codec.Decode(decoded); err == nil {
 				if form == slotByCopy && byOrigin {
 					// told by its origin from now on, without the copy
 					return v, func() { d.write(dir, path, d.slotHeader(origin, json, true), decoded) }, nil
@@ -108,7 +127,7 @@ func (d *Decoded) Decode(source string, origin Origin, json string, decode func(
 	}
 
 	return v, func() {
-		if data, ok := php.AppendBinary(d.slotHeader(origin, json, byOrigin), v); ok {
+		if data, ok := d.codec.Append(d.slotHeader(origin, json, byOrigin), v); ok {
 			d.write(dir, path, data, nil)
 		}
 	}, nil

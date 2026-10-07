@@ -12,6 +12,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -222,7 +223,7 @@ type speculatedFile struct {
 	// json and data are the file decoded last, data until it is handed
 	// over; store stores it in the decoded cache (nil: no need)
 	json  string
-	data  *php.Array
+	data  *p2File
 	store func()
 	// expected tells the loads that the cached copy was handed over, or
 	// will not be (see decodedFiles.expect); nil when not expected
@@ -295,7 +296,7 @@ func (s *speculation) load(name string, st *speculatedName, files []*speculatedF
 			// next level's requests
 			f.data, f.store = s.r.decodeCached(f.cacheKey, json)
 		} else {
-			f.data = decodeArray(json)
+			f.data = eagerFile(decodeArray(json))
 		}
 		if f.data != nil {
 			f.versions, f.exact = s.versionsOf(name, f.data)
@@ -414,24 +415,33 @@ func (p *prebuilt) take(name, notifyURL string, i int) pkg.PackageInterface {
 }
 
 // prebuild builds the packages createPackages would build from name's
-// versions in data that the scans accepted (versions): from each version
-// (data is not changed) given the notification-url createPackages gives
-// it, with the repository's loader, before the mirrors and transport
+// versions in file that the scans accepted (versions): from each version
+// (the file is not changed) given the notification-url createPackages
+// gives it, with the repository's loader, before the mirrors and transport
 // options (configureLoaded) which the load applies. Versions without a
 // version_normalized, which the load normalizes first, and versions the
-// loader refuses are left to the load. The list is expanded up to the
-// last version accepted. exact versions are kept for the load.
-func (s *speculation) prebuild(name string, data *php.Array, versions []*speculatedVersion, exact bool) *prebuilt {
-	if data.At("minified") != "composer/2.0" {
+// loader refuses are left to the load. A version the file's index tells
+// loads as a skeleton is built as one (loader.LoadSkeleton). exact
+// versions are kept for the load.
+func (s *speculation) prebuild(name string, file *p2File, versions []*speculatedVersion, exact bool) *prebuilt {
+	if file.at("minified") != "composer/2.0" {
 		return nil
 	}
-	raw, ok := packageVersions(data, name).(*php.Array)
-	if !ok {
-		return nil
+	idx := file.index(name)
+	var raw *php.Array
+	count := 0
+	if idx != nil {
+		count = len(idx.scanned)
+	} else {
+		var ok bool
+		if raw, ok = file.versions(name).(*php.Array); !ok {
+			return nil
+		}
+		count = raw.Len()
 	}
 	pre := &prebuilt{name: name, notifyURL: s.notifyURL}
 	if exact {
-		pre.versions, pre.count, pre.stabilities, pre.flags = versions, raw.Len(), s.stabilities, s.flags
+		pre.versions, pre.count, pre.stabilities, pre.flags = versions, count, s.stabilities, s.flags
 	}
 
 	accepted := map[int]bool{}
@@ -448,20 +458,13 @@ func (s *speculation) prebuild(name string, data *php.Array, versions []*specula
 		return pre.orNil()
 	}
 
-	// each version is loaded as the expansion gives it, without a copy:
-	// it has the notification-url createPackages gives it only for the
-	// time of the load (the loader does not keep the array)
 	notifyURL := notificationURL(s.notifyURL)
 	packages := map[int]pkg.PackageInterface{}
 	batch := s.r.loader.Batch()
-	i := -1
-	ok, _ = expandEach(raw.Values(), func(v *php.Array, _ func() *php.Array) error {
-		i++
-		if i > last {
-			return errStopExpanding
-		}
-		if normalized := v.At("version_normalized"); !accepted[i] || normalized == nil || normalized == pkg.DefaultBranchAlias {
-			return nil
+	// load builds the package of version v (left as it was), at index i
+	load := func(i int, v *php.Array) {
+		if normalized := v.At("version_normalized"); normalized == nil || normalized == pkg.DefaultBranchAlias {
+			return
 		}
 
 		n, present := v.Get("notification-url")
@@ -481,13 +484,52 @@ func (s *speculation) prebuild(name string, data *php.Array, versions []*specula
 			// a version the loader refuses is left to the load
 			batch = s.r.loader.Batch()
 
-			return nil
+			return
 		}
 		packages[i] = p
+	}
 
-		return nil
-	})
-	if ok && len(packages) > 0 {
+	if idx != nil {
+		for i := range last + 1 {
+			if !accepted[i] {
+				continue
+			}
+			if skeleton := idx.skeleton(i); skeleton != nil {
+				if normalized := skeleton.At("version_normalized"); normalized == nil || normalized == pkg.DefaultBranchAlias {
+					continue
+				}
+				p, err := batch.LoadSkeleton(skeleton, file.slot.loadedVersion(name, i, notifyURL))
+				if err != nil {
+					batch = s.r.loader.Batch()
+
+					continue
+				}
+				packages[i] = p
+
+				continue
+			}
+			if v, ok := file.slot.expanded(name, i); ok {
+				load(i, v)
+			}
+		}
+	} else {
+		// each version is loaded as the expansion gives it, without a
+		// copy: it has the notification-url createPackages gives it only
+		// for the time of the load (the loader does not keep the array)
+		i := -1
+		_, _ = expandEach(raw.Values(), func(v *php.Array, _ func() *php.Array) error {
+			i++
+			if i > last {
+				return errStopExpanding
+			}
+			if accepted[i] {
+				load(i, v)
+			}
+
+			return nil
+		})
+	}
+	if len(packages) > 0 {
 		pre.packages = packages
 	}
 
@@ -504,90 +546,131 @@ func (p *prebuilt) orNil() *prebuilt {
 }
 
 // versionsOf reads name's versions from a decoded metadata file, as
-// loadAsyncPackages does, without changing data. exact tells that the
+// loadAsyncPackages does, without changing it. exact tells that the
 // list is minified and the versions are what buildPackages reads of it,
 // without the errors it may meet: every version has a version_normalized
 // it uses as it is (a string, not the default branch's), and its branch
 // alias reads without error and is not "0" (falsy for PHP).
-func (s *speculation) versionsOf(name string, data *php.Array) (versions []*speculatedVersion, exact bool) {
-	raw, ok := packageVersions(data, name).(*php.Array)
+func (s *speculation) versionsOf(name string, file *p2File) (versions []*speculatedVersion, exact bool) {
+	if idx := file.index(name); idx != nil {
+		return s.speculated(name, idx.scanned), idx.exact
+	}
+	raw, ok := file.versions(name).(*php.Array)
 	if !ok {
 		return nil, false
 	}
-	items := raw.Values()
-	exact = true
+	scanned, exact, ok := scanVersions(raw.Values(), file.at("minified") == "composer/2.0", s.r.versionParser, s.r.loader)
+	if !ok {
+		return nil, false
+	}
 
+	return s.speculated(name, scanned), exact
+}
+
+// speculated are the versions of scanned with an acceptable stability.
+func (s *speculation) speculated(name string, scanned []scannedVersion) []*speculatedVersion {
+	return acceptedVersions(name, scanned, s.stabilities, s.flags)
+}
+
+// acceptedVersions are the versions of name, scanned, whose version or
+// alias have an acceptable stability (stabilities and flags nil: any).
+func acceptedVersions(name string, scanned []scannedVersion, stabilities, flags *php.Array) []*speculatedVersion {
+	stable := func(v string) bool {
+		return stabilities == nil || flags == nil || version.IsPackageAcceptable(stabilities, flags, []string{name}, semver.ParseStability(v))
+	}
+	var versions []*speculatedVersion
 	// versions share their unchanged require arrays
 	links := map[*php.Array][]speculatedLink{}
-	index := -1
-	add := func(v *php.Array) {
-		index++
-		normalized, _ := v.At("version_normalized").(string)
-		if normalized == "" || normalized == pkg.DefaultBranchAlias {
-			exact = false
-			var err error
-			if normalized, err = s.r.versionParser.Normalize(php.ToString(v.At("version"))); err != nil {
-				return
-			}
+	for index, v := range scanned {
+		if v.skip {
+			continue
 		}
-		alias, ok, err := s.r.loader.GetBranchAlias(v)
-		if err != nil || !ok {
-			exact = exact && err == nil
-			alias = ""
-		} else if !php.Truthy(alias) {
-			exact = false
-		}
-		normalizedStable := s.stable(name, normalized)
-		aliasStable := alias != "" && s.stable(name, alias)
+		normalizedStable := stable(v.normalized)
+		aliasStable := v.alias != "" && stable(v.alias)
 		if !normalizedStable && !aliasStable {
-			return
+			continue
 		}
 
-		require, _ := v.At("require").(*php.Array)
-		requires, ok := links[require]
-		if !ok && require != nil {
-			requires = make([]speculatedLink, 0, require.Len())
-			for target, constraint := range require.All() {
+		requires, ok := links[v.require]
+		if !ok && v.require != nil {
+			requires = make([]speculatedLink, 0, v.require.Len())
+			for target, constraint := range v.require.All() {
 				if c, ok := constraint.(string); ok {
 					requires = append(requires, speculatedLink{target: php.Strtolower(target.String()), constraint: c})
 				}
 			}
-			links[require] = requires
+			links[v.require] = requires
 		}
-		versions = append(versions, &speculatedVersion{index: index, normalized: normalized, alias: alias, requires: requires, stable: normalizedStable, aliasStable: aliasStable})
+		versions = append(versions, &speculatedVersion{index: index, normalized: v.normalized, alias: v.alias, requires: requires, stable: normalizedStable, aliasStable: aliasStable})
 	}
 
-	if data.At("minified") == "composer/2.0" {
+	return versions
+}
+
+// scannedVersion is what versionsOf reads of a version, whatever
+// stabilities are acceptable.
+type scannedVersion struct {
+	normalized, alias string
+	require           *php.Array
+	// exact: the version reads as buildPackages reads it (see versionsOf)
+	exact bool
+	// skip: the version is not an array, or has no version that
+	// normalizes; versionsOf leaves it out
+	skip bool
+}
+
+// scanVersion reads a version as versionsOf does.
+func scanVersion(v *php.Array, parser *pkg.VersionParser, l *loader.ArrayLoader) scannedVersion {
+	normalized, _ := v.At("version_normalized").(string)
+	exact := true
+	if normalized == "" || normalized == pkg.DefaultBranchAlias {
+		exact = false
+		var err error
+		if normalized, err = parser.Normalize(php.ToString(v.At("version"))); err != nil {
+			return scannedVersion{skip: true}
+		}
+	}
+	alias, ok, err := l.GetBranchAlias(v)
+	if err != nil || !ok {
+		exact = exact && err == nil
+		alias = ""
+	} else if !php.Truthy(alias) {
+		exact = false
+	}
+	require, _ := v.At("require").(*php.Array)
+
+	return scannedVersion{normalized: normalized, alias: alias, require: require, exact: exact}
+}
+
+// scanVersions reads the versions of a version list (minified or not) as
+// versionsOf does, by their index in the list; exact as versionsOf's. ok
+// is false when expanding the list fails.
+func scanVersions(items []any, minified bool, parser *pkg.VersionParser, l *loader.ArrayLoader) (scanned []scannedVersion, exact, ok bool) {
+	exact = true
+	add := func(v *php.Array) {
+		sv := scanVersion(v, parser, l)
+		exact = exact && sv.exact
+		scanned = append(scanned, sv)
+	}
+	if minified {
 		if ok, _ := expandEach(items, func(v *php.Array, _ func() *php.Array) error { add(v); return nil }); ok {
-			return versions, exact
+			return scanned, exact, true
 		}
 		var err error
 		if items, err = expandVersions(items); err != nil {
-			return nil, false
+			return nil, false, false
 		}
 	}
-	index = -1
+	scanned = scanned[:0]
 	for _, item := range items {
 		if v, ok := item.(*php.Array); ok {
 			add(v)
 		} else {
-			index++
+			scanned = append(scanned, scannedVersion{skip: true})
 		}
 	}
 
-	return versions, false
-}
-
-// packageVersions is $data['packages'][$name] ?? null.
-func packageVersions(data *php.Array, name string) any {
-	packages, _ := data.At("packages").(*php.Array)
-
-	return packages.At(name)
-}
-
-// stable tells whether name's version v has an acceptable stability.
-func (s *speculation) stable(name, v string) bool {
-	return s.stabilities == nil || s.flags == nil || version.IsPackageAcceptable(s.stabilities, s.flags, []string{name}, semver.ParseStability(v))
+	return scanned, false, true
 }
 
 // scan follows the requirements of the versions loadAsyncPackages would

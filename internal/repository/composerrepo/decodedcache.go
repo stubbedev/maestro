@@ -9,11 +9,10 @@ import (
 	"path/filepath"
 
 	"github.com/stubbedev/maestro/internal/cache"
-	"github.com/stubbedev/maestro/internal/php"
 )
 
 // decodedP2 keeps the decoded metadata files; see UseDecodedCache.
-var decodedP2 = cache.NewDecoded(decodedMagic, decodedMinSize, 0)
+var decodedP2 = cache.NewDecodedWith(decodedMagic, decodedMinSize, 0, cache.DecodedCodec{Append: appendP2, Decode: decodeP2})
 
 // UseDecodedCache keeps, under root (cache.DecodedMetadata), the decoded
 // form of the cached metadata files the repositories decode, for later
@@ -29,11 +28,11 @@ func UseDecodedCache(root string) {
 
 // decodedVersion is the directory, under the root, of the slots of the
 // current form; it changes with decodedMagic.
-const decodedVersion = "v2"
+const decodedVersion = "v3"
 
 // decodedMagic starts a decoded file; its version changes with the slot's
-// form (cache.Decoded) and the binary form.
-const decodedMagic = "maestro-p2-v2\n"
+// form (cache.Decoded), the p2 codec's (appendP2) and the binary form.
+const decodedMagic = "maestro-p2-v3\n"
 
 // decodedMinSize is the size under which JSON is decoded at once: reading
 // a small file back costs more than decoding it.
@@ -44,21 +43,21 @@ var errNotArray = errors.New("not an array")
 
 // decodeCached is decodeArray(json) for json, the contents of the file
 // cached under cacheKey, read back from the decoded cache when it holds
-// them. Else store (non-nil) stores the decoded file there; call it before
-// anything may change the array.
-func (r *ComposerRepository) decodeCached(cacheKey, json string) (data *php.Array, store func()) {
+// them (a p2Slot). Else store (non-nil) stores the decoded file there;
+// call it before anything may change the file.
+func (r *ComposerRepository) decodeCached(cacheKey, json string) (file *p2File, store func()) {
 	if r.cache == nil || r.cache.Root() == "" {
-		return decodeArray(json), nil
+		return eagerFile(decodeArray(json)), nil
 	}
 	v, store, err := decodedP2.Decode(r.cache.Root()+"\x00"+cacheKey, r.cache.OriginOf(cacheKey, json), json, func(json string) (any, error) {
 		if a := decodeArray(json); a != nil {
-			return a, nil
+			return eagerFile(a), nil
 		}
 
 		return nil, errNotArray
 	})
-	if a, ok := v.(*php.Array); ok && err == nil {
-		return a, store
+	if f, ok := v.(*p2File); ok && err == nil {
+		return f, store
 	}
 
 	return nil, nil

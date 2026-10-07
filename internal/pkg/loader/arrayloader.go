@@ -267,6 +267,14 @@ func (l *ArrayLoader) configureObject(p pkg.PackageInterface, config *php.Array)
 		cp.SetTransportOptions(options)
 	}
 
+	return l.aliased(p, config)
+}
+
+// aliased is the end of configureObject: the package, or its alias when
+// config defines a branch alias.
+func (l *ArrayLoader) aliased(p pkg.PackageInterface, config *php.Array) (pkg.PackageInterface, error) {
+	cp, _ := pkg.AsCompletePackage(p)
+
 	aliasNormalized, ok, err := l.GetBranchAlias(config)
 	if err != nil {
 		return nil, err
@@ -303,18 +311,9 @@ func mustReplace(re *php.Regexp, subject, replacement string) string {
 
 // configureFields sets the Package properties of configureObject.
 func configureFields(p *pkg.CompletePackage, config *php.Array) error {
-	typ := pkg.LibraryType
-
-	if v := config.At("type"); v != nil {
-		s, ok := v.(string)
-		if !ok {
-			return pkg.ArgumentTypeError("strtolower", 1, "string", "string", v)
-		}
-
-		typ = php.Strtolower(s)
+	if err := configureType(p, config); err != nil {
+		return err
 	}
-
-	p.SetType(typ)
 
 	if config.Isset("target-dir") {
 		targetDir, err := nullableString(packageClass+"::setTargetDir", "targetDir", config.At("target-dir"))
@@ -347,9 +346,7 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetInstallationSource(pkg.NullAs[pkg.InstallationSource](source))
 	}
 
-	if config.At("default-branch") == true {
-		p.SetIsDefaultBranch(true)
-	}
+	configureDefaultBranch(p, config)
 
 	if err := configureSource(p, config); err != nil {
 		return err
@@ -640,11 +637,41 @@ func configureCompleteFields(p *pkg.CompletePackage, config *php.Array) error {
 		p.SetFunding(funding)
 	}
 
+	configureAbandoned(p, config)
+
+	return nil
+}
+
+// configureType sets the type, the first thing configureObject sets.
+func configureType(p *pkg.CompletePackage, config *php.Array) error {
+	typ := pkg.LibraryType
+
+	if v := config.At("type"); v != nil {
+		s, ok := v.(string)
+		if !ok {
+			return pkg.ArgumentTypeError("strtolower", 1, "string", "string", v)
+		}
+
+		typ = php.Strtolower(s)
+	}
+
+	p.SetType(typ)
+
+	return nil
+}
+
+// configureDefaultBranch sets whether the package is the default branch.
+func configureDefaultBranch(p *pkg.CompletePackage, config *php.Array) {
+	if config.At("default-branch") == true {
+		p.SetIsDefaultBranch(true)
+	}
+}
+
+// configureAbandoned sets the abandoned value.
+func configureAbandoned(p *pkg.CompletePackage, config *php.Array) {
 	if abandoned := config.At("abandoned"); abandoned != nil {
 		p.SetAbandoned(abandoned)
 	}
-
-	return nil
 }
 
 // stringValues ports array_map('strval', $a); an array of strings comes

@@ -276,6 +276,16 @@ These change frozen behaviour on purpose; nothing else may.
    zips with ZipArchive or 7-Zip, maestro extracts as unzip would on Unix.
 3. **Speed.** Parallelism and caching wherever results stay identical
    (see "maestro's own caches" for what is kept between runs).
+   Repository packages read back from the decoded metadata cache are
+   skeletons: the properties the solver reads (name, versions, type,
+   links, default branch flag, abandoned value, branch alias) are set at
+   once, all others the first time any method reads or sets one
+   (`internal/pkg/lazy.go`), so the tens of thousands of versions a pool
+   holds and drops are never loaded in full. A version is loaded as a
+   skeleton only when loading the rest later gives exactly what loading
+   it at once gives (`loader.SkeletonChecker`: the full load succeeds, has no
+   side effect, and its release date does not depend on the current
+   time).
    One request goes elsewhere: a zip dist at Packagist's
    `https://api.github.com/repos/{owner}/{repo}/zipball/{ref}`, which
    GitHub only redirects to
@@ -330,7 +340,7 @@ as each other cache bounds its own size.
 | Path | Holds | Used while | `clear-cache` |
 | --- | --- | --- | --- |
 | `store/v1` | the package store (deviation 1): the extracted files of dists and source clones, and per release the class map scan results of its files (`derived/`) | content-addressed; every import checks a file's size, mode and hash-derived modification time and heals it | with `cache-files-dir` (emptied); `--gc` and, once a day, an install prune releases unused for `cache-files-ttl` |
-| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded | the JSON is byte-identical: the cached file's identity is the one a read that could trust it saw (a timestamp tick old), or else a copy of the JSON compares equal | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
+| `p2` | Packagist p2 metadata files from Composer's repo cache, decoded: each package's versions apart, with the expanded version every 16 versions and an index of what the loads read of each version (and of its skeleton) | the JSON is byte-identical: the cached file's identity is the one a read that could trust it saw (a timestamp tick old), or else a copy of the JSON compares equal | with `cache-repo-dir`; `--gc` removes what was not written for `cache-ttl` |
 | `decoded` | large local JSON files read on most runs (`vendor/composer/installed.json`), decoded; at most 64 | the JSON is byte-identical | with `cache-dir` |
 | `classmap/v1.bin` | the classes found in each file content seen, by SHA-256 and parser settings, and each file's content hash by its identity | the same maestro binary; the content hash, or the file's identity | with `cache-dir` |
 | `classmap/records` | a project's class map with the identity of every file and directory its scans depended on; at most 64 | the same scans, and every identity unchanged | with `cache-dir` |

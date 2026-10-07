@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/switches"
 )
 
@@ -75,9 +76,10 @@ func TestDecodedCacheEqualsDecoding(t *testing.T) {
 		}
 		for _, pass := range []string{"stored", "read back"} {
 			got, store := r.decodeCached(key, json)
-			if !reflect.DeepEqual(got, want) {
+			if !reflect.DeepEqual(got.array(), want) {
 				t.Fatalf("%s (%s): differs from decoding the JSON", path, pass)
 			}
+			checkP2File(t, path+" ("+pass+")", got, want)
 			if store != nil {
 				store()
 			}
@@ -108,7 +110,7 @@ func TestDecodedCacheOnlyReadsItsJSON(t *testing.T) {
 	if _, store := r.decodeCached("provider-monolog~monolog.json", json); store != nil {
 		t.Fatal("stored file not read back")
 	}
-	if got, _ := r.decodeCached("provider-monolog~monolog.json", changed); !reflect.DeepEqual(got, decodeArray(changed)) {
+	if got, _ := r.decodeCached("provider-monolog~monolog.json", changed); !reflect.DeepEqual(got.array(), decodeArray(changed)) {
 		t.Fatal("changed JSON: the old file was read back")
 	}
 
@@ -125,7 +127,7 @@ func TestDecodedCacheOnlyReadsItsJSON(t *testing.T) {
 		if err := os.WriteFile(path, damaged, 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if got, _ := r.decodeCached("provider-monolog~monolog.json", json); !reflect.DeepEqual(got, decodeArray(json)) {
+		if got, _ := r.decodeCached("provider-monolog~monolog.json", json); !reflect.DeepEqual(got.array(), decodeArray(json)) {
 			t.Fatal("damaged file: differs from decoding the JSON")
 		}
 	}
@@ -178,5 +180,65 @@ func TestDecodedCacheClearAndGc(t *testing.T) {
 	}
 	if _, store := r.decodeCached("provider-monolog~monolog.json", json); store == nil {
 		t.Error("slot read back after clear")
+	}
+}
+
+// checkP2File checks that what file gives of a metadata file is what
+// reading data, the file decoded at once, gives: its top-level values,
+// version lists, slim form and, for a file read back from its slot, its
+// index (the versions scanned, and skeletons that complete to the
+// packages the loader builds) and the expanded versions it keeps.
+func checkP2File(t *testing.T, what string, file *p2File, data *php.Array) {
+	t.Helper()
+	for k := range data.All() {
+		if k.String() != "packages" && !reflect.DeepEqual(file.at(k.String()), data.At(k.String())) {
+			t.Fatalf("%s: %s differs", what, k.String())
+		}
+	}
+	packages, _ := data.At("packages").(*php.Array)
+	for name, versions := range packages.All() {
+		if !reflect.DeepEqual(file.versions(name.String()), versions) || file.hasVersions(name.String()) != (versions != nil) {
+			t.Fatalf("%s: the versions of %s differ", what, name.String())
+		}
+		idx := file.index(name.String())
+		list, _ := versions.(*php.Array)
+		if idx == nil {
+			if _, expandable := expandable(list.Values()); file.slot != nil && name.IsString() && data.At("minified") == "composer/2.0" && list.IsAppended() && expandable {
+				t.Fatalf("%s: %s: no index", what, name.String())
+			}
+
+			continue
+		}
+		scanned, exact, _ := scanVersions(list.Values(), true, p2Codec.parser, p2Codec.loader)
+		if exact != idx.exact || len(scanned) != len(idx.scanned) {
+			t.Fatalf("%s: %s: index of %d versions, exact %v; want %d, %v", what, name.String(), len(idx.scanned), idx.exact, len(scanned), exact)
+		}
+		i := -1
+		_, _ = expandEach(list.Values(), func(v *php.Array, keep func() *php.Array) error {
+			i++
+			sv, want := idx.scanned[i], scanned[i]
+			if sv.skip != want.skip || sv.normalized != want.normalized || sv.alias != want.alias || sv.exact != want.exact || !reflect.DeepEqual(sv.require, want.require) {
+				t.Fatalf("%s: %s: version %d scanned as %+v, want %+v", what, name.String(), i, sv, want)
+			}
+			if expanded, ok := file.slot.expanded(name.String(), i); !ok || !php.StrictEquals(expanded, v) {
+				t.Fatalf("%s: %s: version %d expands to another version", what, name.String(), i)
+			}
+			if skeleton := idx.skeleton(i); skeleton != nil {
+				full := keep()
+				eager, err := p2Codec.loader.Batch().Load(full)
+				if err != nil {
+					t.Fatalf("%s: %s: version %d: %v", what, name.String(), i, err)
+				}
+				lazy, err := p2Codec.loader.Batch().LoadSkeleton(skeleton, func() *php.Array { return full })
+				if err != nil || !pkg.SkeletonMatches(lazy, eager) {
+					t.Fatalf("%s: %s: version %d: the skeleton is not the package, %v", what, name.String(), i, err)
+				}
+			}
+
+			return nil
+		})
+	}
+	if !reflect.DeepEqual(file.slim(), slimFile(data)) {
+		t.Fatalf("%s: the slim form differs", what)
 	}
 }

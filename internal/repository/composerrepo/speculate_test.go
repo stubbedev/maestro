@@ -121,12 +121,12 @@ func TestSlimFile(t *testing.T) {
 	}
 
 	var d decodedFiles
-	d.rememberSlim("provider-a~a.json", "json", data)
-	if got := d.slimOf("provider-a~a.json", "json"); !php.StrictEquals(got, slim) {
+	d.rememberSlim("provider-a~a.json", "json", eagerFile(data))
+	if got := d.slimOf("provider-a~a.json", "json").array(); !php.StrictEquals(got, slim) {
 		t.Errorf("slimOf: %s", encode(t, got))
 	}
 	if got := d.slimOf("provider-a~a.json", "other json"); got != nil {
-		t.Errorf("slimOf another file: %s", encode(t, got))
+		t.Errorf("slimOf another file: %s", encode(t, got.array()))
 	}
 }
 
@@ -135,7 +135,7 @@ func TestSlimFile(t *testing.T) {
 func TestDecodedFiles_Offer(t *testing.T) {
 	var d decodedFiles
 	gen := d.startSpeculation()
-	data := php.NewArray()
+	data := eagerFile(php.NewArray())
 	pre := &prebuilt{name: "a/a"}
 	d.offer(gen, "k", "json", data, pre)
 
@@ -167,11 +167,11 @@ func TestDecodedFiles_Offer(t *testing.T) {
 func TestDecodedFiles_Expect(t *testing.T) {
 	var d decodedFiles
 	gen := d.startSpeculation()
-	data := php.NewArray()
+	data := eagerFile(php.NewArray())
 
 	// offered after the load started waiting
 	done := d.expect(gen, "k", "json")
-	got := make(chan *php.Array)
+	got := make(chan *p2File)
 	go func() { got <- d.take("k", "json") }()
 	d.offer(gen, "k", "json", data, nil)
 	done()
