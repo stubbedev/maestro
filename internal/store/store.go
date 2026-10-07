@@ -87,9 +87,9 @@ type Options struct {
 	Archive archive.Options
 	// Method is the import method.
 	Method Method
-	// Workers bounds the goroutines one insert uses (default GOMAXPROCS),
-	// and those all imports running at once use together (default
-	// GOMAXPROCS, at most maxImportSlots).
+	// Workers bounds the goroutines all inserts and imports running at
+	// once use together (default GOMAXPROCS, at most maxImportSlots), and
+	// those one InsertDir uses (default GOMAXPROCS).
 	Workers int
 }
 
@@ -107,8 +107,8 @@ type Store struct {
 	index    string
 	derived  string
 	tmp      string
-	// slots holds one token per goroutine creating package files, which
-	// the imports running at once share.
+	// slots holds one token per goroutine inserting a release or creating
+	// package files, which the inserts and imports running at once share.
 	slots   chan struct{}
 	workers int
 	method  Method
