@@ -57,7 +57,11 @@ type registration struct {
 
 // syncState is what Go last agreed on with PHP.
 type syncState struct {
-	env         map[string]string
+	env map[string]string
+	// envOf is the os.Environ() env was built from, nil when PHP changed
+	// env since: an unchanged environment is told by comparing it with
+	// os.Environ() (its strings share their bytes, so that is cheap).
+	envOf       []string
 	cwd         string
 	statics     map[string]Static
 	staticNames []string
@@ -65,8 +69,10 @@ type syncState struct {
 }
 
 func newSyncState(statics map[string]Static) syncState {
+	envOf := os.Environ()
 	s := syncState{
-		env:         environ(),
+		env:         environ(envOf),
+		envOf:       envOf,
 		statics:     statics,
 		staticNames: slices.Sorted(maps.Keys(statics)),
 		sentStatics: maps.Clone(PHPStatics),
@@ -76,9 +82,8 @@ func newSyncState(statics map[string]Static) syncState {
 	return s
 }
 
-// environ is os.Environ() as a map.
-func environ() map[string]string {
-	env := os.Environ()
+// environ is an os.Environ() as a map.
+func environ(env []string) map[string]string {
 	m := make(map[string]string, len(env))
 	for _, kv := range env {
 		if kv == "" {
@@ -142,38 +147,10 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 		commits = append(commits, func() { c.pendingReg = nil })
 	}
 
-	env := environ()
-	if !maps.Equal(env, c.sync.env) {
-		set := php.NewArray()
-		for _, k := range slices.Sorted(maps.Keys(env)) {
-			if old, ok := c.sync.env[k]; !ok || old != env[k] {
-				set.Set(k, env[k])
-			}
+	if envOf := os.Environ(); !slices.Equal(envOf, c.sync.envOf) {
+		if err := c.outgoingEnv(e, s, envOf, &commits); err != nil {
+			return nil, nil, err
 		}
-		var unset []string
-		for k := range c.sync.env {
-			if _, ok := env[k]; !ok {
-				unset = append(unset, k)
-			}
-		}
-		slices.Sort(unset)
-
-		block := php.NewArray()
-		if set.Len() > 0 {
-			block.Set("set", set)
-		}
-		if len(unset) > 0 {
-			block.Set("unset", php.StringList(unset))
-		}
-		if block.Len() > 0 {
-			// Keys pass through the encoder: names need not be UTF-8.
-			encoded, _, err := e.array(block)
-			if err != nil {
-				return nil, nil, err
-			}
-			s.Set("env", encoded)
-		}
-		commits = append(commits, func() { c.sync.env = env })
 	}
 
 	if wd, err := php.Getcwd(); err == nil && wd != c.sync.cwd {
@@ -246,6 +223,46 @@ func (c *Conn) outgoingSync(e *Encoder) (block *php.Array, commit func(), err er
 	return s, commit, nil
 }
 
+// outgoingEnv adds the difference between the environment envOf and the
+// agreed one to the sync block s, with what records it as agreed.
+func (c *Conn) outgoingEnv(e *Encoder, s *php.Array, envOf []string, commits *[]func()) error {
+	env := environ(envOf)
+	*commits = append(*commits, func() { c.sync.env, c.sync.envOf = env, envOf })
+	if maps.Equal(env, c.sync.env) {
+		return nil
+	}
+
+	set := php.NewArray()
+	for _, k := range slices.Sorted(maps.Keys(env)) {
+		if old, ok := c.sync.env[k]; !ok || old != env[k] {
+			set.Set(k, env[k])
+		}
+	}
+	var unset []string
+	for k := range c.sync.env {
+		if _, ok := env[k]; !ok {
+			unset = append(unset, k)
+		}
+	}
+	slices.Sort(unset)
+
+	block := php.NewArray()
+	if set.Len() > 0 {
+		block.Set("set", set)
+	}
+	if len(unset) > 0 {
+		block.Set("unset", php.StringList(unset))
+	}
+	// Keys pass through the encoder: names need not be UTF-8.
+	encoded, _, err := e.array(block)
+	if err != nil {
+		return err
+	}
+	s.Set("env", encoded)
+
+	return nil
+}
+
 // applySync applies a decoded sync block from PHP.
 func (c *Conn) applySync(v any) error {
 	s, ok := v.(*php.Array)
@@ -262,6 +279,7 @@ func (c *Conn) applySync(v any) error {
 				}
 				c.sync.env[name] = value
 			}
+			c.sync.envOf = nil
 		}
 		if unset, ok := env.GetArray("unset"); ok {
 			for _, v := range unset.Values() {
@@ -271,6 +289,7 @@ func (c *Conn) applySync(v any) error {
 				}
 				delete(c.sync.env, name)
 			}
+			c.sync.envOf = nil
 		}
 	}
 

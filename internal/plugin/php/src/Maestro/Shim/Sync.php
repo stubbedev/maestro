@@ -38,6 +38,14 @@ final class Sync
     private static $sending;
 
     /**
+     * environ()'s last result and what it was computed from: getenv(),
+     * $_SERVER, $_ENV, the result.
+     *
+     * @var array{0: array<string, string>, 1: array<string, mixed>, 2: array<string, mixed>, 3: array<string, string>}|null
+     */
+    private static $environOf;
+
+    /**
      * Takes the current state as the agreed one (before the first
      * message).
      */
@@ -198,6 +206,10 @@ final class Sync
      * reach maestro (as it reaches no process Composer starts), while
      * Platform::putEnv(), which sets $_SERVER and $_ENV too, does.
      *
+     * It is computed again only when getenv(), $_SERVER or $_ENV differ
+     * from what it was last computed from: every message asks for it, and
+     * an unchanged $_SERVER or $_ENV compares in constant time.
+     *
      * @return array<string, string>
      */
     private static function environ(): array
@@ -206,6 +218,11 @@ final class Sync
         if (!is_array($env)) {
             $env = [];
         }
+        $last = self::$environOf;
+        if ($last !== null && $last[0] === $env && $last[1] === $_SERVER && $last[2] === $_ENV) {
+            return $last[3];
+        }
+        $of = [$env, $_SERVER, $_ENV];
         $windows = '\\' === \DIRECTORY_SEPARATOR;
         $env = ($windows ? array_intersect_ukey($env, $_SERVER, 'strcasecmp') : array_intersect_key($env, $_SERVER)) ?: $env;
         $env = $_ENV + ($windows ? array_diff_ukey($env, $_ENV, 'strcasecmp') : $env);
@@ -216,6 +233,8 @@ final class Sync
                 $out[(string) $name] = (string) $value;
             }
         }
+        $of[] = $out;
+        self::$environOf = $of;
 
         return $out;
     }
