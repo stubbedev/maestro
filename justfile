@@ -9,13 +9,13 @@
 export MAESTRO_UID := `id -u`
 export MAESTRO_GID := `id -g`
 
-compose := "docker compose run --rm --build"
+compose := "docker compose run --rm --build --quiet-build"
 
 # List all recipes with their descriptions.
 default:
     @just --list
 
-# Run every release gate in order: vet, lint, test, build.
+# Run every release gate in order: vet, lint, deadcode, test, build.
 check:
     {{ compose }} check
 
@@ -28,6 +28,10 @@ vet *args:
 [positional-arguments]
 lint *args:
     {{ compose }} lint golangci-lint run "$@"
+
+# Fail on functions nothing reaches, not even a test (tools/deadcode).
+deadcode:
+    {{ compose }} lint tools/deadcode/check.sh
 
 # Run the test suite for every package, the php-driven tests included.
 [positional-arguments]

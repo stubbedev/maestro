@@ -73,9 +73,6 @@ func (s *RuleSet) Add(rule *Rule, typ int) error {
 // Count ports count().
 func (s *RuleSet) Count() int { return len(s.RuleByID) }
 
-// RuleByIDAt ports ruleById.
-func (s *RuleSet) RuleByIDAt(id int) *Rule { return s.RuleByID[id] }
-
 // Rules ports getRules: type => rules, for every type.
 func (s *RuleSet) Rules() map[int][]*Rule {
 	rules := make(map[int][]*Rule, len(ruleTypes))
@@ -113,16 +110,6 @@ func (s *RuleSet) IteratorWithout(types ...int) *RuleSetIterator {
 	return NewRuleSetIterator(rules)
 }
 
-// Types ports getTypes.
-func (s *RuleSet) Types() []int {
-	types := make([]int, len(ruleTypes))
-	for i, t := range ruleTypes {
-		types[i] = t.typ
-	}
-
-	return types
-}
-
 // PrettyString ports getPrettyString; with a nil ctx the rules are
 // printed with String.
 func (s *RuleSet) PrettyString(ctx *PrettyContext) (string, error) {
@@ -146,13 +133,6 @@ func (s *RuleSet) PrettyString(ctx *PrettyContext) (string, error) {
 	}
 
 	return b.String(), nil
-}
-
-// String ports __toString.
-func (s *RuleSet) String() string {
-	str, _ := s.PrettyString(nil)
-
-	return str
 }
 
 // RuleSetIterator ports Composer\DependencyResolver\RuleSetIterator: it

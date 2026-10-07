@@ -89,12 +89,6 @@ type CurlDownloader struct {
 	sleep func(time.Duration)
 }
 
-// NewCurlDownloader is new CurlDownloader($io, $config, $options,
-// $disableTls). rt supplies the User-Agent facts (nil for defaults).
-func NewCurlDownloader(ioi io.IO, config Config, rt Runtime) *CurlDownloader {
-	return newCurlDownloader(ioi, config, rt, &sync.Mutex{})
-}
-
 func newCurlDownloader(ioi io.IO, config Config, rt Runtime, mu *sync.Mutex) *CurlDownloader {
 	if rt == nil {
 		rt = defaultRuntime

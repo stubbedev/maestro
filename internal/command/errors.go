@@ -5,7 +5,6 @@ package command
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/phperr"
@@ -82,14 +81,6 @@ type ExitCoder interface {
 	error
 	ExitCode() int
 }
-
-// ExitError is an ExitCoder carrying Code.
-type ExitError struct{ Code int }
-
-func (e *ExitError) Error() string { return "exit " + strconv.Itoa(e.Code) }
-
-// ExitCode implements ExitCoder.
-func (e *ExitError) ExitCode() int { return e.Code }
 
 // uncaughtExitCode is the exit status of PHP's uncaught fatal error.
 const uncaughtExitCode = 255

@@ -249,43 +249,6 @@ type SyncDownloader[P any] interface {
 	Cleanup(typ string, pkg P, path string, prevPackage P) (Waitable, error)
 }
 
-// DownloadAndInstallPackageSync is SyncHelper::downloadAndInstallPackageSync:
-// download, prepare, install (or update, when prevPackage is not nil) and
-// clean up a package synchronously.
-func DownloadAndInstallPackageSync[P any](loop *Loop, downloader SyncDownloader[P], path string, pkg, prevPackage P) error {
-	hasPrev := any(prevPackage) != nil
-
-	typ := "install"
-	if hasPrev {
-		typ = "update"
-	}
-
-	err := func() error {
-		if err := loop.Await(downloader.Download(pkg, path, prevPackage)); err != nil {
-			return err
-		}
-
-		if err := loop.Await(downloader.Prepare(typ, pkg, path, prevPackage)); err != nil {
-			return err
-		}
-
-		if typ == "update" {
-			return loop.Await(downloader.Update(pkg, prevPackage, path))
-		}
-
-		return loop.Await(downloader.Install(pkg, path))
-	}()
-	if err != nil {
-		if cerr := loop.Await(downloader.Cleanup(typ, pkg, path, prevPackage)); cerr != nil {
-			return cerr
-		}
-
-		return err
-	}
-
-	return loop.Await(downloader.Cleanup(typ, pkg, path, prevPackage))
-}
-
 // Await is SyncHelper::await($loop, $promise), taking the result of a call
 // that returns a promise (nil for null) or fails synchronously.
 func (l *Loop) Await(promise Waitable, err error) error {

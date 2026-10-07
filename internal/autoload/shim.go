@@ -11,14 +11,6 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 )
 
-// ValidatePackage is validatePackage($package).
-func ValidatePackage(p pkg.PackageInterface) error { return validatePackage(p) }
-
-// FilterPackageMap is filterPackageMap($packageMap, $rootPackage).
-func FilterPackageMap(packageMap []PackageMapEntry, rootPackage pkg.PackageInterface) []PackageMapEntry {
-	return filterPackageMap(packageMap, rootPackage)
-}
-
 // SortPackageMap is sortPackageMap($packageMap).
 func SortPackageMap(packageMap []PackageMapEntry) []PackageMapEntry {
 	return sortPackageMap(packageMap)
@@ -35,16 +27,6 @@ func (g *Generator) ParseAutoloadsType(packageMap []PackageMapEntry, typ string,
 	}
 
 	return a, nil
-}
-
-// PathCode is getPathCode($filesystem, $basePath, $vendorPath, $path).
-func PathCode(basePath, vendorPath, path string) (string, error) {
-	ref, err := pathRefOf(basePath, vendorPath, path)
-	if err != nil {
-		return "", err
-	}
-
-	return ref.code(), nil
 }
 
 // AutoloadFile is getAutoloadFile($vendorPathToTargetDirCode, $suffix).

@@ -299,34 +299,6 @@ func GetPackage(t testing.TB, name, version string) *pkg.CompletePackage {
 	return pkg.NewCompletePackage(name, normalize(t, version), version)
 }
 
-// GetBasicPackage ports getPackage($name, $version, Package::class).
-func GetBasicPackage(t testing.TB, name, version string) *pkg.Package {
-	t.Helper()
-
-	return pkg.NewPackage(name, normalize(t, version), version)
-}
-
-// GetRootPackage ports getRootPackage.
-func GetRootPackage(t testing.TB, name, version string) *pkg.RootPackage {
-	t.Helper()
-
-	return pkg.NewRootPackage(name, normalize(t, version), version)
-}
-
-// GetAliasPackage ports getAliasPackage.
-func GetAliasPackage(t testing.TB, p pkg.PackageInterface, version string) pkg.PackageInterface {
-	t.Helper()
-	norm := normalize(t, version)
-	switch p := p.(type) {
-	case *pkg.RootPackage:
-		return pkg.NewRootAliasPackage(p, norm, version)
-	case *pkg.CompletePackage:
-		return pkg.NewCompleteAliasPackage(p, norm, version)
-	}
-
-	return pkg.NewAliasPackage(p, norm, version)
-}
-
 // linkSetter is the setter configureLinks calls for a link type.
 type linkSetter interface {
 	SetRequires(pkg.Links)

@@ -60,6 +60,9 @@ jobs:
           version: v2.13.2
           args: --config=.golangci.yml --timeout=10m
 
+      - name: Dead code
+        run: tools/deadcode/check.sh
+
   # The whole suite, oracle replays and differential tests included.
 
       # saved even when the tests fail: a red job must not leave the next

@@ -385,26 +385,6 @@ func (r *ArrayRepository) Providers(packageName string) ([]ProviderInfo, error) 
 	return result, nil
 }
 
-// CreateAliasPackage ports ArrayRepository::createAliasPackage: an alias
-// of the package at the root of p's alias chain, complete when that
-// package is.
-func CreateAliasPackage(p pkg.PackageInterface, alias, prettyAlias string) pkg.Alias {
-	for {
-		a, ok := p.(pkg.Alias)
-		if !ok {
-			break
-		}
-		p = a.AliasOf()
-	}
-	if _, ok := pkg.AsCompletePackage(p); ok {
-		if complete, ok := p.(pkg.CompletePackageInterface); ok {
-			return pkg.NewCompleteAliasPackage(complete, alias, prettyAlias)
-		}
-	}
-
-	return pkg.NewAliasPackage(p, alias, prettyAlias)
-}
-
 // RemovePackage ports ArrayRepository::removePackage.
 func (r *ArrayRepository) RemovePackage(p pkg.PackageInterface) error {
 	packageID := p.UniqueName()

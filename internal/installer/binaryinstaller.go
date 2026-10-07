@@ -178,12 +178,6 @@ func (b *BinaryInstaller) RemoveBinaries(p pkg.PackageInterface) error {
 	return nil
 }
 
-// IsBinPathInsidePackage is BinaryInstaller::isBinPathInsidePackage (shared
-// with the downloaders through internal/util).
-func IsBinPathInsidePackage(installPath, binPath string) bool {
-	return util.IsBinPathInsidePackage(installPath, binPath)
-}
-
 // binariesOf is getBinaries(): the package's bin entries.
 func binariesOf(p pkg.PackageInterface) []string {
 	bins := p.Binaries()

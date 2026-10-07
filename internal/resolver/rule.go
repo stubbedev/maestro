@@ -81,27 +81,6 @@ func NewGenericRule(literals []int32, reason int, reasonData any) *Rule {
 	return r
 }
 
-// NewRule2Literals is new Rule2Literals($literal1, $literal2, $reason, $reasonData).
-func NewRule2Literals(literal1, literal2 int32, reason int, reasonData any) *Rule {
-	if literal1 > literal2 {
-		literal1, literal2 = literal2, literal1
-	}
-
-	return &Rule{literals: []int32{literal1, literal2}, reasonData: reasonData, kind: kindRule2Literals, reason: low8(reason), typ: 255}
-}
-
-// NewMultiConflictRule is new MultiConflictRule($literals, $reason,
-// $reasonData): the literals (at least 3) are copied and sorted.
-func NewMultiConflictRule(literals []int32, reason int, reasonData any) (*Rule, error) {
-	if len(literals) < 3 {
-		return nil, &util.RuntimeError{Message: "multi conflict rule requires at least 3 literals"}
-	}
-	r := &Rule{literals: slices.Clone(literals), reasonData: reasonData, kind: kindMultiConflict, reason: low8(reason), typ: 255}
-	slices.Sort(r.literals)
-
-	return r, nil
-}
-
 // Literals ports getLiterals. The slice must not be modified.
 func (r *Rule) Literals() []int32 { return r.literals }
 

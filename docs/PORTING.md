@@ -372,8 +372,8 @@ per task), so a run depends on nothing of the machine it runs on (user,
 home directory, umask, locale, php, unzip, tar, caches) and leaves nothing
 on it. The justfile drives it: `just test` (with `MAESTRO_PHP_TESTS=1`;
 arguments go to `go test`, e.g. `just test ./internal/config -run X`),
-`just vet`, `just lint`, `just build`, `just check` (vet, lint, test,
-build), `just test-race`, `just e2e` and `just shell`. Oracles that run
+`just vet`, `just lint`, `just deadcode`, `just build`, `just check`
+(vet, lint, deadcode, test, build), `just test-race`, `just e2e` and `just shell`. Oracles that run
 Composer's PHP from `.ref/` and other tools run in the devenv shell
 (`devenv shell -- bash -c '...'` from the repo root). A port is done when `go vet`, `golangci-lint run` and `go test -race` with
 `MAESTRO_PHP_TESTS=1` pass for its packages (`CGO_ENABLED=1` for `-race`).

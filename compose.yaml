@@ -70,12 +70,12 @@ services:
   lint:
     <<: *dev
     profiles: [lint]
-    command: [sh, -c, "go vet ./... && golangci-lint run"]
+    command: [sh, -c, "go vet ./... && golangci-lint run && tools/deadcode/check.sh"]
 
   check:
     <<: *dev
     profiles: [check]
-    command: [sh, -c, "go vet ./... && golangci-lint run && go test ./... && go build -o /dev/null ./..."]
+    command: [sh, -c, "go vet ./... && golangci-lint run && tools/deadcode/check.sh && go test ./... && go build -o /dev/null ./..."]
 
   e2e:
     <<: *dev

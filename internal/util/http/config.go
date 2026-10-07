@@ -192,9 +192,6 @@ func RegisterCallable(fn func(string) bool) string {
 	return key
 }
 
-// ReleaseCallable forgets a callable RegisterCallable returned.
-func ReleaseCallable(handle string) { callables.Delete(handle) }
-
 // callableOption resolves a callable option value; false when it is not
 // callable (is_callable() false).
 func callableOption(v any) (func(string) bool, bool) {

@@ -92,11 +92,6 @@ func OperatorConstant(operator string) (op Op, ok bool) {
 	return 0, false
 }
 
-// SupportedOperators ports Constraint::getSupportedOperators().
-func SupportedOperators() []string {
-	return append([]string(nil), supportedOperators[:]...)
-}
-
 // invalidOperatorError is the InvalidArgumentException Constraint.php throws
 // for an unknown operator (the constructor, versionCompare).
 func invalidOperatorError(operator string) error {

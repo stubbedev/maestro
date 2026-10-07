@@ -247,9 +247,6 @@ func NewProxyManager(getenv func(string) (string, bool)) *ProxyManager {
 	return m
 }
 
-// HasProxy is hasProxy().
-func (m *ProxyManager) HasProxy() bool { return m.httpProxy != nil || m.httpsProxy != nil }
-
 // ProxyForRequest is getProxyForRequest($requestUrl).
 func (m *ProxyManager) ProxyForRequest(requestURL string) (*RequestProxy, error) {
 	if m.err != "" {

@@ -98,12 +98,6 @@ func (a *ApplicationTester) RunArgs(o Options, kv ...any) (int, error) {
 	return a.Run(params, o)
 }
 
-// Input returns the input of the last run.
-func (a *ApplicationTester) Input() console.Input { return a.input }
-
-// Output returns the output of the last run.
-func (a *ApplicationTester) Output() console.Output { return a.output }
-
 // Display ports getDisplay($normalize): the captured output.
 func (a *ApplicationTester) Display(normalize bool) string {
 	if a.output == nil {

@@ -25,25 +25,16 @@ type ProxyCommander interface {
 }
 
 // composerCommand is implemented by every type embedding *BaseCommand
-// (`instanceof BaseCommand`).
+// (`instanceof BaseCommand`), through the marker method only BaseCommand
+// has.
 type composerCommand interface {
-	baseCommand() *BaseCommand
+	composerCommand()
 }
 
 func isBaseCommand(c console.Commander) bool {
 	_, ok := c.(composerCommand)
 
 	return ok
-}
-
-// AsBaseCommand returns the BaseCommand of c (nil when c is not a
-// Composer command).
-func AsBaseCommand(c console.Commander) *BaseCommand {
-	if b, ok := c.(composerCommand); ok {
-		return b.baseCommand()
-	}
-
-	return nil
 }
 
 // BaseCommand is Composer\Command\BaseCommand. A command embeds it and
@@ -77,7 +68,9 @@ func NewBaseCommand(name string) *BaseCommand {
 	return &BaseCommand{Command: console.NewCommand(name)}
 }
 
-func (c *BaseCommand) baseCommand() *BaseCommand { return c }
+// composerCommand marks c as a BaseCommand (composerCommand); nothing
+// calls it.
+func (*BaseCommand) composerCommand() {}
 
 // SetImpl records the command embedding c (its overrides).
 func (c *BaseCommand) SetImpl(impl console.Commander) {

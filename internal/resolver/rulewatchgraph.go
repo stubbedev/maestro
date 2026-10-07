@@ -43,9 +43,6 @@ func (n *RuleWatchNode) Watch2OnHighest(decisions *Decisions) {
 	}
 }
 
-// Rule ports getRule.
-func (n *RuleWatchNode) Rule() *Rule { return n.rule }
-
 // OtherWatch ports getOtherWatch.
 func (n *RuleWatchNode) OtherWatch(literal int32) int32 {
 	if n.Watch1 == literal {

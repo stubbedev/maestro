@@ -48,17 +48,6 @@ type WritableArrayRepository struct {
 
 var _ WritableRepository = (*WritableArrayRepository)(nil)
 
-// NewWritableArrayRepository ports new WritableArrayRepository($packages).
-func NewWritableArrayRepository(packages []pkg.PackageInterface) (*WritableArrayRepository, error) {
-	r := &WritableArrayRepository{}
-	r.bind(r, &r.ArrayRepository)
-	if err := r.addPackages(packages); err != nil {
-		return nil, err
-	}
-
-	return r, nil
-}
-
 // Class returns the PHP class name.
 func (r *WritableArrayRepository) Class() string {
 	return `Composer\Repository\WritableArrayRepository`

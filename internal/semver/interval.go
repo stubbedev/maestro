@@ -26,10 +26,6 @@ var (
 	intervalPositiveInfinity = NewConstraintOp(OpLT, positiveInfinityVersion)
 )
 
-// IntervalFromZero ports Interval::fromZero(): the shared >= 0.0.0.0-dev
-// constraint.
-func IntervalFromZero() *Constraint { return intervalZero }
-
 // IntervalUntilPositiveInfinity ports Interval::untilPositiveInfinity(): the
 // shared < PHP_INT_MAX.0.0.0 constraint.
 func IntervalUntilPositiveInfinity() *Constraint { return intervalPositiveInfinity }

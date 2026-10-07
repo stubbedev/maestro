@@ -48,9 +48,6 @@ func NewSolver(policy Policy, pool *Pool, out io.IO) *Solver {
 // RuleSetSize ports getRuleSetSize.
 func (s *Solver) RuleSetSize() int { return s.rules.Count() }
 
-// Pool ports getPool.
-func (s *Solver) Pool() *Pool { return s.pool }
-
 // makeAssertionRuleDecisions ports makeAssertionRuleDecisions (aka
 // solver_makeruledecisions).
 func (s *Solver) makeAssertionRuleDecisions() error {

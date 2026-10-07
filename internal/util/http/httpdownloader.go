@@ -786,6 +786,3 @@ func GetExceptionHints(e error) []string {
 
 	return []string{"<error>The following exception probably indicates you are offline or have misconfigured DNS resolver(s)</error>"}
 }
-
-// IsCurlEnabled is isCurlEnabled(): the curl port is always available.
-func IsCurlEnabled() bool { return true }

@@ -156,17 +156,6 @@ func ArrayKeys(array *Array) *Array {
 	return r
 }
 
-// ArrayKeysSearch ports array_keys($array, $search, $strict).
-func ArrayKeysSearch(array *Array, search any, strict bool) *Array {
-	r := NewArray()
-	for k, v := range array.All() {
-		if valueMatches(v, search, strict) {
-			r.Append(k.Value())
-		}
-	}
-	return r
-}
-
 // ArrayValues ports array_values($array).
 func ArrayValues(array *Array) *Array {
 	r := NewArrayCap(array.live)

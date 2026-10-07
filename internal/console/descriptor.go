@@ -126,9 +126,6 @@ func (h *DescriptorHelper) Register(format string, d Descriptor) *DescriptorHelp
 	return h
 }
 
-// Name implements Helper.
-func (*DescriptorHelper) Name() string { return "descriptor" }
-
 // Formats returns the registered formats.
 func (h *DescriptorHelper) Formats() []string { return h.formats }
 
