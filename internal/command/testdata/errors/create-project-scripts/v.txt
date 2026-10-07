@@ -1,0 +1,22 @@
+Creating a "x/scripts" project at "./out"
+Installing x/scripts (1.0.0)
+  - Downloading x/scripts (1.0.0)
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+  - Installing x/scripts (1.0.0): Extracting archive
+Created project in @DIR@/p/out
+> post-root-package-install: echo root package installed
+root package installed
+Loading composer repositories with package information
+Updating dependencies
+Dependency resolution completed in @TIME@ seconds
+Analyzed @N@ packages to resolve dependencies
+Analyzed @N@ rules to resolve dependencies
+Nothing to modify in lock file
+Writing lock file
+Installing dependencies from lock file (including require-dev)
+Nothing to install, update or remove
+Generating autoload files
+No installed packages - skipping audit.
+> post-create-project-cmd: echo project created
+project created
+exit 0

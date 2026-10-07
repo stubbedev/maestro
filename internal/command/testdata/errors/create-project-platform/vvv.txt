@@ -1,0 +1,44 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Creating a "x/hi" project at "./out"
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading packages.json
+Reading file://@DIR@/p/packages.json
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.vmGO75-run-p-packages.json/packages.json into cache
+Cannot use x/hi's latest version 1.0.0 as it requires php >=99 which is not satisfied by your platform.
+
+In CreateProjectCommand.php line 452:
+                                                                               
+  [InvalidArgumentException]                                                   
+  Could not find package x/hi with stability stable in a version installable   
+  using your PHP version, PHP extensions and Composer version.                 
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:452
+ Composer\Command\CreateProjectCommand->installRootPackage() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:200
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+ Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+
+exit 1

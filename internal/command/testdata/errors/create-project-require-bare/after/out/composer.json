@@ -1,0 +1,29 @@
+{
+    "name": "x/plain",
+    "repositories": [{
+        "type": "package",
+        "package": {
+            "name": "x/bar",
+            "version": "1.0.0",
+            "type": "metapackage"
+        }
+    },{
+        "type": "package",
+        "package": {
+            "name": "x/plain",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "pkg/plain"
+            },
+            "transport-options": {
+                "symlink": false
+            }
+        }
+    },{
+        "packagist.org": false
+    }],
+    "require": {
+        "x/bar": "*"
+    }
+}

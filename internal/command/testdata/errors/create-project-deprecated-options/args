@@ -1,0 +1,7 @@
+create-project
+x/plain
+out
+--repository-url=packages.json
+--no-secure-http
+--dev
+--no-custom-installers

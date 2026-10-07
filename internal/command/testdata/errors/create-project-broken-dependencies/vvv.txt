@@ -1,0 +1,58 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Creating a "x/broken" project at "./out"
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading packages.json
+Reading file://@DIR@/p/packages.json
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.wtA5lR-run-p-packages.json/packages.json into cache
+Installing x/broken (1.0.0)
+  - Downloading x/broken (1.0.0)
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+Downloading http://@SERVER@/broken.zip
+[200] http://@SERVER@/broken.zip
+Writing @DIR@/cache/files/x/broken/2d517249ad5333c64dfaf37ed85049531ab779dc.zip into cache from @DIR@/p/out/vendor/composer/tmp-f8dd6a9cd72d34e69c949140f22efcf9.zip
+  - Installing x/broken (1.0.0): Extracting archive
+Executing async command (CWD): '/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-f8dd6a9cd72d34e69c949140f22efcf9.zip' '-d' '@DIR@/p/out/vendor/composer/7710f73d'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/7710f73d'
+Created project in @DIR@/p/out
+Reading ./composer.json (@DIR@/p/out/composer.json)
+Loading config file ./composer.json (@DIR@/p/out/composer.json)
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Loading composer repositories with package information
+Built pool.
+Running security advisory pool filter.
+Running filter list pool filter.
+Running pool optimizer.
+Updating dependencies
+Generating rules
+Resolving dependencies through SAT
+Looking at all rules.
+
+Dependency resolution completed in @TIME@ seconds
+Your requirements could not be resolved to an installable set of packages.
+
+  Problem 1
+    - Root composer.json requires nope/nope, it could not be found in any version, there may be a typo in the package name.
+
+Potential causes:
+ - A typo in the package name
+ - The package is not available in a stable-enough version according to your minimum-stability setting
+   see <https://getcomposer.org/doc/04-schema.md#minimum-stability> for more details.
+ - It's a private package and you forgot to add a custom repository to find it
+
+Read <https://getcomposer.org/doc/articles/troubleshooting.md> for further common problems.
+exit 2

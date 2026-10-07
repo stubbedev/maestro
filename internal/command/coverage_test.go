@@ -121,7 +121,19 @@ var coverage = []entry{
 		},
 	}),
 	cover(command.NewCreateProjectCommand, Coverage{
-		Tests: []Proof{Positive(E2E("create-project", "create-project", "psr/log", "psr-log", "1.1.4"))},
+		Tests: []Proof{
+			Positive(E2E("create-project", "create-project", "psr/log", "psr-log", "1.1.4")),
+			Positive(E2E("create-project", "create-project", "acme/lib", "lib-keep", "1.0.0", "--prefer-source", "--keep-vcs", `--repository={"type":"vcs","url":"@ROOT@/repos/lib"}`)),
+			Positive(E2E("create-project", "create-project", "acme/lib", "lib-remove", "1.0.0", "--prefer-source", "--remove-vcs", `--repository={"type":"vcs","url":"@ROOT@/repos/lib"}`)),
+			Positive(E2E("create-project", "create-project", "acme/lib", "lib-n", "1.0.0", "--prefer-source", "-n", `--repository={"type":"vcs","url":"@ROOT@/repos/lib"}`)),
+			Positive(E2E("create-project", "create-project", "psr/log:1.1.4", "psr-log-colon", "--no-install")),
+			Positive(E2E("create-project", "create-project", "psr/log", "psr-log-audit", "1.1.4", "--audit-format=json")),
+			Positive(E2E("prompts", "create-project", "acme/lib", "--ask", `--repository={"type":"vcs","url":"@ROOT@/repos/lib"}`)),
+			Negative(Go(TestCreateProjectCommand_InputErrors)),
+			Negative(E2E("create-project", "create-project", "nothing/at-all", "nothing")),
+			Negative(E2E("create-project", "create-project")),
+			Negative(E2E("prompts", "create-project", "--ask")),
+		},
 	}),
 	cover(command.NewUpdateCommand, Coverage{
 		Tests: []Proof{

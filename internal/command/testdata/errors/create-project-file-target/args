@@ -1,0 +1,6 @@
+create-project
+x/plain
+afile
+--repository=packages.json
+--repository={"packagist.org":false}
+--no-secure-http

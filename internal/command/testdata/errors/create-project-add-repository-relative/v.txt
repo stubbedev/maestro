@@ -1,0 +1,57 @@
+Creating a "x/plain" project at "./out"
+Installing x/plain (1.0.0)
+  - Downloading x/plain (1.0.0)
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+  - Installing x/plain (1.0.0): Extracting archive
+Created project in @DIR@/p/out
+
+In JsonFile.php line 116:
+                                                                               
+  [RuntimeException]                                                           
+  The "packages.json" file could not be downloaded: Failed to open stream: No  
+   such file or directory                                                      
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:116
+ Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:39
+ Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:211
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+ Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+In RemoteFilesystem.php line 481:
+                                                                               
+  [Composer\Downloader\TransportException]                                     
+  The "packages.json" file could not be downloaded: Failed to open stream: No  
+   such file or directory                                                      
+                                                                               
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:481
+ Composer\Util\RemoteFilesystem->get() at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:122
+ Composer\Util\RemoteFilesystem->getContents() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:258
+ Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}() at @COMPOSER@/vendor/react/promise/src/Promise.php:284
+ React\Promise\Promise->call() at @COMPOSER@/vendor/react/promise/src/Promise.php:41
+ React\Promise\Promise->__construct() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:283
+ Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:110
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Json/JsonFile.php:100
+ Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:39
+ Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:211
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+ Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+
+exit 1

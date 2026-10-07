@@ -1,0 +1,5 @@
+create-project
+x/plain
+out
+--repository={"type":"vcs","url":"missing"}
+--repository={"packagist.org":false}

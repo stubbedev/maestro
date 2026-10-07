@@ -1,0 +1,21 @@
+
+In BaseCommand.php line 364:
+                                                                         
+  [UnexpectedValueException]                                             
+  --prefer-install accepts one of "dist", "source" or "auto", got bogus  
+                                                                         
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Command/BaseCommand.php:364
+ Composer\Command\BaseCommand->getPreferredInstallOptions() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:136
+ Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+
+exit 1

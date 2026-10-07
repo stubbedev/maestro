@@ -1,0 +1,12 @@
+Creating a "x/plain" project at "./out"
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+
+In CurlDownloader.php line 407:
+                                                                               
+  curl error 7 while downloading http://127.0.0.1:1/packages.json: Failed to   
+  connect to 127.0.0.1:1 after 0 ms: Could not connect to server               
+                                                                               
+
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+
+exit 100

@@ -1,0 +1,4 @@
+{
+    "name": "acme/app",
+    "repositories": [{"packagist.org": false}]
+}

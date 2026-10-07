@@ -1,0 +1,7 @@
+create-project
+x/scripts
+out
+--repository=packages.json
+--repository={"packagist.org":false}
+--no-secure-http
+--no-scripts

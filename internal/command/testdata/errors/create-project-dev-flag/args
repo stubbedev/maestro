@@ -1,0 +1,7 @@
+create-project
+x/dev
+out
+dev-main@dev
+--repository=packages.json
+--repository={"packagist.org":false}
+--no-secure-http

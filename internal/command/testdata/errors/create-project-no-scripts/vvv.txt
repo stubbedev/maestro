@@ -1,0 +1,55 @@
+Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
+Creating a "x/scripts" project at "./out"
+Checked CA file /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a file.
+Checked directory /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem does not exist or it is not a directory.
+Checked CA file /nix/store/gp6rxb1rjdx6lalk7qc8mav293imv0x1-nss-cacert-3.126/etc/ssl/certs/ca-bundle.crt: valid
+Executing command (CWD): 'git' '--version'
+Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
+Executing command (@DIR@/p): 'git' 'describe' '--exact-match' '--tags'
+Executing command (@DIR@/p): 'git' 'rev-list' '--no-commit-header' '--format=%H' '-n1' 'HEAD' '--no-show-signature'
+Executing command (@DIR@/p): 'hg' 'branch'
+Executing command (@DIR@/p): 'fossil' 'branch' 'list'
+Executing command (@DIR@/p): 'fossil' 'tag' 'list'
+Executing command (@DIR@/p): 'svn' 'info' '--xml'
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Reading packages.json
+Reading file://@DIR@/p/packages.json
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.vmGO75-run-p-packages.json/packages.json into cache
+Installing x/scripts (1.0.0)
+  - Downloading x/scripts (1.0.0)
+Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+Downloading http://@SERVER@/scripts.zip
+[200] http://@SERVER@/scripts.zip
+Writing @DIR@/cache/files/x/scripts/d21b4b211e435d5ceaa80389e160fde2b68a3596.zip into cache from @DIR@/p/out/vendor/composer/tmp-30ed2d33d7b63ea9fc378450c8b22418.zip
+  - Installing x/scripts (1.0.0): Extracting archive
+Executing async command (CWD): '/nix/store/7af934aj137dhmnjpjdxsmvi5x9jmlvw-unzip-6.0/bin/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-30ed2d33d7b63ea9fc378450c8b22418.zip' '-d' '@DIR@/p/out/vendor/composer/c0cfc019'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/c0cfc019'
+Created project in @DIR@/p/out
+Reading ./composer.json (@DIR@/p/out/composer.json)
+Loading config file ./composer.json (@DIR@/p/out/composer.json)
+Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
+
+Loading composer repositories with package information
+Built pool.
+Running security advisory pool filter.
+Running filter list pool filter.
+Running pool optimizer.
+Updating dependencies
+Generating rules
+Resolving dependencies through SAT
+Looking at all rules.
+
+Dependency resolution completed in @TIME@ seconds
+Analyzed @N@ packages to resolve dependencies
+Analyzed @N@ rules to resolve dependencies
+Nothing to modify in lock file
+Writing lock file
+Installing dependencies from lock file (including require-dev)
+Reading ./composer.lock (@DIR@/p/out/composer.lock)
+Nothing to install, update or remove
+Generating autoload files
+No installed packages - skipping audit.
+exit 0

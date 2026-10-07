@@ -1,0 +1,7 @@
+create-project
+x/hi
+out
+--repository=packages.json
+--repository={"packagist.org":false}
+--no-secure-http
+--ignore-platform-reqs

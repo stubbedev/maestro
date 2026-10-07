@@ -1,0 +1,22 @@
+{
+    "packages": {
+        "x/plain": {
+            "1.0.0": {"name": "x/plain", "version": "1.0.0", "dist": {"type": "zip", "url": "@SERVER@/plain.zip"}}
+        },
+        "x/hi": {
+            "1.0.0": {"name": "x/hi", "version": "1.0.0", "require": {"php": ">=99"}, "dist": {"type": "zip", "url": "@SERVER@/plain.zip"}}
+        },
+        "x/dev": {
+            "dev-main": {"name": "x/dev", "version": "dev-main", "dist": {"type": "zip", "url": "@SERVER@/plain.zip"}}
+        },
+        "x/scripts": {
+            "1.0.0": {"name": "x/scripts", "version": "1.0.0", "dist": {"type": "zip", "url": "@SERVER@/scripts.zip"}}
+        },
+        "x/broken": {
+            "1.0.0": {"name": "x/broken", "version": "1.0.0", "dist": {"type": "zip", "url": "@SERVER@/broken.zip"}}
+        },
+        "x/bar": {
+            "1.0.0": {"name": "x/bar", "version": "1.0.0", "type": "metapackage"}
+        }
+    }
+}

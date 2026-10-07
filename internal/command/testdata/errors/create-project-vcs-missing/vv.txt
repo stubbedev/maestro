@@ -1,0 +1,28 @@
+Creating a "x/plain" project at "./out"
+
+In VcsRepository.php line 193:
+                                                    
+  [InvalidArgumentException]                        
+  No driver found to handle VCS repository missing  
+                                                    
+
+Exception trace:
+  at @COMPOSER@/src/Composer/Repository/VcsRepository.php:193
+ Composer\Repository\VcsRepository->initialize() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:308
+ Composer\Repository\ArrayRepository->getPackages() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:62
+ Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:201
+ Composer\Repository\RepositorySet->findPackages() at @COMPOSER@/src/Composer/Package/Version/VersionSelector.php:86
+ Composer\Package\Version\VersionSelector->findBestCandidate() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:447
+ Composer\Command\CreateProjectCommand->installRootPackage() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:200
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+ Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
+ Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
+ Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
+
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+
+exit 1

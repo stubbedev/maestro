@@ -1,0 +1,6 @@
+create-project
+x/broken
+out
+--repository=packages.json
+--repository={"packagist.org":false}
+--no-secure-http

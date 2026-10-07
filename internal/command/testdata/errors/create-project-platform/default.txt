@@ -1,0 +1,12 @@
+Creating a "x/hi" project at "./out"
+Cannot use x/hi's latest version 1.0.0 as it requires php >=99 which is not satisfied by your platform.
+
+In CreateProjectCommand.php line 452:
+                                                                               
+  Could not find package x/hi with stability stable in a version installable   
+  using your PHP version, PHP extensions and Composer version.                 
+                                                                               
+
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+
+exit 1

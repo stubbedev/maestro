@@ -1,0 +1,7 @@
+{
+    "name": "x/broken",
+    "repositories": [{"packagist.org": false}],
+    "require": {
+        "nope/nope": "^1.0"
+    }
+}

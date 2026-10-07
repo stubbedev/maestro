@@ -1,0 +1,7 @@
+create-project
+x/plain
+out
+9.0
+--repository=packages.json
+--repository={"packagist.org":false}
+--no-secure-http

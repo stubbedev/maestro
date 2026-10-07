@@ -1,0 +1,5 @@
+Creating a "x/plain" project at "./out"
+Installing x/plain (1.0.0)
+  - Installing x/plain (1.0.0): Mirroring from pkg/plain
+Created project in @DIR@/p/out
+exit 0

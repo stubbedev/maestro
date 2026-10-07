@@ -403,6 +403,16 @@ func fixtureScenarios() []scenario {
 				{args: []string{"create-project", "psr/log", "psr-log", "1.1.4", "--no-install"}},
 				{args: []string{"create-project", "psr/log", "psr-log", "1.1.4"}},
 				{args: []string{"create-project", "nothing/at-all", "nothing"}},
+				{args: []string{"create-project", "acme/lib", "lib-keep", "1.0.0", "--prefer-source", "--keep-vcs", "--repository={\"type\":\"vcs\",\"url\":\"@ROOT@/repos/lib\"}"}},
+				{
+					args: []string{"create-project", "acme/lib", "lib-remove", "1.0.0", "--prefer-source", "--remove-vcs", "--repository={\"type\":\"vcs\",\"url\":\"@ROOT@/repos/lib\"}"},
+					env:  interactive,
+				},
+				{args: []string{"create-project", "acme/lib", "lib-n", "1.0.0", "--prefer-source", "-n", "--repository={\"type\":\"vcs\",\"url\":\"@ROOT@/repos/lib\"}"}},
+				{args: []string{"create-project", "psr/log:1.1.4", "psr-log-colon", "--no-install"}},
+				{args: []string{"create-project", "psr/log", "psr-log-audit", "1.1.4", "--audit-format=json"}},
+				// no package and no composer.json
+				{args: []string{"create-project"}, dir: "."},
 			},
 		},
 		{
@@ -644,6 +654,13 @@ func fixtureScenarios() []scenario {
 					env:   interactive,
 					stdin: "n\n",
 				},
+				{
+					args:  []string{"create-project", "acme/lib", "--ask", "--repository={\"type\":\"vcs\",\"url\":\"@ROOT@/repos/lib\"}"},
+					dir:   ".",
+					env:   interactive,
+					stdin: "custom-dir\nn\n",
+				},
+				{args: []string{"create-project", "--ask"}, dir: ".", env: interactive},
 			},
 		},
 		{
