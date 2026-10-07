@@ -59,6 +59,8 @@ func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int
 	if err != nil {
 		return 0, err
 	}
+	// PHP starts while the autoloader is dumped when its scripts need it
+	eventdispatcher.Expect(comp.EventDispatcher(), autoload.PreAutoloadDump, autoload.PostAutoloadDump)
 
 	commandEvent := eventdispatcher.NewCommandEvent(eventdispatcher.PluginCommand, "dump-autoload", in, out, nil, nil)
 	if _, err := comp.EventDispatcher().Dispatch(commandEvent.Name(), commandEvent); err != nil {

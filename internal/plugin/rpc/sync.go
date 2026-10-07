@@ -68,18 +68,24 @@ type syncState struct {
 	sentStatics map[string]any
 }
 
-func newSyncState(statics map[string]Static) syncState {
-	envOf := os.Environ()
-	s := syncState{
+// newSyncState is the state PHP starts in: envOf (os.Environ() when nil)
+// and cwd (the working directory when "").
+func newSyncState(statics map[string]Static, envOf []string, cwd string) syncState {
+	if envOf == nil {
+		envOf = os.Environ()
+	}
+	if cwd == "" {
+		cwd, _ = php.Getcwd()
+	}
+
+	return syncState{
 		env:         environ(envOf),
 		envOf:       envOf,
+		cwd:         cwd,
 		statics:     statics,
 		staticNames: slices.Sorted(maps.Keys(statics)),
 		sentStatics: maps.Clone(PHPStatics),
 	}
-	s.cwd, _ = php.Getcwd()
-
-	return s
 }
 
 // environ is an os.Environ() as a map.

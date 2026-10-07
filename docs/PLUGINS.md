@@ -414,6 +414,19 @@ it. That happens in exactly these cases:
 Gating messages (for example "was skipped because it requires a Plugin API
 version…") and `PluginBlockedException` happen in Go, without starting PHP.
 
+**Starting ahead.** Code that goes on to dispatch script events tells the
+dispatcher which (`eventdispatcher.Expect`): the installer its command's
+pre and post events and, when it dumps the autoloader, the dump's;
+`dump-autoload` the dump's. When a root script of one of them runs in PHP
+(case 2, directly or through a script it references with `@`), the child
+starts at once in the background (`Runtime.Prestart`) and goes through
+the handshake, so PHP's start overlaps maestro's work; case 2 then finds
+it waiting for `boot`. It starts in maestro's environment and working
+directory of that moment, and what changes until `boot` reaches PHP in
+boot's sync block, as a change between any two messages does. A child
+that nothing needs in the end (the run failed before) is killed when
+maestro ends, having run only the shim's bootstrap.
+
 **Which `php` binary.** The child uses the same binary that
 `internal/platform` uses for platform detection: one shared resolver in
 `internal/util`. It looks up `php` on `PATH`, as Composer's shebang
@@ -1488,6 +1501,8 @@ How the design meets them:
   used. A typical tier-2 run loads about 25 shim files and no Symfony
   Console.
 - **One child.** There is no per-event spawn.
+- **Starting ahead.** When the installer or `dump-autoload` will run a
+  root script in PHP, the child starts while maestro works (§5.2).
 - **Batching.** A plugin load is one round trip. The event mirror is sent
   once per dispatch. Full package snapshots for the local repository are sent
   in one `repo.packages` reply.

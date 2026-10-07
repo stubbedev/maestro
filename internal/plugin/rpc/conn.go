@@ -50,6 +50,11 @@ type Options struct {
 	// Statics are Composer's statics the sync engine keeps in step, by
 	// name (see PHPStatics).
 	Statics map[string]Static
+	// Environ and Dir are maestro's environment (an os.Environ()) and
+	// working directory when PHP started, which the sync engine sends the
+	// changes of; the current ones when nil and "".
+	Environ []string
+	Dir     string
 }
 
 // Conn is maestro's end of the channel to one PHP process.
@@ -80,9 +85,8 @@ type Conn struct {
 	buf        []byte
 }
 
-// NewConn returns the Conn over r (PHP → Go) and w (Go → PHP). The
-// current environment and working directory are taken as what PHP starts
-// with.
+// NewConn returns the Conn over r (PHP → Go) and w (Go → PHP). PHP
+// starts with opts.Environ and opts.Dir.
 func NewConn(r io.Reader, w io.Writer, peer Peer, opts Options) *Conn {
 	if opts.Flush == nil {
 		opts.Flush = func() {}
@@ -97,7 +101,7 @@ func NewConn(r io.Reader, w io.Writer, peer Peer, opts Options) *Conn {
 		factories: map[string]MirrorFactory{},
 		tags:      map[string]TagDecoder{},
 		h:         newHandles(),
-		sync:      newSyncState(opts.Statics),
+		sync:      newSyncState(opts.Statics, opts.Environ, opts.Dir),
 	}
 }
 

@@ -55,7 +55,8 @@ type Options struct {
 	// when nil).
 	Args []string
 	// Flush writes out what maestro buffered for the terminal; it runs
-	// before every message to PHP (docs/PLUGINS.md D11).
+	// before every message to PHP (docs/PLUGINS.md D11), the reply to the
+	// handshake of a Prestart on a goroutine of its own.
 	Flush func()
 	// Statics are Composer's statics PHP shares (internal/composer's);
 	// DefaultStatics() when nil.
@@ -100,6 +101,8 @@ type Runtime struct {
 	restart  *xdebugRestart
 	// planned is set once the xdebug restart was planned (planRestart).
 	planned bool
+	// pre is the start in the background (Prestart) nothing took yet.
+	pre *prestart
 
 	handlers  map[string]rpc.Handler
 	factories map[string]rpc.MirrorFactory
@@ -333,41 +336,21 @@ func (r *Runtime) dropWaitHook() {
 }
 
 func (r *Runtime) start(purpose string) (*rpc.Conn, error) {
-	phpBinary, ok := r.opts.FindPHP()
-	if !ok {
-		return nil, &platform.PHPNotFoundError{Purpose: purpose}
+	l := r.takePrestart()
+	if l == nil || l.unspawned {
+		if err := r.planRestart(); err != nil {
+			return nil, err
+		}
+		l = r.launch(purpose)
 	}
-
-	dir, err := r.ensureShim()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := r.planRestart(); err != nil {
-		return nil, err
-	}
-
-	var args []string
-	if r.restart != nil {
-		args = append(args, r.restart.args...)
-	}
-	args = append(args, filepath.Join(dir, "bootstrap.php"))
-
-	cmd := exec.Command(phpBinary, args...) //nolint:gosec // the php on the PATH, as Composer's shebang finds it, running the shim.
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = r.opts.Stdin, r.opts.Stdout, r.opts.Stderr
-	cmd.Env = r.childEnv(dir)
-
-	sp, err := spawn(cmd, r.opts.Transport)
-	if err != nil {
+	if l.err != nil {
 		r.removeTmpIni()
 
-		return nil, err
+		return nil, l.err
 	}
-
-	conn := rpc.NewConn(sp.r, sp.w, sp.child, rpc.Options{Flush: r.opts.Flush, Statics: r.opts.Statics})
+	conn := l.conn
 
 	r.mu.Lock()
-	r.child = sp.child
 	for m, h := range r.handlers {
 		conn.Handle(m, h)
 	}
@@ -378,17 +361,10 @@ func (r *Runtime) start(purpose string) (*rpc.Conn, error) {
 		conn.RegisterTag(k, d)
 	}
 	r.mu.Unlock()
-	conn.Handle("hello", r.hello(sp.token))
-
-	if err := conn.Accept("hello"); err != nil {
-		r.removeTmpIni()
-
-		return nil, err
-	}
 
 	if _, err := conn.Call("boot", r.bootArgs()); err != nil {
-		sp.child.Kill()
-		sp.child.Wait()
+		l.child.Kill()
+		l.child.Wait()
 		r.removeTmpIni()
 
 		return nil, err
@@ -397,12 +373,125 @@ func (r *Runtime) start(purpose string) (*rpc.Conn, error) {
 	return conn, nil
 }
 
-// childEnv is maestro's environment plus what the child gets on top
+// launched is a child started and through its handshake (launch), which
+// boot makes the runtime's.
+type launched struct {
+	conn  *rpc.Conn
+	child *child
+	err   error
+	// unspawned is set when err came before php started (no php, the
+	// shim not extracted): nothing ran, so a start can try again.
+	unspawned bool
+}
+
+// launch starts the child and serves its handshake (docs/PLUGINS.md §5.2
+// steps 1 to 7, up to `boot`). The restart must be planned. The child
+// starts in maestro's environment and working directory of this moment,
+// which the channel takes as what PHP has.
+func (r *Runtime) launch(purpose string) *launched {
+	phpBinary, ok := r.opts.FindPHP()
+	if !ok {
+		return &launched{err: &platform.PHPNotFoundError{Purpose: purpose}, unspawned: true}
+	}
+
+	dir, err := r.ensureShim()
+	if err != nil {
+		return &launched{err: err, unspawned: true}
+	}
+
+	var args []string
+	if r.restart != nil {
+		args = append(args, r.restart.args...)
+	}
+	args = append(args, filepath.Join(dir, "bootstrap.php"))
+
+	environ := os.Environ()
+	cwd, err := php.Getcwd()
+	if err != nil {
+		return &launched{err: err, unspawned: true}
+	}
+
+	cmd := exec.Command(phpBinary, args...) //nolint:gosec // the php on the PATH, as Composer's shebang finds it, running the shim.
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = r.opts.Stdin, r.opts.Stdout, r.opts.Stderr
+	cmd.Env = r.childEnv(dir, environ)
+	cmd.Dir = cwd
+
+	sp, err := spawn(cmd, r.opts.Transport)
+	if err != nil {
+		return &launched{err: err}
+	}
+
+	conn := rpc.NewConn(sp.r, sp.w, sp.child, rpc.Options{Flush: r.opts.Flush, Statics: r.opts.Statics, Environ: environ, Dir: cwd})
+
+	r.mu.Lock()
+	r.child = sp.child
+	r.mu.Unlock()
+	conn.Handle("hello", r.hello(sp.token))
+
+	if err := conn.Accept("hello"); err != nil {
+		return &launched{err: err}
+	}
+
+	return &launched{conn: conn, child: sp.child}
+}
+
+// Prestart starts the child in the background, ahead of its first need,
+// when nothing started it yet: what needs PHP later (Start) then finds it
+// through its handshake, or waits for that. A prestart that fails before
+// php runs is forgotten (Start tries itself); a child nothing needs in the
+// end is killed by Close, having run only the shim's bootstrap.
+func (r *Runtime) Prestart() {
+	r.startMu.Lock()
+	defer r.startMu.Unlock()
+
+	r.mu.Lock()
+	idle := r.conn == nil && r.startErr == nil && r.pre == nil
+	r.mu.Unlock()
+	if !idle || r.planRestart() != nil {
+		return
+	}
+
+	pre := &prestart{done: make(chan struct{})}
+	r.mu.Lock()
+	r.pre = pre
+	r.mu.Unlock()
+
+	go func() {
+		defer close(pre.done)
+
+		// php runs auto_prepend_file before the shim
+		defer util.RunForeignCode()()
+		pre.l = r.launch("")
+	}()
+}
+
+// prestart is a start in the background (Prestart).
+type prestart struct {
+	done chan struct{}
+	l    *launched
+}
+
+// takePrestart waits for the prestart, if any, and returns what it
+// launched (nil for none).
+func (r *Runtime) takePrestart() *launched {
+	r.mu.Lock()
+	pre := r.pre
+	r.pre = nil
+	r.mu.Unlock()
+	if pre == nil {
+		return nil
+	}
+	<-pre.done
+
+	return pre.l
+}
+
+// childEnv is maestro's environment environ plus what the child gets on top
 // (docs/PLUGINS.md §5.2 "Env"): COMPOSER_BINARY, MAESTRO_BINARY when
 // maestro did not set it, and the xdebug restart's variables. The channel's
 // variables are added by spawn.
-func (r *Runtime) childEnv(shimDir string) []string {
-	env := os.Environ()
+func (r *Runtime) childEnv(shimDir string, environ []string) []string {
+	env := slices.Clone(environ)
 	set := func(name, value string) {
 		env = slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, name+"=") })
 		env = append(env, name+"="+value)
@@ -579,6 +668,7 @@ func (r *Runtime) Shutdown(code int) (int, error) {
 // Close kills a child that is still running (an aborted run) and removes
 // the temporary files of its start.
 func (r *Runtime) Close() {
+	r.takePrestart()
 	r.mu.Lock()
 	c := r.child
 	r.mu.Unlock()

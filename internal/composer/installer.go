@@ -290,6 +290,9 @@ func (i *Installer) Run() (int, error) {
 	}
 
 	if i.runScripts {
+		// PHP starts while the installer works when its scripts need it
+		i.expectScripts()
+
 		util.PutEnv("COMPOSER_DEV_MODE", boolString(i.devMode))
 
 		// dispatch pre event
