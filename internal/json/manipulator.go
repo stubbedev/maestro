@@ -4,6 +4,7 @@ package json
 
 import (
 	"errors"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -1576,7 +1577,7 @@ func stringOffset(s string, key any) (int, bool) {
 	case int:
 		i = k
 	case int64:
-		if k < -int64(n) || k >= int64(n) {
+		if k < math.MinInt || k > math.MaxInt {
 			return 0, false
 		}
 
