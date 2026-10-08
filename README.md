@@ -1,54 +1,71 @@
-# maestro
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/maestro-dark.svg">
+    <img src="docs/assets/maestro-light.svg" alt="maestro" width="120">
+  </picture>
+</p>
 
-Composer, natively. maestro is a line-by-line port of
-[Composer](https://getcomposer.org) 2.10.3 to Go, and a drop-in replacement
-for the `composer` command. What tools and scripts depend on is identical
-to Composer's, byte for byte: commands and options, exit codes,
-machine-readable output, questions, scripts and events, and the files
-written (`composer.json`, `composer.lock`, `vendor/composer/*`,
-`vendor/bin` proxies, the installed packages). Errors, warnings and
-progress are presented in maestro's own way. It never runs or ships
+<h1 align="center">maestro</h1>
+
+<p align="center">
+  <strong>Composer, natively.</strong><br>
+  A drop-in replacement for <code>composer</code>, written in Go.
+</p>
+
+<p align="center">
+  <a href="https://github.com/stubbedev/maestro/actions/workflows/ci.yml"><img src="https://github.com/stubbedev/maestro/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/stubbedev/maestro/releases"><img src="https://img.shields.io/github/v/release/stubbedev/maestro" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/stubbedev/maestro" alt="License: MIT"></a>
+</p>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#guarantees">Guarantees</a> ·
+  <a href="#performance">Performance</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#development">Development</a>
+</p>
+
+---
+
+maestro is a line-by-line port of [Composer](https://getcomposer.org) to Go.
+Anything that reads what Composer produces gets the same thing from maestro,
+byte for byte, and gets it several times faster. It never runs or ships
 `composer.phar`.
 
-What you get on top:
-
-- **A shared package store, pnpm style.** Every release is extracted once
-  per machine into a content-addressed store and imported into `vendor/` by
-  reflink, hardlink or copy. A second project or git worktree installs
-  without downloading or unzipping anything.
-- **Native speed.** Resolution, extraction, autoload dumping and metadata
-  handling run in Go, in parallel where the result stays identical. See
-  [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-- **No external extractors.** zip, tar, gz, bz2 and xz are handled natively,
-  reproducing what Composer gets from `unzip` and `tar`.
-
-`php` is still used where Composer itself runs PHP code for your project:
-scripts, plugins, platform detection and `composer exec`.
+|   |   |
+|---|---|
+| **Drop-in compatible** | Same commands, options, exit codes, prompts, scripts, events and machine-readable output. Same `composer.json`, `composer.lock` and `vendor/` on disk. |
+| **Shared package store** | Every release is extracted once per machine and imported into `vendor/` by reflink, hardlink or copy, the way pnpm does it. A second project or git worktree installs without downloading or unzipping anything. |
+| **Native speed** | Resolution, extraction, autoload dumping and metadata handling run in Go, in parallel wherever the result stays identical. |
+| **Plugins run unchanged** | An embedded PHP layer provides Composer's public plugin API on top of maestro's own state. |
+| **Self-contained** | zip, tar, gz, bz2 and xz are handled natively. No `unzip` or `tar` needed. |
 
 ## Install
 
-Homebrew:
+**Homebrew** (macOS, Linux)
 
 ```sh
 brew install stubbedev/tap/maestro
 ```
 
-maestro uses the `php` first on your `PATH`, so the formula does not pull
-in Homebrew's php; add `--with-php` (or `brew install php`) if you have
-none. On Apple Silicon, install with the arm64 Homebrew
-(`/opt/homebrew/bin/brew`): an Intel Homebrew in `/usr/local` installs the
-x86_64 binary, which runs under Rosetta.
+The formula uses the `php` already on your `PATH`. Add `--with-php` if you
+don't have one. On Apple Silicon, use the arm64 Homebrew
+(`/opt/homebrew/bin/brew`).
 
-Install script (Linux, macOS, FreeBSD; picks the binary for the hardware,
-checks it against the release's `checksums.txt`, installs to
-`~/.local/bin` or `$MAESTRO_INSTALL_DIR`, and takes a release tag in
-`$MAESTRO_VERSION`):
+**Install script** (Linux, macOS, FreeBSD)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/stubbedev/maestro/main/install.sh | sh
 ```
 
-Nix (the package also provides `composer`):
+The script picks the binary for your hardware, checks it against the
+release's `checksums.txt` and installs it to `~/.local/bin`. Set
+`MAESTRO_INSTALL_DIR` to install somewhere else, or `MAESTRO_VERSION` to
+pin a release tag.
+
+**Nix**
 
 ```nix
 # flake.nix
@@ -56,68 +73,137 @@ inputs.maestro.url = "github:stubbedev/maestro";
 # then add inputs.maestro.packages.${system}.default to your packages
 ```
 
-Binaries for Linux, macOS, Windows and FreeBSD are attached to every
-[release](https://github.com/stubbedev/maestro/releases), with a
-`checksums.txt`. `maestro self-update` keeps an installed binary current.
+The Nix package also provides a `composer` command.
 
-To use it as `composer`, put a `composer` symlink to `maestro` on your
-`PATH` (the Nix package already does).
+**Prebuilt binaries** for Linux, macOS, Windows and FreeBSD are attached to
+every [release](https://github.com/stubbedev/maestro/releases), together
+with a `checksums.txt`.
 
-## Compatibility
+## Usage
 
-maestro follows Composer 2.10.3. Composer's own test suite is ported and
-passes, including all 209 installer fixtures, and an end-to-end suite runs
-real Composer and maestro side by side on the same projects (Laravel,
-Symfony and a large private application among them) comparing output, lock
-files and `vendor/` trees.
+Use maestro exactly as you would use Composer:
 
-Plugins run unchanged: maestro embeds a PHP layer that provides Composer's
-public plugin API (`Composer\Composer`, events, installers, commands,
-repositories, ...) backed by maestro's own state. Tested with, among
-others, composer/installers, pestphp/pest-plugin, phpstan and infection
-extension installers, dealerdirect/phpcodesniffer-composer-installer,
-wikimedia/composer-merge-plugin, cweagans/composer-patches,
-ergebnis/composer-normalize, drupal's scaffold and Laravel's package
-discovery scripts. See [docs/PLUGINS.md](docs/PLUGINS.md).
+```sh
+maestro install
+maestro require symfony/console
+maestro update --dry-run
+maestro dump-autoload -o
+```
 
-[docs/PORTING.md](docs/PORTING.md#the-contract) says exactly what is
-identical and what is maestro's own, and lists the
-[deliberate deviations](docs/PORTING.md#deliberate-deviations); the ones
-you may notice:
+To have existing tooling, CI scripts and IDEs pick it up as `composer`,
+link it onto your `PATH` (the Nix package does this for you):
 
-- packages are imported from the shared store, so file modification times
+```sh
+ln -s "$(command -v maestro)" ~/.local/bin/composer
+```
+
+`maestro self-update` keeps the binary current.
+
+maestro calls `php` only where Composer itself runs PHP code for your
+project: scripts, plugins, platform detection and `exec`.
+
+### How installs work
+
+```mermaid
+flowchart LR
+    P[(Packagist / VCS)] -->|download once| S[Shared store<br/>content-addressed]
+    S -->|reflink · hardlink · copy| A[project-a/vendor]
+    S --> B[project-b/vendor]
+    S --> C[worktree/vendor]
+```
+
+A package is downloaded and extracted once per machine. Every later install
+of that release, in any project, is a file-system import from the store.
+
+## Guarantees
+
+maestro tracks Composer's current release. Everything that tools and
+scripts depend on is identical to Composer's:
+
+- commands, options and exit codes
+- machine-readable output (`--format=json`, `show`, `outdated`, `audit`, ...)
+- interactive questions and their defaults
+- scripts and events, including their environment and exit codes
+- every file written: `composer.json`, `composer.lock`, `vendor/composer/*`,
+  the `vendor/bin` proxies and the installed packages
+
+Human-facing output (errors, warnings and progress) is presented in
+maestro's own style.
+
+**How this is verified**
+
+- Composer's own test suite is ported and passes, including every installer
+  fixture.
+- An end-to-end suite runs real Composer and maestro side by side on the
+  same projects (Laravel, Symfony and a large private application among
+  them) and compares output, lock files and `vendor/` trees byte for byte.
+- Plugins are tested against the real packages, among them
+  composer/installers, pestphp/pest-plugin,
+  dealerdirect/phpcodesniffer-composer-installer,
+  wikimedia/composer-merge-plugin, cweagans/composer-patches,
+  ergebnis/composer-normalize, Drupal's scaffold and Laravel's package
+  discovery. See [docs/PLUGINS.md](docs/PLUGINS.md).
+
+**Where maestro differs on purpose**
+
+- Packages are imported from the shared store, so file modification times
   in `vendor/` are not the archive's, and hard-linked files are shared
-  between projects (plugin packages are never hard-linked);
-- `self-update` updates maestro;
+  between projects. Plugin packages are never hard-linked.
+- `self-update` updates maestro.
 - `--version` adds a `Maestro version` line on stderr, and the `list`
   banner names maestro.
 
-Set `MAESTRO_PACKAGE_IMPORT_METHOD` to `clone`, `hardlink` or `copy` to
-force an import method (default: reflink, else hardlink, else copy).
+[docs/PORTING.md](docs/PORTING.md#the-contract) defines the full contract
+and lists every
+[deliberate deviation](docs/PORTING.md#deliberate-deviations).
 
-maestro keeps its store and its other caches in `MAESTRO_CACHE_DIR`
-(default `$XDG_CACHE_HOME/maestro`, else the platform cache directory);
-`maestro clear-cache` clears them along with Composer's caches.
+## Performance
+
+Typical speed-ups over Composer on a locked `laravel/laravel` project:
+
+| Command | Speed-up |
+|---|---:|
+| `install`, cold caches | ~3x |
+| `install`, warm store (new project or worktree) | ~9x |
+| `install`, nothing to do | ~16x |
+| `update --dry-run` | ~6–10x |
+| `dump-autoload -o` | ~35x |
+
+The method, the full results for every project and where the time goes are
+in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
+## Configuration
+
+maestro reads all of Composer's configuration and environment variables.
+It adds the following:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MAESTRO_CACHE_DIR` | `$XDG_CACHE_HOME/maestro`, else the platform cache directory | Location of the package store and maestro's other caches |
+| `MAESTRO_PACKAGE_IMPORT_METHOD` | reflink, else hardlink, else copy | Force `clone`, `hardlink` or `copy` when importing from the store |
+
+`maestro clear-cache` clears maestro's caches along with Composer's.
 
 ## Development
 
 The dev environment is [devenv](https://devenv.sh): `devenv shell` provides
-Go, golangci-lint, php, unzip and the rest. `ref-sync` checks out the exact
+Go, golangci-lint, php, unzip and the rest. `ref-sync` checks out the
 Composer sources being ported into `.ref/`. Tests, vet and lint run in a
-Docker dev container (`compose.yaml`), which the justfile drives:
+Docker dev container (`compose.yaml`), driven by the justfile:
 
 ```sh
 just check       # every gate CI runs: vet, lint, deadcode, tidy-check, test, build
 just test        # the test suite, php-driven tests included (args go to go test)
 just test-race   # race detector, plus the php-driven tests
-just e2e         # compare against the real Composer phar (network, slow)
+just e2e         # compare against the real Composer (network, slow)
 just shell       # a shell in the dev container
 ```
 
-[docs/PORTING.md](docs/PORTING.md) is the porting contract: what must match
-Composer, the layout, the rules every port follows, how tests are ported
-from Composer's suite and generated from Composer's own PHP, and the test
-switches. [docs/PLUGINS.md](docs/PLUGINS.md) specifies the plugin runtime.
+| Document | Covers |
+|---|---|
+| [docs/PORTING.md](docs/PORTING.md) | The porting contract: what must match Composer, the layout, the rules every port follows and how tests are ported |
+| [docs/PLUGINS.md](docs/PLUGINS.md) | The plugin runtime |
+| [docs/BENCHMARKS.md](docs/BENCHMARKS.md) | Benchmark method and results |
 
 ## License
 

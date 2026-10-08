@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="maestro">
+  <title>maestro</title>
+  <defs>
+    <mask id="cuffs">
+      <rect width="128" height="128" fill="#fff"/>
+      <path d="M21 58 L39 55 M89 55 L107 58" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g fill="#1f2328" stroke="#1f2328" stroke-linecap="round" stroke-linejoin="round" mask="url(#cuffs)">
+    <path d="M30 34 L60 10" stroke-width="4" fill="none"/>
+    <path d="M44 104 L32 70 L30 36 M84 104 L96 70 L98 36" stroke-width="11" fill="none"/>
+    <path d="M98 34 L94 19 M98 34 L101 17 M98 34 L107 21" stroke-width="5" fill="none"/>
+    <path d="M64 92 A14 14 0 1 1 64 64 C56 62 50 58 44 60 C50 54 60 54 66 58 C76 60 78 70 78 78 A14 14 0 0 1 64 92 Z" stroke="none"/>
+    <path d="M28 128 C28 106 44 96 64 96 C84 96 100 106 100 128 Z" stroke="none"/>
+  </g>
+</svg>
