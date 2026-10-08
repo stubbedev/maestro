@@ -8,6 +8,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/capacity"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -184,7 +185,7 @@ func (s *Svn) getCommand(cmd []string, url, path string) ([]string, error) {
 		return nil, err
 	}
 
-	out := make([]string, 0, len(cmd)+len(credentials)+4)
+	out := make([]string, 0, capacity.Sum(len(cmd), len(credentials), 4))
 	out = append(out, cmd...)
 	out = append(out, "--non-interactive")
 	out = append(out, credentials...)

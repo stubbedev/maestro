@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // Output types passed to Process callbacks (Process::OUT, Process::ERR).
@@ -646,7 +647,7 @@ func mergeEnv(overrides, inherited []string, windows bool) []string {
 		return inherited
 	}
 
-	env := make([]string, 0, len(overrides)+len(inherited))
+	env := make([]string, 0, capacity.Sum(len(overrides), len(inherited)))
 	env = append(env, overrides...)
 
 	for _, kv := range inherited {

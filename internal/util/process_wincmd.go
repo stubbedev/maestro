@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // prepareWindowsCommandLine moves each quoted argument holding ", %, ! or a
@@ -153,7 +155,7 @@ func escapeQuotesBackslashes(s string) string {
 		return s
 	}
 
-	b := make([]byte, 0, len(s)+2*n)
+	b := make([]byte, 0, capacity.Sum(len(s), n, n))
 	run := 0 // backslashes just before s[i]
 
 	for i := range len(s) {

@@ -8,6 +8,8 @@ package php
 
 import (
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // StripTags ports strip_tags($s) with no allowed tags: it removes HTML/PHP
@@ -313,7 +315,7 @@ func Escapeshellarg(arg string) (string, error) {
 	if strings.IndexByte(arg, 0) >= 0 {
 		return "", valueError("escapeshellarg(): Argument #1 ($arg) must not contain any null bytes")
 	}
-	b := make([]byte, 0, len(arg)+2)
+	b := make([]byte, 0, capacity.Sum(len(arg), 2))
 	b = append(b, '\'')
 	for x := 0; x < len(arg); x++ {
 		c := arg[x]

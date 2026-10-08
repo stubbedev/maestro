@@ -8,6 +8,8 @@ package php
 import (
 	"sort"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // TrimChars is the default character list of trim(): " \n\r\t\v\0".
@@ -359,7 +361,7 @@ func Wordwrap(text string, width int, brk string, cut bool) string {
 		return string(b)
 	}
 
-	out := make([]byte, 0, n+n/max(width, 1)*len(brk)+len(brk))
+	out := make([]byte, 0, capacity.Sum(n, capacity.Product(n/max(width, 1)+1, len(brk))))
 	laststart, lastspace := 0, 0
 	current := 0
 	for ; current < n; current++ {

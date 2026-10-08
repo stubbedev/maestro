@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // Formatter is OutputFormatterInterface.
@@ -417,7 +418,7 @@ func addLineBreaks(text string, width int) string {
 	// One mask byte per code point: '#' for the existing "\n" breaks, ' '
 	// for spaces, '?' otherwise; starts holds each code point's offset.
 	mask := make([]byte, 0, len(text))
-	starts := make([]int, 0, len(text)+1)
+	starts := make([]int, 0, capacity.Sum(len(text), 1))
 	for i := 0; i < len(text); {
 		starts = append(starts, i)
 		switch text[i] {

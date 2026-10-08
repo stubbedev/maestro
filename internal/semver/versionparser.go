@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // VersionParser ports Composer\Semver\VersionParser. It holds no state;
@@ -126,7 +127,7 @@ func (p VersionParser) normalize(version, fullVersion string) (string, error) {
 	// match classical versioning
 	var classical classicalCaps
 	if matchClassical(version, &classical) {
-		b := make([]byte, 0, len(version)+16)
+		b := make([]byte, 0, capacity.Sum(len(version), 16))
 		b = append(b, classical.major.text(version)...)
 		for _, minor := range classical.minor {
 			if minor.isSet() {
@@ -142,7 +143,7 @@ func (p VersionParser) normalize(version, fullVersion string) (string, error) {
 	// match date(time) based versioning
 	var date dateCaps
 	if matchDate(version, &date) {
-		b := make([]byte, 0, len(version)+16)
+		b := make([]byte, 0, capacity.Sum(len(version), 16))
 		for _, c := range []byte(date.date.text(version)) {
 			if !isDigit(c) {
 				c = '.'
@@ -223,7 +224,7 @@ func (VersionParser) NormalizeBranch(name string) string {
 			last = i
 		}
 	}
-	b := make([]byte, 0, len(name)+32)
+	b := make([]byte, 0, capacity.Sum(len(name), 32))
 	for i, g := range groups {
 		part := ".x"
 		if i <= last {

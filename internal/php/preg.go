@@ -9,6 +9,8 @@ package php
 import (
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/stubbedev/maestro/internal/util/capacity"
 )
 
 // PregFlag holds the flags of the preg_* functions.
@@ -483,7 +485,7 @@ func (re *Regexp) replace(fn, subject string, limit int, add func(b []byte, caps
 	}
 	code := m.each(0, func(caps []int) bool {
 		if b == nil {
-			b = make([]byte, 0, len(subject)+16)
+			b = make([]byte, 0, capacity.Sum(len(subject), 16))
 		}
 		b = append(b, subject[last:caps[0]]...)
 		b = add(b, caps, capsCount(caps))
@@ -699,7 +701,7 @@ func PregQuote(s, delimiter string) string {
 	if i == len(s) {
 		return s
 	}
-	b := make([]byte, i, len(s)+8)
+	b := make([]byte, i, capacity.Sum(len(s), 8))
 	copy(b, s)
 	for ; i < len(s); i++ {
 		switch c := s[i]; {
