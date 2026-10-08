@@ -46,7 +46,7 @@ const versionCacheMaxAge = 24 * time.Hour
 
 // versionFormat is the version of the entries; its Header starts one, the
 // version follows it.
-var versionFormat = fsstate.Format{Name: "git-version", Version: 1}
+var versionFormat = fsstate.Format{Name: "git-version", Version: 2}
 
 // executor is a Process that runs commands with a *util.ProcessExecutor
 // (VersionGuesser's adapter).

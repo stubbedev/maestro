@@ -317,7 +317,10 @@ func TestCompileErrors(t *testing.T) {
 		"/abc/q":  "Unknown modifier 'q'",
 		"/abc/e":  "Unknown modifier 'e'",
 		"/a/\x00": "NUL byte is not a valid modifier",
-		"/(/":     "Compilation failed: missing closing parenthesis at offset 1",
+		// PHP prints a byte above 0x7f as the raw byte, not as a character.
+		"/abc/\xe9": "Unknown modifier '\xe9'",
+		"\xa7abc":   "No ending delimiter '\xa7' found",
+		"/(/":       "Compilation failed: missing closing parenthesis at offset 1",
 	} {
 		_, err := Compile(pattern)
 		var pe *PatternError
@@ -358,5 +361,14 @@ func TestRegexpConcurrent(t *testing.T) {
 	}
 	for range 8 {
 		<-done
+	}
+}
+
+// TestSprintfUnknownSpecifierRawByte checks that sprintf names an unknown
+// specifier above 0x7f by its raw byte, as PHP's ValueError does.
+func TestSprintfUnknownSpecifierRawByte(t *testing.T) {
+	_, err := Sprintf("%\xe9", 1)
+	if want := "Unknown format specifier \"\xe9\""; err == nil || err.Error() != want {
+		t.Errorf("Sprintf(%%\\xe9): got %v, want %q", err, want)
 	}
 }

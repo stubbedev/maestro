@@ -140,7 +140,7 @@ func Sprintf(format string, args ...any) (string, error) {
 		case 'b':
 			sprintfAppendString(&b, strconv.FormatUint(uint64(ToInt(arg)), 2), width, padding, left, false, false, false, 0) //nolint:gosec // unsigned view
 		default:
-			return "", valueError(`Unknown format specifier "` + string(conv) + `"`)
+			return "", valueError(`Unknown format specifier "` + string([]byte{conv}) + `"`)
 		}
 	}
 

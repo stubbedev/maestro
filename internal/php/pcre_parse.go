@@ -201,7 +201,7 @@ func parseDelimiters(regex string) (*regexOptions, *PatternError) {
 	}
 	if pp >= len(regex) {
 		if endDelim == delim {
-			return nil, &PatternError{Msg: "No ending delimiter '" + string(delim) + "' found"}
+			return nil, &PatternError{Msg: "No ending delimiter '" + string([]byte{delim}) + "' found"}
 		}
 		return nil, &PatternError{Msg: "No ending matching delimiter '" + string(endDelim) + "' found"}
 	}
@@ -234,7 +234,7 @@ func parseDelimiters(regex string) (*regexOptions, *PatternError) {
 		case 0:
 			return nil, &PatternError{Msg: "NUL byte is not a valid modifier"}
 		default:
-			return nil, &PatternError{Msg: "Unknown modifier '" + string(c) + "'"}
+			return nil, &PatternError{Msg: "Unknown modifier '" + string([]byte{c}) + "'"}
 		}
 	}
 	return o, nil
