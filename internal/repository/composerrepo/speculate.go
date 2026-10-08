@@ -60,7 +60,7 @@ func (r *ComposerRepository) SpeculateLoads(roots *repository.ConstraintMap, ski
 		gen:         r.decoded.startSpeculation(),
 		slots:       make(chan struct{}, runtime.GOMAXPROCS(0)),
 		names:       map[string]*speculatedName{},
-		followed:    map[string]struct{}{},
+		followed:    map[speculatedLink]struct{}{},
 	}
 	if r.observe.speculation != nil {
 		r.observe.speculation(s)
@@ -132,8 +132,8 @@ type speculation struct {
 
 	mu    sync.Mutex
 	names map[string]*speculatedName
-	// followed are the requirements followed: target and constraint.
-	followed map[string]struct{}
+	// followed are the requirements followed.
+	followed map[speculatedLink]struct{}
 }
 
 // speculatedName is the speculation's state for a package name: its
@@ -586,8 +586,20 @@ func (s *speculation) speculated(name string, scanned []scannedVersion) []*specu
 // acceptedVersions are the versions of name, scanned, whose version or
 // alias have an acceptable stability (stabilities and flags nil: any).
 func acceptedVersions(name string, scanned []scannedVersion, stabilities, flags *php.Array) []*speculatedVersion {
+	// by stability: a list's versions have a handful between them
+	acceptable := map[string]bool{}
 	stable := func(v string) bool {
-		return stabilities == nil || flags == nil || version.IsPackageAcceptable(stabilities, flags, []string{name}, semver.ParseStability(v))
+		if stabilities == nil || flags == nil {
+			return true
+		}
+		stability := semver.ParseStability(v)
+		ok, seen := acceptable[stability]
+		if !seen {
+			ok = version.IsPackageAcceptable(stabilities, flags, []string{name}, stability)
+			acceptable[stability] = ok
+		}
+
+		return ok
 	}
 	var versions []*speculatedVersion
 	// versions share their unchanged require arrays
@@ -706,16 +718,18 @@ func (s *speculation) scan(versions []*speculatedVersion, constraint semver.Cons
 		if v.followed.Swap(true) {
 			continue
 		}
+		// the requirements not followed yet, taken under one lock
+		s.mu.Lock()
+		next := v.requires[:0:0]
 		for _, link := range v.requires {
-			key := link.target + "\x00" + link.constraint
-			s.mu.Lock()
-			_, seen := s.followed[key]
-			s.followed[key] = struct{}{}
-			s.mu.Unlock()
-			if seen {
-				continue
+			if _, seen := s.followed[link]; !seen {
+				s.followed[link] = struct{}{}
+				next = append(next, link)
 			}
+		}
+		s.mu.Unlock()
 
+		for _, link := range next {
 			parsed, err := s.r.versionParser.ParseConstraints(link.constraint)
 			if err != nil {
 				continue

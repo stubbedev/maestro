@@ -31,7 +31,7 @@ func UseDecodedCache(root string) {
 // decodedFormat is the version of the decoded files: of the slot's form
 // (cache.Decoded), the p2 codec's (appendP2), the binary form and what
 // the slots' indexes hold.
-var decodedFormat = fsstate.Format{Name: "p2", Version: 5}
+var decodedFormat = fsstate.Format{Name: "p2", Version: 6}
 
 // decodedVersion is the directory, under the root, of the slots of
 // decodedFormat.
