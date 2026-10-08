@@ -802,6 +802,9 @@ func escapeArgument(argument string, windows bool) string {
 	}
 
 	if quote {
+		// The escape point: every '"' inside was already turned into \" by
+		// escapeQuotesBackslashes, and doubling the trailing backslashes
+		// keeps the closing quote from being escaped.
 		argument = `"` + doubleTrailingBackslashes(argument) + `"`
 	}
 
