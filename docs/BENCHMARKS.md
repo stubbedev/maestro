@@ -223,6 +223,9 @@ Metadata and resolution:
   is written), as curl writes the frames of all its requests at once: a
   new connection sends about ten segments in its first round trip, which
   one segment per request would spend on the first eight requests.
+  Requests started ahead together on a connection already open do the
+  same: each holds the socket's writes back until 1 ms after its own
+  request was written.
   Connections to the first https repositories open while the project
   loads. Metadata requests started ahead run 100 at once per HTTP/2
   connection; those beyond open a second connection to the host as soon

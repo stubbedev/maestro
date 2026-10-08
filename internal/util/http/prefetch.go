@@ -55,20 +55,26 @@ type prefetchedTransfer struct {
 
 // run makes the transfer, unless it was started already.
 func (t *prefetchedTransfer) run(ctx context.Context, p *transportPool) bool {
-	return t.runOn(ctx, p, 0)
+	return t.runAs(ctx, p, t.r)
 }
 
-// runOn is run, over the connections of a lane (see prefetchLanes) when
-// the transfer may open an HTTP/2 connection of its own.
-func (t *prefetchedTransfer) runOn(ctx context.Context, p *transportPool, lane int) bool {
+// runAhead is run by a worker of a lane: the transfer is one of a burst
+// (transferRequest.burst), over the lane's connections when it may open
+// one (see prefetchLanes).
+func (t *prefetchedTransfer) runAhead(p *transportPool, lane int) bool {
+	r := *t.r
+	r.burst = true
+	if may, _ := p.laneState(&r); lane > 0 && may {
+		r.key.lane = lane
+	}
+
+	return t.runAs(context.Background(), p, &r)
+}
+
+// runAs makes the transfer as r, unless it was started already.
+func (t *prefetchedTransfer) runAs(ctx context.Context, p *transportPool, r *transferRequest) bool {
 	if t.started.Swap(true) {
 		return false
-	}
-	r := t.r
-	if lane > 0 && p.mayOpenLane(r) {
-		laned := *r
-		laned.key.lane = lane
-		r = &laned
 	}
 	t.res = p.do(ctx, r)
 	close(t.done)
@@ -118,14 +124,16 @@ func (p *prefetches) max() int {
 	return p.limit
 }
 
-// freeLane is the first lane with room for one more worker, -1 for none.
-func (p *prefetches) freeLane() int {
+// freeLane is the first lane with room for one more worker, -1 for none;
+// one past the first only when another gains (asked once the first is
+// full).
+func (p *prefetches) freeLane(gains func() bool) int {
 	for lane, n := range p.running {
-		if lane > 0 && p.oneLane {
-			break
-		}
 		if n < p.max() {
 			return lane
+		}
+		if p.oneLane || !gains() {
+			break
 		}
 	}
 
@@ -164,7 +172,12 @@ func (a *prefetches) prefetch(p *transportPool, r *transferRequest, urgent bool)
 	} else {
 		a.later = append(a.later, t)
 	}
-	if lane := a.freeLane(); lane >= 0 {
+	gains := func() bool {
+		_, gains := p.laneState(r)
+
+		return gains
+	}
+	if lane := a.freeLane(gains); lane >= 0 {
 		a.running[lane]++
 		go a.runPrefetches(p, lane)
 	}
@@ -192,7 +205,7 @@ func (a *prefetches) runPrefetches(p *transportPool, lane int) {
 		*queue = (*queue)[1:]
 		a.mu.Unlock()
 
-		t.runOn(context.Background(), p, lane)
+		t.runAhead(p, lane)
 	}
 }
 

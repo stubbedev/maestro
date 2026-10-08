@@ -286,6 +286,48 @@ func TestHttpDownloader_DownloadersShareConnections(t *testing.T) {
 	}
 }
 
+// Once the first HTTP/2 connection is open, the transfers beyond its lane
+// wait for its streams (a round trip) rather than open a second
+// connection (two).
+func TestTransportPool_NoSecondLaneOnceConnected(t *testing.T) {
+	const limit = 3
+	var conns atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+
+	p := &transportPool{}
+	key := transportKey{tls: tlsSettings{verifyPeer: false}}
+	if res := p.do(context.Background(), &transferRequest{url: srv.URL + "/open", connectTimeout: 5 * time.Second, key: key}); res.status != http.StatusNotModified {
+		t.Fatalf("got %d %q", res.status, res.fail.Message)
+	}
+	if may, gains := p.laneState(&transferRequest{url: srv.URL + "/", key: key}); !may || gains {
+		t.Errorf("after an HTTP/2 first connection: lane may open %v, gains %v", may, gains)
+	}
+
+	a := &prefetches{limit: limit}
+	var transfers []*prefetchedTransfer
+	for i := range prefetchLanes * limit {
+		transfers = append(transfers, a.prefetch(p, &transferRequest{url: srv.URL + "/" + strconv.Itoa(i), connectTimeout: 5 * time.Second, key: key}, false))
+	}
+	for _, tr := range transfers {
+		if status, _, ok := tr.response(); !ok || status != http.StatusNotModified {
+			t.Fatalf("status %d ok %v", status, ok)
+		}
+	}
+	if n := conns.Load(); n != 1 {
+		t.Errorf("%d connections, want 1", n)
+	}
+}
+
 // A lane opens no connection of its own to a server that answered the
 // first connection with HTTP/1, nor for a URL that waits for no first
 // connection.
@@ -297,16 +339,16 @@ func TestTransportPool_NoLaneForHTTP1(t *testing.T) {
 
 	p := &transportPool{}
 	r := &transferRequest{url: srv.URL + "/", connectTimeout: 5 * time.Second, key: transportKey{tls: tlsSettings{verifyPeer: false}}}
-	if !p.mayOpenLane(r) {
-		t.Error("no lane before the first connection settled")
+	if may, gains := p.laneState(r); !may || !gains {
+		t.Errorf("before the first connection settled: lane may open %v, gains %v", may, gains)
 	}
 	if res := p.do(context.Background(), r); res.status != http.StatusNotModified {
 		t.Fatalf("got %d %q", res.status, res.fail.Message)
 	}
-	if p.mayOpenLane(r) {
-		t.Error("a lane after an HTTP/1 first connection")
+	if may, gains := p.laneState(r); may || gains {
+		t.Errorf("after an HTTP/1 first connection: lane may open %v, gains %v", may, gains)
 	}
-	if p.mayOpenLane(&transferRequest{url: "http://example.org/"}) {
-		t.Error("a lane for plain http")
+	if may, gains := p.laneState(&transferRequest{url: "http://example.org/"}); may || gains {
+		t.Errorf("plain http: lane may open %v, gains %v", may, gains)
 	}
 }

@@ -3,51 +3,36 @@ package http
 import (
 	"crypto/tls"
 	"net"
-	"sync"
-	"time"
 
 	"golang.org/x/sys/unix"
 )
 
-// maxWriteHold bounds how long holdWrites holds writes back, whatever
-// happens to the burst it was asked for.
-const maxWriteHold = 20 * time.Millisecond
-
-// holdWrites holds the small writes to conn's TCP socket back (TCP_CORK)
-// so that they leave together, in full segments, until the returned
-// function is called (at most maxWriteHold). It does nothing for a
-// connection that is not over TCP.
-func holdWrites(conn net.Conn) (flush func()) {
+// corkSocket sets or clears TCP_CORK on conn's TCP socket; false when
+// conn is not over TCP or the option could not be set.
+func corkSocket(conn net.Conn, on bool) bool {
 	tcp := tcpConnOf(conn)
 	if tcp == nil {
-		return func() {}
+		return false
 	}
 
 	raw, err := tcp.SyscallConn()
 	if err != nil {
-		return func() {}
+		return false
 	}
 
-	cork := func(on int) bool {
-		var serr error
-		if err := raw.Control(func(fd uintptr) {
-			serr = unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_CORK, on)
-		}); err != nil {
-			return false
-		}
-
-		return serr == nil
+	v := 0
+	if on {
+		v = 1
 	}
 
-	if !cork(1) {
-		return func() {}
+	var serr error
+	if err := raw.Control(func(fd uintptr) {
+		serr = unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_CORK, v)
+	}); err != nil {
+		return false
 	}
 
-	var once sync.Once
-	flush = func() { once.Do(func() { cork(0) }) }
-	time.AfterFunc(maxWriteHold, flush)
-
-	return flush
+	return serr == nil
 }
 
 // tcpConnOf is the TCP connection under conn's wrappers and TLS, nil when

@@ -172,25 +172,31 @@ func firstConnKeyOf(key transportKey, u *url.URL) (firstConnKey, bool) {
 	return firstConnKey{key: key, addr: u.Hostname() + ":" + port}, true
 }
 
-// mayOpenLane tells whether r may go over a connection of a lane of its
-// own (prefetchLanes): it waits for a first connection, and the first
-// connection of its own transport to that host, if settled, speaks
-// HTTP/2 (an HTTP/1 server takes a request per connection: a lane would
-// only open more of them).
-func (p *transportPool) mayOpenLane(r *transferRequest) bool {
+// laneState tells whether r may go over the connections of a lane of
+// its own (prefetchLanes): it waits for a first connection, and that
+// connection, once settled, speaks HTTP/2 (an HTTP/1 server takes a
+// request per connection: a lane would only open more of them); and
+// whether opening one gains anything: only while the first connection is
+// still being opened. Once it is open, the requests over its streams
+// wait a round trip for streams to free, a new connection two (the TCP
+// and TLS handshakes).
+func (p *transportPool) laneState(r *transferRequest) (may, gains bool) {
 	u, err := url.Parse(r.url)
 	if err != nil {
-		return false
+		return false, false
 	}
 	fk, ok := firstConnKeyOf(r.key, u)
 	if !ok {
-		return false
+		return false, false
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	fc := p.first[fk]
+	if fc == nil || !fc.settled {
+		return true, true
+	}
 
-	return fc == nil || !fc.settled || fc.h2
+	return fc.h2, false
 }

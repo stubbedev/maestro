@@ -118,6 +118,10 @@ type transferRequest struct {
 	preventIP func(ip string) bool
 	// safeURL is the URL as messages show it.
 	safeURL string
+	// burst: the transfer was started ahead along with others; over
+	// HTTP/2 its request holds the connection's writes back until
+	// burstLinger after it was written, for theirs to leave with it.
+	burst bool
 }
 
 // transferResult is what a finished transfer reports.
@@ -577,12 +581,24 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	firstConnected, firstSent, firstDone := p.awaitFirstConn(ctx, r.key, req.URL)
 	defer firstDone()
 
+	// a burst transfer's hold on its HTTP/2 connection's writes
+	var burstHold atomic.Pointer[func()]
+	defer func() {
+		if release := burstHold.Swap(nil); release != nil {
+			(*release)()
+		}
+	}()
+
 	trace := &httptrace.ClientTrace{
 		GotConn: func(info httptrace.GotConnInfo) {
 			connected.Store(true)
 
 			if hc, ok := info.Conn.(*h2HeadConn); ok {
 				firstConnected(hc)
+				if r.burst {
+					release := holdWrites(hc)
+					burstHold.Store(&release)
+				}
 			} else {
 				firstConnected(nil)
 			}
@@ -613,6 +629,10 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		WroteHeaders: func() {
 			h2.wroteHeaders()
 			firstSent()
+
+			if release := burstHold.Swap(nil); release != nil {
+				time.AfterFunc(burstLinger, *release)
+			}
 		},
 		ConnectStart: func(string, string) { firstSent() },
 	}

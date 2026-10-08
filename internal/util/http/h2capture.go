@@ -50,6 +50,9 @@ const (
 type h2HeadConn struct {
 	*tls.Conn
 
+	// writes holds the socket's writes back (holdWrites)
+	writes writeHold
+
 	mu sync.Mutex
 	// connect holds the proxy CONNECT response heads of the tunnel this
 	// connection runs through, until the first transfer takes them.

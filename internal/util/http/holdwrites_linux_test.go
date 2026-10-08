@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httptrace"
 	"net/url"
 	"testing"
 	"time"
@@ -105,6 +108,67 @@ func TestHoldWrites_Bounded(t *testing.T) {
 			t.Fatal("writes held back past maxWriteHold")
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+// TestHoldWrites_SharedByAnHTTP2Connection: the holds on one HTTP/2
+// connection's socket keep it held back until the last is released.
+func TestHoldWrites_SharedByAnHTTP2Connection(t *testing.T) {
+	tcp := tcpPair(t)
+	h2 := newH2HeadConn(tls.Client(tcp, &tls.Config{}), nil)
+
+	first := holdWrites(h2)
+	second := holdWrites(h2)
+	first()
+	first()
+	if !corked(t, tcp) {
+		t.Fatal("writes no longer held back while a hold remains")
+	}
+	second()
+	if corked(t, tcp) {
+		t.Fatal("writes held back after the last hold was released")
+	}
+}
+
+// TestTransportPool_BurstHoldsWritesOnAnOpenConnection: a burst transfer
+// over an HTTP/2 connection already open holds its writes back until
+// burstLinger after its request was written, so that the requests
+// started with it share its segments; a transfer that is not part of a
+// burst does not.
+func TestTransportPool_BurstHoldsWritesOnAnOpenConnection(t *testing.T) {
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+
+	var p transportPool
+	key := transportKey{tls: tlsSettings{verifyPeer: false}}
+	if res := p.do(context.Background(), &transferRequest{url: srv.URL + "/open", connectTimeout: 5 * time.Second, key: key}); res.status != http.StatusNotModified {
+		t.Fatalf("got %d %q", res.status, res.fail.Message)
+	}
+
+	for _, burst := range []bool{false, true} {
+		var conn *net.TCPConn
+		wrote := make(chan bool, 1)
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) { conn = tcpConnOf(info.Conn) },
+			WroteHeaders: func() {
+				// after the transport's own hook: the hold lingers
+				v := -1
+				if raw, err := conn.SyscallConn(); err == nil {
+					_ = raw.Control(func(fd uintptr) { v, _ = unix.GetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_CORK) })
+				}
+				wrote <- v == 1
+			},
+		})
+		if res := p.do(ctx, &transferRequest{url: srv.URL + "/", connectTimeout: 5 * time.Second, key: key, burst: burst}); res.status != http.StatusNotModified {
+			t.Fatalf("got %d %q", res.status, res.fail.Message)
+		}
+		if held := <-wrote; held != burst {
+			t.Errorf("burst %v: writes held back after the request was written: %v", burst, held)
+		}
 	}
 }
 
