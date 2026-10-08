@@ -453,6 +453,9 @@ func TestInitCommand_GetGitConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("GIT_CONFIG_GLOBAL", gitConfig)
+	// outside any checkout: git fails on one whose .git it cannot follow
+	// (a worktree's, in a container that mounts only the worktree)
+	t.Chdir(t.TempDir())
 
 	config := command.GitConfig(command.NewInitCommand())
 	if _, ok := config["user.name"]; !ok {
