@@ -35,6 +35,9 @@ const (
 	// UpdateFormats ("1") has internal/cache's TestOwnFormats record the
 	// fingerprint of a cache format version not recorded yet.
 	UpdateFormats = "MAESTRO_UPDATE_FORMATS"
+	// UpdateLogo ("1") has internal/ui's TestLogoSVG redraw
+	// docs/assets/maestro-logo.svg from the console's wordmark.
+	UpdateLogo = "MAESTRO_UPDATE_LOGO"
 )
 
 // End-to-end knobs, read with E2E on.

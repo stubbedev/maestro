@@ -42,6 +42,10 @@ tidy-check:
 test *args:
     {{ compose }} test go test "${@:-./...}"
 
+# Redraw docs/assets/maestro-logo.svg from the console's wordmark.
+logo:
+    {{ compose }} -e MAESTRO_UPDATE_LOGO=1 test go test -count=1 -run '^TestLogoSVG$' ./internal/ui
+
 # Compile-check every package; the output is discarded.
 build:
     {{ compose }} test go build -o /dev/null ./...

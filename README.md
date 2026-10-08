@@ -1,11 +1,6 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/maestro-dark.svg">
-    <img src="docs/assets/maestro-light.svg" alt="maestro" width="120">
-  </picture>
+  <img src="docs/assets/maestro-logo.svg" alt="maestro" width="560">
 </p>
-
-<h1 align="center">maestro</h1>
 
 <p align="center">
   <strong>Composer, natively.</strong><br>
@@ -106,10 +101,21 @@ project: scripts, plugins, platform detection and `exec`.
 
 ```mermaid
 flowchart LR
-    P[(Packagist / VCS)] -->|download once| S[Shared store<br/>content-addressed]
-    S -->|reflink · hardlink · copy| A[project-a/vendor]
-    S --> B[project-b/vendor]
-    S --> C[worktree/vendor]
+    registry(["Packagist · VCS"])
+    store[("Shared store<br/>download and extract once")]
+    subgraph vendors ["vendor/ · reflink, hardlink or copy"]
+        direction TB
+        a["app-a"]
+        b["app-b"]
+        c["app-b worktree"]
+    end
+    registry --> store
+    store --> a & b & c
+
+    classDef outline fill:transparent,stroke:#facc15,stroke-width:1.5px
+    class registry,store,a,b,c outline
+    style vendors fill:transparent,stroke:#facc15,stroke-width:1px,stroke-dasharray:4 4
+    linkStyle default stroke:#facc15,stroke-width:1.5px
 ```
 
 A package is downloaded and extracted once per machine. Every later install

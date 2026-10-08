@@ -656,6 +656,7 @@ off.
 | `MAESTRO_PERF_BUDGETS=1` | fails the plugin runtime's timing tests when a timing misses its budget (docs/PLUGINS.md §5.16); without it they only log it, as wall time depends on machine load. Set it on a quiet machine |
 | `MAESTRO_SYSCALL_BUDGETS=1` | runs the tests that count, under `strace -f -c`, the system calls an install into an empty package store makes per package file (`internal/store`), and fails one that exceeds its budget; they skip without `strace` (Linux) |
 | `MAESTRO_UPDATE_FORMATS=1` | has `TestOwnFormats` (`internal/cache`) record in `internal/cache/testdata/formats.txt` the fingerprint of a cache format version not recorded yet ("maestro's own caches"); it never changes a recorded one |
+| `MAESTRO_UPDATE_LOGO=1` | has `TestLogoSVG` (`internal/ui`) redraw `docs/assets/maestro-logo.svg`, the README's logo, from the console's wordmark and colours; without it the test fails when the two differ (`just logo`) |
 
 With `MAESTRO_E2E=1`:
 
