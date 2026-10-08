@@ -23,6 +23,7 @@ package loader
 import (
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -294,8 +295,7 @@ func strToTime(input string) (*dtParsed, error) {
 	}
 
 	sc := &dtScanner{n: end + 1 - start}
-	sc.str = make([]byte, sc.n+8)
-	copy(sc.str, b[start:end+1])
+	sc.str = slices.Concat(b[start:end+1], make([]byte, 8))
 	sc.t = dtParsed{y: dtUnset, m: dtUnset, d: dtUnset, h: dtUnset, i: dtUnset, s: dtUnset, us: dtUnset, z: dtUnset, dst: dtUnset}
 
 	rules := dtRules()
@@ -1377,7 +1377,7 @@ func (sc *dtScanner) apply(rule int, token []byte) {
 // dayNrFromWeekNr is timelib_daynr_from_weeknr: the day of the year (from
 // January 1st) of day d of ISO week w.
 func dayNrFromWeekNr(y, w, d int64) int64 {
-	dow := int64(time.Date(int(y), time.January, 1, 0, 0, 0, 0, time.UTC).Weekday())
+	dow := dayOfWeek(y, 1, 1)
 
 	day := -dow
 	if dow > 4 {

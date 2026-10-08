@@ -1565,31 +1565,46 @@ func index(container, key any) any {
 	return nil
 }
 
-// stringOffset resolves an isset()-able offset into a string.
+// stringOffset resolves an isset()-able offset into a string. An offset
+// beyond int cannot index s, so it is out of range like any other.
 func stringOffset(s string, key any) (int, bool) {
-	var i int64
+	n := len(s)
+
+	var i int
+
 	switch k := key.(type) {
 	case int:
-		i = int64(k)
-	case int64:
 		i = k
-	case string:
-		pk := php.StrKey(k)
-		if !pk.IsInt() {
+	case int64:
+		if k < -int64(n) || k >= int64(n) {
 			return 0, false
 		}
-		i = pk.Int()
+
+		i = int(k)
+	case string:
+		if !php.StrKey(k).IsInt() {
+			return 0, false
+		}
+
+		v, err := strconv.Atoi(k)
+		if err != nil {
+			return 0, false
+		}
+
+		i = v
 	default:
 		return 0, false
 	}
+
 	if i < 0 {
-		i += int64(len(s))
+		i += n
 	}
-	if i < 0 || i >= int64(len(s)) {
+
+	if i < 0 || i >= n {
 		return 0, false
 	}
 
-	return int(i), true
+	return i, true
 }
 
 // issetIndex is isset($container[$key]) for any container, a string too.

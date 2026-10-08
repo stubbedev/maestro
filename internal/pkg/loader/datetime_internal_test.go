@@ -3,7 +3,25 @@ package loader
 import (
 	"reflect"
 	"testing"
+	"time"
 )
+
+// dayNrFromWeekNr counts from the weekday of January 1st, which must be the
+// proleptic Gregorian one time.Date gives, for every year of an era.
+func TestDayNrFromWeekNr_JanuaryFirst(t *testing.T) {
+	for y := -400; y <= 10000; y++ {
+		jan1 := int64(time.Date(y, time.January, 1, 0, 0, 0, 0, time.UTC).Weekday())
+
+		want := -jan1
+		if jan1 > 4 {
+			want = 7 - jan1
+		}
+
+		if got := dayNrFromWeekNr(int64(y), 1, 0); got != want {
+			t.Fatalf("dayNrFromWeekNr(%d, 1, 0) = %d, want %d", y, got, want)
+		}
+	}
+}
 
 // quickStrToTime must read every string it accepts exactly as the
 // scanner does.
