@@ -39,9 +39,13 @@ func TestStartGCFloor(t *testing.T) {
 		}
 	}
 
+	cycles := gcCycles()
 	startGCFloor(func(string) string { return "" })
 
-	if p, l := gcSettings(); p != -1 || l != gcFloor {
+	// Other tests of this binary allocate concurrently, so a collection
+	// may already have run and put the settings back: only a check made
+	// with no collection since the floor was set can see the floor.
+	if p, l := gcSettings(); gcCycles() == cycles && (p != -1 || l != gcFloor) {
 		t.Fatalf("before the first collection: GOGC %d, limit %d", p, l)
 	}
 
@@ -61,4 +65,12 @@ func TestStartGCFloor(t *testing.T) {
 
 		time.Sleep(time.Millisecond)
 	}
+}
+
+// gcCycles is the number of garbage collections the runtime has completed.
+func gcCycles() uint64 {
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+
+	return uint64(stats.NumGC)
 }
