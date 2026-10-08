@@ -7,7 +7,6 @@ package vcs
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"io/fs"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fsstate"
 	vcsutil "github.com/stubbedev/maestro/internal/util/vcs"
 )
 
@@ -207,7 +207,12 @@ func (d *GitDownloader) gitStoreKey(p pkg.PackageInterface, url, cachePath, path
 		traits,
 	}
 
-	return sha256.Sum256(keyParts(parts)), true
+	k := fsstate.NewKeyHash()
+	for _, part := range parts {
+		k.String(part)
+	}
+
+	return [32]byte(k.Sum(nil)), true
 }
 
 // probeFSTraits returns what git's clone detects about the filesystem of

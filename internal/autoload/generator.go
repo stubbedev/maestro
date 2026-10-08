@@ -8,7 +8,6 @@
 package autoload
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"os"
 	"strconv"
@@ -709,12 +708,12 @@ func (g *Generator) loaderRecord(scans []psrScan, vendorDir string) (*classmap.R
 	if err != nil {
 		return nil, false
 	}
-	h := sha256.New()
+	k := fsstate.NewKeyHash()
 	for _, s := range scans {
-		h.Write([]byte(s.dir + "\x00"))
+		k.String(s.dir)
 	}
 
-	return g.scanRecord(&dump{basePath: basePath, vendorPath: vendorPath}, scans, "loader "+hex.EncodeToString(h.Sum(nil)))
+	return g.scanRecord(&dump{basePath: basePath, vendorPath: vendorPath}, scans, "loader "+hex.EncodeToString(k.Sum(nil)))
 }
 
 // CreateLoader ports createLoader: a class loader registering the PSR-0,

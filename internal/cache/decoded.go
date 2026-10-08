@@ -6,7 +6,6 @@ package cache
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -108,8 +107,7 @@ func (d *Decoded) Decode(source string, origin Origin, json string, decode func(
 		return v, nil, err
 	}
 
-	slot := sha256.Sum256([]byte(source))
-	path := filepath.Join(dir, hex.EncodeToString(slot[:16])+".bin")
+	path := slotPath(dir, source)
 	byOrigin := origin.ok && origin.id.Trusted(origin.seen, d.margin)
 	if data, err := os.ReadFile(path); err == nil {
 		if form, decoded, ok := d.holds(data, origin, json); ok {
@@ -133,6 +131,14 @@ func (d *Decoded) Decode(source string, origin Origin, json string, decode func(
 			d.write(dir, path, data, nil)
 		}
 	}, nil
+}
+
+// slotPath is the file of source's slot in dir.
+func slotPath(dir, source string) string {
+	k := fsstate.NewKeyHash()
+	k.String(source)
+
+	return filepath.Join(dir, hex.EncodeToString(k.Sum(nil)[:16])+".bin")
 }
 
 // slotHeader is the start of a slot for json read from origin: the magic

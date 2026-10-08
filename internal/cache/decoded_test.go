@@ -1,10 +1,7 @@
 package cache
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,9 +26,8 @@ func TestDecoded_BoundsItsSlots(t *testing.T) {
 		}
 		store()
 		// written i hours after the first
-		sum := sha256.Sum256([]byte(source))
 		at := time.Now().Add(time.Duration(i-3) * time.Hour)
-		if err := os.Chtimes(filepath.Join(dir, hex.EncodeToString(sum[:16])+".bin"), at, at); err != nil && i < 2 {
+		if err := os.Chtimes(slotPath(dir, source), at, at); err != nil && i < 2 {
 			t.Fatal(err)
 		}
 	}

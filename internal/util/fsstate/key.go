@@ -11,6 +11,11 @@ import (
 // KeyHash hashes the parts of a cache entry's key with SHA-256: each
 // string prefixed with its length (a uvarint), so that no two lists of
 // parts hash alike, and each ID as AppendBinary writes it.
+//
+// The hash names an entry in maestro's own caches; it is not a security
+// boundary. Parts may hold secrets (a URL's credentials, a git config's),
+// which the key only has to tell apart, not protect: the entries it names
+// sit in the same user's cache directory.
 type KeyHash struct {
 	h   hash.Hash
 	buf []byte
