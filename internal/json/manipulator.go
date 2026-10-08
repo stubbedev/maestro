@@ -272,12 +272,17 @@ func (m *Manipulator) AddLink(typ, pkg, constraint string, sortPackages bool) (b
 	if err != nil {
 		return false, err
 	}
-	encodedPkg, encodedConstraint := "", ""
+	// Composer pastes the constraint between bare quotes when it updates
+	// an existing link; both paths take it JSON-encoded, the same text for
+	// every constraint without a quote, backslash or control character,
+	// so those cannot break out of the string.
+	encodedConstraint, err := EncodeDefault(constraint)
+	if err != nil {
+		return false, err
+	}
+	encodedPkg := ""
 	if packageMatches == nil {
 		if encodedPkg, err = EncodeDefault(pkg); err != nil {
-			return false, err
-		}
-		if encodedConstraint, err = EncodeDefault(constraint); err != nil {
 			return false, err
 		}
 	}
@@ -293,7 +298,7 @@ func (m *Manipulator) AddLink(typ, pkg, constraint string, sortPackages bool) (b
 		links, err = m.replaceCallback(re, links, func(match *php.Match) (string, error) {
 			encoded, err := EncodeDefault(strings.ReplaceAll(existingPackage, `\/`, "/"))
 
-			return encoded + namedStr(match, "separator") + `"` + constraint + `"`, err
+			return encoded + namedStr(match, "separator") + encodedConstraint, err
 		})
 		if err != nil {
 			return false, err
