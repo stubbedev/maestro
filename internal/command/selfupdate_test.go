@@ -21,6 +21,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -612,7 +613,7 @@ func runSelfUpdate(t *testing.T, runs []selfUpdateRun) {
 				t.Errorf("the binary's directory holds %v, want the binary alone", entries)
 			}
 			if tc.channel != "" {
-				if got := readFile(t, filepath.Join(home, "maestro-update-channel")); got != tc.channel+"\n" {
+				if got := readFile(t, filepath.Join(home, "maestro-update-channel")); got != tc.channel+php.EOL {
 					t.Errorf("stored channel %q, want %q", got, tc.channel)
 				}
 			}

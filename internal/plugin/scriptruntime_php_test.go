@@ -27,7 +27,11 @@ func TestScriptRuntime_InstallAutoloader(t *testing.T) {
 		return c
 	}
 	loader := `
-		$l = (new \ReflectionClass(\Maestro\Shim\Dispatch::class))->getStaticPropertyValue('loader');
+		$p = new \ReflectionProperty(\Maestro\Shim\Dispatch::class, 'loader');
+		if (PHP_VERSION_ID < 80100) {
+			$p->setAccessible(true); // reads no private property otherwise
+		}
+		$l = $p->getValue();
 		$registered = in_array([$l, 'loadClass'], spl_autoload_functions(), true);
 		$new = !in_array($l, isset($GLOBALS['loaders']) ? $GLOBALS['loaders'] : [], true);
 		$GLOBALS['loaders'][] = $l;

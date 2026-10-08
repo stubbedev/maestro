@@ -50,7 +50,7 @@ func TestAuditor_TableFormatDecorated(t *testing.T) {
 		t.Errorf("decorated output has tables:\n%s", decorated)
 	}
 
-	shown := escapesRe.ReplaceAllString(decorated, "")
+	shown := php.NormalizeEOL(escapesRe.ReplaceAllString(decorated, ""))
 	want := []string{"vendor1/package1 2.0.0", "vendor2/package1 3.0.0", "ignored: not reachable", "Found 1 ignored security vulnerability advisory"}
 	for name, list := range getMockAdvisories(t).All() {
 		if !auditedPackage(packages, name.String()) {
@@ -74,7 +74,7 @@ func TestAuditor_TableFormatDecorated(t *testing.T) {
 		}
 	}
 	// the most severe advisory of a package comes first
-	if high, medium := strings.Index(shown, "advisory4"), strings.Index(shown, "advisory1\n"); high > medium {
+	if high, medium := strings.Index(shown, "advisory4"), strings.Index(shown, "advisory1\n"); high < 0 || medium < 0 || high > medium {
 		t.Errorf("high advisory4 after medium advisory1:\n%s", shown)
 	}
 }

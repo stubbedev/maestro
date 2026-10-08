@@ -194,7 +194,9 @@ func TestGenerator_CreateLoaderKeepsResultsWithReleases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := php.VarExport(l.ClassMap), "array (\n  'LibA' => '"+filepath.ToSlash(dst)+"/lib/A.php',\n)"; got != want {
+	// the scan joins the files it finds to their directory with the
+	// system's separator, as the Finder does
+	if got, want := php.VarExport(l.ClassMap), php.VarExport(php.ArrayOf("LibA", dst+"/lib"+string(filepath.Separator)+"A.php")); got != want {
 		t.Errorf("classMap %s, want %s", got, want)
 	}
 	if kept, err := s.ReadDerived(r, releaseResults); err != nil || kept == nil {
