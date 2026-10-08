@@ -1,6 +1,8 @@
 package http
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -156,6 +158,7 @@ func TestHttpDownloader_PrefetchQueue(t *testing.T) {
 	h, _ := newPrefetchDownloader(t)
 	const limit = 2 // below the connections per host
 	h.curl.pool.ahead.limit = limit
+	h.curl.pool.ahead.oneLane = true
 	ssl, _ := h.options.At("ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
@@ -194,5 +197,90 @@ func TestHttpDownloader_PrefetchQueue(t *testing.T) {
 	mu.Unlock()
 	if len(tail) < 2 || tail[0] != "/queued" || tail[1] != "/urgent" {
 		t.Errorf("order after the slow transfers: %v", tail)
+	}
+}
+
+// Transfers started ahead beyond one connection's streams go out at once
+// over a second HTTP/2 connection (a lane), not a round trip later.
+func TestTransportPool_PrefetchesBeyondALaneOpenASecondConnection(t *testing.T) {
+	const limit = 3
+	var (
+		conns    atomic.Int32
+		mu       sync.Mutex
+		inFlight int
+		most     int
+		all      = make(chan struct{})
+	)
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		inFlight++
+		most = max(most, inFlight)
+		if inFlight == prefetchLanes*limit {
+			close(all)
+		}
+		mu.Unlock()
+		// held until every transfer is in flight at once
+		select {
+		case <-all:
+		case <-time.After(2 * time.Second):
+		}
+		mu.Lock()
+		inFlight--
+		mu.Unlock()
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+
+	p := &transportPool{}
+	p.ahead.limit = limit
+	var transfers []*prefetchedTransfer
+	for i := range prefetchLanes * limit {
+		transfers = append(transfers, p.prefetch(&transferRequest{url: srv.URL + "/" + strconv.Itoa(i), connectTimeout: 5 * time.Second, key: transportKey{tls: tlsSettings{verifyPeer: false}}}, false))
+	}
+	for _, tr := range transfers {
+		if status, _, ok := tr.response(); !ok || status != http.StatusNotModified {
+			t.Fatalf("status %d ok %v", status, ok)
+		}
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if most != prefetchLanes*limit {
+		t.Errorf("%d transfers in flight at once, want %d", most, prefetchLanes*limit)
+	}
+	if n := conns.Load(); n != prefetchLanes {
+		t.Errorf("%d connections, want %d", n, prefetchLanes)
+	}
+}
+
+// A lane opens no connection of its own to a server that answered the
+// first connection with HTTP/1, nor for a URL that waits for no first
+// connection.
+func TestTransportPool_NoLaneForHTTP1(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	t.Cleanup(srv.Close)
+
+	p := &transportPool{}
+	r := &transferRequest{url: srv.URL + "/", connectTimeout: 5 * time.Second, key: transportKey{tls: tlsSettings{verifyPeer: false}}}
+	if !p.mayOpenLane(r) {
+		t.Error("no lane before the first connection settled")
+	}
+	if res := p.do(context.Background(), r); res.status != http.StatusNotModified {
+		t.Fatalf("got %d %q", res.status, res.fail.Message)
+	}
+	if p.mayOpenLane(r) {
+		t.Error("a lane after an HTTP/1 first connection")
+	}
+	if p.mayOpenLane(&transferRequest{url: "http://example.org/"}) {
+		t.Error("a lane for plain http")
 	}
 }

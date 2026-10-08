@@ -20,6 +20,8 @@ type firstConnKey struct {
 type firstConn struct {
 	// settled is set once the first transfer got a connection, or failed.
 	settled bool
+	// h2 tells that the connection it got speaks HTTP/2.
+	h2 bool
 	// waiters are the transfers waiting for that, in arrival order.
 	waiters []*connWaiter
 }
@@ -62,16 +64,10 @@ func (w *connWaiter) release() {
 // after the first few back for a round trip.
 func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u *url.URL) (connected func(h2 net.Conn), sent, done func()) {
 	noop := func() {}
-	if u.Scheme != "https" || key.proxy != "" || key.http1 || key.fresh {
+	fk, ok := firstConnKeyOf(key, u)
+	if !ok {
 		return func(net.Conn) {}, noop, noop
 	}
-
-	port := u.Port()
-	if port == "" {
-		port = "443"
-	}
-
-	fk := firstConnKey{key: key, addr: u.Hostname() + ":" + port}
 
 	p.mu.Lock()
 	if p.first == nil {
@@ -90,6 +86,7 @@ func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u 
 			once.Do(func() {
 				p.mu.Lock()
 				fc.settled = true
+				fc.h2 = h2 != nil
 				waiters := fc.waiters
 				fc.waiters = nil
 				p.mu.Unlock()
@@ -157,4 +154,43 @@ func (p *transportPool) awaitFirstConn(ctx context.Context, key transportKey, u 
 			releaseNext()
 		}
 	}, releaseNext, releaseNext
+}
+
+// firstConnKeyOf is the key of the first connection a transfer with key
+// to u waits for; ok is false when it waits for none: not https, through
+// a proxy, HTTP/1 only or on a fresh connection.
+func firstConnKeyOf(key transportKey, u *url.URL) (firstConnKey, bool) {
+	if u.Scheme != "https" || key.proxy != "" || key.http1 || key.fresh {
+		return firstConnKey{}, false
+	}
+
+	port := u.Port()
+	if port == "" {
+		port = "443"
+	}
+
+	return firstConnKey{key: key, addr: u.Hostname() + ":" + port}, true
+}
+
+// mayOpenLane tells whether r may go over a connection of a lane of its
+// own (prefetchLanes): it waits for a first connection, and the first
+// connection of its own transport to that host, if settled, speaks
+// HTTP/2 (an HTTP/1 server takes a request per connection: a lane would
+// only open more of them).
+func (p *transportPool) mayOpenLane(r *transferRequest) bool {
+	u, err := url.Parse(r.url)
+	if err != nil {
+		return false
+	}
+	fk, ok := firstConnKeyOf(r.key, u)
+	if !ok {
+		return false
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	fc := p.first[fk]
+
+	return fc == nil || !fc.settled || fc.h2
 }

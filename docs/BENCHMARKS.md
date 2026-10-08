@@ -216,7 +216,7 @@ Metadata and resolution:
   of the file; its other properties are loaded the first time they are
   used, from the version decoded alone. Of the ~30,000 versions a
   symfony update builds, about 120 are ever loaded in full.
-- **One connection per host**: transfers to an https host wait for the
+- **Shared connections**: transfers to an https host wait for the
   first one's connection and share its HTTP/2 connection, sending in
   request order, as curl's CURLOPT_PIPEWAIT does. On Linux the requests
   released together leave in full TCP segments (TCP_CORK until the last
@@ -224,7 +224,10 @@ Metadata and resolution:
   new connection sends about ten segments in its first round trip, which
   one segment per request would spend on the first eight requests.
   Connections to the first https repositories open while the project
-  loads.
+  loads. Metadata requests started ahead run 100 at once per HTTP/2
+  connection; those beyond open a second connection to the host as soon
+  as they are asked for, so a symfony update's 201 revalidations leave
+  in one round trip instead of two.
 - **Decoded caches.** p2 metadata files and installed.json are kept
   decoded in a binary form, read back only for byte-identical JSON, which
   a metadata file's unchanged identity tells without a copy of the JSON

@@ -55,44 +55,81 @@ type prefetchedTransfer struct {
 
 // run makes the transfer, unless it was started already.
 func (t *prefetchedTransfer) run(ctx context.Context, p *transportPool) bool {
+	return t.runOn(ctx, p, 0)
+}
+
+// runOn is run, over the connections of a lane (see prefetchLanes) when
+// the transfer may open an HTTP/2 connection of its own.
+func (t *prefetchedTransfer) runOn(ctx context.Context, p *transportPool, lane int) bool {
 	if t.started.Swap(true) {
 		return false
 	}
-	t.res = p.do(ctx, t.r)
+	r := t.r
+	if lane > 0 && p.mayOpenLane(r) {
+		laned := *r
+		laned.key.lane = lane
+		r = &laned
+	}
+	t.res = p.do(ctx, r)
 	close(t.done)
 
 	return true
 }
 
-// maxPrefetches bounds the prefetched transfers running at once. Over
-// HTTP/2 they share one connection, as many at once as net/http lets a
-// connection take before the server's settings arrive (100, GitHub's
+// maxPrefetches bounds the prefetched transfers running at once on one
+// connection. Over HTTP/2 they share it, as many at once as net/http lets
+// a connection take before the server's settings arrive (100, GitHub's
 // limit; Packagist allows 128): one more would open a connection of its
 // own. Over HTTP/1 they share MaxConnsPerHost connections. A transfer
 // waiting here starts only when a running one ends, a round trip later.
 const maxPrefetches = 100
 
+// prefetchLanes is how many connections to a host the prefetched
+// transfers may use at once (curl's CURLMOPT_MAX_HOST_CONNECTIONS, which
+// Composer sets to 8, allows them too). A lane is a transport of its own
+// (transportKey.lane): the transfers over maxPrefetches open a second
+// HTTP/2 connection as soon as they are asked for, in parallel with the
+// first, rather than wait a round trip for streams of the first to free.
+const prefetchLanes = 2
+
 // prefetches holds the transfers a pool started ahead of time. They start
-// at most limit at once: first the urgent ones (asked for by a reader of
-// their response), then the others, each in the order they were asked
-// for.
+// at most limit at once per lane: first the urgent ones (asked for by a
+// reader of their response), then the others, each in the order they
+// were asked for.
 type prefetches struct {
 	mu      sync.Mutex
 	pending map[prefetchKey][]*prefetchedTransfer
 	urgent  []*prefetchedTransfer
 	later   []*prefetchedTransfer
-	running int
-	// limit is how many run at once; zero is maxPrefetches.
+	// running counts the workers running transfers, per lane.
+	running [prefetchLanes]int
+	// limit is how many run at once per lane; zero is maxPrefetches.
 	limit int
+	// oneLane keeps the transfers to the first lane.
+	oneLane bool
 }
 
-// max is how many prefetched transfers run at once.
+// max is how many prefetched transfers run at once per lane.
 func (p *prefetches) max() int {
 	if p.limit == 0 {
 		return maxPrefetches
 	}
 
 	return p.limit
+}
+
+// freeLane is the first lane with room for one more worker, -1 for none.
+func (p *prefetches) freeLane() int {
+	for lane, n := range p.running {
+		if lane > 0 && p.oneLane {
+			break
+		}
+		if n < p.max() {
+			return lane
+		}
+	}
+
+	return -1
 }
 
 // prefetch starts r in the background, unless an identical transfer is
@@ -127,16 +164,16 @@ func (p *transportPool) prefetch(r *transferRequest, urgent bool) *prefetchedTra
 	} else {
 		p.ahead.later = append(p.ahead.later, t)
 	}
-	if p.ahead.running < p.ahead.max() {
-		p.ahead.running++
-		go p.runPrefetches()
+	if lane := p.ahead.freeLane(); lane >= 0 {
+		p.ahead.running[lane]++
+		go p.runPrefetches(lane)
 	}
 
 	return t
 }
 
-// runPrefetches runs queued transfers until there are none.
-func (p *transportPool) runPrefetches() {
+// runPrefetches runs queued transfers on a lane until there are none.
+func (p *transportPool) runPrefetches(lane int) {
 	for {
 		p.ahead.mu.Lock()
 		queue := &p.ahead.urgent
@@ -144,7 +181,7 @@ func (p *transportPool) runPrefetches() {
 			queue = &p.ahead.later
 		}
 		if len(*queue) == 0 {
-			p.ahead.running--
+			p.ahead.running[lane]--
 			p.ahead.mu.Unlock()
 
 			return
@@ -154,7 +191,7 @@ func (p *transportPool) runPrefetches() {
 		*queue = (*queue)[1:]
 		p.ahead.mu.Unlock()
 
-		t.run(context.Background(), p)
+		t.runOn(context.Background(), p, lane)
 	}
 }
 

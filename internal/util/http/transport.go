@@ -83,6 +83,10 @@ type transportKey struct {
 	ipResolve   int
 	fresh       bool
 	http1       bool
+	// lane tells apart the transports of the transfers started ahead
+	// beyond one connection's streams (prefetchLanes): each lane opens
+	// connections of its own.
+	lane int
 }
 
 // transferRequest describes one HTTP exchange.
