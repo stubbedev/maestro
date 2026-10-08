@@ -65,13 +65,23 @@ type curlEvent struct {
 	result *transferResult
 }
 
+// processTransports are the transports, and their connections, of the
+// CurlDownloaders of the process: a Composer instance created after
+// another (require's and create-project's second one) finds the first's
+// connections open instead of opening its own (deliberate deviation 3;
+// curl keeps a connection cache per multi handle). What goes over them
+// is unchanged: requests are made, and answered, by each downloader.
+var processTransports = &transportPool{}
+
 // CurlDownloader ports Composer\Util\Http\CurlDownloader.
 type CurlDownloader struct {
 	io         io.IO
 	config     Config
 	authHelper *AuthHelper
 	rt         Runtime
-	pool       transportPool
+	pool       *transportPool
+	// ahead are the transfers started ahead (prefetch.go).
+	ahead prefetches
 
 	// mu guards jobs; HttpDownloader shares its own lock.
 	mu     *sync.Mutex
@@ -102,6 +112,7 @@ func newCurlDownloader(ioi io.IO, config Config, rt Runtime, mu *sync.Mutex) *Cu
 		config:        config,
 		authHelper:    authHelper,
 		rt:            rt,
+		pool:          processTransports,
 		mu:            mu,
 		jobs:          map[int]*curlJob{},
 		ready:         make(chan struct{}, 1),
@@ -216,7 +227,7 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	}
 
 	go func() {
-		result := c.pool.doOrTake(ctx, req)
+		result := c.ahead.doOrTake(ctx, c.pool, req)
 		post(curlEvent{id: job.id, job: job, result: result})
 	}()
 
@@ -308,7 +319,7 @@ func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent
 		return nil
 	}
 
-	t := c.pool.prefetch(req, urgent)
+	t := c.ahead.prefetch(c.pool, req, urgent)
 	if t == nil || t.r != req {
 		// an identical transfer was waiting already
 		closeFile(spoolFile)

@@ -227,7 +227,9 @@ Metadata and resolution:
   loads. Metadata requests started ahead run 100 at once per HTTP/2
   connection; those beyond open a second connection to the host as soon
   as they are asked for, so a symfony update's 201 revalidations leave
-  in one round trip instead of two.
+  in one round trip instead of two. A Composer instance created after
+  another (require's and create-project's second one) sends over the
+  connections the first opened.
 - **Decoded caches.** p2 metadata files and installed.json are kept
   decoded in a binary form, read back only for byte-identical JSON, which
   a metadata file's unchanged identity tells without a copy of the JSON

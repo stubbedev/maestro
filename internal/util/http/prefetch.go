@@ -136,60 +136,61 @@ func (p *prefetches) freeLane() int {
 // already waiting to be taken, and returns the transfer (nil when r may
 // not be prefetched). An urgent transfer starts before the others; one
 // asked for again as urgent becomes so. It produces no output.
-func (p *transportPool) prefetch(r *transferRequest, urgent bool) *prefetchedTransfer {
+func (a *prefetches) prefetch(p *transportPool, r *transferRequest, urgent bool) *prefetchedTransfer {
 	key, ok := prefetchKeyOf(r)
 	if !ok {
 		return nil
 	}
 
-	p.ahead.mu.Lock()
-	defer p.ahead.mu.Unlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	if p.ahead.pending == nil {
-		p.ahead.pending = map[prefetchKey][]*prefetchedTransfer{}
+	if a.pending == nil {
+		a.pending = map[prefetchKey][]*prefetchedTransfer{}
 	}
-	if list := p.ahead.pending[key]; len(list) > 0 {
+	if list := a.pending[key]; len(list) > 0 {
 		t := list[0]
-		if i := slices.Index(p.ahead.later, t); urgent && i >= 0 {
-			p.ahead.later = slices.Delete(p.ahead.later, i, i+1)
-			p.ahead.urgent = append(p.ahead.urgent, t)
+		if i := slices.Index(a.later, t); urgent && i >= 0 {
+			a.later = slices.Delete(a.later, i, i+1)
+			a.urgent = append(a.urgent, t)
 		}
 
 		return t
 	}
 	t := &prefetchedTransfer{r: r, done: make(chan struct{})}
-	p.ahead.pending[key] = append(p.ahead.pending[key], t)
+	a.pending[key] = append(a.pending[key], t)
 	if urgent {
-		p.ahead.urgent = append(p.ahead.urgent, t)
+		a.urgent = append(a.urgent, t)
 	} else {
-		p.ahead.later = append(p.ahead.later, t)
+		a.later = append(a.later, t)
 	}
-	if lane := p.ahead.freeLane(); lane >= 0 {
-		p.ahead.running[lane]++
-		go p.runPrefetches(lane)
+	if lane := a.freeLane(); lane >= 0 {
+		a.running[lane]++
+		go a.runPrefetches(p, lane)
 	}
 
 	return t
 }
 
-// runPrefetches runs queued transfers on a lane until there are none.
-func (p *transportPool) runPrefetches(lane int) {
+// runPrefetches runs queued transfers on a lane of p until there are
+// none.
+func (a *prefetches) runPrefetches(p *transportPool, lane int) {
 	for {
-		p.ahead.mu.Lock()
-		queue := &p.ahead.urgent
+		a.mu.Lock()
+		queue := &a.urgent
 		if len(*queue) == 0 {
-			queue = &p.ahead.later
+			queue = &a.later
 		}
 		if len(*queue) == 0 {
-			p.ahead.running[lane]--
-			p.ahead.mu.Unlock()
+			a.running[lane]--
+			a.mu.Unlock()
 
 			return
 		}
 		t := (*queue)[0]
 		(*queue)[0] = nil
 		*queue = (*queue)[1:]
-		p.ahead.mu.Unlock()
+		a.mu.Unlock()
 
 		t.runOn(context.Background(), p, lane)
 	}
@@ -207,24 +208,24 @@ func (t *prefetchedTransfer) response() (status int, body string, ok bool) {
 }
 
 // take removes and returns a prefetched transfer identical to r, if any.
-func (p *transportPool) take(r *transferRequest) *prefetchedTransfer {
+func (a *prefetches) take(r *transferRequest) *prefetchedTransfer {
 	key, ok := prefetchKeyOf(r)
 	if !ok {
 		return nil
 	}
 
-	p.ahead.mu.Lock()
-	defer p.ahead.mu.Unlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	list := p.ahead.pending[key]
+	list := a.pending[key]
 	if len(list) == 0 {
 		return nil
 	}
 	t := list[0]
 	if len(list) == 1 {
-		delete(p.ahead.pending, key)
+		delete(a.pending, key)
 	} else {
-		p.ahead.pending[key] = list[1:]
+		a.pending[key] = list[1:]
 	}
 
 	return t
@@ -234,8 +235,8 @@ func (p *transportPool) take(r *transferRequest) *prefetchedTransfer {
 // when there is one (made here when it is still queued). A cancellation
 // before it finished falls back to do, which reports the cancellation as
 // it would have.
-func (p *transportPool) doOrTake(ctx context.Context, r *transferRequest) *transferResult {
-	if t := p.take(r); t != nil {
+func (a *prefetches) doOrTake(ctx context.Context, p *transportPool, r *transferRequest) *transferResult {
+	if t := a.take(r); t != nil {
 		if t.run(ctx, p) {
 			return t.handTo(ctx, p, r)
 		}

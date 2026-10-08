@@ -157,8 +157,8 @@ func TestHttpDownloader_PrefetchQueue(t *testing.T) {
 
 	h, _ := newPrefetchDownloader(t)
 	const limit = 2 // below the connections per host
-	h.curl.pool.ahead.limit = limit
-	h.curl.pool.ahead.oneLane = true
+	h.curl.ahead.limit = limit
+	h.curl.ahead.oneLane = true
 	ssl, _ := h.options.At("ssl").(*php.Array)
 	cafile, _ := optionString(ssl, "cafile")
 	ValidateCaFile(cafile, nil)
@@ -239,10 +239,10 @@ func TestTransportPool_PrefetchesBeyondALaneOpenASecondConnection(t *testing.T) 
 	t.Cleanup(srv.Close)
 
 	p := &transportPool{}
-	p.ahead.limit = limit
+	a := &prefetches{limit: limit}
 	var transfers []*prefetchedTransfer
 	for i := range prefetchLanes * limit {
-		transfers = append(transfers, p.prefetch(&transferRequest{url: srv.URL + "/" + strconv.Itoa(i), connectTimeout: 5 * time.Second, key: transportKey{tls: tlsSettings{verifyPeer: false}}}, false))
+		transfers = append(transfers, a.prefetch(p, &transferRequest{url: srv.URL + "/" + strconv.Itoa(i), connectTimeout: 5 * time.Second, key: transportKey{tls: tlsSettings{verifyPeer: false}}}, false))
 	}
 	for _, tr := range transfers {
 		if status, _, ok := tr.response(); !ok || status != http.StatusNotModified {
@@ -257,6 +257,32 @@ func TestTransportPool_PrefetchesBeyondALaneOpenASecondConnection(t *testing.T) 
 	}
 	if n := conns.Load(); n != prefetchLanes {
 		t.Errorf("%d connections, want %d", n, prefetchLanes)
+	}
+}
+
+// A downloader created after another (a second Composer instance) makes
+// its requests over the connection the first one opened.
+func TestHttpDownloader_DownloadersShareConnections(t *testing.T) {
+	var conns atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	for range 2 {
+		h, _ := newPrefetchDownloader(t)
+		if _, err := h.Get(srv.URL+"/packages.json", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := conns.Load(); n != 1 {
+		t.Errorf("%d connections, want 1", n)
 	}
 }
 

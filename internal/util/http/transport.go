@@ -137,14 +137,13 @@ type transferResult struct {
 	info    util.TransferInfo
 }
 
-// transportPool builds and caches the transports of a downloader.
+// transportPool builds and caches transports (processTransports, and a
+// RemoteFilesystem's own).
 type transportPool struct {
 	mu         sync.Mutex
 	transports map[transportKey]*pooledTransport
 	// pre are the connections opened ahead (Preconnect).
 	pre map[preKey]*preconn
-	// ahead are the transfers started ahead (prefetch.go).
-	ahead prefetches
 	// first are the first connection attempts (firstconn.go).
 	first map[firstConnKey]*firstConn
 }
