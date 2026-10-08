@@ -41,20 +41,9 @@ type DefaultPolicy struct {
 type policyCache struct {
 	// preferred is $preferredPackageResultCachePerPool[$poolId].
 	preferred map[string][]int32
-	// sorting is $sortingCachePerPool[$poolId]; sortingByKey holds the
-	// entries whose PHP key is ambiguous (see sortKey).
-	sorting      map[sortKey]int8
+	// sortingByKey is $sortingCachePerPool[$poolId], holding only the
+	// entries whose PHP key is ambiguous (see cachedCompare).
 	sortingByKey map[string]int8
-}
-
-// sortKey identifies a compareByPriority call. PHP keys the cache with
-// ('i').$a.'.'.$b.$requiredPackage; that string is unique unless the
-// required package name starts with a digit, in which case the exact PHP
-// key is used.
-type sortKey struct {
-	a, b            int32
-	ignoreReplace   bool
-	requiredPackage string
 }
 
 // NewDefaultPolicy is new DefaultPolicy($preferStable, $preferLowest,
@@ -122,7 +111,7 @@ func (p *DefaultPolicy) VersionCompare(a, b pkg.PackageInterface, operator strin
 func (p *DefaultPolicy) cache(pool *Pool) *policyCache {
 	c, ok := p.caches[pool]
 	if !ok {
-		c = &policyCache{preferred: map[string][]int32{}, sorting: map[sortKey]int8{}, sortingByKey: map[string]int8{}}
+		c = &policyCache{preferred: map[string][]int32{}, sortingByKey: map[string]int8{}}
 		p.caches[pool] = c
 	}
 
@@ -176,7 +165,12 @@ func (p *DefaultPolicy) SelectPreferredPackages(pool *Pool, literals []int32, re
 	return selected
 }
 
-// cachedCompare is selectPreferredPackages' cached compareByPriority.
+// cachedCompare is selectPreferredPackages' cached compareByPriority. PHP
+// keys the cache with ('i').$a.'.'.$b.$requiredPackage; that string is
+// unique unless the required package name starts with a digit, so only
+// those calls go through the cache, under the exact PHP key: for the others
+// a cached result is the one compareByPriority returns, and computing it
+// costs less than looking it up.
 func (p *DefaultPolicy) cachedCompare(cache *policyCache, pool *Pool, a, b int32, requiredPackage string, ignoreReplace bool) int {
 	if requiredPackage != "" && requiredPackage[0] >= '0' && requiredPackage[0] <= '9' {
 		key := strconv.Itoa(int(a)) + "." + strconv.Itoa(int(b)) + requiredPackage
@@ -192,14 +186,7 @@ func (p *DefaultPolicy) cachedCompare(cache *policyCache, pool *Pool, a, b int32
 		return r
 	}
 
-	k := sortKey{a: a, b: b, ignoreReplace: ignoreReplace, requiredPackage: requiredPackage}
-	if r, ok := cache.sorting[k]; ok {
-		return int(r)
-	}
-	r := p.CompareByPriority(pool, pool.LiteralToPackage(a), pool.LiteralToPackage(b), requiredPackage, ignoreReplace)
-	cache.sorting[k] = sign8(r)
-
-	return r
+	return p.CompareByPriority(pool, pool.LiteralToPackage(a), pool.LiteralToPackage(b), requiredPackage, ignoreReplace)
 }
 
 // sign8 stores a comparison result (-1, 0 or 1).
