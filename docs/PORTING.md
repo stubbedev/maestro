@@ -1,16 +1,20 @@
-# Porting Composer to Go
+# maestro and Composer
 
-maestro is a port of Composer 2.10.3 to Go and a drop-in replacement for it:
+maestro is a Go port of Composer 2.10.3 and a drop-in replacement for it:
 anything that drives Composer (people, CI, scripts, plugins, other tools)
-must work unchanged against maestro. It never runs or embeds composer.phar.
+works unchanged against maestro. It never runs or embeds composer.phar.
 `php` is only used where Composer itself executes PHP code on the project's
 behalf: scripts, plugins (through maestro's own PHP shim), platform
 detection and `exec`.
 
 Compatibility is defined by a contract, not by byte-for-byte output
-everywhere: what tools and people depend on is frozen and must match
-Composer exactly; how errors and diagnostics are presented is maestro's
-own. "The contract" below says which is which.
+everywhere: what tools and people depend on is frozen and matches Composer
+exactly; how errors and diagnostics are presented is maestro's own. "The
+contract" below says which is which.
+
+This document is the reference for changing maestro as Composer moves: the
+contract, how upstream releases are followed, the deliberate deviations,
+the layout, and the conventions and tests every change keeps.
 
 ## The contract
 
@@ -92,8 +96,7 @@ reproduce PHP's presentation.
 ### Presentation of free output
 
 maestro's own presentation (error rendering, warnings, progress, prompts)
-may be built with charm.sh components (lipgloss for styling and layout,
-bubbles/huh for progress and prompts, ...), under these rules:
+is `internal/ui`'s, styled and laid out with lipgloss, under these rules:
 
 - Only on the free surface. Machine-readable output, files and anything
   else frozen are written as Composer writes them, never through a
@@ -186,8 +189,9 @@ bubbles/huh for progress and prompts, ...), under these rules:
 
 ## Reference sources
 
-`.ref/` (gitignored) holds the exact sources being ported, with their tests;
-`ref-sync` (in the devenv shell, also `just ref`) recreates it:
+`.ref/` (gitignored) holds the exact Composer sources maestro follows, with
+their tests; `ref-sync` (in the devenv shell, also `just ref`) recreates it
+at the pinned release:
 
 | Path | What |
 | --- | --- |
@@ -205,11 +209,11 @@ pins, and so are the others Composer ships, ported from
 `internal/json/jsonschema`) and composer/ca-bundle (`internal/util/http`).
 
 The PHP source is the specification of behaviour. For the frozen surface,
-when the Go and PHP disagree, the Go is wrong: port logic faithfully,
-including its quirks, ordering, messages and edge cases, and do not
-"improve" it unless it is one of the deliberate deviations below. For the
-free surface, the PHP decides what information is reported and when, not
-its exact presentation.
+when the Go and PHP disagree, the Go is wrong: a change follows the PHP
+faithfully, including its quirks, ordering, messages and edge cases, and
+does not "improve" it unless it is one of the deliberate deviations below.
+For the free surface, the PHP decides what information is reported and
+when, not its exact presentation.
 
 ## Following upstream
 
@@ -234,7 +238,22 @@ included, titled as such) with its release notes, the compare link, a
 diffstat of the paths that matter, the bundled libraries its
 composer.lock changes and what is left to port, and for the newest
 stable one opens the bump PR (`tools/upstream/bump-pr.sh`), linked from
-the issue. The issue is the trigger to port the release.
+the issue.
+
+Taking a release in:
+
+1. Merge nothing until the release's changes are in: the bump PR's branch
+   moves the pin, and the changes follow on the same branch.
+2. Run `just ref` so `.ref/` holds the new release, and go through the
+   issue's diffstat: each change to a ported PHP file lands in the Go file
+   that names it in its header (`// Ports src/Composer/...`), each changed
+   PHPUnit test or fixture in its Go port and `testdata/`.
+3. Regenerate what is generated from Composer's sources when they changed:
+   the oracles' goldens (`tools/oracle/<package>`), the shim's vendored
+   libraries (`tools/shimvendor`) and its API stubs and parity golden
+   (`tools/shimgen`).
+4. `just check`, then `just e2e`, which compares maestro with the new
+   release's phar.
 
 ## Deliberate deviations
 
@@ -460,10 +479,10 @@ Cycle-breaking decisions already made:
 - `Composer\Package\Locker` is `internal/locker` (it needs repositories).
 - Composer\Util\{Git,Hg,Svn,Perforce} are `internal/util/vcs`.
 
-## Rules for every port
+## Conventions
 
-- Each Go file starts its doc/comment with the PHP file(s) it ports, e.g.
-  `// Ports src/Composer/Semver/VersionParser.php.`
+- Each Go file that ports PHP starts its doc/comment with the PHP file(s)
+  it ports, e.g. `// Ports src/Composer/Semver/VersionParser.php.`
 - Keep PHP names recognisable (`NormalizeVersion` for `normalize`,
   `ParseConstraints`, ...) so the two can be read side by side.
 - User-visible strings on the frozen surface (machine-readable output,
@@ -537,8 +556,8 @@ Cycle-breaking decisions already made:
 
 ## Tests
 
-1. **Port Composer's own tests.** Every PHPUnit test in the reference repos
-   that covers a ported class is ported to a Go test in the same package,
+1. **Composer's own tests.** Every PHPUnit test in the reference repos
+   that covers a ported class has a Go port in the same package,
    named after it (`TestVersionParser_NormalizeSucceeds` for
    `VersionParserTest::testNormalizeSucceeds`), with every data provider
    case. Fixtures (`*.test`, `*.json`, autoload goldens, ...) are copied
@@ -595,7 +614,8 @@ in `internal/command/coverage_test.go`, one entry per command:
   <command>" issue (label `testing`). The guard fails on a registered
   command without an entry, an entry for no command, a command lacking a
   kind and not pending, and a pending command that has both kinds: remove
-  `Pending` in the change that completes the coverage.
+  `Pending` in the change that completes the coverage. A command Composer
+  adds upstream gets both kinds of test with its port.
 
 Tests must pass on every CI machine, not just the one that recorded them:
 
@@ -633,10 +653,8 @@ arguments go to `go test`, e.g. `just test ./internal/config -run X`),
 `just check` (vet, lint, deadcode, tidy-check, test, build),
 `just test-race`, `just e2e` and `just shell`. Oracles that run Composer's
 PHP from `.ref/` and other tools run in the devenv shell
-(`devenv shell -- bash -c '...'` from the repo root). A port is done when
-`go vet`, `golangci-lint run` and `go test -race` with
-`MAESTRO_PHP_TESTS=1` pass for its packages (`CGO_ENABLED=1` for `-race`).
-CI (`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
+(`devenv shell -- bash -c '...'` from the repo root). CI
+(`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
 Windows in shards.
 
 ### Test switches
@@ -703,13 +721,6 @@ docs/BENCHMARKS.md shows what they found.
 | `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |
 | `tools/upstream` | reads and bumps the Composer release maestro ports; opens its issues and bump PRs ("Following upstream") |
 
-## Tooling hazard: `\u` escapes
-
-Writing files through the editor tools can turn `\uXXXX` escape sequences
-into the literal characters they name. In Go source, write such strings
-with explicit byte escapes or build them in code, and check any file that
-must contain a literal `\u` with `grep -n '\\u'` after writing it.
-
 ## Regular expressions
 
 Use `internal/php`'s `Compile`/`MustCompile` and the `Preg*` functions with
@@ -740,15 +751,7 @@ PHP calls it:
   would throw. Anything that derives more than a message from a URL (cache
   directory names) uses `util.SanitizeURLChecked`.
 
-## Working alongside other changes
-
-Several changes are often in flight at once, each in its own worktree.
-Keep a change to the packages its task needs, build and test those
-(`go test ./internal/semver/...`) while working, and rebase on main
-before landing it. If a change needs something another package does not
-provide yet, say so rather than reaching into that package.
-
-Dependencies:
+## Dependencies
 
 - Add one with `go get module@version`.
 - Before pushing, `go mod tidy` must leave go.mod and go.sum unchanged.
@@ -756,15 +759,3 @@ Dependencies:
   (`go mod tidy -diff`); CI's lint job, `just tidy-check` and `just check`
   all run it. When it reports a diff, run `go mod tidy` once and commit the
   result.
-- Run `go mod tidy` on an up-to-date main, not in a tree other changes
-  share: there several of them edit go.mod at once, and tidying drops the
-  requirements of code that is not in the tree yet.
-
-## Plugin requirements on every package
-
-Plugins run against maestro's Go state through the PHP shim specified in
-docs/PLUGINS.md. Its section 7 lists what the other packages must provide
-(change counters on packages, the local repository and Config; installer
-calls routed through an overridable interface; no package-level mutable
-state, so Installer, Factory and Application are re-entrant; ...). Read it
-before porting any package it names.

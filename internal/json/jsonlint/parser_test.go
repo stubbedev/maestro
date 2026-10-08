@@ -14,8 +14,8 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 )
 
-// esc turns <u> into a backslash-u, so JSON unicode escapes survive
-// editing tools (docs/PORTING.md, "Tooling hazard").
+// esc turns <u> into a backslash-u, so the JSON unicode escapes the
+// tests need are never turned into the characters they name.
 func esc(s string) string { return strings.ReplaceAll(s, "<u>", `\`+"u") }
 
 // validJSON is JsonParserTest::$json.

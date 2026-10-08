@@ -212,7 +212,7 @@ It adds the following:
 
 The dev environment is [devenv](https://devenv.sh): `devenv shell` provides
 Go, golangci-lint, php, unzip and the rest. `ref-sync` checks out the
-Composer sources being ported into `.ref/`. Tests, vet and lint run in a
+Composer sources maestro follows into `.ref/`. Tests, vet and lint run in a
 Docker dev container (`compose.yaml`), driven by the justfile:
 
 ```sh
@@ -225,8 +225,8 @@ just shell       # a shell in the dev container
 
 | Document | Covers |
 |---|---|
-| [docs/PORTING.md](docs/PORTING.md) | The porting contract: what must match Composer, the layout, the rules every port follows and how tests are ported |
-| [docs/PLUGINS.md](docs/PLUGINS.md) | The plugin runtime |
+| [docs/PORTING.md](docs/PORTING.md) | The compatibility contract, the deliberate deviations, how upstream Composer releases are taken in, the layout, conventions and tests |
+| [docs/PLUGINS.md](docs/PLUGINS.md) | The design of the plugin runtime |
 | [docs/BENCHMARKS.md](docs/BENCHMARKS.md) | Benchmark method and results |
 
 ## License

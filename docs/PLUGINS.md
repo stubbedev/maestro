@@ -1,10 +1,12 @@
 # Composer plugins and PHP-callable scripts in maestro
 
-This is the design and implementation spec for `internal/plugin` and its PHP
-shim `internal/plugin/php` (deviation 5 in [PORTING.md](PORTING.md)). The raw
-survey behind it is in [plugins-survey/](plugins-survey/): `plugins.md` holds
-per-plugin behaviour notes, and `usage-matrix.tsv` lists every Composer symbol
-each plugin references. Sources for all surveyed versions are in `.ref/plugins/`
+This is the design of `internal/plugin` and its PHP shim
+`internal/plugin/php` (deviation 5 in [PORTING.md](PORTING.md)): how plugins
+and PHP-callable scripts run against maestro, and what a change to either
+side has to keep. The survey of real plugins it was built from is in
+[plugins-survey/](plugins-survey/): `plugins.md` holds per-plugin behaviour
+notes, and `usage-matrix.tsv` lists every Composer symbol each plugin
+references. Sources for all surveyed versions are in `.ref/plugins/`
 (gitignored; `plugins-survey/tools/fetch.py` recreates it).
 
 Contents:
@@ -15,11 +17,9 @@ Contents:
 4. Required API surface
 5. Architecture
 6. IPC message spec
-7. Go-side interfaces needed from other packages
+7. Go-side interfaces from other packages
 8. Coverage by tier
 9. Tests
-10. Risks
-11. Size
 
 ---
 
@@ -62,8 +62,8 @@ state over IPC. Requirements:
 
 ## 2. Survey summary
 
-The survey covers 47 package versions of 45 packages: the 25 requested
-packages plus 20 more found on Packagist. 42 of the 45 are plugins. Source: `plugins-survey/packages.tsv` and `plugins.md`. "Tier" is
+The survey covers 47 package versions of 45 packages: 25 packages chosen
+up front plus 20 more found on Packagist. 42 of the 45 are plugins. Source: `plugins-survey/packages.tsv` and `plugins.md`. "Tier" is
 the API tier (§8) the plugin needs to pass its e2e fixture.
 
 | Plugin (version) | Events (priority) | What it mutates or needs | Hard parts | Tier |
@@ -92,7 +92,7 @@ the API tier (§8) the plugin needs to pass its e2e fixture.
 | symfony/flex 2.11.0 | PRE_POOL_CREATE, PRE_OPERATIONS_EXEC, PRE/POST_*_CMD, auto-scripts | Pool filtering, recipes, composer.json/lock rewrites, `setLocker`, localRepo writes, re-runs install; `SymfonyPackInstaller extends MetapackageInstaller` | `debug_backtrace` for `Application`+`ArgvInput` and `Installer`; rewrites private `ArgvInput::$tokens`; `Closure::bind` into Transaction; array-cast reads of protected props | 6 |
 | php-http/discovery 1.20.0 | PRE_AUTOLOAD_DUMP, POST_UPDATE_CMD | Root autoload in place; composer.json edit; re-runs the install in-process | `debug_backtrace` to find `Installer`; `clone` + `__construct(9 services)`; protected props through `(array)` casts | 6 |
 
-Surveyed beyond the request (in `plugins.md`, same tiering): cakephp/plugin-installer, civicrm/composer-downloads-plugin, drupal/core-project-message, drupal/core-vendor-hardening, endroid/installer, johnpbloch/wordpress-core-installer, laminas/laminas-component-installer, laminas/laminas-dependency-plugin, magento/magento-composer-installer, mcaskill/composer-exclude-files, ocramius/package-versions, pyrech/composer-changelogs, ramsey/composer-repl, symfony/thanks, typo3/class-alias-loader, typo3/cms-composer-installers, vaimo/composer-patches, yiisoft/yii2-composer, zaporylie/composer-drupal-optimizations.
+Also surveyed (in `plugins.md`, same tiering): cakephp/plugin-installer, civicrm/composer-downloads-plugin, drupal/core-project-message, drupal/core-vendor-hardening, endroid/installer, johnpbloch/wordpress-core-installer, laminas/laminas-component-installer, laminas/laminas-dependency-plugin, magento/magento-composer-installer, mcaskill/composer-exclude-files, ocramius/package-versions, pyrech/composer-changelogs, ramsey/composer-repl, symfony/thanks, typo3/class-alias-loader, typo3/cms-composer-installers, vaimo/composer-patches, yiisoft/yii2-composer, zaporylie/composer-drupal-optimizations.
 
 What the survey shows:
 
@@ -1766,11 +1766,11 @@ set equals the set of shim proxy methods.
 
 ---
 
-## 7. Go-side interfaces needed from other packages
+## 7. Go-side interfaces from other packages
 
-These are what `internal/plugin` relies on in other packages (PORTING.md
-"Plugin requirements on every package" points here). `internal/plugin`
-imports all of them, and none of them imports `internal/plugin`.
+These are what `internal/plugin` relies on in other packages; a change to
+one of them keeps what is listed here. `internal/plugin` imports all of
+them, and none of them imports `internal/plugin`.
 
 **`internal/php`**
 - JSON encode and decode of `php.Array` with PHP key coercion.
@@ -2374,40 +2374,3 @@ and `update`; `require` and `remove`; `dump-autoload` with and without
 with `list`, `help` and completion; and, for plugin-api, a plugin not in
 `allow-plugins` (the blocked error) and one no longer required (the
 warning). §8 lists the fixtures of each tier.
-
----
-
-## 10. Risks
-
-| # | Risk | Likelihood / impact | Mitigation |
-| --- | --- | --- | --- |
-| 1 | **Internals-dependent plugins** (flex, discovery, bamarni, vaimo) rely on stack frames, private and protected props, clone and re-construct, and `Closure::bind`. Any upstream refactor on their side or a gap in the emulation breaks them. | High / high (flex is among the most installed plugins) | Tier 6 emulation with per-plugin fixtures; the property parity list (§5.12); unsupported paths throw a named `UnsupportedApiException` instead of misbehaving silently |
-| 2 | **Output interleaving** between two processes: unflushed Go buffers, PHP `ob_*` buffers, `overwrite()` and progress bars spanning both sides | Medium / high (byte-identical output is a hard goal) | Flush before every transfer (D11); IO methods all go through Go; e2e compares exact bytes |
-| 3 | **Exception file and line** differ for exceptions raised in shim or Go code, because Composer's own source lines don't exist | Certain / low | Error rendering and deprecation notices are maestro's own (no locations or stacks shown), and maestro records no throw sites or frames of Composer's for Go errors; this only matters to plugins reading `getFile()`, `getLine()` or `getTrace()`, which see the shim's locations for exceptions maestro raised; the shim's own throw sites and raised errors name Composer's line |
-| 4 | **Promise timing.** `then()` callbacks of PHP installers, and parallel Go operations, change completion order | Medium / low | The promise bridge (§5.6) keeps promises pending on both sides until Composer would run their callbacks; fixtures for `->then()` installers (composer/installers, yii2) |
-| 5 | **stdin sharing** when stdin is a pipe and the run is still interactive (`SHELL_INTERACTIVE`): PHP's STDIN buffer can swallow lines meant for Go | Low / medium | Go reads unbuffered; a stdin relay that hands stdin to PHP only while PHP runs a prompt would close it |
-| 6 | **Re-entrancy of Go ports.** Nested `Installer::run`, `Factory::create` and Application runs from inside events require every Go port to be free of package-level state | Medium / high | Requirement in §7; e2e for merge-plugin, discovery, ergebnis, laminas |
-| 7 | **Performance.** PRE_POOL_CREATE with large pools, chatty plugins (`getInstallPath` per package, many Filesystem calls), and PHP startup on every command in plugin projects | Medium / medium | Lazy tiers, batching, measured budgets (§5.16) |
-| 8 | **API parity drift.** A shim signature differs from Composer's, so a plugin that extends a class gets a fatal "Declaration must be compatible" | Medium / high | Generated parity test with exact signatures (§9.2) |
-| 9 | **PHP version spread.** The shim must parse and run on 7.2.5 to 8.5; deprecations show up as Composer-style deprecation notices | Medium / medium | CI on PHP 7.2 and 8.4; the shim follows Composer's own PHP style rules |
-| 10 | **fd leakage to grandchildren** (Unix) and corruption of the channel | Low / high | Process-exit detection, not EOF; framing validation kills the child on garbage |
-| 11 | **Xdebug restart parity** (env vars, ini contents) | Low / low | Port of XdebugHandler's ini building, with a test that the restart ini loads what plain `php` loads |
-| 12 | **Windows transport** (TCP, `proc_open` quoting in the launcher stub) | Medium / medium | The transport abstraction (D5); CI's Windows plugin shard and the Windows e2e run |
-| 13 | **Vendored library precedence.** A project shipping a newer symfony/console could expect its own classes, but the shim's win. This is the same as with Composer's phar, so it is correct, but surprising. | Low / low | Matches Composer; no action |
-
----
-
-## 11. Size
-
-Approximate line counts:
-
-| Part | Lines |
-| --- | --- |
-| `internal/plugin` and its subpackages, Go (runtime, transport, codec, sync, PluginManager port, mirrors, proxies, service handlers) | 18,000 |
-| Their Go tests | 6,500 |
-| PHP shim, hand-written (`php/src`: the `Maestro\*` runtime about 5,500, Composer's classes about 12,000) | 17,500 |
-| `tools/shimgen`, `tools/shimvendor`, `internal/plugin/shimbuild` | 1,200 |
-
-Besides these, the shim embeds about 76,000 lines of vendored PHP
-(`php/lib`) and 8,000 lines of generated stubs (`php/stubs`), both
-produced by tools. The plugin e2e fixtures number 35.
