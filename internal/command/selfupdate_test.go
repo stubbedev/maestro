@@ -546,7 +546,7 @@ type selfUpdateRun struct {
 // writeChannel stores channel as the one self-update remembers.
 func writeChannel(t *testing.T, home, channel string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(home, "maestro-update-channel"), []byte(channel+"\n"), 0o666); err != nil {
+	if err := os.WriteFile(filepath.Join(home, "maestro-update-channel"), []byte(channel+php.EOL), 0o666); err != nil {
 		t.Fatal(err)
 	}
 }
