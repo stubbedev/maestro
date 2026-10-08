@@ -33,6 +33,8 @@ func phpProxyCode(binPathExported, binPath, streamHint, globalsCode, streamProxy
 }
 
 // shellProxyCode is the shell proxy heredoc of generateUnixyProxyCode.
+// binDir comes shell-escaped and binFile escaped for a double-quoted
+// string (shDoubleQuoted).
 func shellProxyCode(binDir, binFile string) string {
 	return "#!/usr/bin/env sh\n\n# Support bash to support `source` with fallback on $0 if this does not run with bash\n# https://stackoverflow.com/a/35006505/6512\nselfArg=\"$BASH_SOURCE\"\nif [ -z \"$selfArg\" ]; then\n    selfArg=\"$0\"\nfi\n\nself=$(realpath \"$selfArg\" 2> /dev/null)\nif [ -z \"$self\" ]; then\n    self=\"$selfArg\"\nfi\n\ndir=$(cd \"${self%[/\\\\]*}\" > /dev/null; cd " +
 		binDir +

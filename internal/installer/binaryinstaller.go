@@ -274,6 +274,19 @@ func (b *BinaryInstaller) generateWindowsProxyCode(bin, link string) (string, er
 		caller + " \"%BIN_TARGET%\" %*\r\n", nil
 }
 
+// shDoubleQuotedReplacer backslash-escapes the characters that keep their
+// meaning inside a POSIX sh double-quoted string.
+var shDoubleQuotedReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "$", `\$`, "`", "\\`")
+
+// shDoubleQuoted escapes s for the inside of the double-quoted
+// "${dir}/<binFile>" of the shell proxy, so a bin file name can neither
+// end the string nor expand: Composer splices basename($binPath) in
+// unescaped, which yields the same proxy for every name without those
+// characters.
+func shDoubleQuoted(s string) string {
+	return shDoubleQuotedReplacer.Replace(s)
+}
+
 // phpBinPattern finds PHP files (with an optional shebang) among the bins.
 var phpBinPattern = php.MustCompile(`{^(#!.*\r?\n)?[\r\n\t ]*<\?php}`)
 
@@ -284,7 +297,7 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 	}
 
 	binDir := util.Escape(php.Dirname(binPath))
-	binFile := php.Basename(binPath, "")
+	binFile := shDoubleQuoted(php.Basename(binPath, ""))
 
 	binContents, err := fileGetContents(bin, 500)
 	if err != nil {

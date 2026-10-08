@@ -226,3 +226,76 @@ func TestBinaryInstaller_DetermineBinaryCaller(t *testing.T) {
 		}
 	}
 }
+
+// TestShDoubleQuoted has sh read each escaped string back inside double
+// quotes. (A bin name with a backslash cannot run through a proxy: the
+// proxy's ${self%[/\\]*} takes backslashes for Windows separators.)
+func TestShDoubleQuoted(t *testing.T) {
+	for _, s := range []string{
+		"plain-name",
+		`a"b`,
+		`a\b`,
+		`a\"; touch pwned #`,
+		`trailing\`,
+		"$(touch pwned)`touch pwned`${HOME}$1",
+		"new\nline\t'single'*?[x]",
+	} {
+		out, err := exec.Command("sh", "-c", `printf %s "`+shDoubleQuoted(s)+`"`).Output()
+		if err != nil || string(out) != s {
+			t.Errorf("%q: read back %q, %v", s, out, err)
+		}
+	}
+
+	if got := shDoubleQuoted("tool-1.0_x"); got != "tool-1.0_x" {
+		t.Errorf("an ordinary name changed to %q", got)
+	}
+}
+
+// TestBinaryInstaller_ShellProxyQuotesHostileBinNames runs the shell proxy
+// of bins whose names would end or expand inside its double-quoted
+// "${dir}/<name>": each must exec exactly that file and run nothing else.
+func TestBinaryInstaller_ShellProxyQuotesHostileBinNames(t *testing.T) {
+	names := []string{
+		`quote"; touch pwned; "`,
+		`dollar$(touch pwned)`,
+		"backtick`touch pwned`",
+		`var$HOME`,
+		"newline\n; touch pwned",
+		`star*; touch pwned`,
+	}
+
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			rootDir, vendorDir, binDir := binaryFixture(t)
+
+			mustMkdir(t, vendorDir+"/foo/bar")
+
+			if err := os.WriteFile(vendorDir+"/foo/bar/"+name, []byte("#!/bin/sh\nprintf 'ran %s' \"$1\"\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+
+			installer := NewBinaryInstaller(newBufferIO(t), binDir, "proxy", util.NewFilesystem(nil), pkg.NullString{})
+			if err := installer.InstallBinaries(binPackage(name), vendorDir+"/foo/bar", true); err != nil {
+				t.Fatal(err)
+			}
+
+			cmd := exec.Command("sh", binDir+"/"+name, "arg")
+			cmd.Dir = rootDir
+
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("%v: %s", err, out)
+			}
+
+			if string(out) != "ran arg" {
+				t.Errorf("output %q", out)
+			}
+
+			for _, dir := range []string{rootDir, binDir, vendorDir + "/foo/bar"} {
+				if _, err := os.Stat(dir + "/pwned"); err == nil {
+					t.Errorf("the bin name ran a command in %s", dir)
+				}
+			}
+		})
+	}
+}
