@@ -284,8 +284,8 @@ func (p *pharData) check() error {
 	}
 
 	for _, e := range p.entries {
-		if _, _, ok := tarSplitName(e.name); !ok {
-			return &PharError{Message: `tar-based phar "` + p.fname + `" cannot be created, filename "` + e.name + `" is too long for tar file format`}
+		if _, _, err := p.tarName(e); err != nil {
+			return err
 		}
 	}
 
@@ -428,9 +428,9 @@ func (p *pharData) writeTar(w io.Writer) error {
 func (p *pharData) tarHeader(e pharEntry, size, mtime int64) ([]byte, error) {
 	h := make([]byte, 512)
 
-	name, prefix, ok := tarSplitName(e.name)
-	if !ok {
-		return nil, &PharError{Message: `tar-based phar "` + p.fname + `" cannot be created, filename "` + e.name + `" is too long for tar file format`}
+	name, prefix, err := p.tarName(e)
+	if err != nil {
+		return nil, err
 	}
 
 	copy(h[0:100], name)
@@ -460,6 +460,17 @@ func (p *pharData) tarHeader(e pharEntry, size, mtime int64) ([]byte, error) {
 	tarOctal(h[148:155], sum)
 
 	return h, nil
+}
+
+// tarName is the name and prefix fields of an entry's tar header, or the
+// PharError for a name they cannot hold.
+func (p *pharData) tarName(e pharEntry) (name, prefix string, err error) {
+	name, prefix, ok := tarSplitName(e.name)
+	if !ok {
+		return "", "", &PharError{Message: `tar-based phar "` + p.fname + `" cannot be created, filename "` + e.name + `" is too long for tar file format`}
+	}
+
+	return name, prefix, nil
 }
 
 // tarSplitName splits a name over the ustar name and prefix fields, as
