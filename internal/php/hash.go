@@ -1,5 +1,8 @@
 // Ports PHP's hash helpers: md5(), sha1(), sha1_file() and
-// bin2hex(random_bytes()).
+// bin2hex(random_bytes()). Composer uses md5() and sha1() for values its
+// formats fix (the lock file's content-hash, path and artifact references,
+// mirror paths, a dist's shasum), never to protect a secret, so they stay
+// the algorithms PHP names.
 
 package php
 
