@@ -244,3 +244,13 @@ ob_end_clean();
 // probe reads until on Windows, and harmless whitespace to the decoder
 // elsewhere.
 echo "\n\0maestro-probe\0", json_encode(maestro_probe_enc($maestroProbe), defined('JSON_PRESERVE_ZERO_FRACTION') ? JSON_PRESERVE_ZERO_FRACTION : 0), "\n";
+
+// Windows: maestro runs this script as a file and lists the process's
+// loaded modules for its probe cache while the script waits here for its
+// standard input to end (probe_windows.go). Elsewhere the script comes on
+// standard input, which is at its end once the script was read, so this
+// returns at once.
+if (defined('PHP_OS_FAMILY') ? PHP_OS_FAMILY === 'Windows' : 0 === strncmp(PHP_OS, 'WIN', 3)) {
+    while (false !== fgets(STDIN)) {
+    }
+}

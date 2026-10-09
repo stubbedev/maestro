@@ -14,19 +14,11 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// probeHold is what holds the probe for maestro: appended to the script,
-// it makes php wait on its standard input after printing its result, so
-// that the modules of the still-running process can be listed
-// (processModules) before maestro closes the pipe and php exits. Running
-// as a script file, php defines STDIN itself (the probe script defines it
-// by hand only when read from standard input), and auto_prepend_file
-// keeps applying, as it does for a script there.
-const probeHold = "\n<?php\nwhile (fgets(STDIN) !== false) {\n}\n"
-
 // runProbe starts binary on the probe script, as a file, and parses what
-// it reports: as a file the script can hold php at its end, which is what
-// the module list needs (probeHold). The file is php's to read in the
-// directory the system keeps temporary files in, and maestro's to remove.
+// it reports: as a file the script can hold php at its end (probe.php
+// ends waiting for its standard input), which is what the module list
+// needs. The file is php's to read in the directory the system keeps
+// temporary files in, and maestro's to remove.
 func runProbe(ctx context.Context, binary string) (*Snapshot, []byte, error) {
 	script, err := os.CreateTemp("", "maestro-probe-*.php")
 	if err != nil {
@@ -34,7 +26,7 @@ func runProbe(ctx context.Context, binary string) (*Snapshot, []byte, error) {
 	}
 	path := script.Name()
 
-	_, werr := script.WriteString(probeScript + probeHold)
+	_, werr := script.WriteString(probeScript)
 	cerr := script.Close()
 	defer func() { _ = os.Remove(path) }()
 
