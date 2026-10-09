@@ -50,14 +50,17 @@ func stat(path string, reparse bool) (ID, bool) {
 // fileBasicInfo is FILE_BASIC_INFO, what GetFileInformationByHandleEx
 // reports for FileBasicInfo: the file's times, among them a change time
 // (which the file information a handle gives does not hold), and its
-// attributes. A file system that keeps no change time (FAT's) reports
-// the FILETIME zero for it.
+// attributes. The trailing pad brings the struct to the size the C one
+// has (LARGE_INTEGER aligns it to 8): the call rejects anything shorter.
+// A file system that keeps no change time (FAT's) reports the FILETIME
+// zero for it.
 type fileBasicInfo struct {
 	CreationTime   windows.Filetime
 	LastAccessTime windows.Filetime
 	LastWriteTime  windows.Filetime
 	ChangeTime     windows.Filetime
 	FileAttributes uint32
+	_              uint32
 }
 
 // idOf is the ID of the file behind h: the volume serial number and the

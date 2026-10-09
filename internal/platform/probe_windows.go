@@ -51,7 +51,8 @@ func runProbe(ctx context.Context, binary string) (*Snapshot, []byte, error) {
 		return nil, nil, &ProbeError{Binary: binary, ExitCode: -1, Reason: err.Error()}
 	}
 
-	// closed whatever becomes of php: closing the pipe is what ends it
+	// an error path's safety net: the pipe is closed before the wait
+	// below, and closing it twice costs nothing
 	defer func() { _ = stdin.Close() }()
 
 	var out bytes.Buffer
@@ -61,6 +62,10 @@ func runProbe(ctx context.Context, binary string) (*Snapshot, []byte, error) {
 
 	// everything php loaded is in the entry's files while it waits
 	modules, listed := processModules(uint32(cmd.Process.Pid))
+
+	// php waits for its stdin to end: closing it is what ends it, before
+	// the wait that would otherwise wait for php to end first
+	_ = stdin.Close()
 
 	waitErr := cmd.Wait()
 

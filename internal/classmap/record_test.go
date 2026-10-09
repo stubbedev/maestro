@@ -273,7 +273,9 @@ func TestRecord_StampedFilesWithoutChangeTime(t *testing.T) {
 			}
 		}, true},
 		"stamp gone": {func(t *testing.T, dir string) {
-			if err := os.Chtimes(filepath.Join(dir, "lib/a.php"), time.Unix(stamp, 1), time.Unix(stamp, 1)); err != nil {
+			// a microsecond, which Windows' 100 ns file times see (a
+			// nanosecond would land on the same tick as the stamp)
+			if err := os.Chtimes(filepath.Join(dir, "lib/a.php"), time.Unix(stamp, 1_000), time.Unix(stamp, 1_000)); err != nil {
 				t.Fatal(err)
 			}
 		}, false},
