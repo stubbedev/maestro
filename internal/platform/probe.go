@@ -1,14 +1,11 @@
 package platform
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -83,7 +80,7 @@ func Probe(ctx context.Context, binary string) (*Snapshot, error) {
 }
 
 // probeCached is Probe, through the cache of earlier runs' results
-// (probecache_linux.go): php is started only when binary, the files it
+// (probecache.go): php is started only when binary, the files it
 // loads or the environment it reads changed since.
 func probeCached(ctx context.Context, binary string) (*Snapshot, error) {
 	key := probeCacheKey(binary)
@@ -112,37 +109,22 @@ func probe(ctx context.Context, binary string) (*Snapshot, []byte, error) {
 		defer cancel()
 	}
 
-	var stdout, stderr bytes.Buffer
+	return runProbe(ctx, binary)
+}
 
-	stdout.Grow(256 << 10)
-
-	// The script goes in on standard input rather than with -r: like
-	// bin/composer it is then a script file, so auto_prepend_file runs
-	// for it too, and no command line quoting is involved.
-	cmd := exec.CommandContext(ctx, binary)
-	cmd.Stdin = strings.NewReader(probeScript)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		code := -1
-		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-			code = exitErr.ExitCode()
-		}
-
-		return nil, nil, &ProbeError{Binary: binary, ExitCode: code, Output: stdout.String() + stderr.String(), Reason: err.Error()}
-	}
-
-	s, err := ParseSnapshot(binary, stdout.Bytes())
+// parseProbe parses the probe's output as ParseSnapshot does, with what
+// php printed on standard error added to a failure's output.
+func parseProbe(binary string, stdout []byte, stderr string) (*Snapshot, []byte, error) {
+	s, err := ParseSnapshot(binary, stdout)
 	if err != nil {
 		if pe, ok := errors.AsType[*ProbeError](err); ok {
-			pe.Output += stderr.String()
+			pe.Output += stderr
 		}
 
 		return nil, nil, err
 	}
 
-	return s, stdout.Bytes(), nil
+	return s, stdout, nil
 }
 
 // Detector probes the php on the PATH once and keeps the result: the

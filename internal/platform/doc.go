@@ -38,8 +38,12 @@
 // The script is fed to php on its standard input, so it runs like
 // bin/composer as a script file (auto_prepend_file applies), and it
 // defines STDIN, STDOUT and STDERR, which PHP only defines for a script
-// file. It records the extensions' info before changing any setting, as
-// Core's info lists the local values.
+// file. On Windows it goes to php as a temporary script file instead and
+// ends waiting for its standard input, so that maestro can list the
+// modules the process loaded (probe_windows.go); as a script file php
+// defines STDIN, STDOUT and STDERR itself. It records the extensions'
+// info before changing any setting, as Core's info lists the local
+// values.
 //
 // # Which php
 //
@@ -59,18 +63,22 @@
 // background while composer.json, the lock file and the repositories
 // load.
 //
-// Across runs, the result is cached on Linux (probecache_linux.go,
-// deliberate deviation 3). Keying only on the php binary and its ini
-// files would go stale whenever a shared library (libcurl, ICU, OpenSSL,
-// libxml) or an extension's .so is upgraded on its own, which changes
-// lib-* versions and so dependency resolution. So the probe also reports
-// every file its process maps (/proc/self/maps), and an entry is used only
-// while all of them, the ini files and scan directories, the binary as
-// found and resolved, and the environment variables that may change what
-// php reports (isProbeEnv, plus those its ini files and extensions read)
-// are unchanged, for 24 hours at most. Scripts (version managers' shims)
-// are not cached. Elsewhere there is no /proc/self/maps to tell what the
-// result depends on, so every run probes (probecache_other.go).
+// Across runs, the result is cached on Linux and Windows
+// (probecache.go, deliberate deviation 3). Keying only on the php binary
+// and its ini files would go stale whenever a shared library (libcurl,
+// ICU, OpenSSL, libxml) or an extension is upgraded on its own, which
+// changes lib-* versions and so dependency resolution. So the probe also
+// reports every file its process loaded - on Linux what /proc/self/maps
+// shows it mapped, on Windows the modules of the process that answered,
+// listed while it waits for its standard input to end - and an entry is
+// used only while all of them, the ini files and scan directories, the
+// binary as found and resolved, the environment variables that may change
+// what php reports (isProbeEnv, plus those its ini files and extensions
+// read) and the running system (unameString) are unchanged, for 24 hours
+// at most. Scripts (version managers' shims; .bat and .cmd files on
+// Windows) are not cached, nor is a wrapper that spawns its php rather
+// than becoming it (probeWrapper). Elsewhere there is nothing to tell
+// what the result depends on, so every run probes (probecache_other.go).
 //
 // # Without php
 //

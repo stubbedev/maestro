@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -45,11 +46,25 @@ func TestID_ChangesWithoutContentOrTimeChanges(t *testing.T) {
 	}
 
 	time.Sleep(10 * time.Millisecond)
-	if err := os.Chmod(path, 0o600); err != nil {
+	// os.Chmod on Windows changes nothing but the read-only attribute,
+	// so the mode must take the write bits away for the ID to change, and
+	// give them back before the rewrite below
+	readonly := runtime.GOOS == "windows"
+	if err := os.Chmod(path, 0o444); err != nil {
 		t.Fatal(err)
+	}
+	if !readonly {
+		if err := os.Chmod(path, 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if mustStat(t, path) == before {
 		t.Error("the ID did not change with the mode")
+	}
+	if readonly {
+		if err := os.Chmod(path, 0o666); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	modified := time.Unix(0, before.Mtime)
@@ -134,15 +149,19 @@ func TestReadStable(t *testing.T) {
 
 func TestIsScript(t *testing.T) {
 	t.Parallel()
+	batch := runtime.GOOS == "windows"
 	dir := t.TempDir()
 	for name, c := range map[string]struct {
 		content string
 		script  bool
 		err     bool
 	}{
-		"script": {"#!/bin/sh\n", true, false},
-		"binary": {"\x7fELF", false, false},
-		"short":  {"#", false, true},
+		"script":  {"#!/bin/sh\n", true, false},
+		"binary":  {"\x7fELF", false, false},
+		"short":   {"#", false, true},
+		"php.bat": {"@php %*\r\n", batch, false},
+		"php.cmd": {"@php %*\r\n", batch, false},
+		"bat":     {"xy", false, false},
 	} {
 		path := filepath.Join(dir, name)
 		writeFile(t, path, c.content)

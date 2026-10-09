@@ -40,10 +40,16 @@ func (k *KeyHash) ID(id ID) {
 // Sum appends the hash to b.
 func (k *KeyHash) Sum(b []byte) []byte { return k.h.Sum(b) }
 
-// IsScript reports whether the open file starts with "#!": a script,
-// which runs whatever its interpreter line names (a version manager's
-// shim, say), rather than a binary that stays what it is.
+// IsScript reports whether the open file is a script, which runs
+// whatever its interpreter line names (a version manager's shim, say)
+// or, on Windows, whatever cmd.exe reads out of a batch file, rather
+// than a binary that stays what it is: the file starts with "#!", or
+// its name is a batch file's (batchName).
 func IsScript(f *os.File) (bool, error) {
+	if batchName(f.Name()) {
+		return true, nil
+	}
+
 	var head [2]byte
 	if _, err := f.ReadAt(head[:], 0); err != nil {
 		return false, err

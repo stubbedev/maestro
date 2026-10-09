@@ -1,7 +1,9 @@
 <?php
 // maestro's platform probe: run once with the user's php (fed on its
-// standard input) to collect, in one invocation, every fact
-// about the running PHP that Composer reads in-process. See doc.go.
+// standard input, or as a temporary script file on Windows, where it
+// ends waiting for its standard input) to collect, in one invocation,
+// every fact about the running PHP that Composer reads in-process. See
+// doc.go.
 //
 // Output: "\n" MARKER JSON, after anything PHP printed at startup. Values
 // that JSON cannot carry are wrapped in single-key arrays whose key starts
@@ -227,7 +229,9 @@ if ($maestroXdebug['loaded']) {
 $maestroProbe['xdebug'] = $maestroXdebug;
 
 // The files this process maps (its binary, libraries and extensions), which
-// maestro checks before reusing a cached copy of this result (Linux).
+// maestro checks before reusing a cached copy of this result. Linux only:
+// on Windows maestro lists the loaded modules of the still-running process
+// itself (probe_windows.go).
 $maestroProbe['mapped_files'] = null;
 $maestroMaps = @file_get_contents('/proc/self/maps');
 if (is_string($maestroMaps) && preg_match_all('{^\S+ \S+ \S+ \S+ \S+\s+(/.*)$}m', $maestroMaps, $maestroMatch)) {
@@ -235,4 +239,8 @@ if (is_string($maestroMaps) && preg_match_all('{^\S+ \S+ \S+ \S+ \S+\s+(/.*)$}m'
 }
 
 ob_end_clean();
-echo "\n\0maestro-probe\0", json_encode(maestro_probe_enc($maestroProbe), defined('JSON_PRESERVE_ZERO_FRACTION') ? JSON_PRESERVE_ZERO_FRACTION : 0);
+// The result ends with a newline (json_encode escapes newlines inside
+// strings, so the first one after the marker ends the result): what the
+// probe reads until on Windows, and harmless whitespace to the decoder
+// elsewhere.
+echo "\n\0maestro-probe\0", json_encode(maestro_probe_enc($maestroProbe), defined('JSON_PRESERVE_ZERO_FRACTION') ? JSON_PRESERVE_ZERO_FRACTION : 0), "\n";

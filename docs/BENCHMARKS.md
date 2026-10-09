@@ -259,7 +259,7 @@ Autoload:
 
 Fixed per-run costs:
 
-- **The php platform probe is cached** across runs (Linux), keyed on
+- **The php platform probe is cached** across runs (Linux and Windows), keyed on
   what can change its result, and stored decoded (~0.8 ms to read).
 - **git's version is cached** across runs (Linux); root version guessing
   starts VCS tools directly, not through `/bin/sh -c`, and starts the

@@ -48,9 +48,11 @@ type Snapshot struct {
 	calls          []probeCall
 	extIndex       map[string]int // lower-cased extension name => index in Extensions
 
-	// mappedFiles are the files the probe's process mapped (/proc/self/maps:
-	// its binary, libraries and extensions); hasMappedFiles is false where
-	// it could not tell.
+	// mappedFiles are the files the probe's process loaded: on Linux
+	// those it mapped (/proc/self/maps: its binary, libraries and
+	// extensions), on Windows the modules of the process that answered
+	// (probe_windows.go); hasMappedFiles is false where it could not
+	// tell.
 	mappedFiles    []string
 	hasMappedFiles bool
 }

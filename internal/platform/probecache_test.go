@@ -1,3 +1,5 @@
+//go:build linux || windows
+
 package platform
 
 import (
@@ -6,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"slices"
 	"testing"
 	"time"
@@ -109,16 +112,30 @@ func TestProbeCache(t *testing.T) {
 		t.Error("an entry whose library changed was used")
 	}
 
-	// scripts (version managers' shims) are never cached
-	shim := filepath.Join(dir, "php-shim")
-	writeFile(t, shim, "#!/bin/sh\nexec php \"$@\"\n")
+	// scripts (version managers' shims) are never cached: a shebang on
+	// Unix, a batch file on Windows (PATHEXT finds .bat and .cmd)
+	if runtime.GOOS == "windows" {
+		shim := filepath.Join(dir, "php.bat")
+		writeFile(t, shim, "@php %*\r\n")
 
-	if probeCacheKey(shim) != "" {
-		t.Error("a script has a cache key")
+		if probeCacheKey(shim) != "" {
+			t.Error("a batch file has a cache key")
+		}
+	} else {
+		shim := filepath.Join(dir, "php-shim")
+		writeFile(t, shim, "#!/bin/sh\nexec php \"$@\"\n")
+
+		if probeCacheKey(shim) != "" {
+			t.Error("a script has a cache key")
+		}
 	}
 }
 
 func TestProbeCache_Wrapper(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("a wrapper replaces itself with its php on Linux only")
+	}
+
 	t.Setenv("MAESTRO_CACHE_DIR", t.TempDir())
 
 	dir := t.TempDir()
@@ -148,6 +165,55 @@ func TestProbeCache_Wrapper(t *testing.T) {
 
 	if loadProbeCache(key, wrapper) != nil {
 		t.Error("the wrapper's entry is used in another directory")
+	}
+}
+
+// TestProbeCache_WrapperSpawned checks that on Windows a wrapper whose
+// php answered as another binary (a shim that spawns it) is not cached:
+// the modules listed are the wrapper's, not the php's that answered.
+func TestProbeCache_WrapperSpawned(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("a wrapper spawns its php on Windows only")
+	}
+
+	t.Setenv("MAESTRO_CACHE_DIR", t.TempDir())
+
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "php.exe")
+	real := filepath.Join(dir, "php-proxied.exe")
+	writeFile(t, wrapper, "MZ wrapper")
+	writeFile(t, real, "MZ php")
+
+	key := probeCacheKey(wrapper)
+	constants := func(binary string) map[string]any {
+		return map[string]any{"PHP_VERSION": "8.4.25", "PHP_VERSION_ID": 80425, "PHP_BINARY": binary}
+	}
+
+	output := fakeProbeOutputWith(t, map[string]any{"constants": constants(real)}, "8.4.25", wrapper)
+
+	s, err := ParseSnapshot(wrapper, output)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storeProbeCache(key, wrapper, s, output, trustedStart())
+
+	if loadProbeCache(key, wrapper) != nil {
+		t.Error("the php a wrapper spawned was cached")
+	}
+
+	// a php that answers as the binary started is
+	output = fakeProbeOutputWith(t, map[string]any{"constants": constants(wrapper)}, "8.4.25", wrapper)
+
+	s, err = ParseSnapshot(wrapper, output)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storeProbeCache(key, wrapper, s, output, trustedStart())
+
+	if loadProbeCache(key, wrapper) == nil {
+		t.Error("a php that answered as the binary started was not cached")
 	}
 }
 
@@ -247,6 +313,10 @@ func TestProbeCache_Env(t *testing.T) {
 // command (volatileEnv): "_" is in every binary wrapper's symbols, and
 // is the program that ran maestro (make, time, an IDE, ...).
 func TestProbeCache_WrapperEnv(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("a wrapper replaces itself with its php on Linux only")
+	}
+
 	t.Setenv("MAESTRO_CACHE_DIR", t.TempDir())
 	t.Setenv("_", "/usr/bin/make")
 	t.Setenv("SHLVL", "1")
@@ -478,6 +548,11 @@ func TestProbeCache_BinaryIdentical(t *testing.T) {
 	probed, output, err := probe(t.Context(), binary)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// the modules Windows lists are the Go side's, not the probe result's
+	if php.IsWindows() {
+		probed.mappedFiles, probed.hasMappedFiles = nil, false
 	}
 
 	result := probeResult(output)

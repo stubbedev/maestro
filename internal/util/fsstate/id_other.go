@@ -1,11 +1,10 @@
-//go:build !unix
+//go:build !unix && !windows
 
 package fsstate
 
 import "os"
 
-// Known reports whether files have IDs here: not on Windows, whose
-// os.Stat describes no file index or change time.
+// Known reports whether files have IDs here.
 func Known() bool { return false }
 
 // Stat: no IDs here.

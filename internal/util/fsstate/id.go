@@ -11,12 +11,13 @@ import (
 )
 
 // ID is a file's identity as the file system describes it: device and
-// inode (a file replaced by a rename gets another), mode, size, and
+// inode (on Windows the volume and file index), mode, size, and
 // modification and change times in nanoseconds (writing to the file or
-// changing its mode or links changes the change time). A change to any
-// field means the file may have changed; an unchanged ID means it did
-// not, unless it changed within a timestamp tick of when the ID was
-// taken (see Margin). IDs are known on Unix systems only (Known).
+// changing its mode or links changes the change time; on Windows it is
+// the one the file system reports as FILE_BASIC_INFO's ChangeTime,
+// which FAT keeps none of). A change to any field means the file may
+// have changed; an unchanged ID means it did not, unless it changed
+// within a timestamp tick of when the ID was taken (see Margin).
 type ID struct {
 	Dev   uint64 `json:"dev,omitempty"`
 	Ino   uint64 `json:"ino,omitempty"`
@@ -26,10 +27,13 @@ type ID struct {
 	Ctime int64  `json:"ctime,omitempty"`
 }
 
-// The file type bits of ID.Mode (st_mode), the same on every Unix.
+// The file type bits of ID.Mode (st_mode), the same on every Unix; on
+// Windows ID.Mode carries the type the file attributes give, as these
+// bits.
 const (
 	modeType    = 0o170000
 	modeRegular = 0o100000
+	modeDir     = 0o040000
 )
 
 // IsRegular reports whether the file is a regular file.
