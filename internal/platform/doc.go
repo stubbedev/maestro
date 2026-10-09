@@ -50,18 +50,27 @@
 // (util.PhpExecutableFinder). maestro does the same: FindPHP is php on the
 // PATH, and the plugin runtime uses the same binary.
 //
-// # No disk cache
+// # The probe cache
 //
 // Probing costs about what starting php costs: 22 ms with the 58
 // extensions of the dev shell's php 8.4, against 17 ms for `php -r 1` (4
-// ms with -n), plus 1.5 ms to parse its 150 kB result. A cache keyed on
-// the php binary, PHPRC, PHP_INI_SCAN_DIR and the ini files' mtimes would
-// save those ~20 ms, but goes stale whenever a shared library (libcurl,
-// ICU, OpenSSL, libxml) or an extension's .so is upgraded on its own,
-// which changes lib-* versions and so dependency resolution, and no cheap
-// key covers those. So maestro probes once per process: a Detector runs
-// the probe at most once, and Start lets it run in the background while
-// composer.json, the lock file and the repositories load.
+// ms with -n), plus 1.5 ms to parse its 150 kB result. A Detector runs
+// the probe at most once per process, and Start lets it run in the
+// background while composer.json, the lock file and the repositories
+// load.
+//
+// Across runs, the result is cached on Linux (probecache_linux.go,
+// deliberate deviation 3). Keying only on the php binary and its ini
+// files would go stale whenever a shared library (libcurl, ICU, OpenSSL,
+// libxml) or an extension's .so is upgraded on its own, which changes
+// lib-* versions and so dependency resolution. So the probe also reports
+// every file its process maps (/proc/self/maps), and an entry is used only
+// while all of them, the ini files and scan directories, the binary as
+// found and resolved, and the environment variables that may change what
+// php reports (isProbeEnv, plus those its ini files and extensions read)
+// are unchanged, for 24 hours at most. Scripts (version managers' shims)
+// are not cached. Elsewhere there is no /proc/self/maps to tell what the
+// result depends on, so every run probes (probecache_other.go).
 //
 // # Without php
 //
