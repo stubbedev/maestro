@@ -305,11 +305,7 @@ func PackageVersionsConstraintMap(packages []pkg.PackageInterface) *ConstraintMa
 
 	constraints := &ConstraintMap{}
 	for name, v := range byName.All() {
-		list := make([]semver.ConstraintInterface, len(v.order))
-		for i, ver := range v.order {
-			list[i] = semver.NewConstraintOp(semver.OpEQ, ver)
-		}
-		constraints.Set(name, semver.CreateMultiConstraint(list, false))
+		constraints.Set(name, semver.CreateMultiConstraint(semver.NewConstraintsOp(semver.OpEQ, v.order), false))
 	}
 
 	return constraints

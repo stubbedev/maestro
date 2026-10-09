@@ -307,7 +307,7 @@ func (a *AliasPackage) SetSourceDistReferences(reference string) {
 // BasePackage methods.
 
 // Names ports BasePackage::getNames.
-func (a *AliasPackage) Names(provides bool) []string { return names(a, provides) }
+func (a *AliasPackage) Names(provides bool) []string { return names(a, &a.basePackage, provides) }
 
 // UniqueName ports BasePackage::getUniqueName.
 func (a *AliasPackage) UniqueName() string { return uniqueName(a) }

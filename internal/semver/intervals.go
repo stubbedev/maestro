@@ -67,7 +67,15 @@ func (intervals) IsSubsetOf(candidate, constraint ConstraintInterface) bool {
 		return false
 	}
 
-	intersectionIntervals := Intervals.Get(newMultiConstraint([]ConstraintInterface{candidate, constraint}, true))
+	// The intersection's key is built without the MultiConstraint, which
+	// is made only when its intervals are not memoised yet.
+	pair := [2]ConstraintInterface{candidate, constraint}
+	var buf [256]byte
+	key := appendMultiConstraintString(buf[:0], pair[:], true)
+	intersectionIntervals, ok := cachedIntervals(key)
+	if !ok {
+		intersectionIntervals = memoiseIntervals(key, newMultiConstraint([]ConstraintInterface{candidate, constraint}, true))
+	}
 	candidateIntervals := Intervals.Get(candidate)
 	if len(intersectionIntervals.Numeric) != len(candidateIntervals.Numeric) {
 		return false
@@ -272,16 +280,29 @@ func (intervals) CompactConstraint(constraint ConstraintInterface) ConstraintInt
 func (intervals) Get(constraint ConstraintInterface) IntervalSet {
 	var buf [256]byte
 	key := appendConstraintString(buf[:0], constraint)
+	if set, ok := cachedIntervals(key); ok {
+		return set
+	}
 
+	return memoiseIntervals(key, constraint)
+}
+
+// cachedIntervals is the memoised intervals of the constraint whose
+// String() is key.
+func cachedIntervals(key []byte) (IntervalSet, bool) {
 	c := &intervalsCache
 	c.RLock()
 	set, ok := c.m[string(key)]
 	c.RUnlock()
-	if ok {
-		return set
-	}
 
-	set = generateIntervals(constraint, false)
+	return set, ok
+}
+
+// memoiseIntervals generates the intervals of constraint, whose String()
+// is key, and memoises them.
+func memoiseIntervals(key []byte, constraint ConstraintInterface) IntervalSet {
+	set := generateIntervals(constraint, false)
+	c := &intervalsCache
 	c.Lock()
 	if cached, ok := c.m[string(key)]; ok {
 		// Another goroutine got there first; PHP would have kept that one.

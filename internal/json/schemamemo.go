@@ -45,7 +45,7 @@ func UseSchemaMemo(path string) { schemaMemos.Store(&schemaMemo{path: path}) }
 
 // schemaFormat is the version of the memo, and of the validation and the
 // schemas whose successes it remembers.
-var schemaFormat = fsstate.Format{Name: "schema-memo", Version: 3}
+var schemaFormat = fsstate.Format{Name: "schema-memo", Version: 4}
 
 // schemaKey is what identifies a validation against Composer's schemas:
 // the schema (LaxSchema, ...) and the document.

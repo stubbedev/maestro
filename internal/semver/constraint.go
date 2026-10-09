@@ -125,6 +125,19 @@ func NewConstraintOp(op Op, version string) *Constraint {
 	return &Constraint{operator: op, version: version}
 }
 
+// NewConstraintsOp is NewConstraintOp(op, v) for each of versions, the
+// constraints allocated together.
+func NewConstraintsOp(op Op, versions []string) []ConstraintInterface {
+	slab := make([]Constraint, len(versions))
+	list := make([]ConstraintInterface, len(versions))
+	for i, version := range versions {
+		slab[i] = Constraint{operator: op, version: version}
+		list[i] = &slab[i]
+	}
+
+	return list
+}
+
 // Version ports getVersion().
 func (c *Constraint) Version() string { return c.version }
 

@@ -101,8 +101,10 @@ func LinksByMethod(p PackageInterface, method string) Links {
 
 // basePackage holds BasePackage's properties.
 type basePackage struct {
-	id         int
-	name       string
+	id int
+	// name is the lowercased name, in an array so that Names can return
+	// it as a slice without allocating one.
+	name       [1]string
 	prettyName string
 	repository Repository
 	// rev counts the changes of every field but the id, idRev those of
@@ -116,13 +118,13 @@ type basePackage struct {
 }
 
 func newBasePackage(name string) basePackage {
-	return basePackage{id: -1, name: php.Strtolower(name), prettyName: name}
+	return basePackage{id: -1, name: [1]string{php.Strtolower(name)}, prettyName: name}
 }
 
 func (b *basePackage) base() *basePackage { return b }
 
 // Name ports BasePackage::getName: the lowercased name.
-func (b *basePackage) Name() string { return b.name }
+func (b *basePackage) Name() string { return b.name[0] }
 
 // PrettyName ports BasePackage::getPrettyName.
 func (b *basePackage) PrettyName() string { return b.prettyName }
@@ -199,9 +201,12 @@ func (b *basePackage) clearForClone() {
 }
 
 // names ports BasePackage::getNames. PHP returns the array keys, so a
-// numeric name comes back as an int there; here it stays a string.
-func names(p PackageInterface, provides bool) []string {
-	out := []string{p.Name()}
+// numeric name comes back as an int there; here it stays a string. The
+// slice must not be modified: without provided or replaced names it is
+// b's own name.
+func names(p PackageInterface, b *basePackage, provides bool) []string {
+	// capacity 1, so the first add copies it
+	out := b.name[:]
 
 	add := func(name string) {
 		if !slices.Contains(out, name) {

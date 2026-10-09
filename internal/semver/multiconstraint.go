@@ -154,12 +154,18 @@ func (c *MultiConstraint) appendString(dst []byte) []byte {
 		return append(dst, *s...)
 	}
 
+	return appendMultiConstraintString(dst, c.constraints, c.conjunctive)
+}
+
+// appendMultiConstraintString appends the String() of a MultiConstraint
+// of constraints, conjunctive or not, to dst.
+func appendMultiConstraintString(dst []byte, constraints []ConstraintInterface, conjunctive bool) []byte {
 	sep := " || "
-	if c.conjunctive {
+	if conjunctive {
 		sep = " "
 	}
 	dst = append(dst, '[')
-	for i, constraint := range c.constraints {
+	for i, constraint := range constraints {
 		if i > 0 {
 			dst = append(dst, sep...)
 		}

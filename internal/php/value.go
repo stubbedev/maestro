@@ -7,6 +7,7 @@ package php
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -57,7 +58,10 @@ func TypeName(v any) string {
 	case *Object:
 		return "stdClass"
 	default:
-		return fmt.Sprintf("%T", v)
+		// fmt's %T, without making v escape: Array lookups coerce their
+		// key with ToKey, which names it here, and a key that escaped
+		// would be boxed on the heap for every lookup.
+		return reflect.TypeOf(v).String()
 	}
 }
 

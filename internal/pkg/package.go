@@ -689,7 +689,7 @@ func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, 
 
 	u := url.S
 	if urlType == FromDist && strings.Contains(u, "%") {
-		u = util.ComposerMirrorProcessURL(u, p.name, p.version, ref.ptr(), typ.ptr(), &p.prettyVersion)
+		u = util.ComposerMirrorProcessURL(u, p.name[0], p.version, ref.ptr(), typ.ptr(), &p.prettyVersion)
 	}
 
 	urls := []string{u}
@@ -702,11 +702,11 @@ func (p *Package) urls(url NullString, mirrors *php.Array, ref, typ NullString, 
 
 			switch {
 			case urlType == FromDist:
-				mirrorURL = util.ComposerMirrorProcessURL(arrayString(mirror, "url"), p.name, p.version, ref.ptr(), typ.ptr(), &p.prettyVersion)
+				mirrorURL = util.ComposerMirrorProcessURL(arrayString(mirror, "url"), p.name[0], p.version, ref.ptr(), typ.ptr(), &p.prettyVersion)
 			case urlType == FromSource && typ == Str("git"):
-				mirrorURL = util.ComposerMirrorProcessGitURL(arrayString(mirror, "url"), p.name, u, typ.ptr())
+				mirrorURL = util.ComposerMirrorProcessGitURL(arrayString(mirror, "url"), p.name[0], u, typ.ptr())
 			case urlType == FromSource && typ == Str("hg"):
-				mirrorURL = util.ComposerMirrorProcessHgURL(arrayString(mirror, "url"), p.name, u, typ.S)
+				mirrorURL = util.ComposerMirrorProcessHgURL(arrayString(mirror, "url"), p.name[0], u, typ.S)
 			default:
 				continue
 			}
@@ -730,7 +730,7 @@ func arrayString(a *php.Array, k string) string { return php.ToString(a.At(k)) }
 // Methods implemented on top of the interface, as BasePackage's are.
 
 // Names ports BasePackage::getNames.
-func (p *Package) Names(provides bool) []string { return names(p, provides) }
+func (p *Package) Names(provides bool) []string { return names(p, &p.basePackage, provides) }
 
 // UniqueName ports BasePackage::getUniqueName.
 func (p *Package) UniqueName() string { return uniqueName(p) }
