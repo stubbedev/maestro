@@ -76,6 +76,12 @@ dev *args:
     @go build -C "{{ justfile_directory() }}" -o "{{ justfile_directory() }}/maestro" ./cmd/maestro
     @"{{ justfile_directory() }}/maestro" "$@"
 
+# Needs php and the network; `just pgo 10` profiles 10 rounds instead of 6.
+# Regenerate cmd/maestro/default.pgo, the profile-guided optimisation profile.
+[positional-arguments]
+pgo *args:
+    tools/pgo/collect.sh "$@"
+
 # Recreate .ref/, the Composer sources the port follows (see docs/PORTING.md).
 ref:
     ref-sync

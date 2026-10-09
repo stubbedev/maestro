@@ -709,6 +709,10 @@ docs/BENCHMARKS.md shows what they found.
 | `MAESTRO_MEMPROFILE=<file>` | an allocation profile, sampled every 4 KiB, when the run ends (`go tool pprof`) |
 | `MAESTRO_TRACE=<file>` | an execution trace (`go tool trace`) |
 
+`tools/pgo/collect.sh` (`just pgo`) uses such a binary to regenerate
+cmd/maestro/default.pgo, the profile every `go build` of ./cmd/maestro
+optimises with (docs/BENCHMARKS.md).
+
 ## Tools
 
 | Tool | Does |
@@ -719,6 +723,7 @@ docs/BENCHMARKS.md shows what they found.
 | `tools/fetchdists` | downloads real dist archives for the store's differential test |
 | `tools/deadcode` | fails on functions nothing reaches (`just deadcode`, CI) |
 | `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |
+| `tools/pgo` | regenerates cmd/maestro/default.pgo, the profile-guided optimisation profile (`just pgo`) |
 | `tools/upstream` | reads and bumps the Composer release maestro ports; opens its issues and bump PRs ("Following upstream") |
 
 ## Regular expressions

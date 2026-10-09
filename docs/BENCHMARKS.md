@@ -269,6 +269,13 @@ Fixed per-run costs:
   ~0.9 ms.
 - **The schema validation of an unchanged composer.json is remembered.**
 
+Build: `go build` optimises ./cmd/maestro with the CPU profile in
+cmd/maestro/default.pgo (profile-guided optimisation), merged from 60
+runs of laravel and symfony across update --dry-run (offline and warm),
+no-op install, dump-autoload -o and warm install; it cuts the CPU of
+update --dry-run by about 5%. `just pgo` regenerates it
+(tools/pgo/collect.sh); do so after large changes to the hot paths.
+
 GC: the collector stays off until the run's memory reaches 64 MiB, then
 runs with Go's defaults (docs/PORTING.md, "Go runtime settings"). Small
 commands (`--version`, validate, a no-op install, dump-autoload) collect
