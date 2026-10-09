@@ -48,14 +48,16 @@ func stat(path string, reparse bool) (ID, bool) {
 }
 
 // fileBasicInfo is FILE_BASIC_INFO, what GetFileInformationByHandleEx
-// reports for FileBasicInfo: the file's times, among them a change time,
-// which the file information a handle gives does not hold. A file system
-// that keeps none (FAT's) leaves it at FILETIME 0.
+// reports for FileBasicInfo: the file's times, among them a change time
+// (which the file information a handle gives does not hold), and its
+// attributes. A file system that keeps no change time (FAT's) reports
+// the FILETIME zero for it.
 type fileBasicInfo struct {
 	CreationTime   windows.Filetime
 	LastAccessTime windows.Filetime
 	LastWriteTime  windows.Filetime
 	ChangeTime     windows.Filetime
+	FileAttributes uint32
 }
 
 // idOf is the ID of the file behind h: the volume serial number and the
@@ -89,6 +91,17 @@ func idOf(h windows.Handle) (ID, bool) {
 		Mode:  mode,
 		Size:  int64(info.FileSizeHigh)<<32 | int64(info.FileSizeLow),
 		Mtime: info.LastWriteTime.Nanoseconds(),
-		Ctime: basic.ChangeTime.Nanoseconds(),
+		Ctime: changeTime(basic.ChangeTime),
 	}, true
+}
+
+// changeTime is t in nanoseconds since the epoch; 0 for the FILETIME
+// zero, which a file system without a change time reports and whose
+// nanoseconds would overflow int64 into the far future.
+func changeTime(t windows.Filetime) int64 {
+	if t.HighDateTime == 0 && t.LowDateTime == 0 {
+		return 0
+	}
+
+	return t.Nanoseconds()
 }
