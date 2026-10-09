@@ -8,12 +8,25 @@ package platform
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
+
+// maxProbeCacheAge is the usual age: the modules of the process that
+// answered (a day of upgrades short of one) are the whole truth on
+// Windows.
+const maxProbeCacheAge = 24 * time.Hour
+
+// probeMappedFiles is what the probing process loaded: the modules
+// Windows listed while php waited for its standard input to end
+// (probe_windows.go).
+func probeMappedFiles(s *Snapshot, _ string, _ []string) ([]string, bool) {
+	return s.mappedFiles, s.hasMappedFiles
+}
 
 // unameString is what identifies the running system, which the snapshot
 // records php_uname() of: the computer name, the Windows version and its

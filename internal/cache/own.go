@@ -73,8 +73,8 @@ func ClassMapParse() string { return path(classMapParsePath) }
 func ClassMapRecords() string { return path(classMapRecordsPath) }
 
 // PlatformProbes is the directory of php's probed platform, one entry per
-// php binary and what it depends on (internal/platform, Linux and
-// Windows).
+// php binary and what it depends on (internal/platform, Linux, Windows
+// and macOS).
 func PlatformProbes() string { return path(platformProbesPath) }
 
 // GitVersion is the directory of git's version, by git binary

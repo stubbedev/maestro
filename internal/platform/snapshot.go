@@ -52,7 +52,8 @@ type Snapshot struct {
 	// those it mapped (/proc/self/maps: its binary, libraries and
 	// extensions), on Windows the modules of the process that answered
 	// (probe_windows.go); hasMappedFiles is false where it could not
-	// tell.
+	// tell. On macOS they stay empty: the files are walked from the load
+	// commands of the php that answered instead (macho_darwin.go).
 	mappedFiles    []string
 	hasMappedFiles bool
 }

@@ -1,4 +1,4 @@
-//go:build linux || windows
+//go:build linux || windows || darwin
 
 // Ports nothing: a cache of probe.php's result across runs
 // (deliberate deviation 3, speed).
@@ -23,8 +23,10 @@ import (
 )
 
 // probeCacheMaxAge is how long a cached probe result is used at most,
-// however unchanged everything it was taken from looks.
-const probeCacheMaxAge = 24 * time.Hour
+// however unchanged everything it was taken from looks: maxProbeCacheAge
+// per platform, shorter on macOS, whose static walk of what php loaded
+// (macho.go) cannot see what a library loads at runtime.
+const probeCacheMaxAge = maxProbeCacheAge
 
 // probeCacheMaxEntries is how many entries the cache keeps: storing one
 // removes the least recently used beyond it (and any unused for
@@ -33,7 +35,7 @@ const probeCacheMaxEntries = 64
 
 // probeCacheFormat is the version of the entries: of what they hold, how
 // they are keyed and what they are trusted on.
-var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 6}
+var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 8}
 
 // probeEnvPrefixes and probeEnvNames are the environment variables that
 // may change what probe.php reports whatever php is probed, and so key
@@ -52,8 +54,9 @@ var probeEnvPrefixes = []string{
 	// XDEBUG_TRIGGER when it starts, and probe.php reads XDEBUG_MODE
 	"XDEBUG",
 	// the dynamic loader: LD_PRELOAD and LD_LIBRARY_PATH choose the
-	// libraries whose versions extensions report
-	"LD_",
+	// libraries whose versions extensions report, and dyld's DYLD_* the
+	// same on macOS
+	"LD_", "DYLD_",
 	// the locale php 8 takes LC_CTYPE from at startup, before probe.php
 	// sets its own, while the extensions start and the ini is read
 	"LC_",
@@ -297,6 +300,39 @@ func iniVarNames(names []string, data []byte) []string {
 	}
 }
 
+// iniExtensionNames appends to names the files an ini file loads
+// (extension=name.so, zend_extension=/path/to/x.so; php reads directive
+// names without case, and a value may be quoted).
+func iniExtensionNames(names []string, data []byte) []string {
+	for line := range bytes.SplitSeq(data, []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 || line[0] == ';' || line[0] == '#' {
+			continue
+		}
+
+		key, value, found := bytes.Cut(line, []byte("="))
+		if !found {
+			continue
+		}
+
+		name := php.Strtolower(string(bytes.TrimSpace(key)))
+		if name != "extension" && name != "zend_extension" {
+			continue
+		}
+
+		value = bytes.TrimSpace(value)
+		if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') && value[len(value)-1] == value[0] {
+			value = value[1 : len(value)-1]
+		}
+
+		if len(value) > 0 {
+			names = append(names, string(value))
+		}
+	}
+
+	return names
+}
+
 // identifierNames is every run of letters, digits and underscores in data that does not start with a digit: what may be an
 // environment variable's name in a wrapper's executable.
 func identifierNames(data []byte) []string {
@@ -456,15 +492,6 @@ func loadProbeCacheEntry(path, binary string) *Snapshot {
 // the probe could not tell what it loaded, or where one of those files
 // changed too recently to tell whether php saw it before or after.
 func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.Time) {
-	if !s.hasMappedFiles || len(s.mappedFiles) == 0 {
-		return
-	}
-
-	result, ok := php.AppendBinary(nil, probeResult(output))
-	if !ok {
-		return
-	}
-
 	resolved, err := php.EvalSymlinks(binary)
 	if err != nil {
 		return
@@ -480,23 +507,16 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.
 	}
 
 	if wrapper {
-		header.EnvNames, ok = wrapperEnvNames(resolved)
-		header.AllEnv = !ok
+		names, ok := wrapperEnvNames(resolved)
+		header.EnvNames, header.AllEnv = names, !ok
 	}
 
 	paths := []string{binary, resolved}
 
-	for _, f := range s.mappedFiles {
-		// /proc/self/maps marks a file replaced or removed while php ran
-		// ("(deleted)"): what php used is gone, and a signature would
-		// describe whatever took its place. Windows' loader keeps the
-		// files it loaded open, so they cannot change under the probe.
-		if strings.HasSuffix(f, " (deleted)") {
-			return
-		}
-		paths = append(paths, f)
-	}
-
+	// the ini files php read hold the variables they refer to, and the
+	// extensions they load, which macOS keys its entry on
+	// (probeMappedFiles)
+	var iniExtensions []string
 	for _, f := range s.IniFiles() {
 		if f == "" {
 			continue
@@ -510,6 +530,22 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.
 		}
 
 		header.EnvNames = iniVarNames(header.EnvNames, data)
+		iniExtensions = iniExtensionNames(iniExtensions, data)
+	}
+
+	// what php loaded (probeMappedFiles): its executable, the libraries
+	// and extensions it loaded - listed from the running process on Linux
+	// and Windows, walked from its load commands on macOS
+	files, mapped := probeMappedFiles(s, resolved, iniExtensions)
+	if !mapped || len(files) == 0 {
+		return
+	}
+
+	paths = append(paths, files...)
+
+	result, ok := php.AppendBinary(nil, probeResult(output))
+	if !ok {
+		return
 	}
 
 	// extensions read their own variables when they start (blackfire
@@ -538,10 +574,10 @@ func storeProbeCache(key, binary string, s *Snapshot, output []byte, start time.
 		paths = append(paths, rc)
 	}
 
-	// php's own directory is among what it loaded; on Linux the first
-	// mapping is it (a wrapper's php's), on Windows whichever module
-	// came first
-	dirs = append(dirs, filepath.Dir(binary), filepath.Dir(resolved), filepath.Dir(s.mappedFiles[0]))
+	// php's own directory is among what it loaded: the first of those
+	// files is the php that answered (Linux's first mapping, Windows's
+	// first module, macOS's walked binary)
+	dirs = append(dirs, filepath.Dir(binary), filepath.Dir(resolved), filepath.Dir(files[0]))
 	if v, ok := s.Constant("PHP_CONFIG_FILE_PATH"); ok {
 		if dir, ok := v.(string); ok && dir != "" {
 			dirs = append(dirs, dir)

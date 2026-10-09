@@ -63,22 +63,26 @@
 // background while composer.json, the lock file and the repositories
 // load.
 //
-// Across runs, the result is cached on Linux and Windows
+// Across runs, the result is cached on Linux, Windows and macOS
 // (probecache.go, deliberate deviation 3). Keying only on the php binary
 // and its ini files would go stale whenever a shared library (libcurl,
 // ICU, OpenSSL, libxml) or an extension is upgraded on its own, which
 // changes lib-* versions and so dependency resolution. So the probe also
 // reports every file its process loaded - on Linux what /proc/self/maps
 // shows it mapped, on Windows the modules of the process that answered,
-// listed while it waits for its standard input to end - and an entry is
-// used only while all of them, the ini files and scan directories, the
-// binary as found and resolved, the environment variables that may change
-// what php reports (isProbeEnv, plus those its ini files and extensions
-// read) and the running system (unameString) are unchanged, for 24 hours
-// at most. Scripts (version managers' shims; .bat and .cmd files on
-// Windows) are not cached, nor is a wrapper that spawns its php rather
-// than becoming it (probeWrapper). Elsewhere there is nothing to tell
-// what the result depends on, so every run probes (probecache_other.go).
+// listed while it waits for its standard input to end, on macOS what the
+// php that answered loads, walked from its load commands as dyld resolves
+// them, for asking the process itself needs cgo, which maestro does not
+// build with - and an entry is used only while all of them, the ini files
+// and scan directories, the binary as found and resolved, the environment
+// variables that may change what php reports (isProbeEnv, plus those its
+// ini files and extensions read) and the running system (unameString) are
+// unchanged, for 24 hours at most (6 on macOS, whose walk cannot see what
+// a library loads at runtime). Scripts (version managers' shims; .bat and
+// .cmd files on Windows) are not cached, nor is a wrapper that spawns its
+// php rather than becoming it on Windows (probeWrapper). Elsewhere there
+// is nothing to tell what the result depends on, so every run probes
+// (probecache_other.go).
 //
 // # Without php
 //

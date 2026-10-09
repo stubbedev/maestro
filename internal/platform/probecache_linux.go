@@ -4,21 +4,27 @@
 package platform
 
 import (
-	"bytes"
-
-	"golang.org/x/sys/unix"
+	"strings"
+	"time"
 )
 
-// unameString is php_uname()'s fields, which the snapshot records.
-func unameString() string {
-	var u unix.Utsname
-	if unix.Uname(&u) != nil {
-		return ""
+// maxProbeCacheAge is the usual age: what php mapped (a day of upgrades
+// short of one) is the whole truth on Linux.
+const maxProbeCacheAge = 24 * time.Hour
+
+// probeMappedFiles is what the probing process mapped (its executable,
+// libraries and extensions), as /proc/self/maps told probe.php.
+func probeMappedFiles(s *Snapshot, _ string, _ []string) ([]string, bool) {
+	// the maps mark a file replaced or removed while php ran
+	// ("(deleted)"): what php used is gone, and a signature would
+	// describe whatever took its place
+	for _, f := range s.mappedFiles {
+		if strings.HasSuffix(f, " (deleted)") {
+			return nil, false
+		}
 	}
 
-	field := func(b []byte) string { return string(bytes.TrimRight(b, "\x00")) }
-
-	return field(u.Sysname[:]) + "\x00" + field(u.Nodename[:]) + "\x00" + field(u.Release[:]) + "\x00" + field(u.Version[:]) + "\x00" + field(u.Machine[:])
+	return s.mappedFiles, s.hasMappedFiles
 }
 
 // probeWrapper reports whether the probe's first mapped file is another
@@ -28,6 +34,10 @@ func unameString() string {
 // true: the entry takes what the wrapper may read (wrapperEnvNames) and
 // the working directory into its key.
 func probeWrapper(s *Snapshot, resolved string) (wrapper, cacheable bool) {
+	if len(s.mappedFiles) == 0 {
+		return false, false
+	}
+
 	return s.mappedFiles[0] != resolved, true
 }
 
