@@ -148,14 +148,21 @@ func hostCpu() macho.Cpu {
 // resolveDylib is the file an install name names, as dyld resolves it
 // when the file whose directory is loaderDir loads it within the main
 // executable whose directory is exeDir: @loader_path and
-// @executable_path stand for those directories, an absolute name is
-// itself, an @rpath name tries each run path in turn (dyld takes the
-// first whose file exists; a run path expands @executable_path and
-// @loader_path itself) and falls back to the first, and any other name
-// loads from the working directory, which is maestro's. "" when the name
-// names nothing to watch: an @-name no run path resolves.
+// @executable_path stand for those directories (a run path may name one
+// bare), an absolute name is itself, an @rpath name tries each run path
+// in turn (dyld takes the first whose file exists) and falls back to the
+// first, and any other name loads from the working directory, which is
+// maestro's. "" when the name names nothing to watch: an @-name no run
+// path resolves.
 func resolveDylib(name, loaderDir, exeDir string, rpaths []string) string {
 	expand := func(p string) string {
+		switch p {
+		case "@executable_path":
+			return exeDir
+		case "@loader_path":
+			return loaderDir
+		}
+
 		switch {
 		case strings.HasPrefix(p, "@executable_path/"):
 			return filepath.Join(exeDir, strings.TrimPrefix(p, "@executable_path/"))

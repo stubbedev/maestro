@@ -28,7 +28,9 @@ const (
 // rpaths: a header and load commands, as much of a file as the walk
 // reads.
 func machoBytes(loads []machoLoad, rpaths []string) []byte {
-	command := func(cmd uint32, str string, strAt uint32) []byte {
+	// every command that names a dylib has the dylib_command shape: the
+	// lc_str at 24, after a timestamp and two versions
+	command := func(cmd uint32, str string, strAt uint32, dylibShaped bool) []byte {
 		payload := append([]byte(str), 0)
 		size := (strAt + uint32(len(payload)) + 7) &^ 7
 
@@ -37,9 +39,7 @@ func machoBytes(loads []machoLoad, rpaths []string) []byte {
 		_ = binary.Write(c, binary.LittleEndian, size)
 		_ = binary.Write(c, binary.LittleEndian, strAt)
 
-		// a dylib_command holds a timestamp and two versions between
-		// its lc_str and the name
-		if cmd == testCmdDylib {
+		if dylibShaped {
 			_ = binary.Write(c, binary.LittleEndian, [3]uint32{})
 		}
 
@@ -51,10 +51,10 @@ func machoBytes(loads []machoLoad, rpaths []string) []byte {
 
 	var cmds bytes.Buffer
 	for _, l := range loads {
-		cmds.Write(command(l.cmd, l.name, 24))
+		cmds.Write(command(l.cmd, l.name, 24, true))
 	}
 	for _, r := range rpaths {
-		cmds.Write(command(testCmdRpath, r, 12))
+		cmds.Write(command(testCmdRpath, r, 12, false))
 	}
 
 	out := bytes.NewBuffer(make([]byte, 0, 32+cmds.Len()))
@@ -179,6 +179,7 @@ func TestResolveDylib(t *testing.T) {
 		{"executable path", "@executable_path/../lib/b.dylib", "/load", "/bin", nil, "/lib/b.dylib"},
 		{"absolute", "/usr/lib/libSystem.B.dylib", "/x", "/bin", nil, "/usr/lib/libSystem.B.dylib"},
 		{"rpath first that exists", "@rpath/c.dylib", dir, "/bin", []string{"@loader_path/libs", "@loader_path/other"}, existing},
+		{"rpath bare loader path", "@rpath/c.dylib", dir, "/bin", []string{"@loader_path", "@loader_path/other"}, existing},
 		{"rpath none exists", "@rpath/c.dylib", dir, "/bin", []string{"@loader_path/libs"}, filepath.Join(dir, "libs", "c.dylib")},
 		{"rpath none named", "@rpath/c.dylib", dir, "/bin", nil, ""},
 		{"other at-name", "@weak/c.dylib", dir, "/bin", nil, ""},
