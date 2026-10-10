@@ -213,8 +213,8 @@ func ComparePaths(a, b string) int {
 // Parent is the directory holding the entry path p ("" for a top-level
 // name).
 func Parent(p string) string {
-	if i := strings.LastIndexByte(p, '/'); i >= 0 {
-		return p[:i]
+	if before, _, ok := strings.CutLast(p, "/"); ok {
+		return before
 	}
 
 	return ""

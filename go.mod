@@ -2,6 +2,8 @@ module github.com/stubbedev/maestro
 
 go 1.27.1
 
+toolchain go1.27.2
+
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/dlclark/regexp2 v1.12.0

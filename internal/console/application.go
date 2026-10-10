@@ -684,9 +684,9 @@ func (a *Application) Find(name string) (Commander, error) {
 
 	// if no commands matched or we just matched namespaces
 	if len(commands) == 0 || len(abbrev.grep(commands, true, true)) < 1 {
-		if pos := strings.LastIndexByte(name, ':'); pos >= 0 {
+		if before, _, ok := strings.CutLast(name, ":"); ok {
 			// check if a namespace exists and contains commands
-			if _, err := a.FindNamespace(name[:pos]); err != nil {
+			if _, err := a.FindNamespace(before); err != nil {
 				return nil, err
 			}
 		}

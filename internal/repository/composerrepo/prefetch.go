@@ -199,11 +199,11 @@ func (r *ComposerRepository) conditionalOptions(cached string) *php.Array {
 // string. A wrong guess only makes a prefetched request miss.
 func lastModifiedOf(cached string) string {
 	const key = `"last-modified":"`
-	i := strings.LastIndex(cached, key)
-	if i < 0 {
+	_, after, ok := strings.CutLast(cached, key)
+	if !ok {
 		return ""
 	}
-	rest := cached[i+len(key):]
+	rest := after
 	j := strings.IndexByte(rest, '"')
 	if j < 0 || strings.ContainsRune(rest[:j], '\\') {
 		return ""

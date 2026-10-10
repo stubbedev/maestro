@@ -128,8 +128,8 @@ func PathinfoExtension(path string) string { return PathinfoExtensionOn(path, on
 // runs it on Windows or not.
 func PathinfoExtensionOn(path string, windows bool) string {
 	base := BasenameOn(path, "", windows)
-	if i := strings.LastIndexByte(base, '.'); i >= 0 {
-		return base[i+1:]
+	if _, after, ok := strings.CutLast(base, "."); ok {
+		return after
 	}
 
 	return ""

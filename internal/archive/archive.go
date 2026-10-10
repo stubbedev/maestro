@@ -62,7 +62,7 @@ func (f Format) String() string {
 
 // rulesFormat is the version of this package's rules: of the tree an
 // archive extracts to, so trees cached under other rules are not reused.
-var rulesFormat = fsstate.Format{Name: "archive-rules", Version: 1}
+var rulesFormat = fsstate.Format{Name: "archive-rules", Version: 2}
 
 // Rules identifies everything that decides the tree an archive of format f
 // extracts to, besides the archive and the umask: this package's rules and,

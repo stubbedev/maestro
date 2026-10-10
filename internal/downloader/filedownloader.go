@@ -729,8 +729,8 @@ func (d *FileDownloader) distPath(p pkg.PackageInterface, ext bool) string {
 		return base
 	}
 
-	if i := strings.LastIndexByte(base, '.'); i >= 0 {
-		return base[i+1:]
+	if _, after, ok := strings.CutLast(base, "."); ok {
+		return after
 	}
 
 	return ""

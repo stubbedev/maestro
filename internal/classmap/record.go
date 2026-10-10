@@ -118,7 +118,7 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 
 // recordFormat is the version of the records, and of the scans that
 // build their class maps; its Header starts every record.
-var recordFormat = fsstate.Format{Name: "classmap-record", Version: 3}
+var recordFormat = fsstate.Format{Name: "classmap-record", Version: 4}
 
 // SetMargin sets how old a file must be for its identity to be recorded
 // and, recorded, trusted (zero: fsstate.DefaultMargin; tests trust

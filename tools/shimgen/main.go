@@ -397,12 +397,12 @@ func renderMethod(class, name string, m *shimbuild.Method, inInterface bool, rem
 }
 
 func splitName(name string) (ns, short string) {
-	i := strings.LastIndexByte(name, '\\')
-	if i < 0 {
+	before, after, ok := strings.CutLast(name, "\\")
+	if !ok {
 		return "", name
 	}
 
-	return name[:i], name[i+1:]
+	return before, after
 }
 
 func qualifiedList(names []string) string {

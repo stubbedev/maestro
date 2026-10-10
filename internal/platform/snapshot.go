@@ -138,23 +138,23 @@ func (s *Snapshot) PHPBinary() string {
 
 // ParseSnapshot parses the output of probe.php run by binary.
 func ParseSnapshot(binary string, output []byte) (*Snapshot, error) {
-	i := bytes.LastIndex(output, []byte(probeMarker))
+	before, after, ok := bytes.CutLast(output, []byte(probeMarker))
 
 	// What php printed besides the result.
 	printed := output
-	if i >= 0 {
-		printed = output[:i]
+	if ok {
+		printed = before
 	}
 
 	fail := func(reason string) (*Snapshot, error) {
 		return nil, &ProbeError{Binary: binary, Output: string(printed), Reason: reason}
 	}
 
-	if i < 0 {
+	if !ok {
 		return fail("it printed no result")
 	}
 
-	decoded, err := php.JSONDecode(string(output[i+len(probeMarker):]), true)
+	decoded, err := php.JSONDecode(string(after), true)
 	if err != nil {
 		return fail("its result is not valid JSON: " + err.Error())
 	}
@@ -169,12 +169,12 @@ func ParseSnapshot(binary string, output []byte) (*Snapshot, error) {
 
 // probeResult is the decoded JSON of the probe's output, or nil.
 func probeResult(output []byte) any {
-	i := bytes.LastIndex(output, []byte(probeMarker))
-	if i < 0 {
+	_, after, ok := bytes.CutLast(output, []byte(probeMarker))
+	if !ok {
 		return nil
 	}
 
-	decoded, err := php.JSONDecode(string(output[i+len(probeMarker):]), true)
+	decoded, err := php.JSONDecode(string(after), true)
 	if err != nil {
 		return nil
 	}

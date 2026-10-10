@@ -35,7 +35,7 @@ const probeCacheMaxEntries = 64
 
 // probeCacheFormat is the version of the entries: of what they hold, how
 // they are keyed and what they are trusted on.
-var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 8}
+var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 9}
 
 // probeEnvPrefixes and probeEnvNames are the environment variables that
 // may change what probe.php reports whatever php is probed, and so key

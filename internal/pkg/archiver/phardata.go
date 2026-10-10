@@ -144,13 +144,13 @@ func pharAnalyzePath(filename string) bool {
 		return false
 	}
 
-	slash := strings.LastIndexByte(filename, '/')
-	if slash < 0 {
+	before, _, ok := strings.CutLast(filename, "/")
+	if !ok {
 		// relative to the working directory
 		return true
 	}
 
-	return php.IsDir(filename[:slash])
+	return php.IsDir(before)
 }
 
 // pharPathCheck ports phar_path_check(): the entry name phar keeps (a

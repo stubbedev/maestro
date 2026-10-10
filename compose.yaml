@@ -16,8 +16,8 @@ x-dev: &dev
   build:
     context: .
     dockerfile_inline: |
-      FROM golang:1.27.1-trixie AS go
-      FROM golangci/golangci-lint:v2.13.2 AS lint
+      FROM golang:1.27.2-trixie AS go
+      FROM golangci/golangci-lint:v2.14.0 AS lint
       FROM php:8.4-cli-trixie
       RUN apt-get update \
        && apt-get install -y --no-install-recommends \

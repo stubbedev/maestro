@@ -372,8 +372,8 @@ func getBuffers() *parseBuffers {
 func (g *Generator) hasExtension(path string) bool {
 	ext := ""
 	base := php.Basename(path, "")
-	if dot := strings.LastIndexByte(base, '.'); dot >= 0 {
-		ext = base[dot+1:]
+	if _, after, ok := strings.CutLast(base, "."); ok {
+		ext = after
 	}
 	return slices.Contains(g.extensions, ext)
 }
