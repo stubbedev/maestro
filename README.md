@@ -37,6 +37,11 @@ byte for byte, and gets it several times faster. It never runs or ships
 | **Plugins run unchanged** | An embedded PHP layer provides Composer's public plugin API on top of maestro's own state. |
 | **Self-contained** | zip, tar, gz, bz2 and xz are handled natively. No `unzip` or `tar` needed. |
 
+maestro was written by AI coding agents under human direction. What holds
+it to Composer's behaviour is the test suite described under
+[Guarantees](#guarantees), which checks it against Composer's own tests and
+against the real Composer.
+
 ## Install
 
 **Homebrew** (macOS, Linux)
