@@ -42,7 +42,7 @@ fi
 
 asset="maestro_${os}_${arch}"
 case "$os/$arch" in
-darwin/amd64 | darwin/arm64 | freebsd/amd64 | freebsd/arm64 | linux/*) ;;
+darwin/arm64 | freebsd/amd64 | freebsd/arm64 | linux/*) ;;
 *) fail "no release build $asset; see https://github.com/$repo/releases" ;;
 esac
 

@@ -5,13 +5,9 @@ class Maestro < Formula
   license "MIT"
 
   on_macos do
-    if Hardware::CPU.intel?
-      url "@@BASE_URL@@/maestro_darwin_amd64"
-      sha256 "@@SHA_DARWIN_AMD64@@"
-    else
-      url "@@BASE_URL@@/maestro_darwin_arm64"
-      sha256 "@@SHA_DARWIN_ARM64@@"
-    end
+    depends_on arch: :arm64
+    url "@@BASE_URL@@/maestro_darwin_arm64"
+    sha256 "@@SHA_DARWIN_ARM64@@"
   end
 
   on_linux do

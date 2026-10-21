@@ -358,7 +358,7 @@ jobs:
           CGO_ENABLED: '0'
         run: |
           go mod download
-          printf '%s\n' linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64 |
+          printf '%s\n' linux/amd64 linux/arm64 linux/386 linux/arm darwin/arm64 windows/amd64 windows/arm64 freebsd/amd64 freebsd/arm64 |
             xargs -P "$(nproc)" -I{} sh -c 't={}; GOOS="${t%/*}" GOARCH="${t#*/}" go build -o /dev/null ./cmd/maestro && echo "ok $t"'
 
       # saved even when the tests fail: a red job must not leave the next

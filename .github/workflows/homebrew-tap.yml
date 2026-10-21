@@ -58,7 +58,7 @@ jobs:
           # release whose assets are still uploading.
           for _ in 1 2 3 4 5; do
             if gh release download "$TAG" -R stubbedev/maestro \
-              -p maestro_darwin_amd64 -p maestro_darwin_arm64 \
+              -p maestro_darwin_arm64 \
               -p maestro_linux_amd64 -p maestro_linux_arm64 \
               --dir "$dir"; then
               break
@@ -84,7 +84,6 @@ jobs:
           sed \
             -e "s|@@VERSION@@|$VERSION|g" \
             -e "s|@@BASE_URL@@|$base_url|g" \
-            -e "s|@@SHA_DARWIN_AMD64@@|$(sha maestro_darwin_amd64)|g" \
             -e "s|@@SHA_DARWIN_ARM64@@|$(sha maestro_darwin_arm64)|g" \
             -e "s|@@SHA_LINUX_AMD64@@|$(sha maestro_linux_amd64)|g" \
             -e "s|@@SHA_LINUX_ARM64@@|$(sha maestro_linux_arm64)|g" \
