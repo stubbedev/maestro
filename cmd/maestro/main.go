@@ -27,7 +27,7 @@ import (
 	"github.com/stubbedev/maestro/internal/plugin"
 )
 
-// version is stamped by the build; see package.nix.
+// version is stamped by the build; see nix/package.nix.
 var version = "dev"
 
 func main() {

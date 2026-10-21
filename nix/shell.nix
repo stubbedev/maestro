@@ -1,0 +1,78 @@
+{
+  perSystem = {
+    go,
+    pkgs,
+    withGo,
+    ...
+  }: let
+    # Oracle for the port: generates golden fixtures by running Composer's
+    # own PHP from .ref/ (see docs/PORTING.md) and runs the e2e comparisons
+    # against real Composer.
+    php = pkgs.php84;
+    composer = php.packages.composer; # only to install .ref/composer's dependencies
+
+    # Recreates .ref/: the exact sources being ported, with their tests: the
+    # Composer release internal/upstream names and the libraries at the
+    # versions its composer.lock pins. A checkout at another tag is replaced.
+    ref-sync = pkgs.writeShellApplication {
+      name = "ref-sync";
+      runtimeInputs = [pkgs.git php composer];
+      text = ''
+        cd "$(git rev-parse --show-toplevel)"
+        mkdir -p .ref
+        clone() { # repo tag dir
+          if [ -d ".ref/$3" ] && [ "$(git -C ".ref/$3" describe --tags --exact-match 2>/dev/null)" != "$2" ]; then
+            rm -rf ".ref/$3"
+          fi
+          [ -d ".ref/$3" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "$2" "https://github.com/$1" ".ref/$3"
+        }
+        locked() { # package: its version in Composer's composer.lock
+          # shellcheck disable=SC2016
+          php -r 'foreach (json_decode(file_get_contents(".ref/composer/composer.lock"), true)["packages"] as $p) { if ($p["name"] === $argv[1]) { echo $p["version"]; exit(0); } } exit(1);' "$1"
+        }
+        clone composer/composer "$(tools/upstream/composer-version.sh)" composer
+        clone composer/semver "$(locked composer/semver)" semver
+        clone composer/class-map-generator "$(locked composer/class-map-generator)" class-map-generator
+        clone composer/spdx-licenses "$(locked composer/spdx-licenses)" spdx-licenses
+        clone composer/metadata-minifier "$(locked composer/metadata-minifier)" metadata-minifier
+        clone Seldaek/jsonlint "$(locked seld/jsonlint)" jsonlint
+        [ -d .ref/composer/vendor ] || (cd .ref/composer && composer install --no-dev --no-scripts -q)
+      '';
+    };
+  in {
+    devShells.default = pkgs.mkShell {
+      packages =
+        [go]
+        ++ map withGo (with pkgs; [
+          gopls # language server
+          delve # debugger
+          golangci-lint # linter behind `just lint`, config in .golangci.yml
+          # what editor Go integrations (vscode-go, vim-go) install
+          gotools
+          go-tools
+          gomodifytags
+          impl
+          gotests
+          iferr
+        ])
+        ++ [
+          pkgs.just # task runner
+          php
+          composer
+          pkgs.unzip # what Composer extracts with; the archive tests compare against it
+          ref-sync
+
+          # Workflow
+          pkgs.git
+          pkgs.gh # GitHub CLI: releases, CI
+        ];
+
+      # Keep accidental cgo out (the race detector needs CGO_ENABLED=1 per
+      # command), and keep the compiler the shell provides.
+      CGO_ENABLED = "0";
+      GOTOOLCHAIN = "local";
+    };
+
+    formatter = pkgs.alejandra;
+  };
+}

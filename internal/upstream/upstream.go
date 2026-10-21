@@ -2,7 +2,7 @@
 // it is named (docs/PORTING.md, "Following upstream"): Composer::VERSION
 // and friends (internal/composer), the platform packages
 // (internal/repository), the user agent (internal/util/http), the e2e phar
-// (cmd/maestro) and flake.nix's ref-sync all read it from here.
+// (cmd/maestro) and nix/shell.nix's ref-sync all read it from here.
 //
 // tools/upstream/bump.sh rewrites these constants from the release itself
 // (its phar and sources), together with the shim's copies and the docs, so

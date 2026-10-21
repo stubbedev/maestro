@@ -2,7 +2,7 @@
 # Prints a constant of the Composer release maestro ports, from
 # internal/upstream/upstream.go, the one place it is named: ComposerVersion
 # by default, or the constant named (ComposerPharSHA256, ...). Scripts that
-# need the release (flake.nix's ref-sync, the oracles, tools/upstream/*)
+# need the release (nix/shell.nix's ref-sync, the oracles, tools/upstream/*)
 # read it through this.
 #
 # Usage: tools/upstream/composer-version.sh [Constant]

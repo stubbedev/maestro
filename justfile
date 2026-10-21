@@ -92,16 +92,16 @@ bump-composer version:
 
 # CI does this on every dependency change (see .github/workflows/flake.yml);
 # run it locally when you want `nix build` to work before pushing.
-# Recompute package.nix's vendorHash from go.mod/go.sum.
+# Recompute nix/package.nix's vendorHash from go.mod/go.sum.
 nix-vendor-hash:
     #!/usr/bin/env bash
     set -euo pipefail
     FAKE="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    CUR="$(grep -oP 'vendorHash = "\K[^"]+' package.nix)"
-    sed -i "s#vendorHash = \"${CUR}\"#vendorHash = \"${FAKE}\"#" package.nix
+    CUR="$(grep -oP 'vendorHash = "\K[^"]+' nix/package.nix)"
+    sed -i "s#vendorHash = \"${CUR}\"#vendorHash = \"${FAKE}\"#" nix/package.nix
     GOT="$(nix build .#default --no-link 2>&1 | grep -oP 'got:\s+\K(sha256-\S+)' | head -1 || true)"
     [ -z "$GOT" ] && GOT="$CUR"
-    sed -i "s#vendorHash = \"${FAKE}\"#vendorHash = \"${GOT}\"#" package.nix
+    sed -i "s#vendorHash = \"${FAKE}\"#vendorHash = \"${GOT}\"#" nix/package.nix
     echo "vendorHash = ${GOT}"
 
 # Show what the next patch, minor and major tags would be.
@@ -121,7 +121,7 @@ release-major: (release "major")
 
 # The version lives in the git tag: publish.yml stamps it into the binary.
 # Nix can't see tags, so the release commit also records the version in
-# release.json for flake.nix. Syncs the flake vendorHash, runs the gates,
+# release.json for nix/package.nix. Syncs the flake vendorHash, runs the gates,
 # commits, tags, and pushes -- the tag push triggers
 # .github/workflows/publish.yml.
 # Tag a release and push it.
@@ -148,13 +148,13 @@ release level:
     echo "releasing $v -> $new"
     just nix-vendor-hash
     just check
-    # nix-vendor-hash rewrites package.nix when dependencies moved; that has to
+    # nix-vendor-hash rewrites nix/package.nix when dependencies moved; that has to
     # land before the tag so the tagged tree builds under Nix.
-    if ! git diff --quiet package.nix; then
-        git add package.nix
+    if ! git diff --quiet nix/package.nix; then
+        git add nix/package.nix
         git commit -m "chore(nix): update vendorHash for $new"
     fi
-    # flake.nix reports the bare version only for the commit whose commit
+    # nix/package.nix reports the bare version only for the commit whose commit
     # time equals release.json's commitTime, so pin both dates to it. The
     # tag always sits on this commit, which also keeps it off the "[skip ci]"
     # vendorHash commit .github/workflows/flake.yml pushes (GitHub honours
