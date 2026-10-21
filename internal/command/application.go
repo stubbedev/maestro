@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
@@ -207,21 +208,31 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 	// Register error handler again to pass it the IO instance
 	util.RegisterErrorHandler(cio)
 
-	if in.HasParameterOption([]string{"--no-cache"}, false) {
+	noCache := in.HasParameterOption([]string{"--no-cache"}, false)
+	if noCache {
 		cio.WriteError("Disabling cache usage", true, io.Debug)
 		util.PutEnv("COMPOSER_CACHE_DIR", util.GetDevNull())
-
-		runCache, err := os.MkdirTemp("", "maestro-no-cache-")
+	}
+	cacheDir, unusable := cache.Unusable()
+	if noCache || unusable {
+		if !noCache {
+			cio.WriteError("<warning>Cannot create cache directory "+cacheDir+", or directory is not writable. Proceeding with a cache for this run only.</warning>", true, io.Normal)
+		}
+		runCache, err := os.MkdirTemp("", "maestro-run-cache-")
 		if err != nil {
-			return 0, fmt.Errorf("creating the run's own cache directory for --no-cache: %w", err)
+			return 0, fmt.Errorf("creating the run's own cache directory: %w", err)
 		}
 		defer func() {
 			if err := os.RemoveAll(runCache); err != nil {
-				cio.WriteError("<warning>Could not remove the --no-cache run's cache directory: "+err.Error()+"</warning>", true, io.Normal)
+				cio.WriteError("<warning>Could not remove the run's own cache directory: "+err.Error()+"</warning>", true, io.Normal)
 			}
 		}()
 		util.PutEnv("MAESTRO_CACHE_DIR", runCache)
 	}
+
+	// composer.json is validated against the schema once per content
+	// (deliberate deviation 3)
+	json.UseSchemaMemo(cache.SchemaMemo())
 
 	// switch working dir
 	newWorkDir, err := a.newWorkingDir(in)

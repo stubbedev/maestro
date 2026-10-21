@@ -208,7 +208,7 @@ It adds the following:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `MAESTRO_CACHE_DIR` | `$XDG_CACHE_HOME/maestro`, else the platform cache directory | Location of the package store and maestro's other caches; `--no-cache` replaces it with a directory of the run's own, removed when the run ends |
+| `MAESTRO_CACHE_DIR` | `$XDG_CACHE_HOME/maestro`, else the platform cache directory | Location of the package store and maestro's other caches; under `--no-cache`, or when it cannot be created or written, the run uses a directory of its own, removed when it ends |
 | `MAESTRO_PACKAGE_IMPORT_METHOD` | reflink, else hardlink, else copy | Force `clone`, `hardlink` or `copy` when importing from the store |
 
 `maestro clear-cache` clears maestro's caches along with Composer's.

@@ -4,11 +4,14 @@
 package cache
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Dir is maestro's cache directory: MAESTRO_CACHE_DIR, else the XDG (or
@@ -37,4 +40,25 @@ func Dir() string {
 	}
 
 	return filepath.Join(os.TempDir(), "maestro")
+}
+
+// Unusable returns Dir, and whether it is neither a writable directory nor
+// creatable as one: its nearest existing ancestor is not a writable
+// directory. Nothing is created.
+func Unusable() (string, bool) {
+	root := Dir()
+	for dir := root; ; {
+		fi, err := os.Stat(dir)
+		if err == nil {
+			return root, !fi.IsDir() || !util.IsWritable(dir)
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return root, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return root, true
+		}
+		dir = parent
+	}
 }

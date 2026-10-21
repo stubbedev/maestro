@@ -18,12 +18,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/io"
-	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/plugin"
@@ -62,10 +60,6 @@ func run() int {
 	}
 
 	factory := &composer.Factory{Runtime: rt}
-
-	// composer.json is validated against the schema once per content
-	// (deliberate deviation 3)
-	json.UseSchemaMemo(cache.SchemaMemo())
 
 	// The plugin runtime (docs/PLUGINS.md): plugins, PHP scripts, and
 	// Platform::putEnv('COMPOSER_BINARY', realpath($_SERVER['argv'][0])),
