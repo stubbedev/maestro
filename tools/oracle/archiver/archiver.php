@@ -4,7 +4,7 @@
 // ZipArchiver and ArchiveManager (root packages), and
 // ArchiveManager::getPackageFilenameParts over generated packages.
 //
-// Run (in the devenv shell): php tools/oracle/archiver/archiver.php
+// Run (in the dev shell): php tools/oracle/archiver/archiver.php
 //
 // Each tree is created under a work directory, <W>, as <W>/pkg (the
 // sources) beside <W>/outside and <W>/pkg2 (symbolic link targets);

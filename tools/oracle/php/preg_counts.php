@@ -10,7 +10,7 @@
  * match does not fail with PREG_BACKTRACK_LIMIT_ERROR, that is the
  * highest count of any start position, or -1 above 4000000.
  *
- * Usage (from the repo root, inside the devenv shell):
+ * Usage (from the repo root, inside the dev shell):
  *   php tools/oracle/php/preg_counts.php
  */
 

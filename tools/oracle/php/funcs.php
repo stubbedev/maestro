@@ -5,7 +5,7 @@
  * stripcslashes, escapeshellarg, basename, sprintf, string == and +:
  * writes internal/php/testdata/oracle/funcs.json.
  *
- * Usage (from the repo root, inside the devenv shell):
+ * Usage (from the repo root, inside the dev shell):
  *   php tools/oracle/php/funcs.php
  *
  * Strings that are not valid UTF-8 are written as {"base64": "..."}; other

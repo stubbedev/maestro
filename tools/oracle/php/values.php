@@ -6,7 +6,7 @@
  * writes the results to internal/php/testdata/oracle/*.json, which the Go
  * tests compare against.
  *
- * Usage (from the repo root, inside the devenv shell):
+ * Usage (from the repo root, inside the dev shell):
  *   php tools/oracle/php/values.php
  *
  * PHP values travel as serialize() strings; strings that are not valid

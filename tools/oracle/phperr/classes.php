@@ -8,7 +8,7 @@
  * parent|null, interfaces: [...]}}, null for a root; a class PHP does not
  * know is left out).
  *
- * Usage (from the repo root, inside the devenv shell):
+ * Usage (from the repo root, inside the dev shell):
  *   php tools/oracle/phperr/classes.php
  */
 

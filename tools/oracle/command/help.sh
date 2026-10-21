@@ -10,7 +10,7 @@
 #                         by default every command `composer list --raw`
 #                         lists
 #
-# Run from the repository root inside the devenv shell:
+# Run from the repository root inside the dev shell:
 #
 #   tools/oracle/command/help.sh [command...]
 #

@@ -6,7 +6,7 @@
  * beyond the patterns Composer itself uses, each with tricky subjects. It
  * has the corpus.json format and is turned into goldens by preg_golden.php.
  *
- * Usage (from the repo root, inside the devenv shell):
+ * Usage (from the repo root, inside the dev shell):
  *   php tools/oracle/php/preg_engine.php
  */
 

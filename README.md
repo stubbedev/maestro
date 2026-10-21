@@ -215,10 +215,11 @@ It adds the following:
 
 ## Development
 
-The dev environment is [devenv](https://devenv.sh): `devenv shell` provides
-Go, golangci-lint, php, unzip and the rest. `ref-sync` checks out the
-Composer sources maestro follows into `.ref/`. Tests, vet and lint run in a
-Docker dev container (`compose.yaml`), driven by the justfile:
+The dev environment is the flake's dev shell: `nix develop` (or direnv with
+nix-direnv, through `.envrc`) provides Go, golangci-lint, php, unzip and the
+rest. `ref-sync` checks out the Composer sources maestro follows into
+`.ref/`. Tests, vet and lint run in a Docker dev container (`compose.yaml`),
+driven by the justfile:
 
 ```sh
 just check       # every gate CI runs: vet, lint, deadcode, tidy-check, test, build

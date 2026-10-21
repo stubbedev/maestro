@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # Regenerates internal/platform/testdata/oracle/*.json with several php
-# builds (see runtime.php). The builds come from the devenv shell's
-# nixpkgs pin; run from the repository root, in the devenv shell.
+# builds (see runtime.php). The builds come from the nixpkgs flake.lock
+# pins, the dev shell's; run from the repository root, in the dev shell.
 set -euo pipefail
 
-nixpkgs="https://github.com/cachix/devenv-nixpkgs/archive/c2f38fe7f9e04d9aadd354d380f2bd40531d9737.tar.gz"
 build() { # attribute expression
-  nix-build --no-out-link -E "let pkgs = import (builtins.fetchTarball \"$nixpkgs\") {}; in $1"
+  nix-build --no-out-link -E "let pkgs = import (builtins.fetchTree (builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.nixpkgs.locked) {}; in $1"
 }
 
 php82=$(build 'pkgs.php82')/bin/php

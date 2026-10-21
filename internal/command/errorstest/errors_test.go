@@ -32,7 +32,7 @@
 // per-process state (the CA bundle and version guesses, the platform probe)
 // must start fresh as it does for every invocation. The child gets only
 // PATH and the scenario's variables, like the oracle's `env -i`. Composer's
-// startup probes php, so the test needs php on the PATH (the devenv shell
+// startup probes php, so the test needs php on the PATH (the dev shell
 // has it) and is skipped without it and in -short mode.
 package errorstest
 

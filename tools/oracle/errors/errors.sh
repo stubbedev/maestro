@@ -5,15 +5,15 @@
 # contract freezes: the exit code and stdout, exactly. How errors are
 # rendered is free (#13); the error messages Composer reports are checked
 # by TestErrors (internal/command/errorstest), which reads them from the
-# goldens this script records. Run from the repository root inside the
-# devenv shell:
+# goldens this script records. Run from the repository root inside the dev
+# shell:
 #
 #   tools/oracle/errors/errors.sh [-k] [-w] [scenario...]
 #
 # MAESTRO names the maestro binary (default: built from ./cmd/maestro into
 # a temporary directory). ORACLE_COMPOSER is bin/composer of a checkout of
-# Composer's sources (default: .ref/composer/bin/composer, which devenv's
-# ref-sync checks out); the script fails unless it is the release maestro
+# Composer's sources (default: .ref/composer/bin/composer, which the dev
+# shell's ref-sync checks out); the script fails unless it is the release maestro
 # ports (tools/upstream/composer-version.sh). A phar is refused: it adds
 # lines of its own to diagnose's output.
 # -k keeps the work directory and prints its path. -w also writes

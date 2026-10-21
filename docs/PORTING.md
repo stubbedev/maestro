@@ -190,7 +190,7 @@ is `internal/ui`'s, styled and laid out with lipgloss, under these rules:
 ## Reference sources
 
 `.ref/` (gitignored) holds the exact Composer sources maestro follows, with
-their tests; `ref-sync` (in the devenv shell, also `just ref`) recreates it
+their tests; `ref-sync` (in the dev shell, also `just ref`) recreates it
 at the pinned release:
 
 | Path | What |
@@ -652,8 +652,8 @@ arguments go to `go test`, e.g. `just test ./internal/config -run X`),
 `just vet`, `just lint`, `just deadcode`, `just tidy-check`, `just build`,
 `just check` (vet, lint, deadcode, tidy-check, test, build),
 `just test-race`, `just e2e` and `just shell`. Oracles that run Composer's
-PHP from `.ref/` and other tools run in the devenv shell
-(`devenv shell -- bash -c '...'` from the repo root). CI
+PHP from `.ref/` and other tools run in the flake's dev shell
+(`nix develop -c bash -c '...'` from the repo root). CI
 (`.github/workflows/ci.yml`) runs the tests on Linux and macOS, and on
 Windows in shards.
 

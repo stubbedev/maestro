@@ -6,7 +6,7 @@
  *   internal/php/testdata/preg/corpus.json -> golden.json.gz  (Composer's patterns, see preg_collect.php)
  *   internal/php/testdata/preg/engine.json -> engine_golden.json  (engine features, see preg_engine.php)
  *
- * Usage (from the repo root, inside the devenv shell):
+ * Usage (from the repo root, inside the dev shell):
  *   php tools/oracle/php/preg_golden.php
  *
  * Strings that are not valid UTF-8 are written as {"base64": "..."}. Errors

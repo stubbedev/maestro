@@ -1,12 +1,12 @@
 {
   lib,
-  buildGo127Module,
+  buildGoModule,
   # Set by the flake from `self.shortRev or self.dirtyShortRev`, or null for
   # a release build, which reports the bare version like the release binaries.
   rev ? "unknown",
   version ? "0-unstable",
 }:
-buildGo127Module {
+buildGoModule {
   pname = "maestro";
   inherit version;
 
