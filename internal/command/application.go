@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"os/exec"
@@ -209,6 +210,17 @@ func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
 	if in.HasParameterOption([]string{"--no-cache"}, false) {
 		cio.WriteError("Disabling cache usage", true, io.Debug)
 		util.PutEnv("COMPOSER_CACHE_DIR", util.GetDevNull())
+
+		runCache, err := os.MkdirTemp("", "maestro-no-cache-")
+		if err != nil {
+			return 0, fmt.Errorf("creating the run's own cache directory for --no-cache: %w", err)
+		}
+		defer func() {
+			if err := os.RemoveAll(runCache); err != nil {
+				cio.WriteError("<warning>Could not remove the --no-cache run's cache directory: "+err.Error()+"</warning>", true, io.Normal)
+			}
+		}()
+		util.PutEnv("MAESTRO_CACHE_DIR", runCache)
 	}
 
 	// switch working dir

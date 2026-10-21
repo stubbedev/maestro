@@ -346,6 +346,10 @@ else `$XDG_CACHE_HOME/maestro`, else the platform cache directory;
 `internal/cache.Dir`). `internal/cache` (`own.go`) names every one of them,
 and a test fails when this table and it disagree.
 
+Under `--no-cache` they live in a directory created for the run and
+removed when it ends, so an install needs no writable home and leaves no
+cache behind, as Composer's does.
+
 Every entry is used only when it provably matches what it was made from:
 the same bytes (decoded JSON), the same content hash (parse results), or
 the same identity of every file it depends on (device, inode, mode, size,
