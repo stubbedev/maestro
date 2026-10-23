@@ -25,6 +25,11 @@ type nameEntry[V any] struct {
 	live  bool
 }
 
+// NewNameMap returns an empty NameMap with room for capacity keys.
+func NewNameMap[V any](capacity int) *NameMap[V] {
+	return &NameMap[V]{entries: make([]nameEntry[V], 0, capacity), index: make(map[string]int, capacity)}
+}
+
 // ConstraintMap is array<string, ?ConstraintInterface>: package names to
 // constraints, a nil constraint standing for PHP's null.
 type ConstraintMap = NameMap[semver.ConstraintInterface]

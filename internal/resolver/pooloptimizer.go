@@ -3,6 +3,7 @@
 package resolver
 
 import (
+	"encoding/binary"
 	"slices"
 	"strings"
 
@@ -227,43 +228,67 @@ func (o *PoolOptimizer) optimizeByIdenticalDependencies(pool *Pool) error {
 		}
 	}
 
+	// The groups of different names often hold the same packages, in the
+	// same order (a package and the names it replaces or provides); their
+	// versions and preferred packages are the same, computed once.
 	var groups []identicalGroup
+	var selections []*groupSelection
+	byPackages := map[string]*groupSelection{}
+	var key []byte
 	for _, name := range nameOrder {
 		constraintGroups := perName[name]
 		for i := range constraintGroups.vals {
 			for _, packageIDs := range constraintGroups.vals[i].vals {
-				groups = append(groups, identicalGroup{packageName: names[name], packageIDs: packageIDs})
+				key = key[:0]
+				for _, id := range packageIDs {
+					key = binary.LittleEndian.AppendUint32(key, uint32(id)) //nolint:gosec // a literal's bits
+				}
+				selection, ok := byPackages[string(key)]
+				if !ok {
+					selection = &groupSelection{packageIDs: packageIDs}
+					byPackages[string(key)] = selection
+					selections = append(selections, selection)
+				}
+				groups = append(groups, identicalGroup{packageName: names[name], selection: selection})
 			}
 		}
 	}
-	o.selectGroups(pool, groups)
+	o.selectGroups(pool, selections)
 
 	for _, group := range groups {
+		selection := group.selection
 		// Only one package in this constraint group has the same requirements, we're not allowed to remove that package
-		if len(group.packageIDs) == 1 {
-			o.keepPackageInGroup(pool.PackageByID(int(group.packageIDs[0])), group.packageName, group.versions)
+		if len(selection.packageIDs) == 1 {
+			o.keepPackageInGroup(pool.PackageByID(int(selection.packageIDs[0])), group.packageName, selection.versions)
 
 			continue
 		}
 
 		// Otherwise we find out which one is the preferred package in this constraint group which is
 		// then not allowed to be removed either
-		for _, preferredLiteral := range group.preferred {
-			o.keepPackageInGroup(pool.LiteralToPackage(preferredLiteral), group.packageName, group.versions)
+		for _, preferredLiteral := range selection.preferred {
+			o.keepPackageInGroup(pool.LiteralToPackage(preferredLiteral), group.packageName, selection.versions)
 		}
 	}
 
 	return nil
 }
 
-// identicalGroup is a group of packages with identical dependencies:
-// their ids, the versions groupVersions gives for them and, for a group of
-// several packages, the ones the policy prefers.
+// identicalGroup is a group of packages with identical dependencies, for
+// one of their names, and what is selected of its packages.
 type identicalGroup struct {
 	packageName string
-	packageIDs  []int32
-	versions    *VersionMap
-	preferred   []int32
+	selection   *groupSelection
+}
+
+// groupSelection is what is selected of the packages of the identical
+// groups holding them in this order: the versions groupVersions gives for
+// them and, of several packages, the ones the policy prefers. Groups
+// share it; nothing modifies it once selectGroups set it.
+type groupSelection struct {
+	packageIDs []int32
+	versions   *VersionMap
+	preferred  []int32
 }
 
 // forkablePolicy is a Policy that can be used on several goroutines
@@ -272,28 +297,28 @@ type forkablePolicy interface {
 	Fork() Policy
 }
 
-// selectGroups sets the versions and preferred packages of the groups. They
-// only read the pool, so they are computed in parallel when the policy
-// can be forked (each fork computes what the policy would).
-func (o *PoolOptimizer) selectGroups(pool *Pool, groups []identicalGroup) {
+// selectGroups sets the versions and preferred packages of the
+// selections. They only read the pool, so they are computed in parallel
+// when the policy can be forked (each fork computes what the policy
+// would).
+func (o *PoolOptimizer) selectGroups(pool *Pool, selections []*groupSelection) {
 	compute := func(policy Policy, from, to int) {
-		for i := from; i < to; i++ {
-			group := &groups[i]
-			group.versions = groupVersions(pool, group.packageIDs)
-			if len(group.packageIDs) > 1 {
-				group.preferred = policy.SelectPreferredPackages(pool, group.packageIDs, "")
+		for _, selection := range selections[from:to] {
+			selection.versions = groupVersions(pool, selection.packageIDs)
+			if len(selection.packageIDs) > 1 {
+				selection.preferred = policy.SelectPreferredPackages(pool, selection.packageIDs, "")
 			}
 		}
 	}
 
 	forkable, ok := o.policy.(forkablePolicy)
 	if !ok {
-		compute(o.policy, 0, len(groups))
+		compute(o.policy, 0, len(selections))
 
 		return
 	}
 	first := true
-	parallelRanges(len(groups), func() func(from, to int) {
+	parallelRanges(len(selections), func() func(from, to int) {
 		// the first worker (the only one on a small pool) uses the policy
 		policy := o.policy
 		if !first {
@@ -609,7 +634,7 @@ func (o *PoolOptimizer) markPackageForRemoval(id int) error {
 // pretty version of the group's packages, default branch aliases replaced
 // by the branch.
 func groupVersions(pool *Pool, packageIDs []int32) *VersionMap {
-	versions := &VersionMap{}
+	versions := repository.NewNameMap[string](len(packageIDs))
 	for _, packageID := range packageIDs {
 		groupPackage := pool.PackageByID(int(packageID))
 		if alias, ok := groupPackage.(pkg.Alias); ok && groupPackage.PrettyVersion() == pkg.DefaultBranchAlias {
