@@ -17,6 +17,7 @@ import (
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/util"
@@ -372,20 +373,41 @@ func TestRuntime_UnsendableKeepsSync(t *testing.T) {
 	}
 }
 
+// A fatal error in a call ends it with the exit code php gives a fatal
+// error, and what php reported on stderr.
 func TestRuntime_FatalError(t *testing.T) {
 	requirePHP(t)
 
 	rt, _, stderr := newTestRuntime(t)
 	start(t, rt)
 
+	want := fatalExitCode(t)
 	_, err := rt.Call("test.fatal", nil)
 	var exit *PHPExit
-	if !errors.As(err, &exit) || exit.Code != 255 {
-		t.Fatalf("Call = %v, want PHPExit 255", err)
+	if !errors.As(err, &exit) || exit.Code != want {
+		t.Fatalf("Call = %v, want PHPExit %d", err, want)
 	}
 	if out := readFile(t, stderr); !strings.Contains(out, "Fatal error") || !strings.Contains(out, "Allowed memory size") {
 		t.Errorf("stderr = %q", out)
 	}
+}
+
+// fatalExitCode is the exit code of the php the runtime starts for a
+// script that runs out of memory, as test.fatal does: 255 for PHP's own
+// builds, 1 for some distributions' (setup-php's PHP 7.2).
+func fatalExitCode(t *testing.T) int {
+	t.Helper()
+	binary, ok := platform.FindPHP()
+	if !ok {
+		t.Fatal("no php in PATH")
+	}
+	err := exec.Command(binary, "-r", "ini_set('memory_limit', '16M'); str_repeat('x', 64 * 1024 * 1024);").Run()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() == 0 {
+		t.Fatalf("a php out of memory ended with %v", err)
+	}
+
+	return exit.ExitCode()
 }
 
 func TestRuntime_Shutdown(t *testing.T) {
