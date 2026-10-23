@@ -293,6 +293,7 @@ func (r *ComposerRepository) Filter(packageConstraintMap *repository.ConstraintM
 	// metadata path entirely. As with summary-url below, fall through to the cached metadata
 	// path if package metadata was already pulled in this run.
 	if r.filterConfig != nil && r.filterConfig.APIURL != "" && len(r.freshMetadataUrls) == 0 {
+		r.uncached = true
 		response, err := r.filterAPI().PostPurls(r.filterConfig.APIURL, packageConstraintMap, configuredLists)
 		if err != nil {
 			return nil, err

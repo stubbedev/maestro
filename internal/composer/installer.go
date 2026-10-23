@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/advisory"
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/filter"
@@ -105,6 +106,10 @@ type Installer struct {
 
 	// executedOperations is set once the install ran package operations.
 	executedOperations bool
+
+	// resolutions is the directory updates keep their resolutions in
+	// (keepResolution), "" for none.
+	resolutions string
 }
 
 // InstallerDeps are the collaborators of new Installer(...).
@@ -126,6 +131,9 @@ type InstallerDeps struct {
 	// SuggestedPackagesReporter is the initial reporter (new
 	// SuggestedPackagesReporter($io)).
 	SuggestedPackagesReporter *installer.SuggestedPackagesReporter
+	// Resolutions is the directory updates keep their resolutions in
+	// (keepResolution), "" for none.
+	Resolutions string
 }
 
 // NewInstaller ports new Installer($io, $config, $package, $downloadManager,
@@ -164,6 +172,7 @@ func NewInstaller(d InstallerDeps) (*Installer, error) {
 		platformRequirementFilter: filter.IgnoreNothingFilter(),
 		writeLock:                 php.ToBool(writeLock),
 		temporaryConstraints:      &repository.ConstraintMap{},
+		resolutions:               d.Resolutions,
 	}, nil
 }
 
@@ -185,6 +194,10 @@ func CreateInstaller(out io.IO, c *Composer) (*Installer, error) {
 	}
 	if g := c.AutoloadGenerator(); g != nil {
 		deps.AutoloadGenerator = GeneratorAdapter{g}
+	}
+	// a plugin may change what an update resolves
+	if plugins, ok := c.PluginManager().(interface{ RegisteredPlugins() []string }); !ok || len(plugins.RegisteredPlugins()) == 0 {
+		deps.Resolutions = cache.Resolutions()
 	}
 
 	return NewInstaller(deps)
@@ -642,6 +655,29 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 
 	i.io.WriteError("<info>Loading composer repositories with package information</info>", true, io.Normal)
 
+	// an update of the same inputs whose metadata did not change resolves
+	// as the kept one did (deliberate deviation 3)
+	kept := i.keepResolution(platformRepo)
+	var (
+		recorder  *io.Recorder
+		verifying bool
+	)
+	if kept != nil {
+		recorder = kept.cio.Record()
+		defer recorder.Stop()
+		hit := kept.revalidate(recorder)
+		if hit && !verifyResolution() {
+			recorder.Stop()
+			kept.cio.Replay(kept.entry.output)
+			if doInstall {
+				return i.doInstall(localRepo, true)
+			}
+
+			return 0, nil
+		}
+		verifying = hit
+	}
+
 	// creating repository set
 	policy, err := i.createPolicy(true, lockedRepository)
 	if err != nil {
@@ -824,8 +860,28 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 		}
 	}
 
-	if err := i.setLockData(platformReqs, platformDevReqs, aliases); err != nil {
+	lockData, err := i.lockDataInput(platformReqs, platformDevReqs, aliases)
+	if err != nil {
 		return 0, err
+	}
+	unchanged := false
+	if kept != nil && len(i.lockTransaction.Operations()) == 0 {
+		if unchanged, err = i.locker.FileHolds(lockData); err != nil {
+			return 0, err
+		}
+	}
+	if err := i.setLockData(lockData); err != nil {
+		return 0, err
+	}
+
+	if kept != nil {
+		output, recorded := recorder.Stop()
+		switch {
+		case verifying && (!unchanged || !output.Equal(kept.entry.output)):
+			return 0, errResolutionDiffers()
+		case recorded && unchanged && !verifying:
+			kept.store(output)
+		}
 	}
 
 	if doInstall {
@@ -838,21 +894,22 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 	return 0, nil
 }
 
-func (i *Installer) setLockData(platformReqs, platformDevReqs, aliases *php.Array) error {
+// lockDataInput is the lock data of the update's lock transaction.
+func (i *Installer) lockDataInput(platformReqs, platformDevReqs, aliases *php.Array) (locker.LockDataInput, error) {
 	packages, err := i.lockTransaction.NewLockPackages(false, i.updateMirrors)
 	if err != nil {
-		return err
+		return locker.LockDataInput{}, err
 	}
 	devPackages, err := i.lockTransaction.NewLockPackages(true, i.updateMirrors)
 	if err != nil {
-		return err
+		return locker.LockDataInput{}, err
 	}
 	platformOverrides, err := i.configArray("platform")
 	if err != nil {
-		return err
+		return locker.LockDataInput{}, err
 	}
-	write := i.writeLock && i.executeOperations
-	updatedLock, err := i.locker.SetLockData(locker.LockDataInput{
+
+	return locker.LockDataInput{
 		Packages:          packages,
 		DevPackages:       php.Some(devPackages), // an array, empty when there are none: never null
 		PlatformReqs:      platformReqs,
@@ -863,7 +920,14 @@ func (i *Installer) setLockData(platformReqs, platformDevReqs, aliases *php.Arra
 		PreferStable:      i.preferStable || i.pkg.PreferStable(),
 		PreferLowest:      i.preferLowest,
 		PlatformOverrides: platformOverrides,
-	}, write)
+	}, nil
+}
+
+// setLockData sets in as the lock data, writing the lock file when the
+// update writes it.
+func (i *Installer) setLockData(in locker.LockDataInput) error {
+	write := i.writeLock && i.executeOperations
+	updatedLock, err := i.locker.SetLockData(in, write)
 	if err != nil {
 		return err
 	}

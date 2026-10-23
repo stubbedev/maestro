@@ -233,6 +233,15 @@ Metadata and resolution:
   in one round trip instead of two. A Composer instance created after
   another (require's and create-project's second one) sends over the
   connections the first opened.
+- **Kept resolutions.** An `update` whose result is the lock file it
+  started from is remembered with what it read; a later update of the
+  same inputs revalidates the same metadata files (the conditional
+  requests it would send anyway, all at once) and, when none changed,
+  writes the same output without building a pool or solving. A warm
+  symfony `update --dry-run` then takes ~200 ms instead of ~500 ms and
+  ~110 ms of CPU instead of ~1.1 s; laravel's ~180 ms instead of
+  ~290 ms. It does not apply with plugins registered or at `-v` and
+  above.
 - **Decoded caches.** p2 metadata files and installed.json are kept
   decoded in a binary form, read back only for byte-identical JSON, which
   a metadata file's unchanged identity tells without a copy of the JSON

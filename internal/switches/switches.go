@@ -38,6 +38,10 @@ const (
 	// UpdateLogo ("1") has internal/ui's TestLogoSVG redraw
 	// docs/assets/maestro-logo.svg from the console's wordmark.
 	UpdateLogo = "MAESTRO_UPDATE_LOGO"
+	// VerifyResolutionCache ("1") has an update that finds its
+	// resolution kept resolve anyway, and fail unless the resolution and
+	// its output are the kept ones (run the end-to-end suite with it).
+	VerifyResolutionCache = "MAESTRO_VERIFY_RESOLUTION_CACHE"
 )
 
 // End-to-end knobs, read with E2E on.

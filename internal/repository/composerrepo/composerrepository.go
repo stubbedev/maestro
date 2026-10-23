@@ -131,6 +131,12 @@ type ComposerRepository struct {
 	// packagesNotFoundCache are the URLs which returned a 404 and must
 	// not be fetched again.
 	packagesNotFoundCache map[string]struct{}
+	// fetched are the files asyncFetchFile was asked for, by URL
+	// (Resolved)
+	fetched map[string]fetchedFile
+	// uncached: a request was answered with data no cache file keeps
+	// (Resolved)
+	uncached bool
 
 	// decoded are the metadata files already decoded (memo.go).
 	decoded decodedFiles
@@ -238,6 +244,7 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 		eventDispatcher:       eventDispatcher,
 		freshMetadataUrls:     map[string]struct{}{},
 		packagesNotFoundCache: map[string]struct{}{},
+		fetched:               map[string]fetchedFile{},
 	}
 	if v, _ := repoConfig.Get("allow_ssl_downgrade"); v == true {
 		r.allowSslDowngrade = true
@@ -744,6 +751,7 @@ func (r *ComposerRepository) getOptions() (*php.Array, error) {
 // getJSON is $this->httpDownloader->get($url, $options)->decodeJson()
 // followed by HttpDownloader::outputWarnings.
 func (r *ComposerRepository) getJSON(url string, options *php.Array) (*php.Array, error) {
+	r.uncached = true
 	response, err := r.httpDownloader.Get(url, options)
 	if err != nil {
 		return nil, err

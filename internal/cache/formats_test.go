@@ -110,6 +110,17 @@ var ownFormats = []ownFormat{
 		},
 	},
 	{
+		format: "internal/composer.resolutionFormat",
+		caches: []string{resolutionsPath},
+		roots: []string{
+			"internal/composer.Installer.doUpdate", "internal/composer.keptResolution",
+			"internal/composer.appendResolutionEntry", "internal/composer.decodeResolutionEntry",
+			"internal/io.Recording", "internal/io.ReadRecording",
+			"internal/repository/composerrepo.ComposerRepository.Resolved",
+			"internal/repository/composerrepo.ComposerRepository.Revalidate",
+		},
+	},
+	{
 		format: "internal/archive.rulesFormat",
 		caches: []string{storePath},
 		roots:  []string{"internal/archive.Open", "internal/archive.Archive", "internal/archive.Rules"},

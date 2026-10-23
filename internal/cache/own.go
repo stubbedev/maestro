@@ -20,6 +20,7 @@ const (
 	platformProbesPath  = "platform"
 	gitVersionPath      = "git-version"
 	rootVersionsPath    = "root-version"
+	resolutionsPath     = "resolution"
 	schemaMemoPath      = "schema/validated"
 	caBundlesPath       = "cacert"
 )
@@ -43,6 +44,7 @@ var owned = []Own{
 	{platformProbesPath, "cache-dir"},
 	{gitVersionPath, "cache-dir"},
 	{rootVersionsPath, "cache-dir"},
+	{resolutionsPath, "cache-repo-dir"},
 	{schemaMemoPath, "cache-dir"},
 	{caBundlesPath, "cache-dir"},
 }
@@ -86,6 +88,11 @@ func GitVersion() string { return path(gitVersionPath) }
 // RootVersions is the directory of the root package versions guessed from
 // git, one entry per checkout (version.UseGuessCache, Linux).
 func RootVersions() string { return path(rootVersionsPath) }
+
+// Resolutions is the directory of the updates whose resolution changed
+// nothing in the lock file, by what they read (internal/composer's
+// resolution cache).
+func Resolutions() string { return path(resolutionsPath) }
 
 // SchemaMemo is the file of the documents that validated against
 // Composer's schemas (json.UseSchemaMemo).

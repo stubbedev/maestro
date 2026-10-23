@@ -127,6 +127,15 @@ func (c *Cache) OriginOf(file, contents string) Origin {
 	return originOf(c.root+c.key(file), contents)
 }
 
+// Path is where file is kept, and false when the cache is disabled.
+func (c *Cache) Path(file string) (string, bool) {
+	if !c.IsEnabled() {
+		return "", false
+	}
+
+	return c.root + c.key(file), true
+}
+
 // key sanitises a cache file name with the allowlist. The pattern is a
 // single character class, so Preg::replace cannot throw.
 func (c *Cache) key(file string) string {

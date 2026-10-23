@@ -38,6 +38,9 @@ type ConsoleIO struct {
 	timestamp func(time.Time) string // nil when timestamps are off
 	debugging bool
 	startTime time.Time
+
+	// recorder records what is written (Record), nil when nothing does
+	recorder *Recorder
 }
 
 // PHPClass implements php.Classer.
@@ -144,6 +147,7 @@ func (c *ConsoleIO) doWrite(messages []string, newline, stderr bool, verbosity V
 	if sfVerbosity > c.output.Verbosity() {
 		return
 	}
+	c.record(recordedStep{kind: stepWrite, messages: messages, newline: newline, stderr: stderr, raw: raw, verbosity: verbosity})
 
 	options := sfVerbosity
 	if raw {
@@ -264,6 +268,7 @@ func (c *ConsoleIO) doOverwrite(messages string, newline bool, size int, stderr 
 }
 
 func (c *ConsoleIO) setLastMessage(stderr bool, message string) {
+	c.record(recordedStep{kind: stepLastMessage, messages: []string{message}, stderr: stderr})
 	if stderr {
 		c.lastMessageErr = message
 	} else {
@@ -294,6 +299,7 @@ func sanitizeDefault(def any) any {
 }
 
 func (c *ConsoleIO) ask(q console.Questioner) (any, error) {
+	c.spoil()
 	helper, err := c.questionHelper()
 	if err != nil {
 		return nil, err
@@ -391,6 +397,7 @@ func (c *ConsoleIO) Select(question string, choices *php.Array, def any, attempt
 // On a decorated terminal it is drawn in maestro's style (ui.ProgressBar);
 // elsewhere it is Composer's.
 func (c *ConsoleIO) ProgressBar(maxSteps int) *console.ProgressBar {
+	c.spoil()
 	out := c.errorOutput()
 	bar := console.NewProgressBar(out, maxSteps, console.DefaultMinSecondsBetweenRedraws)
 	if console.IsStyledTerminal(out) {

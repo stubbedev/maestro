@@ -472,7 +472,7 @@ func runScenario(t *testing.T, sc scenario, dir, tool string, cmd []string, phas
 
 // e2eEnv is the environment both tools run with: the caller's, without
 // anything that configures Composer or maestro, plus per-run homes and
-// caches.
+// caches and the caller's MAESTRO_VERIFY_RESOLUTION_CACHE.
 func e2eEnv(root string) []string {
 	var env []string
 
@@ -503,6 +503,7 @@ func e2eEnv(root string) []string {
 		"COMPOSER_TEST_SUITE=1",
 		"COLUMNS=120",
 		"GIT_CONFIG_NOSYSTEM=1",
+		switches.VerifyResolutionCache+"="+os.Getenv(switches.VerifyResolutionCache),
 	)
 }
 

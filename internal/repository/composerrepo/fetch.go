@@ -355,6 +355,9 @@ func (r *ComposerRepository) asyncFetchFile(filename, cacheKey, lastModifiedTime
 		return nil, &util.InvalidArgumentError{Message: "$filename should not be an empty string"}
 	}
 
+	if _, ok := r.fetched[filename]; !ok {
+		r.fetched[filename] = fetchedFile{cacheKey: cacheKey, lastModified: lastModifiedTime}
+	}
 	f := &asyncFetch{filename: filename, cacheKey: cacheKey, lastModified: lastModifiedTime}
 	if _, ok := r.packagesNotFoundCache[filename]; ok {
 		res := notFoundResult()

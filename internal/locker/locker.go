@@ -541,57 +541,10 @@ func orEmpty(a *php.Array) *php.Array {
 // it already holds this data; without write (tests, --dry-run) the data is
 // only kept in memory. It reports whether the lock data changed.
 func (l *Locker) SetLockData(in LockDataInput, write bool) (bool, error) {
-	// keep old default branch names normalized to DEFAULT_BRANCH_ALIAS for BC as that is how Composer 1 outputs the lock file
-	// when loading the lock file the version is anyway ignored in Composer 2, so it has no adverse effect
-	aliases := php.NewArray()
-	for _, v := range orEmpty(in.Aliases).All() {
-		if alias, ok := v.(*php.Array); ok {
-			if version, _ := alias.GetString("version"); version == "dev-master" || version == "dev-trunk" || version == "dev-default" {
-				alias = alias.Clone()
-				alias.Set("version", pkg.DefaultBranchAlias)
-			}
-			v = alias
-		}
-		aliases.Append(v)
-	}
-
-	packages, err := l.lockPackages(in.Packages)
+	lock, err := l.newLockData(in)
 	if err != nil {
 		return false, err
 	}
-
-	lock := php.ArrayOf(
-		"_readme", php.ListOf(
-			"This file locks the dependencies of your project to a known state",
-			"Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
-			"This file is @gener"+"ated automatically",
-		),
-		"content-hash", l.contentHash,
-		"packages", packages,
-		"packages-dev", nil,
-		"aliases", aliases,
-		"minimum-stability", in.MinimumStability,
-		"stability-flags", orEmpty(in.StabilityFlags).Clone(),
-		"prefer-stable", in.PreferStable,
-		"prefer-lowest", in.PreferLowest,
-	)
-
-	if dev, ok := in.DevPackages.Get(); ok {
-		devPackages, err := l.lockPackages(dev)
-		if err != nil {
-			return false, err
-		}
-		lock.Set("packages-dev", devPackages)
-	}
-
-	lock.Set("platform", orEmpty(in.PlatformReqs))
-	lock.Set("platform-dev", orEmpty(in.PlatformDevReqs))
-	if overrides := orEmpty(in.PlatformOverrides); overrides.Len() > 0 {
-		lock.Set("platform-overrides", overrides)
-	}
-	lock.Set("plugin-api-version", repository.PluginAPIVersion)
-
-	lock = fixupJSONDataType(lock)
 
 	isLocked, err := l.IsLocked()
 	if err != nil {
@@ -630,6 +583,86 @@ func (l *Locker) SetLockData(in LockDataInput, write bool) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// FileHolds reports whether the lock file holds, byte for byte, what
+// SetLockData(in, true) would write to it.
+func (l *Locker) FileHolds(in LockDataInput) (bool, error) {
+	f, ok := l.lockFile.(interface {
+		Encoded(hash any, options php.JSONFlag) (string, error)
+	})
+	if !ok {
+		return false, nil
+	}
+	lock, err := l.newLockData(in)
+	if err != nil {
+		return false, err
+	}
+	encoded, err := f.Encoded(lock, json.DefaultEncodeFlags)
+	if err != nil {
+		return false, err
+	}
+	contents, err := os.ReadFile(l.lockFile.Path())
+	if err != nil {
+		return false, nil
+	}
+
+	return string(contents) == encoded, nil
+}
+
+// newLockData is the lock data setLockData builds from in.
+func (l *Locker) newLockData(in LockDataInput) (*php.Array, error) {
+	// keep old default branch names normalized to DEFAULT_BRANCH_ALIAS for BC as that is how Composer 1 outputs the lock file
+	// when loading the lock file the version is anyway ignored in Composer 2, so it has no adverse effect
+	aliases := php.NewArray()
+	for _, v := range orEmpty(in.Aliases).All() {
+		if alias, ok := v.(*php.Array); ok {
+			if version, _ := alias.GetString("version"); version == "dev-master" || version == "dev-trunk" || version == "dev-default" {
+				alias = alias.Clone()
+				alias.Set("version", pkg.DefaultBranchAlias)
+			}
+			v = alias
+		}
+		aliases.Append(v)
+	}
+
+	packages, err := l.lockPackages(in.Packages)
+	if err != nil {
+		return nil, err
+	}
+
+	lock := php.ArrayOf(
+		"_readme", php.ListOf(
+			"This file locks the dependencies of your project to a known state",
+			"Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+			"This file is @gener"+"ated automatically",
+		),
+		"content-hash", l.contentHash,
+		"packages", packages,
+		"packages-dev", nil,
+		"aliases", aliases,
+		"minimum-stability", in.MinimumStability,
+		"stability-flags", orEmpty(in.StabilityFlags).Clone(),
+		"prefer-stable", in.PreferStable,
+		"prefer-lowest", in.PreferLowest,
+	)
+
+	if dev, ok := in.DevPackages.Get(); ok {
+		devPackages, err := l.lockPackages(dev)
+		if err != nil {
+			return nil, err
+		}
+		lock.Set("packages-dev", devPackages)
+	}
+
+	lock.Set("platform", orEmpty(in.PlatformReqs))
+	lock.Set("platform-dev", orEmpty(in.PlatformDevReqs))
+	if overrides := orEmpty(in.PlatformOverrides); overrides.Len() > 0 {
+		lock.Set("platform-overrides", overrides)
+	}
+	lock.Set("plugin-api-version", repository.PluginAPIVersion)
+
+	return fixupJSONDataType(lock), nil
 }
 
 // UpdateHash ports Locker::updateHash: it records the content hash of the
