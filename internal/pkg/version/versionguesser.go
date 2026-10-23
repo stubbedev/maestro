@@ -153,15 +153,34 @@ func (g *VersionGuesser) GuessVersion(packageConfig *php.Array, path string) (*l
 }
 
 // guess is GuessVersion for the parts of the package configuration it
-// reads.
+// reads. A version git found is kept for later runs, which take it while
+// nothing it depends on changed (UseGuessCache), running no VCS command
+// but leaving the environment vcs.CleanEnv leaves.
 func (g *VersionGuesser) guess(packageConfig guessConfig, path string) (*loader.VersionData, error) {
+	key := packageConfig.key()
+	kept, keep := g.keptGuess(path)
+	if keep {
+		if data, ok := kept.load(key); ok {
+			if err := vcs.CleanEnv(g.vcsProcess()); err != nil {
+				return nil, err
+			}
+
+			return data, nil
+		}
+	}
+
 	data, err := g.guessGitVersion(packageConfig, path)
 	if err != nil {
 		return nil, err
 	}
 
 	if data.version.Valid {
-		return postprocess(data)
+		guessed, err := postprocess(data)
+		if err == nil && keep {
+			kept.store(key, guessed)
+		}
+
+		return guessed, err
 	}
 
 	for _, guess := range [...]func(guessConfig, string) (*versionData, error){
@@ -345,10 +364,17 @@ var gitBranchCommand = []string{"git", "branch", "-a", "--no-color", "--no-abbre
 // likely to come: a process is about to load the root package at path.
 // The command runs in the environment the guess runs it in once
 // vcs.CleanEnv prepared it; when that turns out otherwise, the guess runs
-// it again.
+// it again. Nothing is started when an earlier run kept a guess for the
+// repository as it is (UseGuessCache), which the guess is then likely to
+// take.
 func PrefetchGuess(path string) {
 	if util.IsInputCompletionProcess() {
 		return
+	}
+	if dir, ok := php.Realpath(path); ok {
+		if kept, keep := keptGuessFor(dir); keep && kept.holds() {
+			return
+		}
 	}
 
 	util.NewProcessExecutor(nil).PrefetchEnv(util.Cmd(gitBranchCommand...), path, vcs.CleanEnvValues())
@@ -754,6 +780,22 @@ func (g *VersionGuesser) RootVersionFromEnv() (string, error) {
 	return version, nil
 }
 
+// keptGuess returns the entry of the checkout at path, and whether the
+// guesses there are kept: only those of a *util.ProcessExecutor that does
+// not log the commands it runs (see UseGuessCache).
+func (g *VersionGuesser) keptGuess(path string) (keptGuess, bool) {
+	p, ok := g.process.(processExecutor)
+	if !ok || p.LogsCommands() {
+		return keptGuess{}, false
+	}
+	dir, ok := php.Realpath(path)
+	if !ok {
+		return keptGuess{}, false
+	}
+
+	return keptGuessFor(dir)
+}
+
 // vcsProcess adapts the guesser's process executor to the Composer\Util\Git
 // helpers of internal/util/vcs.
 func (g *VersionGuesser) vcsProcess() vcs.Process { return vcsProcess{g.process} }
@@ -836,8 +878,10 @@ func newGuessConfig(packageConfig *php.Array) guessConfig {
 // GuessKey is a key of what GuessVersion reads of packageConfig: for two
 // configurations of the same key, GuessVersion guesses alike (in the same
 // checkout, unchanged).
-func GuessKey(packageConfig *php.Array) string {
-	c := newGuessConfig(packageConfig)
+func GuessKey(packageConfig *php.Array) string { return newGuessConfig(packageConfig).key() }
+
+// key is GuessKey of a configuration c was made from.
+func (c guessConfig) key() string {
 	branchAlias := "" // none
 	if c.branchAlias != nil {
 		branchAlias = jsonEncode(c.branchAlias)

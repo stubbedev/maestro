@@ -918,6 +918,12 @@ func CleanEnvValues() map[string]string {
 	return map[string]string{envNoPrompt: envNoPromptValue, envLanguage: envLanguageValue}
 }
 
+// CleanEnvSets reports whether CleanEnv sets the variable name: what git
+// answers on a run after CleanEnv does not depend on its value before.
+func CleanEnvSets(name string) bool {
+	return name == envNoPrompt || name == envAskPass || name == envLanguage
+}
+
 // CleanEnv ports Git::cleanEnv: sets up the environment for running git
 // non-interactively. A nil process is a new ProcessExecutor.
 func CleanEnv(process Process) error {

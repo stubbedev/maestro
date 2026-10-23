@@ -133,7 +133,16 @@ func PrefetchRootVersion() {
 	if err != nil {
 		return
 	}
+	useGuessCaches()
 	version.PrefetchGuess(cwd)
+}
+
+// useGuessCaches keeps what the root package's version guess finds across
+// runs (deliberate deviation 3): git's version, which the guess asks, and
+// the version guessed from git.
+func useGuessCaches() {
+	vcsutil.UseVersionCache(cache.GitVersion())
+	version.UseGuessCache(cache.RootVersions())
 }
 
 // rootVersionGuesser is the VersionGuesser of the root packages a Factory
@@ -474,8 +483,7 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 	// decoded between runs (deliberate deviation 3)
 	composerrepo.UseDecodedCache(cache.DecodedMetadata())
 	json.UseDecodedFiles(cache.DecodedFiles())
-	// so is git's version, which the root package's version guess asks
-	vcsutil.UseVersionCache(cache.GitVersion())
+	useGuessCaches()
 	rm := repository.Manager(out, cfg, httpDownloader, dispatcher, process, repository.ExternalTypes{
 		Composer: composerrepo.Constructor,
 		VCS:      rvcs.NewRepository,

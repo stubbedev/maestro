@@ -102,6 +102,14 @@ var ownFormats = []ownFormat{
 		},
 	},
 	{
+		format: "internal/pkg/version.guessFormat",
+		caches: []string{rootVersionsPath},
+		roots: []string{
+			"internal/pkg/version.VersionGuesser.guess", "internal/pkg/version.keptGuessFor",
+			"internal/pkg/version.keptGuess", "internal/pkg/version.guessReader",
+		},
+	},
+	{
 		format: "internal/archive.rulesFormat",
 		caches: []string{storePath},
 		roots:  []string{"internal/archive.Open", "internal/archive.Archive", "internal/archive.Rules"},

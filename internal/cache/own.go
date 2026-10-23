@@ -19,6 +19,7 @@ const (
 	classMapRecordsPath = "classmap/records"
 	platformProbesPath  = "platform"
 	gitVersionPath      = "git-version"
+	rootVersionsPath    = "root-version"
 	schemaMemoPath      = "schema/validated"
 	caBundlesPath       = "cacert"
 )
@@ -41,6 +42,7 @@ var owned = []Own{
 	{classMapRecordsPath, "cache-dir"},
 	{platformProbesPath, "cache-dir"},
 	{gitVersionPath, "cache-dir"},
+	{rootVersionsPath, "cache-dir"},
 	{schemaMemoPath, "cache-dir"},
 	{caBundlesPath, "cache-dir"},
 }
@@ -80,6 +82,10 @@ func PlatformProbes() string { return path(platformProbesPath) }
 // GitVersion is the directory of git's version, by git binary
 // (vcs.UseVersionCache, Linux).
 func GitVersion() string { return path(gitVersionPath) }
+
+// RootVersions is the directory of the root package versions guessed from
+// git, one entry per checkout (version.UseGuessCache, Linux).
+func RootVersions() string { return path(rootVersionsPath) }
 
 // SchemaMemo is the file of the documents that validated against
 // Composer's schemas (json.UseSchemaMemo).

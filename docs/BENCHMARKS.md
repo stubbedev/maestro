@@ -261,10 +261,11 @@ Fixed per-run costs:
 
 - **The php platform probe is cached** across runs (Linux, Windows and macOS), keyed on
   what can change its result, and stored decoded (~0.8 ms to read).
-- **git's version is cached** across runs (Linux); root version guessing
-  starts VCS tools directly, not through `/bin/sh -c`, and starts the
-  fallbacks at once once `git branch` fails. A no-op install starts 4
-  processes.
+- **The root version guessed from git is cached** across runs (Linux),
+  keyed on the repository's HEAD, refs and configuration, as is git's
+  version; a guess that has to run starts VCS tools directly, not through
+  `/bin/sh -c`, and starts the fallbacks at once once `git branch` fails.
+  A no-op install of an unchanged checkout starts no git process.
 - **Package-level regexes compile on first use**: package init takes
   ~0.9 ms.
 - **The schema validation of an unchanged composer.json is remembered.**
