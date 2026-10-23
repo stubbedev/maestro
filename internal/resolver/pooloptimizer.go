@@ -23,10 +23,10 @@ type constraintSet = repository.NameMap[semver.ConstraintInterface]
 type PoolOptimizer struct {
 	policy Policy
 
-	irremovablePackages           map[int]bool
+	irremovablePackages           idSet
 	requireConstraintsPerPackage  map[string]*constraintSet
 	conflictConstraintsPerPackage map[string]*constraintSet
-	packagesToRemove              map[int]bool
+	packagesToRemove              idSet
 	aliasesPerPackage             map[int][]pkg.PackageInterface
 	removedVersionsByPackage      map[pkg.PackageInterface]*VersionMap
 
@@ -43,10 +43,10 @@ func NewPoolOptimizer(policy Policy) *PoolOptimizer {
 // Optimize ports optimize: a new pool without the packages that can be
 // optimized away.
 func (o *PoolOptimizer) Optimize(request *Request, pool *Pool) (*Pool, error) {
-	o.irremovablePackages = map[int]bool{}
+	o.irremovablePackages = newIDSet(pool)
 	o.requireConstraintsPerPackage = map[string]*constraintSet{}
 	o.conflictConstraintsPerPackage = map[string]*constraintSet{}
-	o.packagesToRemove = map[int]bool{}
+	o.packagesToRemove = newIDSet(pool)
 	o.aliasesPerPackage = map[int][]pkg.PackageInterface{}
 	o.removedVersionsByPackage = map[pkg.PackageInterface]*VersionMap{}
 	o.expanded = map[semver.ConstraintInterface][]semver.ConstraintInterface{}
@@ -70,10 +70,10 @@ func (o *PoolOptimizer) Optimize(request *Request, pool *Pool) (*Pool, error) {
 	// even more gains when ran again. Might change
 	// in the future with additional optimizations.
 
-	o.irremovablePackages = nil
+	o.irremovablePackages = idSet{}
 	o.requireConstraintsPerPackage = nil
 	o.conflictConstraintsPerPackage = nil
-	o.packagesToRemove = nil
+	o.packagesToRemove = idSet{}
 	o.aliasesPerPackage = nil
 	o.removedVersionsByPackage = nil
 	o.expanded = nil
@@ -155,7 +155,7 @@ func (o *PoolOptimizer) prepare(request *Request, pool *Pool) error {
 }
 
 func (o *PoolOptimizer) markPackageIrremovable(p pkg.PackageInterface) {
-	o.irremovablePackages[p.ID()] = true
+	o.irremovablePackages.add(p.ID())
 	if alias, ok := p.(pkg.Alias); ok {
 		// recursing here so aliasesPerPackage for the aliasOf can be checked
 		// and all its aliases marked as irremovable as well
@@ -163,15 +163,15 @@ func (o *PoolOptimizer) markPackageIrremovable(p pkg.PackageInterface) {
 	}
 
 	for _, aliasPackage := range o.aliasesPerPackage[p.ID()] {
-		o.irremovablePackages[aliasPackage.ID()] = true
+		o.irremovablePackages.add(aliasPackage.ID())
 	}
 }
 
 func (o *PoolOptimizer) applyRemovalsToPool(pool *Pool) *Pool {
-	packages := make([]pkg.PackageInterface, 0, pool.Count()-len(o.packagesToRemove))
+	packages := make([]pkg.PackageInterface, 0, pool.Count()-o.packagesToRemove.len())
 	removedVersions := &repository.NameMap[*VersionMap]{}
 	for _, p := range pool.Packages() {
-		if !o.packagesToRemove[p.ID()] {
+		if !o.packagesToRemove.has(p.ID()) {
 			packages = append(packages, p)
 		} else {
 			versions, ok := removedVersions.Get(p.Name())
@@ -206,7 +206,7 @@ func (o *PoolOptimizer) optimizeByIdenticalDependencies(pool *Pool) error {
 	for i, p := range packages {
 		// If that package was already marked irremovable, we can skip
 		// the entire process for it
-		if o.irremovablePackages[p.ID()] {
+		if o.irremovablePackages.has(p.ID()) {
 			continue
 		}
 
@@ -404,7 +404,7 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string
 		return func(from, to int) {
 			for i := from; i < to; i++ {
 				p := packages[i]
-				if o.irremovablePackages[p.ID()] {
+				if o.irremovablePackages.has(p.ID()) {
 					continue
 				}
 
@@ -621,11 +621,11 @@ func ksortStrings(keys []string) {
 
 func (o *PoolOptimizer) markPackageForRemoval(id int) error {
 	// We are not allowed to remove packages if they have been marked as irremovable
-	if o.irremovablePackages[id] {
+	if o.irremovablePackages.has(id) {
 		return &util.LogicError{Message: "Attempted removing a package which was previously marked irremovable"}
 	}
 
-	o.packagesToRemove[id] = true
+	o.packagesToRemove.add(id)
 
 	return nil
 }
@@ -654,7 +654,7 @@ func (o *PoolOptimizer) keepPackageInGroup(p pkg.PackageInterface, packageName s
 	o.recordRemovedVersionsForPackage(p, packageName, versions)
 
 	// Already marked to keep — version recording done, skip unmarking/alias handling
-	if !o.packagesToRemove[p.ID()] {
+	if !o.packagesToRemove.has(p.ID()) {
 		return
 	}
 
@@ -679,7 +679,7 @@ func (o *PoolOptimizer) keepPackageInGroup(p pkg.PackageInterface, packageName s
 }
 
 func (o *PoolOptimizer) unmarkPackageForRemoval(p pkg.PackageInterface) {
-	delete(o.packagesToRemove, p.ID())
+	o.packagesToRemove.remove(p.ID())
 }
 
 func (o *PoolOptimizer) recordRemovedVersionsForPackage(p pkg.PackageInterface, packageName string, versions *VersionMap) {
@@ -712,7 +712,7 @@ func (o *PoolOptimizer) optimizeImpossiblePackagesAway(request *Request, pool *P
 		id := p.ID()
 
 		// Do not remove irremovable packages
-		if o.irremovablePackages[id] {
+		if o.irremovablePackages.has(id) {
 			continue
 		}
 		// Do not remove a package aliased by another package, nor aliases
@@ -825,3 +825,30 @@ func expandDisjunctiveMultiConstraints(constraint semver.ConstraintInterface) []
 	// Regular constraints and conjunctive MultiConstraints
 	return []semver.ConstraintInterface{constraint}
 }
+
+// idSet is a set of the ids of a pool's packages, which run from 1 to the
+// pool's count.
+type idSet struct {
+	member []bool
+	n      int
+}
+
+func newIDSet(pool *Pool) idSet { return idSet{member: make([]bool, pool.Count()+1)} }
+
+func (s *idSet) add(id int) {
+	if !s.member[id] {
+		s.member[id] = true
+		s.n++
+	}
+}
+
+func (s *idSet) remove(id int) {
+	if s.member[id] {
+		s.member[id] = false
+		s.n--
+	}
+}
+
+func (s *idSet) has(id int) bool { return s.member[id] }
+
+func (s *idSet) len() int { return s.n }
