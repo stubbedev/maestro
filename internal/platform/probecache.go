@@ -35,7 +35,7 @@ const probeCacheMaxEntries = 64
 
 // probeCacheFormat is the version of the entries: of what they hold, how
 // they are keyed and what they are trusted on.
-var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 9}
+var probeCacheFormat = fsstate.Format{Name: "probe-cache", Version: 10}
 
 // probeEnvPrefixes and probeEnvNames are the environment variables that
 // may change what probe.php reports whatever php is probed, and so key
@@ -653,66 +653,5 @@ func writeProbeCacheEntry(path string, data []byte) {
 		return
 	}
 
-	pruneProbeCache(filepath.Dir(path), probeCacheMaxEntries)
-}
-
-// pruneProbeCache removes the entries in dir unused for probeCacheMaxAge,
-// then the least recently used beyond maxEntries, abandoned
-// temporary files and an earlier format's subdirectories. Other processes
-// may read, write and prune at the same time: removing an entry costs at
-// most a probe, never a wrong result, and a temporary file is removed only
-// long after its writer would have renamed it.
-func pruneProbeCache(dir string, maxEntries int) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-
-	type entry struct {
-		path  string
-		mtime time.Time
-	}
-
-	var kept []entry
-
-	now := time.Now()
-
-	for _, e := range entries {
-		path := filepath.Join(dir, e.Name())
-
-		if e.IsDir() {
-			// maestro-probe-cache-2 kept entries under key[:2]/
-			_ = os.RemoveAll(path)
-
-			continue
-		}
-
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-
-		age := now.Sub(info.ModTime())
-
-		switch {
-		case fsstate.IsTemp(e.Name()):
-			if age > fsstate.TempMaxAge {
-				_ = os.Remove(path)
-			}
-		case age > probeCacheMaxAge:
-			_ = os.Remove(path)
-		default:
-			kept = append(kept, entry{path, info.ModTime()})
-		}
-	}
-
-	if len(kept) <= maxEntries {
-		return
-	}
-
-	slices.SortFunc(kept, func(a, b entry) int { return b.mtime.Compare(a.mtime) })
-
-	for _, e := range kept[maxEntries:] {
-		_ = os.Remove(e.path)
-	}
+	fsstate.Prune(filepath.Dir(path), probeCacheMaxEntries, probeCacheMaxAge)
 }

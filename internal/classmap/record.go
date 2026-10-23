@@ -118,7 +118,7 @@ func NewRecord(dir, id string, anchors []string, p Parser, extensions []string, 
 
 // recordFormat is the version of the records, and of the scans that
 // build their class maps; its Header starts every record.
-var recordFormat = fsstate.Format{Name: "classmap-record", Version: 4}
+var recordFormat = fsstate.Format{Name: "classmap-record", Version: 5}
 
 // SetMargin sets how old a file must be for its identity to be recorded
 // and, recorded, trusted (zero: fsstate.DefaultMargin; tests trust
@@ -306,7 +306,7 @@ func (g *Generator) SaveRecord(rec *Record) {
 	if fsstate.WriteAtomic(rec.path, b.Bytes()) != nil {
 		return
 	}
-	pruneRecords(filepath.Dir(rec.path))
+	fsstate.Prune(filepath.Dir(rec.path), recordMaxFiles, 0)
 }
 
 // stampedCtime is what a record holds as the change time of a stamped
@@ -339,37 +339,6 @@ func trusted(k fsstate.ID, stamped bool, t time.Time, margin fsstate.Margin) boo
 	}
 
 	return k.Trusted(t, margin)
-}
-
-// pruneRecords removes the least recently written records past
-// recordMaxFiles.
-func pruneRecords(dir string) {
-	entries, err := os.ReadDir(dir)
-	if err != nil || len(entries) <= recordMaxFiles {
-		return
-	}
-	type record struct {
-		name string
-		mod  time.Time
-	}
-	records := make([]record, 0, len(entries))
-	for _, e := range entries {
-		info, err := e.Info()
-		switch {
-		case err != nil || !info.Mode().IsRegular():
-		case fsstate.IsTemp(e.Name()):
-			// a record being written, or abandoned by a writer that died
-			if time.Since(info.ModTime()) > fsstate.TempMaxAge {
-				_ = os.Remove(filepath.Join(dir, e.Name()))
-			}
-		default:
-			records = append(records, record{e.Name(), info.ModTime()})
-		}
-	}
-	slices.SortFunc(records, func(a, b record) int { return b.mod.Compare(a.mod) })
-	for _, r := range records[min(len(records), recordMaxFiles):] {
-		_ = os.Remove(filepath.Join(dir, r.name))
-	}
 }
 
 func commonPrefix(a, b string) int {

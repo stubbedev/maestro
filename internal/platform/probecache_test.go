@@ -409,7 +409,7 @@ func TestProbeCache_Prune(t *testing.T) {
 	}
 
 	// and the least recently used beyond the bound
-	pruneProbeCache(dir, 3)
+	fsstate.Prune(dir, 3, probeCacheMaxAge)
 	want = []string{fsstate.TempPrefix + "2", key, "entry3", "entry4"}
 	slices.Sort(want)
 	if got := names(); !slices.Equal(got, want) {
