@@ -523,6 +523,9 @@ func TestAutoloadGenerator_CreateLoaderExcludesVendorDirFromRootClassMap(t *test
 
 func TestAutoloadGenerator_AmbiguousPathCasingWarning(t *testing.T) {
 	e := setUp(t)
+	if caseInsensitive(t, e.workingDir) {
+		t.Skip("src/Foo and src/foo are one directory on this case-insensitive file system")
+	}
 	p := newRoot("root/a")
 	p.SetAutoload(arr("classmap", list("src/")))
 	e.packages()

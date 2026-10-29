@@ -106,7 +106,7 @@ func TestHgDriver_UpdateFailureOutputIsSanitized(t *testing.T) {
 func TestFossilDriver_CloneFailureOutputIsSanitized(t *testing.T) {
 	home := t.TempDir()
 	url := "https://user:secret@example.org/acme"
-	repoFile := filepath.Join(home, "cache", "repo", "https---user-----example-org-acme.fossil")
+	repoFile := filepath.Join(home, "cache", "repo") + "/https---user-----example-org-acme.fossil"
 
 	process := processmock.New()
 	process.Expects([]processmock.Expectation{

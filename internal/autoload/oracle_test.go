@@ -166,8 +166,8 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 	}
 
 	gotOutput := replace(php.NormalizeEOL(bio.Output()))
-	swaps := walkOrderSwaps(golden(str(result, "output")), gotOutput, walkedDirs(s, workDir, vendorDir, replace))
-	if got, want := sortedLines(gotOutput), sortedLines(swaps.output(golden(str(result, "output")))); !slices.Equal(got, want) {
+	swaps := walkOrderSwaps(str(result, "output"), gotOutput, walkedDirs(s, workDir, vendorDir, replace), golden)
+	if got, want := sortedLines(gotOutput), sortedLines(golden(swaps.output(str(result, "output")))); !slices.Equal(got, want) {
 		t.Errorf("output:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
@@ -180,7 +180,7 @@ func runOracleScenario(t *testing.T, s *php.Array) {
 		}
 		got, readErr := os.ReadFile(path)
 		want, ok := wantFiles.GetString(name)
-		want = swaps.file(golden(want))
+		want = golden(swaps.file(want))
 		switch {
 		case !ok && readErr == nil:
 			t.Errorf("%s written, PHP did not", name)
@@ -200,14 +200,15 @@ type walkSwaps []walkSwap
 
 // walkOrderSwaps finds the ambiguous classes whose two paths lie under one
 // scanned directory and that this run reported in the opposite order to the
-// golden. Composer's class-map-generator walks a directory with Symfony
-// Finder and does not sort it: like the port's os.File.ReadDir walk, it keeps
-// the order the file system returns entries in. Which of two files found in
+// golden. The swaps are spelt as in the golden, which normalize turns into
+// this run's spelling. Composer's class-map-generator walks a directory
+// with Symfony Finder and does not sort it: like the port's os.File.ReadDir
+// walk, it keeps the order the file system returns entries in. Which of two files found in
 // one walk wins (s367: legacy/f132.php and legacy/a/f20.php) therefore
 // depends on the file system, in PHP as in Go (btrfs and tmpfs differ),
 // and either order is Composer's behaviour. Ambiguities across separate
 // scans are ordered by the generator and still have to match exactly.
-func walkOrderSwaps(want, got string, dirs []string) walkSwaps {
+func walkOrderSwaps(want, got string, dirs []string, normalize func(string) string) walkSwaps {
 	const prefix = `<warning>Warning: Ambiguous class resolution, "`
 	var swaps walkSwaps
 	for line := range strings.SplitSeq(want, "\n") {
@@ -222,11 +223,11 @@ func walkOrderSwaps(want, got string, dirs []string) walkSwaps {
 		first, rest, _ := strings.Cut(rest, `" and "`)
 		second, _, _ := strings.Cut(rest, `", the first will be used.`)
 		swapped := strings.Replace(line, `"`+first+`" and "`+second+`"`, `"`+second+`" and "`+first+`"`, 1)
-		if strings.Contains(got, line) || !strings.Contains(got, swapped) {
+		if strings.Contains(got, normalize(line)) || !strings.Contains(got, normalize(swapped)) {
 			continue
 		}
 		for _, d := range dirs {
-			if strings.HasPrefix(first, d+"/") && strings.HasPrefix(second, d+"/") {
+			if strings.HasPrefix(normalize(first), d+"/") && strings.HasPrefix(normalize(second), d+"/") {
 				swaps = append(swaps, walkSwap{class, first, second})
 
 				break

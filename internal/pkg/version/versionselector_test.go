@@ -398,7 +398,7 @@ func publishedPackage(t *testing.T, name, prettyVersion string, since time.Durat
 
 func TestVersionSelector_LatestVersionWithinCooldownIsSkipped(t *testing.T) {
 	old := datedPackage(t, "foo/bar", "1.2.1", -30*24*time.Hour)
-	newer := publishedPackage(t, "foo/bar", "1.2.2", -23*time.Hour)
+	newer := publishedPackage(t, "foo/bar", "1.2.2", -(23*time.Hour + time.Minute))
 
 	repo := &repositorySetMock{t: t, wantName: "foo/bar", results: [][]pkg.PackageInterface{{old, newer}}}
 	out, err := io.NewBufferIO("", 32, nil)
