@@ -1,6 +1,6 @@
 # maestro and Composer
 
-maestro is a Go port of Composer 2.10.3 and a drop-in replacement for it:
+maestro is a Go port of Composer 2.11.0 and a drop-in replacement for it:
 anything that drives Composer (people, CI, scripts, plugins, other tools)
 works unchanged against maestro. It never runs or embeds composer.phar.
 `php` is only used where Composer itself executes PHP code on the project's
@@ -195,7 +195,7 @@ at the pinned release:
 
 | Path | What |
 | --- | --- |
-| `.ref/composer` | composer/composer at tag 2.10.3 (`internal/upstream`), with `vendor/` installed (`--no-dev`) |
+| `.ref/composer` | composer/composer at tag 2.11.0 (`internal/upstream`), with `vendor/` installed (`--no-dev`) |
 | `.ref/semver` | composer/semver |
 | `.ref/class-map-generator` | composer/class-map-generator |
 | `.ref/spdx-licenses` | composer/spdx-licenses |
@@ -332,7 +332,7 @@ These change frozen behaviour on purpose; nothing else may.
    removal, and the last binary removed takes it away.
 8. **The `list` banner** (also a bare `maestro`), like deviation 6, says
    which tool runs: maestro's logo and `Maestro version X (Composer
-   2.10.3 compatible)` replace Composer's logo and long version, decorated
+   2.11.0 compatible)` replace Composer's logo and long version, decorated
    or not, piped or not. Only the banner changes: the usage, options and
    commands below it, `list --raw` and `list --format=json|xml|md` stay
    Composer's (`TestHelp_List` and the e2e tests compare all of it but the
@@ -589,7 +589,7 @@ Cycle-breaking decisions already made:
    files read-only and answer questions on stdin; see
    `tools/oracle/errors/errors.sh`.
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
-   2.10.3 (a pinned phar, downloaded into the test cache with a checksum
+   2.11.0 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare
    exit codes, frozen output, lock files and vendor trees. They run on
    Linux and on Windows (`.github/workflows/e2e.yml`, weekly and on
