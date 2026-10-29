@@ -267,7 +267,10 @@ func TestSuggestedPackagesReporter_OutputModes(t *testing.T) {
 }
 
 func TestInstallerEvent_Getter(t *testing.T) {
-	transaction := resolver.NewTransaction(nil, nil)
+	transaction, err := resolver.NewTransaction(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	event := eventdispatcher.NewInstallerEvent("EVENT_NAME", nil, newBufferIO(t), true, true, transaction)
 
 	if event.Name() != "EVENT_NAME" || !event.IsDevMode() || !event.IsExecutingOperations() {

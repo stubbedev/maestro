@@ -350,7 +350,7 @@ func bumpUpdateFileCleanly(file *json.File, updates []bumpUpdate) (bool, error) 
 		}
 	}
 
-	if err := os.WriteFile(file.Path(), []byte(manipulator.Contents()), 0o666); err != nil {
+	if _, err := util.SafeFilePutContents(file.Path(), []byte(manipulator.Contents())); err != nil {
 		return false, NewError(ClassRuntime, "Unable to write new "+file.Path()+" contents.")
 	}
 

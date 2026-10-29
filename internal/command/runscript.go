@@ -67,7 +67,7 @@ func NewRunScriptCommand() *RunScriptCommand {
 
 <info>php composer.phar run-script post-update-cmd</info>
 
-Read more at https://getcomposer.org/doc/03-cli.md#run-script-run`)
+Read more at https://getcomposer.org/doc/03-cli.md#run-script--run`)
 
 	return c
 }

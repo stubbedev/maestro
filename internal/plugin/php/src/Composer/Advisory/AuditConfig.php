@@ -1,7 +1,7 @@
 <?php
 
 /*
- * maestro's plugin shim: Composer\Advisory\AuditConfig, Composer 2.10.3's
+ * maestro's plugin shim: Composer\Advisory\AuditConfig, Composer 2.11.0's
  * value object. maestro's (an Installer's) crosses as a mirror of its two
  * properties; one created in PHP (BaseCommand::createAuditConfig()) is
  * adopted by maestro when it first crosses, and what PHP writes into its

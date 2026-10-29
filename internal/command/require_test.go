@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
@@ -35,6 +36,22 @@ func TestRequireCommand_RequireThrowsIfNoneMatches(t *testing.T) {
 	_, err := appTester.RunArgs(commandtest.Options{}, "command", "require", "--dry-run", true, "--no-audit", true, "packages", []string{"required/pkg"})
 	assertRequireInvalidArgument(t, err, "Package required/pkg has requirements incompatible with your PHP version, PHP extensions and Composer version:"+php.EOL+
 		"  - required/pkg 1.0.0 requires ext-foobar ^1 but it is not present.")
+}
+
+func TestRequireCommand_RequireReportsStabilityWhenOnlyPrereleaseIsInCooldown(t *testing.T) {
+	recent := time.Now().UTC().Add(-time.Hour).Format("2006-01-02 15:04:05")
+	commandtest.InitTempComposer(t, `{
+		"repositories": {"packages": {"type": "package", "package": [
+			{"name": "required/pkg", "version": "1.0.0-beta1", "time": "`+recent+`"}
+		]}},
+		"config": {"policy": {"cooldown": {"period": "7 days"}}}
+	}`, nil, nil, true)
+
+	appTester := commandtest.GetApplicationTester(t)
+	_, err := appTester.RunArgs(commandtest.Options{}, "command", "require", "--dry-run", true, "--no-audit", true, "packages", []string{"required/pkg"})
+	if err == nil || !strings.Contains(err.Error(), "Could not find a version of package required/pkg matching your minimum-stability (stable).") {
+		t.Fatalf("exception %v, want a stability message", err)
+	}
 }
 
 func TestRequireCommand_RequireThrowsOnUnquotedInlineAlias(t *testing.T) {

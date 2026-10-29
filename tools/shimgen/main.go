@@ -1,6 +1,6 @@
 // Command shimgen generates the plugin shim's presence-parity stubs
 // (docs/PLUGINS.md D7, §5.1, §9.2): it reflects every class of Composer
-// 2.10.3's src/ with reflect.php, writes the reflection as the parity
+// 2.11.0's src/ with reflect.php, writes the reflection as the parity
 // golden internal/plugin/testdata/apiparity.json.gz, and writes a stub
 // with Composer's exact signatures into internal/plugin/php/stubs/ for
 // every class the shim does not implement by hand (internal/plugin/php/src)

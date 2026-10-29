@@ -80,15 +80,16 @@ func NewRequireCommand() *RequireCommand {
 			console.MustOption("prefer-source", "", console.OptionValueNone, "Forces installation from package sources when possible, including VCS information.", nil),
 			console.MustOption("prefer-dist", "", console.OptionValueNone, "Forces installation from package dist (default behavior).", nil),
 			optionWithSuggestions("prefer-install", "", console.OptionValueRequired, "Forces installation from package dist|source|auto (auto chooses source for dev versions, dist for the rest).", nil, SuggestPreferInstall()...),
-			console.MustOption("fixed", "", console.OptionValueNone, "Write fixed version to the composer.json.", nil),
+			console.MustOption("fixed", "", console.OptionValueNone, "Write the exact resolved version to the composer.json instead of the recommended constraint (only allowed when the root package type is \"project\", or with --dev).", nil),
 			console.MustOption("no-suggest", "", console.OptionValueNone, "DEPRECATED: This flag does not exist anymore.", nil),
 			console.MustOption("no-progress", "", console.OptionValueNone, "Do not output download progress.", nil),
 			console.MustOption("no-update", "", console.OptionValueNone, "Disables the automatic update of the dependencies (implies --no-install).", nil),
 			console.MustOption("no-install", "", console.OptionValueNone, "Skip the install step after updating the composer.lock file.", nil),
 			console.MustOption("no-audit", "", console.OptionValueNone, "Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).", nil),
 			optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json", or "summary".`, advisory.FormatSummary, advisory.Formats.Names()...),
-			console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
-			console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+			console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories, that are abandoned or that are still in the cooldown period (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
+			console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command, including the cooldown period (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+			console.MustOption("no-cooldown", "", console.OptionValueNone, "Disables the cooldown policy blocking during this command, other policies still apply.", nil),
 			console.MustOption("update-no-dev", "", console.OptionValueNone, "Run the dependency update with the --no-dev option.", nil),
 			console.MustOption("update-with-dependencies", "w", console.OptionValueNone, "Allows inherited dependencies to be updated, except those that are root requirements (can also be set via the COMPOSER_WITH_DEPENDENCIES=1 env var).", nil),
 			console.MustOption("update-with-all-dependencies", "W", console.OptionValueNone, "Allows all inherited dependencies to be updated, including those that are root requirements (can also be set via the COMPOSER_WITH_ALL_DEPENDENCIES=1 env var).", nil),
@@ -114,7 +115,7 @@ If you do not specify a version constraint, composer will choose a suitable one 
 
 If you do not want to install the new dependencies immediately you can call it with --no-update
 
-Read more at https://getcomposer.org/doc/03-cli.md#require-r`)
+Read more at https://getcomposer.org/doc/03-cli.md#require--r`)
 
 	return c
 }
@@ -149,7 +150,7 @@ func (c *RequireCommand) Execute(in console.Input, out console.Output) (code int
 	}
 
 	if st, err := os.Stat(c.file); err == nil && st.Size() == 0 {
-		_ = os.WriteFile(c.file, []byte("{\n}\n"), 0o666)
+		_, _ = util.SafeFilePutContents(c.file, []byte("{\n}\n"))
 	}
 
 	if c.json, err = json.NewFile(c.file, nil, nil); err != nil {
@@ -190,7 +191,7 @@ func (c *RequireCommand) Execute(in console.Input, out console.Output) (code int
 
 		// @see https://github.com/composer/composer/pull/8313#issuecomment-532637955
 		if packageType != "project" && !console.BoolOption(in, "dev") {
-			cio.WriteError(`<error>The "--fixed" option is only allowed for packages with a "project" type or for dev dependencies to prevent possible misuses.</error>`, true, io.Normal)
+			cio.WriteError(`<error>The "--fixed" option is only allowed when the root package has a "project" type or for dev dependencies to prevent possible misuses.</error>`, true, io.Normal)
 
 			if !arrayIsset(cfg, "type") {
 				cio.WriteError(`<error>If your package is not a library, you can explicitly specify the "type" by using "composer config type project".</error>`, true, io.Normal)
@@ -893,7 +894,7 @@ func (c *RequireCommand) updateFileCleanly(newRequirements *php.Array, requireKe
 		return false, err
 	}
 
-	if err := os.WriteFile(c.json.Path(), []byte(manipulator.Contents()), 0o666); err != nil {
+	if _, err := util.SafeFilePutContents(c.json.Path(), []byte(manipulator.Contents())); err != nil {
 		return false, &util.ErrorException{Message: "file_put_contents(" + c.json.Path() + "): Failed to open stream: " + err.Error()}
 	}
 
@@ -923,11 +924,11 @@ func (c *RequireCommand) revertComposerFile() error {
 		msg = " and " + c.lock + " to their "
 	}
 	cio.WriteError("\n<error>Installation failed, reverting "+c.file+msg+"original content.</error>", true, io.Normal)
-	if err := os.WriteFile(c.json.Path(), c.composerBackup, 0o666); err != nil {
+	if _, err := util.SafeFilePutContents(c.json.Path(), c.composerBackup); err != nil {
 		return &util.ErrorException{Message: "file_put_contents(" + c.json.Path() + "): Failed to open stream: " + err.Error()}
 	}
 	if len(c.lockBackup) > 0 {
-		if err := os.WriteFile(c.lock, c.lockBackup, 0o666); err != nil {
+		if _, err := util.SafeFilePutContents(c.lock, c.lockBackup); err != nil {
 			return &util.ErrorException{Message: "file_put_contents(" + c.lock + "): Failed to open stream: " + err.Error()}
 		}
 	}
@@ -949,6 +950,9 @@ func (c *RequireCommand) handleAbortSignals() func() {
 		case sig := <-ch:
 			cio.WriteError("Received "+util.SignalName(sig)+", aborting", true, io.Debug)
 			_ = c.revertComposerFile()
+			if cio, ok := c.IO().(*io.ConsoleIO); ok {
+				cio.WriteProgramStatus(console.ProgramStatusIdle(nil))
+			}
 			util.ExitWithSignal(sig)
 		case <-done:
 		}

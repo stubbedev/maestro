@@ -82,22 +82,6 @@ func TestAuthHelper_AddAuthenticationHeaderWithGithubToken(t *testing.T) {
 	assertDebugWrite(t, fio, "Using GitHub token authentication")
 }
 
-func TestAuthHelper_AddAuthenticationHeaderWithGitlabOathToken(t *testing.T) {
-	fio := newFakeIO()
-	config := newFakeConfig(map[string]any{"gitlab-domains": list("gitlab.com")})
-	h := NewAuthHelper(fio, config)
-	expectsAuthentication(fio, "gitlab.com", auth("my_username", "oauth2"))
-
-	options := h.AddAuthenticationOptions(headerOptions(baseHeaders), "gitlab.com", "https://api.gitlab.com/")
-
-	assertHeaders(t, append(slices.Clone(baseHeaders), "Authorization: Bearer my_username"), options)
-	assertDebugWrite(t, fio, "Using GitLab OAuth token authentication")
-
-	if config.gets["gitlab-domains"] != 1 || len(config.gets) != 1 {
-		t.Fatalf("config gets %v", config.gets)
-	}
-}
-
 func TestAuthHelper_AddAuthenticationOptionsForClientCertificate(t *testing.T) {
 	fio := newFakeIO()
 	h := NewAuthHelper(fio, newFakeConfig(nil))
@@ -111,17 +95,30 @@ func TestAuthHelper_AddAuthenticationOptionsForClientCertificate(t *testing.T) {
 	}
 }
 
-func TestAuthHelper_AddAuthenticationHeaderWithGitlabPrivateToken(t *testing.T) {
-	for _, password := range []string{"private-token", "gitlab-ci-token"} {
-		fio := newFakeIO()
-		config := newFakeConfig(map[string]any{"gitlab-domains": list("gitlab.com")})
-		h := NewAuthHelper(fio, config)
-		expectsAuthentication(fio, "gitlab.com", auth("my_username", password))
+func TestAuthHelper_AddAuthenticationHeaderWithGitlabToken(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		username, pass string
+		expectedLog    string
+		expectedHeader string
+	}{
+		{"oauth token", "my_token", "oauth2", "Using GitLab OAuth token authentication", "Authorization: Bearer my_token"},
+		{"private token", "my_token", "private-token", "Using GitLab private token authentication", "PRIVATE-TOKEN: my_token"},
+		{"CI job token", "gitlab-ci-token", "my_token", "Using GitLab CI job token authentication", "JOB-TOKEN: my_token"},
+		// GitLab.AuthorizeOAuth swaps the slots, so both orderings must work
+		{"CI job token, slots swapped", "my_token", "gitlab-ci-token", "Using GitLab CI job token authentication", "JOB-TOKEN: my_token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fio := newFakeIO()
+			config := newFakeConfig(map[string]any{"gitlab-domains": list("gitlab.com")})
+			h := NewAuthHelper(fio, config)
+			expectsAuthentication(fio, "gitlab.com", auth(tc.username, tc.pass))
 
-		options := h.AddAuthenticationOptions(headerOptions(baseHeaders), "gitlab.com", "https://api.gitlab.com/")
+			options := h.AddAuthenticationOptions(headerOptions(baseHeaders), "gitlab.com", "https://api.gitlab.com/")
 
-		assertHeaders(t, append(slices.Clone(baseHeaders), "PRIVATE-TOKEN: my_username"), options)
-		assertDebugWrite(t, fio, "Using GitLab private token authentication")
+			assertHeaders(t, append(slices.Clone(baseHeaders), tc.expectedHeader), options)
+			assertDebugWrite(t, fio, tc.expectedLog)
+		})
 	}
 }
 
@@ -330,6 +327,31 @@ func TestAuthHelper_PromptAuthIfNeededGitLabNoAuthChange(t *testing.T) {
 	}
 
 	if len(fio.auths) != 1 || jsonOf(t, php.ListOf(fio.auths[0][0], fio.auths[0][1], fio.auths[0][2])) != `["gitlab.com","gitlab-user","gitlab-password"]` {
+		t.Fatalf("setAuthentication %v", fio.auths)
+	}
+}
+
+func TestAuthHelper_PromptAuthIfNeededGitLabCiJobTokenAbortsImmediately(t *testing.T) {
+	fio := newFakeIO()
+	fio.hasAuth = func(string) bool { return true }
+	fio.getAuth = func(string) ioAuth { return auth("gitlab-ci-token", "expired-job-token") }
+
+	config := newFakeConfig(map[string]any{
+		"github-domains": list(),
+		"gitlab-domains": list("gitlab.com"),
+		"gitlab-token":   php.ArrayOf("gitlab.com", php.ArrayOf("username", "gitlab-ci-token", "token", "expired-job-token")),
+	})
+	h := NewAuthHelper(fio, config)
+	h.newGitLab = func() *GitLab { return NewGitLab(fio, config, &noProcess{}, NewHttpDownloaderMockGetter()) }
+
+	// a job token cannot be renewed, so we must abort before
+	// GitLab.AuthorizeOAuth swaps the slots
+	_, err := h.PromptAuthIfNeeded("https://gitlab.com/acme/archive.zip", "gitlab.com", 404, "GitLab requires authentication and it was not provided", nil, 0, "")
+	if te, ok := errors.AsType[*util.TransportError](err); !ok || te.Message != "Invalid credentials for 'https://gitlab.com/acme/archive.zip', aborting." {
+		t.Fatalf("expected a TransportException, got %v", err)
+	}
+
+	if len(fio.auths) != 0 {
 		t.Fatalf("setAuthentication %v", fio.auths)
 	}
 }

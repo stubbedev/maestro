@@ -81,31 +81,11 @@ func (f *OutputFormatter) Clone() *OutputFormatter {
 
 // Escape escapes "<" and ">" so they are not read as tags.
 func Escape(text string) string {
-	// preg_replace('/([^\\\\]|^)([<>])/', '$1\\\\$2', $text), scanned
-	// left to right with the first alternative preferred.
-	var b []byte
-	n := len(text)
-	last := 0
-	for i := 0; i < n; {
-		if text[i] != '\\' && i+1 < n && (text[i+1] == '<' || text[i+1] == '>') {
-			b = append(b, text[last:i+1]...)
-			b = append(b, '\\', text[i+1])
-			last = i + 2
-			i += 2
-
-			continue
-		}
-		if i == 0 && (text[0] == '<' || text[0] == '>') {
-			b = append(b, '\\', text[0])
-			last = 1
-		}
-		i++
-	}
-	if b == nil {
-		return EscapeTrailingBackslash(text)
+	if strings.ContainsAny(text, "<>") {
+		text = strings.NewReplacer("<", `\<`, ">", `\>`).Replace(text)
 	}
 
-	return EscapeTrailingBackslash(string(append(b, text[last:]...)))
+	return EscapeTrailingBackslash(text)
 }
 
 // EscapeTrailingBackslash escapes trailing "\" so it cannot escape a

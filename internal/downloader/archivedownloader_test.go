@@ -328,6 +328,45 @@ func checkNoLeftovers(t *testing.T, vendor string) {
 	}
 }
 
+func TestArchiveDownloader_InstallUnwrapsSingleDirNextToMetadataAndKeepsNestedFiles(t *testing.T) {
+	for _, merge := range []bool{false, true} {
+		t.Run(map[bool]string{false: "rename as one", true: "merge into non-empty target"}[merge], func(t *testing.T) {
+			root := t.TempDir()
+			path := root + "/target"
+			if merge {
+				if err := os.MkdirAll(path+"/vendor", 0o755); err != nil {
+					t.Fatal(err)
+				}
+				writeFile(t, path+"/vendor/keep", []byte("keep"), 0o644)
+			}
+
+			extracted := root + "/extracted"
+			for _, entry := range []string{"pkg/composer.json", "pkg/.DS_Store", "pkg/sub/Thumbs.db", "pkg/sub/._foo", "Thumbs.db", "._pkg", "__MACOSX/pkg/._composer.json"} {
+				if err := os.MkdirAll(filepath.Dir(extracted+"/"+entry), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				writeFile(t, extracted+"/"+entry, nil, 0o644)
+			}
+
+			d := newArchiveForURLs(t)
+			if err := d.moveIntoPlace(distPackage("https://example.org/foo.zip", "zip"), extracted, path, true); err != nil {
+				t.Fatal(err)
+			}
+
+			for _, file := range []string{"composer.json", ".DS_Store", "sub/Thumbs.db", "sub/._foo"} {
+				if !php.FileExists(path + "/" + file) {
+					t.Errorf("%s is missing", file)
+				}
+			}
+			for _, file := range []string{"pkg", "Thumbs.db", "._pkg", "__MACOSX"} {
+				if php.FileExists(path + "/" + file) {
+					t.Errorf("%s was moved into place", file)
+				}
+			}
+		})
+	}
+}
+
 func TestArchiveDownloader_StoreSecondInstallMakesNoRequest(t *testing.T) {
 	srv := newDistServer(t, map[string][]byte{"/a.zip": githubZip()})
 	shared := newStore(t)
@@ -754,6 +793,88 @@ func TestArchiveDownloader_MirrorFallback(t *testing.T) {
 	}
 }
 
+// ZipDownloaderTest::testTruncatedDownloadIsRetried: a truncated zip is
+// downloaded again, and only what validates ends up in the cache.
+func TestZipDownloader_TruncatedDownloadIsRetried(t *testing.T) {
+	validZip := githubZip()
+	attempts, copies := 0, 0
+
+	h := &fakeHTTP{copy: func(_, to string) (*http.Response, error) {
+		attempts++
+		data := validZip
+		if attempts == 1 {
+			data = validZip[:400]
+		}
+		writeFile(t, to, data, 0o644)
+
+		return http.NewResponse("https://example.org/test-pkg.zip", 200, nil, ""), nil
+	}}
+	cache := &fakeCache{t: t, copyTo: func(string, string) bool { return false }, copyFrom: func(_, source string) bool {
+		copies++
+		if got, _ := os.ReadFile(source); !slices.Equal(got, validZip) {
+			t.Errorf("cached %q, want the valid archive", got)
+		}
+
+		return true
+	}}
+
+	d, err := NewZipDownloader(Deps{IO: bufferIO(t, int(mio.Normal)), Config: getConfig(t, "vendor-dir", t.TempDir()+"/vendor"), HTTPDownloader: h, Cache: cache, Process: asyncProcess()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d.retryDelay = 0
+
+	p := getPackage("test/pkg", "1.0.0.0", "1.0.0")
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str("https://example.org/test-pkg.zip"))
+
+	if err := await(d.Download(p, t.TempDir()+"/pkg", nil)); err != nil {
+		t.Fatal(err)
+	}
+
+	if attempts != 2 {
+		t.Fatalf("%d attempts, want 2", attempts)
+	}
+	if copies != 1 {
+		t.Fatalf("%d cache writes, want 1", copies)
+	}
+}
+
+// ZipDownloaderTest::testTruncatedDownloadFailsAfterRetries.
+func TestZipDownloader_TruncatedDownloadFailsAfterRetries(t *testing.T) {
+	validZip := githubZip()
+	attempts := 0
+
+	h := &fakeHTTP{copy: func(_, to string) (*http.Response, error) {
+		attempts++
+		writeFile(t, to, validZip[:400], 0o644)
+
+		return http.NewResponse("https://example.org/test-pkg.zip", 200, nil, ""), nil
+	}}
+
+	d, err := NewZipDownloader(Deps{IO: nullIO(), Config: getConfig(t, "vendor-dir", t.TempDir()+"/vendor"), HTTPDownloader: h, Process: asyncProcess()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d.retryDelay = 0
+
+	p := getPackage("test/pkg", "1.0.0.0", "1.0.0")
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str("https://example.org/test-pkg.zip"))
+
+	err = await(d.Download(p, t.TempDir()+"/pkg", nil))
+	if _, ok := errors.AsType[*util.TransportError](err); !ok {
+		t.Fatalf("expected TransportException, got %v", err)
+	}
+	mustContain(t, err, "The downloaded archive for test/pkg is truncated or corrupt")
+
+	if attempts != 4 {
+		t.Fatalf("%d attempts, want 4", attempts)
+	}
+}
+
 // ZipDownloaderTest::testErrorMessages: a file that is not a zip.
 func TestZipDownloader_ErrorMessages(t *testing.T) {
 	srv := newDistServer(t, map[string][]byte{"/a.zip": []byte("<?php not a zip\n")})
@@ -765,28 +886,12 @@ func TestZipDownloader_ErrorMessages(t *testing.T) {
 	}
 
 	p := distPackage(srv.URL+"/a.zip", "zip")
-	tmpFile := d.ownFileName(p)
 
 	path, err := pr.install(d, p)
-	mustContain(t, err, "is not a zip archive")
+	mustContain(t, err, "is truncated or corrupt, zip end of central directory not found")
 
-	if want := "'" + tmpFile + "' is not a zip archive."; err.Error() != want {
-		t.Fatalf("error %q, want %q", err, want)
-	}
-
-	out := php.NormalizeEOL(pr.out.Output())
-	for _, line := range []string{
-		"    <warning>Failed to extract a/b: (9) " + unzipPath() + " -qq " + tmpFile + " -d ",
-		"    The archive may contain identical file names with different capitalization (which fails on case insensitive filesystems)\n",
-		"    Unzip with unzip command failed, falling back to ZipArchive class\n",
-	} {
-		if !strings.Contains(out, line) {
-			t.Fatalf("output %q lacks %q", out, line)
-		}
-	}
-
-	if php.IsDir(path) {
-		t.Fatal("the failed install left its directory")
+	if php.IsFile(path) {
+		t.Fatal("the failed install left its archive")
 	}
 
 	checkNoLeftovers(t, pr.vendor)

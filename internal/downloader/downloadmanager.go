@@ -25,10 +25,8 @@ type DownloadManager struct {
 	downloaders        map[string]Downloader
 	packagePreferences []preference
 	// types are the downloader types in registration order.
-	types                           []string
-	preference                      InstallPreference
-	sourceFallback                  bool
-	sourceFallbackDeprecationWarned bool
+	types      []string
+	preference InstallPreference
 }
 
 // preference is one entry of the preferred-install map.
@@ -81,19 +79,6 @@ func (m *DownloadManager) SetPreferences(preferences *php.Array) (*DownloadManag
 	m.packagePreferences = prefs
 
 	return m, nil
-}
-
-// SetSourceFallback is setSourceFallback().
-func (m *DownloadManager) SetSourceFallback(sourceFallback bool) *DownloadManager {
-	if sourceFallback && !m.sourceFallbackDeprecationWarned {
-		m.io.WriteError("<warning>The source-fallback option is deprecated and will be removed in Composer 2.11 as automatic fallback between dist and source has security implications.</warning>", true, mio.Normal)
-		m.io.WriteError("<warning>If you have a legitimate use case and do not want us to remove it in 2.11, please open an issue at https://github.com/composer/composer/issues to let us know.</warning>", true, mio.Normal)
-		m.sourceFallbackDeprecationWarned = true
-	}
-
-	m.sourceFallback = sourceFallback
-
-	return m
 }
 
 // SetDownloader is setDownloader(): the downloader for an installation
@@ -240,16 +225,12 @@ func (m *DownloadManager) download(p pkg.PackageInterface, targetDir string, pre
 			return nil, e
 		}
 
-		// Only fallback from dist to source is gated by the sourceFallback
-		// flag, as it can silently switch to less-trusted code or cause
-		// other issues where people rely on dists. Falling back the other
-		// way around (source -> dist) is always allowed.
-		blocked := len(*sources) > 0 && (*sources)[0] == pkg.FromSource && !m.sourceFallback
-		if len(*sources) == 0 || blocked {
-			if blocked {
-				m.io.WriteError("    <warning>Failed to download "+p.PrettyName()+" from "+string(source)+": "+e.Error()+"</warning>", true, mio.Normal)
-				m.io.WriteError("    <warning>Source fallback is disabled. Not trying alternative sources.</warning>", true, mio.Normal)
-			}
+		// Only fallback from dist to source is risky as it can silently
+		// switch to less-trusted code or cause other issues where people
+		// rely on dists. Falling back the other way around (source -> dist)
+		// is always allowed.
+		if len(*sources) == 0 || (*sources)[0] != pkg.FromDist {
+			m.io.WriteError("    <warning>Failed to download "+p.PrettyName()+" from "+string(source)+": "+e.Error()+"</warning>", true, mio.Normal)
 
 			return nil, e
 		}

@@ -4,7 +4,7 @@
 // metadata gives them (new \DateTime($time, new \DateTimeZone('UTC'))) and
 // "now" in several default time zones. Run from the repository root:
 //   php tools/oracle/command/reltime.php
-// (Composer 2.10.3's getRelativeTime, with date('Ymd') and
+// (Composer 2.11.0's getRelativeTime, with date('Ymd') and
 // new \DateTimeImmutable() taken at a fixed moment.)
 
 function relativeTime(DateTimeInterface $releaseDate, DateTimeImmutable $now): string

@@ -1,5 +1,6 @@
 {
     "advisories": [],
     "abandoned": [],
-    "filter": []
+    "filter": [],
+    "cooldown": []
 }

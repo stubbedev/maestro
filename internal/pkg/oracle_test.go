@@ -1,5 +1,5 @@
 // Differential tests against the goldens tools/oracle/pkg/pkg.php records
-// by running the real Composer 2.10.3.
+// by running the real Composer 2.11.0.
 
 package pkg_test
 

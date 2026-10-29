@@ -19,6 +19,7 @@ import (
 	"github.com/stubbedev/maestro/internal/filterlist"
 	"github.com/stubbedev/maestro/internal/installer"
 	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/json/jsonlint"
 	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
@@ -535,10 +536,11 @@ func (i *Installer) runAudit(lockedRepository *repository.LockArrayRepository, l
 	var target string
 	var err error
 	if i.update && !i.install {
-		packages, err = lockedRepository.CanonicalPackages()
+		// aliases are included as a branch alias version can match advisories which the dev-* branch cannot
+		packages, err = lockedRepository.Packages()
 		target = "locked"
 	} else {
-		packages, err = localRepo.CanonicalPackages()
+		packages, err = localRepo.Packages()
 		target = "installed"
 	}
 	if err != nil {
@@ -679,10 +681,6 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 	}
 
 	// creating repository set
-	policy, err := i.createPolicy(true, lockedRepository)
-	if err != nil {
-		return 0, err
-	}
 	repositorySet, err := i.createRepositorySet(true, platformRepo, aliases, nil)
 	if err != nil {
 		return 0, err
@@ -712,11 +710,19 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 		request.SetUpdateAllowList(i.updateAllowList, i.updateAllowTransitiveDependencies)
 	}
 
+	policy, err := i.createPolicy(true, request)
+	if err != nil {
+		return 0, err
+	}
 	securityFilter, err := i.createSecurityAuditPoolFilter()
 	if err != nil {
 		return 0, err
 	}
 	filterListFilter, err := i.createFilterListPoolFilter(policyBlockScopeUpdate)
+	if err != nil {
+		return 0, err
+	}
+	cooldownFilter, err := i.createCooldownPoolFilter()
 	if err != nil {
 		return 0, err
 	}
@@ -727,6 +733,7 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 		AllowedTypes:               i.allowedTypes,
 		SecurityAdvisoryPoolFilter: securityFilter,
 		FilterListPoolFilter:       filterListFilter,
+		CooldownPoolFilter:         cooldownFilter,
 	})
 	if err != nil {
 		return 0, err
@@ -1069,6 +1076,17 @@ func (i *Installer) doInstall(localRepo repository.InstalledRepositoryInterface,
 		}
 		i.runtime.PushFrame(`Composer\Installer->doInstall`, i, args...)
 		defer i.runtime.PopFrame()
+	}
+	if !alreadySolved {
+		lockData, err := i.locker.LockData()
+		if err != nil {
+			return 0, err
+		}
+		if hash, _ := lockData.GetString("content-hash"); hash == json.ConflictedContentHash {
+			i.io.WriteError("<error>"+json.ConflictedContentHash+"</error>", true, io.Quiet)
+
+			return ErrorLockFileInvalid, nil
+		}
 	}
 	lock, err := i.configBool("lock")
 	if err != nil {
@@ -1478,7 +1496,7 @@ func (i *Installer) createRepositorySet(forUpdate bool, platformRepo *repository
 	return repositorySet, nil
 }
 
-func (i *Installer) createPolicy(forUpdate bool, lockedRepo *repository.LockArrayRepository) (*resolver.DefaultPolicy, error) {
+func (i *Installer) createPolicy(forUpdate bool, request *resolver.Request) (*resolver.DefaultPolicy, error) {
 	var preferStable, preferLowest, stableOK, lowestOK bool
 	if !forUpdate {
 		var err error
@@ -1498,15 +1516,19 @@ func (i *Installer) createPolicy(forUpdate bool, lockedRepo *repository.LockArra
 		preferLowest = i.preferLowest
 	}
 
+	var lockedRepo *repository.LockArrayRepository
+	if request != nil {
+		lockedRepo = request.LockedRepository()
+	}
 	var preferredVersions map[string]string
-	if forUpdate && i.minimalUpdate && lockedRepo != nil {
+	if forUpdate && i.minimalUpdate && request != nil && lockedRepo != nil {
 		preferredVersions = map[string]string{}
 		packages, err := lockedRepo.Packages()
 		if err != nil {
 			return nil, err
 		}
 		for _, p := range packages {
-			if _, isAlias := p.(pkg.Alias); isAlias || (i.updateAllowList != nil && slices.Contains(i.updateAllowList, p.Name())) {
+			if _, isAlias := p.(pkg.Alias); isAlias || request.IsInUpdateAllowList(p.Name()) {
 				continue
 			}
 			preferredVersions[p.Name()] = p.Version()
@@ -1762,6 +1784,22 @@ func (i *Installer) createFilterListPoolFilter(blockScope string) (*resolver.Fil
 	}
 
 	return resolver.NewFilterListPoolFilter(policyConfig, filterlist.FilterListAuditor{}, getter(i.repositoryManager), blockScope, i.repositoryManager.Repositories(), i.io), nil
+}
+
+// createCooldownPoolFilter ports createCooldownPoolFilter: the cooldown
+// blocks during update/require only for now, and is skipped when only
+// refreshing mirror/dist information (no version changes happen then).
+func (i *Installer) createCooldownPoolFilter() (*resolver.CooldownPoolFilter, error) {
+	policyConfig, err := i.getPolicyConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if policyConfig.Enabled && policyConfig.Cooldown.ShouldBlock(policy.BlockScopeUpdate) && !i.updateMirrors {
+		return resolver.NewCooldownPoolFilter(policyConfig.Cooldown), nil
+	}
+
+	return nil, nil
 }
 
 // autoloadWarmer is an AutoloadGenerator that can parse ahead

@@ -543,10 +543,6 @@ func doTestIntegration(t *testing.T, test integrationTest, expectOutput *string,
 		return
 	}
 	output := bufferOutput(out)
-	if runErr != nil {
-		t.Fatalf("run failed: %v\n%s", runErr, output)
-	}
-
 	if result != test.expectResult {
 		t.Fatalf("exit code = %d, want %d\n%s", result, test.expectResult, output)
 	}

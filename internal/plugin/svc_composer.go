@@ -351,6 +351,15 @@ func (r *Runtime) registerLocker() {
 		return nil, r.adopt(a, l)
 	})
 	method("getJsonFile", func(l *locker.Locker, _ args) (any, error) { return l.JSONFile().Path(), nil })
+	method("setRepositoryManager", func(l *locker.Locker, a args) (any, error) {
+		m, err := param[*repository.RepositoryManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		l.SetRepositoryManager(m)
+
+		return nil, nil
+	})
 	method("setLockData", func(l *locker.Locker, a args) (any, error) {
 		packages, err := packagesParam(a, 1)
 		if err != nil {

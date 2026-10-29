@@ -1,5 +1,5 @@
 
-In DumpAutoloadCommand.php line 87:
+In DumpAutoloadCommand.php line 88:
                                                                                
   --strict-ambiguous mode only works with optimized autoloader, use --optimiz  
   e or --classmap-authoritative if you want a strict return value.             

@@ -14,7 +14,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
-	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -491,10 +490,6 @@ func (h *HttpDownloader) countQueued() int {
 // startQueued starts queued jobs while slots are free; h.mu is held.
 func (h *HttpDownloader) startQueued() {
 	for _, job := range h.jobs {
-		if h.runningJobs >= max(h.maxJobs, h.burstJobs) {
-			return
-		}
-
 		if job.status == statusQueued && h.canStart(job) {
 			h.startJob(job)
 		}
@@ -514,11 +509,37 @@ const defaultBurstJobs = 48
 // insecure-protocol warning of plain http URLs, which keep Composer's
 // limit. h.mu is held.
 func (h *HttpDownloader) canStart(job *httpJob) bool {
-	if h.runningJobs < h.maxJobs {
+	// an origin which asked to be left alone gets no new request either,
+	// not just no retry
+	if h.curl != nil && h.curl.originOnHold(job.origin) {
+		return false
+	}
+
+	// a retry waiting for its Retry-After holds no transfer open, so its
+	// slot is free for another request meanwhile
+	delayed := 0
+	if h.curl != nil {
+		delayed = h.curl.countDelayedJobs()
+	}
+
+	if h.runningJobs < h.maxJobs+delayed {
 		return true
 	}
 
-	return h.runningJobs < h.burstJobs && strings.HasPrefix(job.url, "https://")
+	return h.runningJobs < h.burstJobs+delayed && strings.HasPrefix(job.url, "https://")
+}
+
+// CountDelayedJobs is CurlDownloader::countDelayedJobs(): the retries
+// waiting for their delay, which hold no transfer open.
+func (h *HttpDownloader) CountDelayedJobs() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.curl == nil {
+		return 0
+	}
+
+	return h.curl.countDelayedJobs()
 }
 
 // markJobDone is markJobDone(): the job frees its slot; h.mu is held.
@@ -535,6 +556,8 @@ func (h *HttpDownloader) Wait() {
 	h.sched.Run(func() bool {
 		h.mu.Lock()
 		defer h.mu.Unlock()
+
+		h.startQueued()
 
 		return h.countActive(false) == 0
 	})
@@ -564,13 +587,26 @@ func (h *HttpDownloader) EnableAsync() {
 	h.mu.Unlock()
 }
 
-// CountActiveJobs is countActiveJobs(): the number of queued or running
-// requests. It does not tick: the scheduler's driver does.
+// CountActiveJobs is countActiveJobs(): it starts the queued requests
+// whose slot is free and reports the number of queued or running ones. It
+// does not tick: the scheduler's driver does.
 func (h *HttpDownloader) CountActiveJobs() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.startQueued()
+
 	return h.countActive(true)
+}
+
+// StartQueuedJobs is the start of queued requests in countActiveJobs():
+// what countActiveJobs() does besides counting, for the loop which counts
+// the requests itself.
+func (h *HttpDownloader) StartQueuedJobs() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.startQueued()
 }
 
 // countActive counts the queued or running jobs (synchronous ones too when
@@ -638,107 +674,11 @@ func (h *HttpDownloader) canUseCurl(job *httpJob) bool {
 	return !php.ToBool(v)
 }
 
-var ansiColorRegex = php.MustCompile("{\x1b\\[[;\\d]*m}u")
-
-// OutputWarnings is HttpDownloader::outputWarnings($io, $url, $data): it
-// shows the warnings and infos a repository sends (the legacy
-// warning/info keys and the warnings/infos lists) that apply to this
-// Composer version, and reports whether it wrote any.
+// OutputWarnings is the deprecated HttpDownloader::outputWarnings($io,
+// $url, $data): ResponseWarnings::output($io, $url, $data), which
+// OutputResponseWarnings is.
 func OutputWarnings(ioi io.IO, url string, data any) (bool, error) {
-	a, _ := data.(*php.Array)
-	wrote := false
-
-	cleanMessage := func(msg string) (string, error) {
-		if !ioi.IsDecorated() {
-			out, _, err := ansiColorRegex.Replace(msg, "", -1)
-
-			return out, err
-		}
-
-		return msg, nil
-	}
-
-	var parser semver.VersionParser
-
-	composerVersion, err := parser.Normalize(ComposerVersion)
-	if err != nil {
-		return false, err
-	}
-
-	composer := semver.NewConstraintOp(semver.OpEQ, composerVersion)
-
-	matches := func(versions any) (bool, error) {
-		constraint, err := parser.ParseConstraints(php.ToString(versions))
-		if err != nil {
-			return false, err
-		}
-
-		return constraint.Matches(composer), nil
-	}
-
-	write := func(typ string, message any) error {
-		msg, err := cleanMessage(php.ToString(message))
-		if err != nil {
-			return err
-		}
-
-		ioi.WriteError("<"+typ+">"+php.Ucfirst(typ)+" from "+util.SanitizeURL(url)+": "+msg+"</"+typ+">", true, io.Normal)
-		wrote = true
-
-		return nil
-	}
-
-	// legacy warning/info keys
-	for _, typ := range [2]string{"warning", "info"} {
-		if !php.ToBool(a.At(typ)) {
-			continue
-		}
-
-		if versions := a.At(typ + "-versions"); php.ToBool(versions) {
-			ok, err := matches(versions)
-			if err != nil {
-				return wrote, err
-			}
-
-			if !ok {
-				continue
-			}
-		}
-
-		if err := write(typ, a.At(typ)); err != nil {
-			return wrote, err
-		}
-	}
-
-	// modern Composer 2.2+ format with support for multiple warning/info
-	// messages
-	for _, key := range [2]string{"warnings", "infos"} {
-		specs, _ := a.At(key).(*php.Array)
-		if specs == nil || specs.Len() == 0 {
-			continue
-		}
-
-		typ := key[:len(key)-1]
-
-		for _, spec := range specs.All() {
-			s, _ := spec.(*php.Array)
-
-			ok, err := matches(s.At("versions"))
-			if err != nil {
-				return wrote, err
-			}
-
-			if !ok {
-				continue
-			}
-
-			if err := write(typ, s.At("message")); err != nil {
-				return wrote, err
-			}
-		}
-	}
-
-	return wrote, nil
+	return OutputResponseWarnings(ioi, url, data)
 }
 
 // connectivityCheck is the request getExceptionHints makes to tell a DNS

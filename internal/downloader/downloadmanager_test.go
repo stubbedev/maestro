@@ -287,32 +287,6 @@ func TestDownloadManager_FullPackageDownload(t *testing.T) {
 	expectDownloaded(t, downloadCase{sourceType: "git", distType: "pear"}, "dist")
 }
 
-func TestDownloadManager_FullPackageDownloadFailover(t *testing.T) {
-	git := &fakeDownloader{source: pkg.FromSource}
-	pear := &fakeDownloader{source: pkg.FromDist, download: func() (*Promise, error) {
-		return nil, &util.RuntimeError{Message: "Foo"}
-	}}
-
-	p := dmPackage("a/b", false, "git", "pear")
-	m, _ := newManager(t)
-	m.SetDownloader("git", git)
-	m.SetDownloader("pear", pear)
-
-	// Source fallback now defaults to false; opt in to exercise failover.
-	m.SetSourceFallback(true)
-
-	if err := await(m.Download(p, "target_dir", nil)); err != nil {
-		t.Fatal(err)
-	}
-
-	pear.expectCalls(t, "download")
-	git.expectCalls(t, "download")
-
-	if p.InstallationSource() != pkg.Some(pkg.FromSource) {
-		t.Fatalf("installation source %v", p.InstallationSource())
-	}
-}
-
 func TestDownloadManager_BadPackageDownload(t *testing.T) {
 	_, err := runDownload(t, downloadCase{}, &fakeDownloader{source: pkg.FromSource}, &fakeDownloader{source: pkg.FromDist})
 	if !phperr.InstanceOf(err, "InvalidArgumentException") {
@@ -591,16 +565,13 @@ func failingThenSucceeding(failing string) (git, pear *fakeDownloader) {
 	return git, pear
 }
 
-func TestDownloadManager_DownloadFailsWithoutFallbackWhenDisabled(t *testing.T) {
+func TestDownloadManager_DownloadFailsWithoutFallbackWhenDistFails(t *testing.T) {
 	git, pear := failingThenSucceeding("dist")
 	p := dmPackage("foo/bar", false, "git", "pear")
 
 	m, out := newManager(t)
 	m.SetDownloader("git", git)
 	m.SetDownloader("pear", pear)
-
-	// Disable source fallback
-	m.SetSourceFallback(false)
 
 	err := await(m.Download(p, "target_dir", nil))
 	if err == nil || err.Error() != "Foo" {
@@ -609,46 +580,12 @@ func TestDownloadManager_DownloadFailsWithoutFallbackWhenDisabled(t *testing.T) 
 
 	want := []string{
 		"    <warning>Failed to download foo/bar from dist: Foo</warning>",
-		"    <warning>Source fallback is disabled. Not trying alternative sources.</warning>",
 	}
 	if got := outputLines(out); !slices.Equal(got, want) {
 		t.Fatalf("output %q, want %q", got, want)
 	}
 
 	git.expectCalls(t)
-}
-
-func TestDownloadManager_DownloadFallsBackWhenEnabled(t *testing.T) {
-	git, pear := failingThenSucceeding("dist")
-	p := dmPackage("foo/bar", false, "git", "pear")
-
-	m, out := newManager(t)
-	m.SetDownloader("git", git)
-	m.SetDownloader("pear", pear)
-
-	// Explicitly enable source fallback (opt-in, deprecated)
-	m.SetSourceFallback(true)
-
-	if err := await(m.Download(p, "target_dir", nil)); err != nil {
-		t.Fatal(err)
-	}
-
-	// 4 writeError calls fire: 2 deprecation warnings, "Failed to download
-	// from dist", and "Now trying to download from source" during the
-	// retry.
-	want := []string{
-		"<warning>The source-fallback option is deprecated and will be removed in Composer 2.11 as automatic fallback between dist and source has security implications.</warning>",
-		"<warning>If you have a legitimate use case and do not want us to remove it in 2.11, please open an issue at https://github.com/composer/composer/issues to let us know.</warning>",
-		"    <warning>Failed to download foo/bar from dist: Foo</warning>",
-		"    <warning>Now trying to download from source</warning>",
-	}
-	if got := outputLines(out); !slices.Equal(got, want) {
-		t.Fatalf("output %q, want %q", got, want)
-	}
-
-	if p.InstallationSource() != pkg.Some(pkg.FromSource) {
-		t.Fatalf("installation source %v", p.InstallationSource())
-	}
 }
 
 func TestDownloadManager_DownloadFallsBackFromSourceToDistByDefault(t *testing.T) {
@@ -660,14 +597,12 @@ func TestDownloadManager_DownloadFallsBackFromSourceToDistByDefault(t *testing.T
 	m.SetDownloader("git", git)
 	m.SetDownloader("pear", pear)
 
-	// Do NOT call setSourceFallback, fallback to dist must work by default.
 	if err := await(m.Download(p, "target_dir", nil)); err != nil {
 		t.Fatal(err)
 	}
 
 	// "Failed to download from source" and "Now trying to download from
-	// dist" during the retry; no deprecation warning, no "Source fallback
-	// is disabled" warning.
+	// dist" during the retry.
 	want := []string{
 		"    <warning>Failed to download foo/bar from source: Foo</warning>",
 		"    <warning>Now trying to download from dist</warning>",

@@ -5,6 +5,7 @@ package autoload
 
 import (
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/classmap"
@@ -12,6 +13,24 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/fspath"
 )
+
+// buildExclusionRegexWithVendorDir ports buildExclusionRegexWithVendorDir:
+// the same as buildExclusionRegex, but also excludes the vendor dir if dir
+// contains it. vendorPath "" is null.
+func buildExclusionRegexWithVendorDir(dir string, excluded []string, vendorPath string) classmap.Matcher {
+	if vendorPath != "" {
+		resolvedDir := dir
+		if !fspath.IsAbsolutePath(dir) {
+			cwd, _ := util.GetCwd(false)
+			resolvedDir = util.Realpath(cwd) + "/" + dir
+		}
+		if strings.HasPrefix(vendorPath, fspath.NormalizePath(resolvedDir)+"/") {
+			excluded = append(slices.Clip(excluded), php.PregQuote(vendorPath+"/", ""))
+		}
+	}
+
+	return buildExclusionRegex(dir, excluded)
+}
 
 // buildExclusionRegex ports buildExclusionRegex: the exclude-from-classmap
 // patterns that can apply below dir, as one regex (nil for none). The

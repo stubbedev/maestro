@@ -175,6 +175,43 @@ func TestProcessExecutor_HidePasswords(t *testing.T) {
 	}
 }
 
+func TestProcessExecutor_HidePasswordsInArrayCommands(t *testing.T) {
+	skipOnWindows(t)
+
+	for _, c := range []struct {
+		command, expectedCommand []string
+	}{
+		{
+			[]string{"echo", "--username", "foo", "--password", "s3cr3t", "--", "https://foo.example.org/svn/"},
+			[]string{"echo", "--username", "foo", "--password", "***", "--", "https://foo.example.org/svn/"},
+		},
+		{
+			[]string{"echo", "--username", "foo", "--password=s3cr3t", "--", "https://foo.example.org/svn/"},
+			[]string{"echo", "--username", "foo", "--password=***", "--", "https://foo.example.org/svn/"},
+		},
+	} {
+		buffer := &bufferIO{debug: true}
+
+		var output string
+		if _, err := NewProcessExecutor(buffer).Execute(Cmd(c.command...), &output, ""); err != nil {
+			t.Fatal(err)
+		}
+
+		escaped := make([]string, len(c.expectedCommand))
+		for i, arg := range c.expectedCommand {
+			escaped[i] = Escape(arg)
+		}
+
+		if got, want := strings.TrimSpace(buffer.getOutput()), "Executing command (CWD): "+strings.Join(escaped, " "); got != want {
+			t.Errorf("%q:\n got %q\nwant %q", c.command, got, want)
+		}
+
+		if strings.Contains(buffer.getOutput(), "s3cr3t") {
+			t.Errorf("%q leaked the password in %q", c.command, buffer.getOutput())
+		}
+	}
+}
+
 func TestProcessExecutor_DoesntHidePorts(t *testing.T) {
 	skipOnWindows(t)
 

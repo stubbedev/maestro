@@ -68,4 +68,14 @@ class RepositoryManager
         // repositories here (object.new) and uses them through proxies.
         \Maestro\Shim\Rpc::call('rm.setRepositoryClass', [$this, $type, $class]);
     }
+
+    public function restoreHttpHeaders(\Composer\Package\PackageInterface $package): void
+    {
+        \Maestro\Shim\Rpc::call('rm.restoreHttpHeaders', [$this, $package]);
+    }
+
+    public function removeRestorableHttpHeaders(\Composer\Package\PackageInterface $package, array $data): array
+    {
+        return \Maestro\Shim\Rpc::call('rm.removeRestorableHttpHeaders', [$this, $package, $data]);
+    }
 }

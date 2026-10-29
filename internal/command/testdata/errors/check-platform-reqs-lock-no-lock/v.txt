@@ -1,21 +1,22 @@
 Checking platform requirements using the lock file
 
-In Locker.php line 338:
+In Locker.php line 361:
                                                      
   [LogicException]                                   
   No lockfile found. Unable to read locked packages  
                                                      
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Package/Locker.php:338
- Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:164
+  at @COMPOSER@/src/Composer/Package/Locker.php:361
+ Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:184
  Composer\Package\Locker->getLockedRepository() at @COMPOSER@/src/Composer/Command/CheckPlatformReqsCommand.php:56
  Composer\Command\CheckPlatformReqsCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 check-platform-reqs [--no-dev] [--lock] [-f|--format FORMAT]

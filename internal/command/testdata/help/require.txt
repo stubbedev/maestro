@@ -14,15 +14,16 @@ Options:
       --prefer-source                                  Forces installation from package sources when possible, including VCS information.
       --prefer-dist                                    Forces installation from package dist (default behavior).
       --prefer-install=PREFER-INSTALL                  Forces installation from package dist|source|auto (auto chooses source for dev versions, dist for the rest).
-      --fixed                                          Write fixed version to the composer.json.
+      --fixed                                          Write the exact resolved version to the composer.json instead of the recommended constraint (only allowed when the root package type is "project", or with --dev).
       --no-suggest                                     DEPRECATED: This flag does not exist anymore.
       --no-progress                                    Do not output download progress.
       --no-update                                      Disables the automatic update of the dependencies (implies --no-install).
       --no-install                                     Skip the install step after updating the composer.lock file.
       --no-audit                                       Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).
       --audit-format=AUDIT-FORMAT                      Audit output format. Must be "table", "plain", "json", or "summary". [default: "summary"]
-      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
-      --no-blocking                                    Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories, that are abandoned or that are still in the cooldown period (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
+      --no-blocking                                    Disables all policy blocking during this command, including the cooldown period (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --no-cooldown                                    Disables the cooldown policy blocking during this command, other policies still apply.
       --update-no-dev                                  Run the dependency update with the --no-dev option.
   -w, --update-with-dependencies                       Allows inherited dependencies to be updated, except those that are root requirements (can also be set via the COMPOSER_WITH_DEPENDENCIES=1 env var).
   -W, --update-with-all-dependencies                   Allows all inherited dependencies to be updated, including those that are root requirements (can also be set via the COMPOSER_WITH_ALL_DEPENDENCIES=1 env var).
@@ -60,4 +61,4 @@ Help:
   
   If you do not want to install the new dependencies immediately you can call it with --no-update
   
-  Read more at https://getcomposer.org/doc/03-cli.md#require-r
+  Read more at https://getcomposer.org/doc/03-cli.md#require--r

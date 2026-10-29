@@ -45,7 +45,7 @@ func NewDumpAutoloadCommand() *DumpAutoloadCommand {
 	)
 	c.SetHelp(`<info>php composer.phar dump-autoload</info>
 
-Read more at https://getcomposer.org/doc/03-cli.md#dump-autoload-dumpautoload`)
+Read more at https://getcomposer.org/doc/03-cli.md#dump-autoload--dumpautoload`)
 
 	return c
 }
@@ -104,8 +104,12 @@ func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int
 	if err != nil {
 		return 0, err
 	}
+	strictPsr, err := optionOrConfig(in, "strict-psr", cfg, "strict-psr-autoloader")
+	if err != nil {
+		return 0, err
+	}
 
-	if console.BoolOption(in, "strict-psr") && !optimize && !authoritative {
+	if strictPsr && !optimize && !authoritative {
 		return 0, NewError(ClassInvalidArgument, "--strict-psr mode only works with optimized autoloader, use --optimize or --classmap-authoritative if you want a strict return value.")
 	}
 	if console.BoolOption(in, "strict-ambiguous") && !optimize && !authoritative {
@@ -157,7 +161,7 @@ func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int
 		c.IO().Write("<info>Generated autoload files</info>", true, io.Normal)
 	}
 
-	if missingDependencies || (console.BoolOption(in, "strict-psr") && len(classMap.PsrViolations()) > 0) {
+	if missingDependencies || (strictPsr && len(classMap.PsrViolations()) > 0) {
 		return 1, nil
 	}
 
@@ -166,7 +170,11 @@ func (c *DumpAutoloadCommand) Execute(in console.Input, out console.Output) (int
 		if err != nil {
 			return 0, err
 		}
-		if len(ambiguous) > 0 {
+		ambiguousFolders, err := classMap.AmbiguousFolders(nil)
+		if err != nil {
+			return 0, err
+		}
+		if len(ambiguous) > 0 || len(ambiguousFolders) > 0 {
 			return 2, nil
 		}
 	}

@@ -204,6 +204,101 @@ func TestJsonConfigSource_RemovePolicyListFieldCascadesEmptyAncestors(t *testing
 `, config)
 }
 
+func TestJsonConfigSource_AddPropertyToArrayValuedExtraDoesNotDoubleNest(t *testing.T) {
+	config := jcsWrite(t, `{
+    "name": "vendor/pkg",
+    "extra": [
+        "hello"
+    ]
+}
+`)
+	check(t, jcsSource(t, config).AddProperty("extra.1", "world"))
+
+	// The value must land at extra.1, not at a phantom extra.extra.1 (GH-13165).
+	assertFileContents(t, `{
+    "name": "vendor/pkg",
+    "extra": [
+        "hello",
+        "world"
+    ]
+}
+`, config)
+}
+
+func TestJsonConfigSource_RemovePropertyFromArrayValuedExtraDoesNotDoubleNest(t *testing.T) {
+	config := jcsWrite(t, `{
+    "name": "vendor/pkg",
+    "extra": [
+        "hello",
+        "world"
+    ]
+}
+`)
+	check(t, jcsSource(t, config).RemoveProperty("extra.0"))
+
+	assertFileContents(t, `{
+    "name": "vendor/pkg",
+    "extra": [
+        "world"
+    ]
+}
+`, config)
+}
+
+// assertCompactJSON compares a file with json_encode(json_decode($file)).
+func assertCompactJSON(t *testing.T, expected, actualFile string) {
+	t.Helper()
+	data, err := os.ReadFile(actualFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := php.JSONDecode(string(data), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := php.JSONEncode(decoded, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if encoded != expected {
+		t.Errorf("got %s, want %s", encoded, expected)
+	}
+}
+
+func TestJsonConfigSource_PropertyManipulations(t *testing.T) {
+	cases := []struct {
+		name     string
+		original string
+		add      bool
+		key      string
+		value    any
+		want     string
+	}{
+		{"add nested extra key keeps the remainder literal", `{"extra": {"foo": "bar"}}`, true, "extra.a.b.c", "x", `{"extra":{"foo":"bar","a":{"b.c":"x"}}}`},
+		{"add replaces a scalar parent", `{"extra": {"foo": "bar"}}`, true, "extra.foo.baz", "x", `{"extra":{"foo":{"baz":"x"}}}`},
+		{"add script", `{"scripts": {"test": "phpunit"}}`, true, "scripts.lint", "phpcs", `{"scripts":{"test":"phpunit","lint":"phpcs"}}`},
+		{"add suggest", `{"suggest": {"a/b": "c"}}`, true, "suggest.foo/b.ar", "desc", `{"suggest":{"a\/b":"c","foo\/b.ar":"desc"}}`},
+		{"remove nested extra key with literal remainder", `{"extra": {"a": {"b.c": "x", "d": 1}}}`, false, "extra.a.b.c", nil, `{"extra":{"a":{"d":1}}}`},
+		{"remove last nested key keeps an object", `{"extra": {"foo": {"bar": 1}, "z": 2}}`, false, "extra.foo.bar", nil, `{"extra":{"foo":{},"z":2}}`},
+		{"remove last extra key keeps an object", `{"extra": {"foo": 1}}`, false, "extra.foo", nil, `{"extra":{}}`},
+		{"remove below a scalar is a no-op", `{"extra": {"foo": "bar", "z": 1}}`, false, "extra.foo.0.x", nil, `{"extra":{"foo":"bar","z":1}}`},
+		{"remove suggest", `{"suggest": {"foo/bar": "x", "a/b": "y"}}`, false, "suggest.foo/bar", nil, `{"suggest":{"a\/b":"y"}}`},
+		{"remove autoload type", `{"autoload": {"psr-4": {"A\\\\": "src/"}, "files": ["x.php"]}}`, false, "autoload.psr-4", nil, `{"autoload":{"files":["x.php"]}}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			config := jcsWrite(t, c.original)
+			source := jcsSource(t, config)
+			if c.add {
+				check(t, source.AddProperty(c.key, c.value))
+			} else {
+				check(t, source.RemoveProperty(c.key))
+			}
+			assertCompactJSON(t, c.want, config)
+		})
+	}
+}
+
 var linkCases = []struct{ typ, name, value, fixture string }{
 	{"require", "my-vend/my-lib", "1.*", "require"},
 	{"require-dev", "my-vend/my-lib-tests", "1.*", "require-dev"},

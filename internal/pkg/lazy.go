@@ -109,6 +109,7 @@ func (p *CompletePackage) adoptRest(full *CompletePackage) {
 	p.distSha1Checksum = full.distSha1Checksum
 	p.notificationURL = full.notificationURL
 	p.releaseDate = full.releaseDate
+	p.publishedDate = full.publishedDate
 	p.sourceMirrors = full.sourceMirrors
 	p.distMirrors = full.distMirrors
 	p.binaries = full.binaries
@@ -184,7 +185,7 @@ var skeletonFields = []string{
 // adoptedFields are the fields adoptRest sets ("set": its other bits).
 var adoptedFields = []string{
 	"targetDir", "installationSource", "sourceType", "sourceURL", "sourceReference", "distType",
-	"distURL", "distReference", "distSha1Checksum", "notificationURL", "releaseDate",
+	"distURL", "distReference", "distSha1Checksum", "notificationURL", "releaseDate", "publishedDate",
 	"sourceMirrors", "distMirrors", "binaries", "suggests", "autoload", "devAutoload",
 	"includePaths", "transportOptions", "phpExt", "set",
 	"description", "homepage", "archiveName", "repositories", "license", "keywords", "authors",

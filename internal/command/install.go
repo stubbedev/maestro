@@ -35,8 +35,8 @@ func NewInstallCommand() *InstallCommand {
 		console.MustOption("dev", "", console.OptionValueNone, "DEPRECATED: Enables installation of require-dev packages (enabled by default, only present for BC).", nil),
 		console.MustOption("no-suggest", "", console.OptionValueNone, "DEPRECATED: This flag does not exist anymore.", nil),
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables installation of require-dev packages.", nil),
-		console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
-		console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+		console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories, that are abandoned or that are still in the cooldown period (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
+		console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command, including the cooldown period (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
 		console.MustOption("no-autoloader", "", console.OptionValueNone, "Skips autoloader generation", nil),
 		console.MustOption("no-progress", "", console.OptionValueNone, "Do not output download progress.", nil),
 		console.MustOption("no-install", "", console.OptionValueNone, "Do not use, only defined here to catch misuse of the install command.", nil),
@@ -45,7 +45,7 @@ func NewInstallCommand() *InstallCommand {
 		console.MustOption("verbose", "v|vv|vvv", console.OptionValueNone, "Shows more details including new commits pulled in when updating packages.", nil),
 		console.MustOption("optimize-autoloader", "o", console.OptionValueNone, "Optimize autoloader during autoloader dump", nil),
 		console.MustOption("classmap-authoritative", "a", console.OptionValueNone, "Autoload classes from the classmap only. Implicitly enables `--optimize-autoloader`.", nil),
-		console.MustOption("strict-psr-autoloader", "", console.OptionValueNone, "Return a failed status code (6) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize-autoloader to work.", nil),
+		console.MustOption("strict-psr-autoloader", "", console.OptionValueNone, "Return a failed status code (6) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize-autoloader or --classmap-authoritative to work.", nil),
 		console.MustOption("apcu-autoloader", "", console.OptionValueNone, "Use APCu to cache found/not-found classes.", nil),
 		console.MustOption("apcu-autoloader-prefix", "", console.OptionValueRequired, "Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader", nil),
 		console.MustOption("ignore-platform-req", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore a specific platform requirement (php & ext- packages).", nil),
@@ -59,7 +59,7 @@ exist it will look for composer.json and do the same.
 
 <info>php composer.phar install</info>
 
-Read more at https://getcomposer.org/doc/03-cli.md#install-i`)
+Read more at https://getcomposer.org/doc/03-cli.md#install--i`)
 
 	return c
 }
@@ -126,8 +126,12 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 	if err != nil {
 		return 0, err
 	}
+	strictPsr, err := optionOrConfig(in, "strict-psr-autoloader", cfg, "strict-psr-autoloader")
+	if err != nil {
+		return 0, err
+	}
 
-	if err := checkStrictPSRAutoloader(in, optimize, authoritative); err != nil {
+	if err := checkStrictPSRAutoloader(strictPsr, optimize, authoritative); err != nil {
 		return 0, err
 	}
 
@@ -155,7 +159,7 @@ func (c *InstallCommand) Execute(in console.Input, out console.Output) (int, err
 		SetDumpAutoloader(!console.BoolOption(in, "no-autoloader")).
 		SetOptimizeAutoloader(optimize).
 		SetClassMapAuthoritative(authoritative).
-		SetStrictPsrAutoloader(console.BoolOption(in, "strict-psr-autoloader")).
+		SetStrictPsrAutoloader(strictPsr).
 		SetApcuAutoloader(apcu, apcuPrefix).
 		SetPlatformRequirementFilter(platformFilter).
 		SetPolicyConfig(policyConfig).

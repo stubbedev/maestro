@@ -8,20 +8,21 @@ namespace Composer\Policy;
 
 class PolicyConfig
 {
-    public const BUILTIN_LIST_NAMES = ['advisories', 'abandoned', 'malware'];
+    public const BUILTIN_LIST_NAMES = ['advisories', 'abandoned', 'malware', 'cooldown'];
     public const FUTURE_RESERVED_NAMES = ['package', 'packages', 'license', 'licence', 'licenses', 'licences', 'support', 'maintenance', 'security', 'minimum-release-age'];
     public const FUTURE_RESERVED_PREFIXES = ['ignore'];
     public const NON_LIST_KEYS = ['ignore-unreachable'];
-    public const RESERVED_NAMES = ['advisories', 'abandoned'];
+    public const RESERVED_NAMES = ['advisories', 'abandoned', 'cooldown'];
 
     public $abandoned;
     public $advisories;
+    public $cooldown;
     public $customLists;
     public $enabled;
     public $ignoreUnreachable;
     public $malware;
 
-    public function __construct(bool $enabled, \Composer\Policy\AdvisoriesPolicyConfig $advisories, \Composer\Policy\MalwarePolicyConfig $malware, \Composer\Policy\ListPolicyConfig $abandoned, array $customLists, \Composer\Policy\IgnoreUnreachable $ignoreUnreachable)
+    public function __construct(bool $enabled, \Composer\Policy\AdvisoriesPolicyConfig $advisories, \Composer\Policy\MalwarePolicyConfig $malware, \Composer\Policy\ListPolicyConfig $abandoned, \Composer\Policy\CooldownPolicyConfig $cooldown, array $customLists, \Composer\Policy\IgnoreUnreachable $ignoreUnreachable)
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\PolicyConfig::__construct() in plugins yet');
     }
@@ -74,6 +75,11 @@ class PolicyConfig
     public function withBlockingDisabled(): self
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\PolicyConfig::withBlockingDisabled() in plugins yet');
+    }
+
+    public function withCooldownBlockingDisabled(): self
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\PolicyConfig::withCooldownBlockingDisabled() in plugins yet');
     }
 
     public function withIgnoreSeverity(array $severities): self

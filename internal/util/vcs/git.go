@@ -291,7 +291,7 @@ func (g *Git) retryWithAuth(url, origCwd string, initialClone bool, succeeded fu
 			credentials = []string{user, pass}
 			errorMsg = g.process.GetErrorOutput()
 		}
-	} else if match, err := firstMatch(url, `{^(https?)://(bitbucket\.org)/(.*?)(?:\.git)?$}i`, `{^(git)@(bitbucket\.org):(.+?\.git)$}i`); err != nil {
+	} else if match, err := firstMatch(url, `{^(https?)://(bitbucket\.org)/(.*?)(?:\.git)?$}i`, `{^(git)@(?:ssh\.)?(bitbucket\.org):(.+?\.git)$}i`, `{^(ssh)://git@(?:ssh\.)?(bitbucket\.org)/(.*?)(?:\.git)?$}i`); err != nil {
 		return err
 	} else if match != nil { // bitbucket either through oauth or app password, with fallback to ssh.
 		var (
@@ -299,7 +299,7 @@ func (g *Git) retryWithAuth(url, origCwd string, initialClone bool, succeeded fu
 			err  error
 		)
 
-		done, credentials, err = g.retryBitbucket(match.Get(2), match.Get(3), succeeded)
+		done, credentials, err = g.retryBitbucket(match.Get(2), match.Get(3), url, succeeded)
 		if done || err != nil {
 			return err
 		}
@@ -378,8 +378,9 @@ func (g *Git) retryWithAuth(url, origCwd string, initialClone bool, succeeded fu
 }
 
 // retryBitbucket is the Bitbucket branch of runCommand(): OAuth or app
-// password, falling back to ssh. done reports success.
-func (g *Git) retryBitbucket(domain, repoWithGitPart string, succeeded func(string) (bool, error)) (done bool, credentials []string, err error) {
+// password, falling back to ssh unless url was that ssh URL already. done
+// reports success.
+func (g *Git) retryBitbucket(domain, repoWithGitPart, url string, succeeded func(string) (bool, error)) (done bool, credentials []string, err error) {
 	bitbucketUtil := http.NewBitbucket(g.io, g.config, g.process, g.httpDownloader, 0)
 
 	if !strings.HasSuffix(repoWithGitPart, ".git") {
@@ -445,13 +446,18 @@ func (g *Git) retryBitbucket(domain, repoWithGitPart string, succeeded func(stri
 		credentials = []string{user, pass}
 	}
 
-	// Falling back to ssh
-	sshURL := "git@bitbucket.org:" + repoWithGitPart
-	g.io.WriteError("    No bitbucket authentication configured. Falling back to ssh.", true, io.Normal)
+	// Falling back to ssh, unless that is the URL which already failed
+	// above
+	sshURL := "git@ssh.bitbucket.org:" + repoWithGitPart
+	if sshURL != url {
+		g.io.WriteError("    No bitbucket authentication configured. Falling back to ssh.", true, io.Normal)
 
-	ok, err := succeeded(sshURL)
+		ok, err := succeeded(sshURL)
 
-	return ok, credentials, err
+		return ok, credentials, err
+	}
+
+	return false, credentials, nil
 }
 
 // retryPrompted is the generic branch of runCommand(): stored or prompted

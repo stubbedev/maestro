@@ -4,10 +4,10 @@ package resolver
 
 import (
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -26,14 +26,8 @@ type Removed struct {
 	// ByPackage maps the packages the optimizer kept to the versions of
 	// their identical-dependency groups.
 	ByPackage map[pkg.PackageInterface]*VersionMap
-	// Security maps package names to versions to the advisories that
-	// removed them.
-	Security *repository.NameMap[*repository.NameMap[[]repository.Advisory]]
-	// Abandoned maps package names to the versions removed as abandoned.
-	Abandoned *repository.NameMap[*VersionMap]
-	// FilterList maps package names to versions to the filter list
-	// entries that removed them.
-	FilterList *repository.NameMap[*repository.NameMap[[]*repository.FilterListEntry]]
+	// Policy maps package names to versions to why a policy removed them.
+	Policy *repository.NameMap[*repository.NameMap[*PolicyRemovalReason]]
 }
 
 // Pool ports Composer\DependencyResolver\Pool: the packages the solver
@@ -110,116 +104,62 @@ func (p *Pool) AllRemovedVersionsByPackage() map[pkg.PackageInterface]*VersionMa
 	return p.removed.ByPackage
 }
 
-// IsSecurityRemovedPackageVersion ports isSecurityRemovedPackageVersion;
-// constraint may be nil.
-func (p *Pool) IsSecurityRemovedPackageVersion(packageName string, constraint semver.ConstraintInterface) bool {
-	versions, _ := p.removed.Security.Get(packageName)
-	for version := range versions.All() {
-		if constraint != nil && matchesVersion(constraint, version) {
-			return true
+// PolicyRemovedVersions ports getPolicyRemovedVersions: the versions of a
+// package that dependency policies removed, with the reason for each, in
+// ascending version order. constraint may be nil.
+func (p *Pool) PolicyRemovedVersions(packageName string, constraint semver.ConstraintInterface) *repository.NameMap[*PolicyRemovalReason] {
+	versions, _ := p.removed.Policy.Get(packageName)
+	type entry struct {
+		version string
+		reason  *PolicyRemovalReason
+	}
+	filtered := make([]entry, 0, versions.Len())
+	for version, reason := range versions.All() {
+		if constraint == nil || matchesVersion(constraint, version) {
+			filtered = append(filtered, entry{version, reason})
 		}
 	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		return semver.VersionCompare(filtered[i].version, filtered[j].version) < 0
+	})
 
-	return false
-}
-
-// SecurityAdvisoryIdentifiersForPackageVersion ports
-// getSecurityAdvisoryIdentifiersForPackageVersion.
-func (p *Pool) SecurityAdvisoryIdentifiersForPackageVersion(packageName string, constraint semver.ConstraintInterface) []string {
-	versions, _ := p.removed.Security.Get(packageName)
-	for version, advisories := range versions.All() {
-		if constraint != nil && matchesVersion(constraint, version) {
-			ids := make([]string, len(advisories))
-			for i, advisory := range advisories {
-				ids[i] = advisory.Partial().AdvisoryID
-			}
-
-			return ids
-		}
-	}
-
-	return nil
-}
-
-// IsAbandonedRemovedPackageVersion ports isAbandonedRemovedPackageVersion.
-func (p *Pool) IsAbandonedRemovedPackageVersion(packageName string, constraint semver.ConstraintInterface) bool {
-	versions, _ := p.removed.Abandoned.Get(packageName)
-	for version := range versions.All() {
-		if constraint != nil && matchesVersion(constraint, version) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// AllSecurityRemovedPackageVersions ports getAllSecurityRemovedPackageVersions.
-func (p *Pool) AllSecurityRemovedPackageVersions() *repository.NameMap[*repository.NameMap[[]repository.Advisory]] {
-	return p.removed.Security
-}
-
-// AllAbandonedRemovedPackageVersions ports getAllAbandonedRemovedPackageVersions.
-func (p *Pool) AllAbandonedRemovedPackageVersions() *repository.NameMap[*VersionMap] {
-	return p.removed.Abandoned
-}
-
-// IsFilterListRemovedPackageVersion ports isFilterListRemovedPackageVersion.
-func (p *Pool) IsFilterListRemovedPackageVersion(packageName string, constraint semver.ConstraintInterface) bool {
-	versions, _ := p.removed.FilterList.Get(packageName)
-	for version := range versions.All() {
-		if constraint != nil && matchesVersion(constraint, version) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// AllFilterListRemovedPackageVersions ports getAllFilterListRemovedPackageVersions.
-func (p *Pool) AllFilterListRemovedPackageVersions() *repository.NameMap[*repository.NameMap[[]*repository.FilterListEntry]] {
-	return p.removed.FilterList
-}
-
-// FilterListEntryForPackageVersion ports getFilterListEntryForPackageVersion:
-// list name => "flagged as malware reported by ..." / "filtered by ...".
-func (p *Pool) FilterListEntryForPackageVersion(packageName string, constraint semver.ConstraintInterface) *repository.NameMap[string] {
-	lists := &repository.NameMap[[]string]{}
-	seen := map[*repository.FilterListEntry]bool{}
-	versions, _ := p.removed.FilterList.Get(packageName)
-	for version, entries := range versions.All() {
-		if constraint == nil || !matchesVersion(constraint, version) {
-			continue
-		}
-		for _, entry := range entries {
-			if seen[entry] {
-				continue
-			}
-			seen[entry] = true
-			var b strings.Builder
-			if entry.Source.Valid && php.Truthy(entry.Source.S) {
-				b.WriteString(" reported by " + entry.Source.S)
-			}
-			if entry.URL.Valid && php.Truthy(entry.URL.S) {
-				b.WriteString(" (see " + entry.URL.S + ")")
-			}
-			if entry.Reason.Valid && php.Truthy(entry.Reason.S) {
-				b.WriteString(" reason: " + entry.Reason.S)
-			}
-			list, _ := lists.Get(entry.ListName)
-			lists.Set(entry.ListName, append(list, b.String()))
-		}
-	}
-
-	result := &repository.NameMap[string]{}
-	for listName, listEntries := range lists.All() {
-		action := "filtered by "
-		if listName == "malware" {
-			action = "flagged as "
-		}
-		result.Set(listName, action+listName+strings.Join(listEntries, ", "))
+	result := &repository.NameMap[*PolicyRemovalReason]{}
+	for _, e := range filtered {
+		result.Set(e.version, e.reason)
 	}
 
 	return result
+}
+
+// PolicyRemovalReason ports getPolicyRemovalReason: why a policy removed the
+// version, or nil when it did not.
+func (p *Pool) PolicyRemovalReason(packageName, version string) *PolicyRemovalReason {
+	versions, _ := p.removed.Policy.Get(packageName)
+	reason, _ := versions.Get(version)
+
+	return reason
+}
+
+// RecordPolicyRemoval ports Pool::recordPolicyRemoval: it records a removal
+// under every name of the package, but a replacer never hides the removal of
+// the package itself.
+func RecordPolicyRemoval(policyRemovedVersions *repository.NameMap[*repository.NameMap[*PolicyRemovalReason]], pk pkg.PackageInterface, reason *PolicyRemovalReason) {
+	for _, name := range pk.Names(false) {
+		versions, ok := policyRemovedVersions.Get(name)
+		if !ok {
+			versions = &repository.NameMap[*PolicyRemovalReason]{}
+			policyRemovedVersions.Set(name, versions)
+		}
+		existing, ok := versions.Get(pk.Version())
+		if !ok || (existing.PackageName != name && pk.Name() == name) {
+			versions.Set(pk.Version(), reason)
+		}
+	}
+}
+
+// AllPolicyRemovedVersions ports getAllPolicyRemovedVersions.
+func (p *Pool) AllPolicyRemovedVersions() *repository.NameMap[*repository.NameMap[*PolicyRemovalReason]] {
+	return p.removed.Policy
 }
 
 func (p *Pool) setPackages(packages []pkg.PackageInterface) {

@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Filter\PlatformRequirementFilter\IgnoreNothingPlatformRequirementFilter,
- * reimplemented with Composer 2.10.3's behaviour.
+ * reimplemented with Composer 2.11.0's behaviour.
  * Written for PHP 7.2.5 to 8.5.
  */
 

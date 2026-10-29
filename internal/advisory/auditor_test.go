@@ -145,7 +145,7 @@ func createPolicyConfig(o policyOptions) *policy.PolicyConfig {
 	}
 	customLists := &policy.OrderedMap[*policy.CustomListPolicyConfig]{}
 	if o.filteredAudit != "" {
-		customLists.Set(o.filteredListName, policy.NewCustomListPolicyConfig(o.filteredListName, false, o.filteredAudit, nil, nil))
+		customLists.Set(o.filteredListName, policy.NewCustomListPolicyConfig(o.filteredListName, false, o.filteredAudit, policy.BlockScopeUpdate, nil, nil))
 	}
 
 	packageRules := &policy.IgnoreMap{}
@@ -180,6 +180,7 @@ func createPolicyConfig(o policyOptions) *policy.PolicyConfig {
 		Advisories:        advisories,
 		Malware:           policy.MalwarePolicyConfigDisabled(),
 		Abandoned:         policy.NewAbandonedPolicyConfig(false, o.abandoned, abandonedIgnore),
+		Cooldown:          policy.CooldownPolicyConfigDisabled(),
 		CustomLists:       customLists,
 		IgnoreUnreachable: ignoreUnreachable,
 	}
@@ -393,7 +394,8 @@ Found 2 abandoned packages:
         "vendor/abandoned": "foo/bar",
         "vendor/abandoned2": null
     },
-    "filter": []
+    "filter": [],
+    "cooldown": []
 }`,
 		},
 	}
@@ -842,6 +844,33 @@ func TestAuditor_AuditWithFilterJson(t *testing.T) {
 	}
 }
 
+func TestAuditor_AuditWithFilterReportsAliasedPackageOnce(t *testing.T) {
+	matchingEntry := newEntry("vendor/package", semver.NewMatchAllConstraint(), "test-list", pkg.Str("https://example.com/filtered"), pkg.Str("Some reason"), pkg.Str("ID-test"), pkg.NullString{})
+	providerSet := &providerSetMock{filter: filterOf("test-list", matchingEntry)}
+
+	packageDev := pkg.NewCompletePackage("vendor/package", "dev-main", "dev-main")
+	branchAlias := pkg.NewCompleteAliasPackage(packageDev, "9.1.9999999.9999999-dev", "9.1.x-dev")
+
+	policyConfig := createPolicyConfig(policyOptions{abandoned: policy.AuditIgnore, filteredAudit: policy.AuditFail})
+	b := newBufferIO(t)
+	if _, err := (advisory.Auditor{}).Audit(b, getRepoSet(t), policyConfig, []pkg.PackageInterface{packageDev, branchAlias}, advisory.FormatJSON, true, providerSet); err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := php.JSONDecode(b.Output(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter, ok := decoded.(*php.Array).GetArray("filter")
+	if !ok {
+		t.Fatal("no filter key")
+	}
+	entries, ok := filter.GetArray("vendor/package")
+	if !ok || entries.Len() != 1 {
+		t.Fatalf("filter = %v", filter)
+	}
+}
+
 func TestAuditor_AuditWithFilterAndVulnerabilities(t *testing.T) {
 	matchingEntry := newEntry("vendor1/package2", ge("8.0.0.0"), "test-list", pkg.NullString{}, pkg.Str("internal"), pkg.Str("ID-test"), pkg.NullString{})
 	providerSet := &providerSetMock{filter: filterOf("test-list", matchingEntry)}
@@ -871,6 +900,186 @@ func TestAuditor_AuditWithFilterAndVulnerabilities(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("output lacks %q:\n%s", want, output)
 		}
+	}
+}
+
+func TestAuditor_CooldownAuditWiring(t *testing.T) {
+	now, err := time.Parse(time.DateTime, "2026-01-15 12:00:00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	releaseDate, err := time.Parse(time.DateTime, "2026-01-14 12:00:00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent := pkg.NewPackage("vendor/recent", "2.0.0.0", "2.0.0")
+	recent.SetReleaseDate(releaseDate, true)
+	packages := []pkg.PackageInterface{recent}
+
+	// fail -> non-zero exit, JSON carries the cooldown entry
+	b := newBufferIO(t)
+	result, err := advisory.NewAuditor(&advisory.CooldownAuditor{Now: now}).Audit(b, getRepoSet(t), policyConfigWithCooldown(policy.AuditFail), packages, advisory.FormatJSON, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != advisory.StatusFailed {
+		t.Errorf("result = %d", result)
+	}
+	if !strings.Contains(b.Output(), `"cooldown"`) || !strings.Contains(b.Output(), "vendor/recent") {
+		t.Errorf("output lacks the cooldown entry:\n%s", b.Output())
+	}
+
+	// report -> listed but does not fail the audit
+	b = newBufferIO(t)
+	result, err = advisory.NewAuditor(&advisory.CooldownAuditor{Now: now}).Audit(b, getRepoSet(t), policyConfigWithCooldown(policy.AuditReport), packages, advisory.FormatPlain, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != advisory.StatusOK {
+		t.Errorf("result = %d", result)
+	}
+	if !strings.Contains(b.Output(), "still in the cooldown period") {
+		t.Errorf("output lacks the cooldown report:\n%s", b.Output())
+	}
+
+	// ignore -> not evaluated at all
+	b = newBufferIO(t)
+	result, err = advisory.NewAuditor(&advisory.CooldownAuditor{Now: now}).Audit(b, getRepoSet(t), policyConfigWithCooldown(policy.AuditIgnore), packages, advisory.FormatPlain, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != advisory.StatusOK {
+		t.Errorf("result = %d", result)
+	}
+	if strings.Contains(b.Output(), "still in the cooldown period") {
+		t.Errorf("output reports the cooldown:\n%s", b.Output())
+	}
+}
+
+// policyConfigWithCooldown is AuditorTest::policyConfigWithCooldown().
+func policyConfigWithCooldown(audit string) *policy.PolicyConfig {
+	period := int64(7 * 24 * 3600)
+
+	return &policy.PolicyConfig{
+		Enabled:           true,
+		Advisories:        policy.AdvisoriesPolicyConfigDisabled(),
+		Malware:           policy.MalwarePolicyConfigDisabled(),
+		Abandoned:         policy.AbandonedPolicyConfigDisabled(),
+		Cooldown:          policy.NewCooldownPolicyConfig(true, audit, nil, &period),
+		CustomLists:       &policy.OrderedMap[*policy.CustomListPolicyConfig]{},
+		IgnoreUnreachable: policy.IgnoreUnreachableDefault(),
+	}
+}
+
+func TestAuditor_AuditSkipsDevBranchesButMatchesTheirBranchAliases(t *testing.T) {
+	advisoryData := func(packageName, id, affectedVersions string) *php.Array {
+		return php.ArrayOf(
+			"advisoryId", id,
+			"packageName", packageName,
+			"remoteId", id,
+			"title", "advisory",
+			"link", nil,
+			"cve", nil,
+			"affectedVersions", affectedVersions,
+			"source", "test",
+			"reportedAt", "2024-04-31 12:37:47",
+			"composerRepository", "Package Repository",
+			"severity", "high",
+			"sources", php.ListOf(php.ArrayOf("name", "test", "remoteId", id)),
+		)
+	}
+	repo, err := repository.NewPackageRepository(php.ArrayOf(
+		"package", php.NewArray(),
+		"security-advisories", php.ArrayOf(
+			"acme/dev-only", php.ListOf(advisoryData("acme/dev-only", "ID-DEV", "*")),
+			"acme/aliased", php.ListOf(advisoryData("acme/aliased", "ID-ALIAS", "<3.5")),
+		),
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoSet, err := repository.NewRepositorySet("stable", nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repoSet.AddRepository(repo); err != nil {
+		t.Fatal(err)
+	}
+
+	devOnly := pkg.NewCompletePackage("acme/dev-only", "dev-main", "dev-main")
+	aliased := pkg.NewCompletePackage("acme/aliased", "dev-main", "dev-main")
+	aliased.SetAbandoned(true)
+	branchAlias := pkg.NewCompleteAliasPackage(aliased, "3.3.9999999.9999999-dev", "3.3.x-dev")
+	packages := []pkg.PackageInterface{devOnly, aliased, branchAlias}
+
+	b := newBufferIO(t)
+	result, err := advisory.Auditor{}.Audit(b, repoSet, createPolicyConfig(policyOptions{abandoned: policy.AuditFail}), packages, advisory.FormatJSON, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != advisory.StatusFailed {
+		t.Errorf("result = %d", result)
+	}
+	decoded, err := php.JSONDecode(b.Output(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := decoded.(*php.Array)
+	advisories, _ := data.GetArray("advisories")
+	keys := advisories.Keys()
+	if len(keys) != 1 || keys[0].String() != "acme/aliased" {
+		t.Errorf("advisories = %v", keys)
+	}
+	aliasedAdvisories, _ := advisories.GetArray("acme/aliased")
+	if id, _ := aliasedAdvisories.Values()[0].(*php.Array).GetString("advisoryId"); id != "ID-ALIAS" {
+		t.Errorf("advisoryId = %q", id)
+	}
+	abandoned, _ := data.GetArray("abandoned")
+	if replacement, ok := abandoned.Get("acme/aliased"); !ok || replacement != nil || abandoned.Len() != 1 {
+		t.Errorf("abandoned = %v", abandoned.All())
+	}
+
+	b = newBufferIO(t)
+	if _, err := (advisory.Auditor{}).Audit(b, repoSet, createPolicyConfig(policyOptions{abandoned: policy.AuditFail}), packages, advisory.FormatPlain, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.Output(), "Found 1 abandoned package:") {
+		t.Errorf("output lacks the abandoned package:\n%s", b.Output())
+	}
+}
+
+func TestAuditor_AuditOutputsPartialAdvisories(t *testing.T) {
+	repo, err := repository.NewPackageRepository(php.ArrayOf(
+		"package", php.NewArray(),
+		"security-advisories", php.ArrayOf(
+			"acme/lib", php.ListOf(php.ArrayOf("advisoryId", "ACME-2026-001", "affectedVersions", "<1.0.1")),
+		),
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoSet, err := repository.NewRepositorySet("stable", nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repoSet.AddRepository(repo); err != nil {
+		t.Fatal(err)
+	}
+
+	b := newBufferIO(t)
+	result, err := advisory.Auditor{}.Audit(b, repoSet, createPolicyConfig(policyOptions{}), []pkg.PackageInterface{pkg.NewPackage("acme/lib", "1.0.0.0", "1.0.0")}, advisory.FormatPlain, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != advisory.StatusFailed {
+		t.Errorf("result = %d", result)
+	}
+	want := `Found 1 security vulnerability advisory affecting 1 package:
+Package: acme/lib
+Advisory ID: ACME-2026-001
+Affected versions: <1.0.1`
+	if got := normalizedOutput(b); got != want {
+		t.Errorf("output:\n%s\nwant:\n%s", got, want)
 	}
 }
 

@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Package\RootAliasPackage, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.5). See BasePackage for
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §4.5). See BasePackage for
  * how a Go-owned package mirrors maestro's; the alias's own fields come
  * from maestro, everything else is the aliased package's.
  * Written for PHP 7.2.5 to 8.5.

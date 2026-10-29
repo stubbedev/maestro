@@ -101,7 +101,7 @@ func (d *HgDriver) updateClone() error {
 			}
 
 			if code != 0 {
-				d.io.WriteError("<error>Failed to update "+util.SanitizeURL(d.url)+", package information from this repository may be outdated ("+d.process.GetErrorOutput()+")</error>", true, io.Normal)
+				d.io.WriteError("<error>Failed to update "+util.SanitizeURL(d.url)+", package information from this repository may be outdated ("+util.SanitizeURL(d.process.GetErrorOutput())+")</error>", true, io.Normal)
 			}
 
 			return nil

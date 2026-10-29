@@ -50,6 +50,11 @@ var notPathStrings = []string{
 // Compiler::compile's exclude() directories, any depth.
 var excludedDirs = map[string]bool{"Tests": true, "tests": true, "docs": true}
 
+// Finder's IGNORE_DOT_FILES notPath, which Compiler::compile leaves on
+// (Finder's constructor enables it): a dot directory such as seld/phar-utils'
+// .github is never part of the phar.
+var dotPath = php.MustCompile(`{(^|/)\..+(/|$)}`)
+
 // Compiler::compile's $extraFiles (the CA bundle is ca-bundle's res/).
 var extraFiles = []string{
 	"composer/installed.json",
@@ -158,7 +163,7 @@ func VendorFiles(vendorDir string) ([]string, error) {
 			rel = filepath.ToSlash(rel)
 
 			if d.IsDir() {
-				if vcsDirs[d.Name()] || excludedDirs[d.Name()] {
+				if vcsDirs[d.Name()] || excludedDirs[d.Name()] || strings.HasPrefix(d.Name(), ".") {
 					return filepath.SkipDir
 				}
 
@@ -203,7 +208,10 @@ func VendorFiles(vendorDir string) ([]string, error) {
 // keepVendorFile applies the Finder's notPath filters to rel and the
 // Compiler's check of what may be added.
 func keepVendorFile(rel string) (bool, error) {
-	// Finder matches notPath against the relative path.
+	// Finder matches notPath against the relative path, dot files included.
+	if m, err := dotPath.IsMatch(rel); err != nil || m {
+		return false, err
+	}
 	for _, re := range notPath {
 		m, err := re.IsMatch(rel)
 		if err != nil || m {

@@ -30,8 +30,36 @@ func TestJsonManipulator_RemoveSubNodePreservesObjectTypeWhenEmpty2(t *testing.T
 	runManipulatorTest(t, "testRemoveSubNodePreservesObjectTypeWhenEmpty2")
 }
 
+func TestJsonManipulator_RemoveSubNodeRemovesTopLevelKeyNotNestedKeyWithSameName(t *testing.T) {
+	runManipulatorTest(t, "testRemoveSubNodeRemovesTopLevelKeyNotNestedKeyWithSameName")
+}
+
 func TestJsonManipulator_AddSubNodeInRequire(t *testing.T) {
 	runManipulatorTest(t, "testAddSubNodeInRequire")
+}
+
+func TestJsonManipulator_AddSubNodeOverwritesTopLevelKeyNotNestedKeyWithSameName(t *testing.T) {
+	runManipulatorTest(t, "testAddSubNodeOverwritesTopLevelKeyNotNestedKeyWithSameName")
+}
+
+func TestJsonManipulator_AddSubNodeAppendsToLargeNode(t *testing.T) {
+	runManipulatorTest(t, "testAddSubNodeAppendsToLargeNode")
+}
+
+func TestJsonManipulator_AddSubNodeUpdatesLastKeyOfLargeNode(t *testing.T) {
+	runManipulatorTest(t, "testAddSubNodeUpdatesLastKeyOfLargeNode")
+}
+
+func TestJsonManipulator_AddSubNodeOverwritesKeyContainingSpace(t *testing.T) {
+	runManipulatorTest(t, "testAddSubNodeOverwritesKeyContainingSpace")
+}
+
+func TestJsonManipulator_AddSubNodeOverwritesKeyWithEscapedSlash(t *testing.T) {
+	runManipulatorTest(t, "testAddSubNodeOverwritesKeyWithEscapedSlash")
+}
+
+func TestJsonManipulator_AddPropertyDoesNotOverwriteNestedKeyWithSameName(t *testing.T) {
+	runManipulatorTest(t, "testAddPropertyDoesNotOverwriteNestedKeyWithSameName")
 }
 
 func TestJsonManipulator_AddExtraWithPackage(t *testing.T) {
@@ -100,6 +128,10 @@ func TestJsonManipulator_AddConfigSettingWorksFromScratch(t *testing.T) {
 
 func TestJsonManipulator_AddConfigSettingCanAdd(t *testing.T) {
 	runManipulatorTest(t, "testAddConfigSettingCanAdd")
+}
+
+func TestJsonManipulator_AddConfigSettingDoesNotOverwriteNestedKeyWithSameName(t *testing.T) {
+	runManipulatorTest(t, "testAddConfigSettingDoesNotOverwriteNestedKeyWithSameName")
 }
 
 func TestJsonManipulator_AddConfigSettingCanOverwrite(t *testing.T) {
@@ -280,6 +312,14 @@ func TestJsonManipulator_AllTestsPorted(t *testing.T) {
 		"testInsertListItem":                                                    true,
 		"testEscapedUnicodeDoesNotCauseBacktrackLimitErrorGithubIssue8131":      true,
 		"testLargeFileDoesNotCauseBacktrackLimitErrorGithubIssue9595":           true,
+		"testAddConfigSettingDoesNotOverwriteNestedKeyWithSameName":             true,
+		"testAddSubNodeOverwritesTopLevelKeyNotNestedKeyWithSameName":           true,
+		"testAddPropertyDoesNotOverwriteNestedKeyWithSameName":                  true,
+		"testAddSubNodeAppendsToLargeNode":                                      true,
+		"testAddSubNodeUpdatesLastKeyOfLargeNode":                               true,
+		"testAddSubNodeOverwritesKeyContainingSpace":                            true,
+		"testAddSubNodeOverwritesKeyWithEscapedSlash":                           true,
+		"testRemoveSubNodeRemovesTopLevelKeyNotNestedKeyWithSameName":           true,
 	}
 	for name := range loadRecordedTests(t) {
 		if !ported[name] {

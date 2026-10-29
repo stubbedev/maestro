@@ -244,21 +244,36 @@ func assertReasons(t *testing.T, m *Reasons, kv ...any) {
 
 func TestCustomListPolicyConfig_DefaultConfig(t *testing.T) {
 	for _, listConfig := range []any{php.NewArray(), true} {
-		AssertDumpEqual(t, NewCustomListPolicyConfig("test", true, AuditFail, nil, nil),
+		AssertDumpEqual(t, NewCustomListPolicyConfig("test", true, AuditFail, BlockScopeUpdate, nil, nil),
 			must(CustomListPolicyConfigFromRawConfig("test", listConfig)))
 	}
 }
 
-func TestCustomListPolicyConfig_ShouldBlockNeverAppliesToInstallScope(t *testing.T) {
-	custom := NewCustomListPolicyConfig("company-policy", true, AuditFail, nil, nil)
-	if !custom.ShouldBlock(BlockScopeUpdate) || custom.ShouldBlock(BlockScopeInstall) {
-		t.Error("wrong")
+func TestCustomListPolicyConfig_ShouldBlockHonoursConfiguredBlockScope(t *testing.T) {
+	cases := []struct {
+		name              string
+		configured, query string
+		expected          bool
+	}{
+		{"all + update", BlockScopeAll, BlockScopeUpdate, true},
+		{"all + install", BlockScopeAll, BlockScopeInstall, true},
+		{"update + update", BlockScopeUpdate, BlockScopeUpdate, true},
+		{"update + install", BlockScopeUpdate, BlockScopeInstall, false},
+		{"install + update", BlockScopeInstall, BlockScopeUpdate, false},
+		{"install + install", BlockScopeInstall, BlockScopeInstall, true},
+	}
+	for _, c := range cases {
+		custom := NewCustomListPolicyConfig("company-policy", true, AuditFail, c.configured, nil, nil)
+		if got := custom.ShouldBlock(c.query); got != c.expected {
+			t.Errorf("%s: got %v", c.name, got)
+		}
 	}
 }
 
 func TestCustomListPolicyConfig_FromRawConfig(t *testing.T) {
 	raw := php.ArrayOf(
 		"block", false,
+		"block-scope", "install",
 		"audit", "report",
 		"ignore", php.ArrayOf(
 			"acme/test", "flagged by mistake",
@@ -267,11 +282,21 @@ func TestCustomListPolicyConfig_FromRawConfig(t *testing.T) {
 		"sources", php.ListOf(php.ArrayOf("type", "url", "url", "https://example.com")),
 	)
 	AssertDumpEqual(t,
-		NewCustomListPolicyConfig("test", false, AuditReport, ignoreMap(
+		NewCustomListPolicyConfig("test", false, AuditReport, BlockScopeInstall, ignoreMap(
 			"acme/test", rule("acme/test", all(), new("flagged by mistake"), true, true),
 			"acme/test2", rule("acme/test2", constraint(t, "1.0"), nil, true, true),
 		), []*source.URLSource{{ListName: "test", URL: "https://example.com"}}),
 		must(CustomListPolicyConfigFromRawConfig("test", raw)))
+}
+
+func TestCustomListPolicyConfig_FromRawConfigRejectsInvalidBlockScope(t *testing.T) {
+	for name, blockScope := range map[string]any{"typo": "installs", "bool": true} {
+		_, err := CustomListPolicyConfigFromRawConfig("company-policy",
+			php.ArrayOf("block-scope", blockScope))
+		if err == nil || !strings.Contains(err.Error(), `Invalid block-scope for policy list "company-policy"`) {
+			t.Errorf("%s: got %v", name, err)
+		}
+	}
 }
 
 func TestCustomListPolicyConfig_FromRawConfigRejectsNonHttpsSourceUrl(t *testing.T) {

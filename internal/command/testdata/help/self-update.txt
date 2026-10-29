@@ -38,4 +38,4 @@ Help:
   
   php composer.phar self-update
   
-  Read more at https://getcomposer.org/doc/03-cli.md#self-update-selfupdate
+  Read more at https://getcomposer.org/doc/03-cli.md#self-update--selfupdate

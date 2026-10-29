@@ -45,11 +45,12 @@
 // (curlError), the stream wrapper's warnings, its reading of 1xx heads
 // and of bodies cut short PHP 8.4's (streamWarnings, headRecorder).
 //
-// Known differences from curl: no HTTP/3 (Composer asks libcurl for it
-// when libcurl has it, and curl then races QUIC against TCP; when checked
-// again, repo.packagist.org, packagist.org, api.github.com,
+// Known differences from curl: no HTTP/3 (Composer 2.10 asked libcurl for
+// it when libcurl has it, and curl then raced QUIC against TCP; when
+// checked again, repo.packagist.org, packagist.org, api.github.com,
 // codeload.github.com, getcomposer.org and gitlab.com answered php-curl
-// over HTTP/2 and did not answer QUIC at all); a chunk-size line curl
+// over HTTP/2 and did not answer QUIC at all, so Composer 2.11 asks for
+// HTTP/2 only, as maestro always did); a chunk-size line curl
 // reads (junk after the hex digits, such as "2x" or "2 ;ext") fails in
 // net/http's chunked reader; the C library's wording of a failed lookup
 // in the stream wrapper's warning is glibc's (BSD's on macOS), not that

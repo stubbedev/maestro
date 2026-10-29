@@ -103,6 +103,7 @@ type PackageInterface interface {
 	PrettyVersion() string
 	FullPrettyVersion(truncate bool, displayMode DisplayMode) string
 	ReleaseDate() (time.Time, bool)
+	PublishedDate() (time.Time, bool)
 	Stability() string
 	Requires() Links
 	Conflicts() Links

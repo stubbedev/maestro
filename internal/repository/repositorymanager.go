@@ -36,6 +36,22 @@ type RepositoryManager struct {
 	repositories    []RepositoryInterface
 	types           *NameMap[Constructor]
 	deps            Deps
+	// headerRepositories are the repositories whose config carries http
+	// headers, the most specific first; nil until findHttpHeaders looks.
+	headerRepositories []HeaderRepository
+}
+
+// HeaderRepository is the part of Composer\Repository\ComposerRepository
+// findHttpHeaders reads, which a FilterRepository unwraps to.
+type HeaderRepository interface {
+	RepositoryInterface
+	// IsOwnDistUrl is isOwnDistUrl: whether a dist URL of the package
+	// belongs to the repository.
+	IsOwnDistUrl(p pkg.PackageInterface) bool
+	// BaseURL is getBaseUrl.
+	BaseURL() string
+	// RepoConfig is getRepoConfig.
+	RepoConfig() *php.Array
 }
 
 // NewRepositoryManager ports new RepositoryManager($io, $config,
@@ -83,12 +99,14 @@ func (m *RepositoryManager) FindPackages(name string, constraint semver.Constrai
 // AddRepository ports RepositoryManager::addRepository.
 func (m *RepositoryManager) AddRepository(repository RepositoryInterface) {
 	m.repositories = append(m.repositories, repository)
+	m.headerRepositories = nil
 }
 
 // PrependRepository ports RepositoryManager::prependRepository: the
 // repository takes precedence over the others (Packagist included).
 func (m *RepositoryManager) PrependRepository(repository RepositoryInterface) {
 	m.repositories = append([]RepositoryInterface{repository}, m.repositories...)
+	m.headerRepositories = nil
 }
 
 // CreateRepository ports RepositoryManager::createRepository: a repository
@@ -154,3 +172,94 @@ func (m *RepositoryManager) HTTPDownloader() *http.HttpDownloader { return m.dep
 
 // Deps returns the collaborators handed to repository constructors.
 func (m *RepositoryManager) Deps() Deps { return m.deps }
+
+// RestoreHttpHeaders ports RepositoryManager::restoreHttpHeaders: the
+// headers configured on the composer repository the package's dist URL
+// belongs to. Headers often contain credentials so they are not stored in
+// composer.lock and installed.json, see RemoveRestorableHttpHeaders.
+func (m *RepositoryManager) RestoreHttpHeaders(p pkg.PackageInterface) {
+	options := p.TransportOptions()
+	if _, isAlias := p.(pkg.Alias); isAlias || options.Path("http", "header") != nil {
+		return
+	}
+
+	if headers := m.findHttpHeaders(p); headers != nil {
+		options.ArrayAtOrCreate("http").Set("header", headers)
+		p.SetTransportOptions(options)
+	}
+}
+
+// RemoveRestorableHttpHeaders ports RepositoryManager::removeRestorableHttpHeaders:
+// data, a dumped package, without the http headers RestoreHttpHeaders can
+// restore.
+func (m *RepositoryManager) RemoveRestorableHttpHeaders(p pkg.PackageInterface, data *php.Array) *php.Array {
+	headers := data.Path("transport-options", "http", "header")
+	if headers == nil || !phpEquals(headers, m.findHttpHeaders(p)) {
+		return data
+	}
+
+	transportOptions := data.ArrayAt("transport-options").Clone()
+	httpOptions := transportOptions.ArrayAt("http").Clone()
+	httpOptions.Delete("header")
+	if httpOptions.Len() == 0 {
+		transportOptions.Delete("http")
+	} else {
+		transportOptions.Set("http", httpOptions)
+	}
+	if transportOptions.Len() == 0 {
+		data.Delete("transport-options")
+	} else {
+		data.Set("transport-options", transportOptions)
+	}
+
+	return data
+}
+
+// findHttpHeaders is RepositoryManager::findHttpHeaders: the http headers
+// of the most specific composer repository the package's dist URL belongs
+// to.
+func (m *RepositoryManager) findHttpHeaders(p pkg.PackageInterface) any {
+	if m.headerRepositories == nil {
+		m.headerRepositories = []HeaderRepository{}
+		hasHeaders := false
+		for _, repo := range m.repositories {
+			if filterRepo, ok := repo.(*FilterRepository); ok {
+				repo = filterRepo.Repository()
+			}
+			headerRepo, ok := repo.(HeaderRepository)
+			if !ok {
+				continue
+			}
+			m.headerRepositories = append(m.headerRepositories, headerRepo)
+			hasHeaders = hasHeaders || headerRepo.RepoConfig().Path("options", "http", "header") != nil
+		}
+		if !hasHeaders {
+			m.headerRepositories = []HeaderRepository{}
+		}
+	}
+
+	var match HeaderRepository
+	for _, repo := range m.headerRepositories {
+		if (match == nil || len(repo.BaseURL()) > len(match.BaseURL())) && repo.IsOwnDistUrl(p) {
+			match = repo
+		}
+	}
+
+	if match == nil {
+		return nil
+	}
+
+	return match.RepoConfig().Path("options", "http", "header")
+}
+
+// phpEquals is $a === $b for http header values, which are lists of
+// strings.
+func phpEquals(a, b any) bool {
+	aa, aIsArray := a.(*php.Array)
+	bb, bIsArray := b.(*php.Array)
+	if aIsArray != bIsArray {
+		return a == b
+	}
+
+	return php.StrictEquals(aa, bb)
+}

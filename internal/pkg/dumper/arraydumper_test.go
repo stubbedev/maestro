@@ -71,6 +71,8 @@ func set(t *testing.T, p *pkg.RootPackage, method string, value any) {
 		p.SetType(value.(string))
 	case "ReleaseDate":
 		p.SetReleaseDate(value.(time.Time), true)
+	case "PublishedDate":
+		p.SetPublishedDate(value.(time.Time), true)
 	case "authors":
 		p.SetAuthors(arr())
 	case "homepage":

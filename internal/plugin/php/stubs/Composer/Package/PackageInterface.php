@@ -62,6 +62,8 @@ interface PackageInterface extends \Stringable
 
     public function getProvides(): array;
 
+    public function getPublishedDate(): ?\DateTimeImmutable;
+
     public function getReleaseDate(): ?\DateTimeInterface;
 
     public function getReplaces(): array;

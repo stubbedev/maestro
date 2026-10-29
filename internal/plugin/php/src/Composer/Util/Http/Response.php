@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Util\Http\Response, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.8): a PHP value; the
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §4.8): a PHP value; the
  * responses of maestro's HttpDownloader cross as their data.
  * Written for PHP 7.2.5 to 8.5.
  */

@@ -1,6 +1,6 @@
 <?php
 // Generates internal/advisory/testdata/oracle/audit.json by running
-// Composer 2.10.3's Auditor (with its PolicyConfig, RepositorySet,
+// Composer 2.11.0's Auditor (with its PolicyConfig, RepositorySet,
 // PackageRepository and FilterListProviderSet) over every combination of
 // a set of package lists, policy configs, output formats and warningOnly,
 // recording the exit code and the BufferIO output (or the exception).

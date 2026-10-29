@@ -41,6 +41,7 @@ type PoolBuilderOptions struct {
 	// built pool; nil is none.
 	SecurityAdvisoryPoolFilter *SecurityAdvisoryPoolFilter
 	FilterListPoolFilter       *FilterListPoolFilter
+	CooldownPoolFilter         *CooldownPoolFilter
 }
 
 type indexedAlias struct {
@@ -79,6 +80,7 @@ type PoolBuilder struct {
 
 	securityAdvisoryPoolFilter *SecurityAdvisoryPoolFilter
 	filterListPoolFilter       *FilterListPoolFilter
+	cooldownPoolFilter         *CooldownPoolFilter
 }
 
 // NewPoolBuilder is new PoolBuilder($acceptableStabilities,
@@ -110,6 +112,7 @@ func NewPoolBuilder(acceptableStabilities, stabilityFlags *php.Array, rootAliase
 		io:                         out,
 		securityAdvisoryPoolFilter: opts.SecurityAdvisoryPoolFilter,
 		filterListPoolFilter:       opts.FilterListPoolFilter,
+		cooldownPoolFilter:         opts.CooldownPoolFilter,
 		updateAllowWarned:          map[string]bool{},
 		pathRepoUnlocked:           map[string]bool{},
 	}
@@ -136,6 +139,7 @@ func (b *PoolBuilder) resetState() {
 
 // BuildPool ports buildPool.
 func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, request *Request) (*Pool, error) {
+	start := time.Now()
 	b.resetState()
 
 	b.restrictedPackagesList = nil
@@ -169,31 +173,25 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 			return nil, err
 		}
 		for _, lockedPackage := range lockedPackages {
-			allowed, err := b.isUpdateAllowed(lockedPackage)
-			if err != nil {
-				return nil, err
-			}
-			if allowed {
-				continue
-			}
+			if !request.IsInUpdateAllowList(lockedPackage.Name()) {
+				// remember which packages we skipped loading remote content for in this partial update
+				b.skippedLoad[lockedPackage.Name()] = append(b.skippedLoad[lockedPackage.Name()], lockedPackage)
+				for link := range lockedPackage.Replaces().Values() {
+					b.skippedLoad[link.Target()] = append(b.skippedLoad[link.Target()], lockedPackage)
+				}
 
-			// remember which packages we skipped loading remote content for in this partial update
-			b.skippedLoad[lockedPackage.Name()] = append(b.skippedLoad[lockedPackage.Name()], lockedPackage)
-			for link := range lockedPackage.Replaces().Values() {
-				b.skippedLoad[link.Target()] = append(b.skippedLoad[link.Target()], lockedPackage)
+				// Path repo packages are never loaded from lock, to force them to always remain in sync
+				// unless symlinking is disabled in which case we probably should rather treat them like
+				// regular packages. We mark them specially so they can be reloaded fully including update propagation
+				// if they do get unlocked, but by default they are unlocked without update propagation.
+				if isSymlinkedPathPackage(lockedPackage) {
+					b.pathRepoUnlocked[lockedPackage.Name()] = true
+
+					continue
+				}
+
+				request.LockPackage(lockedPackage)
 			}
-
-			// Path repo packages are never loaded from lock, to force them to always remain in sync
-			// unless symlinking is disabled in which case we probably should rather treat them like
-			// regular packages. We mark them specially so they can be reloaded fully including update propagation
-			// if they do get unlocked, but by default they are unlocked without update propagation.
-			if isSymlinkedPathPackage(lockedPackage) {
-				b.pathRepoUnlocked[lockedPackage.Name()] = true
-
-				continue
-			}
-
-			request.LockPackage(lockedPackage)
 		}
 	}
 
@@ -280,7 +278,7 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 
 	b.resetState()
 
-	b.io.Debug("Built pool.", nil)
+	b.io.Debug("Built pool in "+strconv.FormatFloat(time.Since(start).Seconds(), 'f', 3, 64)+"s", nil)
 
 	// filter vulnerable packages before optimizing the pool otherwise we may end up with inconsistent state where the optimizer took away versions
 	// that were not vulnerable and now suddenly the vulnerable ones are removed and we are missing some versions to make it solvable
@@ -289,6 +287,9 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 		return nil, err
 	}
 	if pool, err = b.runFilterListFilter(pool, request); err != nil {
+		return nil, err
+	}
+	if pool, err = b.runCooldownFilter(pool, request); err != nil {
 		return nil, err
 	}
 	if pool, err = b.runOptimizer(request, pool); err != nil {
@@ -733,17 +734,6 @@ func (b *PoolBuilder) skippedRootRequires(request *Request, name string) []strin
 	return matches
 }
 
-// isUpdateAllowed ports isUpdateAllowed.
-func (b *PoolBuilder) isUpdateAllowed(p pkg.PackageInterface) (bool, error) {
-	for _, re := range b.updateAllowRegexps {
-		if ok, err := re.IsMatch(p.Name()); err != nil || ok {
-			return ok, err
-		}
-	}
-
-	return false, nil
-}
-
 func (b *PoolBuilder) warnAboutNonMatchingUpdateAllowList(request *Request) error {
 	if request.LockedRepository() == nil {
 		return &util.LogicError{Message: "No lock repo present and yet a partial update was requested."}
@@ -1026,4 +1016,73 @@ func (b *PoolBuilder) runSecurityAdvisoryFilter(pool *Pool, repositories []repos
 	}
 
 	return pool, nil
+}
+
+func (b *PoolBuilder) runCooldownFilter(pool *Pool, request *Request) (*Pool, error) {
+	if b.cooldownPoolFilter == nil {
+		return pool, nil
+	}
+
+	b.io.Debug("Running cooldown pool filter.", nil)
+
+	before := time.Now()
+	total := pool.Count()
+
+	var err error
+	if pool, err = b.cooldownPoolFilter.Filter(pool, request); err != nil {
+		return nil, err
+	}
+	b.writeCooldownUnverifiedVersions(b.cooldownPoolFilter)
+
+	filtered := total - pool.Count()
+	if filtered == 0 {
+		return pool, nil
+	}
+
+	b.io.Write("Cooldown pool filter completed in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 3, 64)+" seconds", true, io.VeryVerbose)
+	suffix := " (run with -vv to list them)."
+	if b.io.IsVeryVerbose() {
+		suffix = ":"
+	}
+	b.io.WriteError("<warning>"+strconv.Itoa(filtered)+" package version(s) withheld by the cooldown policy"+suffix+"</warning>", true, io.Normal)
+	b.writeCooldownRemovedVersions(pool)
+
+	return pool, nil
+}
+
+func (b *PoolBuilder) writeCooldownRemovedVersions(pool *Pool) {
+	if !b.io.IsVeryVerbose() {
+		return
+	}
+
+	removedVersions := pool.AllPolicyRemovedVersions()
+	for packageName, versions := range removedVersions.All() {
+		for _, reason := range versions.All() {
+			info := reason.Cooldown
+			// Withheld versions are also recorded under replaced names for
+			// problem reporting, list each package once
+			if info == nil || reason.PackageName != packageName {
+				continue
+			}
+
+			b.io.WriteError("  - "+packageName+" ("+reason.PrettyVersion+") published "+info.ReleaseDate+", available in "+info.AvailableIn, true, io.Normal)
+		}
+	}
+}
+
+func (b *PoolBuilder) writeCooldownUnverifiedVersions(filter *CooldownPoolFilter) {
+	for repoName, versions := range filter.UnverifiedVersions().All() {
+		suffix := " (run with -vv to list them)."
+		if b.io.IsVeryVerbose() {
+			suffix = ":"
+		}
+		b.io.WriteError("<warning>The publication date of "+strconv.Itoa(len(versions))+" package version(s) from "+repoName+
+			" could not be verified, the cooldown policy relied on the time field set by the package authors"+suffix+"</warning>", true, io.Normal)
+
+		if b.io.IsVeryVerbose() {
+			for _, version := range versions {
+				b.io.WriteError("  - "+version, true, io.Normal)
+			}
+		}
+	}
 }

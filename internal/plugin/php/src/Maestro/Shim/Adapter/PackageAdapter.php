@@ -29,7 +29,7 @@ final class PackageAdapter implements MirrorAdapter
     const PACKAGE = [
         'type', 'targetDir', 'installationSource', 'sourceType', 'sourceUrl', 'sourceReference', 'sourceMirrors',
         'distType', 'distUrl', 'distReference', 'distSha1Checksum', 'distMirrors', 'version', 'prettyVersion',
-        'releaseDate', 'extra', 'binaries', 'dev', 'stability', 'notificationUrl', 'requires', 'conflicts',
+        'releaseDate', 'publishedDate', 'extra', 'binaries', 'dev', 'stability', 'notificationUrl', 'requires', 'conflicts',
         'provides', 'replaces', 'devRequires', 'suggests', 'autoload', 'devAutoload', 'includePaths',
         'isDefaultBranch', 'transportOptions', 'phpExt',
     ];
@@ -94,6 +94,9 @@ final class PackageAdapter implements MirrorAdapter
         if (array_key_exists('releaseDate', $fields) && $fields['releaseDate'] instanceof \DateTimeInterface) {
             $fields['releaseDate'] = $fields['releaseDate']->format('Y-m-d\TH:i:s.uP');
         }
+        if (array_key_exists('publishedDate', $fields) && $fields['publishedDate'] instanceof \DateTimeInterface) {
+            $fields['publishedDate'] = $fields['publishedDate']->format('Y-m-d\TH:i:s.uP');
+        }
 
         return $fields;
     }
@@ -124,6 +127,9 @@ final class PackageAdapter implements MirrorAdapter
     {
         if (isset($fields['releaseDate'])) {
             $fields['releaseDate'] = new \DateTime($fields['releaseDate']);
+        }
+        if (isset($fields['publishedDate'])) {
+            $fields['publishedDate'] = new \DateTimeImmutable($fields['publishedDate']);
         }
         Remote::fill($object, BasePackage::class, $fields);
     }

@@ -1,6 +1,6 @@
 // Ports src/ClassMapGenerator.php.
 
-// Package classmap is a port of composer/class-map-generator 1.7.3: it scans
+// Package classmap is a port of composer/class-map-generator 1.8.0: it scans
 // PHP files for the classes, interfaces, traits and enums they declare and
 // builds the class map Composer's autoloader dumps.
 //
@@ -496,14 +496,14 @@ func isStreamWrapperPath(path string) bool {
 	return false
 }
 
-// collapseSeparators is Preg::replace('{(?<!:)[\\\\/]{2,}}', '/', $path):
-// runs of two or more slashes or backslashes not preceded by a colon become
-// one slash.
+// collapseSeparators is Preg::replace('{(?<![:/])[\\\\/]{2,}}', '/', $path):
+// runs of two or more slashes or backslashes not preceded by a colon or a
+// slash become one slash.
 func collapseSeparators(path string) string {
 	isSep := func(i int) bool { return i < len(path) && (path[i] == '/' || path[i] == '\\') }
 	var b []byte
 	for i := 0; i < len(path); i++ {
-		if isSep(i) && isSep(i+1) && (i == 0 || path[i-1] != ':') {
+		if isSep(i) && isSep(i+1) && (i == 0 || (path[i-1] != ':' && path[i-1] != '/')) {
 			if b == nil {
 				b = append(make([]byte, 0, len(path)), path[:i]...)
 			}

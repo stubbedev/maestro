@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -14,24 +14,25 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Generating autoload files
 
-In AutoloadGenerator.php line 1295:
+In AutoloadGenerator.php line 1321:
                                                                     
   [TypeError]                                                       
   strtr(): Argument #1 ($string) must be of type string, int given  
                                                                     
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:1295
- strtr() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:1295
- Composer\Autoload\AutoloadGenerator->parseAutoloadsType() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:614
+  at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:1321
+ strtr() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:1321
+ Composer\Autoload\AutoloadGenerator->parseAutoloadsType() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:635
  Composer\Autoload\AutoloadGenerator->parseAutoloads() at @COMPOSER@/src/Composer/Autoload/AutoloadGenerator.php:264
- Composer\Autoload\AutoloadGenerator->dump() at @COMPOSER@/src/Composer/Command/DumpAutoloadCommand.php:115
+ Composer\Autoload\AutoloadGenerator->dump() at @COMPOSER@/src/Composer/Command/DumpAutoloadCommand.php:116
  Composer\Command\DumpAutoloadCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 dump-autoload [-o|--optimize] [-a|--classmap-authoritative] [--apcu] [--apcu-prefix APCU-PREFIX] [--dry-run] [--dev] [--no-dev] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--strict-psr] [--strict-ambiguous]

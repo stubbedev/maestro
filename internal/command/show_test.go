@@ -18,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/semver"
 )
 
 func TestShowCommand_Show(t *testing.T) {
@@ -244,6 +245,80 @@ Everything up to date
 
 Transitive dependencies not required in composer.json:
 vendor/package 1.1.0 <highlight>! 1.2.0</highlight>`, gbTrim(appTester))
+}
+
+func TestShowCommand_OutdatedStrictIgnoresPackagesWithoutAnInstallableVersion(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", gbPackageRepo(
+			gbRepoPackage("name", "vendor/needs-ext", "version", "1.0.0", "require", php.ArrayOf("ext-missing", "*")),
+		),
+		"require", php.ArrayOf("vendor/needs-ext", "^1.0"),
+	), nil, nil, true)
+
+	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/needs-ext", "1.0.0")), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbAssertSame(t, `<warning>Cannot use vendor/needs-ext's latest version 1.0.0 as it requires ext-missing * which is missing from your platform.
+
+Direct dependencies required in composer.json:
+Everything up to date
+
+Transitive dependencies not required in composer.json:
+Everything up to date`, gbTrim(appTester))
+
+	appTester = gbRun(t, gbParams("command", "outdated", "--all", true, "--strict", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "vendor/needs-ext 1.0.0 = 1.0.0")
+}
+
+func TestShowCommand_OutdatedStrictFailsForPackagesMissingFromAllRepositories(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"require", php.ArrayOf("vendor/removed", "^1.0"),
+	), nil, nil, true)
+
+	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/removed", "1.0.0")), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 1 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "vendor/removed 1.0.0 = [none matched]")
+}
+
+func TestShowCommand_OutdatedStrictFailsForAnOutdatedPackageNextToOneWithoutAnInstallableVersion(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", gbPackageRepo(
+			gbRepoPackage("name", "vendor/needs-ext", "version", "1.0.0", "require", php.ArrayOf("ext-missing", "*")),
+			gbRepoPackage("name", "vendor/outdated", "version", "1.0.0"),
+			gbRepoPackage("name", "vendor/outdated", "version", "1.1.0"),
+		),
+		"require", php.ArrayOf("vendor/needs-ext", "^1.0", "vendor/outdated", "^1.0"),
+	), nil, nil, true)
+
+	commandtest.CreateInstalledJSON(t, gbPkgs(
+		commandtest.GetPackage(t, "vendor/needs-ext", "1.0.0"),
+		commandtest.GetPackage(t, "vendor/outdated", "1.0.0"),
+	), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 1 {
+		t.Errorf("exit code %d", code)
+	}
+	gbAssertSame(t, `<warning>Cannot use vendor/needs-ext's latest version 1.0.0 as it requires ext-missing * which is missing from your platform.
+Legend:
+! patch or minor release available - update recommended
+~ major release available - update possible
+
+Direct dependencies required in composer.json:
+vendor/outdated 1.0.0 <highlight>! 1.1.0</highlight>
+
+Transitive dependencies not required in composer.json:
+Everything up to date`, gbTrim(appTester))
 }
 
 func TestShowCommand_ShowDirectWithNameDoesNotShowTransientDependencies(t *testing.T) {
@@ -679,6 +754,63 @@ func TestShowCommand_SpecificPackageAndTree(t *testing.T) {
         }
     ]
 }`},
+		{"package with json format includes installed version of requirements", func(t *testing.T) []pkg.PackageInterface {
+			pgk := commandtest.GetPackage(t, "vendor/package", "1.0.0")
+			pgk.SetRequires(pkg.LinksOf(showRequireLink(t, "vendor/package", "vendor/required-package", "1.0.0", "^1.0")))
+
+			required := commandtest.GetPackage(t, "vendor/required-package", "1.2.0")
+			required.SetRequires(pkg.LinksOf(showRequireLink(t, "vendor/required-package", "vendor/sub-dependency", "2.0.0", "^2.0")))
+
+			subDependency := commandtest.GetPackage(t, "vendor/sub-dependency", "2.5.0")
+
+			return gbPkgs(pgk, required, subDependency)
+		}, gbParams("--format", "json"), `{
+    "installed": [
+        {
+            "name": "vendor/package",
+            "version": "1.0.0",
+            "description": null,
+            "requires": [
+                {
+                    "name": "vendor/required-package",
+                    "version": "^1.0",
+                    "installed": "1.2.0",
+                    "requires": [
+                        {
+                            "name": "vendor/sub-dependency",
+                            "version": "^2.0",
+                            "installed": "2.5.0"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}`},
+		{"package with json format reports installed version of a provided requirement", func(t *testing.T) []pkg.PackageInterface {
+			pgk := commandtest.GetPackage(t, "vendor/package", "1.0.0")
+			pgk.SetRequires(pkg.LinksOf(showRequireLink(t, "vendor/package", "vendor/virtual", "1.0.0", "^1.0")))
+
+			provider := commandtest.GetPackage(t, "vendor/provider", "3.0.0")
+			commandtest.ConfigureLinks(t, provider, php.ArrayOf("provide", php.ArrayOf("vendor/virtual", "^1.0")))
+
+			return gbPkgs(pgk, provider)
+		}, gbParams("--format", "json"), `{
+    "installed": [
+        {
+            "name": "vendor/package",
+            "version": "1.0.0",
+            "description": null,
+            "requires": [
+                {
+                    "name": "vendor/virtual",
+                    "version": "^1.0",
+                    "installed": "3.0.0"
+                }
+            ]
+        }
+    ]
+}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -689,6 +821,20 @@ func TestShowCommand_SpecificPackageAndTree(t *testing.T) {
 			gbAssertSame(t, tc.expected, gbTrim(appTester))
 		})
 	}
+}
+
+// showRequireLink is new Link($source, $target, getVersionConstraint('>=',
+// $version), Link::TYPE_REQUIRE, $pretty).
+func showRequireLink(t *testing.T, source, target, version, pretty string) *pkg.Link {
+	t.Helper()
+	normalized, err := pkg.NewVersionParser().Normalize(version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := semver.NewConstraintOp(semver.OpGE, normalized)
+	c.SetPrettyString(">= " + version)
+
+	return pkg.NewLink(source, target, c, pkg.TypeRequire, pkg.Str(pretty))
 }
 
 func TestShowCommand_NameOnlyPrintsNoTrailingWhitespace(t *testing.T) {
@@ -775,5 +921,172 @@ func TestShowCommand_EmptyProjectListsNoType(t *testing.T) {
 		if got := gbTrim(gbRun(t, params)); got != "[]" {
 			t.Errorf("%v: got %q, want []", params, got)
 		}
+	}
+}
+
+// showCooldownProject ports initProjectWithCooldownPeriod: vendor/package
+// published at versions (version => published-time, the default when nil),
+// required with `*` and a one week cooldown policy, installed at
+// installedVersion.
+func showCooldownProject(t *testing.T, installedVersion string, versions *php.Array) {
+	t.Helper()
+	if versions == nil {
+		versions = php.ArrayOf(
+			"1.0.0", "2020-01-01T00:00:00+00:00",
+			"1.1.0", "2020-02-01T00:00:00+00:00",
+			"2.0.0", "2999-01-01T00:00:00+00:00",
+		)
+	}
+	var packages []*php.Array
+	for version, publishedTime := range versions.All() {
+		packages = append(packages, gbRepoPackage(
+			"name", "vendor/package",
+			"description", "generic description",
+			"version", version.String(),
+			"published-time", publishedTime,
+		))
+	}
+
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", gbPackageRepo(packages...),
+		"require", php.ArrayOf("vendor/package", "*"),
+		"config", php.ArrayOf("policy", php.ArrayOf("cooldown", php.ArrayOf("period", "1 week"))),
+	), nil, nil, true)
+
+	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/package", installedVersion)), nil, true)
+}
+
+// showAssertMatches is assertMatchesRegularExpression.
+func showAssertMatches(t *testing.T, pattern, s string) {
+	t.Helper()
+	if !regexp.MustCompile(pattern).MatchString(s) {
+		t.Errorf("%q does not match %q", s, pattern)
+	}
+}
+
+func TestShowCommand_OutdatedShowsTheInstallableUpdateAlongsideAReleaseStillInTheCooldownPeriod(t *testing.T) {
+	showCooldownProject(t, "1.0.0", nil)
+
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 1 {
+		t.Errorf("exit code %d", code)
+	}
+	display := appTester.Display(true)
+	gbContains(t, display, "c newer release still in the cooldown period - not installable yet")
+	showAssertMatches(t, `(?m)^vendor/package 1\.0\.0 <highlight>! 1\.1\.0 \(2\.0\.0 in \d+d(?: \d+h)?\)</highlight>`, display)
+
+	appTester = gbRun(t, gbParams("command", "outdated", "--format", "json"))
+	var json map[string][]map[string]any
+	if err := gojson.Unmarshal([]byte(appTester.Display(true)), &json); err != nil {
+		t.Fatal(err)
+	}
+	entry := json["installed"][0]
+	if entry["latest"] != "1.1.0" || entry["latest-status"] != "semver-safe-update" || entry["cooldown-latest"] != "2.0.0" {
+		t.Errorf("unexpected entry %v", entry)
+	}
+	if _, ok := entry["cooldown-available-in"]; !ok {
+		t.Errorf("no cooldown-available-in in %v", entry)
+	}
+
+	appTester = gbRun(t, gbParams("command", "show", "package", "vendor/package", "--latest", true))
+	display = appTester.Display(true)
+	showAssertMatches(t, `(?m)^latest   : <highlight>1\.1\.0</highlight>$`, display)
+	showAssertMatches(t, `(?m)^cooldown : 2\.0\.0 \(still in the cooldown period, \d+ days?(?: \d+ hours?)? left\)$`, display)
+}
+
+func TestShowCommand_OutdatedIgnoresWithheldReleasesOlderThanTheInstallableUpdate(t *testing.T) {
+	showCooldownProject(t, "1.0.0", php.ArrayOf(
+		"1.0.0", "2020-01-01T00:00:00+00:00",
+		"1.0.1", "2999-01-01T00:00:00+00:00",
+		"1.1.0", "2020-02-01T00:00:00+00:00",
+	))
+
+	appTester := gbRun(t, gbParams("command", "outdated"))
+	display := appTester.Display(true)
+	gbContains(t, display, "vendor/package 1.0.0 <highlight>! 1.1.0</highlight>")
+	gbNotContains(t, display, "1.0.1")
+}
+
+func TestShowCommand_OutdatedShowsAReleaseStillInTheCooldownPeriodOnceOnTheNewestInstallableVersion(t *testing.T) {
+	showCooldownProject(t, "1.1.0", nil)
+
+	// listed with the time left, but not counted as outdated since it cannot be installed yet
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	showAssertMatches(t, `(?m)^vendor/package 1\.1\.0 c 2\.0\.0 \(\d+d(?: \d+h)? left\)`, appTester.Display(true))
+
+	appTester = gbRun(t, gbParams("command", "outdated", "--format", "json"))
+	var json map[string][]map[string]any
+	if err := gojson.Unmarshal([]byte(appTester.Display(true)), &json); err != nil {
+		t.Fatal(err)
+	}
+	entry := json["installed"][0]
+	if entry["latest"] != "2.0.0" || entry["latest-status"] != "cooldown" {
+		t.Errorf("unexpected entry %v", entry)
+	}
+	// the release date stays the package-supplied one, which this fixture does not set
+	if entry["latest-release-date"] != "" {
+		t.Errorf("latest-release-date %v", entry["latest-release-date"])
+	}
+	if _, ok := entry["cooldown-available-in"]; !ok {
+		t.Errorf("no cooldown-available-in in %v", entry)
+	}
+
+	// overriding the period shows the newest release regardless of the policy
+	appTester = gbRun(t, gbParams("command", "outdated", "--cooldown-period", "0"))
+	display := appTester.Display(true)
+	gbContains(t, display, "vendor/package 1.1.0 ~ 2.0.0")
+	gbNotContains(t, display, "cooldown period")
+}
+
+func TestShowCommand_OutdatedIgnoresWithheldBackportsOlderThanTheInstalledVersion(t *testing.T) {
+	showCooldownProject(t, "2.0.0", php.ArrayOf(
+		"1.9.5", "2999-01-01T00:00:00+00:00",
+		"2.0.0", "2020-01-01T00:00:00+00:00",
+		"2.0.1", "2999-06-01T00:00:00+00:00",
+	))
+
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	// the backport clears first but is older than what is installed, so the newer release is the one shown
+	showAssertMatches(t, `(?m)^vendor/package 2\.0\.0 c 2\.0\.1 \(\d+d(?: \d+h)? left\)`, appTester.Display(true))
+}
+
+func TestShowCommand_OutdatedTreatsAnInstalledVersionStillInTheCooldownPeriodAsUpToDate(t *testing.T) {
+	showCooldownProject(t, "1.1.0", php.ArrayOf(
+		"1.0.0", "2020-01-01T00:00:00+00:00",
+		"1.1.0", "2999-01-01T00:00:00+00:00",
+	))
+
+	// the selector cannot offer 1.1.0, but falling back to 1.0.0 would be a downgrade, not an update
+	appTester := gbRun(t, gbParams("command", "outdated", "--strict", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	display := appTester.Display(true)
+	gbNotContains(t, display, "1.0.0")
+	gbNotContains(t, display, "[none matched]")
+}
+
+func TestShowCommand_ShowingASinglePackageMentionsAReleaseStillInTheCooldownPeriod(t *testing.T) {
+	showCooldownProject(t, "1.1.0", nil)
+
+	appTester := gbRun(t, gbParams("command", "show", "package", "vendor/package", "--latest", true))
+	showAssertMatches(t, `(?m)^latest   : 2\.0\.0 \(still in the cooldown period, \d+ days?(?: \d+ hours?)? left\)$`, appTester.Display(true))
+
+	appTester = gbRun(t, gbParams("command", "show", "package", "vendor/package", "--latest", true, "--format", "json"))
+	var json map[string]any
+	if err := gojson.Unmarshal([]byte(appTester.Display(true)), &json); err != nil {
+		t.Fatal(err)
+	}
+	if json["latest"] != "2.0.0" || json["latest-status"] != "cooldown" {
+		t.Errorf("unexpected json %v", json)
+	}
+	if _, ok := json["cooldown-available-in"]; !ok {
+		t.Errorf("no cooldown-available-in in %v", json)
 	}
 }

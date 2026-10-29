@@ -4,9 +4,11 @@ package command
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/installer"
+	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -94,16 +96,76 @@ func (c *SuggestsCommand) Execute(in console.Input, _ console.Output) (int, erro
 	if err != nil {
 		return 0, err
 	}
-	reporter := installer.NewSuggestedPackagesReporter(c.IO())
 
 	filter := console.StringsArgument(in, "packages")
+	normalizedFilter := make([]string, len(filter))
+	for i, f := range filter {
+		normalizedFilter[i] = php.Strtolower(f)
+	}
+	validationRepo := installedRepo
+	if locked && console.BoolOption(in, "no-dev") {
+		lockedRepo, err := locker.LockedRepository(true)
+		if err != nil {
+			return 0, err
+		}
+		validationRepo, err = repository.NewInstalledRepository([]repository.RepositoryInterface{lockedRepo})
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	var missingPackages, excludedPackages []string
+	for index, name := range normalizedFilter {
+		found, err := installedRepo.FindPackages(name, nil)
+		if err != nil {
+			return 0, err
+		}
+		if len(found) != 0 {
+			continue
+		}
+
+		found, err = validationRepo.FindPackages(name, nil)
+		if err != nil {
+			return 0, err
+		}
+		if len(found) != 0 {
+			excludedPackages = append(excludedPackages, filter[index])
+		} else {
+			missingPackages = append(missingPackages, filter[index])
+		}
+	}
+
+	var errs []string
+	if len(missingPackages) != 0 {
+		if len(missingPackages) == 1 {
+			errs = append(errs, `Package "`+missingPackages[0]+`" is not installed.`)
+		} else {
+			errs = append(errs, `Packages "`+strings.Join(missingPackages, `", "`)+`" are not installed.`)
+		}
+	}
+	if len(excludedPackages) != 0 {
+		if len(excludedPackages) == 1 {
+			errs = append(errs, `Package "`+excludedPackages[0]+`" is excluded by --no-dev.`)
+		} else {
+			errs = append(errs, `Packages "`+strings.Join(excludedPackages, `", "`)+`" are excluded by --no-dev.`)
+		}
+	}
+	if len(errs) != 0 {
+		for _, e := range errs {
+			c.IO().WriteError("<error>"+e+"</error>", true, io.Normal)
+		}
+
+		return 1, nil
+	}
+
+	reporter := installer.NewSuggestedPackagesReporter(c.IO())
 	packages, err := installedRepo.Packages()
 	if err != nil {
 		return 0, err
 	}
 	packages = append(slices.Clone(packages), comp.Package())
 	for _, p := range packages {
-		if len(filter) > 0 && !slices.Contains(filter, p.Name()) {
+		if len(normalizedFilter) > 0 && !slices.Contains(normalizedFilter, p.Name()) {
 			continue
 		}
 
@@ -127,7 +189,7 @@ func (c *SuggestsCommand) Execute(in console.Input, _ console.Output) (int, erro
 	}
 
 	var onlyDependentsOf pkg.PackageInterface
-	if len(filter) == 0 && !console.BoolOption(in, "all") {
+	if len(normalizedFilter) == 0 && !console.BoolOption(in, "all") {
 		onlyDependentsOf = comp.Package()
 	}
 	if err := reporter.Output(mode, installedRepo, onlyDependentsOf); err != nil {

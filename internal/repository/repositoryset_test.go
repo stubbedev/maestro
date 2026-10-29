@@ -71,6 +71,62 @@ func TestRepositorySet_FindPackages(t *testing.T) {
 	}
 }
 
+// loadCountingRepository is an ArrayRepository that records the name maps
+// LoadPackages is called with and finds nothing.
+type loadCountingRepository struct {
+	*ArrayRepository
+	calls []*ConstraintMap
+}
+
+func (r *loadCountingRepository) LoadPackages(m *ConstraintMap, _, _ *php.Array, _ AlreadyLoaded) (LoadResult, error) {
+	r.calls = append(r.calls, m.Clone())
+
+	return LoadResult{}, nil
+}
+
+func TestRepositorySet_PreloadPackagesDoesNotQueryLowerPriorityRepositoriesForFoundNames(t *testing.T) {
+	first := newArrayRepo(t, getPackage(t, "acme/private", "1.0.0"))
+	second := &loadCountingRepository{ArrayRepository: newArrayRepo(t)}
+	third := newArrayRepo(t, getPackage(t, "foo/bar", "1.0.0"))
+	fourth := &loadCountingRepository{ArrayRepository: newArrayRepo(t)}
+
+	set := must(NewRepositorySet("stable", nil, nil, nil, nil, nil))
+	noErr(t, set.AddRepository(must(NewCompositeRepository([]RepositoryInterface{first, second, third, fourth}))))
+
+	noErr(t, set.PreloadPackages([]string{"acme/private", "foo/bar"}))
+
+	if len(second.calls) != 1 || !slices.Equal(second.calls[0].Keys(), []string{"foo/bar"}) {
+		t.Errorf("second repository calls %v", second.calls)
+	}
+	if len(fourth.calls) != 0 {
+		t.Errorf("fourth repository called %d times", len(fourth.calls))
+	}
+}
+
+func TestRepositorySet_IsUnversionedBranch(t *testing.T) {
+	branch := func(version string) pkg.PackageInterface {
+		p := pkg.NewPackage("a/a", version, version)
+
+		return p
+	}
+
+	for _, tc := range []struct {
+		version string
+		want    bool
+	}{
+		{"dev-main", true},
+		{"dev-feature/x", true},
+		{pkg.DefaultBranchAlias, true},
+		{"1.0.9999999.9999999-dev", false},
+		{"3.3.x-dev", false},
+		{"1.0.0.0", false},
+	} {
+		if got := IsUnversionedBranch(branch(tc.version)); got != tc.want {
+			t.Errorf("isUnversionedBranch(%q) = %v, want %v", tc.version, got, tc.want)
+		}
+	}
+}
+
 func TestRepositorySet_RootData(t *testing.T) {
 	requires := &ConstraintMap{}
 	requires.Set("php", semver.NewMatchAllConstraint())
@@ -111,8 +167,10 @@ func TestPackageRepository_AdvisoriesAndFilter(t *testing.T) {
 	}
 
 	constraints := NewConstraintMap("a/a", mustConstraint(t, "1.0.0"))
-	if _, err := repo.SecurityAdvisories(constraints, false); err == nil {
-		t.Error("partial advisory accepted")
+	// a partial advisory is returned as it is, the repository can provide no
+	// full one
+	if _, err := repo.SecurityAdvisories(constraints, false); err != nil {
+		t.Errorf("partial advisory refused: %v", err)
 	}
 	result := must(repo.SecurityAdvisories(constraints, true))
 	advisories, _ := result.Advisories.Get("a/a")
@@ -152,25 +210,6 @@ func TestPackageRepository_AdvisoriesAndFilter(t *testing.T) {
 	matching := must(set.GetMatchingSecurityAdvisories(must(repo.Packages()), true, false))
 	if got := matching.Advisories.Keys(); !slices.Equal(got, []string{"a/a"}) {
 		t.Error(got)
-	}
-}
-
-// PackageRepository::getSecurityAdvisories puts PHP_EOL, "\r\n" on Windows,
-// between its message and the var_export()ed advisory (whose own lines end
-// with "\n").
-func TestPackageRepository_PartialAdvisoryWindowsEOL(t *testing.T) {
-	php.SetEOLForTest(t, "\r\n")
-
-	config := must(php.JSONDecode(`{
-		"package": {"name": "a/a", "version": "1.0.0"},
-		"security-advisories": {"a/a": [{"advisoryId": "PKSA-2", "affectedVersions": ">=1.0"}]}
-	}`, true)).(*php.Array)
-	repo := must(NewPackageRepository(config))
-
-	_, err := repo.SecurityAdvisories(NewConstraintMap("a/a", mustConstraint(t, "1.0.0")), false)
-	want := "Advisory for a/a could not be loaded as a full advisory from package repo (defining 1 package)\r\narray (\n  'advisoryId' => 'PKSA-2',\n  'affectedVersions' => '>=1.0',\n)"
-	if err == nil || err.Error() != want {
-		t.Fatalf("got %q\nwant %q", err, want)
 	}
 }
 

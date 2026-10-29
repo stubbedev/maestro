@@ -341,6 +341,9 @@ func (r *Runtime) registerRequest() {
 
 		return nil, nil
 	})
+	method("isInUpdateAllowList", func(req *resolver.Request, a args) (any, error) {
+		return req.IsInUpdateAllowList(a.str(1)), nil
+	})
 }
 
 // registerTransactions registers the `transaction.*` methods: the
@@ -358,7 +361,10 @@ func (r *Runtime) registerTransactions() {
 		if err != nil {
 			return nil, err
 		}
-		t := resolver.NewTransaction(present, result)
+		t, err := resolver.NewTransaction(present, result)
+		if err != nil {
+			return nil, err
+		}
 		o, ok := a.at(0).(*rpc.PHPObject)
 		if !ok {
 			return nil, a.errorf("param 0 is not an object being constructed in PHP (a %T)", a.at(0))

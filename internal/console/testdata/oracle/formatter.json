@@ -6503,17 +6503,17 @@
         },
         {
             "input": "<<",
-            "output": "<\\<",
+            "output": "\\<\\<",
             "trailing": "<<"
         },
         {
             "input": ">>",
-            "output": ">\\>",
+            "output": "\\>\\>",
             "trailing": ">>"
         },
         {
             "input": "<>",
-            "output": "<\\>",
+            "output": "\\<\\>",
             "trailing": "<>"
         },
         {
@@ -6523,17 +6523,17 @@
         },
         {
             "input": "a<<b",
-            "output": "a\\<<b",
+            "output": "a\\<\\<b",
             "trailing": "a<<b"
         },
         {
             "input": "\\<",
-            "output": "\\<",
+            "output": "\\\\<",
             "trailing": "\\<"
         },
         {
             "input": "\\\\<",
-            "output": "\\\\<",
+            "output": "\\\\\\<",
             "trailing": "\\\\<"
         },
         {
@@ -6563,12 +6563,12 @@
         },
         {
             "input": "\\<a>",
-            "output": "\\<a\\>",
+            "output": "\\\\<a\\>",
             "trailing": "\\<a>"
         },
         {
             "input": "<a\\>",
-            "output": "\\<a\\>",
+            "output": "\\<a\\\\>",
             "trailing": "<a\\>"
         },
         {

@@ -1,6 +1,6 @@
 <?php
 // Generates internal/repository/composerrepo/testdata/oracle/composerrepo.json.gz
-// by running Composer 2.10.3's own ComposerRepository through scenarios
+// by running Composer 2.11.0's own ComposerRepository through scenarios
 // against a fake repository server: the Packagist p2 files of
 // internal/pkg/loader/testdata/oracle/p2 and small inline files, served
 // with Last-Modified dates and If-Modified-Since handling.

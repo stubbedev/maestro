@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Package\BasePackage, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.5).
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §4.5).
  *
  * Packages are data mirrors (§5.3): a Go-owned package keeps Composer's
  * properties filled from maestro's package, and its setters change

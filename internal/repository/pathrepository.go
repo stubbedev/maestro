@@ -158,6 +158,9 @@ func (r *PathRepository) initialize() error {
 		if !ok {
 			return &util.ErrorException{Message: "Cannot use a scalar value as an array"}
 		}
+		// only a Composer repository can vouch for a publication date, the
+		// package's own composer.json cannot
+		packageData.Delete("published-time")
 		dist := php.ArrayOf("type", "path", "url", url)
 		packageData.Set("dist", dist)
 		switch reference {

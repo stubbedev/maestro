@@ -777,6 +777,220 @@ func TestFilesystem_SafeCopy(t *testing.T) {
 	}
 }
 
+func TestFilesystem_SafeFilePutContentsReplacesTheFileInsteadOfRewritingItInPlace(t *testing.T) {
+	dir := t.TempDir()
+	file, hardlink := dir+"/file", dir+"/hardlink"
+	mustWrite(t, file, "original")
+
+	if err := os.Link(file, hardlink); err != nil {
+		t.Skip("Hardlinks are not supported here")
+	}
+
+	if n, err := SafeFilePutContents(file, []byte("new")); n != 3 || err != nil {
+		t.Fatalf("SafeFilePutContents = %d, %v; want 3", n, err)
+	}
+
+	if content, _ := os.ReadFile(file); string(content) != "new" {
+		t.Errorf("file contents = %q, want %q", content, "new")
+	}
+
+	// the hard-linked file shares the inode of the original file, it must not have been rewritten
+	if content, _ := os.ReadFile(hardlink); string(content) != "original" {
+		t.Errorf("hardlink contents = %q, want %q", content, "original")
+	}
+
+	fileInfo, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linkInfo, err := os.Stat(hardlink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if os.SameFile(fileInfo, linkInfo) {
+		t.Error("The file should have been replaced by a new inode")
+	}
+}
+
+func TestFilesystem_SafeFilePutContentsLeavesNoTempFileBehind(t *testing.T) {
+	dir := t.TempDir()
+	file := dir + "/file"
+
+	if n, err := SafeFilePutContents(file, []byte("new")); n != 3 || err != nil {
+		t.Fatalf("SafeFilePutContents = %d, %v; want 3", n, err)
+	}
+
+	if n, err := SafeFilePutContents(file, []byte("updated")); n != 7 || err != nil {
+		t.Fatalf("SafeFilePutContents = %d, %v; want 7", n, err)
+	}
+
+	if content, _ := os.ReadFile(file); string(content) != "updated" {
+		t.Errorf("file contents = %q, want %q", content, "updated")
+	}
+
+	if names := dirNames(t, dir); strings.Join(names, ",") != "file" {
+		t.Errorf("directory holds %q, want [file]", names)
+	}
+}
+
+func TestFilesystem_SafeFilePutContentsPreservesPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Does not apply on Windows")
+	}
+
+	dir := t.TempDir()
+	file := dir + "/file"
+	mustWrite(t, file, "original")
+
+	if err := os.Chmod(file, 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := SafeFilePutContents(file, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := fi.Mode().Perm(); got != 0o640 {
+		t.Errorf("permissions = %o, want 640", got)
+	}
+}
+
+func TestFilesystem_SafeFilePutContentsPreservesGroup(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Requires POSIX groups")
+	}
+
+	groups, err := os.Getgroups()
+	if err != nil {
+		t.Skip("Requires POSIX groups")
+	}
+
+	secondary := make([]int, 0, len(groups))
+	for _, group := range groups {
+		if group != os.Getegid() {
+			secondary = append(secondary, group)
+		}
+	}
+
+	if len(secondary) == 0 {
+		t.Skip("Requires the current user to be in a secondary group")
+	}
+
+	dir := t.TempDir()
+	file := dir + "/file"
+	mustWrite(t, file, "original")
+
+	if err := os.Chown(file, -1, secondary[0]); err != nil {
+		t.Skip("Could not change the file group")
+	}
+
+	if _, err := SafeFilePutContents(file, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+
+	if content, _ := os.ReadFile(file); string(content) != "new" {
+		t.Errorf("file contents = %q, want %q", content, "new")
+	}
+
+	fi, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, gid, ok := fileOwner(fi); !ok || gid != secondary[0] {
+		t.Errorf("file group = %d, %v; want %d", gid, ok, secondary[0])
+	}
+}
+
+func TestFilesystem_SafeFilePutContentsWritesThroughSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	file, symlink := dir+"/file", dir+"/symlink"
+	mustWrite(t, file, "original")
+
+	if err := os.Symlink(file, symlink); err != nil {
+		t.Skip("Symlinks are not supported here")
+	}
+
+	if _, err := SafeFilePutContents(symlink, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+
+	fi, err := os.Lstat(symlink)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("The symlink should not have been replaced by a regular file")
+	}
+
+	if content, _ := os.ReadFile(file); string(content) != "new" {
+		t.Errorf("file contents = %q, want %q", content, "new")
+	}
+}
+
+func TestFilesystem_FilePutContentsIfModifiedLeavesUnmodifiedFilesAlone(t *testing.T) {
+	dir := t.TempDir()
+	file, hardlink := dir+"/file", dir+"/hardlink"
+	mustWrite(t, file, "original")
+
+	if err := os.Link(file, hardlink); err != nil {
+		t.Skip("Hardlinks are not supported here")
+	}
+
+	before, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if n, err := FilePutContentsIfModified(file, []byte("original")); n != 0 || err != nil {
+		t.Fatalf("FilePutContentsIfModified = %d, %v; want 0", n, err)
+	}
+
+	after, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(before, after) {
+		t.Error("The file should not have been touched at all")
+	}
+}
+
+func TestFilesystem_SafeCopyReplacesTheTargetInsteadOfRewritingItInPlace(t *testing.T) {
+	dir := t.TempDir()
+	source, target, hardlink := dir+"/source", dir+"/target", dir+"/hardlink"
+	mustWrite(t, source, "new")
+	mustWrite(t, target, "original")
+
+	if err := os.Link(target, hardlink); err != nil {
+		t.Skip("Hardlinks are not supported here")
+	}
+
+	if err := SafeCopy(source, target); err != nil {
+		t.Fatal(err)
+	}
+
+	if content, _ := os.ReadFile(target); string(content) != "new" {
+		t.Errorf("target contents = %q, want %q", content, "new")
+	}
+
+	if content, _ := os.ReadFile(hardlink); string(content) != "original" {
+		t.Errorf("hardlink contents = %q, want %q", content, "original")
+	}
+
+	if names := dirNames(t, dir); strings.Join(names, ",") != "hardlink,source,target" {
+		t.Errorf("directory holds %q, want [hardlink source target]", names)
+	}
+}
+
 func TestFilesystem_IsReadable(t *testing.T) {
 	dir := t.TempDir()
 	mustWrite(t, dir+"/file", "")
@@ -858,6 +1072,24 @@ func mustWrite(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o666); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// dirNames is the sorted list of a directory's entries, as scandir gives
+// them without "." and "..".
+func dirNames(t *testing.T, dir string) []string {
+	t.Helper()
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	names := make([]string, len(entries))
+	for i, entry := range entries {
+		names[i] = entry.Name()
+	}
+
+	return names
 }
 
 func assertNotExists(t *testing.T, path string) {

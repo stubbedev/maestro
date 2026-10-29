@@ -8,7 +8,7 @@ namespace Composer\Plugin;
 
 interface PluginInterface
 {
-    public const PLUGIN_API_VERSION = '2.9.0';
+    public const PLUGIN_API_VERSION = '2.11.0';
 
     public function activate(\Composer\Composer $composer, \Composer\IO\IOInterface $io);
 

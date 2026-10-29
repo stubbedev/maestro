@@ -3,21 +3,22 @@ Cache directory does not exist (cache-vcs-dir):
 Cache directory does not exist (cache-repo-dir): 
 Garbage-collecting cache (cache-files-dir): @DIR@/p/cache-files
 
-In Config.php line 434:
+In Config.php line 436:
                                                             
   [RuntimeException]                                        
   Could not parse the value of 'cache-files-maxsize': lots  
                                                             
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Config.php:434
- Composer\Config->get() at @COMPOSER@/src/Composer/Command/ClearCacheCommand.php:87
+  at @COMPOSER@/src/Composer/Config.php:436
+ Composer\Config->get() at @COMPOSER@/src/Composer/Command/ClearCacheCommand.php:94
  Composer\Command\ClearCacheCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 clear-cache [--gc]

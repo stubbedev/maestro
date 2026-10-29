@@ -109,6 +109,16 @@ class Locker
         return \Maestro\Shim\Rpc::call('locker.setLockData', [$this, array_values($packages), $devPackages === null ? null : array_values($devPackages), $platformReqs, $platformDevReqs, $aliases, $minimumStability, $stabilityFlags, $preferStable, $preferLowest, $platformOverrides, $write]);
     }
 
+    /**
+     * Enables keeping http headers out of the lock file, they are restored from the repository config when loading it
+     *
+     * @internal
+     */
+    public function setRepositoryManager(\Composer\Repository\RepositoryManager $repositoryManager): void
+    {
+        \Maestro\Shim\Rpc::call('locker.setRepositoryManager', [$this, $repositoryManager]);
+    }
+
     public function updateHash(\Composer\Json\JsonFile $composerJson, ?callable $dataProcessor = null): void
     {
         \Maestro\Shim\Rpc::call('locker.updateHash', [$this, $composerJson->getPath(), $dataProcessor]);

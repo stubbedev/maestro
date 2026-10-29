@@ -35,7 +35,7 @@ $separators = [
     'a//b//c', 'file:///tmp//x', '/a/b/', 'a\\b', 'phar://a//b', 'a:b//c', ':://',
 ];
 foreach ($separators as $p) {
-    $collapse[] = [$p, Preg::replace('{(?<!:)[\\\\/]{2,}}', '/', $p)];
+    $collapse[] = [$p, Preg::replace('{(?<![:/])[\\\\/]{2,}}', '/', $p)];
 }
 foreach (['a.php', 'a.PHP', '.php', 'a.', 'a', 'a.b.php', '/x/a.php', '/x.y/a', '/x/a.php/', 'a.php\n', "a.php\n", 'dir.inc/x.hh', '/x/.hh', '..', '/x/..php'] as $p) {
     $extension[] = [$p, pathinfo($p, PATHINFO_EXTENSION)];
@@ -48,7 +48,7 @@ $filterSubjects = [
 ];
 $filter = [];
 foreach ($filterSubjects as $s) {
-    $filter[] = [$s, Preg::isMatch('{/(test|fixture|example|stub)s?/}i', $s)];
+    $filter[] = [$s, Preg::isMatch('{(?:^|/)(test|fixture|example|stub)s?/}i', $s)];
 }
 
 $dotSubjects = [

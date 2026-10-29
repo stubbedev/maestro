@@ -10,7 +10,8 @@
 //   - gzip (GzipDownloader):  `gzip -cd <file> > <dir>/<name>`;
 //
 // followed by ArchiveDownloader's rule: when the extraction holds a single
-// top-level directory (ignoring .DS_Store), that directory is the package.
+// top-level directory (ignoring OS metadata files), that directory is the
+// package.
 //
 // Nothing is written to disk. Open plans the whole extraction from the
 // archive's metadata and returns the resulting tree as a list of entries

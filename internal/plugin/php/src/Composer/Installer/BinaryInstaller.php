@@ -77,6 +77,11 @@ class BinaryInstaller
         Installers::binary($this, __FUNCTION__, [$binPath, $link]);
     }
 
+    public static function isSafeBinPath(string $bin): bool
+    {
+        return \Maestro\Shim\Rpc::call('installer.isSafeBinPath', [$bin]);
+    }
+
     public static function isBinPathInsidePackage(string $installPath, string $binPath): bool
     {
         $realBinPath = realpath($binPath);

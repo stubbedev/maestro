@@ -16,6 +16,232 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 )
 
+// MetadataNameRegex is Platform::METADATA_NAME_REGEX: OS metadata file
+// names, the Windows ones case-insensitively.
+const MetadataNameRegex = `{^(?:\._.*|\.DS_Store|__MACOSX|\.AppleDouble|\.fseventsd|\.Spotlight-V100|\.Trashes|(?i:thumbs\.db|desktop\.ini))$}`
+
+// IsMetadataPath ports Platform::isMetadataPath: whether the top-level
+// segment of an archive entry path is OS metadata (resource forks,
+// thumbnail caches, ...).
+func IsMetadataPath(name string) bool {
+	path := strings.TrimLeft(php.Strtr(name, `\`, "/"), "/")
+	top, _, _ := strings.Cut(path, "/")
+
+	matched, err := php.PregIsMatch(MetadataNameRegex, top)
+
+	return err == nil && matched
+}
+
+// codingAgentEnvVars is Platform::CODING_AGENT_ENV_VARS: env vars that
+// indicate Composer runs under an AI coding agent, mapped to the agent's
+// name. Order matters, as the first match wins.
+var codingAgentEnvVars = []struct{ Name, Agent string }{
+	// Amp, CodeBuddy and Cowork set/mirror Claude Code vars, so they must precede them.
+	{"AMP_CURRENT_THREAD_ID", "amp"},
+	{"CODEBUDDY", "codebuddy"},
+	{"CLAUDE_CODE_IS_COWORK", "cowork"},
+	{"CLAUDECODE", "claude-code"},
+	{"CLAUDE_CODE", "claude-code"},
+	{"CURSOR_AGENT", "cursor"},
+	{"CURSOR_SANDBOX", "cursor-cli"},
+	// Gemini CLI forks, must precede GEMINI_CLI.
+	{"QWEN_CODE", "qwen-code"},
+	{"VECLI_DIR", "vecli"},
+	{"GEMINI_CLI", "gemini-cli"},
+	{"CODEX_SANDBOX", "codex"},
+	{"CODEX_CI", "codex"},
+	{"CODEX_THREAD_ID", "codex"},
+	{"AUGMENT_AGENT", "augment"},
+	// Kilo inherits the OPENCODE* vars, so it must precede them.
+	{"KILO", "kilo-code"},
+	{"OPENCODE_CLIENT", "opencode"},
+	{"OPENCODE", "opencode"},
+	{"CLINE_ACTIVE", "cline"},
+	{"CLINE_TASK_ID", "cline"},
+	{"ROO_CODE_TASK_ID", "roo-code"},
+	{"CRUSH", "crush"},
+	{"IFLOW_CLI", "iflow-cli"},
+	{"TRAE_AI_SHELL_ID", "trae"},
+	{"GOOSE_TERMINAL", "goose"},
+	{"OZ_RUN_ID", "warp"},
+	{"FIREBENDER_TERMINAL", "firebender"},
+	{"GROK_SESSION_ID", "grok-build"},
+	{"JUNIE_SHIM_PATH", "junie"},
+	{"REPL_ID", "replit"},
+	{"COPILOT_MODEL", "github-copilot"},
+	{"COPILOT_ALLOW_ALL", "github-copilot"},
+	{"COPILOT_GITHUB_TOKEN", "github-copilot"},
+	{"COPILOT_CLI", "github-copilot"},
+	{"ANTIGRAVITY_AGENT", "antigravity"},
+	{"PI_CODING_AGENT", "pi"},
+	{"MATTERHORN_SESSION_ID", "junie"},
+	{"KIRO_AGENT_PATH", "kiro"},
+}
+
+// knownAIAgentNames is Platform::KNOWN_AI_AGENT_NAMES: known AI_AGENT
+// values and aliases mapped to agent names.
+var knownAIAgentNames = map[string]string{
+	"amp":                         "amp",
+	"amazonq":                     "amazon-q",
+	"amazon-q":                    "amazon-q",
+	"amazon-q-cli":                "amazon-q",
+	"antigravity":                 "antigravity",
+	"augment":                     "augment",
+	"augment-cli":                 "augment",
+	"claude":                      "claude-code",
+	"claude-code":                 "claude-code",
+	"claudecode":                  "claude-code",
+	"cline":                       "cline",
+	"codebuddy":                   "codebuddy",
+	"codex":                       "codex",
+	"cowork":                      "cowork",
+	"crush":                       "crush",
+	"cursor":                      "cursor",
+	"cursor-cli":                  "cursor-cli",
+	"deepseek-harness":            "deepseek-harness",
+	"dsh":                         "deepseek-harness",
+	"devin":                       "devin",
+	"firebender":                  "firebender",
+	"gemini":                      "gemini-cli",
+	"gemini-cli":                  "gemini-cli",
+	"github-copilot":              "github-copilot",
+	"github-copilot-cli":          "github-copilot",
+	"github_copilot_vscode_agent": "github-copilot",
+	"github_copilot_app_agent":    "github-copilot",
+	"goose":                       "goose",
+	"grok":                        "grok-cli",
+	"grok-cli":                    "grok-cli",
+	"grok-build":                  "grok-build",
+	"hermes":                      "hermes",
+	"hermes-agent":                "hermes",
+	"iflow":                       "iflow-cli",
+	"iflow-cli":                   "iflow-cli",
+	"junie":                       "junie",
+	"kilo":                        "kilo-code",
+	"kilo-code":                   "kilo-code",
+	"kilocode":                    "kilo-code",
+	"kiro":                        "kiro",
+	"kiro-cli":                    "kiro",
+	"openclaw":                    "openclaw",
+	"opencode":                    "opencode",
+	"openhands":                   "openhands",
+	"pi":                          "pi",
+	"qwen":                        "qwen-code",
+	"qwen-code":                   "qwen-code",
+	"qwencode":                    "qwen-code",
+	"replit":                      "replit",
+	"roo":                         "roo-code",
+	"roo-code":                    "roo-code",
+	"roocode":                     "roo-code",
+	"trae":                        "trae",
+	"v0":                          "v0",
+	"vecli":                       "vecli",
+	"vtcode":                      "vtcode",
+	"warp":                        "warp",
+	"oz":                          "warp",
+}
+
+// aiAgentCache is Platform::$aiAgent: nil when not computed yet, and
+// otherwise the agent ("" for none).
+var (
+	aiAgentMu    sync.Mutex
+	aiAgentCache *string
+)
+
+func resetAIAgentCache() {
+	aiAgentMu.Lock()
+	aiAgentCache = nil
+	aiAgentMu.Unlock()
+}
+
+// GetAIAgent ports Platform::getAiAgent: the name of the AI coding agent
+// running Composer, "unknown" when one cannot be identified, and false
+// when a human runs it.
+func GetAIAgent() (string, bool) {
+	aiAgentMu.Lock()
+	cached := aiAgentCache
+	aiAgentMu.Unlock()
+
+	if cached != nil {
+		return *cached, *cached != ""
+	}
+
+	agent := detectAIAgent()
+
+	aiAgentMu.Lock()
+	aiAgentCache = &agent
+	aiAgentMu.Unlock()
+
+	return agent, agent != ""
+}
+
+func detectAIAgent() string {
+	fallback := ""
+
+	raw, _ := GetEnv("AI_AGENT")
+	value := php.Strtolower(php.Trim(raw))
+	if !slices.Contains([]string{"", "0", "false", "no", "off"}, value) {
+		name, known := knownAIAgentNames[value]
+		if !known {
+			// Strip anything after a separator (e.g. "codex@1.2" or
+			// "claude-code v2") and a trailing version, then also try the
+			// part before an underscore ("claude-code_2-1-201_agent").
+			value = stripAIAgentSeparator(value)
+			normalized := stripAIAgentVersion(php.Strtr(value, "_", "-"))
+			name, known = knownAIAgentNames[normalized]
+			if !known {
+				name, known = knownAIAgentNames[stripAIAgentVersion(strings.SplitN(value, "_", 2)[0])]
+			}
+			value = normalized
+		}
+
+		if known {
+			return name
+		}
+
+		sanitized, _, _ := php.PregReplace(`{[^a-z-]+}`, "", value, -1)
+		sanitized, _, _ = php.PregReplace(`{-{2,}}`, "-", sanitized, -1)
+		value = php.SubstrLen(php.TrimSet(sanitized, "-"), 0, 20)
+		if value != "" {
+			fallback = value
+		} else {
+			fallback = "unknown"
+		}
+	}
+
+	for _, marker := range codingAgentEnvVars {
+		if v, ok := GetEnv(marker.Name); ok && v != "" {
+			return marker.Agent
+		}
+	}
+
+	// devin exposes no env var but mounts this directory. PHP skips the
+	// check under open_basedir, which Go has no equivalent of.
+	if php.FileExists("/opt/.devin") {
+		return "devin"
+	}
+
+	return fallback
+}
+
+func stripAIAgentSeparator(value string) string {
+	out, _, err := php.PregReplace(`{[\s@/:].*$}s`, "", value, -1)
+	if err != nil {
+		return value
+	}
+
+	return out
+}
+
+func stripAIAgentVersion(value string) string {
+	out, _, err := php.PregReplace(`{-?v?\d+(\.\d+)*$}`, "", value, -1)
+	if err != nil {
+		return value
+	}
+
+	return out
+}
+
 // GetCwd ports Platform::getCwd: the physical working directory (getcwd(3),
 // never $PWD), or "" when allowEmpty and it cannot be determined.
 func GetCwd(allowEmpty bool) (string, error) {
@@ -83,11 +309,19 @@ func GetBoolEnv(name string) (value, set bool, err error) {
 // PutEnv ports Platform::putEnv.
 func PutEnv(name, value string) {
 	_ = os.Setenv(name, value)
+
+	if name == "AI_AGENT" || slices.ContainsFunc(codingAgentEnvVars, func(m struct{ Name, Agent string }) bool { return m.Name == name }) {
+		resetAIAgentCache()
+	}
 }
 
 // ClearEnv ports Platform::clearEnv.
 func ClearEnv(name string) {
 	_ = os.Unsetenv(name)
+
+	if name == "AI_AGENT" || slices.ContainsFunc(codingAgentEnvVars, func(m struct{ Name, Agent string }) bool { return m.Name == name }) {
+		resetAIAgentCache()
+	}
 }
 
 // ExpandPath ports Platform::expandPath: a leading "~/" becomes the user

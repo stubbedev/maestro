@@ -13,6 +13,7 @@ require dirname(__DIR__, 3).'/.ref/composer/vendor/autoload.php';
 
 use Composer\Config;
 use Composer\Policy\AdvisoriesPolicyConfig;
+use Composer\Policy\CooldownPolicyConfig;
 use Composer\Policy\CustomListPolicyConfig;
 use Composer\Policy\IgnoreUnreachable;
 use Composer\Policy\ListPolicyConfig;
@@ -142,12 +143,26 @@ function legacyIgnore(array $names, bool $withApply): array
     return $m;
 }
 
+function cooldownConfig()
+{
+    if (chance(6)) { return pick([true, false]); }
+    $c = [];
+    if (mt_rand(0, 1)) {
+        $c['period'] = pick([null, '', 0, '0', 3600, '3600', '7 days', '1 week', '90 seconds', '1 month', 'not a duration', -3600, '-3600', '1.5', true, false]);
+    }
+    if (mt_rand(0, 1)) { $c['block'] = (bool) mt_rand(0, 1); }
+    if (mt_rand(0, 1)) { $c['audit'] = pick(['ignore', 'report', 'fail']); }
+    if (mt_rand(0, 1)) { $c['ignore'] = ignoreMap($GLOBALS['packages'], true); }
+
+    return $c;
+}
+
 function policyRaw()
 {
     if (chance(8)) { return pick([true, false]); }
     $p = [];
-    foreach (['advisories', 'malware', 'abandoned'] as $name) {
-        if (mt_rand(0, 2) === 0) { $p[$name] = listConfig($name); }
+    foreach (['advisories', 'malware', 'abandoned', 'cooldown'] as $name) {
+        if (mt_rand(0, 2) === 0) { $p[$name] = $name === 'cooldown' ? cooldownConfig() : listConfig($name); }
     }
     $n = mt_rand(0, 2);
     for ($i = 0; $i < $n; $i++) {
@@ -183,6 +198,8 @@ $envVars = [
     'COMPOSER_POLICY_ABANDONED_BLOCK' => ['0', '1', ''],
     'COMPOSER_SECURITY_BLOCKING_ABANDONED' => ['0', '1', 'bogus'],
     'COMPOSER_AUDIT_ABANDONED' => ['report', 'fail', 'ignore', 'bogus'],
+    'COMPOSER_POLICY_COOLDOWN_PERIOD' => ['7 days', '0', '3600', '', 'not a duration', '-3600'],
+    'COMPOSER_POLICY_COOLDOWN_BLOCK' => ['0', '1', ''],
 ];
 
 function serRules(array $m): array
@@ -244,7 +261,10 @@ function serList(ListPolicyConfig $l): array
         $out['blockScope'] = $l->blockScope;
         $out['ignoreSource'] = array_values($l->ignoreSource);
     } elseif ($l instanceof CustomListPolicyConfig) {
+        $out['blockScope'] = $l->blockScope;
         $out['sources'] = array_map(static function ($s) { return [$s->listName, $s->url]; }, $l->sources);
+    } elseif ($l instanceof CooldownPolicyConfig) {
+        $out['period'] = $l->period;
     }
 
     return $out;
@@ -262,6 +282,7 @@ function serPolicy(PolicyConfig $p): array
         'advisories' => serList($p->advisories),
         'malware' => serList($p->malware),
         'abandoned' => serList($p->abandoned),
+        'cooldown' => serList($p->cooldown),
         'custom' => $custom,
         'ignoreUnreachable' => [$p->ignoreUnreachable->audit, $p->ignoreUnreachable->install, $p->ignoreUnreachable->update],
         'forBlockScope' => [$p->ignoreUnreachable->forBlockScope('install'), $p->ignoreUnreachable->forBlockScope('update')],
@@ -306,6 +327,7 @@ while (count($cases) < 1200) {
         $p = PolicyConfig::fromConfig($config);
         $out = serPolicy($p);
         $out['noBlocking'] = serPolicy($p->withBlockingDisabled());
+        $out['noCooldown'] = serPolicy($p->withCooldownBlockingDisabled());
         $out['withAuditReport'] = $p->withAudit('report')->abandoned->audit;
         $out['withAuditNull'] = $p->withAudit(null)->abandoned->audit;
         $out['withSeverity'] = serSimple($p->withIgnoreSeverity(['low', 'critical'])->advisories->ignoreSeverity);

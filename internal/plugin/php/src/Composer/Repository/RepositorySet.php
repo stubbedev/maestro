@@ -15,7 +15,6 @@ use Composer\Advisory\SecurityAdvisory;
 use Composer\DependencyResolver\Pool;
 use Composer\DependencyResolver\Request;
 use Composer\EventDispatcher\EventDispatcher;
-use Composer\FilterList\FilterListEntry;
 use Composer\IO\IOInterface;
 use Composer\Semver\Constraint\ConstraintInterface;
 use Maestro\Shim\Remote;
@@ -66,6 +65,11 @@ class RepositorySet
         return Rpc::call('reposet.isPackageAcceptable', [$this, $names, $stability]);
     }
 
+    public function preloadPackages(array $names): void
+    {
+        Rpc::call('reposet.preloadPackages', [$this, array_values($names)]);
+    }
+
     public function getSecurityAdvisories(array $packageNames, bool $allowPartialAdvisories, bool $ignoreUnreachable = false): array
     {
         return self::advisories(Rpc::call('reposet.getSecurityAdvisories', [$this, array_values($packageNames), $allowPartialAdvisories, $ignoreUnreachable]));
@@ -76,9 +80,9 @@ class RepositorySet
         return self::advisories(Rpc::call('reposet.getMatchingSecurityAdvisories', [$this, array_values($packages), $allowPartialAdvisories, $ignoreUnreachable]));
     }
 
-    public function createPool(Request $request, IOInterface $io, ?EventDispatcher $eventDispatcher = null, ?\Composer\DependencyResolver\PoolOptimizer $poolOptimizer = null, array $ignoredTypes = [], ?array $allowedTypes = null, ?\Composer\DependencyResolver\SecurityAdvisoryPoolFilter $securityAdvisoryPoolFilter = null, ?\Composer\DependencyResolver\FilterListPoolFilter $filterListPoolFilter = null): Pool
+    public function createPool(Request $request, IOInterface $io, ?EventDispatcher $eventDispatcher = null, ?\Composer\DependencyResolver\PoolOptimizer $poolOptimizer = null, array $ignoredTypes = [], ?array $allowedTypes = null, ?\Composer\DependencyResolver\SecurityAdvisoryPoolFilter $securityAdvisoryPoolFilter = null, ?\Composer\DependencyResolver\FilterListPoolFilter $filterListPoolFilter = null, ?\Composer\DependencyResolver\CooldownPoolFilter $cooldownPoolFilter = null): Pool
     {
-        if ($poolOptimizer !== null || $securityAdvisoryPoolFilter !== null || $filterListPoolFilter !== null) {
+        if ($poolOptimizer !== null || $securityAdvisoryPoolFilter !== null || $filterListPoolFilter !== null || $cooldownPoolFilter !== null) {
             Remote::unsupported(self::class, 'createPool');
         }
 
@@ -101,13 +105,20 @@ class RepositorySet
     }
 
     /**
+     * dev-* branches and the default branch alias have no version ordering, so advisory ranges cannot meaningfully match them, unlike numeric branches such as 3.3.x-dev
+     */
+    public static function isUnversionedBranch(\Composer\Package\PackageInterface $package): bool
+    {
+        return strpos($package->getVersion(), 'dev-') === 0 || $package->getVersion() === \Composer\Package\Version\VersionParser::DEFAULT_BRANCH_ALIAS;
+    }
+
+    /**
      * The Pool of maestro's pool: its packages, with maestro's ids, and
      * what PoolBuilder removed, as Composer's PoolBuilder passes it to new
      * Pool(): the optimizer's removals (by name, and by the kept package's
-     * spl_object_id()), the security advisories' (Composer's advisory
-     * objects), the abandoned and the filter lists' (Composer's
-     * FilterListEntry objects). An advisory or entry removing several
-     * versions is one object, as in Composer.
+     * spl_object_id()) and, per package version a dependency policy took
+     * out, the reason why (with Composer's advisory and FilterListEntry
+     * objects).
      *
      * @param array<string, mixed> $d
      */
@@ -118,68 +129,14 @@ class RepositorySet
             $byPackage[spl_object_id($pair[0])] = $pair[1];
         }
 
-        $advisories = array_map([self::class, 'advisory'], $d['advisories']);
-        $security = [];
-        foreach ($d['securityRemovedVersions'] as $name => $versions) {
-            foreach ($versions as $version => $refs) {
-                $security[$name][$version] = array_map(static function ($i) use ($advisories) {
-                    return $advisories[$i];
-                }, $refs);
+        $policy = [];
+        foreach ($d['policyRemovedVersions'] as $name => $versions) {
+            foreach ($versions as $version => $reason) {
+                $policy[$name][$version] = \Maestro\Shim\PoolData::policyRemovalReason($reason);
             }
         }
 
-        $entries = array_map([self::class, 'filterListEntry'], $d['filterListEntries']);
-        $filterList = [];
-        foreach ($d['filterListRemovedVersions'] as $name => $versions) {
-            foreach ($versions as $version => $refs) {
-                $filterList[$name][$version] = array_map(static function ($i) use ($entries) {
-                    return $entries[$i];
-                }, $refs);
-            }
-        }
-
-        return new Pool($d['packages'], $d['unacceptable'], $d['removedVersions'], $byPackage, $security, $d['abandonedRemovedVersions'], $filterList);
-    }
-
-    /**
-     * Composer's (Partial)SecurityAdvisory of maestro's advisory.
-     *
-     * @param array<string, mixed> $a
-     * @return PartialSecurityAdvisory|SecurityAdvisory
-     */
-    private static function advisory(array $a)
-    {
-        $class = isset($a['title']) ? SecurityAdvisory::class : PartialSecurityAdvisory::class;
-        $advisory = (new \ReflectionClass($class))->newInstanceWithoutConstructor();
-        $advisory->advisoryId = $a['advisoryId'];
-        $advisory->packageName = $a['packageName'];
-        $advisory->affectedVersions = $a['affectedVersions'];
-        if (isset($a['title'])) {
-            $advisory->title = $a['title'];
-            $advisory->sources = $a['sources'];
-            $advisory->reportedAt = new \DateTimeImmutable($a['reportedAt']);
-            $advisory->cve = $a['cve'];
-            $advisory->link = $a['link'];
-            $advisory->severity = $a['severity'];
-        }
-
-        return $advisory;
-    }
-
-    /**
-     * Composer's FilterListEntry of maestro's entry (its public
-     * properties, as its constructor sets them).
-     *
-     * @param array<string, mixed> $e
-     */
-    private static function filterListEntry(array $e): FilterListEntry
-    {
-        $entry = (new \ReflectionClass(FilterListEntry::class))->newInstanceWithoutConstructor();
-        foreach (['packageName', 'listName', 'constraint', 'url', 'reason', 'id', 'source'] as $name) {
-            $entry->$name = $e[$name];
-        }
-
-        return $entry;
+        return new Pool($d['packages'], $d['unacceptable'], $d['removedVersions'], $byPackage, $policy);
     }
 
     /**
@@ -194,7 +151,7 @@ class RepositorySet
         $out = [];
         foreach ($d['advisories'] as $name => $list) {
             foreach ($list as $a) {
-                $out[$name][] = self::advisory($a);
+                $out[$name][] = \Maestro\Shim\PoolData::advisory($a);
             }
         }
 

@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Repository\RepositoryFactory
- * (docs/PLUGINS.md §4.6), reimplemented with Composer 2.10.3's behaviour:
+ * (docs/PLUGINS.md §4.6), reimplemented with Composer 2.11.0's behaviour:
  * the repositories are maestro's (RepositoryManager::createRepository),
  * and so is the manager it creates (repofactory.manager) and the parsing
  * of a repository string (repofactory.configFromString).

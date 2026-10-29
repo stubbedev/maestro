@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Package\AliasPackage, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.5). See BasePackage for
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §4.5). See BasePackage for
  * how a Go-owned package mirrors maestro's; the alias's own fields come
  * from maestro, everything else is the aliased package's.
  * Written for PHP 7.2.5 to 8.5.
@@ -287,6 +287,11 @@ class AliasPackage extends BasePackage
     public function getReleaseDate(): ?\DateTimeInterface
     {
         return $this->aliasOf->getReleaseDate();
+    }
+
+    public function getPublishedDate(): ?\DateTimeImmutable
+    {
+        return $this->aliasOf->getPublishedDate();
     }
 
     public function getBinaries(): array

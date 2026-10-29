@@ -7,7 +7,7 @@
 This command will guide you through creating your composer.json config.
 
 Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
-In InitCommand.php line 370:
+In InitCommand.php line 386:
                                                                                
   Invalid license provided: Not-A-License. Only SPDX license identifiers (htt  
   ps://spdx.org/licenses/) or "proprietary" are accepted.                      

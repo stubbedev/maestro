@@ -35,6 +35,9 @@ type FilesystemRepository struct {
 	pending     *pendingWrite
 	// preparedWrite: see PrepareWrite.
 	preparedWrite *preparedWrite
+	// repositoryManager, when set, keeps http headers out of the file and
+	// restores them from the repository config when loading it.
+	repositoryManager *RepositoryManager
 }
 
 // pendingWrite is a deferred Write: its arguments and the repository's
@@ -77,6 +80,29 @@ func (r *FilesystemRepository) init(file JSONFile, dumpVersions bool, rootPackag
 // plugin runtime's copy of that class).
 func (r *FilesystemRepository) SetInstalledVersionsSink(sink func(versions *php.Array)) {
 	r.installedVersionsSink = sink
+}
+
+// SetRepositoryManager ports FilesystemRepository::setRepositoryManager:
+// enable keeping http headers out of the repository file, they are restored
+// from the repository config when loading it.
+func (r *FilesystemRepository) SetRepositoryManager(repositoryManager *RepositoryManager) {
+	r.repositoryManager = repositoryManager
+}
+
+// dumpPackage dumps p as installed.json holds it: without the http headers
+// SetRepositoryManager's manager can restore.
+func (r *FilesystemRepository) dumpPackage(p pkg.PackageInterface) (*php.Array, error) {
+	var arrayDumper dumper.ArrayDumper
+	pkgArray, err := arrayDumper.Dump(p)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.repositoryManager != nil {
+		pkgArray = r.repositoryManager.RemoveRestorableHttpHeaders(p, pkgArray)
+	}
+
+	return pkgArray, nil
 }
 
 // PHPClass returns the PHP class name.
@@ -125,6 +151,9 @@ func (r *FilesystemRepository) initialize() error {
 		p, err := arrayLoader.Load(data, pkg.ClassCompletePackage)
 		if err != nil {
 			return err
+		}
+		if r.repositoryManager != nil {
+			r.repositoryManager.RestoreHttpHeaders(p)
 		}
 		if err := r.hooks.addPackage(p); err != nil {
 			return err
@@ -232,7 +261,7 @@ func (r *FilesystemRepository) write(devMode bool, im InstallationManager, canon
 	}
 	repoDir = fspath.NormalizePath(util.Realpath(repoDir))
 
-	in := writeInput{devMode, canonical, repoPackages, slices.Clone(r.devPackageNames), r.rootPackage, r.dumpVersions, repoDir}
+	in := writeInput{devMode, canonical, repoPackages, slices.Clone(r.devPackageNames), r.rootPackage, r.dumpVersions, repoDir, r.dumpPackage}
 	if out := r.takePreparedWrite(in, im); out != nil {
 		return r.writeOutput(out)
 	}
@@ -256,6 +285,8 @@ type writeInput struct {
 	rootPackage     pkg.RootPackageInterface
 	dumpVersions    bool
 	repoDir         string
+	// dump dumps a package as installed.json holds it (dumpPackage)
+	dump func(pkg.PackageInterface) (*php.Array, error)
 }
 
 // writeOutput is what write writes: installed.json's data (encoded when
@@ -277,9 +308,8 @@ func (in writeInput) build(installPath func(pkg.PackageInterface) (pkg.NullStrin
 	pkgArrays := make([]*php.Array, 0, len(in.canonical))
 	devNames := php.NewArray()
 	installPaths := make(map[string]pkg.NullString, len(in.canonical))
-	var arrayDumper dumper.ArrayDumper
 	for _, p := range in.canonical {
-		pkgArray, err := arrayDumper.Dump(p)
+		pkgArray, err := in.dump(p)
 		if err != nil {
 			return nil, err
 		}

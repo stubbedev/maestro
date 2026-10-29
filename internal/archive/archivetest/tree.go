@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 // Node is one entry of an extracted tree.
@@ -116,9 +118,9 @@ func readAll(path string, mode fs.FileMode) ([]byte, error) {
 }
 
 // PackageRoot applies ArchiveDownloader's rule to an extraction directory:
-// a single top-level directory, ignoring .DS_Store, is the package. A lone
-// symlink to a directory is reported as an error, which is how maestro
-// treats it.
+// a single top-level directory, ignoring OS metadata files, is the package.
+// A lone symlink to a directory is reported as an error, which is how
+// maestro treats it.
 func PackageRoot(dir string) (string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -130,7 +132,7 @@ func PackageRoot(dir string) (string, error) {
 	count := 0
 
 	for _, e := range entries {
-		if e.Name() != ".DS_Store" {
+		if !util.IsMetadataPath(e.Name()) {
 			only = e
 			count++
 		}

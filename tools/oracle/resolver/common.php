@@ -26,8 +26,8 @@ function platformVersions(): array
     $platform = [
         'php' => '8.5.1',
         'php-64bit' => '8.5.1',
-        'composer' => '2.10.3',
-        'composer-plugin-api' => '2.9.0',
+        'composer' => '2.11.0',
+        'composer-plugin-api' => '2.11.0',
         'composer-runtime-api' => '2.2.2',
         'ext-mongodb' => '2.5.0',
         'ext-redis' => '6.2.0',

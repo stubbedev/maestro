@@ -112,7 +112,7 @@ func (g *GitHub) AuthorizeOAuthInteractively(originURL, message string) (bool, e
 		"",
 	}, true, io.Normal)
 	g.io.WriteErrorMessages([]string{
-		"1. When you don't use 'vcs'  type 'repositories'  in composer.json and do not need to clone source or download dist files",
+		"1. When you don't use 'vcs' type 'repositories' in composer.json and do not need to clone source or download dist files",
 		"from private GitHub repositories over HTTPS, use a fine-grained token with read-only access to public information.",
 		"Use the following URL to create such a token:",
 		"https://" + originURL + "/settings/personal-access-tokens/new?name=" + encodedNote,

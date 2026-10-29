@@ -4,6 +4,7 @@ package advisory
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/console"
@@ -62,7 +63,26 @@ var _ RepositorySet = (*repository.RepositorySet)(nil)
 type Advisories = repository.NameMap[[]Advisory]
 
 // Auditor ports Composer\Advisory\Auditor.
-type Auditor struct{}
+type Auditor struct {
+	// CooldownAuditor reports the packages still within the cooldown; nil is
+	// a new CooldownAuditor(), as new Auditor() takes it.
+	CooldownAuditor *CooldownAuditor
+}
+
+// NewAuditor ports new Auditor(...): a nil cooldownAuditor is a new
+// CooldownAuditor().
+func NewAuditor(cooldownAuditor *CooldownAuditor) Auditor {
+	return Auditor{CooldownAuditor: cooldownAuditor}
+}
+
+// cooldownAuditor is $this->cooldownAuditor.
+func (a Auditor) cooldownAuditor() *CooldownAuditor {
+	if a.CooldownAuditor == nil {
+		return &CooldownAuditor{}
+	}
+
+	return a.CooldownAuditor
+}
 
 // Audit ports audit: it reports the advisories, abandoned packages and
 // filter list matches of the packages in format (one of the Format*
@@ -95,7 +115,14 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 	affectedPackagesCount := advisories.Len()
 	var abandonedPackages []pkg.CompletePackageInterface
 	if policyConfig.Abandoned.Audit != policy.AuditIgnore {
-		abandonedPackages, err = a.FilterAbandonedPackages(packages, policyConfig.Abandoned.FlatIgnoreForOperation("audit"))
+		// abandonment is per package, so aliases would only report it twice
+		canonicalPackages := make([]pkg.PackageInterface, 0, len(packages))
+		for _, p := range packages {
+			if _, isAlias := p.(pkg.Alias); !isAlias {
+				canonicalPackages = append(canonicalPackages, p)
+			}
+		}
+		abandonedPackages, err = a.FilterAbandonedPackages(canonicalPackages, policyConfig.Abandoned.FlatIgnoreForOperation("audit"))
 		if err != nil {
 			return 0, err
 		}
@@ -128,6 +155,10 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 			}
 			for _, entry := range entries {
 				list, _ := filteredPackages.Get(p.Name())
+				// an alias can match the same entry as the package it aliases
+				if containsEntry(list, entry) {
+					continue
+				}
 				filteredPackages.Set(p.Name(), append(list, entry))
 
 				if failingListNames[entry.ListName] {
@@ -137,8 +168,21 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 		}
 	}
 
+	cooldown := policyConfig.Cooldown
+	if cooldown == nil {
+		cooldown = policy.CooldownPolicyConfigDisabled()
+	}
+	cooldownPackages := php.NewArray()
+	cooldownCount := 0
+	if cooldown.Audit != policy.AuditIgnore {
+		cooldownPackages = a.cooldownAuditor().Collect(packages, cooldown)
+		if cooldown.Audit == policy.AuditFail {
+			cooldownCount = cooldownPackages.Len()
+		}
+	}
+
 	auditResult := StatusOK
-	if affectedPackagesCount > 0 || abandonedCount > 0 || filteredCount > 0 {
+	if affectedPackagesCount > 0 || abandonedCount > 0 || filteredCount > 0 || cooldownCount > 0 {
 		auditResult = StatusFailed
 	}
 
@@ -172,6 +216,7 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 			filter.Set(name, list)
 		}
 		data.Set("filter", filter)
+		data.Set("cooldown", cooldownPackages)
 
 		encoded, err := json.EncodeDefault(data)
 		if err != nil {
@@ -262,7 +307,52 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 		}
 	}
 
+	if cooldownPackages.Len() > 0 {
+		plurality := "s"
+		if cooldownPackages.Len() == 1 {
+			plurality = ""
+		}
+		punctuation := ":"
+		if format == FormatSummary {
+			punctuation = "."
+		}
+		style := "warning"
+		if cooldownCount > 0 {
+			style = "error"
+		}
+
+		out.Write(fmt.Sprintf("<%s>Found %d package%s still in the cooldown period configured in \"policy.cooldown\"%s</%s>", style, cooldownPackages.Len(), plurality, punctuation, style), true, io.Normal)
+		if format != FormatSummary {
+			outputCooldownPackages(out, cooldownPackages)
+		}
+	}
+
 	return auditResult, nil
+}
+
+// containsEntry is `in_array($entry, $entries, true)`: the same entry
+// object, not an equal one.
+func containsEntry(entries []*filterlist.FilterListEntry, entry *filterlist.FilterListEntry) bool {
+	return slices.Contains(entries, entry)
+}
+
+// outputCooldownPackages ports outputCooldownPackages.
+func outputCooldownPackages(out io.IO, cooldownPackages *php.Array) {
+	for name, info := range cooldownPackages.All() {
+		data, _ := info.(*php.Array)
+		if data == nil {
+			continue
+		}
+		prettyVersion, _ := data.Get("prettyVersion")
+		releaseDate, _ := data.Get("releaseDate")
+		availableIn, _ := data.Get("availableIn")
+		source, _ := data.Get("source")
+
+		out.Write(fmt.Sprintf("  - %s (%s) published %s, available in %s", name, php.ToString(prettyVersion), php.ToString(releaseDate), php.ToString(availableIn)), true, io.Normal)
+		if php.ToString(source) == "time" {
+			out.Write("    The cooldown policy relied on the package-supplied time field because the repository provides no published-time.", true, io.Normal)
+		}
+	}
 }
 
 // advisoriesArray is the JSON form of an advisory map.
@@ -545,33 +635,12 @@ func outputAdvisoriesTable(out tableIO, advisories *Advisories, versions map[str
 
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
-			security, err := securityAdvisory(advisory)
-			if err != nil {
-				return err
-			}
-			headers := []any{
-				"Package",
-				"Severity",
-				"Advisory ID",
-				"CVE",
-				"Title",
-				"URL",
-				"Affected versions",
-				"Reported at",
-			}
-			row := []string{
-				security.PackageName,
-				severity(security),
-				advisoryID(security),
-				cve(security),
-				security.Title,
-				url(security),
-				security.AffectedVersions.PrettyString(),
-				security.ReportedAt.Format(dumper.RFC3339),
-			}
-			if ignored, ok := advisory.(*IgnoredSecurityAdvisory); ok {
-				headers = append(headers, "Ignore reason")
-				row = append(row, ignoreReason(ignored))
+			fields := advisoryFields(advisory)
+			headers := make([]any, 0, len(fields))
+			row := make([]string, 0, len(fields))
+			for _, field := range fields {
+				headers = append(headers, field.Label)
+				row = append(row, field.Value)
 			}
 			table := out.Table().SetHorizontal(true).SetHeaders(headers)
 			if err := table.AddRow(io.SanitizeMessages(row, true)); err != nil {
@@ -598,30 +667,57 @@ func ignoreReason(advisory *IgnoredSecurityAdvisory) string {
 	return "None specified"
 }
 
+// advisoryField is one label => value entry of an advisory's fields.
+type advisoryField struct {
+	Label string
+	Value string
+}
+
+// advisoryFields ports getAdvisoryFields: a partial advisory only has the
+// fields its repository provided, so the others are left out.
+func advisoryFields(advisory Advisory) []advisoryField {
+	security, isSecurity := AsSecurityAdvisory(advisory)
+	if !isSecurity {
+		partial := advisory.Partial()
+
+		return []advisoryField{
+			{"Package", partial.PackageName},
+			{"Advisory ID", advisoryID(partial)},
+			{"Affected versions", partial.AffectedVersions.PrettyString()},
+		}
+	}
+
+	fields := []advisoryField{
+		{"Package", security.PackageName},
+		{"Severity", severity(security)},
+		{"Advisory ID", advisoryID(&security.PartialSecurityAdvisory)},
+		{"CVE", cve(security)},
+		{"Title", security.Title},
+		{"URL", url(security)},
+		{"Affected versions", security.AffectedVersions.PrettyString()},
+		{"Reported at", security.ReportedAt.Format(dumper.RFC3339)},
+	}
+	if ignored, ok := advisory.(*IgnoredSecurityAdvisory); ok {
+		fields = append(fields, advisoryField{"Ignore reason", ignoreReason(ignored)})
+	}
+
+	return fields
+}
+
 func outputAdvisoriesPlain(out io.IO, advisories *Advisories) error {
 	var lines []string
 	firstAdvisory := true
 	for _, packageAdvisories := range advisories.All() {
 		for _, advisory := range packageAdvisories {
-			security, err := securityAdvisory(advisory)
-			if err != nil {
-				return err
-			}
 			if !firstAdvisory {
 				lines = append(lines, "--------")
 			}
-			lines = append(lines,
-				"Package: "+security.PackageName,
-				"Severity: "+severity(security),
-				"Advisory ID: "+advisoryID(security),
-				"CVE: "+cve(security),
-				"Title: "+console.Escape(security.Title),
-				"URL: "+url(security),
-				"Affected versions: "+console.Escape(security.AffectedVersions.PrettyString()),
-				"Reported at: "+security.ReportedAt.Format(dumper.RFC3339),
-			)
-			if ignored, ok := advisory.(*IgnoredSecurityAdvisory); ok {
-				lines = append(lines, "Ignore reason: "+ignoreReason(ignored))
+			for _, field := range advisoryFields(advisory) {
+				value := field.Value
+				if field.Label == "Title" || field.Label == "Affected versions" {
+					value = console.Escape(value)
+				}
+				lines = append(lines, field.Label+": "+value)
 			}
 			firstAdvisory = false
 		}
@@ -685,7 +781,7 @@ func severity(advisory *SecurityAdvisory) string {
 	return advisory.Severity.S
 }
 
-func advisoryID(advisory *SecurityAdvisory) string {
+func advisoryID(advisory *PartialSecurityAdvisory) string {
 	if strings.HasPrefix(advisory.AdvisoryID, "PKSA-") {
 		return "<href=https://packagist.org/security-advisories/" + advisory.AdvisoryID + ">" + advisory.AdvisoryID + "</>"
 	}

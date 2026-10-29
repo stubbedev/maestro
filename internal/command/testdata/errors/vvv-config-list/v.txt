@@ -24,6 +24,7 @@ Composer could not detect the root package (acme/app) version, defaulting to '1.
 [autoloader-suffix] 
 [sort-packages] false
 [optimize-autoloader] false
+[strict-psr-autoloader] false
 [classmap-authoritative] false
 [apcu-autoloader] false
 [prepend-autoloader] true

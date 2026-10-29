@@ -503,7 +503,7 @@ func (*BaseCommand) CreatePolicyConfig(cfg *config.Config, in console.Input) (*p
 		return nil, err
 	}
 
-	// --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + custom)
+	// --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + cooldown + custom)
 	noBlocking, _, err := util.GetBoolEnv("COMPOSER_NO_BLOCKING")
 	if err != nil {
 		return nil, err
@@ -519,9 +519,26 @@ func (*BaseCommand) CreatePolicyConfig(cfg *config.Config, in console.Input) (*p
 
 	if noBlocking {
 		policyConfig = policyConfig.WithBlockingDisabled()
+	} else if in != nil && in.HasOption("no-cooldown") && console.BoolOption(in, "no-cooldown") {
+		policyConfig = policyConfig.WithCooldownBlockingDisabled()
 	}
 
 	return policyConfig, nil
+}
+
+// GetBlockingCooldownPolicy ports getBlockingCooldownPolicy: the cooldown
+// policy that would block during an update, to apply when picking versions,
+// or nil when none applies.
+func (c *BaseCommand) GetBlockingCooldownPolicy(cfg *config.Config, in console.Input) (*policy.CooldownPolicyConfig, error) {
+	policyConfig, err := c.CreatePolicyConfig(cfg, in)
+	if err != nil {
+		return nil, err
+	}
+	if policyConfig.Enabled && policyConfig.Cooldown.ShouldBlock(policy.BlockScopeUpdate) {
+		return policyConfig.Cooldown, nil
+	}
+
+	return nil, nil
 }
 
 // CreateAuditConfig ports createAuditConfig.

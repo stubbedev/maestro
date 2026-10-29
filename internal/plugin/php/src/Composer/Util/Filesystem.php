@@ -201,6 +201,11 @@ class Filesystem
         \Maestro\Shim\Rpc::call('fs.safeCopy', [$source, $target]);
     }
 
+    public static function safeFilePutContents(string $path, string $content)
+    {
+        return \Maestro\Shim\Rpc::call('fs.safeFilePutContents', [$path, $content]);
+    }
+
     public function size(string $path)
     {
         return \Maestro\Shim\Rpc::call('fs.size', [$path]);

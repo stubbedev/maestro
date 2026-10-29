@@ -100,9 +100,12 @@ func initOptions(url string, options *php.Array, forCurl bool, rt Runtime) (*php
 // cannot throw on it and its call sites ignore the error.
 var runningCommandStrip = php.MustCompile(`{[^a-z0-9:_-]}i`)
 
+// aiAgent is Platform::getAiAgent(); tests replace it.
+var aiAgent = util.GetAIAgent
+
 // UserAgent is the User-Agent header initOptions adds:
 //
-//	User-Agent: Composer/2.10.3 (Linux; 6.8.0; PHP 8.3.6; maestro 1.0.0; Platform-PHP 8.1.0; CI; cmd:install)
+//	User-Agent: Composer/2.11.0 (Linux; 6.8.0; PHP 8.3.6; maestro 1.0.0; Platform-PHP 8.1.0; CI; agent:claude-code; cmd:install)
 //
 // maestro reports itself as the Composer release it ports, so servers that
 // key behaviour off the Composer version (Packagist's warning-versions,
@@ -147,6 +150,11 @@ func UserAgent(_ bool, rt Runtime) string {
 
 	if ci, ok := util.GetEnv("CI"); ok && php.ToBool(ci) {
 		b.WriteString("; CI")
+	}
+
+	if agent, ok := aiAgent(); ok {
+		b.WriteString("; agent:")
+		b.WriteString(agent)
 	}
 
 	command, hasCommand := rt.RunningCommand()

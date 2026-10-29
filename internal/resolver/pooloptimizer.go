@@ -184,11 +184,9 @@ func (o *PoolOptimizer) applyRemovalsToPool(pool *Pool) *Pool {
 	}
 
 	return NewPool(packages, pool.UnacceptableFixedOrLockedPackages(), &Removed{
-		Versions:   removedVersions,
-		ByPackage:  o.removedVersionsByPackage,
-		Security:   pool.AllSecurityRemovedPackageVersions(),
-		Abandoned:  pool.AllAbandonedRemovedPackageVersions(),
-		FilterList: pool.AllFilterListRemovedPackageVersions(),
+		Versions:  removedVersions,
+		ByPackage: o.removedVersionsByPackage,
+		Policy:    pool.AllPolicyRemovedVersions(),
 	})
 }
 
@@ -430,17 +428,24 @@ func (o *PoolOptimizer) packageHashes(packages []pkg.PackageInterface) ([]string
 					}
 					conflictPart = appendConflictHashPart(conflictPart[:0], conflicts[packageName], version)
 
+					invariantHash := append(append([]byte(nil), replacesPart...), conflictPart...)
+					addedToInvariantGroup := false
 					for _, require := range requireMatchers[name] {
-						buf = buf[:0]
 						if require.matches(version) {
+							buf = buf[:0]
 							buf = append(buf, require.str...)
+							buf = append(buf, invariantHash...)
+						} else {
+							// Every non-matching constraint yields the same hash, only add
+							// the package to it once
+							if addedToInvariantGroup || len(invariantHash) == 0 {
+								continue
+							}
+							addedToInvariantGroup = true
+							buf = buf[:0]
+							buf = append(buf, invariantHash...)
 						}
-						buf = append(buf, replacesPart...)
-						buf = append(buf, conflictPart...)
 
-						if len(buf) == 0 {
-							continue
-						}
 						groups = append(groups, packageGroup{name: name, hash: local.id(buf)})
 					}
 				}

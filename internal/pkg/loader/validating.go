@@ -268,20 +268,39 @@ func (l *ValidatingArrayLoader) validateBin() error {
 	// package chmod/point at an arbitrary host file during install (GHSA-gjfg-22fp-rrxx).
 	switch bin := l.config.At("bin").(type) {
 	case string:
-		if mustMatch(binParentSegment, bin) {
-			l.errorf("bin : invalid value (", bin, "), must not contain a \"..\" path component")
+		if err, bad := findBinError(bin); bad {
+			l.errorf("bin : invalid value (", bin, "), ", err)
 			l.config.Delete("bin")
 		}
 	case *php.Array:
 		for k, v := range bin.All() {
-			if s, ok := v.(string); ok && mustMatch(binParentSegment, s) {
-				l.errorf("bin.", k.String(), " : invalid value (", s, "), must not contain a \"..\" path component")
-				bin.DeleteKey(k)
+			if s, ok := v.(string); ok {
+				if err, bad := findBinError(s); bad {
+					l.errorf("bin.", k.String(), " : invalid value (", s, "), ", err)
+					bin.DeleteKey(k)
+				}
 			}
 		}
 	}
 
 	return nil
+}
+
+// findBinError ports ValidatingArrayLoader::findBinError: why bin is
+// unacceptable, or bad false when it is fine. The character check is the
+// same one BinaryInstaller applies before generating a proxy, done here as
+// well so that packagist.org and composer validate flag such a bin at the
+// source.
+func findBinError(bin string) (err string, bad bool) {
+	if mustMatch(binParentSegment, bin) {
+		return `must not contain a ".." path component`, true
+	}
+
+	if !util.IsSafeBinPath(bin) {
+		return "must not contain any of the characters *$`\"&^|<>()%!; nor control characters", true
+	}
+
+	return "", false
 }
 
 func (l *ValidatingArrayLoader) validateTime() (time.Time, bool) {

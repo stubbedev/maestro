@@ -1562,11 +1562,43 @@
                 "http": {
                     "header": [
                         "Accept: x",
-                        "PRIVATE-TOKEN: glpat-xyz"
+                        "JOB-TOKEN: glpat-xyz"
                     ]
                 }
             },
-            "output": "Using GitLab private token authentication\n"
+            "output": "Using GitLab CI job token authentication\n"
+        },
+        {
+            "origin": "gitlab.com",
+            "url": "https://gitlab.com/api/v4/x",
+            "authOrigin": "gitlab.com",
+            "username": "my_token",
+            "password": "gitlab-ci-token",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "JOB-TOKEN: my_token"
+                    ]
+                }
+            },
+            "output": "Using GitLab CI job token authentication\n"
+        },
+        {
+            "origin": "gitlab.com",
+            "url": "https://gitlab.com/api/v4/x",
+            "authOrigin": "gitlab.com",
+            "username": "gitlab-ci-token",
+            "password": "my_token",
+            "options": {
+                "http": {
+                    "header": [
+                        "Accept: x",
+                        "JOB-TOKEN: my_token"
+                    ]
+                }
+            },
+            "output": "Using GitLab CI job token authentication\n"
         },
         {
             "origin": "gitlab.example.org",
@@ -2023,7 +2055,7 @@
             },
             "decorated": false,
             "wrote": true,
-            "output": "<warning>Warning from https://user:***@repo.example.org: a</warning>\n<warning>Warning from https://user:***@repo.example.org: b</warning>\n"
+            "output": "<warning>Warning from https://user:***@repo.example.org: a</warning>\n<warning>Warning from https://user:***@repo.example.org: c</warning>\n"
         },
         {
             "data": {
@@ -2044,7 +2076,7 @@
             },
             "decorated": true,
             "wrote": true,
-            "output": "<warning>Warning from https://user:***@repo.example.org: a</warning>\n<warning>Warning from https://user:***@repo.example.org: b</warning>\n"
+            "output": "<warning>Warning from https://user:***@repo.example.org: a</warning>\n<warning>Warning from https://user:***@repo.example.org: c</warning>\n"
         },
         {
             "data": {

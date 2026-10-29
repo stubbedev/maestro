@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -135,7 +134,103 @@ func (p *Problem) PrettyString(ctx *PrettyContext) (string, error) {
 		return php.Compare(k1.key, k2.key)
 	})
 
-	return FormatDeduplicatedRules(reasons, "    ", ctx)
+	formatted, err := FormatDeduplicatedRules(reasons, "    ", ctx)
+	if err != nil {
+		return "", err
+	}
+	policyExcluded, err := formatPolicyExcludedConflictAlternatives(reasons, ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return formatted + policyExcluded, nil
+}
+
+// formatPolicyExcludedConflictAlternatives ports
+// formatPolicyExcludedConflictAlternatives: it explains when a policy removed
+// versions that the reported conflicts do not exclude.
+func formatPolicyExcludedConflictAlternatives(reasons []*Rule, ctx *PrettyContext) (string, error) {
+	rootConstraints := &repository.NameMap[semver.ConstraintInterface]{}
+	requireConstraints := &repository.NameMap[[]semver.ConstraintInterface]{}
+	conflictConstraints := &repository.NameMap[[]semver.ConstraintInterface]{}
+	for _, rule := range reasons {
+		switch rule.Reason() {
+		case RuleRootRequire:
+			rr := rule.RootRequire()
+			rootConstraints.Set(rr.PackageName, rr.Constraint)
+		case RulePackageRequires:
+			link := rule.Link()
+			constraints, _ := requireConstraints.Get(link.Target())
+			requireConstraints.Set(link.Target(), append(constraints, link.Constraint()))
+		case RulePackageConflict:
+			link := rule.Link()
+			constraints, _ := conflictConstraints.Get(link.Target())
+			conflictConstraints.Set(link.Target(), append(constraints, link.Constraint()))
+		}
+	}
+
+	var messages []string
+	for name, constraints := range conflictConstraints.All() {
+		rootConstraint, hasRoot := rootConstraints.Get(name)
+		_, hasRequire := requireConstraints.Get(name)
+		if !hasRoot && !hasRequire {
+			continue
+		}
+
+		removals := &repository.NameMap[*PolicyRemovalReason]{}
+		var rootArg semver.ConstraintInterface
+		if hasRoot {
+			rootArg = rootConstraint
+		}
+		for version, reason := range ctx.Pool.PolicyRemovedVersions(name, rootArg).All() {
+			// removals recorded under a replaced name carry the replacer's
+			// version
+			if reason.PackageName != name {
+				continue
+			}
+
+			packageVersion := semver.NewConstraintOp(semver.OpEQ, version)
+			matches := func(constraint semver.ConstraintInterface) bool {
+				return constraint.Matches(packageVersion)
+			}
+			if slices.ContainsFunc(constraints, matches) {
+				continue
+			}
+			if requireConstraintsFor, ok := requireConstraints.Get(name); ok && !slices.ContainsFunc(requireConstraintsFor, matches) {
+				continue
+			}
+
+			removals.Set(version, reason)
+		}
+
+		if removals.Len() == 0 {
+			continue
+		}
+
+		plural := removals.Len() > 1
+		versions := make([]versionEntry, 0, removals.Len())
+		for version, reason := range removals.All() {
+			versions = append(versions, versionEntry{version: version, pretty: reason.PrettyVersion})
+		}
+		if !ctx.IsVerbose {
+			versions = condenseVersionList(versions, 1, 16)
+		}
+		prettyVersions := make([]string, len(versions))
+		for i, v := range versions {
+			prettyVersions[i] = v.pretty
+		}
+		reasons, err := formatPolicyRemovalReasons(removals, plural, ctx.RepositorySet)
+		if err != nil {
+			return "", err
+		}
+		// only the conflicts in the problem are checked, those of the removed
+		// versions themselves are unknown
+		messages = append(messages, "\n    - "+name+"["+strings.Join(prettyVersions, ", ")+"] "+pick(plural, "match", "matches")+
+			" the requirements and "+pick(plural, "are", "is")+" not excluded by the conflicts above, but "+
+			pick(plural, "were", "was")+" not loaded, "+reasons)
+	}
+
+	return strings.Join(messages, ""), nil
 }
 
 // sortableString ports getSortableString.
@@ -562,19 +657,13 @@ func (ctx *PrettyContext) foundButNotLoaded(packageName string, constraint semve
 		}
 	}
 
-	if pool.IsAbandonedRemovedPackageVersion(packageName, constraint) {
-		return [2]string{prefix, "found " + list() + ` but these were not loaded, because they are abandoned and you configured "policy.abandoned.block" to true.`}, nil
-	}
+	if policyRemovals := pool.PolicyRemovedVersions(packageName, constraint); policyRemovals.Len() > 0 {
+		reasons, err := formatPolicyRemovalReasons(policyRemovals, true, repositorySet)
+		if err != nil {
+			return [2]string{}, err
+		}
 
-	if pool.IsSecurityRemovedPackageVersion(packageName, constraint) {
-		return ctx.securityRemoved(packageName, constraint, packages, prefix)
-	}
-
-	if pool.IsFilterListRemovedPackageVersion(packageName, constraint) {
-		filters := pool.FilterListEntryForPackageVersion(packageName, constraint)
-		ignorePaths, offPaths := policyPaths(filters)
-
-		return [2]string{prefix, "found " + list() + " but these were not loaded, because they were " + strings.Join(mapValues(filters), ", ") + ". To ignore filters for this package, add the package to the " + ignorePaths + " config. To turn the feature off entirely, you can set " + offPaths + " to false."}, nil
+		return [2]string{prefix, "found " + list() + " but these were not loaded, " + reasons}, nil
 	}
 
 	if !slices.ContainsFunc(packages, func(p pkg.PackageInterface) bool {
@@ -586,67 +675,6 @@ func (ctx *PrettyContext) foundButNotLoaded(packageName string, constraint semve
 	}
 
 	return [2]string{prefix, "found " + list() + " but these were not loaded, likely because " + pick(hasMultipleNames(packages), "they conflict", "it conflicts") + " with another require."}, nil
-}
-
-// securityRemoved is getMissingPackageReason's message for versions the
-// security advisory filter removed.
-func (ctx *PrettyContext) securityRemoved(packageName string, constraint semver.ConstraintInterface, packages []pkg.PackageInterface, prefix string) ([2]string, error) {
-	advisoryLink := func(advisoryID string) string {
-		if strings.HasPrefix(advisoryID, "PKSA-") {
-			return "<href=" + console.Escape("https://packagist.org/security-advisories/"+advisoryID) + ">" + advisoryID + "</>"
-		}
-
-		return advisoryID
-	}
-
-	result, err := ctx.RepositorySet.GetMatchingSecurityAdvisories(packages, false, true)
-	if err != nil {
-		return [2]string{}, err
-	}
-	var advisoriesList, advisoryIDs []string
-	if advisories, _ := result.Advisories.Get(packageName); len(advisories) > 0 {
-		for _, advisory := range advisories {
-			id := advisory.Partial().AdvisoryID
-			advisoryIDs = append(advisoryIDs, id)
-			if sa, ok := advisory.(*repository.SecurityAdvisory); ok && sa.Link.Valid && sa.Link.S != "" {
-				advisoriesList = append(advisoriesList, "<href="+console.Escape(sa.Link.S)+">"+id+"</>")
-			} else {
-				advisoriesList = append(advisoriesList, advisoryLink(id))
-			}
-		}
-	} else {
-		advisoryIDs = ctx.Pool.SecurityAdvisoryIdentifiersForPackageVersion(packageName, constraint)
-		for _, id := range advisoryIDs {
-			advisoriesList = append(advisoriesList, advisoryLink(id))
-		}
-	}
-
-	hasPackagistAdvisories := true
-	for _, id := range advisoryIDs {
-		if !strings.HasPrefix(id, "PKSA-") {
-			hasPackagistAdvisories = false
-
-			break
-		}
-	}
-	advisoryDetailsHint := " Review the advisory details above for more information."
-	if hasPackagistAdvisories {
-		advisoryDetailsHint = " Go to https://packagist.org/security-advisories/ to find advisory details."
-	}
-
-	return [2]string{prefix, "found " + PackageList(packages, ctx.IsVerbose, ctx.Pool, constraint, false) + ` but these were not loaded, because they are affected by security advisories ("` + strings.Join(advisoriesList, `", "`) + `").` + advisoryDetailsHint + ` To ignore the advisories, add their IDs to the "policy.advisories.ignore-id" config or add the package to "policy.advisories.ignore". To turn the feature off entirely, you can set "policy.advisories.block" to false.`}, nil
-}
-
-// policyPaths returns the "policy.<list>.ignore" and "policy.<list>.block"
-// config paths of the filter lists.
-func policyPaths(filters *repository.NameMap[string]) (ignorePaths, offPaths string) {
-	var ignore, off []string
-	for listName := range filters.All() {
-		ignore = append(ignore, `"policy.`+listName+`.ignore"`)
-		off = append(off, `"policy.`+listName+`.block"`)
-	}
-
-	return strings.Join(ignore, " and "), strings.Join(off, " and ")
 }
 
 func mapValues(m *repository.NameMap[string]) []string {
@@ -668,14 +696,10 @@ func pick(cond bool, a, b string) string {
 
 // MissingLockedPackageReason ports Problem::getMissingLockedPackageReason.
 func MissingLockedPackageReason(pool *Pool, p pkg.PackageInterface) ([2]string, error) {
-	packageName := p.Name()
-	constraint := semver.NewConstraintOp(semver.OpEQ, p.Version())
-	prefix := "- Package " + packageName + " " + p.PrettyVersion() + " (in the lock file) "
-	if pool.IsFilterListRemovedPackageVersion(packageName, constraint) {
-		filters := pool.FilterListEntryForPackageVersion(packageName, constraint)
-		ignorePaths, offPaths := policyPaths(filters)
+	prefix := "- Package " + p.Name() + " " + p.PrettyVersion() + " (in the lock file) "
 
-		return [2]string{prefix, "was not loaded, because it was " + strings.Join(mapValues(filters), ", ") + ". To ignore filters for this package, add the package to the " + ignorePaths + " config. To turn the feature off entirely, you can set " + offPaths + " to false."}, nil
+	if reason := pool.PolicyRemovalReason(p.Name(), p.Version()); reason != nil {
+		return [2]string{prefix, "was not loaded, because it " + formatPolicyRemovalSentence(reason, false)}, nil
 	}
 
 	return [2]string{}, &util.LogicError{Message: "Filter list removed locked package must have version removed from pool."}
@@ -967,4 +991,119 @@ func providersList(repositorySet *repository.RepositorySet, packageName string, 
 	}
 
 	return pkg.Str(b.String()), nil
+}
+
+// formatPolicyRemovalSentence ports formatPolicyRemovalSentence: the reason
+// as the end of a sentence starting with "because they"/"because it",
+// followed by the remedies.
+func formatPolicyRemovalSentence(reason *PolicyRemovalReason, plural bool) string {
+	remedy := reason.Remedy()
+
+	result := reason.Verb(plural) + " " + reason.Description() + "."
+	if remedy != "" {
+		result += " " + remedy
+	}
+
+	return result + " To turn the feature off entirely, you can set " + reason.OffSwitch() + " to false."
+}
+
+// formatPolicyRemovalReasons ports formatPolicyRemovalReasons: it explains
+// why policies removed the versions, as "because ..." followed by the
+// remedies. When several policies removed different versions, one sentence
+// would attribute every reason to every version, so the versions are then
+// listed grouped by their own reason. removals is in version order.
+func formatPolicyRemovalReasons(removals *repository.NameMap[*PolicyRemovalReason], plural bool, repositorySet *repository.RepositorySet) (string, error) {
+	removals, err := loadCompleteAdvisories(removals, repositorySet)
+	if err != nil {
+		return "", err
+	}
+
+	reasons := make([]*PolicyRemovalReason, 0, removals.Len())
+	for _, reason := range removals.All() {
+		reasons = append(reasons, reason)
+	}
+	if policies := policiesOf(reasons); len(policies) == 1 {
+		combined, err := CombineRemovalReasons(reasons)
+		if err != nil {
+			return "", err
+		}
+
+		return "because " + pick(plural, "they ", "it ") + formatPolicyRemovalSentence(combined, plural), nil
+	}
+
+	versionsByReason := &repository.NameMap[*repository.NameMap[bool]]{}
+	remedies := &repository.NameMap[bool]{}
+	offSwitches := &repository.NameMap[bool]{}
+	for _, reason := range removals.All() {
+		versions, ok := versionsByReason.Get(reason.Description())
+		if !ok {
+			versions = &repository.NameMap[bool]{}
+			versionsByReason.Set(reason.Description(), versions)
+		}
+		versions.Set(reason.PrettyVersion, true)
+		if reason.Remedy() != "" {
+			remedies.Set(reason.Remedy(), true)
+		}
+		offSwitches.Set(reason.OffSwitch(), true)
+	}
+
+	lines := make([]string, 0, versionsByReason.Len())
+	for description, versions := range versionsByReason.All() {
+		lines = append(lines, strings.Join(versions.Keys(), ", ")+": "+description)
+	}
+
+	remedies.Set("To turn a policy off entirely, you can set "+strings.Join(offSwitches.Keys(), " or ")+" to false.", true)
+
+	return "because:\n      - " + strings.Join(lines, "\n      - ") + "\n      " + strings.Join(remedies.Keys(), " "), nil
+}
+
+// loadCompleteAdvisories ports loadCompleteAdvisories: the pool may only
+// hold partial advisories, the complete ones are loaded to link to their
+// details.
+func loadCompleteAdvisories(removals *repository.NameMap[*PolicyRemovalReason], repositorySet *repository.RepositorySet) (*repository.NameMap[*PolicyRemovalReason], error) {
+	versionsByName := &repository.NameMap[[]semver.ConstraintInterface]{}
+	for version, reason := range removals.All() {
+		if reason.Type == PolicyRemovalAdvisories {
+			constraints, _ := versionsByName.Get(reason.PackageName)
+			versionsByName.Set(reason.PackageName, append(constraints, semver.NewConstraintOp(semver.OpEQ, version)))
+		}
+	}
+
+	completeAdvisories := map[string]repository.Advisory{}
+	for name, constraints := range versionsByName.All() {
+		packages, err := repositorySet.FindPackages(name, semver.CreateMultiConstraint(constraints, false), 0)
+		if err != nil {
+			return nil, err
+		}
+		advisories, err := repositorySet.GetMatchingSecurityAdvisories(packages, false, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, list := range advisories.Advisories.All() {
+			for _, advisory := range list {
+				completeAdvisories[advisory.Partial().AdvisoryID] = advisory
+			}
+		}
+	}
+
+	if len(completeAdvisories) == 0 {
+		return removals, nil
+	}
+
+	result := &repository.NameMap[*PolicyRemovalReason]{}
+	for version, reason := range removals.All() {
+		if reason.Type == PolicyRemovalAdvisories {
+			advisories := make([]repository.Advisory, len(reason.Advisories))
+			for i, advisory := range reason.Advisories {
+				advisories[i] = advisory
+				if complete, ok := completeAdvisories[advisory.Partial().AdvisoryID]; ok {
+					advisories[i] = complete
+				}
+			}
+			reason = NewAdvisoriesRemovalReason(reason.PackageName, reason.PrettyVersion, advisories)
+		}
+		result.Set(version, reason)
+	}
+
+	return result, nil
 }

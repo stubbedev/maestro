@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file @DIR@/home/config.json
 Loading config file ./composer.json (@DIR@/p/composer.json)
@@ -22,6 +22,7 @@ Reading @DIR@/p/vendor/composer/installed.json
         "Your configuration does not allow connections to http://@SERVER@/packages.json. See https://getcomposer.org/doc/06-config.md#secure-http for details."
     ],
     "abandoned": [],
-    "filter": []
+    "filter": [],
+    "cooldown": []
 }
 exit 0

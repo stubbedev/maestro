@@ -103,6 +103,16 @@ type IO interface {
 	Overwrite(message string, newline bool, size int, verbosity Verbosity)
 	OverwriteError(message string, newline bool, size int, verbosity Verbosity)
 
+	// WriteOsc sends a terminal command to stderr without changing normal
+	// message output (ConsoleIO::writeOsc()); control characters are an
+	// InvalidArgument error where PHP throws.
+	WriteOsc(command, payload string) error
+	IsProgramStatusEnabled() bool
+	StartProgramStatus()
+	WriteProgramStatus(status *console.ProgramStatus)
+	// WriteProgress takes PHP's ?int $progress as progress, -1 meaning null.
+	WriteProgress(progress int)
+
 	Ask(question string, def any) (any, error)
 	AskConfirmation(question string, def bool) (bool, error)
 	// AskAndValidate takes PHP's ?int $attempts as attempts, 0 meaning null.

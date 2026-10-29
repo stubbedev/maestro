@@ -9,8 +9,8 @@
             "release-age": "",
             "release-date": "",
             "latest": "2.0.0",
-            "latest-status": "update-possible",
             "latest-release-date": "",
+            "latest-status": "update-possible",
             "description": null,
             "abandoned": false
         }

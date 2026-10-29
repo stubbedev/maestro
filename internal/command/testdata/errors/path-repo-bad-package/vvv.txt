@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -15,7 +15,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Loading composer repositories with package information
 
-In JsonFile.php line 398:
+In JsonFile.php line 401:
                                                                                
   [Seld\JsonLint\ParsingException]                                             
   "@DIR@/p/pkg/foo/composer.json" does not contain v  
@@ -27,25 +27,26 @@ In JsonFile.php line 398:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Json/JsonFile.php:398
- Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:363
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:401
+ Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:366
  Composer\Json\JsonFile::parseJson() at @COMPOSER@/src/Composer/Repository/PathRepository.php:175
  Composer\Repository\PathRepository->initialize() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:308
  Composer\Repository\ArrayRepository->getPackages() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:62
- Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:452
- Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:289
- Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:351
- Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:534
- Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
- Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:306
+ Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:458
+ Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:294
+ Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:379
+ Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:537
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:327
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:308
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
+update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-cooldown] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
 
 exit 1

@@ -16,8 +16,8 @@ Options:
   -l, --list                     List configuration settings
   -f, --file=FILE                If you want to choose a different composer.json or config.json
       --absolute                 Returns absolute paths when fetching *-dir config values instead of relative
-  -j, --json                     JSON decode the setting value, to be used with extra.* keys
-  -m, --merge                    Merge the setting value with the current value, to be used with extra.* or audit.ignore[-abandoned] keys in combination with --json
+  -j, --json                     JSON decode the setting value, only supported for extra.*, policy.*.ignore, policy.advisories.ignore-id, policy.ignore-unreachable and audit.ignore[-abandoned] keys
+  -m, --merge                    Merge the setting value with the current value, only supported for extra.* keys in combination with --json, and for policy.*.ignore, policy.advisories.ignore-id and audit.ignore[-abandoned] keys
       --append                   When adding a repository, append it (lowest priority) to the existing ones instead of prepending it (highest priority)
       --source                   Display where the config value is loaded from
   -h, --help                     Display help for the given command. When no command is given display help for the list command

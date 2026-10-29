@@ -9,7 +9,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/pkg/version"
-	"github.com/stubbedev/maestro/internal/semver"
 )
 
 // branch is an entry of Solver::$branches: the alternatives not chosen
@@ -162,8 +161,8 @@ func (s *Solver) checkForRootRequireProblems(request *Request, filter version.Pl
 // checkForFilterListRemovedLockedPackages.
 func (s *Solver) checkForFilterListRemovedLockedPackages(request *Request) {
 	for _, p := range request.LockedPackages() {
-		constraint := semver.NewConstraintOp(semver.OpEQ, p.Version())
-		if !s.pool.IsFilterListRemovedPackageVersion(p.Name(), constraint) {
+		reason := s.pool.PolicyRemovalReason(p.Name(), p.Version())
+		if reason == nil || reason.Type != PolicyRemovalFilterList {
 			continue
 		}
 

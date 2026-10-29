@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -180,30 +181,84 @@ func (a *Application) pushCallFrame(function string, object any, args []any) fun
 	return rt.PopFrame
 }
 
-// DoRun ports doRun. An ExitCoder error ends the run with its code and
-// nothing rendered.
-func (a *Application) DoRun(in console.Input, out console.Output) (int, error) {
-	code, err := a.doRun(in, out)
-	if err == nil {
-		return code, nil
+// DoRun ports doRun. It creates the IO, reports the program status around
+// the run (start, its outcome, idle on a signal) and restores
+// COMPOSER_TERMINAL_STATUS afterwards. An ExitCoder error ends the run with
+// its code and nothing rendered.
+func (a *Application) DoRun(in console.Input, out console.Output) (code int, err error) {
+	cio := io.NewConsoleIO(in, out, console.NewHelperSet(console.NewQuestionHelper()))
+	a.io = cio
+	reportStatus := !util.IsInputCompletionProcess() && cio.IsProgramStatusEnabled()
+	originalTerminalStatus, hadTerminalStatus := util.GetEnv("COMPOSER_TERMINAL_STATUS")
+	if reportStatus {
+		cio.StartProgramStatus()
 	}
+	stopSignals := watchProgramStatusSignals(cio, reportStatus)
+	defer func() {
+		if reportStatus {
+			if hadTerminalStatus {
+				util.PutEnv("COMPOSER_TERMINAL_STATUS", originalTerminalStatus)
+			} else {
+				util.ClearEnv("COMPOSER_TERMINAL_STATUS")
+			}
+		}
+		stopSignals()
+	}()
+
+	if reportStatus {
+		// This IO keeps its encoders while nested Composer processes inherit disabled reporting.
+		util.PutEnv("COMPOSER_TERMINAL_STATUS", "off")
+	}
+	code, err = a.doRun(in, out, cio)
 	if ec, ok := errors.AsType[ExitCoder](err); ok {
 		return ec.ExitCode(), nil
 	}
+	if err != nil {
+		if reportStatus {
+			cio.WriteProgramStatus(console.ProgramStatusError(nil))
+		}
 
-	return code, err
+		return code, err
+	}
+	if reportStatus {
+		cio.WriteProgramStatus(console.ProgramStatusFromExitCode(code))
+	}
+
+	return code, nil
 }
 
-func (a *Application) doRun(in console.Input, out console.Output) (int, error) {
+// watchProgramStatusSignals is the SignalHandler doRun installs while it
+// reports the program status: SIGINT, SIGTERM and SIGHUP write an idle
+// status and end the process with the signal.
+func watchProgramStatusSignals(cio *io.ConsoleIO, enabled bool) func() {
+	if !enabled {
+		return func() {}
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, util.HandledSignals()...)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for sig := range ch {
+			cio.WriteProgramStatus(console.ProgramStatusIdle(nil))
+			util.ExitWithSignal(sig)
+		}
+	}()
+
+	return func() {
+		signal.Stop(ch)
+		close(ch)
+		<-done
+	}
+}
+
+func (a *Application) doRun(in console.Input, out console.Output, cio *io.ConsoleIO) (int, error) {
 	a.disablePluginsByDefault = in.HasParameterOption([]string{"--no-plugins"}, false)
 	a.disableScriptsByDefault = in.HasParameterOption([]string{"--no-scripts"}, false)
 
 	if v, _ := util.GetEnv("COMPOSER_TESTS_ARE_RUNNING"); v != "1" && (util.EnvTruthy("COMPOSER_NO_INTERACTION") || a.Stdin == nil || !util.IsTty(a.Stdin)) {
 		in.SetInteractive(false)
 	}
-
-	cio := io.NewConsoleIO(in, out, console.NewHelperSet(console.NewQuestionHelper()))
-	a.io = cio
 
 	// Register error handler again to pass it the IO instance
 	util.RegisterErrorHandler(cio)
@@ -906,11 +961,11 @@ func (a *Application) hintCommonErrors(exception error, out console.Output) (hin
 	}
 
 	if util.IsWindows() && strings.Contains(message, "The system cannot find the path specified") {
-		hints = append(hints, "A stale entry in your cmd.exe AutoRun may be the cause of this error, see https://getcomposer.org/doc/articles/troubleshooting.md#-the-system-cannot-find-the-path-specified-windows-")
+		hints = append(hints, "A stale entry in your cmd.exe AutoRun may be the cause of this error, see https://getcomposer.org/doc/articles/troubleshooting.md#the-system-cannot-find-the-path-specified-windows")
 	}
 
 	if strings.Contains(message, "fork failed - Cannot allocate memory") {
-		hints = append(hints, "This error is caused by a lack of memory or swap, or not having swap configured, see https://getcomposer.org/doc/articles/troubleshooting.md#proc-open-fork-failed-errors")
+		hints = append(hints, "This error is caused by a lack of memory or swap, or not having swap configured, see https://getcomposer.org/doc/articles/troubleshooting.md#proc_open-fork-failed-errors")
 	}
 
 	if _, ok := errors.AsType[*util.ProcessTimedOutError](exception); ok {
@@ -1017,6 +1072,9 @@ func (a *Application) getComposer(argc int, required bool, disablePlugins, disab
 				if required {
 					a.io.WriteError(err.Error(), true, io.Normal)
 					if a.AreExceptionsCaught() {
+						if cio, ok := a.io.(*io.ConsoleIO); ok && !util.IsInputCompletionProcess() {
+							cio.WriteProgramStatus(console.ProgramStatusError(nil))
+						}
 						a.Exit(1)
 					}
 

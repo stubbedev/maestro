@@ -26,4 +26,9 @@ class ZipDownloader extends \Composer\Downloader\ArchiveDownloader
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\ZipDownloader::getErrorMessage() in plugins yet');
     }
+
+    protected function validateDownloadedFile(\Composer\Package\PackageInterface $package, string $fileName): void
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\ZipDownloader::validateDownloadedFile() in plugins yet');
+    }
 }

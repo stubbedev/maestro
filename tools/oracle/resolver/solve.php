@@ -1,6 +1,6 @@
 <?php
 // Generates internal/resolver/testdata/oracle/solve.json: Composer
-// 2.10.3's update resolution (pool building with the optimizer, solving,
+// 2.11.0's update resolution (pool building with the optimizer, solving,
 // the lock packages and operations, or the problem output) of the projects
 // recorded by record.php, for a few variants of each, offline.
 //

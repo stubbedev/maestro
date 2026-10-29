@@ -47,13 +47,6 @@ class DownloadManager
         return $this;
     }
 
-    public function setSourceFallback(bool $sourceFallback): self
-    {
-        Rpc::call('dm.setSourceFallback', [$this, $sourceFallback]);
-
-        return $this;
-    }
-
     public function setDownloader(string $type, DownloaderInterface $downloader): self
     {
         Rpc::call('dm.setDownloader', [$this, $type, $downloader]);

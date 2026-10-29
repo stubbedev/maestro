@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Util\ErrorHandler, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §5.2 step 8): the same
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §5.2 step 8): the same
  * \ErrorExceptions, the same notices shown at the same verbosity. Composer
  * has one ErrorHandler for its code and plugin code alike: its
  * $hasShownDeprecationNotice is the process's (a static maestro keeps in

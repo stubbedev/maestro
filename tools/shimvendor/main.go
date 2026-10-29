@@ -1,5 +1,5 @@
 // Command shimvendor vendors the third-party PHP libraries Composer
-// 2.10.3's phar ships into the plugin shim (docs/PLUGINS.md D6, §5.1):
+// 2.11.0's phar ships into the plugin shim (docs/PLUGINS.md D6, §5.1):
 // the files Compiler.php puts into the phar from Composer's vendor/
 // (installed with --no-dev, as `ref-sync` does), copied verbatim into
 // internal/plugin/php/lib/ with installed.json recording their versions.

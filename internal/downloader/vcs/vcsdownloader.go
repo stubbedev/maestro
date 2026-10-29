@@ -414,6 +414,12 @@ func (d *vcsDownloader) failedToExecute(command []string) error {
 	return &util.RuntimeError{Message: "Failed to execute " + strings.Join(command, " ") + "\n\n" + d.process.GetErrorOutput()}
 }
 
+// sanitizedFailedToExecute is failedToExecute() with Url::sanitize(), as
+// HgDownloader's and FossilDownloader's own throws do it.
+func (d *vcsDownloader) sanitizedFailedToExecute(command []string) error {
+	return &util.RuntimeError{Message: util.SanitizeURL("Failed to execute " + strings.Join(command, " ") + "\n\n" + d.process.GetErrorOutput())}
+}
+
 // execute runs command, storing its output into output when non-nil.
 func (d *vcsDownloader) execute(command []string, output *string, cwd string) (int, error) {
 	if output == nil {
@@ -426,13 +432,24 @@ func (d *vcsDownloader) execute(command []string, output *string, cwd string) (i
 // mustExecute runs command and fails with failedToExecute unless it exits
 // with 0.
 func (d *vcsDownloader) mustExecute(command []string, output *string, cwd string) error {
+	return d.mustExecuteWith(command, output, cwd, d.failedToExecute)
+}
+
+// mustExecuteSanitized is mustExecute() whose failure goes through
+// Url::sanitize() (sanitizedFailedToExecute).
+func (d *vcsDownloader) mustExecuteSanitized(command []string, output *string, cwd string) error {
+	return d.mustExecuteWith(command, output, cwd, d.sanitizedFailedToExecute)
+}
+
+// mustExecuteWith is mustExecute() with the given failure.
+func (d *vcsDownloader) mustExecuteWith(command []string, output *string, cwd string, fail func([]string) error) error {
 	code, err := d.execute(command, output, cwd)
 	if err != nil {
 		return err
 	}
 
 	if code != 0 {
-		return d.failedToExecute(command)
+		return fail(command)
 	}
 
 	return nil

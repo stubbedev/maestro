@@ -8,6 +8,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/repository"
@@ -60,6 +61,9 @@ type VcsRepository struct {
 	versionCache               repository.VersionCache
 	emptyReferences            []string
 	versionTransportExceptions TransportErrors
+	// onlyBranchesRegex is the pattern of the "only-branches" repo
+	// config; nil without one.
+	onlyBranchesRegex *php.Regexp
 }
 
 var (
@@ -111,6 +115,32 @@ func NewVcsRepository(repoConfig *php.Array, ioi io.IO, config http.Config, http
 	r.processExecutor = process
 	if r.processExecutor == nil {
 		r.processExecutor = http.NewProcessExecutor(ioi)
+	}
+
+	if onlyBranches := repoConfig.At("only-branches"); onlyBranches != nil {
+		branches, isArray := onlyBranches.(*php.Array)
+		var names []string
+		if isArray {
+			names = make([]string, 0, branches.Len())
+			for _, v := range branches.All() {
+				name, isString := v.(string)
+				if !isString {
+					isArray = false
+
+					break
+				}
+				names = append(names, name)
+			}
+		}
+		if !isArray {
+			return nil, &util.InvalidArgumentError{Message: `"only-branches" key for repository ` + util.SanitizeURL(r.url) + ` should be an array of strings`}
+		}
+
+		// branch names are case-sensitive, unlike package names
+		r.onlyBranchesRegex, err = php.Compile(pkg.PackageNamesToRegexp(names, `{^(?:%s)$}D`))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return r, nil
@@ -335,6 +365,9 @@ func (r *VcsRepository) readRootComposerJSON(driver Driver) (bool, error) {
 		return has, nil
 	}
 
+	if phperr.InstanceOf(err, `Composer\Exception\SecurityException`) {
+		return has, err
+	}
 	if e, ok := asTransportError(err); ok && shouldRethrowTransportException(e) {
 		return has, err
 	}
@@ -401,6 +434,10 @@ func (r *VcsRepository) loadTags(driver Driver) error {
 		r.writeVerbose(msg)
 
 		if err := r.loadTag(driver, tag, identifier, parsedTag); err != nil {
+			if phperr.InstanceOf(err, `Composer\Exception\SecurityException`) {
+				return err
+			}
+
 			e, isTransport := asTransportError(err)
 			if isTransport {
 				r.versionTransportExceptions.Tags.Set(tag, e)
@@ -512,13 +549,13 @@ func (r *VcsRepository) loadBranches(driver Driver, hasRootIdentifierComposerJSO
 		return err
 	}
 
+	root, err := driver.RootIdentifier()
+	if err != nil {
+		return err
+	}
+
 	// make sure the root identifier branch gets loaded first
 	if hasRootIdentifierComposerJSON {
-		root, err := driver.RootIdentifier()
-		if err != nil {
-			return err
-		}
-
 		if v, _ := branches.Get(root); v != nil {
 			first := php.NewArray()
 			first.Set(root, v)
@@ -530,6 +567,11 @@ func (r *VcsRepository) loadBranches(driver Driver, hasRootIdentifierComposerJSO
 
 			branches, _ = plus.(*php.Array)
 		}
+	}
+
+	branches, err = r.filterBranches(branches, root)
+	if err != nil {
+		return err
 	}
 
 	for k, v := range branches.All() {
@@ -564,11 +606,6 @@ func (r *VcsRepository) loadBranches(driver Driver, hasRootIdentifierComposerJSO
 			version = prefix + replaced
 		}
 
-		root, err := driver.RootIdentifier()
-		if err != nil {
-			return err
-		}
-
 		isDefaultBranch := root == branch
 
 		cachedPackage, absent, err := r.cachedPackageVersion(version, identifier, isDefaultBranch)
@@ -593,6 +630,10 @@ func (r *VcsRepository) loadBranches(driver Driver, hasRootIdentifierComposerJSO
 		err = r.loadBranch(driver, branch, identifier, version, parsedBranch, isDefaultBranch)
 		if err == nil {
 			continue
+		}
+
+		if phperr.InstanceOf(err, `Composer\Exception\SecurityException`) {
+			return err
 		}
 
 		if e, ok := asTransportError(err); ok {
@@ -670,6 +711,10 @@ func (r *VcsRepository) loadBranch(driver Driver, branch, identifier, version, p
 // requiring re-tagging), and the driver's dist and source unless
 // composer.json has them.
 func (r *VcsRepository) preProcess(driver Driver, data *php.Array, identifier string) *php.Array {
+	// only a Composer repository can vouch for a publication date, the
+	// package's own composer.json cannot
+	data.Delete("published-time")
+
 	if r.packageName != "" {
 		data.Set("name", r.packageName)
 	} else {
@@ -691,6 +736,38 @@ func (r *VcsRepository) preProcess(driver Driver, data *php.Array, identifier st
 	}
 
 	return data
+}
+
+// filterBranches ports filterBranches: the branches matching the
+// "only-branches" repo config patterns, the default branch always kept.
+func (r *VcsRepository) filterBranches(branches *php.Array, rootIdentifier string) (*php.Array, error) {
+	if r.onlyBranchesRegex == nil {
+		return branches, nil
+	}
+
+	for _, k := range branches.Keys() {
+		branch := k.String()
+		v, _ := branches.GetKey(k)
+		// svn's root identifier is the trunk identifier (e.g. /trunk/@123)
+		// and not a branch name
+		if branch == rootIdentifier || php.ToString(v) == rootIdentifier {
+			continue
+		}
+
+		matched, err := r.onlyBranchesRegex.IsMatch(branch)
+		if err != nil {
+			return nil, err
+		}
+		if !matched {
+			if r.isVeryVerbose {
+				r.io.WriteError("<warning>Skipped branch "+branch+", not matching the only-branches filter</warning>", true, io.Normal)
+			}
+
+			branches.DeleteKey(k)
+		}
+	}
+
+	return branches, nil
 }
 
 // nullable keeps a nil array PHP's null in an array value.

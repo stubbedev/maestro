@@ -6,13 +6,55 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/json"
+	"github.com/stubbedev/maestro/internal/locker"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/semver"
 )
+
+func TestUpdateCommand_UpdateLockRepairsConflictedContentHash(t *testing.T) {
+	lockContents := mergeConflictedLock(t)
+	dir := commandtest.InitTempComposer(t, `{"name": "vendor/test", "repositories": []}`, nil, nil, true)
+	if err := os.WriteFile(dir+"/composer.lock", lockContents, 0o666); err != nil {
+		t.Fatal(err)
+	}
+
+	appTester := commandtest.GetApplicationTester(t)
+	code, err := appTester.RunArgs(commandtest.Options{}, "command", "update", "--lock", true, "--no-audit", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 0 {
+		t.Fatalf("status %d: %s", code, appTester.Display(true))
+	}
+
+	composerJSON, err := os.ReadFile(dir + "/composer.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := locker.GetContentHash(string(composerJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockFile, err := json.NewFile(dir+"/composer.lock", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockData, err := lockFile.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, _ := lockData.(*php.Array)
+	contentHash, _ := lock.Get("content-hash")
+	if got := php.ToString(contentHash); got != want {
+		t.Errorf("content-hash = %q, want %q", got, want)
+	}
+}
 
 // matchesFormatPHPUnit is PHPUnit's assertStringMatchesFormat check.
 func matchesFormatPHPUnit(t *testing.T, format, s string) bool {
@@ -505,6 +547,38 @@ func TestUpdateCommand_NoBlockingAllowsMalwareFlaggedPackages(t *testing.T) {
 	display = appTester.Display(true)
 	assertDisplayContains(t, display, "Locking malicious/pkg (1.1.0)", true)
 	assertDisplayContains(t, display, "Locking malicious/pkg (1.0.0)", false)
+}
+
+func TestUpdateCommand_NoCooldownOnlyDisablesCooldownBlocking(t *testing.T) {
+	recent := time.Now().UTC().Add(-time.Hour).Format("2006-01-02 15:04:05")
+	commandtest.InitTempComposer(t, `{
+		"repositories": {"packages": {
+			"type": "package",
+			"package": [
+				{"name": "fresh/pkg", "version": "1.0.0", "time": "2020-01-01 00:00:00"},
+				{"name": "fresh/pkg", "version": "1.1.0", "time": "`+recent+`"},
+				{"name": "malicious/pkg", "version": "1.0.0", "time": "2020-01-01 00:00:00"},
+				{"name": "malicious/pkg", "version": "1.1.0", "time": "2020-01-01 00:00:00"}
+			],
+			"filter": {"malware": [{"package": "malicious/pkg", "constraint": ">=1.1.0", "reason": "malware"}]}
+		}},
+		"require": {"fresh/pkg": "^1.0", "malicious/pkg": "^1.0"},
+		"config": {"policy": {"cooldown": {"period": "7 days"}}}
+	}`, nil, nil, true)
+
+	appTester := commandtest.GetApplicationTester(t)
+	_, _ = appTester.RunArgs(commandtest.Options{}, "command", "update", "--dry-run", true, "--no-audit", true, "--no-install", true)
+
+	display := appTester.Display(true)
+	assertDisplayContains(t, display, "Locking fresh/pkg (1.0.0)", true)
+	assertDisplayContains(t, display, "Locking malicious/pkg (1.0.0)", true)
+
+	appTester = commandtest.GetApplicationTester(t)
+	_, _ = appTester.RunArgs(commandtest.Options{}, "command", "update", "--dry-run", true, "--no-audit", true, "--no-install", true, "--no-cooldown", true)
+
+	display = appTester.Display(true)
+	assertDisplayContains(t, display, "Locking fresh/pkg (1.1.0)", true)
+	assertDisplayContains(t, display, "Locking malicious/pkg (1.0.0)", true)
 }
 
 func TestUpdateCommand_BumpAfterUpdateWithoutLockfile(t *testing.T) {

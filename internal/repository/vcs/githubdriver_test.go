@@ -3,6 +3,7 @@ package vcs
 import (
 	"encoding/base64"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -280,6 +281,42 @@ func TestGitHubDriver_GetEmptyFileContent(t *testing.T) {
 	content, ok, err := driver.FileContent("composer.json", "main")
 	if err != nil || !ok || content != "" {
 		t.Fatalf("got %q %v %v", content, ok, err)
+	}
+
+	assertHTTPComplete(t, http)
+}
+
+func TestGitHubDriver_RateLimitIsReportedWhenTheCloneFallbackFails(t *testing.T) {
+	pinGitVersion(t)
+	t.Setenv("COMPOSER_DISABLE_NETWORK", "")
+
+	repoURL := "https://github.com/composer/packagist"
+
+	ioi := newTestIO()
+
+	http := httpmock.New()
+	http.Expects([]httpmock.Expectation{{
+		URL:     "https://api.github.com/repos/composer/packagist",
+		Status:  403,
+		Headers: []string{"x-ratelimit-limit: 60", "x-ratelimit-remaining: 0", "x-ratelimit-reset: 1788500000"},
+	}}, true, nil)
+
+	cfg := newConfig(t, t.TempDir(), "cache-vcs-dir", filepath.Join(t.TempDir(), "composer-test", "cache"))
+
+	// no token to be found, and the clone the driver falls back to fails as
+	// it would without an SSH key registered on GitHub
+	process := processmock.New()
+	process.Expects(nil, false, &processmock.Expectation{Return: 1})
+
+	driver := NewGitHubDriver(php.ArrayOf("url", repoURL), deps(ioi, cfg, http, process))
+
+	if err := driver.Initialize(); err == nil {
+		t.Fatal("the failing clone fallback should have thrown")
+	}
+
+	want := "<error>GitHub API limit exhausted. Failed to get metadata for the " + repoURL + " repository, try running in interactive mode so that you can enter your GitHub credentials to increase the API limit</error>"
+	if !slices.Contains(ioi.messages(), want) {
+		t.Errorf("messages %q, want %q", ioi.messages(), want)
 	}
 
 	assertHTTPComplete(t, http)

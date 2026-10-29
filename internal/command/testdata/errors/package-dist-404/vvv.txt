@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -14,7 +14,7 @@ Composer could not detect the root package (acme/app) version, defaulting to '1.
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 Loading composer repositories with package information
-Built pool.
+Built pool in 0.0007789134979248s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.
@@ -38,8 +38,9 @@ Installs: x/y:1.0.0
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/status/404/x.zip
 [404] http://@SERVER@/status/404/x.zip
+    Failed to download x/y from dist: The "http://@SERVER@/status/404/x.zip" file could not be downloaded (HTTP/1.1 404 Not Found)
 
-In CurlDownloader.php line 686:
+In CurlDownloader.php line 966:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
@@ -47,25 +48,27 @@ In CurlDownloader.php line 686:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
- Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
- Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
- Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:86
- Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:434
- Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:289
- Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:221
- Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:876
- Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:686
- Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:325
- Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:306
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:966
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:566
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:103
+ Composer\Util\Loop->runJobs() at @COMPOSER@/src/Composer/Util/Loop.php:75
+ Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:440
+ Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:293
+ Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:225
+ Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:885
+ Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:689
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:327
+ Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:308
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
+update [--with WITH] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--dev] [--no-dev] [--lock] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-cooldown] [--no-autoloader] [--no-suggest] [--no-progress] [-w|--with-dependencies] [-W|--with-all-dependencies] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--prefer-stable] [--prefer-lowest] [-m|--minimal-changes] [--patch-only] [-i|--interactive] [--root-reqs] [--bump-after-update [BUMP-AFTER-UPDATE]] [--] [<packages>...]
 
 exit 100

@@ -156,6 +156,50 @@ func (p *phpIO) OverwriteError(message string, newline bool, size int, verbosity
 	p.do("overwriteError", ui.Foreign(message), newline, sizeValue(size), int64(verbosity))
 }
 
+// WriteOsc implements io.IO.
+func (p *phpIO) WriteOsc(command, payload string) error {
+	_, err := p.call("writeOsc", command, payload)
+
+	return err
+}
+
+// IsProgramStatusEnabled implements io.IO.
+func (p *phpIO) IsProgramStatusEnabled() bool { return p.flag("isProgramStatusEnabled") }
+
+// StartProgramStatus implements io.IO.
+func (p *phpIO) StartProgramStatus() { p.do("startProgramStatus") }
+
+// programStatusValue is a *console.ProgramStatus handed to PHP: a value
+// tag (Maestro\Shim\Values decodes it into Composer's ProgramStatus, whose
+// constructor it calls).
+type programStatusValue struct{ s *console.ProgramStatus }
+
+// PHPOpaque implements php.Opaque.
+func (programStatusValue) PHPOpaque() {}
+
+// EncodeRPC implements rpc.ValueEncoder.
+func (v programStatusValue) EncodeRPC(*rpc.Encoder) (*php.Array, error) {
+	var message, progress any
+	if m := v.s.Message(); m != nil {
+		message = *m
+	}
+	if p := v.s.Progress(); p != nil {
+		progress = int64(*p)
+	}
+
+	return rpc.Tag(valueTag, "programStatus", "state", v.s.State(), "message", message, "progress", progress), nil
+}
+
+// WriteProgramStatus implements io.IO.
+func (p *phpIO) WriteProgramStatus(status *console.ProgramStatus) {
+	p.do("writeProgramStatus", programStatusValue{status})
+}
+
+// WriteProgress implements io.IO: PHP's ?int $progress, -1 meaning null.
+func (p *phpIO) WriteProgress(progress int) {
+	p.do("writeProgress", sizeValue(progress))
+}
+
 // Ask implements io.IO.
 func (p *phpIO) Ask(question string, def any) (any, error) {
 	return p.call("ask", ui.Foreign(question), def)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/json"
@@ -42,6 +43,30 @@ type installPaths func(p pkg.PackageInterface) string
 
 func (f installPaths) InstallPath(p pkg.PackageInterface) (string, bool, error) {
 	return f(p), true, nil
+}
+
+// testRepository is a Composer repository of a repository manager's: its
+// url, its config, and which dist URLs belong to it.
+type testRepository struct {
+	*ArrayRepository
+	url        string
+	repoConfig *php.Array
+}
+
+func (r *testRepository) RepoName() string { return "composer repo (" + r.url + ")" }
+
+func (r *testRepository) BaseURL() string { return r.url }
+
+func (r *testRepository) RepoConfig() *php.Array { return r.repoConfig }
+
+func (r *testRepository) IsOwnDistUrl(p pkg.PackageInterface) bool {
+	for _, url := range p.DistURLs() {
+		if rest, ok := strings.CutPrefix(url, r.url); ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func TestFilesystemRepository_RepositoryRead(t *testing.T) {
@@ -112,6 +137,47 @@ func TestFilesystemRepository_RepositoryWrite(t *testing.T) {
 	if !php.LooseEquals(file.written[0], want) {
 		got, _ := json.EncodeDefault(file.written[0])
 		t.Fatalf("written %s", got)
+	}
+}
+
+func TestFilesystemRepository_RepositoryWriteRemovesRestorableHttpHeaders(t *testing.T) {
+	dir := util.Realpath(t.TempDir())
+	file := must(json.NewFile(dir+"/vendor/composer/installed.json", nil, nil))
+
+	options := php.ArrayOf("http", php.ArrayOf("header", php.ListOf("API-TOKEN: secret")))
+	manager := NewRepositoryManager(nil, nil, nil, nil, nil)
+	manager.AddRepository(&testRepository{
+		ArrayRepository: must(NewArrayRepository(nil)), url: "https://example.org",
+		repoConfig: php.ArrayOf("url", "https://example.org", "options", options),
+	})
+
+	im := installPaths(func(pkg.PackageInterface) string { return dir + "/vendor/a/a" })
+
+	p := pkg.NewPackage("a/a", "1.0.0.0", "1.0.0")
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str("https://example.org/dists/a.zip"))
+	p.SetTransportOptions(options)
+
+	repo := must(NewFilesystemRepository(file, false, nil))
+	repo.SetRepositoryManager(manager)
+	noErr(t, repo.AddPackage(p))
+	noErr(t, repo.Write(true, im))
+
+	read, err := json.NewFile(file.Path(), nil, nil)
+	noErr(t, err)
+	data, err := read.Read()
+	noErr(t, err)
+	if data.(*php.Array).ArrayAt("packages").At(0).(*php.Array).Isset("transport-options") {
+		t.Error("transport-options stored")
+	}
+
+	// e.g. composer reinstall downloads from the installed packages again so
+	// they need their headers
+	repo = must(NewFilesystemRepository(file, false, nil))
+	repo.SetRepositoryManager(manager)
+	if got := must(repo.Packages())[0].TransportOptions(); !php.StrictEquals(got, options) {
+		encoded, _ := php.JSONEncode(got, 0)
+		t.Errorf("transport options %s, want %s", encoded, must(php.JSONEncode(options, 0)))
 	}
 }
 

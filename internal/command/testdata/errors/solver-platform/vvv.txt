@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -14,7 +14,7 @@ Composer could not detect the root package (acme/app) version, defaulting to '1.
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 Loading composer repositories with package information
-Built pool.
+Built pool in 0.0004429817199707s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.

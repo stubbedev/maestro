@@ -1,6 +1,6 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In ConfigCommand.php line 1114:
+In ConfigCommand.php line 1142:
                              
   "abc" is an invalid value  
                              

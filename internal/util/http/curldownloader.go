@@ -11,6 +11,8 @@ package http
 import (
 	"context"
 	"errors"
+	"math"
+	"net/http"
 	"os"
 	"slices"
 	"strconv"
@@ -28,7 +30,12 @@ type curlAttributes struct {
 	retryAuthFailure bool
 	redirects        int
 	retries          int
-	storeAuth        StoreAuth
+	// authRetries counts the authentication retries only: network ones
+	// do not count, so another request's credentials are still picked up
+	// by a request which was only retried for a network error (see
+	// AuthHelper.PromptAuthIfNeeded).
+	authRetries int
+	storeAuth   StoreAuth
 	// ipResolve is 4 or 6 to force the IP version, 0 for null.
 	ipResolve int
 }
@@ -63,6 +70,29 @@ type curlEvent struct {
 	id     int
 	job    *curlJob
 	result *transferResult
+	// due asks for the delayed retries which came due to be started, see
+	// restartJobWithDelay.
+	due bool
+}
+
+// delayedCurlJob is a retry waiting for its delay: it holds no transfer
+// open, so its slot is free for another request meanwhile (see
+// HttpDownloader.canStart).
+type delayedCurlJob struct {
+	job        *curlJob
+	url        string
+	attributes curlAttributes
+	at         time.Time
+}
+
+// retryAfterOrigin is an origin which asked for requests to be retried
+// later: until is the latest point in time it asked to be left alone for,
+// see restartJobWithDelay.
+type retryAfterOrigin struct {
+	origin     string
+	statusCode int
+	announced  bool
+	until      time.Time
 }
 
 // processTransports are the transports, and their connections, of the
@@ -88,6 +118,16 @@ type CurlDownloader struct {
 	jobs   map[int]*curlJob
 	nextID int
 
+	// delayed are the retries waiting for their delay, in the order they
+	// were parked, see restartJobWithDelay.
+	delayed []*delayedCurlJob
+	// retryAfterOrigins are the origins which asked for requests to be
+	// retried later, in the order they first did.
+	retryAfterOrigins []*retryAfterOrigin
+	// distrustedHosts are the hosts which presented a distrusted TLS
+	// chain, keyed by host:port (TlsChainHostKey).
+	distrustedHosts map[string]string
+
 	queueMu sync.Mutex
 	queue   []curlEvent
 	ready   chan struct{}
@@ -95,8 +135,6 @@ type CurlDownloader struct {
 	selectTimeout time.Duration
 	maxRedirects  int
 	maxRetries    int
-	// sleep is usleep(), stubbed by tests.
-	sleep func(time.Duration)
 }
 
 func newCurlDownloader(ioi io.IO, config Config, rt Runtime, mu *sync.Mutex) *CurlDownloader {
@@ -119,7 +157,6 @@ func newCurlDownloader(ioi io.IO, config Config, rt Runtime, mu *sync.Mutex) *Cu
 		selectTimeout: 5 * time.Second,
 		maxRedirects:  20,
 		maxRetries:    3,
-		sleep:         time.Sleep,
 	}
 }
 
@@ -182,6 +219,12 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	if v, ok := path(options, "prevent_url_access_callable"); ok {
 		if prevent, ok := callableOption(v); ok && prevent(url) {
 			return util.NewTransportError(`Access to "`+util.SanitizeURL(url)+`" is blocked.`, 400)
+		}
+	}
+
+	if hostKey, ok := TlsChainHostKey(url); ok {
+		if certName, distrusted := c.distrustedHosts[hostKey]; distrusted {
+			return NewTlsChainError(url, certName)
 		}
 	}
 
@@ -452,6 +495,16 @@ func (c *CurlDownloader) AbortRequest(id int) {
 }
 
 func (c *CurlDownloader) abortRequest(id int) {
+	// a retry waiting for its delay is not in flight but must not be
+	// started either
+	for _, d := range c.delayed {
+		if d.job.id == id && d.job.hasFile {
+			_ = os.Remove(d.job.filename + "~")
+		}
+	}
+
+	c.delayed = slices.DeleteFunc(c.delayed, func(d *delayedCurlJob) bool { return d.job.id == id })
+
 	job, ok := c.jobs[id]
 	if !ok {
 		return
@@ -467,6 +520,44 @@ func (c *CurlDownloader) abortRequest(id int) {
 	delete(c.jobs, id)
 }
 
+// countDelayedJobs is countDelayedJobs(): the number of retries waiting
+// for their delay, which hold no transfer open. c.mu is held.
+func (c *CurlDownloader) countDelayedJobs() int {
+	return len(c.delayed)
+}
+
+// originOnHold is isOriginOnHold($origin): whether the origin asked for
+// requests to be held back until later. c.mu is held.
+func (c *CurlDownloader) originOnHold(origin string) bool {
+	state := c.retryAfterOrigin(origin)
+
+	return state != nil && state.until.After(time.Now())
+}
+
+// retryAfterOrigin is the hold of origin, nil for none. c.mu is held.
+func (c *CurlDownloader) retryAfterOrigin(origin string) *retryAfterOrigin {
+	for _, state := range c.retryAfterOrigins {
+		if state.origin == origin {
+			return state
+		}
+	}
+
+	return nil
+}
+
+// dueAt is when the delayed retry may be started: A Retry-After speaks for
+// the whole origin, so a retry also waits for a later hold the origin asked
+// for. c.mu is held.
+func (c *CurlDownloader) dueAt(d *delayedCurlJob) time.Time {
+	due := d.at
+
+	if state := c.retryAfterOrigin(d.job.origin); state != nil && state.until.After(due) {
+		due = state.until
+	}
+
+	return due
+}
+
 // Tick is tick(): it waits up to the select timeout for transfers to
 // finish and processes those that did.
 func (c *CurlDownloader) Tick() {
@@ -477,9 +568,9 @@ func (c *CurlDownloader) Tick() {
 }
 
 // tick runs with c.mu held; the lock is released while waiting up to wait
-// for a transfer of the tick queue to end.
+// for a transfer of the tick queue, or for a delayed retry, to come due.
 func (c *CurlDownloader) tick(wait time.Duration) {
-	if len(c.jobs) == 0 {
+	if len(c.jobs) == 0 && len(c.delayed) == 0 {
 		return
 	}
 
@@ -505,12 +596,17 @@ func (c *CurlDownloader) tick(wait time.Duration) {
 }
 
 // process handles the end of a transfer, unless the job was aborted or
-// restarted since; c.mu is held.
+// restarted since, and the wake-up of the delayed retries which came due;
+// c.mu is held.
 func (c *CurlDownloader) process(ev curlEvent) {
-	if job, ok := c.jobs[ev.id]; ok && job == ev.job {
+	if ev.due {
+		c.restartDue()
+	} else if job, ok := c.jobs[ev.id]; ok && job == ev.job {
 		delete(c.jobs, ev.id)
 		c.complete(job, ev.result)
 	}
+
+	c.announceRetryAfterWaits()
 }
 
 // retryCurlErrors are the curl errors a GET is retried on.
@@ -520,6 +616,18 @@ var retryCurlErrors = []int{curleCouldntConnect, curleHTTP2, curleHTTP2Stream, c
 // finished transfer.
 func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 	info := result.info
+
+	if result.distrustedCert != "" {
+		// certinfo is only filled for the request which opened the
+		// connection, so the verdict is kept for the host
+		if hostKey, ok := TlsChainHostKey(job.url); ok {
+			if c.distrustedHosts == nil {
+				c.distrustedHosts = map[string]string{}
+			}
+
+			c.distrustedHosts[hostKey] = result.distrustedCert
+		}
+	}
 
 	if result.err != nil {
 		c.rejectJob(job, result.err)
@@ -551,7 +659,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 
 				c.io.WriteError("Retrying ("+strconv.Itoa(attributes.retries)+") "+util.SanitizeURL(job.url)+" due to curl error "+strconv.Itoa(errno), true, io.Debug)
 
-				return c.restartJobWithDelay(job, job.url, attributes)
+				return c.restartJobWithDelay(job, job.url, attributes, nil, 0)
 			}
 
 			if errno == curleSendError {
@@ -559,7 +667,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 				attributes.retries++
 				c.io.WriteError("Retrying ("+strconv.Itoa(attributes.retries)+") "+util.SanitizeURL(job.url)+" due to curl error "+strconv.Itoa(errno), true, io.Debug)
 
-				return c.restartJobWithDelay(job, job.url, attributes)
+				return c.restartJobWithDelay(job, job.url, attributes, nil, 0)
 			}
 
 			e := util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(info.URL)+": "+result.fail.Message, 400)
@@ -607,14 +715,15 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 		warningsOutput := false
 
 		if status >= 300 {
-			contentType, ok, err := response.HeaderChecked("content-type")
+			isJSON, err := isJSONResponse(response)
 			if err != nil {
 				return err
 			}
-			if ok && contentType == "application/json" {
+
+			if isJSON {
 				data, _ := php.JSONDecode(response.Body(), true)
 
-				if warningsOutput, err = OutputWarnings(c.io, job.origin, data); err != nil {
+				if warningsOutput, err = OutputResponseWarnings(c.io, job.origin, data); err != nil {
 					return err
 				}
 			}
@@ -629,6 +738,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 			attributes := job.attributes
 			attributes.storeAuth = retry.StoreAuth
 			attributes.retries++
+			attributes.authRetries++
 
 			return c.restartJob(job, job.url, attributes)
 		}
@@ -650,20 +760,17 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 
 		// fail 4xx and 5xx responses and capture the response
 		if status >= 400 && status <= 599 {
-			retryable := slices.Contains([]int{423, 425, 500, 502, 503, 504, 507, 510}, status) ||
-				// codeload.github.com intermittently returns 400 on reused
-				// connections, retry those specifically, see #12958
-				(status == 400 && util.URLHost(job.url) == "codeload.github.com")
+			retry, delay := c.isStatusCodeRetryNeeded(job, response)
+			if retry {
+				c.io.WriteError("Retrying ("+strconv.Itoa(job.attributes.retries+1)+") "+util.SanitizeURL(job.url)+" due to status code "+strconv.Itoa(status)+retryAfterSuffix(delay), true, io.Debug)
 
-			if isGetRequest(job.options) && retryable && job.attributes.retries < c.maxRetries {
 				attributes := job.attributes
 				attributes.retries++
-				c.io.WriteError("Retrying ("+strconv.Itoa(attributes.retries)+") "+util.SanitizeURL(job.url)+" due to status code "+strconv.Itoa(status), true, io.Debug)
 
-				return c.restartJobWithDelay(job, job.url, attributes)
+				return c.restartJobWithDelay(job, job.url, attributes, delay, status)
 			}
 
-			statusMessage, _ := response.StatusMessage()
+			statusMessage := statusFailureMessage(response)
 
 			return c.failResponse(job, response, statusMessage, warningsOutput)
 		}
@@ -783,7 +890,7 @@ func (c *CurlDownloader) isAuthenticatedRetryNeeded(job *curlJob, response *Resp
 	if (status == 401 || status == 403) && job.attributes.retryAuthFailure {
 		statusMessage, _ := response.StatusMessage()
 
-		result, err := c.authHelper.PromptAuthIfNeeded(job.url, job.origin, status, statusMessage, response.Headers(), job.attributes.retries, response.Body())
+		result, err := c.authHelper.PromptAuthIfNeeded(job.url, job.origin, status, statusMessage, response.Headers(), job.attributes.authRetries, response.Body())
 		if err != nil || result.Retry {
 			return result, err
 		}
@@ -818,7 +925,7 @@ func (c *CurlDownloader) isAuthenticatedRetryNeeded(job *curlJob, response *Resp
 
 	if needsAuthRetry != "" {
 		if job.attributes.retryAuthFailure {
-			result, err := c.authHelper.PromptAuthIfNeeded(job.url, job.origin, 401, "", nil, job.attributes.retries, "")
+			result, err := c.authHelper.PromptAuthIfNeeded(job.url, job.origin, 401, "", nil, job.attributes.authRetries, "")
 			if err != nil || result.Retry {
 				return result, err
 			}
@@ -844,17 +951,235 @@ func (c *CurlDownloader) restartJob(job *curlJob, url string, attributes curlAtt
 	return c.initDownload(job, origin, url, job.options, attributes)
 }
 
-// restartJobWithDelay is restartJobWithDelay(): no delay for the first
-// retry, 100ms for the second, half a second for the third and beyond.
-func (c *CurlDownloader) restartJobWithDelay(job *curlJob, url string, attributes curlAttributes) error {
-	switch {
-	case attributes.retries >= 3:
-		c.sleep(500 * time.Millisecond)
-	case attributes.retries >= 2:
-		c.sleep(100 * time.Millisecond)
+// maxRetryAfter is MAX_RETRY_AFTER: the longest Retry-After interval which
+// is waited out, in seconds. Without a ceiling a server could park an
+// install for as long as it likes (isStatusCodeRetryNeeded).
+const maxRetryAfter = 60
+
+// Infallible (anchored, fixed-length): call sites ignore the error.
+var retryAfterSecondsRegex = php.MustCompile(`{^\d{1,9}$}`)
+
+// isStatusCodeRetryNeeded decides whether a 4xx/5xx response should be
+// retried, and how long to wait beforehand: delay is nil when the default
+// backoff applies.
+func (c *CurlDownloader) isStatusCodeRetryNeeded(job *curlJob, response *Response) (bool, *time.Duration) {
+	if !isGetRequest(job.options) || job.attributes.retries >= c.maxRetries {
+		return false, nil
 	}
 
-	return c.restartJob(job, url, attributes)
+	status := response.StatusCode()
+	retryAfter, hasRetryAfter := retryAfterDelay(response)
+
+	retryableByStatus := slices.Contains([]int{423, 425, 500, 502, 503, 504, 507, 510}, status) ||
+		// codeload.github.com intermittently returns 400 on reused
+		// connections, retry those specifically, see #12958
+		(status == 400 && util.URLHost(job.url) == "codeload.github.com")
+
+	// a rate limit is only retried when the server said when to come back
+	retryableByHeader := status == 429 && hasRetryAfter
+
+	if !retryableByStatus && !retryableByHeader {
+		return false, nil
+	}
+
+	// an interval beyond the cap is not waited for: a status which is
+	// retryable anyway falls back to the usual backoff, a rate limit has
+	// nothing else to go on and fails
+	if hasRetryAfter && retryAfter > maxRetryAfter {
+		if !retryableByStatus {
+			return false, nil
+		}
+
+		hasRetryAfter = false
+	}
+
+	// a wait of 0s is no wait, so the usual backoff spaces such retries out
+	if hasRetryAfter && retryAfter > 0 {
+		delay := time.Duration(retryAfter) * time.Second
+
+		return true, &delay
+	}
+
+	return true, nil
+}
+
+// retryAfterDelay reads the Retry-After header, in either of the forms RFC
+// 9110 allows, as a number of seconds to wait.
+func retryAfterDelay(response *Response) (int, bool) {
+	retryAfter, ok, err := response.HeaderChecked("retry-after")
+	if err != nil || !ok {
+		return 0, false
+	}
+
+	// more digits would overflow an int, and are no interval anyone can mean
+	if ok, _ := retryAfterSecondsRegex.IsMatch(retryAfter); ok {
+		return php.ToNativeInt(retryAfter), true
+	}
+
+	// the three date formats RFC 9110 requires recipients to accept, with
+	// the leading day name skipped as it is redundant
+	if at, err := http.ParseTime(retryAfter); err == nil {
+		// a date which has already passed means the wait is over and we
+		// can retry straight away
+		return max(0, int(at.Unix()-time.Now().Unix())), true
+	}
+
+	return 0, false
+}
+
+// retryAfterSuffix is the " in Ns as requested by Retry-After" the retry
+// message adds for a wait the server asked for.
+func retryAfterSuffix(delay *time.Duration) string {
+	if delay == nil {
+		return ""
+	}
+
+	return " in " + strconv.FormatFloat(delay.Seconds(), 'f', -1, 64) + "s as requested by Retry-After"
+}
+
+// startDelayed arranges for the delayed retry to start once it is due: on
+// the goroutine driving the loop for an asynchronous request, through the
+// tick queue for a synchronous one. c.mu is held.
+func (c *CurlDownloader) startDelayed(d *delayedCurlJob) {
+	post := c.post
+	if a := d.job.async; a != nil {
+		sched := a.sched
+		deliver := a.deliver
+		post = func(ev curlEvent) { sched.Interrupt(func() { deliver(ev) }) }
+	}
+
+	go func() {
+		c.waitDue(d)
+		post(curlEvent{due: true})
+	}()
+}
+
+// waitDue blocks until the delayed retry may start: its own delay, or a
+// later Retry-After hold the origin asked for.
+func (c *CurlDownloader) waitDue(d *delayedCurlJob) {
+	for {
+		c.mu.Lock()
+		due := c.dueAt(d)
+		c.mu.Unlock()
+
+		wait := time.Until(due)
+		if wait <= 0 {
+			return
+		}
+
+		time.Sleep(wait)
+	}
+}
+
+// restartDue is restartDueJobs(): the delayed retries whose delay elapsed
+// are started, in the order they were parked. c.mu is held.
+func (c *CurlDownloader) restartDue() {
+	now := time.Now()
+
+	for _, d := range slices.Clone(c.delayed) {
+		if c.dueAt(d).After(now) {
+			continue
+		}
+
+		c.delayed = slices.DeleteFunc(c.delayed, func(delayed *delayedCurlJob) bool { return delayed == d })
+
+		if err := c.restartJob(d.job, d.url, d.attributes); err != nil {
+			// an immediate restart is covered by complete()'s error handling,
+			// a deferred one is not
+			c.rejectJob(d.job, err)
+		}
+	}
+}
+
+// announceRetryAfterWaits tells the user when an origin asked for requests
+// to be retried later, once per origin and episode: the wait can last up to
+// maxRetryAfter seconds, which without a word would look like a hang. c.mu
+// is held.
+func (c *CurlDownloader) announceRetryAfterWaits() {
+	now := time.Now()
+
+	origins := slices.Clone(c.retryAfterOrigins)
+
+	for _, state := range origins {
+		pending := 0
+		lastDue := now
+
+		for _, d := range c.delayed {
+			if d.job.origin == state.origin {
+				pending++
+				lastDue = maxTime(lastDue, c.dueAt(d))
+			}
+		}
+
+		if pending == 0 {
+			c.retryAfterOrigins = slices.DeleteFunc(c.retryAfterOrigins, func(s *retryAfterOrigin) bool { return s == state })
+
+			continue
+		}
+
+		if state.announced {
+			continue
+		}
+
+		reason := "is rate limiting requests"
+		if state.statusCode != 429 {
+			reason = "responded with status code " + strconv.Itoa(state.statusCode)
+		}
+
+		wait := int(math.Ceil(lastDue.Sub(now).Seconds()))
+		c.io.WriteError("<warning>"+state.origin+" "+reason+" ("+strconv.Itoa(pending)+" pending), waiting "+strconv.Itoa(wait)+"s before retrying</warning>", true, io.Normal)
+		state.announced = true
+	}
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+
+	return a
+}
+
+// restartJobWithDelay is restartJobWithDelay(): the same request again
+// with updated attributes, once its delay elapsed. Sleeping here would
+// stall every other transfer the loop drives, so the retry is scheduled
+// instead (delayedCurlJob).
+func (c *CurlDownloader) restartJobWithDelay(job *curlJob, url string, attributes curlAttributes, retryAfter *time.Duration, statusCode int) error {
+	now := time.Now()
+
+	var delay time.Duration
+
+	if retryAfter != nil {
+		delay = *retryAfter
+		until := now.Add(delay)
+
+		// a hold which has already run out is over, so the origin is
+		// announced anew rather than extended
+		if state := c.retryAfterOrigin(job.origin); state == nil {
+			c.retryAfterOrigins = append(c.retryAfterOrigins, &retryAfterOrigin{origin: job.origin, statusCode: statusCode, until: until})
+		} else if !state.until.After(now) {
+			state.statusCode, state.announced, state.until = statusCode, false, until
+		} else if until.After(state.until) {
+			state.until = until
+		}
+	} else {
+		switch {
+		case attributes.retries >= 3:
+			delay = 500 * time.Millisecond // half a second delay for 3rd retry and beyond
+		case attributes.retries >= 2:
+			delay = 100 * time.Millisecond // 100ms delay for 2nd retry
+		}
+	}
+
+	if delay <= 0 && !c.originOnHold(job.origin) {
+		return c.restartJob(job, url, attributes)
+	}
+
+	d := &delayedCurlJob{job: job, url: url, attributes: attributes, at: now.Add(delay)}
+	c.delayed = append(c.delayed, d)
+	c.startDelayed(d)
+
+	return nil
 }
 
 // failResponse is failResponse(): the TransportException of a 4xx/5xx
@@ -868,11 +1193,12 @@ func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMes
 
 	details := ""
 
-	contentType, _, err := response.HeaderChecked("content-type")
+	isJSON, err := isJSONResponse(response)
 	if err != nil {
 		return err
 	}
-	if ct := php.Strtolower(contentType); !warningsOutput && (ct == "application/json" || ct == "application/json; charset=utf-8") {
+
+	if !warningsOutput && isJSON {
 		body := response.Body()
 		details = ":" + php.EOL + body[:min(200, len(body))]
 
@@ -882,6 +1208,34 @@ func (c *CurlDownloader) failResponse(job *curlJob, response *Response, errorMes
 	}
 
 	return util.NewTransportError(`The "`+util.SanitizeURL(job.url)+`" file could not be downloaded (`+errorMessage+`)`+details, response.StatusCode())
+}
+
+// isJSONResponse reports whether the response's body is a JSON document,
+// as its content-type says. A PcreException reading the header is the
+// error.
+func isJSONResponse(response *Response) (bool, error) {
+	contentType, _, err := response.HeaderChecked("content-type")
+	if err != nil {
+		return false, err
+	}
+
+	ct := php.Strtolower(contentType)
+
+	return ct == "application/json" || ct == "application/json; charset=utf-8", nil
+}
+
+// statusFailureMessage describes why a 4xx/5xx response failed the
+// request: a Retry-After which is longer than we wait for is spelled out,
+// as it tells the user whether trying again straight away can help or
+// whether to come back later.
+func statusFailureMessage(response *Response) string {
+	message, _ := response.StatusMessage()
+
+	if retryAfter, ok := retryAfterDelay(response); ok && retryAfter > maxRetryAfter {
+		message += ", the server asked to retry in " + strconv.Itoa(retryAfter) + "s which is longer than the " + strconv.Itoa(maxRetryAfter) + "s Composer is willing to wait, try again later"
+	}
+
+	return message
 }
 
 // rejectJob is rejectJob().

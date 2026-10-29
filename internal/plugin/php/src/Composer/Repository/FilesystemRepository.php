@@ -51,6 +51,21 @@ class FilesystemRepository extends WritableArrayRepository
         Remote::unsupported(static::class, 'reload');
     }
 
+    /**
+     * Enables keeping http headers out of the repository file, they are restored from the repository config when loading it
+     *
+     * @internal
+     */
+    public function setRepositoryManager(RepositoryManager $repositoryManager): void
+    {
+        if (Remote::owned($this)) {
+            Rpc::call('repo.setRepositoryManager', [$this, $repositoryManager]);
+
+            return;
+        }
+        Remote::unsupported(static::class, 'setRepositoryManager');
+    }
+
     public function write(bool $devMode, InstallationManager $installationManager)
     {
         if (Remote::owned($this)) {

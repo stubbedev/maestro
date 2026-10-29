@@ -99,6 +99,10 @@ func TestConfigCommand_ConfigUpdates(t *testing.T) {
 		{"set policy.malware.audit", `[]`, []console.Param{console.P("setting-key", "policy.malware.audit"), console.P("setting-value", []string{"ignore"})}, `{"config":{"policy":{"malware":{"audit":"ignore"}}}}`},
 		{"set policy.abandoned.block true", `[]`, []console.Param{console.P("setting-key", "policy.abandoned.block"), console.P("setting-value", []string{"true"})}, `{"config":{"policy":{"abandoned":{"block":true}}}}`},
 		{"set policy.abandoned.audit", `[]`, []console.Param{console.P("setting-key", "policy.abandoned.audit"), console.P("setting-value", []string{"fail"})}, `{"config":{"policy":{"abandoned":{"audit":"fail"}}}}`},
+		{"set policy.cooldown.period duration string", `[]`, []console.Param{console.P("setting-key", "policy.cooldown.period"), console.P("setting-value", []string{"7 days"})}, `{"config":{"policy":{"cooldown":{"period":"7 days"}}}}`},
+		{"set policy.cooldown.period integer seconds", `[]`, []console.Param{console.P("setting-key", "policy.cooldown.period"), console.P("setting-value", []string{"604800"})}, `{"config":{"policy":{"cooldown":{"period":604800}}}}`},
+		{"set policy.cooldown.period null disables", `[]`, []console.Param{console.P("setting-key", "policy.cooldown.period"), console.P("setting-value", []string{"null"})}, `{"config":{"policy":{"cooldown":{"period":null}}}}`},
+		{"set policy.cooldown.block false", `[]`, []console.Param{console.P("setting-key", "policy.cooldown.block"), console.P("setting-value", []string{"false"})}, `{"config":{"policy":{"cooldown":{"block":false}}}}`},
 		{"set policy.ignore-unreachable bool true", `[]`, []console.Param{console.P("setting-key", "policy.ignore-unreachable"), console.P("setting-value", []string{"true"})}, `{"config":{"policy":{"ignore-unreachable":true}}}`},
 		{"set policy.ignore-unreachable bool false", `[]`, []console.Param{console.P("setting-key", "policy.ignore-unreachable"), console.P("setting-value", []string{"false"})}, `{"config":{"policy":{"ignore-unreachable":false}}}`},
 		{"set policy.ignore-unreachable positional single enum value", `[]`, []console.Param{console.P("setting-key", "policy.ignore-unreachable"), console.P("setting-value", []string{"update"})}, `{"config":{"policy":{"ignore-unreachable":["update"]}}}`},
@@ -108,6 +112,7 @@ func TestConfigCommand_ConfigUpdates(t *testing.T) {
 		{"set policy.malware.block alongside existing advisories", `{"config":{"policy":{"advisories":{"block":false}}}}`, []console.Param{console.P("setting-key", "policy.malware.block"), console.P("setting-value", []string{"true"})}, `{"config":{"policy":{"advisories":{"block":false},"malware":{"block":true}}}}`},
 		{"set custom policy list block", `[]`, []console.Param{console.P("setting-key", "policy.my-list.block"), console.P("setting-value", []string{"true"})}, `{"config":{"policy":{"my-list":{"block":true}}}}`},
 		{"set custom policy list audit", `[]`, []console.Param{console.P("setting-key", "policy.my-list.audit"), console.P("setting-value", []string{"report"})}, `{"config":{"policy":{"my-list":{"audit":"report"}}}}`},
+		{"set custom policy list block-scope", `[]`, []console.Param{console.P("setting-key", "policy.my-list.block-scope"), console.P("setting-value", []string{"install"})}, `{"config":{"policy":{"my-list":{"block-scope":"install"}}}}`},
 		{"unset policy.advisories.block leaves siblings", `{"config":{"policy":{"advisories":{"block":false,"audit":"fail"}}}}`, []console.Param{console.P("setting-key", "policy.advisories.block"), console.P("--unset", true)}, `{"config":{"policy":{"advisories":{"audit":"fail"}}}}`},
 		{"unset policy.ignore-unreachable leaves siblings", `{"config":{"policy":{"ignore-unreachable":true,"advisories":{"block":true}}}}`, []console.Param{console.P("setting-key", "policy.ignore-unreachable"), console.P("--unset", true)}, `{"config":{"policy":{"advisories":{"block":true}}}}`},
 		{"unset last policy list sub-key removes the list", `{"config":{"policy":{"advisories":{"block":false}}}}`, []console.Param{console.P("setting-key", "policy.advisories.block"), console.P("--unset", true)}, `{"config":{"policy":[]}}`},
@@ -232,6 +237,12 @@ func TestConfigCommand_ConfigThrowsForInvalidPolicyBlockScope(t *testing.T) {
 	commandtest.InitTempComposer(t, nil, nil, nil, true)
 	_, err := runConfig(t, []console.Param{console.P("setting-key", "policy.malware.block-scope"), console.P("setting-value", []string{"bogus"})})
 	expectRuntimeError(t, err, `"bogus" is an invalid value`)
+}
+
+func TestConfigCommand_ConfigThrowsForInvalidCustomPolicyBlockScope(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	_, err := runConfig(t, []console.Param{console.P("setting-key", "policy.my-list.block-scope"), console.P("setting-value", []string{"bogus"})})
+	expectRuntimeError(t, err, "must be one of: all, update, install")
 }
 
 func TestConfigCommand_ConfigThrowsForInvalidPolicyIgnoreSeverity(t *testing.T) {

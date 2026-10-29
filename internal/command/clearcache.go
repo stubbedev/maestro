@@ -44,7 +44,7 @@ func NewClearCacheCommand() *ClearCacheCommand {
 		SetHelp(`The <info>clear-cache</info> deletes all cached packages from composer's
 cache directory.
 
-Read more at https://getcomposer.org/doc/03-cli.md#clear-cache-clearcache-cc`)
+Read more at https://getcomposer.org/doc/03-cli.md#clear-cache--clearcache--cc`)
 
 	return c
 }
@@ -80,7 +80,15 @@ func (c *ClearCacheCommand) Execute(in console.Input, _ console.Output) (int, er
 			continue
 		}
 
-		cachePath, ok := php.Realpath(php.ToString(v))
+		cachePath := php.ToString(v)
+		// check before realpath() as e.g. "nul" does not resolve on Windows
+		if !cache.IsUsable(cachePath) {
+			out.WriteError("<info>Cache is not enabled ("+key+"): "+cachePath+"</info>", true, io.Normal)
+
+			continue
+		}
+
+		cachePath, ok := php.Realpath(cachePath)
 		if !ok || !php.Truthy(cachePath) {
 			// realpath()'s false prints as an empty string
 			out.WriteError("<info>Cache directory does not exist ("+key+"): </info>", true, io.Normal)

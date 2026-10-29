@@ -67,6 +67,11 @@ class Request
         Rpc::call('request.setUpdateAllowList', [$this, $updateAllowList, $updateAllowTransitiveDependencies]);
     }
 
+    public function isInUpdateAllowList(string $packageName): bool
+    {
+        return Rpc::call('request.isInUpdateAllowList', [$this, $packageName]);
+    }
+
     public function getUpdateAllowList(): array
     {
         return Rpc::call('request.getUpdateAllowList', [$this]);

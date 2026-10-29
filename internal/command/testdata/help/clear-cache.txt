@@ -24,4 +24,4 @@ Help:
   The clear-cache deletes all cached packages from composer's
   cache directory.
   
-  Read more at https://getcomposer.org/doc/03-cli.md#clear-cache-clearcache-cc
+  Read more at https://getcomposer.org/doc/03-cli.md#clear-cache--clearcache--cc

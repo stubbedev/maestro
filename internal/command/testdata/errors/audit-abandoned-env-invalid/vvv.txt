@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -14,7 +14,7 @@ Composer could not detect the root package (acme/app) version, defaulting to '1.
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 
-In Config.php line 530:
+In Config.php line 532:
                                                                                
   [RuntimeException]                                                           
   Invalid value for COMPOSER_AUDIT_ABANDONED: nope. Expected one of ignore, r  
@@ -22,16 +22,17 @@ In Config.php line 530:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Config.php:530
- Composer\Config->get() at @COMPOSER@/src/Composer/Policy/PolicyConfig.php:157
- Composer\Policy\PolicyConfig::fromConfig() at @COMPOSER@/src/Composer/Command/BaseCommand.php:480
- Composer\Command\BaseCommand->createPolicyConfig() at @COMPOSER@/src/Composer/Command/InstallCommand.php:143
+  at @COMPOSER@/src/Composer/Config.php:532
+ Composer\Config->get() at @COMPOSER@/src/Composer/Policy/PolicyConfig.php:164
+ Composer\Policy\PolicyConfig::fromConfig() at @COMPOSER@/src/Composer/Command/BaseCommand.php:482
+ Composer\Command\BaseCommand->createPolicyConfig() at @COMPOSER@/src/Composer/Command/InstallCommand.php:144
  Composer\Command\InstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 install [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--dry-run] [--download-only] [--dev] [--no-suggest] [--no-dev] [--no-security-blocking] [--no-blocking] [--no-autoloader] [--no-progress] [--no-install] [--audit] [--audit-format AUDIT-FORMAT] [-v|vv|vvv|--verbose] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--strict-psr-autoloader] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--] [<packages>...]

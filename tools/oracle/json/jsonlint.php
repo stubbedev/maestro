@@ -1,7 +1,7 @@
 <?php
 // Generates internal/json/jsonlint/testdata/oracle/jsonlint.json.gz: the result
 // of Seld\JsonLint\JsonParser::parse (seld/jsonlint 1.12.1, as locked by
-// Composer 2.10.3) over thousands of valid, malformed and mutated JSON
+// Composer 2.11.0) over thousands of valid, malformed and mutated JSON
 // inputs, under every flag combination, and Utf8Validator::validate over
 // random byte strings.
 //

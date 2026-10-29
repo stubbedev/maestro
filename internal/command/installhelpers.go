@@ -85,8 +85,8 @@ func optionOrConfig(in console.Input, option string, cfg *config.Config, key str
 
 // checkStrictPSRAutoloader is InstallCommand's and UpdateCommand's check
 // that --strict-psr-autoloader comes with an optimized autoloader.
-func checkStrictPSRAutoloader(in console.Input, optimize, authoritative bool) error {
-	if console.BoolOption(in, "strict-psr-autoloader") && !optimize && !authoritative {
+func checkStrictPSRAutoloader(strictPsr, optimize, authoritative bool) error {
+	if strictPsr && !optimize && !authoritative {
 		return NewError(ClassInvalidArgument, "--strict-psr-autoloader mode only works with optimized autoloader, use --optimize-autoloader or --classmap-authoritative if you want a strict return value.")
 	}
 

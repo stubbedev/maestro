@@ -131,6 +131,9 @@ func (r *ComposerRepository) fetchFile(filename, cacheKey, sha256 string, storeL
 		if _, ok := errors.AsType[*repository.SecurityError](err); ok {
 			return nil, err
 		}
+		if phperr.InstanceOf(err, `Composer\Exception\SecurityException`) {
+			return nil, err
+		}
 
 		if php.ToBool(cacheKey) {
 			contents, ok, rerr := r.cache.Read(cacheKey)
@@ -258,6 +261,9 @@ func (r *ComposerRepository) fetchFileIfLastModified(filename, cacheKey, lastMod
 		return data, fresh, nil
 	}
 	if phperr.InstanceOf(err, "Error") || phperr.InstanceOf(err, "LogicException") || statusCode(err) == 404 {
+		return nil, false, err
+	}
+	if phperr.InstanceOf(err, `Composer\Exception\SecurityException`) {
 		return nil, false, err
 	}
 

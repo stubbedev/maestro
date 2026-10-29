@@ -26,6 +26,7 @@ Options:
   -m, --minor-only                               Show only packages that have minor SemVer-compatible updates. Use with the --latest or --outdated option.
       --patch-only                               Show only packages that have patch SemVer-compatible updates. Use with the --latest or --outdated option.
   -A, --sort-by-age                              Displays the installed version's age, and sorts packages oldest first. Use with the --latest or --outdated option.
+      --cooldown-period=COOLDOWN-PERIOD          Overrides the configured policy.cooldown.period while looking up latest versions, even when the policy is disabled or not blocking, 0 disables it for this run. Use with the --latest or --outdated option
   -D, --direct                                   Shows only packages that are directly required by the root package
       --strict                                   Return a non-zero exit code when there are outdated packages
   -f, --format=FORMAT                            Format of the output: text or json [default: "text"]
@@ -48,4 +49,4 @@ Help:
   The show command displays detailed information about a package, or
   lists all packages available.
   
-  Read more at https://getcomposer.org/doc/03-cli.md#show-info
+  Read more at https://getcomposer.org/doc/03-cli.md#show--info

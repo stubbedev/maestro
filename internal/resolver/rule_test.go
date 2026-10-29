@@ -413,11 +413,11 @@ func TestProblem_GetMissingLockedPackageReasonForFilterListRemovedPackage(t *tes
 		ID:          pkg.Str("PKG-1"),
 		Source:      pkg.Str("aikido"),
 	}
-	versions := &repository.NameMap[[]*repository.FilterListEntry]{}
-	versions.Set("1.0.0.0", []*repository.FilterListEntry{entry})
-	removed := &repository.NameMap[*repository.NameMap[[]*repository.FilterListEntry]]{}
+	versions := &repository.NameMap[*PolicyRemovalReason]{}
+	versions.Set("1.0.0.0", NewFilterListRemovalReason("vendor/malware", "1.0.0", []*repository.FilterListEntry{entry}))
+	removed := &repository.NameMap[*repository.NameMap[*PolicyRemovalReason]]{}
 	removed.Set("vendor/malware", versions)
-	pool := NewPool(nil, nil, &Removed{FilterList: removed})
+	pool := NewPool(nil, nil, &Removed{Policy: removed})
 
 	reason, err := MissingLockedPackageReason(pool, p)
 	if err != nil {

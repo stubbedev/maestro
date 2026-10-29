@@ -25,7 +25,8 @@ use Composer\Semver\Constraint\MultiConstraint;
  *   {"\0c":"none","p":null}
  *   {"\0c":"link","src":"a/b","tgt":"c/d","c":<constraint>,"d":"requires","pc":"^1.0"}
  *   {"\0c":"response","url":..,"code":200,"headers":[..],"body":..}   (a Composer\Util\Http\Response, maestro to PHP)
- *   {"\0c":"date","v":"2024-01-02T03:04:05.000000+00:00"}   (a DateTimeInterface, PHP to maestro)
+ *   {"\0c":"date","v":"2024-01-02T03:04:05.000000+00:00"}   (a DateTimeInterface, either way)
+ *   {"\0c":"programStatus","state":..,"message":..,"progress":..}   (a Composer\Console\ProgramStatus, maestro to PHP)
  */
 final class Values
 {
@@ -41,12 +42,19 @@ final class Values
 
     /**
      * @param array<string, mixed> $tag
-     * @return Link|ConstraintInterface|\Composer\Util\Http\Response
+     * @return Link|ConstraintInterface|\Composer\Util\Http\Response|\Composer\Console\ProgramStatus|\DateTimeImmutable
      */
     public static function decode(array $tag)
     {
+        if ($tag[self::TAG] === 'programStatus') {
+            $status = new \Composer\Console\ProgramStatus((string) $tag['state'], isset($tag['message']) ? (string) $tag['message'] : null);
+
+            return $status->withProgress(isset($tag['progress']) ? (int) $tag['progress'] : null);
+        }
+
         switch ($tag[self::TAG]) {
             case 'link':
+                /** @var ConstraintInterface $constraint */
                 $constraint = self::decode($tag['c']);
                 $link = new Link((string) $tag['src'], (string) $tag['tgt'], $constraint, (string) $tag['d'], isset($tag['pc']) ? (string) $tag['pc'] : null);
                 // The description is already Composer's (getDescription()).
@@ -55,13 +63,17 @@ final class Values
                 return $link;
             case 'response':
                 return new \Composer\Util\Http\Response(['url' => Codec::decode($tag['url'])], $tag['code'], Codec::decode($tag['headers']), Codec::decode($tag['body']));
+            case 'date':
+                return new \DateTimeImmutable((string) $tag['v']);
             case 'constraint':
                 $c = new Constraint((string) $tag['op'], (string) $tag['v']);
                 break;
             case 'multi':
                 $cs = [];
                 foreach ($tag['cs'] as $item) {
-                    $cs[] = self::decode($item);
+                    /** @var ConstraintInterface $constraint */
+                    $constraint = self::decode($item);
+                    $cs[] = $constraint;
                 }
                 $c = new MultiConstraint($cs, (bool) $tag['and']);
                 break;

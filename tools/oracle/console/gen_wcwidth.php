@@ -1,6 +1,6 @@
 <?php
 // Generates internal/console/wcwidth_tables.go from symfony/string's
-// wcswidth tables (the version Composer 2.10.3 ships).
+// wcswidth tables (the version Composer 2.11.0 ships).
 // Run: php tools/oracle/console/gen_wcwidth.php
 $root = dirname(__DIR__, 3);
 $dir = $root.'/.ref/composer/vendor/symfony/string/Resources/data/';

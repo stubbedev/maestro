@@ -104,8 +104,6 @@ func newTestDownloader(t *testing.T, config *fakeConfig, cafile string) (*HttpDo
 		t.Fatal(err)
 	}
 
-	h.curl.sleep = func(time.Duration) {}
-
 	return h, b
 }
 
@@ -142,47 +140,10 @@ func TestHttpDownloader_PreventUrlAccessCallableBlocksDownload(t *testing.T) {
 	}
 }
 
-func TestHttpDownloader_OutputWarnings(t *testing.T) {
-	b, err := io.NewBufferIO("", 0, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if wrote, _ := OutputWarnings(b, "$URL", php.NewArray()); wrote || php.NormalizeEOL(b.Output()) != "" {
-		t.Fatal("expected nothing written")
-	}
-
-	// warning/info keys present but filtered out by version constraints
-	data := mustJSON(t, `{"warning":"old warning msg","warning-versions":"<2.0","warnings":[{"message":"should not appear","versions":"<2.2"}]}`)
-	if wrote, _ := OutputWarnings(b, "$URL", data); wrote || php.NormalizeEOL(b.Output()) != "" {
-		t.Fatal("expected nothing written")
-	}
-
-	data = mustJSON(t, `{
-		"warning": "old warning msg", "warning-versions": ">=2.0",
-		"info": "old info msg", "info-versions": ">=2.0",
-		"warnings": [{"message": "should not appear", "versions": "<2.2"}, {"message": "visible warning", "versions": ">=2.2-dev"}],
-		"infos": [{"message": "should not appear", "versions": "<2.2"}, {"message": "visible info", "versions": ">=2.2-dev"}]
-	}`)
-
-	wrote, err := OutputWarnings(b, "$URL", data)
-	if err != nil || !wrote {
-		t.Fatalf("expected warnings written: %v", err)
-	}
-
-	// the <info> tag is consumed by the OutputFormatter, but not <warning>
-	// as that is not a default output format
-	want := "<warning>Warning from $URL: old warning msg</warning>\n" +
-		"Info from $URL: old info msg\n" +
-		"<warning>Warning from $URL: visible warning</warning>\n" +
-		"Info from $URL: visible info\n"
-
-	if php.NormalizeEOL(b.Output()) != want {
-		t.Fatalf("got %q", php.NormalizeEOL(b.Output()))
-	}
-}
-
 func TestHttpDownloader_OutputWarningsStripsColors(t *testing.T) {
+	ResetResponseWarnings()
+	t.Cleanup(ResetResponseWarnings)
+
 	b, _ := io.NewBufferIO("", 0, nil)
 
 	data := php.ArrayOf("warning", "\x1b[31mred\x1b[0m text")

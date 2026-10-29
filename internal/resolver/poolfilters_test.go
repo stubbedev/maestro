@@ -57,9 +57,34 @@ func advisoryPolicyConfig(advisoriesBlock, abandonedBlock bool, advisoriesIgnore
 		Advisories:        policy.NewAdvisoriesPolicyConfig(advisoriesBlock, policy.AuditFail, advisoriesIgnore, nil, nil),
 		Malware:           policy.MalwarePolicyConfigDisabled(),
 		Abandoned:         policy.NewAbandonedPolicyConfig(abandonedBlock, policy.AuditFail, abandonedIgnore),
+		Cooldown:          policy.CooldownPolicyConfigDisabled(),
 		CustomLists:       &policy.OrderedMap[*policy.CustomListPolicyConfig]{},
 		IgnoreUnreachable: policy.IgnoreUnreachableDefault(),
 	}
+}
+
+// removalType is the type of the reason a policy removed a version for, or "".
+func removalType(pool *Pool, packageName, version string) string {
+	if reason := pool.PolicyRemovalReason(packageName, version); reason != nil {
+		return reason.Type
+	}
+
+	return ""
+}
+
+// removalsOfType lists "name version" of every version the given policy
+// removed.
+func removalsOfType(pool *Pool, typ string) []string {
+	var removals []string
+	for packageName, versions := range pool.AllPolicyRemovedVersions().All() {
+		for version, reason := range versions.All() {
+			if reason.Type == typ {
+				removals = append(removals, packageName+" "+version)
+			}
+		}
+	}
+
+	return removals
 }
 
 func generateSecurityAdvisory(id, packageName, cve, affectedVersions string) *php.Array {
@@ -104,20 +129,23 @@ func TestSecurityAdvisoryPoolFilter_FilterPackagesByAdvisories(t *testing.T) {
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage1, expectedPackage2}, filteredPool.Packages())
-	if !filteredPool.IsSecurityRemovedPackageVersion("acme/package", eq("1.0.0.0")) {
+	if removalType(filteredPool, "acme/package", "1.0.0.0") != PolicyRemovalAdvisories {
 		t.Fatal("1.0.0.0 not security removed")
 	}
-	if filteredPool.AllAbandonedRemovedPackageVersions().Len() != 0 {
+	if len(removalsOfType(filteredPool, PolicyRemovalAbandoned)) != 0 {
 		t.Fatal("abandoned versions removed")
 	}
 
-	advisoryMap := filteredPool.AllSecurityRemovedPackageVersions()
-	versions, ok := advisoryMap.Get("acme/package")
-	if !ok || !versions.Has("1.0.0.0") {
-		t.Fatalf("advisory map %v", advisoryMap.Keys())
+	reason := filteredPool.PolicyRemovalReason("acme/package", "1.0.0.0")
+	if reason == nil {
+		t.Fatal("no reason")
 	}
-	if got := filteredPool.SecurityAdvisoryIdentifiersForPackageVersion("acme/package", eq("1.0.0.0")); !slices.Equal(got, []string{"PKSA-1", "PKSA-2"}) {
-		t.Fatalf("identifiers %v", got)
+	ides := make([]string, len(reason.Advisories))
+	for i, advisory := range reason.Advisories {
+		ides[i] = advisory.Partial().AdvisoryID
+	}
+	if !slices.Equal(ides, []string{"PKSA-1", "PKSA-2"}) {
+		t.Fatalf("identifiers %v", ides)
 	}
 }
 
@@ -156,7 +184,7 @@ func TestSecurityAdvisoryPoolFilter_DontFilterPackagesByIgnoredAdvisories(t *tes
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage1, expectedPackage2}, filteredPool.Packages())
-	if filteredPool.AllAbandonedRemovedPackageVersions().Len() != 0 || filteredPool.AllSecurityRemovedPackageVersions().Len() != 0 {
+	if len(removalsOfType(filteredPool, PolicyRemovalAbandoned)) != 0 || len(removalsOfType(filteredPool, PolicyRemovalAdvisories)) != 0 {
 		t.Fatal("versions removed")
 	}
 }
@@ -174,7 +202,7 @@ func TestSecurityAdvisoryPoolFilter_DontFilterPackagesWithBlockInsecureDisabled(
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage1, expectedPackage2}, filteredPool.Packages())
-	if filteredPool.AllAbandonedRemovedPackageVersions().Len() != 0 || filteredPool.AllSecurityRemovedPackageVersions().Len() != 0 {
+	if len(removalsOfType(filteredPool, PolicyRemovalAbandoned)) != 0 || len(removalsOfType(filteredPool, PolicyRemovalAdvisories)) != 0 {
 		t.Fatal("versions removed")
 	}
 }
@@ -199,7 +227,7 @@ func TestSecurityAdvisoryPoolFilter_DontFilterPackagesWithAbandonedPackage(t *te
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage, ignoreAbandonedPackage}, filteredPool.Packages())
-	if filteredPool.AllAbandonedRemovedPackageVersions().Len() != 1 || filteredPool.AllSecurityRemovedPackageVersions().Len() != 0 {
+	if len(removalsOfType(filteredPool, PolicyRemovalAbandoned)) != 1 || len(removalsOfType(filteredPool, PolicyRemovalAdvisories)) != 0 {
 		t.Fatal("wrong removals")
 	}
 }
@@ -312,7 +340,7 @@ func TestFilterListPoolFilter_FilterPackages(t *testing.T) {
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage1, expectedPackage2}, filteredPool.Packages())
-	if !filteredPool.IsFilterListRemovedPackageVersion("acme/package", eq("1.0.0.0")) || filteredPool.AllFilterListRemovedPackageVersions().Len() != 1 {
+	if removalType(filteredPool, "acme/package", "1.0.0.0") != PolicyRemovalFilterList || len(removalsOfType(filteredPool, PolicyRemovalFilterList)) != 1 {
 		t.Fatal("wrong removals")
 	}
 }
@@ -334,7 +362,7 @@ func TestFilterListPoolFilter_UnfilteredPackagesConfig(t *testing.T) {
 			}
 
 			assertPackages(t, []pkg.PackageInterface{expectedPackage1, expectedPackage2}, filteredPool.Packages())
-			if filteredPool.AllFilterListRemovedPackageVersions().Len() != 0 {
+			if len(removalsOfType(filteredPool, PolicyRemovalFilterList)) != 0 {
 				t.Fatal("versions removed")
 			}
 		})
@@ -352,7 +380,7 @@ func TestFilterListPoolFilter_UnfilteredPackagesConfigIntersection(t *testing.T)
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage}, filteredPool.Packages())
-	if filteredPool.AllFilterListRemovedPackageVersions().Len() != 1 {
+	if len(removalsOfType(filteredPool, PolicyRemovalFilterList)) != 1 {
 		t.Fatal("wrong removals")
 	}
 }
@@ -379,7 +407,7 @@ func TestFilterListPoolFilter_FilterWithAdditionalSources(t *testing.T) {
 	}
 
 	assertPackages(t, []pkg.PackageInterface{expectedPackage1, expectedPackage2}, filteredPool.Packages())
-	if !filteredPool.IsFilterListRemovedPackageVersion("acme/package", eq("3.0.0.0")) || filteredPool.AllFilterListRemovedPackageVersions().Len() != 1 {
+	if removalType(filteredPool, "acme/package", "3.0.0.0") != PolicyRemovalFilterList || len(removalsOfType(filteredPool, PolicyRemovalFilterList)) != 1 {
 		t.Fatal("wrong removals")
 	}
 }
@@ -398,7 +426,7 @@ func TestFilterListPoolFilter_InstallScopeFiltersLockedPackagesAgainstMalwareLis
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(installPool.Packages()) != 0 || !installPool.IsFilterListRemovedPackageVersion("acme/locked", eq("1.0.0.0")) {
+	if len(installPool.Packages()) != 0 || removalType(installPool, "acme/locked", "1.0.0.0") != PolicyRemovalFilterList {
 		t.Fatal("install-scope filter must include locked packages")
 	}
 
@@ -409,7 +437,7 @@ func TestFilterListPoolFilter_InstallScopeFiltersLockedPackagesAgainstMalwareLis
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(updatePool.Packages()) != 0 || !updatePool.IsFilterListRemovedPackageVersion("acme/locked", eq("1.0.0.0")) {
+	if len(updatePool.Packages()) != 0 || removalType(updatePool, "acme/locked", "1.0.0.0") != PolicyRemovalFilterList {
 		t.Fatal("update-scope filter must apply install-scope rules to locked packages")
 	}
 }
@@ -435,7 +463,7 @@ func TestFilterListPoolFilter_UpdateScopeAppliesInstallScopeToPackagesInLockedRe
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(updatePool.Packages()) != 0 || !updatePool.IsFilterListRemovedPackageVersion("acme/mirrored", eq("1.0.0.0")) {
+	if len(updatePool.Packages()) != 0 || removalType(updatePool, "acme/mirrored", "1.0.0.0") != PolicyRemovalFilterList {
 		t.Fatal("packages from the locked repo must be checked against install-scope filter lists")
 	}
 }
@@ -456,7 +484,7 @@ func TestFilterListPoolFilter_UpdateScopeIgnoresInstallOnlyListsForNonLockedPack
 	}
 
 	assertPackages(t, []pkg.PackageInterface{p}, updatePool.Packages())
-	if updatePool.AllFilterListRemovedPackageVersions().Len() != 0 {
+	if len(removalsOfType(updatePool, PolicyRemovalFilterList)) != 0 {
 		t.Fatal("install-only lists must not block non-locked packages during update scope")
 	}
 }
@@ -499,4 +527,133 @@ func TestFilterListPoolFilter_RethrowsTransportErrorWhenUnreachableIsNotIgnored(
 	if _, ok := errors.AsType[*util.TransportError](err); !ok {
 		t.Fatalf("got %v", err)
 	}
+}
+
+type recordingAdvisoryRepository struct {
+	*repository.PackageRepository
+	requestedNames []string
+}
+
+func (r *recordingAdvisoryRepository) SecurityAdvisories(packageConstraintMap *repository.ConstraintMap, allowPartial bool) (repository.AdvisoryResult, error) {
+	r.requestedNames = append(r.requestedNames, packageConstraintMap.Keys()...)
+
+	return r.PackageRepository.SecurityAdvisories(packageConstraintMap, allowPartial)
+}
+
+func TestSecurityAdvisoryPoolFilter_DoesNotLoadAdvisoriesForDevPackages(t *testing.T) {
+	repo := &recordingAdvisoryRepository{PackageRepository: advisoryRepository(t,
+		generateSecurityAdvisory("PKSA-1", "acme/package", "CVE-2024-1234", ">=2.0.0"))}
+
+	filter := NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, advisoryPolicyConfig(true, true, nil, nil), nullIO)
+	if _, err := filter.Filter(NewPool([]pkg.PackageInterface{
+		pkg.NewPackage("acme/package", "1.0.0.0", "1.0"),
+		pkg.NewPackage("acme/path-package", "dev-main", "dev-main"),
+		pkg.NewPackage("acme/branch-package", "3.3.9999999.9999999-dev", "3.3.x-dev"),
+	}, nil, nil), []repository.RepositoryInterface{repo}, NewRequest(nil)); err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(repo.requestedNames, []string{"acme/package", "acme/branch-package"}) {
+		t.Errorf("requested %v", repo.requestedNames)
+	}
+}
+
+func TestSecurityAdvisoryPoolFilter_FilterNumericDevBranchByAdvisories(t *testing.T) {
+	repo := advisoryRepository(t, generateSecurityAdvisory("PKSA-1", "acme/package", "CVE-2024-1234", "<3.5"))
+
+	filter := NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, advisoryPolicyConfig(true, true, nil, nil), nullIO)
+	filteredPool, err := filter.Filter(NewPool([]pkg.PackageInterface{
+		pkg.NewPackage("acme/package", "3.3.9999999.9999999-dev", "3.3.x-dev"),
+		pkg.NewPackage("acme/package", "3.6.9999999.9999999-dev", "3.6.x-dev"),
+	}, nil, nil), []repository.RepositoryInterface{repo}, NewRequest(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(filteredPool.Packages()) != 1 || filteredPool.Packages()[0].PrettyVersion() != "3.6.x-dev" {
+		t.Fatalf("packages %v", filteredPool.Packages())
+	}
+	if got := removalType(filteredPool, "acme/package", "3.3.9999999.9999999-dev"); got != PolicyRemovalAdvisories {
+		t.Errorf("removal %q", got)
+	}
+}
+
+func TestSecurityAdvisoryPoolFilter_FilterBranchAliasOfDevPackageByAdvisories(t *testing.T) {
+	repo := advisoryRepository(t, generateSecurityAdvisory("PKSA-1", "acme/package", "CVE-2024-1234", "<3.5"))
+
+	devPackage := pkg.NewPackage("acme/package", "dev-main", "dev-main")
+	branchAlias := pkg.NewAliasPackage(devPackage, "3.3.9999999.9999999-dev", "3.3.x-dev")
+	// requiring the branch explicitly opts out of advisories, even if the root alias version itself would match
+	rootAlias := pkg.NewAliasPackage(devPackage, "3.3.0.0", "3.3.0")
+	rootAlias.SetRootPackageAlias(true)
+
+	filter := NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, advisoryPolicyConfig(true, true, nil, nil), nullIO)
+	filteredPool, err := filter.Filter(NewPool([]pkg.PackageInterface{devPackage, branchAlias, rootAlias}, nil, nil), []repository.RepositoryInterface{repo}, NewRequest(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertPackages(t, []pkg.PackageInterface{devPackage, rootAlias}, filteredPool.Packages())
+	if got := removalType(filteredPool, "acme/package", "3.3.9999999.9999999-dev"); got != PolicyRemovalAdvisories {
+		t.Errorf("removal %q", got)
+	}
+}
+
+func TestSecurityAdvisoryPoolFilter_DefaultBranchAliasIsNotFilteredByAdvisories(t *testing.T) {
+	repo := advisoryRepository(t, generateSecurityAdvisory("PKSA-1", "acme/package", "CVE-2024-1234", ">=2.0"))
+
+	devPackage := pkg.NewPackage("acme/package", "dev-main", "dev-main")
+	defaultBranchAlias := pkg.NewAliasPackage(devPackage, pkg.DefaultBranchAlias, pkg.DefaultBranchAlias)
+
+	filter := NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, advisoryPolicyConfig(true, true, nil, nil), nullIO)
+	filteredPool, err := filter.Filter(NewPool([]pkg.PackageInterface{devPackage, defaultBranchAlias}, nil, nil), []repository.RepositoryInterface{repo}, NewRequest(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertPackages(t, []pkg.PackageInterface{devPackage, defaultBranchAlias}, filteredPool.Packages())
+}
+
+func TestSecurityAdvisoryPoolFilter_RootAliasOfDevPackageIsNotFilteredByAliasVersion(t *testing.T) {
+	repo := advisoryRepository(t, generateSecurityAdvisory("PKSA-1", "acme/package", "CVE-2024-1234", "*"))
+
+	devPackage := pkg.NewPackage("acme/package", "dev-main", "dev-main")
+	aliasPackage := pkg.NewAliasPackage(devPackage, "1.0.0.0", "1.0.0")
+	aliasPackage.SetRootPackageAlias(true)
+
+	filter := NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, advisoryPolicyConfig(true, true, nil, nil), nullIO)
+	filteredPool, err := filter.Filter(NewPool([]pkg.PackageInterface{devPackage, aliasPackage}, nil, nil), []repository.RepositoryInterface{repo}, NewRequest(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertPackages(t, []pkg.PackageInterface{devPackage, aliasPackage}, filteredPool.Packages())
+}
+
+func TestSecurityAdvisoryPoolFilter_FilterRootAliasByAliasedPackageVersion(t *testing.T) {
+	repo := newPackageRepository(t, php.ArrayOf(
+		"package", php.NewArray(),
+		"security-advisories", php.ArrayOf(
+			"acme/package", php.ListOf(generateSecurityAdvisory("PKSA-1", "acme/package", "CVE-2024-1234", "<3.5")),
+			"acme/other", php.ListOf(generateSecurityAdvisory("PKSA-2", "acme/other", "CVE-2024-1235", "<3.5")),
+		),
+	))
+
+	// vulnerable code aliased to a safe version is still filtered
+	vulnerable := pkg.NewPackage("acme/package", "3.3.9999999.9999999-dev", "3.3.x-dev")
+	vulnerableAlias := pkg.NewAliasPackage(vulnerable, "3.9.0.0", "3.9.0")
+	vulnerableAlias.SetRootPackageAlias(true)
+
+	// safe code aliased to a vulnerable version is kept
+	safe := pkg.NewPackage("acme/other", "3.6.9999999.9999999-dev", "3.6.x-dev")
+	safeAlias := pkg.NewAliasPackage(safe, "3.0.0.0", "3.0.0")
+	safeAlias.SetRootPackageAlias(true)
+
+	filter := NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, advisoryPolicyConfig(true, true, nil, nil), nullIO)
+	filteredPool, err := filter.Filter(NewPool([]pkg.PackageInterface{vulnerable, vulnerableAlias, safe, safeAlias}, nil, nil), []repository.RepositoryInterface{repo}, NewRequest(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertPackages(t, []pkg.PackageInterface{safe, safeAlias}, filteredPool.Packages())
 }

@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/scripts" project at "./out"
@@ -15,16 +15,16 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.2xJDSU-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.03jNHo-run-p-packages.json/packages.json into cache
 Installing x/scripts (1.0.0)
   - Downloading x/scripts (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/scripts.zip
 [200] http://@SERVER@/scripts.zip
-Writing @DIR@/cache/files/x/scripts/c54211e3fe62ff747148fee6d4f9ac5eed3f8fbe.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
+Writing @DIR@/cache/files/x/scripts/cbd4a5d205e17e798e856037b7dc69a0fdea354d.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
   - Installing x/scripts (1.0.0): Extracting archive
-Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/6fbd89d2'
-Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/6fbd89d2'
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/411ae6ba'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/411ae6ba'
 Created project in @DIR@/p/out
 Reading ./composer.json (@DIR@/p/out/composer.json)
 Loading config file ./composer.json (@DIR@/p/out/composer.json)
@@ -34,7 +34,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 Executing command (CWD): echo root package installed
 root package installed
 Loading composer repositories with package information
-Built pool.
+Built pool in 0.00068998336791992s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.

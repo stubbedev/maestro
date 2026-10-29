@@ -8,9 +8,10 @@ namespace Composer\Policy;
 
 class CustomListPolicyConfig extends \Composer\Policy\ListPolicyConfig
 {
+    public $blockScope;
     public $sources;
 
-    public function __construct(string $name, bool $block, string $audit, array $ignore, array $sources)
+    public function __construct(string $name, bool $block, string $audit, string $blockScope, array $ignore, array $sources)
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\CustomListPolicyConfig::__construct() in plugins yet');
     }
@@ -23,6 +24,16 @@ class CustomListPolicyConfig extends \Composer\Policy\ListPolicyConfig
     public static function fromRawConfig(string $listName, $listConfig, \Composer\Semver\VersionParser $parser): self
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\CustomListPolicyConfig::fromRawConfig() in plugins yet');
+    }
+
+    public function shouldBlock(string $blockScope): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\CustomListPolicyConfig::shouldBlock() in plugins yet');
+    }
+
+    protected function supportsInstallBlockScope(): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Policy\\CustomListPolicyConfig::supportsInstallBlockScope() in plugins yet');
     }
 
     public function withAudit(string $audit)

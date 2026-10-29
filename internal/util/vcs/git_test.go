@@ -151,6 +151,32 @@ func TestGit_RunCommandPrivateGitHubRepositoryNotInitialCloneNotInteractiveWithA
 	}
 }
 
+func TestGit_RunCommandPrivateBitbucketRepositoryDoesNotRetrySameSshUrl(t *testing.T) {
+	f := newGitFixture(map[string]any{"gitlab-domains": list("gitlab.com"), "github-domains": list("github.com")})
+	f.process.Expects([]processmock.Expectation{
+		{Cmd: util.ShellCmd("git command failing"), Return: 1},
+		{Cmd: util.Cmd("git", "config", "bitbucket.accesstoken"), Return: 1},
+		{Cmd: util.Cmd("git", "--version"), Return: 0},
+	}, true, nil)
+	f.io.interactive = false
+
+	callable := func(url string) util.Command {
+		if url != "git@ssh.bitbucket.org:acme/repo.git" {
+			t.Errorf("url %q", url)
+		}
+
+		return util.ShellCmd("git command failing")
+	}
+
+	err := f.git.RunCommand([]CommandFunc{callable}, "git@ssh.bitbucket.org:acme/repo.git", "", true, nil)
+
+	if _, ok := errors.AsType[*util.RuntimeError](err); !ok {
+		t.Fatalf("got %v, want a RuntimeError", err)
+	}
+
+	assertComplete(t, f.process)
+}
+
 func assertOnlyOrigin(t *testing.T, fio *fakeIO, origin string) {
 	t.Helper()
 
@@ -173,12 +199,16 @@ func TestGit_RunCommandPrivateBitbucketRepositoryNotInitialCloneNotInteractiveWi
 		expectedFailuresBeforeSuccess int
 		bitbucketGitAuthCalls         int
 	}{
+		{"git@ssh.bitbucket.org:acme/repo.git", new("MY_BITBUCKET_TOKEN"), "https://token:MY_BITBUCKET_TOKEN@bitbucket.org/acme/repo.git", 1, 0},
 		{"git@bitbucket.org:acme/repo.git", new("MY_BITBUCKET_TOKEN"), "https://token:MY_BITBUCKET_TOKEN@bitbucket.org/acme/repo.git", 1, 0},
 		{"https://bitbucket.org/acme/repo", new("MY_BITBUCKET_TOKEN"), "https://token:MY_BITBUCKET_TOKEN@bitbucket.org/acme/repo.git", 1, 0},
 		{"https://bitbucket.org/acme/repo.git", new("MY_BITBUCKET_TOKEN"), "https://token:MY_BITBUCKET_TOKEN@bitbucket.org/acme/repo.git", 1, 0},
-		{"git@bitbucket.org:acme/repo.git", nil, "git@bitbucket.org:acme/repo.git", 0, 0},
-		{"https://bitbucket.org/acme/repo", nil, "git@bitbucket.org:acme/repo.git", 1, 1},
-		{"https://bitbucket.org/acme/repo.git", nil, "git@bitbucket.org:acme/repo.git", 1, 1},
+		{"git@ssh.bitbucket.org:acme/repo.git", nil, "git@ssh.bitbucket.org:acme/repo.git", 0, 0},
+		{"git@bitbucket.org:acme/repo.git", nil, "git@ssh.bitbucket.org:acme/repo.git", 1, 1},
+		{"https://bitbucket.org/acme/repo", nil, "git@ssh.bitbucket.org:acme/repo.git", 1, 1},
+		{"https://bitbucket.org/acme/repo.git", nil, "git@ssh.bitbucket.org:acme/repo.git", 1, 1},
+		{"ssh://git@bitbucket.org/acme/repo", nil, "git@ssh.bitbucket.org:acme/repo.git", 1, 1},
+		{"ssh://git@ssh.bitbucket.org/acme/repo.git", new("MY_BITBUCKET_TOKEN"), "https://token:MY_BITBUCKET_TOKEN@bitbucket.org/acme/repo.git", 1, 0},
 		{"https://bitbucket.org/acme/repo.git", new("ATAT_BITBUCKET_API_TOKEN"), "https://x-bitbucket-api-token-auth:ATAT_BITBUCKET_API_TOKEN@bitbucket.org/acme/repo.git", 1, 0},
 	} {
 		t.Run(tc.gitURL, func(t *testing.T) {
@@ -216,6 +246,8 @@ func TestGit_RunCommandPrivateBitbucketRepositoryNotInitialCloneInteractiveWithO
 		gitURL, expectedURL string
 		initialConfig       map[string]io.Authentication
 	}{
+		{"git@ssh.bitbucket.org:acme/repo.git", "https://x-token-auth:my-access-token@bitbucket.org/acme/repo.git", nil},
+		{"ssh://git@ssh.bitbucket.org/acme/repo.git", "https://x-token-auth:my-access-token@bitbucket.org/acme/repo.git", nil},
 		{"git@bitbucket.org:acme/repo.git", "https://x-token-auth:my-access-token@bitbucket.org/acme/repo.git", nil},
 		{"https://bitbucket.org/acme/repo.git", "https://x-token-auth:my-access-token@bitbucket.org/acme/repo.git", nil},
 		{"https://bitbucket.org/acme/repo", "https://x-token-auth:my-access-token@bitbucket.org/acme/repo.git", nil},

@@ -667,6 +667,11 @@ func (r *Runtime) registerInstallers() {
 
 		return util.DetermineBinaryCaller(a.str(0))
 	})
+	r.Handle("installer.isSafeBinPath", func(v any) (any, error) {
+		a := argsOf("installer.isSafeBinPath", v)
+
+		return util.IsSafeBinPath(a.str(0)), nil
+	})
 }
 
 // installerNew serves `installer.new`: the peer of a PHP installer object

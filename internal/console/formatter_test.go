@@ -69,9 +69,8 @@ func TestOutputFormatter_LGCharEscaping(t *testing.T) {
 	eq(t, f.Format(`foo << <info>bar \ baz</info> \`), "foo << \033[32mbar \\ baz\033[39m \\")
 	eq(t, f.Format(`\<info>some info\</info>`), "<info>some info</info>")
 	eq(t, Escape("<info>some info</info>"), `\<info\>some info\</info\>`)
-	// every < and > gets escaped if not already escaped, but already escaped ones do not get escaped again
-	// and escaped backslashes remain as such, same with backslashes escaping non-special characters
-	eq(t, Escape(`foo < bar \< baz \\< foo > bar \> baz \\> \x`), `foo \< bar \< baz \\< foo \> bar \> baz \\> \x`)
+	// every < and > gets escaped, backslashes before them included
+	eq(t, Escape(`foo < bar \< baz \\< foo > bar \> baz \\> \x`), `foo \< bar \\< baz \\\< foo \> bar \\> baz \\\> \x`)
 	eq(t, f.Format(`<comment>Symfony\Component\Console does work very well!</comment>`), "\033[33mSymfony\\Component\\Console does work very well!\033[39m")
 }
 
@@ -107,7 +106,7 @@ func TestOutputFormatter_StyleMatchingNotGreedy(t *testing.T) {
 
 func TestOutputFormatter_StyleEscaping(t *testing.T) {
 	f := NewOutputFormatter(true)
-	eq(t, f.Format("(<info>"+Escape(`z>=2.0,<\<<a2.3\`)+"</info>)"), "(\033[32mz>=2.0,<<<a2.3\\\033[39m)")
+	eq(t, f.Format("(<info>"+Escape(`z>=2.0,<\<<a2.3\`)+"</info>)"), "(\033[32mz>=2.0,<\\<<a2.3\\\033[39m)")
 	eq(t, f.Format("<info>"+Escape("<error>some error</error>")+"</info>"), "\033[32m<error>some error</error>\033[39m")
 }
 

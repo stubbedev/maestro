@@ -223,11 +223,17 @@ func (h *AuthHelper) PromptAuthIfNeeded(url, origin string, statusCode int, reas
 			a := h.io.Authentication(origin)
 			auth = &a
 
+			// a job token cannot be renewed, so abort before GitLab's
+			// authorizeOAuth swaps the slots
 			switch authString(a.Password) {
 			case "gitlab-ci-token", "private-token", "oauth2":
 				if a.Password != nil {
 					return AuthResult{}, util.NewTransportError("Invalid credentials for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
 				}
+			}
+
+			if authString(a.Username) == "gitlab-ci-token" {
+				return AuthResult{}, util.NewTransportError("Invalid credentials for '"+util.SanitizeURL(url)+"', aborting.", statusCode)
 			}
 		}
 
@@ -447,7 +453,17 @@ func (h *AuthHelper) addAuthenticationOptions(options *php.Array, origin, url st
 			headerLines.Append("Authorization: token " + username)
 			displayMessage = "Using GitHub token authentication"
 		}
-	case (password == "oauth2" || password == "private-token" || password == "gitlab-ci-token") && configHas(h.config, "gitlab-domains", origin): //nolint:gosec // credential markers
+	case (username == "gitlab-ci-token" || password == "gitlab-ci-token") && configHas(h.config, "gitlab-domains", origin): //nolint:gosec // credential markers
+		// the marker ends up in either slot depending on whether
+		// GitLab.AuthorizeOAuth normalized the credentials
+		token := password
+		if password == "gitlab-ci-token" { //nolint:gosec // a credential marker, not a credential
+			token = username
+		}
+
+		headerLines.Append("JOB-TOKEN: " + token)
+		displayMessage = "Using GitLab CI job token authentication"
+	case (password == "oauth2" || password == "private-token") && configHas(h.config, "gitlab-domains", origin):
 		if password == "oauth2" {
 			headerLines.Append("Authorization: Bearer " + username)
 			displayMessage = "Using GitLab OAuth token authentication"

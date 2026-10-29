@@ -90,6 +90,14 @@ func (r *Runtime) registerUtil() {
 		return int64(n), nil
 	})
 	fs("safeCopy", func(a args) (any, error) { return nil, util.SafeCopy(a.str(0), a.str(1)) })
+	fs("safeFilePutContents", func(a args) (any, error) {
+		n, err := util.SafeFilePutContents(a.str(0), []byte(a.str(1)))
+		if err != nil {
+			return nil, err
+		}
+
+		return int64(n), nil
+	})
 	fs("remove", func(a args) (any, error) { return filesystem().Remove(a.str(0)) })
 	fs("unlink", func(a args) (any, error) {
 		if err := util.Unlink(a.str(0)); err != nil {

@@ -3,7 +3,6 @@
 package command_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
@@ -236,6 +235,8 @@ vendor4/dev-suggested is suggested by:
 2 additional suggestions by transitive dependencies can be shown with --all`},
 		{"with lockfile, show suggested for package", true, gbParams("packages", []string{"vendor2/package2"}), `vendor2/package2 suggests:
  - vendor4/dev-suggested: helpful for vendor2/package2`},
+		{"with lockfile, show suggested for package case insensitively", true, gbParams("packages", []string{"Vendor2/Package2"}), `vendor2/package2 suggests:
+ - vendor4/dev-suggested: helpful for vendor2/package2`},
 		{"without lockfile, show suggested for package", false, gbParams("packages", []string{"vendor2/package2"}), `vendor2/package2 suggests:
  - vendor4/dev-suggested: helpful for vendor2/package2`},
 		{"with lockfile, list suggested", true, gbParams("--list", true), `vendor3/suggested
@@ -328,26 +329,90 @@ func suggestsFixture(t *testing.T, hasLockFile bool) {
 
 // TestSuggestsCommand_Streams: the report, its transitive-suggestions
 // hint included, goes to stdout; a filter naming no installed package is
-// no error and reports nothing.
+// an error on stderr.
 func TestSuggestsCommand_Streams(t *testing.T) {
 	for _, c := range []struct {
 		name   string
 		args   []any
 		stdout string
+		code   int
+		stderr string
 	}{
 		{"report", nil, "vendor1/package1 suggests:\n" +
 			" - vendor3/suggested: helpful for vendor1/package1\n\n" +
 			"vendor2/package2 suggests:\n" +
 			" - vendor4/dev-suggested: helpful for vendor2/package2\n\n" +
-			"2 additional suggestions by transitive dependencies can be shown with --all\n"},
-		{"unknown filter", []any{"packages", []string{"nope/nope"}}, ""},
+			"2 additional suggestions by transitive dependencies can be shown with --all\n", 0, ""},
+		{"unknown filter", []any{"packages", []string{"nope/nope"}}, "", 1, `Package "nope/nope" is not installed.`},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			suggestsFixture(t, true)
 			got := commandtest.GetApplicationTester(t).RunStreams(append([]any{"command", "suggests"}, c.args...)...)
-			if got.Code != 0 || got.Err != nil || got.Stdout != c.stdout || strings.Contains(got.Stderr, "suggest") {
-				t.Errorf("got %+v\nwant exit 0, stdout %q and no suggestion on stderr", got, c.stdout)
+			if got.Code != c.code || got.Err != nil || got.Stdout != c.stdout || php.Trim(got.Stderr) != c.stderr {
+				t.Errorf("got %+v\nwant exit %d, stdout %q and stderr %q", got, c.code, c.stdout, c.stderr)
 			}
+		})
+	}
+}
+
+// TestSuggestsCommand_FailsWhenFilteringByNonInstalledPackages ports
+// testFailsWhenFilteringByNonInstalledPackages with provideMissingPackageFilters.
+func TestSuggestsCommand_FailsWhenFilteringByNonInstalledPackages(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		filters []string
+		message string
+	}{
+		{"single", []string{"Vendor/Not-Installed"}, `Package "Vendor/Not-Installed" is not installed.`},
+		{"multiple", []string{"Vendor/Not-Installed", "other/missing"}, `Packages "Vendor/Not-Installed", "other/missing" are not installed.`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			commandtest.InitTempComposer(t, `{}`, nil, nil, true)
+
+			got := commandtest.GetApplicationTester(t).RunStreams("command", "suggests", "packages", tt.filters)
+			if got.Code != 1 || got.Err != nil {
+				t.Fatalf("exit code %d, error %v", got.Code, got.Err)
+			}
+			gbAssertSame(t, "", php.Trim(got.Stdout))
+			gbAssertSame(t, tt.message, php.Trim(got.Stderr))
+		})
+	}
+}
+
+// TestSuggestsCommand_FilteringByDevPackageWithNoDevReportsItAsExcluded
+// ports testFilteringByDevPackageWithNoDevReportsItAsExcluded with
+// provideExcludedDevPackageFilters.
+func TestSuggestsCommand_FilteringByDevPackageWithNoDevReportsItAsExcluded(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		filters []string
+		message string
+	}{
+		{"single", []string{"Vendor/Dev-Package"}, `Package "Vendor/Dev-Package" is excluded by --no-dev.`},
+		{"multiple", []string{"Vendor/Dev-Package", "other/dev-package"}, `Packages "Vendor/Dev-Package", "other/dev-package" are excluded by --no-dev.`},
+		{"missing and excluded", []string{"missing/package", "Vendor/Dev-Package"}, "Package \"missing/package\" is not installed.\nPackage \"Vendor/Dev-Package\" is excluded by --no-dev."},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			commandtest.InitTempComposer(t, `{
+				"require-dev": {
+					"vendor/dev-package": "^1",
+					"other/dev-package": "^1"
+				}
+			}`, nil, nil, true)
+
+			devPackages := gbPkgs(
+				commandtest.GetPackage(t, "vendor/dev-package", "1.0.0"),
+				commandtest.GetPackage(t, "other/dev-package", "1.0.0"),
+			)
+			commandtest.CreateInstalledJSON(t, nil, devPackages, true)
+			commandtest.CreateComposerLock(t, nil, devPackages)
+
+			got := commandtest.GetApplicationTester(t).RunStreams("command", "suggests", "--no-dev", true, "packages", tt.filters)
+			if got.Code != 1 || got.Err != nil {
+				t.Fatalf("exit code %d, error %v", got.Code, got.Err)
+			}
+			gbAssertSame(t, "", php.Trim(got.Stdout))
+			gbAssertSame(t, tt.message, php.Trim(got.Stderr))
 		})
 	}
 }

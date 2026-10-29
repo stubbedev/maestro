@@ -270,6 +270,7 @@ func (m *Manager) handleSignals(cl *cleanups) func() {
 			_ = m.flushWrites()
 		}
 		_ = m.runCleanup(cl)
+		m.io.WriteProgramStatus(console.ProgramStatusIdle(nil))
 		util.ExitWithSignal(sig)
 	}
 
@@ -629,9 +630,12 @@ func (m *Manager) waitOnPromises(promises []*Promise) error {
 		}
 	}
 
-	// Loop::wait throws the first rejection, which skips the clean-up of
-	// the progress bar below (the exception's rendering ends its line)
-	if err := wait(m.loop, promises, progress); err != nil {
+	var onProgress func(int)
+	if progress != nil {
+		onProgress = m.io.WriteProgress
+	}
+
+	if err := waitProgress(m.loop, promises, progress, onProgress); err != nil {
 		return err
 	}
 
@@ -793,7 +797,7 @@ func (m *Manager) NotifyInstalls(mio.IO) {
 			return err
 		})
 		if err == nil {
-			_ = wait(m.loop, promises, nil)
+			_ = wait(m.loop, promises)
 		}
 	}
 
@@ -823,7 +827,7 @@ func (m *Manager) NotifyInstallsAsync(out mio.IO) (waitFor func()) {
 
 	// Loop::wait() also finishes all the other work in progress, which
 	// must be done here as in Composer
-	_ = wait(m.loop, nil, nil)
+	_ = wait(m.loop, nil)
 
 	type request struct {
 		url  string
@@ -1017,7 +1021,7 @@ func (m *Manager) runCleanup(cl *cleanups) error {
 	}
 
 	if len(fns) > 0 {
-		_ = wait(m.loop, promises, nil)
+		_ = wait(m.loop, promises)
 	}
 
 	return firstErr

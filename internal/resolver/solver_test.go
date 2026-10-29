@@ -945,11 +945,11 @@ func TestSolver_LearnPositiveLiteral(t *testing.T) {
 func TestSolver_SolveSurfacesFilterListRemovedLockedPackagesAsProblems(t *testing.T) {
 	st := newSolverTest(t)
 	p := getPackage(t, "vendor/malware", "1.0.0")
-	versions := &repository.NameMap[[]*repository.FilterListEntry]{}
-	versions.Set("1.0.0.0", []*repository.FilterListEntry{{PackageName: "vendor/malware", Constraint: semver.NewMatchAllConstraint(), ListName: "malware"}})
-	removed := &repository.NameMap[*repository.NameMap[[]*repository.FilterListEntry]]{}
+	versions := &repository.NameMap[*PolicyRemovalReason]{}
+	versions.Set("1.0.0.0", NewFilterListRemovalReason("vendor/malware", "1.0.0", []*repository.FilterListEntry{{PackageName: "vendor/malware", Constraint: semver.NewMatchAllConstraint(), ListName: "malware"}}))
+	removed := &repository.NameMap[*repository.NameMap[*PolicyRemovalReason]]{}
 	removed.Set("vendor/malware", versions)
-	pool := NewPool(nil, nil, &Removed{FilterList: removed})
+	pool := NewPool(nil, nil, &Removed{Policy: removed})
 
 	request := NewRequest(st.repoLocked)
 	request.FixPackage(p)

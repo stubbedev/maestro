@@ -164,8 +164,10 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 			if _, ok := uid.(*php.Array); ok {
 				return nil, &php.EngineError{Class: php.ClassTypeError, Message: "Cannot access offset of type array in isset or empty"}
 			}
-			if v, _ := versionsToLoad.Get(uid); v != nil {
-				continue
+			if uid != nil {
+				if v, _ := versionsToLoad.Get(uid); v != nil {
+					continue
+				}
 			}
 
 			versionNormalized, err := r.normalizeVersionData(data)
@@ -183,7 +185,12 @@ func (r *ComposerRepository) whatProvides(name string, acceptableStabilities, st
 				return nil, err
 			}
 			if acceptable {
-				versionsToLoad.Set(uid, data)
+				if uid == nil {
+					// inline packages have no uid and need no dedup
+					versionsToLoad.Append(data)
+				} else {
+					versionsToLoad.Set(uid, data)
+				}
 			}
 		}
 	}

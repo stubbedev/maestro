@@ -2,7 +2,7 @@
 
 /*
  * The parent class and interfaces of every exception class
- * internal/phperr's class table names, as PHP 8.4 with Composer 2.10.3
+ * internal/phperr's class table names, as PHP 8.4 with Composer 2.11.0
  * (.ref/composer, its vendor/) and maestro's shim loaded reports them:
  * writes internal/phperr/testdata/oracle/classes.json ({class: {parent:
  * parent|null, interfaces: [...]}}, null for a root; a class PHP does not

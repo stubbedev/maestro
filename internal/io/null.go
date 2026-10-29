@@ -56,6 +56,21 @@ func (*NullIO) Overwrite(string, bool, int, Verbosity) {}
 // OverwriteError implements IO.
 func (*NullIO) OverwriteError(string, bool, int, Verbosity) {}
 
+// WriteOsc implements IO.
+func (*NullIO) WriteOsc(string, string) error { return nil }
+
+// IsProgramStatusEnabled implements IO.
+func (*NullIO) IsProgramStatusEnabled() bool { return false }
+
+// StartProgramStatus implements IO.
+func (*NullIO) StartProgramStatus() {}
+
+// WriteProgramStatus implements IO.
+func (*NullIO) WriteProgramStatus(*console.ProgramStatus) {}
+
+// WriteProgress implements IO.
+func (*NullIO) WriteProgress(int) {}
+
 // Ask implements IO.
 func (*NullIO) Ask(_ string, def any) (any, error) { return def, nil }
 

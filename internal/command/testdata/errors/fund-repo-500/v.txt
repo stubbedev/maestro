@@ -1,7 +1,7 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 
-In CurlDownloader.php line 686:
+In CurlDownloader.php line 966:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   The "http://@SERVER@/status/500/packages.json" file could not be dow  
@@ -9,23 +9,24 @@ In CurlDownloader.php line 686:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:686
- Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:481
- Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
- Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:366
- Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:114
- Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1761
- Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
- Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1095
- Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:549
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:966
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:566
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:379
+ Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:112
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1827
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1533
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1155
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:571
  Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/Repository/CompositeRepository.php:115
  Composer\Repository\CompositeRepository->loadPackages() at @COMPOSER@/src/Composer/Command/FundCommand.php:60
  Composer\Command\FundCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 fund [-f|--format FORMAT]

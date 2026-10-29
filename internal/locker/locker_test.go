@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -311,6 +312,211 @@ func must3(v, ok bool, err error) (bool, bool) {
 	return v, ok
 }
 
+// headerRepository is a Composer repository of the manager's: the config
+// of the repository and whether a dist URL belongs to it.
+type headerRepository struct {
+	*repository.ArrayRepository
+	url        string
+	repository *php.Array
+}
+
+func newHeaderRepository(t *testing.T, url string, options *php.Array) *headerRepository {
+	t.Helper()
+
+	return &headerRepository{ArrayRepository: must(repository.NewArrayRepository(nil)), url: url, repository: php.ArrayOf("url", url, "options", options)}
+}
+
+func (r *headerRepository) RepoName() string { return "composer repo (" + r.url + ")" }
+
+func (r *headerRepository) BaseURL() string { return r.url }
+
+func (r *headerRepository) RepoConfig() *php.Array { return r.repository }
+
+func (r *headerRepository) IsOwnDistUrl(p pkg.PackageInterface) bool {
+	for _, url := range p.DistURLs() {
+		if rest, ok := strings.CutPrefix(url, r.url); ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func headerOptions(headers ...string) *php.Array {
+	list := php.NewArrayCap(len(headers))
+	for _, header := range headers {
+		list.Append(header)
+	}
+
+	return php.ArrayOf("http", php.ArrayOf("header", list))
+}
+
+// repositoryManagerWithHeaders is LockerTest::createRepositoryManagerWithHeaders.
+func repositoryManagerWithHeaders(t *testing.T) *repository.RepositoryManager {
+	t.Helper()
+
+	manager := repository.NewRepositoryManager(mio.NewNullIO(), nil, nil, nil, nil)
+	manager.AddRepository(newHeaderRepository(t, "https://example.org", headerOptions("API-TOKEN: base")))
+	// added after its parent URL so the longest match has to win, and
+	// filtered as only/exclude/canonical would do
+	filtered := newHeaderRepository(t, "https://example.org/team", headerOptions("API-TOKEN: team"))
+	manager.AddRepository(must(repository.NewFilterRepository(filtered, php.ArrayOf("canonical", false))))
+	manager.AddRepository(newHeaderRepository(t, "https://no-header.example.org", nil))
+
+	return manager
+}
+
+func packageWithDist(name, distURL string, transportOptions *php.Array) *pkg.Package {
+	p := pkg.NewPackage(name, "1.0.0.0", "1.0.0")
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str(distURL))
+	p.SetTransportOptions(transportOptions)
+
+	return p
+}
+
+func TestLocker_ContentHashIncludesPolicyConfig(t *testing.T) {
+	base := php.ArrayOf("name", "test", "config", php.ArrayOf("platform", php.ArrayOf("php", "8.1.0")))
+	withPolicy := php.ArrayOf("name", "test", "config", php.ArrayOf(
+		"platform", php.ArrayOf("php", "8.1.0"),
+		"policy", php.ArrayOf("cooldown", php.ArrayOf("period", "7days")),
+	))
+	withOtherConfig := php.ArrayOf("name", "test", "config", php.ArrayOf("platform", php.ArrayOf("php", "8.1.0"), "sort-packages", true))
+
+	hash := func(a *php.Array) string {
+		t.Helper()
+
+		return must(GetContentHash(must(json.Encode(a, 0, json.IndentDefault))))
+	}
+
+	if hash(base) == hash(withPolicy) {
+		t.Error("the policy config does not change the content hash")
+	}
+
+	if hash(base) != hash(withOtherConfig) {
+		t.Error("another config key changes the content hash")
+	}
+}
+
+func TestLocker_SetLockDataMovesTimestampsToTheEnd(t *testing.T) {
+	file := &jsonFileMock{}
+	locker := newLocker(t, file, getJSONContent(nil))
+
+	p := getPackage("pkg1", "1.0.0")
+	p.SetReleaseDate(must(loader.ParseDateTime("2026-01-01T00:00:00+00:00")), true)
+	p.SetPublishedDate(must(loader.ParseDateTime("2026-01-02T00:00:00+00:00")), true)
+
+	if !must(locker.SetLockData(LockDataInput{
+		Packages:         []pkg.PackageInterface{p},
+		DevPackages:      php.Some([]pkg.PackageInterface{}),
+		MinimumStability: "dev",
+	}, true)) || len(file.written) != 1 {
+		t.Fatal("not written")
+	}
+
+	written := file.written[0].(*php.Array)
+	packages := written.ArrayAt("packages")
+	keys := packages.At(0).(*php.Array).Keys()
+	got := make([]string, 0, len(keys))
+	for _, k := range keys {
+		got = append(got, k.String())
+	}
+
+	if want := []string{"name", "version", "type", "time", "published-time"}; !slices.Equal(got, want) {
+		t.Errorf("keys %v, want %v", got, want)
+	}
+
+	if v, _ := packages.At(0).(*php.Array).Get("published-time"); v != "2026-01-02T00:00:00+00:00" {
+		t.Errorf("published-time %v", v)
+	}
+}
+
+func TestLocker_SetLockDataRemovesRestorableHttpHeaders(t *testing.T) {
+	file := &jsonFileMock{}
+	out, err := mio.NewBufferIO("", 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	locker := must(New(out, file, noInstallPaths{}, getJSONContent(nil), nil))
+	locker.SetRepositoryManager(repositoryManagerWithHeaders(t))
+
+	base := packageWithDist("a/base", "https://example.org/dists/a.zip", headerOptions("API-TOKEN: base"))
+	team := packageWithDist("b/team", "https://example.org/team/dists/b.zip", php.ArrayOf(
+		"http", php.ArrayOf("header", php.ListOf("API-TOKEN: team"), "timeout", 10),
+		"ssl", php.ArrayOf("verify_peer", false),
+	))
+	otherHeader := packageWithDist("c/other-header", "https://example.org/dists/c.zip", headerOptions("API-TOKEN: other"))
+	inline := packageWithDist("d/inline", "https://inline.example.net/d.zip", headerOptions("API-TOKEN: inline"))
+
+	if !must(locker.SetLockData(LockDataInput{
+		Packages:         []pkg.PackageInterface{base, team, otherHeader, inline},
+		DevPackages:      php.Some([]pkg.PackageInterface{}),
+		MinimumStability: "dev",
+	}, true)) || len(file.written) != 1 {
+		t.Fatal("not written")
+	}
+
+	transportOptions := map[string]any{}
+	for _, p := range file.written[0].(*php.Array).ArrayAt("packages").All() {
+		pkgArray := p.(*php.Array)
+		transportOptions[php.ToString(pkgArray.At("name"))] = pkgArray.At("transport-options")
+	}
+
+	want := map[string]string{
+		"a/base":         "null",
+		"b/team":         `{"http":{"timeout":10},"ssl":{"verify_peer":false}}`,
+		"c/other-header": `{"http":{"header":["API-TOKEN: other"]}}`,
+		"d/inline":       `{"http":{"header":["API-TOKEN: inline"]}}`,
+	}
+	for name, w := range want {
+		if got := must(php.JSONEncode(transportOptions[name], 0)); got != w {
+			t.Errorf("%s transport options %s, want %s", name, got, w)
+		}
+	}
+
+	if want := "The transport options of c/other-header, d/inline contain http headers which will be stored in composer.lock"; !strings.Contains(out.Output(), want) {
+		t.Errorf("output %q, want %q", out.Output(), want)
+	}
+
+	// the packages themselves keep their options for the install that follows
+	if got := base.TransportOptions().Path("http", "header"); !php.StrictEquals(got, php.ListOf("API-TOKEN: base")) {
+		t.Errorf("package transport options %v", got)
+	}
+}
+
+func TestLocker_GetLockedRepositoryRestoresHttpHeaders(t *testing.T) {
+	file := &jsonFileMock{exists: true, data: php.ArrayOf("packages", php.ListOf(
+		php.ArrayOf("name", "a/base", "version", "1.0.0", "dist", php.ArrayOf("type", "zip", "url", "https://example.org/dists/a.zip")),
+		php.ArrayOf("name", "b/team", "version", "1.0.0", "dist", php.ArrayOf("type", "zip", "url", "https://example.org/team/dists/b.zip"), "transport-options", php.ArrayOf("ssl", php.ArrayOf("verify_peer", false))),
+		php.ArrayOf("name", "c/stored-header", "version", "1.0.0", "dist", php.ArrayOf("type", "zip", "url", "https://example.org/dists/c.zip"),
+			"transport-options", headerOptions("API-TOKEN: stored")),
+		php.ArrayOf("name", "d/no-header-repo", "version", "1.0.0", "dist", php.ArrayOf("type", "zip", "url", "https://no-header.example.org/dists/d.zip"), "transport-options", php.ArrayOf("ssl", php.ArrayOf("verify_peer", false))),
+		php.ArrayOf("name", "e/elsewhere", "version", "1.0.0", "dist", php.ArrayOf("type", "zip", "url", "https://elsewhere.example.net/e.zip")),
+	))}
+
+	locker := newLocker(t, file, getJSONContent(nil))
+	locker.SetRepositoryManager(repositoryManagerWithHeaders(t))
+
+	transportOptions := map[string]string{}
+	for _, p := range must(must(locker.LockedRepository(false)).Packages()) {
+		transportOptions[p.Name()] = must(php.JSONEncode(p.TransportOptions(), 0))
+	}
+
+	want := map[string]string{
+		"a/base":           `{"http":{"header":["API-TOKEN: base"]}}`,
+		"b/team":           `{"ssl":{"verify_peer":false},"http":{"header":["API-TOKEN: team"]}}`,
+		"c/stored-header":  `{"http":{"header":["API-TOKEN: stored"]}}`,
+		"d/no-header-repo": `{"ssl":{"verify_peer":false}}`,
+		"e/elsewhere":      `[]`,
+	}
+	for name, w := range want {
+		if transportOptions[name] != w {
+			t.Errorf("%s transport options %s, want %s", name, transportOptions[name], w)
+		}
+	}
+}
+
 func TestLocker_MissingRequirementInfo(t *testing.T) {
 	file := &jsonFileMock{exists: true, data: php.ArrayOf(
 		"packages", php.ListOf(
@@ -334,7 +540,7 @@ func TestLocker_MissingRequirementInfo(t *testing.T) {
 		`- Required package "c/c" is in the lock file as "replaced as 1.5 by r/r 2.0.0" but that does not satisfy your constraint "^2".`,
 		"This usually happens when composer files are incorrectly merged or the composer.json file is manually edited.",
 		"Read more about correctly resolving merge conflicts https://getcomposer.org/doc/articles/resolving-merge-conflicts.md",
-		"and prefer using the \"require\" command over editing the composer.json file directly https://getcomposer.org/doc/03-cli.md#require-r",
+		"and prefer using the \"require\" command over editing the composer.json file directly https://getcomposer.org/doc/03-cli.md#require--r",
 	}
 	if strings.Join(info, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("%s", strings.Join(info, "\n"))

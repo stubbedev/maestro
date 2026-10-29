@@ -394,6 +394,9 @@ func TestTransaction_TransactionGenerationAndSorting(t *testing.T) {
 		install(packageD),
 	}
 
-	transaction := NewTransaction(presentPackages, resultPackages)
+	transaction, err := NewTransaction(presentPackages, resultPackages)
+	if err != nil {
+		t.Fatal(err)
+	}
 	assertOperations(t, expectedOperations, operationResults(t, transaction.Operations(), "uninstall"))
 }

@@ -8,7 +8,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/filter"
 	"github.com/stubbedev/maestro/internal/io"
@@ -16,7 +18,9 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
@@ -364,6 +368,24 @@ func (d *PackageDiscovery) DetermineRequirements(in console.Input, _ console.Out
 	return requires, nil
 }
 
+// GetCooldownPolicyConfig is PackageDiscoveryTrait::getCooldownPolicyConfig:
+// the cooldown to apply while picking a version, or nil when it would not
+// block the resulting update.
+func (d *PackageDiscovery) GetCooldownPolicyConfig(in console.Input) (*policy.CooldownPolicyConfig, error) {
+	comp, err := d.cmd.TryComposer(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var cfg *config.Config
+	if comp != nil {
+		cfg = comp.Config()
+	} else if cfg, err = d.cmd.factory().CreateConfig(d.cmd.IO(), ""); err != nil {
+		return nil, err
+	}
+
+	return d.cmd.GetBlockingCooldownPolicy(cfg, in)
+}
+
 // phpVersionForSelector is PHP_MAJOR_VERSION.PHP_MINOR_VERSION.PHP_RELEASE_VERSION.
 func phpVersionForSelector(v string) string {
 	parts := strings.SplitN(v, ".", 3)
@@ -404,7 +426,15 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 			return "", "", err
 		}
 	}
-	versionSelector := version.NewVersionSelector(repoSet, platformPackages)
+	cooldown, err := d.GetCooldownPolicyConfig(in)
+	if err != nil {
+		return "", "", err
+	}
+	var selectorCooldown []version.Cooldown
+	if cooldown != nil {
+		selectorCooldown = append(selectorCooldown, cooldown)
+	}
+	versionSelector := version.NewVersionSelector(repoSet, platformPackages, selectorCooldown...)
 	if app := d.cmd.application(); app != nil {
 		versionSelector.PHPVersion = phpVersionForSelector(app.Runtime().PHPVersion())
 	}
@@ -413,13 +443,16 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 		return "", "", err
 	}
 
-	find := func(f filter.PlatformRequirementFilter, flags int, withIO bool) (pkg.PackageInterface, error) {
+	findWith := func(selector *version.VersionSelector, f filter.PlatformRequirementFilter, flags int, withIO bool) (pkg.PackageInterface, error) {
 		opts := version.FindBestCandidateOptions{PreferredStability: preferredStability, PlatformRequirementFilter: f, RepoSetFlags: flags}
 		if withIO {
 			opts.IO = d.cmd.IO()
 		}
 
-		return versionSelector.FindBestCandidate(name, opts)
+		return selector.FindBestCandidate(name, opts)
+	}
+	find := func(f filter.PlatformRequirementFilter, flags int, withIO bool) (pkg.PackageInterface, error) {
+		return findWith(versionSelector, f, flags, withIO)
 	}
 
 	p, err := find(platformRequirementFilter, 0, true)
@@ -459,9 +492,37 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 
 		_, ignoresAll := platformRequirementFilter.(version.IgnoreAllPlatformRequirementFilter)
 
+		// The diagnostics below ask what would match with a constraint relaxed, which the cooldown must not hide
+		unfilteredSelector := version.NewVersionSelector(repoSet, platformPackages)
+		unfilteredSelector.PHPVersion = versionSelector.PHPVersion
+		unfilteredFind := func(f filter.PlatformRequirementFilter, flags int, withIO bool) (pkg.PackageInterface, error) {
+			return findWith(unfilteredSelector, f, flags, withIO)
+		}
+
+		// Check whether the cooldown withheld every version
+		if cooldown != nil {
+			candidate, err := unfilteredFind(platformRequirementFilter, 0, false)
+			if err != nil {
+				return "", "", err
+			}
+			if candidate != nil {
+				wait := ""
+				if withheld := versionSelector.FirstClearingWithheldCandidate(); withheld != nil {
+					wait = " (version " + withheld.Package.PrettyVersion() + " becomes available in " + cooldown.FormatTimeUntilAvailable(withheld.ReleaseDate, time.Now(), false) + ")"
+				}
+
+				msg, err := php.Sprintf(`All versions of package %s are still in the cooldown period configured in "policy.cooldown"%s. `+resolver.CooldownRemedy, name, wait)
+				if err != nil {
+					return "", "", err
+				}
+
+				return "", "", NewError(ClassInvalidArgument, msg)
+			}
+		}
+
 		// Check whether the package requirements were the problem
 		if !ignoresAll {
-			candidate, err := find(filter.IgnoreAllFilter(), 0, false)
+			candidate, err := unfilteredFind(filter.IgnoreAllFilter(), 0, false)
 			if err != nil {
 				return "", "", err
 			}
@@ -480,12 +541,12 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 			}
 		}
 		// Check whether the minimum stability was the problem but the package exists
-		if p, err = find(platformRequirementFilter, repository.AllowUnacceptableStabilities, false); err != nil {
+		if p, err = unfilteredFind(platformRequirementFilter, repository.AllowUnacceptableStabilities, false); err != nil {
 			return "", "", err
 		}
 		if p != nil {
 			// we must first verify if a valid package would be found in a lower priority repository
-			allReposPackage, err := find(platformRequirementFilter, repository.AllowShadowedRepositories, false)
+			allReposPackage, err := unfilteredFind(platformRequirementFilter, repository.AllowShadowedRepositories, false)
 			if err != nil {
 				return "", "", err
 			}
@@ -498,13 +559,13 @@ func (d *PackageDiscovery) FindBestVersionAndNameForPackage(out io.IO, in consol
 		}
 		// Check whether the PHP version was the problem for all versions
 		if !ignoresAll {
-			candidate, err := find(filter.IgnoreAllFilter(), repository.AllowUnacceptableStabilities, false)
+			candidate, err := unfilteredFind(filter.IgnoreAllFilter(), repository.AllowUnacceptableStabilities, false)
 			if err != nil {
 				return "", "", err
 			}
 			if candidate != nil {
 				additional := ""
-				stable, err := find(filter.IgnoreAllFilter(), 0, false)
+				stable, err := unfilteredFind(filter.IgnoreAllFilter(), 0, false)
 				if err != nil {
 					return "", "", err
 				}

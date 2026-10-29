@@ -1,6 +1,6 @@
 Installing dependencies from lock file
 
-In Locker.php line 205:
+In Locker.php line 228:
                                                                                
   Your composer.lock is invalid. Run "composer update" to generate a new one.  
                                                                                

@@ -61,6 +61,16 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 	util.WorkaroundFilesystemIssues()
 
 	for _, bin := range binaries {
+		// ValidatingArrayLoader rejects these at publish time, but bins
+		// reach here from sources it never sees, e.g. path repositories,
+		// custom installers, or the ensureBinariesPresence() loop which
+		// reads installed.json through the non-validating ArrayLoader.
+		if !util.IsSafeBinPath(bin) {
+			b.io.WriteError("    <warning>Skipped installation of bin "+bin+" for package "+p.Name()+": the bin path contains invalid characters</warning>", true, mio.Normal)
+
+			continue
+		}
+
 		binPath := installPath + "/" + bin
 		if !php.FileExists(binPath) {
 			b.io.WriteError("    <warning>Skipped installation of bin "+bin+" for package "+p.Name()+": file not found in package</warning>", true, mio.Normal)
@@ -89,7 +99,12 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 			// $package, we can now safely turn it into a absolute path (as
 			// we already checked the binary's existence). The following
 			// helpers will require absolute paths to work properly.
-			binPath, _ = php.Realpath(binPath)
+			var ok bool
+			if binPath, ok = php.Realpath(binPath); !ok {
+				b.io.WriteError("    <warning>Skipped installation of bin "+bin+" for package "+p.Name()+": the bin path could not be resolved</warning>", true, mio.Normal)
+
+				continue
+			}
 		}
 
 		if err := b.initializeBinDir(); err != nil {
@@ -122,6 +137,12 @@ func (b *BinaryInstaller) InstallBinaries(p pkg.PackageInterface, installPath st
 
 		var err error
 		if binCompat == "full" {
+			if !isRepresentableInBatchProxy(binPath) || !isRepresentableInBatchProxy(b.binDir) {
+				b.io.WriteError("    <warning>Skipped installation of bin "+bin+" for package "+p.Name()+": the path contains a double quote or line break, which cannot be used in a Windows bin proxy</warning>", true, mio.Normal)
+
+				continue
+			}
+
 			err = b.installFullBinaries(binPath, link, bin, p)
 		} else {
 			err = b.installUnixyProxyBinaries(binPath, link)
@@ -213,7 +234,7 @@ func (b *BinaryInstaller) installFullBinaries(binPath, link, bin string, p pkg.P
 			return err
 		}
 
-		if err := filePutContents(link, code); err != nil {
+		if err := safeFilePutContents(link, code); err != nil {
 			return err
 		}
 
@@ -229,7 +250,7 @@ func (b *BinaryInstaller) installUnixyProxyBinaries(binPath, link string) error 
 		return err
 	}
 
-	if err := filePutContents(link, code); err != nil {
+	if err := safeFilePutContents(link, code); err != nil {
 		return err
 	}
 
@@ -249,11 +270,6 @@ func (b *BinaryInstaller) initializeBinDir() error {
 }
 
 func (b *BinaryInstaller) generateWindowsProxyCode(bin, link string) (string, error) {
-	binPath, err := util.FindShortestPath(link, bin, false, false)
-	if err != nil {
-		return "", err
-	}
-
 	caller, err := util.DetermineBinaryCaller(bin)
 	if err != nil {
 		return "", err
@@ -262,29 +278,49 @@ func (b *BinaryInstaller) generateWindowsProxyCode(bin, link string) (string, er
 	// if the target is a php file, we run the unixy proxy file to ensure
 	// that _composer_autoload_path gets defined, instead of running the
 	// binary directly
-	target := binPath
-	if caller == "php" {
-		target = php.Basename(link, ".bat")
+	target := php.Basename(link, ".bat")
+	if !util.IsPhpInterpreter(caller) {
+		if target, err = util.FindShortestPath(link, bin, false, false); err != nil {
+			return "", err
+		}
 	}
 
+	// quoting the SET statements keeps cmd.exe from acting on & | < > ^ ( )
+	// in either the package's bin path or the user's own project path
 	return "@ECHO OFF\r\n" +
 		"setlocal DISABLEDELAYEDEXPANSION\r\n" +
-		"SET BIN_TARGET=%~dp0/" + php.TrimSet(util.Escape(target), `"'`) + "\r\n" +
-		"SET COMPOSER_RUNTIME_BIN_DIR=%~dp0\r\n" +
+		"SET \"BIN_TARGET=%~dp0/" + escapeBatchSetValue(target) + "\"\r\n" +
+		"SET \"COMPOSER_RUNTIME_BIN_DIR=%~dp0\"\r\n" +
 		caller + " \"%BIN_TARGET%\" %*\r\n", nil
 }
 
-// shDoubleQuotedReplacer backslash-escapes the characters that keep their
-// meaning inside a POSIX sh double-quoted string.
-var shDoubleQuotedReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "$", `\$`, "`", "\\`")
+// escapeShellArg is BinaryInstaller::escapeShellArg: it quotes a string so
+// a POSIX shell reads it as a single literal word. ProcessExecutor::escape()
+// cannot be used here as it switches to cmd.exe rules when Composer itself
+// runs on Windows, while this proxy is always read by sh, incl. on Windows
+// for Cygwin.
+func escapeShellArg(arg string) string {
+	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
+}
 
-// shDoubleQuoted escapes s for the inside of the double-quoted
-// "${dir}/<binFile>" of the shell proxy, so a bin file name can neither
-// end the string nor expand: Composer splices basename($binPath) in
-// unescaped, which yields the same proxy for every name without those
-// characters.
-func shDoubleQuoted(s string) string {
-	return shDoubleQuotedReplacer.Replace(s)
+// escapeBatchSetValue is BinaryInstaller::escapeBatchSetValue: it escapes a
+// value for a `SET "VAR=<value>"` statement of a generated .bat proxy.
+// Quoting the assignment makes cmd.exe read & | < > ^ ( ) literally, and !
+// is inert thanks to the proxy's DISABLEDELAYEDEXPANSION. Percent expansion
+// runs before quotes are applied though, so those must be doubled -- %%
+// collapses back to one % in a batch file, which is what this generates.
+func escapeBatchSetValue(value string) string {
+	return strings.ReplaceAll(value, "%", "%%")
+}
+
+// isRepresentableInBatchProxy is BinaryInstaller::isRepresentableInBatchProxy:
+// whether a path can be represented in a .bat proxy at all. A double quote
+// would end the SET "..." quoting, a line break would start a new batch
+// line, and cmd.exe stops reading a batch file at a 0x1A. None can be
+// escaped, and stripping them could point the proxy at a different existing
+// file, so such bins are skipped instead.
+func isRepresentableInBatchProxy(path string) bool {
+	return !strings.ContainsAny(path, "\"\r\n\x1a")
 }
 
 // phpBinPattern finds PHP files (with an optional shebang) among the bins.
@@ -296,8 +332,8 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 		return "", err
 	}
 
-	binDir := util.Escape(php.Dirname(binPath))
-	binFile := shDoubleQuoted(php.Basename(binPath, ""))
+	binDir := escapeShellArg(php.Dirname(binPath))
+	binFile := escapeShellArg(php.Basename(binPath, ""))
 
 	binContents, err := fileGetContents(bin, 500)
 	if err != nil {
@@ -315,16 +351,28 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 		return shellProxyCode(binDir, binFile), nil
 	}
 
-	// carry over the existing shebang if present, otherwise add our own
+	// carry over the existing shebang if present and safe to embed,
+	// otherwise add our own. Only a php one is kept as the proxy body below
+	// is PHP.
 	proxyCode := "#!/usr/bin/env php"
-	if shebang, ok := match.Group(1); ok {
-		proxyCode = php.Trim(shebang)
+	shebang := ""
+	if m, ok := match.Group(1); ok {
+		shebang = php.RtrimSet(m, " \t\r\n")
+	}
+	if caller, ok := util.ShebangCaller(shebang); ok && util.IsPhpInterpreter(caller) {
+		proxyCode = shebang
 	}
 
 	binPathExported, err := util.FindShortestPathCode(link, bin, false, true, false)
 	if err != nil {
 		return "", err
 	}
+
+	// a package controls every segment of its bin paths, and a "*/" in the
+	// path below would close the docblock it goes into and have the rest of
+	// it parsed as PHP code
+	binPathComment := strings.ReplaceAll(strings.ReplaceAll(binPath, "\r", " "), "\n", " ")
+	binPathComment = strings.ReplaceAll(binPathComment, "*/", "* /")
 
 	streamProxy, streamHint := "", ""
 	globalsCode := "$GLOBALS['_composer_bin_dir'] = __DIR__;\n"
@@ -362,7 +410,7 @@ func (b *BinaryInstaller) generateUnixyProxyCode(bin, link string) (string, erro
 		streamProxy = streamProxyCode(phpunitHack1, phpunitHack2, binPathExported)
 	}
 
-	return proxyCode + "\n" + phpProxyCode(binPathExported, binPath, streamHint, globalsCode, streamProxy), nil
+	return proxyCode + "\n" + phpProxyCode(binPathExported, binPathComment, streamHint, globalsCode, streamProxy), nil
 }
 
 // silentChmod is Silencer::call('chmod', $path, 0777 & ~umask()), through
@@ -372,10 +420,11 @@ func silentChmod(path string) {
 	_ = store.Chmod(path, 0o777&^store.Umask())
 }
 
-// filePutContents is file_put_contents() under Composer's error handler.
-func filePutContents(path, data string) error {
-	if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
-		return &util.ErrorException{Message: "file_put_contents(" + path + "): Failed to open stream: " + php.Strerror(err)}
+// safeFilePutContents is Filesystem::safeFilePutContents() under
+// Composer's error handler.
+func safeFilePutContents(path, data string) error {
+	if _, err := util.SafeFilePutContents(path, []byte(data)); err != nil {
+		return err
 	}
 
 	return nil

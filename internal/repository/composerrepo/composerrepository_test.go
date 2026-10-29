@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -237,7 +238,7 @@ func TestComposerRepository_GetProviderNamesWillReturnPartialPackageNames(t *tes
 func securityAdvisoriesPostOptions(names ...string) *php.Array {
 	pairs := make([]string, 0, 2*len(names))
 	for i, name := range names {
-		pairs = append(pairs, "packages["+string(rune('0'+i))+"]", name)
+		pairs = append(pairs, "packages["+strconv.Itoa(i)+"]", name)
 	}
 
 	return php.ArrayOf("http", php.ArrayOf(
@@ -712,5 +713,172 @@ func TestComposerRepository_GetFilterSkipsApiUrlWhenMetadataAlreadyFetched(t *te
 	entries, _ := filter.Get("malware")
 	if len(entries) != 1 || entries[0].ID != pkg.Str("ID-meta") {
 		t.Fatalf("got %+v", entries)
+	}
+}
+
+func TestComposerRepository_FindPackageWithPartialPackagesWithoutUid(t *testing.T) {
+	httpDownloader := mock(t, httpmock.Expectation{
+		URL: "http://example.org/packages.json",
+		Body: encode(t, php.ArrayOf(
+			"metadata-url", "/p2/%package%.json",
+			"packages", php.ArrayOf("fbi-gov/x-files", php.ArrayOf(
+				"dev-main", php.ArrayOf("name", "fbi-gov/x-files", "version", "dev-main", "extra", php.ArrayOf("branch-alias", php.ArrayOf("dev-main", "1.x-dev"))),
+				"1.0.0", php.ArrayOf("name", "fbi-gov/x-files", "version", "1.0.0"),
+				"1.1.0", php.ArrayOf("name", "fbi-gov/x-files", "version", "1.1.0"),
+			)),
+		)),
+	})
+
+	repo := newRepo(t, php.ArrayOf("url", "http://example.org/packages.json"), createConfig(t), httpDownloader)
+
+	p := must(repo.FindPackage("fbi-gov/x-files", semver.NewConstraintOp(semver.OpEQ, "1.0.0.0")))
+	if p == nil {
+		t.Fatal("package not found")
+	}
+	if p.Version() != "1.0.0.0" {
+		t.Errorf("version %q, want 1.0.0.0", p.Version())
+	}
+
+	// 3 versions + the dev-main alias
+	if packages := must(repo.FindPackages("fbi-gov/x-files", semver.NewMatchAllConstraint())); len(packages) != 4 {
+		t.Errorf("%d packages, want 4", len(packages))
+	}
+}
+
+func TestComposerRepository_GetSecurityAdvisoriesFallsBackToPartialAdvisoriesWithoutApiUrl(t *testing.T) {
+	httpDownloader := mock(t,
+		httpmock.Expectation{
+			URL: "https://example.org/packages.json",
+			Body: encode(t, php.ArrayOf(
+				"packages", php.NewArray(),
+				"metadata-url", "https://example.org/p2/%package%.json",
+				"available-package-patterns", php.ListOf("foo/*"),
+				"security-advisories", php.ArrayOf("metadata", true),
+			)),
+		},
+		httpmock.Expectation{
+			URL: "https://example.org/p2/foo/bar.json",
+			Body: encode(t, php.ArrayOf(
+				"packages", php.ArrayOf("foo/bar", php.ListOf(php.ArrayOf("name", "foo/bar", "version", "1.0.0"))),
+				"security-advisories", php.ListOf(php.ArrayOf("advisoryId", "ACME-2026-001", "affectedVersions", "<1.0.1")),
+				"minified", "composer/2.0",
+			)),
+		},
+	)
+
+	repo := newRepo(t, php.ArrayOf("url", "https://example.org/packages.json"), createConfig(t), httpDownloader)
+
+	advisories := must(repo.SecurityAdvisories(repository.NewConstraintMap("foo/bar", semver.NewConstraintOp(semver.OpEQ, "1.0.0.0")), false)).Advisories
+
+	list, _ := advisories.Get("foo/bar")
+	if len(list) != 1 {
+		t.Fatalf("%d advisories, want 1", len(list))
+	}
+	if list[0].Partial().AdvisoryID != "ACME-2026-001" {
+		t.Errorf("advisory %q", list[0].Partial().AdvisoryID)
+	}
+	// the repository can provide no full advisory, so the partial one is
+	// returned as it is
+	if _, full := list[0].(*repository.SecurityAdvisory); full {
+		t.Error("a full advisory")
+	}
+}
+
+func TestComposerRepository_GetSecurityAdvisoriesBatchesLargeRequests(t *testing.T) {
+	packageNames := make([]string, 1200)
+	for i := range packageNames {
+		packageNames[i] = "foo/pkg" + strconv.Itoa(i)
+	}
+	advisory := generateSecurityAdvisory("CVE-1999-1000", "foo/pkg1100", "CVE-1999-1000", ">=1.0.0")
+
+	expectations := []httpmock.Expectation{{
+		URL: "https://example.org/packages.json",
+		Body: encode(t, php.ArrayOf(
+			"metadata-url", "https://example.org/p2/%package%.json",
+			"security-advisories", php.ArrayOf("api-url", "https://example.org/security-advisories"),
+		)),
+		Options: verifyPeerOptions(),
+	}}
+	// 1200 names must be split into 500/500/200 so that no request exceeds
+	// the servers' max_input_vars, which would silently drop the trailing
+	// packages
+	for index, batch := range [][]string{packageNames[:500], packageNames[500:1000], packageNames[1000:]} {
+		body := php.ArrayOf("advisories", php.NewArray())
+		if index == 2 {
+			body = php.ArrayOf("advisories", php.ArrayOf("foo/pkg1100", php.ListOf(advisory)))
+		}
+		expectations = append(expectations, httpmock.Expectation{
+			URL:     "https://example.org/security-advisories",
+			Body:    encode(t, body),
+			Options: securityAdvisoriesPostOptions(batch...),
+		})
+	}
+
+	httpDownloader := mock(t, expectations...)
+
+	repo := newRepo(t, php.ArrayOf("url", "https://example.org/packages.json", "options", verifyPeerOptions()), createConfig(t), httpDownloader)
+
+	constraints := &repository.ConstraintMap{}
+	for _, packageName := range packageNames {
+		constraints.Set(packageName, semver.NewMatchAllConstraint())
+	}
+
+	result := must(repo.SecurityAdvisories(constraints, false))
+
+	if got := result.Advisories.Keys(); !slices.Equal(got, []string{"foo/pkg1100"}) {
+		t.Fatalf("advisories %v", got)
+	}
+	list, _ := result.Advisories.Get("foo/pkg1100")
+	if list[0].Partial().AdvisoryID != "CVE-1999-1000" {
+		t.Errorf("advisory %q", list[0].Partial().AdvisoryID)
+	}
+}
+
+func TestComposerRepository_TransportOptionsOnlyApplyToDistUrlsUnderTheRepositoryUrl(t *testing.T) {
+	options := php.ArrayOf("http", php.ArrayOf("header", php.ListOf("Authorization: Bearer secret")))
+	for _, tc := range []struct {
+		repositoryURL, distURL string
+		expected               bool
+	}{
+		{"https://example.org/packages.json", "https://example.org/dists/foo.zip", true},
+		{"https://example.org/packages.json", "https://example.org?file=foo.zip", true},
+		{"https://example.org/packages.json", "https://example.org", true},
+		{"https://example.org/repo/packages.json", "https://example.org/repo/dists/foo.zip", true},
+		{"https://example.org/packages.json", "https://example.org.evil.com/foo.zip", false},
+		{"https://example.org/packages.json", "https://example.organization/foo.zip", false},
+		{"https://example.org/packages.json", "https://example.org@evil.com/foo.zip", false},
+		{"https://example.org/packages.json", "https://example.org:secret@evil.com/foo.zip", false},
+		{"https://example.org/repo/packages.json", "https://example.org/repository/foo.zip", false},
+		{"https://example.org/packages.json", "https://evil.com/foo.zip", false},
+	} {
+		repo := newRepo(t, php.ArrayOf("url", tc.repositoryURL, "options", options), createConfig(t), httpmock.New())
+
+		p := pkg.NewPackage("foo/bar", "1.0.0.0", "1.0.0")
+		p.SetDistType(pkg.Str("zip"))
+		p.SetDistURL(pkg.Str(tc.distURL))
+
+		repo.configurePackageTransportOptions(p)
+
+		if got := repo.IsOwnDistUrl(p); got != tc.expected {
+			t.Errorf("%s: isOwnDistUrl = %v, want %v", tc.distURL, got, tc.expected)
+		}
+		got := p.TransportOptions().Len() > 0
+		if got != tc.expected {
+			t.Errorf("%s: transport options set = %v, want %v", tc.distURL, got, tc.expected)
+		}
+	}
+}
+
+func TestComposerRepository_RequirePublishedTimeOption(t *testing.T) {
+	cfg := createConfig(t)
+
+	repo := newRepo(t, php.ArrayOf("url", "https://example.org"), cfg, httpmock.New())
+	if !repo.RequiresPublishedTime() {
+		t.Error("require-published-time defaults to false")
+	}
+
+	repo = newRepo(t, php.ArrayOf("url", "https://example.org", "require-published-time", false), cfg, httpmock.New())
+	if repo.RequiresPublishedTime() {
+		t.Error("require-published-time false ignored")
 	}
 }

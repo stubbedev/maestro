@@ -1,6 +1,6 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In AuditCommand.php line 120:
+In AuditCommand.php line 133:
                                                                                
   [UnexpectedValueException]                                                   
   Valid composer.json and composer.lock files are required to run this comman  
@@ -8,16 +8,17 @@ In AuditCommand.php line 120:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/AuditCommand.php:120
- Composer\Command\AuditCommand->getPackages() at @COMPOSER@/src/Composer/Command/AuditCommand.php:60
+  at @COMPOSER@/src/Composer/Command/AuditCommand.php:133
+ Composer\Command\AuditCommand->getPackages() at @COMPOSER@/src/Composer/Command/AuditCommand.php:63
  Composer\Command\AuditCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-audit [--no-dev] [-f|--format FORMAT] [--locked] [--abandoned ABANDONED] [--ignore-severity IGNORE-SEVERITY] [--ignore-unreachable]
+audit [--no-dev] [-f|--format FORMAT] [--locked] [--abandoned ABANDONED] [--ignore-severity IGNORE-SEVERITY] [--ignore-unreachable] [-D|--direct]
 
 exit 1

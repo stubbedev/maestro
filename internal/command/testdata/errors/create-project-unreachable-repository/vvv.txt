@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/plain" project at "./out"
@@ -19,7 +19,7 @@ Retrying (1) http://127.0.0.1:1/packages.json due to curl error 7
 Retrying (2) http://127.0.0.1:1/packages.json due to curl error 7
 Retrying (3) http://127.0.0.1:1/packages.json due to curl error 7
 
-In CurlDownloader.php line 407:
+In CurlDownloader.php line 498:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   curl error 7 while downloading http://127.0.0.1:1/packages.json: Failed to   
@@ -27,27 +27,28 @@ In CurlDownloader.php line 407:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:407
- Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:395
- Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:366
- Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:114
- Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1761
- Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1467
- Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1095
- Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:549
- Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:201
- Composer\Repository\RepositorySet->findPackages() at @COMPOSER@/src/Composer/Package/Version/VersionSelector.php:86
- Composer\Package\Version\VersionSelector->findBestCandidate() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:447
- Composer\Command\CreateProjectCommand->installRootPackage() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:200
- Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:498
+ Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
+ Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:379
+ Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:112
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1827
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1533
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1155
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:571
+ Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:203
+ Composer\Repository\RepositorySet->findPackages() at @COMPOSER@/src/Composer/Package/Version/VersionSelector.php:102
+ Composer\Package\Version\VersionSelector->findBestCandidate() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:453
+ Composer\Command\CreateProjectCommand->installRootPackage() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:204
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:159
  Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-cooldown] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
 
 exit 100

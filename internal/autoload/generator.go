@@ -24,6 +24,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/store"
 	"github.com/stubbedev/maestro/internal/util"
+	"github.com/stubbedev/maestro/internal/util/fspath"
 	"github.com/stubbedev/maestro/internal/util/fsstate"
 )
 
@@ -276,7 +277,7 @@ func (g *Generator) Warm(config Config, localRepo InstalledRepository, rootPacka
 	g.addReleases(packageMap[1:])
 	requests := make([]classmap.ScanRequest, 0, len(autoloads.Classmap))
 	for _, dir := range autoloads.Classmap {
-		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: buildExclusionRegex(dir, autoloads.ExcludeFromClassmap)})
+		requests = append(requests, classmap.ScanRequest{Path: dir, Excluded: buildExclusionRegexWithVendorDir(dir, autoloads.ExcludeFromClassmap, string(d.vendorPath))})
 	}
 	if scanPsrPackages {
 		for _, s := range d.psrScans(autoloads, autoloads.ExcludeFromClassmap) {
@@ -388,6 +389,9 @@ func analyseClassMap(classMap *classmap.ClassMap, vendorPath string, strictAmbig
 	if strictAmbiguous {
 		filter = nil
 	}
+	// added before the ambiguity checks so that the cached result is reused
+	// by dump-autoload --strict-ambiguous
+	classMap.AddClass(`Composer\InstalledVersions`, vendorPath+"/composer/InstalledVersions.php")
 	ambiguousClasses, err := classMap.AmbiguousClasses(filter)
 	if err != nil {
 		return nil, err
@@ -406,7 +410,15 @@ func analyseClassMap(classMap *classmap.ClassMap, vendorPath string, strictAmbig
 				` was found in both "`+classPath+`" and "`+paths+`", the first will be used.</warning>`)
 		}
 	}
-	if len(ambiguousClasses) > 0 {
+	ambiguousFolders, err := classMap.AmbiguousFolders(filter)
+	if err != nil {
+		return warnings, err
+	}
+	for _, paths := range ambiguousFolders {
+		warnings = append(warnings, `<warning>Warning: Ambiguous path casing, "`+strings.Join(paths, `", "`)+`" only differ in casing`+
+			` and merge into one on case-insensitive filesystems (e.g. Windows and macOS), which breaks autoloading there.</warning>`)
+	}
+	if len(ambiguousClasses) > 0 || len(ambiguousFolders) > 0 {
 		warnings = append(warnings, "<info>To resolve ambiguity in classes not under your control you can ignore them by path using <href="+console.Escape("https://getcomposer.org/doc/04-schema.md#exclude-files-from-classmaps")+">exclude-from-classmap</>")
 	}
 
@@ -416,7 +428,6 @@ func analyseClassMap(classMap *classmap.ClassMap, vendorPath string, strictAmbig
 		warnings = append(warnings, "<warning>"+msg+"</warning>")
 	}
 
-	classMap.AddClass(`Composer\InstalledVersions`, vendorPath+"/composer/InstalledVersions.php")
 	classMap.Sort()
 
 	return warnings, nil
@@ -436,7 +447,7 @@ func (g *Generator) scanClassMap(d *dump, autoloads *Autoloads, packageMap []Pac
 		if autoloads.classmapValue != nil && i == autoloads.classmapIndex {
 			return nil, pkg.ArgumentTypeError(`Composer\Autoload\AutoloadGenerator::buildExclusionRegex`, 1, "dir", "string", autoloads.classmapValue)
 		}
-		scans = append(scans, psrScan{dir, buildExclusionRegex(dir, excluded), classmap.Classmap, ""})
+		scans = append(scans, psrScan{dir, buildExclusionRegexWithVendorDir(dir, excluded, string(d.vendorPath)), classmap.Classmap, ""})
 	}
 	if scanPsrPackages {
 		scans = append(scans, d.psrScans(autoloads, excluded)...)
@@ -739,9 +750,15 @@ func (g *Generator) CreateLoader(autoloads *Autoloads, vendorDir string) (*Class
 	// the scans, or their record when it is still valid (a loader of the
 	// same packages); a scan reads the results the dumps kept with the
 	// store releases, and keeps what it parsed for the next loader or dump
+	vendorPath := ""
+	if vendorDir != "" {
+		if realVendorDir, ok := php.Realpath(vendorDir); ok {
+			vendorPath = fspath.NormalizePath(realVendorDir)
+		}
+	}
 	scans := make([]psrScan, len(autoloads.Classmap))
 	for i, dir := range autoloads.Classmap {
-		scans[i] = psrScan{dir, buildExclusionRegex(dir, autoloads.ExcludeFromClassmap), classmap.Classmap, ""}
+		scans[i] = psrScan{dir, buildExclusionRegexWithVendorDir(dir, autoloads.ExcludeFromClassmap, vendorPath), classmap.Classmap, ""}
 	}
 	record, recorded := g.loaderRecord(scans, vendorDir)
 	defer g.parseCache.Save()

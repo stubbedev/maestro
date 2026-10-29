@@ -20,11 +20,11 @@ type ConfigReader interface {
 // ReservedNames is PolicyConfig::RESERVED_NAMES: names reserved for
 // built-in lists, which repositories must not advertise. Treat it as
 // read-only.
-var ReservedNames = [...]string{AdvisoriesName, AbandonedName}
+var ReservedNames = [...]string{AdvisoriesName, AbandonedName, CooldownName}
 
 // BuiltinListNames is PolicyConfig::BUILTIN_LIST_NAMES. Treat it as
 // read-only.
-var BuiltinListNames = [...]string{AdvisoriesName, AbandonedName, MalwareName}
+var BuiltinListNames = [...]string{AdvisoriesName, AbandonedName, MalwareName, CooldownName}
 
 // FutureReservedPrefixes is PolicyConfig::FUTURE_RESERVED_PREFIXES. Treat
 // it as read-only.
@@ -47,6 +47,7 @@ type PolicyConfig struct {
 	Advisories  *AdvisoriesPolicyConfig
 	Malware     *MalwarePolicyConfig
 	Abandoned   *AbandonedPolicyConfig
+	Cooldown    *CooldownPolicyConfig
 	CustomLists *OrderedMap[*CustomListPolicyConfig]
 	// IgnoreUnreachable tells for which operations unreachable
 	// repositories and policy sources are silently ignored.
@@ -102,6 +103,7 @@ func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 			Advisories:        AdvisoriesPolicyConfigDisabled(),
 			Malware:           MalwarePolicyConfigDisabled(),
 			Abandoned:         AbandonedPolicyConfigDisabled(),
+			Cooldown:          CooldownPolicyConfigDisabled(),
 			CustomLists:       &OrderedMap[*CustomListPolicyConfig]{},
 			IgnoreUnreachable: IgnoreUnreachableAll(),
 		}, nil
@@ -119,6 +121,10 @@ func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 		return nil, err
 	}
 	abandoned, err := AbandonedPolicyConfigFromRawConfig(policyConfig, auditConfig)
+	if err != nil {
+		return nil, err
+	}
+	cooldown, err := CooldownPolicyConfigFromRawConfig(policyConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +187,14 @@ func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 		abandoned = NewAbandonedPolicyConfig(block, abandoned.Audit, abandoned.Ignore)
 	}
 
+	block, set, err = util.GetBoolEnv("COMPOSER_POLICY_COOLDOWN_BLOCK")
+	if err != nil {
+		return nil, err
+	}
+	if set {
+		cooldown = NewCooldownPolicyConfig(block, cooldown.Audit, cooldown.Ignore, cooldown.Period)
+	}
+
 	if auditAbandonedEnv, ok := util.GetEnv("COMPOSER_AUDIT_ABANDONED"); ok {
 		if !slices.Contains(Audits[:], auditAbandonedEnv) {
 			return nil, &util.RuntimeError{Message: "Invalid value for COMPOSER_AUDIT_ABANDONED: " + auditAbandonedEnv +
@@ -194,6 +208,7 @@ func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 		Advisories:        advisories,
 		Malware:           malware,
 		Abandoned:         abandoned,
+		Cooldown:          cooldown,
 		CustomLists:       customLists,
 		IgnoreUnreachable: ignoreUnreachable,
 	}, nil
@@ -201,10 +216,11 @@ func FromConfig(config ConfigReader) (*PolicyConfig, error) {
 
 // AllLists ports getAllLists: the built-in lists, then the custom ones.
 func (p *PolicyConfig) AllLists() *OrderedMap[ListPolicyConfig] {
-	all := &OrderedMap[ListPolicyConfig]{entries: make([]Entry[ListPolicyConfig], 0, 3+p.CustomLists.Len())}
+	all := &OrderedMap[ListPolicyConfig]{entries: make([]Entry[ListPolicyConfig], 0, 4+p.CustomLists.Len())}
 	all.Set(AdvisoriesName, p.Advisories)
 	all.Set(MalwareName, p.Malware)
 	all.Set(AbandonedName, p.Abandoned)
+	all.Set(CooldownName, p.Cooldown)
 	for name, list := range p.CustomLists.All() {
 		all.Set(name, list)
 	}
@@ -249,7 +265,8 @@ func (p *PolicyConfig) ActiveBlockFilterListNames(blockScope string) []string {
 }
 
 // filterableLists ports filterableLists: every list except advisories and
-// abandoned, which have dedicated code paths.
+// abandoned (which have dedicated code paths) and cooldown (which has its
+// own dedicated pool filter).
 func (p *PolicyConfig) filterableLists() func(yield func(string, ListPolicyConfig) bool) {
 	return func(yield func(string, ListPolicyConfig) bool) {
 		if !yield(MalwareName, p.Malware) {
@@ -289,10 +306,20 @@ func (p *PolicyConfig) WithBlockingDisabled() *PolicyConfig {
 	c.Advisories = p.Advisories.WithBlockingDisabled()
 	c.Malware = p.Malware.WithBlockingDisabled()
 	c.Abandoned = p.Abandoned.WithBlockingDisabled()
+	c.Cooldown = p.Cooldown.WithBlockingDisabled()
 	c.CustomLists = &OrderedMap[*CustomListPolicyConfig]{entries: make([]Entry[*CustomListPolicyConfig], 0, p.CustomLists.Len())}
 	for name, list := range p.CustomLists.All() {
 		c.CustomLists.Set(name, list.WithBlockingDisabled())
 	}
+
+	return c
+}
+
+// WithCooldownBlockingDisabled ports withCooldownBlockingDisabled (for
+// --no-cooldown).
+func (p *PolicyConfig) WithCooldownBlockingDisabled() *PolicyConfig {
+	c := p.with()
+	c.Cooldown = p.Cooldown.WithBlockingDisabled()
 
 	return c
 }

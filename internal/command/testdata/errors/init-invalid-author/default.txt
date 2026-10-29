@@ -1,5 +1,5 @@
 
-In InitCommand.php line 452:
+In InitCommand.php line 468:
                                                                                
   Invalid author string.  Must be in the formats: Jane Doe or John Smith <joh  
   n@example.com>                                                               

@@ -54,6 +54,7 @@ func DefaultConfig() *php.Array {
 		"autoloader-suffix", nil,
 		"sort-packages", false,
 		"optimize-autoloader", false,
+		"strict-psr-autoloader", false,
 		"classmap-authoritative", false,
 		"apcu-autoloader", false,
 		"prepend-autoloader", true,
@@ -213,7 +214,7 @@ func arrayArgError(fn string, arg int, v any) error {
 	return &php.EngineError{Class: "TypeError", Message: fn + "(): Argument #" + strconv.Itoa(arg) + " must be of type array, " + php.ZvalValueName(v) + " given"}
 }
 
-var authKeys = [...]string{"bitbucket-oauth", "github-oauth", "gitlab-oauth", "gitlab-token", "http-basic", "bearer", "client-certificate", "forgejo-token"}
+var authKeys = [...]string{"bitbucket-oauth", "github-oauth", "gitlab-oauth", "gitlab-token", "http-basic", "bearer", "custom-headers", "client-certificate", "forgejo-token"}
 
 // policyDeepMergeKeys are the inner keys of a policy list that are deep
 // merged so ignore rules from global and project sources both apply.
@@ -548,7 +549,7 @@ func (c *Config) Get(key string, flags int) (any, error) {
 		return val != "false" && php.ToBool(val), nil
 
 	// booleans without env var support
-	case "disable-tls", "secure-http", "use-github-api", "lock", "source-fallback":
+	case "disable-tls", "secure-http", "use-github-api", "lock", "source-fallback", "strict-psr-autoloader":
 		// special case for secure-http
 		if key == "secure-http" {
 			if disableTLS, _ := c.Get("disable-tls", 0); disableTLS == true {
@@ -952,17 +953,32 @@ func (c *Config) disableRepoByName(name string) {
 // *util.TransportError when the configuration does not allow accessing url.
 // io may be nil; repoOptions may be nil.
 func (c *Config) ProhibitURLByConfig(url string, out io.IO, repoOptions *php.Array) error {
-	// Return right away if the URL is malformed or custom (see issue #5173), but only for non-HTTP(S) URLs
-	if !util.FilterValidateURL(url) {
-		// Anchored and fixed-length: Preg::isMatch cannot throw.
-		if m, _ := httpURLPattern.IsMatch(url); !m {
-			return nil
+	// git's <transport>::<address> syntax connects to the address, so check that
+	checkedURL := url
+	for {
+		m, err := transportPrefixPattern.Match(checkedURL)
+		if err != nil {
+			return err
 		}
+		if m == nil {
+			break
+		}
+		checkedURL = m.Get(1)
 	}
 
-	// Extract scheme and throw exception on known insecure protocols
-	parts, _ := util.ParseURL(url)
-	scheme := php.Strtolower(parts.Scheme)
+	// Return right away for custom URLs without a scheme like local paths (see issue #5173), but do not rely
+	// on filter_var for this as it rejects many malformed URLs which tools would still happily connect to
+	m, err := urlSchemePattern.Match(checkedURL)
+	if err != nil {
+		return err
+	}
+	if m == nil {
+		return nil
+	}
+
+	// Throw exception on known insecure protocols
+	scheme := php.Strtolower(m.Get(1))
+	parts, _ := util.ParseURL(checkedURL)
 	hostname, hasHostname := parts.Host, parts.HasHost
 	if scheme == "http" || scheme == "git" || scheme == "ftp" || scheme == "svn" {
 		secureHTTP, err := c.Get("secure-http", 0)
@@ -1053,7 +1069,10 @@ func repoOptionsSSL(repoOptions *php.Array) (*php.Array, bool) {
 	return repoOptions.GetArray("ssl")
 }
 
-var httpURLPattern = php.MustCompile(`{^https?://}i`)
+var (
+	transportPrefixPattern = php.MustCompile(`{^[a-z][a-z0-9+.-]*::(.+)$}i`)
+	urlSchemePattern       = php.MustCompile(`{^([a-z][a-z0-9+.-]*)://}i`)
+)
 
 // DisableProcessTimeout ports Config::disableProcessTimeout, used by
 // long-running custom scripts in composer.json: it overrides the global

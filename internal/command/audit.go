@@ -35,13 +35,16 @@ func NewAuditCommand() *AuditCommand {
 		console.MustOption("locked", "", console.OptionValueNone, "Audit based on the lock file instead of the installed packages.", nil),
 		optionWithSuggestions("abandoned", "", console.OptionValueRequired, `Behavior on abandoned packages. Must be "ignore", "report", or "fail".`, nil, policy.Audits[:]...),
 		optionWithSuggestions("ignore-severity", "", console.OptionValueIsArray|console.OptionValueRequired, "Ignore advisories of a certain severity level.", []any{}, "low", "medium", "high", "critical"),
-		console.MustOption("ignore-unreachable", "", console.OptionValueNone, "Ignore repositories that are unreachable or return a non-200 status code.", nil),
+		console.MustOption("ignore-unreachable", "", console.OptionValueNone, "Ignore repositories and dependency policy sources that are unreachable or return a non-200 status code.", nil),
+		console.MustOption("direct", "D", console.OptionValueNone, "Only audit packages directly required by the root package, skipping transitive dependencies.", nil),
 	)
 	c.SetHelp(`The <info>audit</info> command checks for security vulnerability advisories for installed packages.
 
 If you do not want to include dev dependencies in the audit you can omit them with --no-dev
 
-If you want to ignore repositories that are unreachable or return a non-200 status code, use --ignore-unreachable
+If you only want to audit packages your root package requires directly, use --direct (-D)
+
+If you want to ignore repositories and dependency policy sources that are unreachable or return a non-200 status code, use --ignore-unreachable
 
 Read more at https://getcomposer.org/doc/03-cli.md#audit`)
 
@@ -73,6 +76,16 @@ func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) 
 		c.IO().WriteError("No packages - skipping audit.", true, io.Normal)
 
 		return advisory.StatusOK, nil
+	}
+
+	// filtered after the empty check so an empty result is not mistaken for a missing install
+	if console.BoolOption(in, "direct") {
+		packages = filterDirectPackages(comp, in, packages)
+		if len(packages) == 0 {
+			c.IO().WriteError("No direct dependencies - skipping audit.", true, io.Normal)
+
+			return advisory.StatusOK, nil
+		}
 	}
 
 	auditor := advisory.Auditor{}
@@ -127,6 +140,30 @@ func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) 
 	}
 
 	return min(255, status), nil
+}
+
+// filterDirectPackages ports filterDirectPackages: the packages the root
+// package requires (or, unless --no-dev, requires for development).
+func filterDirectPackages(comp *composer.Composer, in console.Input, packages []pkg.PackageInterface) []pkg.PackageInterface {
+	rootPkg := comp.Package()
+	requires := rootPkg.Requires()
+	devRequires := rootPkg.DevRequires()
+	noDev := console.BoolOption(in, "no-dev")
+
+	// the names include replaced/provided ones so e.g. symfony/symfony counts
+	// when symfony/console is required
+	filtered := make([]pkg.PackageInterface, 0, len(packages))
+	for _, p := range packages {
+		for _, name := range p.Names(true) {
+			if requires.Has(name) || (!noDev && devRequires.Has(name)) {
+				filtered = append(filtered, p)
+
+				break
+			}
+		}
+	}
+
+	return filtered
 }
 
 // getPackages ports getPackages.

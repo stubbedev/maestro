@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -13,7 +13,7 @@ Executing command (@DIR@/p): 'svn' 'info' '--xml'
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
-Composer version: 2.10.3
+Composer version: 2.11.0
 Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
 PHP version: 7.0.0 - Package overridden via config.platform, actual: @PHPVERSION@
 PHP binary path: @MACHINE@

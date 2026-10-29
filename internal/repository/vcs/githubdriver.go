@@ -679,19 +679,27 @@ func (d *GitHubDriver) getContents(url string, fetchingRepoData bool) (*http.Res
 			return d.vcsDriver.getContents(url)
 		}
 
+		rateLimited := gitHubUtil.IsRateLimited(e.Headers)
+
 		if !d.io.IsInteractive() && fetchingRepoData {
-			if err := d.attemptCloneFallback(e); err != nil {
-				return nil, err
+			if cloneErr := d.attemptCloneFallback(e); cloneErr != nil {
+				// The clone was the last way to get the metadata, so the
+				// rate limit is the reason nothing could be fetched at all
+				// and has to be reported. Otherwise it stays hidden behind
+				// whatever made the clone fail.
+				if rateLimited {
+					d.writeRateLimitError(gitHubUtil, e)
+				}
+
+				return nil, cloneErr
 			}
 
 			return dummyResponse(), nil
 		}
 
-		rateLimited := gitHubUtil.IsRateLimited(e.Headers)
-
 		if !d.io.HasAuthentication(d.originURL) {
 			if !d.io.IsInteractive() {
-				d.io.WriteError("<error>GitHub API limit exhausted. Failed to get metadata for the "+util.SanitizeURL(d.url)+" repository, try running in interactive mode so that you can enter your GitHub credentials to increase the API limit</error>", true, io.Normal)
+				d.writeRateLimitError(gitHubUtil, e)
 
 				return nil, err
 			}
@@ -704,14 +712,26 @@ func (d *GitHubDriver) getContents(url string, fetchingRepoData bool) (*http.Res
 		}
 
 		if rateLimited {
-			rateLimit := gitHubUtil.RateLimit(e.Headers)
-			d.io.WriteError("<error>GitHub API limit ("+strconv.Itoa(rateLimit.Limit)+" calls/hr) is exhausted. You are already authorized so you have to wait until "+rateLimit.Reset+" before doing more requests</error>", true, io.Normal)
+			d.writeRateLimitError(gitHubUtil, e)
 		}
 
 		return nil, err
 	}
 
 	return nil, err
+}
+
+// writeRateLimitError tells the user that the GitHub API limit is what
+// stopped the request.
+func (d *GitHubDriver) writeRateLimitError(gitHubUtil *http.GitHub, e *util.TransportError) {
+	if !d.io.HasAuthentication(d.originURL) {
+		d.io.WriteError("<error>GitHub API limit exhausted. Failed to get metadata for the "+util.SanitizeURL(d.url)+" repository, try running in interactive mode so that you can enter your GitHub credentials to increase the API limit</error>", true, io.Normal)
+
+		return
+	}
+
+	rateLimit := gitHubUtil.RateLimit(e.Headers)
+	d.io.WriteError("<error>GitHub API limit ("+strconv.Itoa(rateLimit.Limit)+" calls/hr) is exhausted. You are already authorized so you have to wait until "+rateLimit.Reset+" before doing more requests</error>", true, io.Normal)
 }
 
 // fetchRootIdentifier ports fetchRootIdentifier: the repository data.

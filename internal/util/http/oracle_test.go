@@ -272,7 +272,10 @@ func TestOracle_OutputWarnings(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		wrote, err := OutputWarnings(b, "https://user:secret@repo.example.org", c.At("data"))
+		// each case is a fresh process in the oracle
+		ResetResponseWarnings()
+
+		wrote, err := OutputResponseWarnings(b, "https://user:secret@repo.example.org", c.At("data"))
 		if err != nil || wrote != c.At("wrote") || php.NormalizeEOL(b.Output()) != str(c, "output") {
 			t.Errorf("%s decorated=%v: got %v %q %v, want %q", encode(t, c.At("data")), decorated, wrote, php.NormalizeEOL(b.Output()), err, str(c, "output"))
 		}

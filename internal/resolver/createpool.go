@@ -29,6 +29,7 @@ type CreatePoolOptions struct {
 	AllowedTypes               php.Nullable[[]string]
 	SecurityAdvisoryPoolFilter *SecurityAdvisoryPoolFilter
 	FilterListPoolFilter       *FilterListPoolFilter
+	CooldownPoolFilter         *CooldownPoolFilter
 }
 
 // CreatePool ports RepositorySet::createPool: the pool of the packages the
@@ -40,6 +41,7 @@ func CreatePool(set *repository.RepositorySet, request *Request, out io.IO, opts
 		TemporaryConstraints:       set.TemporaryConstraints(),
 		SecurityAdvisoryPoolFilter: opts.SecurityAdvisoryPoolFilter,
 		FilterListPoolFilter:       opts.FilterListPoolFilter,
+		CooldownPoolFilter:         opts.CooldownPoolFilter,
 	})
 	poolBuilder.SetIgnoredTypes(opts.IgnoredTypes)
 	poolBuilder.SetAllowedTypes(opts.AllowedTypes)

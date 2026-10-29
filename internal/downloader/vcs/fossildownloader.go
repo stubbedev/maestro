@@ -40,15 +40,15 @@ func (d *FossilDownloader) doInstall(p pkg.PackageInterface, path, url string) e
 
 	d.io.WriteError("Cloning "+ref, true, mio.Normal)
 
-	if err := d.mustExecute([]string{"fossil", "clone", "--", url, repoFile}, nil, ""); err != nil {
+	if err := d.mustExecuteSanitized([]string{"fossil", "clone", "--", url, repoFile}, nil, ""); err != nil {
 		return err
 	}
 
-	if err := d.mustExecute([]string{"fossil", "open", "--nested", "--", repoFile}, nil, realPath); err != nil {
+	if err := d.mustExecuteSanitized([]string{"fossil", "open", "--nested", "--", repoFile}, nil, realPath); err != nil {
 		return err
 	}
 
-	return d.mustExecute([]string{"fossil", "update", "--", ref}, nil, realPath)
+	return d.mustExecuteSanitized([]string{"fossil", "update", "--", ref}, nil, realPath)
 }
 
 func (d *FossilDownloader) doUpdate(_, target pkg.PackageInterface, path, url string) error {
@@ -64,11 +64,11 @@ func (d *FossilDownloader) doUpdate(_, target pkg.PackageInterface, path, url st
 	}
 
 	realPath := util.Realpath(path)
-	if err := d.mustExecute([]string{"fossil", "pull"}, nil, realPath); err != nil {
+	if err := d.mustExecuteSanitized([]string{"fossil", "pull"}, nil, realPath); err != nil {
 		return err
 	}
 
-	return d.mustExecute([]string{"fossil", "up", "--", target.SourceReference().S}, nil, realPath)
+	return d.mustExecuteSanitized([]string{"fossil", "up", "--", target.SourceReference().S}, nil, realPath)
 }
 
 // LocalChanges is getLocalChanges().
@@ -87,7 +87,7 @@ func (d *FossilDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pk
 
 func (d *FossilDownloader) commitLogs(_, toReference, path string) (string, error) {
 	var output string
-	if err := d.mustExecute([]string{"fossil", "timeline", "-t", "ci", "-W", "0", "-n", "0", "before", toReference}, &output, util.Realpath(path)); err != nil {
+	if err := d.mustExecuteSanitized([]string{"fossil", "timeline", "-t", "ci", "-W", "0", "-n", "0", "before", toReference}, &output, util.Realpath(path)); err != nil {
 		return "", err
 	}
 

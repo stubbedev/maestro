@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 )
 
@@ -334,6 +335,11 @@ func (p *ProcessExecutor) finishProcess(process *Process, code int, err error, t
 		if triggered != nil {
 			// Exiting as we were signaled and the child process exited too
 			// due to the signal.
+			if programStatusIO, ok := p.io.(interface {
+				WriteProgramStatus(*console.ProgramStatus)
+			}); ok {
+				programStatusIO.WriteProgramStatus(console.ProgramStatusIdle(nil))
+			}
 			exitWithSignal(triggered)
 		}
 
@@ -722,6 +728,22 @@ func (p *ProcessExecutor) outputHandler(typ, buffer string) {
 
 var passwordArg = php.MustCompile(`{--password (.*[^\\]') }`)
 
+// redactPasswordArgs is outputCommandRun's redaction of an argument list:
+// an argument after --password and the value of --password= are secrets.
+func redactPasswordArgs(args []string) []string {
+	safe := slices.Clone(args)
+
+	for i, arg := range safe {
+		if arg == "--password" && i+1 < len(safe) {
+			safe[i+1] = "***"
+		} else if strings.HasPrefix(arg, "--password=") {
+			safe[i] = "--password=***"
+		}
+	}
+
+	return safe
+}
+
 // outputCommandRun ports ProcessExecutor::outputCommandRun: the debug line
 // announcing a command, with credentials masked.
 func (p *ProcessExecutor) outputCommandRun(command Command, cwd string, async bool) error {
@@ -729,8 +751,13 @@ func (p *ProcessExecutor) outputCommandRun(command Command, cwd string, async bo
 		return nil
 	}
 
+	commandString := command.String()
+	if !command.shell {
+		commandString = Cmd(redactPasswordArgs(command.args)...).String()
+	}
+
 	// Preg::replace throws a PcreException when matching fails.
-	safeCommand, _, err := passwordArg.Replace(SanitizeURL(command.String()), `--password '***' `, -1)
+	safeCommand, _, err := passwordArg.Replace(SanitizeURL(commandString), `--password '***' `, -1)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,7 @@
 <?php
 // Generates the schema validation goldens in
 // internal/json/jsonschema/testdata/oracle/ by running the real
-// justinrainbow/json-schema 6.10.0 and Composer 2.10.3's JsonFile (from
+// justinrainbow/json-schema 6.10.0 and Composer 2.11.0's JsonFile (from
 // .ref/composer) over a generated corpus of composer.json, auth.json and
 // composer.lock documents:
 //

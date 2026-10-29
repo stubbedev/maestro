@@ -1,6 +1,6 @@
 <?php
 // Generates the goldens of internal/pkg/archiver: generated package trees
-// archived by Composer 2.10.3's ArchivableFilesFinder, PharArchiver,
+// archived by Composer 2.11.0's ArchivableFilesFinder, PharArchiver,
 // ZipArchiver and ArchiveManager (root packages), and
 // ArchiveManager::getPackageFilenameParts over generated packages.
 //

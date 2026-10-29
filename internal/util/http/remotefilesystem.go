@@ -357,7 +357,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 				err = herr
 			} else if ok && contentType == "application/json" {
 				data, _ := php.JSONDecode(result, true)
-				_, err = OutputWarnings(r.io, originURL, data)
+				_, err = OutputResponseWarnings(r.io, originURL, data)
 			}
 		}
 

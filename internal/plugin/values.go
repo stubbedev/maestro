@@ -7,7 +7,7 @@
 //	{"\u0000c":"all","p":"*"}
 //	{"\u0000c":"none","p":null}
 //	{"\u0000c":"link","src":"a/b","tgt":"c/d","c":<constraint>,"d":"requires","pc":"^1.0"}
-//	{"\u0000c":"date","v":"2024-01-02T03:04:05.000000+00:00"}   (a DateTimeInterface from PHP)
+//	{"\u0000c":"date","v":"2024-01-02T03:04:05.000000+00:00"}   (a DateTimeInterface, either way)
 
 package plugin
 
@@ -75,6 +75,11 @@ type dateValue struct{ t time.Time }
 
 // PHPOpaque implements php.Opaque.
 func (dateValue) PHPOpaque() {}
+
+// EncodeRPC implements rpc.ValueEncoder: a date maestro hands to PHP.
+func (v dateValue) EncodeRPC(*rpc.Encoder) (*php.Array, error) {
+	return rpc.Tag(valueTag, "date", "v", v.t.Format(releaseDateLayout)), nil
+}
 
 // PHPOpaque implements php.Opaque.
 func (linkValue) PHPOpaque() {}

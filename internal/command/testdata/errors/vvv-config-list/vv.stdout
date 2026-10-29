@@ -23,6 +23,7 @@
 [autoloader-suffix] 
 [sort-packages] false
 [optimize-autoloader] false
+[strict-psr-autoloader] false
 [classmap-authoritative] false
 [apcu-autoloader] false
 [prepend-autoloader] true

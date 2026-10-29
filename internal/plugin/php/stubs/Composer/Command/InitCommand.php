@@ -11,6 +11,11 @@ class InitCommand extends \Composer\Command\BaseCommand
     use \Composer\Command\CompletionTrait;
     use \Composer\Command\PackageDiscoveryTrait;
 
+    protected function addExportIgnoreForLockfile(string $gitAttributesFile, string $lockfile = 'composer.lock'): void
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\InitCommand::addExportIgnoreForLockfile() in plugins yet');
+    }
+
     protected function addVendorIgnore(string $ignoreFile, string $vendor = '/vendor/'): void
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\InitCommand::addVendorIgnore() in plugins yet');
@@ -38,6 +43,11 @@ class InitCommand extends \Composer\Command\BaseCommand
     protected function getGitConfig(): array
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\InitCommand::getGitConfig() in plugins yet');
+    }
+
+    protected function hasExportIgnoreForLockfile(string $gitAttributesFile, string $lockfile = 'composer.lock'): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\InitCommand::hasExportIgnoreForLockfile() in plugins yet');
     }
 
     protected function hasVendorIgnore(string $ignoreFile, string $vendor = 'vendor'): bool

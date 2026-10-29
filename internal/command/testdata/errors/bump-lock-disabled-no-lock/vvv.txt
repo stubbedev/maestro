@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -13,23 +13,24 @@ Executing command (@DIR@/p): 'svn' 'info' '--xml'
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 
-In Locker.php line 338:
+In Locker.php line 361:
                                                      
   [LogicException]                                   
   No lockfile found. Unable to read locked packages  
                                                      
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Package/Locker.php:338
- Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:164
+  at @COMPOSER@/src/Composer/Package/Locker.php:361
+ Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:184
  Composer\Package\Locker->getLockedRepository() at @COMPOSER@/src/Composer/Command/BumpCommand.php:126
  Composer\Command\BumpCommand->doBump() at @COMPOSER@/src/Composer/Command/BumpCommand.php:75
  Composer\Command\BumpCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 bump [-D|--dev-only] [-R|--no-dev-only] [--dry-run] [--] [<packages>...]

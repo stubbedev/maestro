@@ -32,6 +32,110 @@ func TestArrayLoader_SelfVersion(t *testing.T) {
 	}
 }
 
+func TestArrayLoader_ReleaseAndPublishedDates(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf(
+		"name", "a/b", "version", "1.0",
+		"time", "2025-01-15T10:00:00+00:00",
+		"published-time", "2026-05-19T20:20:25+00:00",
+	))
+
+	releaseDate, ok := p.ReleaseDate()
+	if !ok || releaseDate.Format(dumper.RFC3339) != "2025-01-15T10:00:00+00:00" {
+		t.Errorf("release date %v %v", releaseDate, ok)
+	}
+
+	publishedDate, ok := p.PublishedDate()
+	if !ok || publishedDate.Format(dumper.RFC3339) != "2026-05-19T20:20:25+00:00" {
+		t.Errorf("published date %v %v", publishedDate, ok)
+	}
+}
+
+func TestArrayLoader_PublishedTimeAbsentLeavesPublishedDateNull(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf(
+		"name", "a/b", "version", "1.0", "time", "2025-01-15T10:00:00+00:00",
+	))
+
+	if _, ok := p.ReleaseDate(); !ok {
+		t.Error("no release date")
+	}
+
+	if date, ok := p.PublishedDate(); ok {
+		t.Errorf("published date %v set, want null", date)
+	}
+}
+
+func TestArrayLoader_PublishedTimeFromUnixTimestamp(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf(
+		"name", "a/b", "version", "1.0", "published-time", "1747685025",
+	))
+
+	if date, ok := p.PublishedDate(); !ok || date.Unix() != 1747685025 {
+		t.Errorf("published date %v %v, want timestamp 1747685025", date, ok)
+	}
+}
+
+func TestArrayLoader_TimesFromNonStringValues(t *testing.T) {
+	l := loader.NewArrayLoader(nil, false)
+
+	p := mustLoad(t, l, php.ArrayOf("name", "a/b", "version", "1.0", "time", 1747685025))
+	if date, ok := p.ReleaseDate(); !ok || date.Unix() != 1747685025 {
+		t.Errorf("release date %v %v, want timestamp 1747685025", date, ok)
+	}
+
+	p = mustLoad(t, l, php.ArrayOf("name", "a/b", "version", "1.0", "time", php.ListOf("2026-05-19")))
+	if date, ok := p.ReleaseDate(); ok {
+		t.Errorf("release date %v set, want null", date)
+	}
+
+	p = mustLoad(t, l, php.ArrayOf("name", "a/b", "version", "1.0", "published-time", 1747685025))
+	if date, ok := p.PublishedDate(); !ok || date.Unix() != 1747685025 {
+		t.Errorf("published date %v %v, want timestamp 1747685025", date, ok)
+	}
+
+	p = mustLoad(t, l, php.ArrayOf("name", "a/b", "version", "1.0", "published-time", php.ListOf("2026-05-19")))
+	if date, ok := p.PublishedDate(); ok {
+		t.Errorf("published date %v set, want null", date)
+	}
+}
+
+func TestArrayLoader_MalformedPublishedTimeIsIgnored(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf(
+		"name", "a/b", "version", "1.0", "published-time", "not a date",
+	))
+
+	if date, ok := p.PublishedDate(); ok {
+		t.Errorf("published date %v set, want null", date)
+	}
+}
+
+func TestArrayLoader_MalformedTimeIsIgnored(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf(
+		"name", "a/b", "version", "1.0", "time", "not a date",
+	))
+
+	if date, ok := p.ReleaseDate(); ok {
+		t.Errorf("release date %v set, want null", date)
+	}
+}
+
+func TestArrayLoader_DatesAreParsedInUtc(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf(
+		"name", "a/b", "version", "1.0",
+		"time", "2025-01-15 10:00:00",
+		"published-time", "2026-05-19 20:20:25",
+	))
+
+	releaseDate, ok := p.ReleaseDate()
+	if !ok || releaseDate.Format(dumper.RFC3339) != "2025-01-15T10:00:00+00:00" {
+		t.Errorf("release date %v %v", releaseDate, ok)
+	}
+
+	publishedDate, ok := p.PublishedDate()
+	if !ok || publishedDate.Format(dumper.RFC3339) != "2026-05-19T20:20:25+00:00" {
+		t.Errorf("published date %v %v", publishedDate, ok)
+	}
+}
+
 func TestArrayLoader_TypeDefault(t *testing.T) {
 	l := loader.NewArrayLoader(nil, false)
 

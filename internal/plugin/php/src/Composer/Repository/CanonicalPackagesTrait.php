@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Repository\CanonicalPackagesTrait,
- * reimplemented with Composer 2.10.3's behaviour (docs/PLUGINS.md §4.6).
+ * reimplemented with Composer 2.11.0's behaviour (docs/PLUGINS.md §4.6).
  * Written for PHP 7.2.5 to 8.5.
  */
 

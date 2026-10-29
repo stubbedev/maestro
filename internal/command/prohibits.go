@@ -31,7 +31,7 @@ func NewProhibitsCommand() *ProhibitsCommand {
 
 <info>php composer.phar prohibits composer/composer</info>
 
-Read more at https://getcomposer.org/doc/03-cli.md#prohibits-why-not`)
+Read more at https://getcomposer.org/doc/03-cli.md#prohibits--why-not`)
 
 	return c
 }

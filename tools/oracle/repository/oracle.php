@@ -1,6 +1,6 @@
 <?php
 // Generates the goldens of internal/repository and internal/locker by
-// running Composer 2.10.3's own FilesystemRepository and Locker:
+// running Composer 2.11.0's own FilesystemRepository and Locker:
 //
 //   internal/repository/testdata/oracle/installed.json.gz
 //       package sets => vendor/composer/installed.json and installed.php
