@@ -436,12 +436,18 @@ func (f *asyncFetch) decode() {
 func (r *ComposerRepository) waitFetches(fetches []*asyncFetch) {
 	for _, f := range fetches {
 		if f != nil && f.promise != nil {
-			if w, ok := r.httpDownloader.(interface{ Wait() }); ok {
-				w.Wait()
-			}
+			r.waitDownloader()
 
 			return
 		}
+	}
+}
+
+// waitDownloader is Loop::wait: it drives the downloader until none of
+// its asynchronous requests is queued or running.
+func (r *ComposerRepository) waitDownloader() {
+	if w, ok := r.httpDownloader.(interface{ Wait() }); ok {
+		w.Wait()
 	}
 }
 

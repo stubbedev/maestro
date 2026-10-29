@@ -13,6 +13,7 @@ import (
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
 
@@ -147,6 +148,45 @@ func TestComposerRepository_RealHttpDownloader(t *testing.T) {
 		if cold.Packages[i].UniqueName() != warm.Packages[i].UniqueName() {
 			t.Fatalf("#%d: %s / %s", i, cold.Packages[i].UniqueName(), warm.Packages[i].UniqueName())
 		}
+	}
+}
+
+// TestComposerRepository_SecurityAdvisoriesApiThroughRealHttpDownloader
+// queries the security-advisories API through the real HttpDownloader,
+// whose asynchronous requests only complete while it is driven.
+func TestComposerRepository_SecurityAdvisoriesApiThroughRealHttpDownloader(t *testing.T) {
+	const name = "foo/bar"
+	server := httptest.NewServer(stdhttp.HandlerFunc(func(w stdhttp.ResponseWriter, req *stdhttp.Request) {
+		var body string
+		switch req.URL.Path {
+		case "/packages.json":
+			body = encode(t, php.ArrayOf(
+				"packages", php.NewArray(),
+				"metadata-url", "/p2/%package%.json",
+				"security-advisories", php.ArrayOf("api-url", "/api/security-advisories/"),
+			))
+		case "/api/security-advisories/":
+			if err := req.ParseForm(); err != nil || req.Method != stdhttp.MethodPost || req.PostForm.Get("packages[0]") != name {
+				stdhttp.Error(w, "unexpected request", stdhttp.StatusBadRequest)
+
+				return
+			}
+			body = encode(t, php.ArrayOf("advisories", php.ArrayOf(name, php.ListOf(generateSecurityAdvisory("PKSA-1", name, "CVE-1999-1000", ">=1.0.0,<1.1.0")))))
+		default:
+			stdhttp.NotFound(w, req)
+
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	cfg := createConfig(t, "secure-http", false)
+	repo := newRepo(t, php.ArrayOf("url", server.URL), cfg, realDownloader(t, cfg))
+
+	result := must(repo.SecurityAdvisories(repository.NewConstraintMap(name, semver.NewConstraintOp(semver.OpEQ, "1.0.0.0")), false))
+	if advisories, _ := result.Advisories.Get(name); !slices.Equal(result.NamesFound, []string{name}) || len(advisories) != 1 {
+		t.Errorf("got %+v", result)
 	}
 }
 

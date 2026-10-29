@@ -234,6 +234,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 			}
 			promises = append(promises, promise)
 		}
+		r.waitDownloader()
 
 		responses := make([]*php.Array, len(promises))
 		for i, promise := range promises {
