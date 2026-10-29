@@ -2,7 +2,7 @@
 
 /*
  * Builds internal/php/testdata/preg/corpus.json: every regex pattern Composer
- * 2.10.3 (src/, vendor/composer/*, vendor/seld/*) uses, each with a set of
+ * 2.11.0 (src/, vendor/composer/*, vendor/seld/*) uses, each with a set of
  * relevant subjects. Feed the result to preg_golden.php.
  *
  * Pattern sources:

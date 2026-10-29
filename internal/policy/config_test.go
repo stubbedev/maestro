@@ -19,6 +19,7 @@ var policyEnv = []string{
 	"COMPOSER_POLICY", "COMPOSER_NO_BLOCKING", "COMPOSER_NO_SECURITY_BLOCKING",
 	"COMPOSER_POLICY_ADVISORIES_BLOCK", "COMPOSER_POLICY_MALWARE_BLOCK", "COMPOSER_POLICY_ABANDONED_BLOCK",
 	"COMPOSER_SECURITY_BLOCKING_ABANDONED", "COMPOSER_AUDIT_ABANDONED",
+	"COMPOSER_POLICY_COOLDOWN_PERIOD", "COMPOSER_POLICY_COOLDOWN_BLOCK",
 }
 
 // clearPolicyEnv is PolicyConfigTest::tearDown, also run before each test.
@@ -362,6 +363,15 @@ func TestPolicyConfig_BothAbandonedEnvVarsApplyIndependently(t *testing.T) {
 	p := mustFromConfig(t, true, nil)
 	if !p.Abandoned.Block || p.Abandoned.Audit != policy.AuditReport {
 		t.Errorf("got %+v", p.Abandoned)
+	}
+}
+
+func TestPolicyConfig_CooldownEnvAgeIgnoredWhenPolicyDisabled(t *testing.T) {
+	clearPolicyEnv(t)
+	util.PutEnv("COMPOSER_POLICY_COOLDOWN_PERIOD", "2 days")
+
+	if mustFromConfig(t, true, php.ArrayOf("policy", false)).Cooldown.HasCooldown() {
+		t.Error("has cooldown")
 	}
 }
 

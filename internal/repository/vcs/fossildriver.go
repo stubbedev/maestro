@@ -63,7 +63,7 @@ func (d *FossilDriver) Initialize() error {
 			return &util.RuntimeError{Message: "FossilDriver requires a usable cache directory, and it looks like you set it to be disabled"}
 		}
 
-		localName := replaceInfallible(alnumOnly, "-", d.url)
+		localName := replaceInfallible(alnumOnly, "-", util.SanitizeURL(d.url))
 		d.repoFile = repoDir + "/" + localName + ".fossil"
 		d.checkoutDir = vcsDir + "/" + localName + "/"
 
@@ -125,7 +125,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 			}
 
 			if code != 0 {
-				d.io.WriteError("<error>Failed to update "+util.SanitizeURL(d.url)+", package information from this repository may be outdated ("+d.process.GetErrorOutput()+")</error>", true, io.Normal)
+				d.io.WriteError("<error>Failed to update "+util.SanitizeURL(d.url)+", package information from this repository may be outdated ("+util.SanitizeURL(d.process.GetErrorOutput())+")</error>", true, io.Normal)
 			}
 
 			return nil
@@ -151,7 +151,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Message: "Failed to clone " + util.SanitizeURL(d.url) + " to repository " + d.repoFile + "\n\n" + d.process.GetErrorOutput()}
+		return &util.RuntimeError{Message: "Failed to clone " + util.SanitizeURL(d.url) + " to repository " + d.repoFile + "\n\n" + util.SanitizeURL(d.process.GetErrorOutput())}
 	}
 
 	code, err = d.process.Execute(util.Cmd("fossil", "open", "--nested", "--", d.repoFile), &output, d.checkoutDir)
@@ -160,7 +160,7 @@ func (d *FossilDriver) updateLocalRepo() error {
 	}
 
 	if code != 0 {
-		return &util.RuntimeError{Message: "Failed to open repository " + d.repoFile + " in " + d.checkoutDir + "\n\n" + d.process.GetErrorOutput()}
+		return &util.RuntimeError{Message: "Failed to open repository " + d.repoFile + " in " + d.checkoutDir + "\n\n" + util.SanitizeURL(d.process.GetErrorOutput())}
 	}
 
 	return nil

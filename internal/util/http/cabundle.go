@@ -1,17 +1,21 @@
-// Ports composer/ca-bundle's src/CaBundle.php (the version Composer 2.10.3
-// locks): finding the system's CA bundle and validating CA files.
+// Ports composer/ca-bundle's src/CaBundle.php (the version Composer 2.11.0
+// locks): finding the system's CA bundle, validating CA files and finding
+// distrusted certificates in a chain.
 
 package http
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
 	_ "embed"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/stubbedev/maestro/internal/cache"
@@ -194,6 +198,173 @@ func validateCaFile(filename string, logger Logger) bool {
 	caBundle.validity[filename] = isValid
 
 	return isValid
+}
+
+// distrustedSpkiSha256 is CaBundle::$distrustedSpkiSha256: SHA-256 of the
+// DER encoded SubjectPublicKeyInfo of distrusted (e.g. compromised)
+// intermediates, mapped to their names. Matching on the key also catches
+// cross-signed copies of the same intermediate.
+var distrustedSpkiSha256 = map[string]string{
+	// eMudhra intermediates with compromised keys, revoked 2026-10-18
+	// (cross-signed by Sectigo's AAA Certificate Services)
+	"e0254c7fcdc265e2f0f8a428dabb75ab4ae039b4872d62f5ee57f0877d5a8a41": "EM EV TLS CA - G3B",
+	"43bffa19d6ef651451f6841e019931e96f6f2eaeff28ab4b6f1ce4576de2717b": "EM OV TLS CA - G3B",
+	"ebed6475c2c2d80fcb199f3fe8dd6e6b3ce60b77eb15d4e42c3dec0c6f5b5105": "EM DV TLS CA - G3B",
+	"5c0660a2b164910d8ff589c18e14552e9e0ec237dcefe2cb736d41a4811f81a0": "EM EV TLS CA - G3C",
+	"63ecefee431d49523bc1136c4e72d0206a477086caf606cd5cf025686c109cf8": "EM OV TLS CA - G3C",
+	"49dd353dc2b919a3770645117d0e60c16115e7d1bc259eefe734b00ea434fe5f": "EM DV TLS CA - G3C",
+	"ec4ffa1ad0ac88081314b7aaffef6a91f97cd57291bb5ba686c5415f5eb4f6b6": "EM OV CS CA - G3B",
+	"92c063d67e8f14db71d288e11266ffdaf69cbf115f7bab14f3bc2f68d25e0e30": "EM OV CS CA - G3C",
+}
+
+// FindDistrustedCertificate is CaBundle::findDistrustedCertificate($chain):
+// the name of the first distrusted certificate in chain, or "". A chain
+// entry is PEM text or a DER encoded certificate.
+//
+// The system CA store may still trust the roots above them, so they need to
+// be rejected by the client.
+func FindDistrustedCertificate(chain [][]byte) string {
+	for _, cert := range chain {
+		for _, der := range pemToDER(cert) {
+			if spki := extractSpki(der); spki != nil {
+				sum := sha256.Sum256(spki)
+				if name, ok := distrustedSpkiSha256[hex.EncodeToString(sum[:])]; ok {
+					return name
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// pemToDER is CaBundle's pemToDER: the DER certificates pem encodes, or pem
+// itself when it holds no PEM marker (crypto/tls reports the chain decoded).
+func pemToDER(cert []byte) [][]byte {
+	const (
+		begin = "-----BEGIN CERTIFICATE-----"
+		end   = "-----END CERTIFICATE-----"
+	)
+
+	if !bytes.Contains(cert, []byte(begin)) {
+		return [][]byte{cert}
+	}
+
+	var ders [][]byte
+
+	for offset := 0; ; {
+		start := bytes.Index(cert[offset:], []byte(begin))
+		if start < 0 {
+			break
+		}
+
+		start += offset + len(begin)
+
+		stop := bytes.Index(cert[start:], []byte(end))
+		if stop < 0 {
+			break
+		}
+
+		offset = start + stop + len(end)
+
+		// base64_decode(..., true): whitespace is ignored
+		der, err := base64.StdEncoding.DecodeString(strings.Map(func(r rune) rune {
+			if strings.ContainsRune(" \t\r\n\v\f", r) {
+				return -1
+			}
+
+			return r
+		}, string(cert[start:start+stop])))
+		if err == nil {
+			ders = append(ders, der)
+		}
+	}
+
+	return ders
+}
+
+// extractSpki is CaBundle's extractSpki: it walks the DER structure by hand
+// as parsing the key with ext-openssl costs ~0.3ms per certificate.
+//
+// Certificate ::= SEQUENCE { tbsCertificate SEQUENCE { [0] version
+// OPTIONAL, serialNumber, signature, issuer, validity, subject,
+// subjectPublicKeyInfo, ... }, ... }
+func extractSpki(der []byte) []byte {
+	offset := 0
+
+	// enter Certificate and tbsCertificate
+	for range 2 {
+		if !isSequenceAt(der, offset) {
+			return nil
+		}
+
+		if _, ok := readDerHeader(der, &offset); !ok {
+			return nil
+		}
+	}
+
+	fieldsToSkip := 5
+	if offset < len(der) && der[offset] == 0xA0 {
+		fieldsToSkip = 6
+	}
+
+	for range fieldsToSkip {
+		length, ok := readDerHeader(der, &offset)
+		if !ok {
+			return nil
+		}
+
+		offset += length
+	}
+
+	start := offset
+	if !isSequenceAt(der, offset) {
+		return nil
+	}
+
+	length, ok := readDerHeader(der, &offset)
+	if !ok {
+		return nil
+	}
+
+	return der[start : offset+length]
+}
+
+func isSequenceAt(der []byte, offset int) bool {
+	return offset < len(der) && der[offset] == 0x30
+}
+
+// readDerHeader reads the tag and length at *offset, moving *offset to the
+// start of the contents, and reports the length of the contents.
+func readDerHeader(der []byte, offset *int) (int, bool) {
+	// high tag numbers (multi-byte tags) do not occur in the fields we walk
+	if *offset+1 >= len(der) || der[*offset]&0x1F == 0x1F {
+		return 0, false
+	}
+
+	length := int(der[*offset+1])
+	*offset += 2
+
+	if length&0x80 != 0 {
+		// max 3 length bytes (16MB) so the length cannot overflow on
+		// 32-bit PHP
+		lengthBytes := length & 0x7F
+		if lengthBytes == 0 || lengthBytes > 3 || *offset+lengthBytes > len(der) {
+			return 0, false
+		}
+
+		length = 0
+		for range lengthBytes {
+			length = length<<8 | int(der[*offset])
+			*offset++
+		}
+	}
+
+	if *offset+length > len(der) {
+		return 0, false
+	}
+
+	return length, true
 }
 
 // firstCertificateParses is (bool) openssl_x509_parse($contents) after

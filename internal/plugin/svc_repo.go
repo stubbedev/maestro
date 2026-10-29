@@ -118,6 +118,22 @@ func (r *Runtime) registerRepositories() {
 	repoMethod("getRepoName", func(repo repository.RepositoryInterface, _ args) (any, error) {
 		return repo.RepoName(), nil
 	})
+	repoMethod("setRepositoryManager", func(repo repository.RepositoryInterface, a args) (any, error) {
+		s, ok := repo.(interface {
+			SetRepositoryManager(*repository.RepositoryManager)
+		})
+		if !ok {
+			return nil, a.errorf("%s has no such method", repo.PHPClass())
+		}
+		m, err := param[*repository.RepositoryManager](a, 1)
+		if err != nil {
+			return nil, err
+		}
+		s.SetRepositoryManager(m)
+
+		return nil, nil
+	})
+
 	repoMethod("findPackage", func(repo repository.RepositoryInterface, a args) (any, error) {
 		c, err := constraintArg(a, 2)
 		if err != nil {
@@ -387,6 +403,23 @@ func (r *Runtime) registerRepositories() {
 	})
 	rmMethod("getHttpDownloader", func(rm *repository.RepositoryManager, _ args) (any, error) {
 		return r.value(rm.HTTPDownloader()), nil
+	})
+	rmMethod("restoreHttpHeaders", func(rm *repository.RepositoryManager, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+		rm.RestoreHttpHeaders(p)
+
+		return nil, nil
+	})
+	rmMethod("removeRestorableHttpHeaders", func(rm *repository.RepositoryManager, a args) (any, error) {
+		p, err := packageParam(a, 1)
+		if err != nil {
+			return nil, err
+		}
+
+		return rm.RemoveRestorableHttpHeaders(p, a.arrayOrEmpty(2)), nil
 	})
 
 	r.registerRepositoriesTier5()

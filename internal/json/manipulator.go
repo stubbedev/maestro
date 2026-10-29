@@ -186,13 +186,15 @@ func (m *Manipulator) isMatch(pattern, subject string) (bool, error) {
 // replace ports Preg::replace with a literal replacement: addcslashes'
 // escaping of \ and $ followed by preg_replace's unescaping is the
 // identity, so the replacement is inserted as is.
-func (m *Manipulator) replaceLiteral(pattern, replacement, subject string) (string, int, error) {
+func (m *Manipulator) replaceLiteral(pattern, replacement, subject string) (string, error) {
 	re, err := m.re(pattern)
 	if err != nil {
-		return "", 0, err
+		return "", err
 	}
 
-	return re.ReplaceCallback(subject, func(*php.Match) string { return replacement }, -1)
+	out, _, err := re.ReplaceCallback(subject, func(*php.Match) string { return replacement }, -1)
+
+	return out, err
 }
 
 // replaceCallback ports Preg::replaceCallback with a callback that may
@@ -220,10 +222,22 @@ func (m *Manipulator) replaceCallback(re *php.Regexp, subject string, fn func(*p
 // isBacktrackLimit reports a PcreException whose code is
 // PREG_BACKTRACK_LIMIT_ERROR, which the node lookups treat as "not
 // match-able".
-func isBacktrackLimit(err error) bool {
-	var pe *php.PcreError
+func isBacktrackLimit(err error) bool { return isPregError(err, php.PregBacktrackLimitError) }
 
-	return errors.As(err, &pe) && pe.Code == php.PregBacktrackLimitError
+// isMatchLimit reports a PcreException whose code the child lookup treats
+// as "not match-able": PREG_BACKTRACK_LIMIT_ERROR or
+// PREG_JIT_STACKLIMIT_ERROR (what this engine's recursion limit reports).
+func isMatchLimit(err error) bool {
+	return isPregError(err, php.PregBacktrackLimitError, php.PregJITStackLimitError)
+}
+
+func isPregError(err error, codes ...int) bool {
+	var pe *php.PcreError
+	if !errors.As(err, &pe) {
+		return false
+	}
+
+	return slices.Contains(codes, pe.Code)
 }
 
 // namedStr is $matches[name] as a string (Preg uses
@@ -311,7 +325,7 @@ func (m *Manipulator) AddLink(typ, pkg, constraint string, sortPackages bool) (b
 		}
 		if match != nil {
 			// link missing but non empty links
-			links, _, err = m.replaceLiteral(`{`+php.PregQuote(match.Get(1), "")+`$}`,
+			links, err = m.replaceLiteral(`{`+php.PregQuote(match.Get(1), "")+`$}`,
 				","+m.newline+m.indent+m.indent+encodedPkg+": "+encodedConstraint+match.Get(1), links)
 			if err != nil {
 				return false, err
@@ -820,35 +834,29 @@ func (m *Manipulator) AddSubNode(mainNode, name string, value any, appendItem bo
 	}
 
 	// child exists
-	childRe, err := m.re(`{` + manipulatorDefines + `(?P<start>"` + php.PregQuote(name, "") + `"\s*:\s*)(?P<content>(?&json))(?P<end>,?)}x`)
-	if err != nil {
-		return false, err
-	}
 	encodedName := ""
-	if ok, err := childRe.IsMatch(children); err != nil {
-		return false, err
-	} else if ok {
-		children, err = m.replaceCallback(childRe, children, func(matches *php.Match) (string, error) {
-			value := value
-			if subName != nil {
-				content, isSet := matches.Named("content")
-				if isSet {
-					curVal, _ := php.JSONDecode(content, true)
-					arr, ok := curVal.(*php.Array)
-					if !ok {
-						arr = php.NewArray()
-					}
-					arr.Set(*subName, value)
-					value = arr
-				}
-			}
-			formatted, err := m.Format(value, 1, false)
-
-			return namedStr(matches, "start") + formatted + namedStr(matches, "end"), err
-		})
+	if arrayKeyExists(index(decoded, mainNode), name) {
+		matches, err := m.matchChild(name, children)
 		if err != nil {
 			return false, err
 		}
+		if matches == nil {
+			return false, nil
+		}
+		if subName != nil {
+			curVal, _ := php.JSONDecode(namedStr(matches, "content"), true)
+			arr, ok := curVal.(*php.Array)
+			if !ok {
+				arr = php.NewArray()
+			}
+			arr.Set(*subName, value)
+			value = arr
+		}
+		formatted, err := m.Format(value, 1, false)
+		if err != nil {
+			return false, err
+		}
+		children = namedStr(matches, "start") + formatted + namedStr(matches, "end") + php.Substr(children, len(matches.Get(0)))
 	} else if match, err := childrenObject.Match(children); err != nil {
 		return false, err
 	} else if match != nil {
@@ -866,11 +874,11 @@ func (m *Manipulator) AddSubNode(mainNode, name string, value any, appendItem bo
 		if _, hasContent := match.Named("content"); hasContent {
 			// child missing but non empty children
 			if appendItem {
-				children, _, err = m.replaceLiteral(`#`+whitespace+`}$#`,
+				children, err = m.replaceLiteral(`#`+whitespace+`}$#`,
 					","+m.newline+m.indent+m.indent+encodedName+": "+formatted+whitespace+"}", children)
 			} else {
 				whitespace = namedStr(match, "leadingspace")
-				children, _, err = m.replaceLiteral(`#^{`+whitespace+`#`,
+				children, err = m.replaceLiteral(`#^{`+whitespace+`#`,
 					"{"+whitespace+encodedName+": "+formatted+","+m.newline+m.indent+m.indent, children)
 			}
 			if err != nil {
@@ -939,53 +947,37 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 		return true, nil
 	}
 
-	// try and find a match for the subkey
-	keyRegex := strings.ReplaceAll(php.PregQuote(name, ""), "/", `\\?/`)
-	var childrenClean *string
-	if ok, err := m.isMatch(`{"`+keyRegex+`"\s*:}i`, children); err != nil {
+	matches, err := m.matchChild(name, children)
+	if err != nil {
 		return false, err
-	} else if ok {
-		// find best match for the value of "name"
-		re, err := m.re(`{` + manipulatorDefines + `"` + keyRegex + `"\s*:\s*(?:(?&json))}x`)
-		if err != nil {
-			return false, err
-		}
-		all, err := re.MatchAll(children)
-		if err != nil {
-			return false, err
-		}
-		if len(all) > 0 {
-			bestMatch := ""
-			for _, match := range all {
-				if s := match.Get(0); len(bestMatch) < len(s) {
-					bestMatch = s
-				}
-			}
-			clean, count, err := m.replaceLiteral(`{,\s*`+php.PregQuote(bestMatch, "")+`}i`, "", children)
-			if err != nil {
-				return false, err
-			}
-			if count != 1 {
-				clean, count, err = m.replaceLiteral(`{`+php.PregQuote(bestMatch, "")+`\s*,?\s*}i`, "", clean)
-				if err != nil {
-					return false, err
-				}
-				if count != 1 {
-					return false, nil
-				}
-			}
-			childrenClean = &clean
-		}
-	} else {
-		childrenClean = &children
+	}
+	if matches == nil {
+		return false, nil
 	}
 
-	if childrenClean == nil {
-		return false, &util.InvalidArgumentError{Message: "JsonManipulator: $childrenClean is not defined. Please report at https://github.com/composer/composer/issues/new."}
+	// drop the pair along with the comma before it, or after it if it is the first pair
+	end := namedStr(matches, "end")
+	rest := php.Substr(children, len(matches.Get(0))-len(end))
+	prefix := namedStr(matches, "prefix")
+	var childrenClean string
+	if ok, err := m.isMatch(`{,\s*$}`, prefix); err != nil {
+		return false, err
+	} else if ok {
+		clean, err := m.replaceLiteral(`{,\s*$}`, "", prefix)
+		if err != nil {
+			return false, err
+		}
+		childrenClean = clean + rest
+	} else {
+		clean, err := m.replaceLiteral(`{^\s*,?\s*}`, "", rest)
+		if err != nil {
+			return false, err
+		}
+		childrenClean = prefix + clean
 	}
 
 	// no child data left, $name was the only key in
-	if match, err := childrenCleanObject.Match(*childrenClean); err != nil {
+	if match, err := childrenCleanObject.Match(childrenClean); err != nil {
 		return false, err
 	} else if match != nil {
 		if _, hasContent := match.Named("content"); !hasContent {
@@ -1013,7 +1005,7 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 	}
 
 	m.contents, err = m.replaceCallback(nodeRe, m.contents, func(matches *php.Match) (string, error) {
-		clean := *childrenClean
+		clean := childrenClean
 		if subName != nil {
 			curVal, _ := php.JSONDecode(namedStr(matches, "content"), true)
 			if _, err := unsetSubName(curVal, name, *subName); err != nil {
@@ -1139,11 +1131,11 @@ func (m *Manipulator) AddListItem(mainNode string, value any, appendItem bool) (
 	if _, hasContent := match.Named("content"); hasContent {
 		// child missing but non empty children
 		if appendItem {
-			children, _, err = m.replaceLiteral(`#`+whitespace+`]$#`,
+			children, err = m.replaceLiteral(`#`+whitespace+`]$#`,
 				","+leadingItemWhitespace+formatted+trailingItemWhitespace+"]", children)
 		} else {
 			whitespace = namedStr(match, "leadingspace")
-			children, _, err = m.replaceLiteral(`#^\[`+whitespace+`#`,
+			children, err = m.replaceLiteral(`#^\[`+whitespace+`#`,
 				"["+whitespace+formatted+","+leadingItemWhitespace, children)
 		}
 		if err != nil {
@@ -1363,7 +1355,7 @@ func (m *Manipulator) AddMainKey(key string, content any) (bool, error) {
 	if match, err := lastValueBeforeClose.Match(m.contents); err != nil {
 		return false, err
 	} else if match != nil {
-		m.contents, _, err = m.replaceLiteral(`#`+match.Get(1)+`\}$#`,
+		m.contents, err = m.replaceLiteral(`#`+match.Get(1)+`\}$#`,
 			","+m.newline+m.indent+encodedKey+": "+formatted+m.newline+"}", m.contents)
 
 		return err == nil, err
@@ -1476,6 +1468,33 @@ func (m *Manipulator) RemoveMainKeyIfEmpty(key string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// matchChild ports JsonManipulator::matchChild: the top-level pair for name
+// in an object, skipping nested keys with the same name.
+func (m *Manipulator) matchChild(name, children string) (*php.Match, error) {
+	encodedName, err := EncodeDefault(name)
+	if err != nil {
+		return nil, err
+	}
+	// spaces are escaped for the x modifier, slashes may have been written escaped
+	key := strings.NewReplacer(" ", `\ `, "/", `\\?/`).Replace(php.PregQuote(encodedName, ""))
+
+	// possessive loop over the other pairs, a lazy one backtracks exponentially when the key is missing
+	re, err := m.re(`{` + manipulatorDefines + `^(?P<start>(?P<prefix>\{ \s* (?: (?!` + key + `\s*:) (?&string) \s* : (?&json) \s* , \s* )*+) ` + key + `\s*:\s*)(?P<content>(?&json))(?P<end>,?)}x`)
+	if err != nil {
+		return nil, err
+	}
+	match, err := re.Match(children)
+	if err != nil {
+		if isMatchLimit(err) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return match, nil
 }
 
 // Format ports JsonManipulator::format: data as JSON in the document's

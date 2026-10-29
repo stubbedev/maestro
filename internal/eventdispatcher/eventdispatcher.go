@@ -426,38 +426,62 @@ func arrayElementString(arr *php.Array, i int64) (string, error) {
 func (d *EventDispatcher) runComposerScript(event Event, callable, formatted string, additionalArgs []string) (int, bool, error) {
 	d.io.WriteError("> "+formatted+": "+callable, true, io.Verbose)
 
-	parts := strings.Split(callable[1:], " ")
-	scriptName := parts[0]
-	scriptParts := parts[1:]
-
-	var args []string
-	if index := slices.Index(scriptParts, "@additional_args"); index >= 0 {
-		// array_splice($script, $index, 0, $additionalArgs) with $index the
-		// key of "@additional_args" in the 1-based $script: the arguments
-		// are inserted after it, and $args gets the (empty) removed slice.
-		scriptParts = slices.Insert(slices.Clone(scriptParts), index+1, additionalArgs...)
-	} else {
-		args = append(slices.Clone(scriptParts), additionalArgs...)
-	}
-
-	flags := event.Flags().Clone()
-	if v, ok := flags.Get("script-alias-input"); ok && v != nil {
-		escaped := make([]string, len(scriptParts))
-		for i, arg := range scriptParts {
-			escaped[i] = util.Escape(arg)
-		}
-		flags.Set("script-alias-input", strings.Join(escaped, " ")+" "+php.ToString(v))
-	}
-
 	if strings.HasPrefix(callable, "@composer ") {
+		// the script's own args are passed to the shell as is, but the additional args come from the command line so they must be escaped
+		e := make([]string, len(additionalArgs))
+		for i, arg := range additionalArgs {
+			e[i] = util.Escape(arg)
+		}
+		args := strings.Join(e, " ")
+		exec := callable[len("@composer "):]
+		if strings.Contains(exec, "@additional_args") {
+			exec = strings.ReplaceAll(exec, "@additional_args", args)
+		} else if args != "" {
+			exec += " " + args
+		}
+
 		phpCmd, err := d.getPhpExecCommand()
 		if err != nil {
 			return 0, false, err
 		}
 		binary, _ := util.GetEnv("COMPOSER_BINARY")
-		exec := phpCmd + " " + util.Escape(binary) + " " + strings.Join(args, " ")
 
-		return 0, false, d.executeScript(event, callable, exec)
+		return 0, false, d.executeScript(event, callable, phpCmd+" "+util.Escape(binary)+" "+exec)
+	}
+
+	// the fixed args are passed on as arguments of the referenced script, which escapes them, so they need to be unquoted
+	script := splitScriptArgs(callable[1:])
+	scriptName := ""
+	if len(script) > 0 {
+		scriptName = script[0]
+		script = script[1:]
+	}
+
+	var args, aliasArgs []string
+	flags := event.Flags().Clone()
+	aliasInput, hasAliasInput := flags.Get("script-alias-input")
+	aliasInputValue := ""
+	if hasAliasInput && aliasInput != nil {
+		aliasInputValue = php.ToString(aliasInput)
+	} else {
+		hasAliasInput = false
+	}
+	hasAdditionalArgs := slices.Contains(script, "@additional_args")
+	for _, arg := range script {
+		if arg == "@additional_args" {
+			args = append(args, additionalArgs...)
+			aliasArgs = append(aliasArgs, aliasInputValue)
+		} else {
+			args = append(args, arg)
+			aliasArgs = append(aliasArgs, util.Escape(arg))
+		}
+	}
+	if !hasAdditionalArgs {
+		args = append(args, additionalArgs...)
+		aliasArgs = append(aliasArgs, aliasInputValue)
+	}
+	if hasAliasInput {
+		flags.Set("script-alias-input", strings.Join(aliasArgs, " "))
 	}
 
 	if len(d.getListeners(NewEvent(scriptName, nil, nil))) == 0 {
@@ -607,6 +631,10 @@ var (
 
 // runShellScript runs a shell command, @php or @putenv line.
 func (d *EventDispatcher) runShellScript(event Event, callable string, additionalArgs []string) (int, bool, error) {
+	if callable == "" {
+		return 0, true, nil
+	}
+
 	args := escapeArgs(additionalArgs)
 
 	var exec string
@@ -991,6 +1019,34 @@ func isCommandClass(callable string) bool {
 func isComposerScript(callable string) bool {
 	return strings.HasPrefix(callable, "@") && !strings.HasPrefix(callable, "@php ") && !strings.HasPrefix(callable, "@putenv ")
 }
+
+// splitScriptArgs ports splitScriptArgs: splits on whitespace, keeping
+// quoted parts together and unquoting them.
+func splitScriptArgs(command string) []string {
+	matches, err := scriptArgTokenPattern.MatchAll(command)
+	if err != nil {
+		return nil
+	}
+
+	result := make([]string, 0, len(matches))
+	for _, match := range matches {
+		token := match.Get(0)
+		unquoted, _, err := scriptArgQuotePattern.ReplaceCallback(token, func(match *php.Match) string {
+			return match.Get(2)
+		}, -1)
+		if err != nil {
+			return nil
+		}
+		result = append(result, unquoted)
+	}
+
+	return result
+}
+
+var (
+	scriptArgTokenPattern = php.MustCompile(`{(?:[^\s"\']+|"[^"]*"|\'[^\']*\'|["\'])+}`)
+	scriptArgQuotePattern = php.MustCompile(`{(["\'])(.*?)\1}s`)
+)
 
 // pushEvent pushes an event onto the stack of active events, refusing
 // recursion.

@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Question\StrictConfirmationQuestion
- * (docs/PLUGINS.md §4.12), with Composer 2.10.3's behaviour: a yes/no
+ * (docs/PLUGINS.md §4.12), with Composer 2.11.0's behaviour: a yes/no
  * question that accepts only yes, y, no or n.
  * Written for PHP 7.2.5 to 8.5.
  */

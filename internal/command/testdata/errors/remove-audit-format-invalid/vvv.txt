@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -30,24 +30,25 @@ Failed to initialize global composer: Composer could not find the config file: @
 Reading ./composer.lock (@DIR@/p/composer.lock)
 Running composer update x/dev
 
-In BaseCommand.php line 467:
+In BaseCommand.php line 469:
                                                               
   [InvalidArgumentException]                                  
   --audit-format must be one of table, plain, json, summary.  
                                                               
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/BaseCommand.php:467
- Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/BaseCommand.php:508
- Composer\Command\BaseCommand->createAuditConfig() at @COMPOSER@/src/Composer/Command/RemoveCommand.php:289
+  at @COMPOSER@/src/Composer/Command/BaseCommand.php:469
+ Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/BaseCommand.php:527
+ Composer\Command\BaseCommand->createAuditConfig() at @COMPOSER@/src/Composer/Command/RemoveCommand.php:291
  Composer\Command\RemoveCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-remove [--dev] [--dry-run] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-all-dependencies] [--no-update-with-dependencies] [-m|--minimal-changes] [--unused] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
+remove [--dev] [--dry-run] [--no-progress] [--no-update] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-cooldown] [--update-no-dev] [-w|--update-with-dependencies] [-W|--update-with-all-dependencies] [--with-all-dependencies] [--no-update-with-dependencies] [-m|--minimal-changes] [--unused] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [-o|--optimize-autoloader] [-a|--classmap-authoritative] [--apcu-autoloader] [--apcu-autoloader-prefix APCU-AUTOLOADER-PREFIX] [--] [<packages>...]
 
 exit 1

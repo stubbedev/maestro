@@ -91,8 +91,16 @@ func dumpList(l ListPolicyConfig) map[string]any {
 		out["ignoreSource"] = src
 	case *AbandonedPolicyConfig:
 		out["class"] = "AbandonedPolicyConfig"
+	case *CooldownPolicyConfig:
+		out["class"] = "CooldownPolicyConfig"
+		if l.Period != nil {
+			out["period"] = *l.Period
+		} else {
+			out["period"] = nil
+		}
 	case *CustomListPolicyConfig:
 		out["class"] = "CustomListPolicyConfig"
+		out["blockScope"] = l.BlockScope
 		src := []any{}
 		for _, s := range l.Sources {
 			src = append(src, []any{s.ListName, s.URL})
@@ -118,6 +126,7 @@ func dumpPolicy(p *PolicyConfig) map[string]any {
 		"advisories":         dumpList(p.Advisories),
 		"malware":            dumpList(p.Malware),
 		"abandoned":          dumpList(p.Abandoned),
+		"cooldown":           dumpList(p.Cooldown),
 		"custom":             pairs(p.CustomLists, func(l *CustomListPolicyConfig) any { return dumpList(l) }),
 		"ignoreUnreachable":  Dump(p.IgnoreUnreachable),
 		"forBlockScope":      []any{p.IgnoreUnreachable.ForBlockScope(BlockScopeInstall), p.IgnoreUnreachable.ForBlockScope(BlockScopeUpdate)},
@@ -133,6 +142,7 @@ func dumpPolicy(p *PolicyConfig) map[string]any {
 func DumpDerived(p *PolicyConfig) map[string]any {
 	out := dumpPolicy(p)
 	out["noBlocking"] = dumpPolicy(p.WithBlockingDisabled())
+	out["noCooldown"] = dumpPolicy(p.WithCooldownBlockingDisabled())
 	out["withAuditReport"] = p.WithAudit(AuditReport).Abandoned.Audit
 	out["withAuditNull"] = p.WithAudit("").Abandoned.Audit
 	out["withSeverity"] = Dump(p.WithIgnoreSeverity([]string{"low", "critical"}).Advisories.IgnoreSeverity)

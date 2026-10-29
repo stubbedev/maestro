@@ -1,5 +1,5 @@
 
-In InitCommand.php line 452:
+In InitCommand.php line 468:
                                                                                
   [InvalidArgumentException]                                                   
   Invalid author string.  Must be in the formats: Jane Doe or John Smith <joh  
@@ -7,15 +7,16 @@ In InitCommand.php line 452:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/InitCommand.php:452
- Composer\Command\InitCommand->parseAuthorString() at @COMPOSER@/src/Composer/Command/InitCommand.php:463
+  at @COMPOSER@/src/Composer/Command/InitCommand.php:468
+ Composer\Command\InitCommand->parseAuthorString() at @COMPOSER@/src/Composer/Command/InitCommand.php:479
  Composer\Command\InitCommand->formatAuthors() at @COMPOSER@/src/Composer/Command/InitCommand.php:96
  Composer\Command\InitCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]

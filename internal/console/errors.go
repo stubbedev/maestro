@@ -24,6 +24,7 @@ const (
 	KindMissingInput                      // ...\MissingInputException (extends RuntimeException)
 	KindSPLRuntime                        // \RuntimeException (thrown as-is by CompleteCommand)
 	KindSPLLogic                          // \LogicException (thrown as-is by CompletionInput)
+	KindSPLInvalidArgument                // \InvalidArgumentException (ProgramStatus, OscHelper)
 	KindValueError                        // \ValueError (PHP engine argument validation)
 	KindStringInvalidArgument             // Symfony\Component\String\Exception\InvalidArgumentException (symfony/string, via the wrapping formatter)
 )
@@ -33,15 +34,16 @@ const (
 const ClassCommandNotFound = `Symfony\Component\Console\Exception\CommandNotFoundException`
 
 var kindClass = [...]string{
-	KindInvalidArgument:   `Symfony\Component\Console\Exception\InvalidArgumentException`,
-	KindInvalidOption:     `Symfony\Component\Console\Exception\InvalidOptionException`,
-	KindCommandNotFound:   ClassCommandNotFound,
-	KindNamespaceNotFound: `Symfony\Component\Console\Exception\NamespaceNotFoundException`,
-	KindLogic:             `Symfony\Component\Console\Exception\LogicException`,
-	KindRuntime:           `Symfony\Component\Console\Exception\RuntimeException`,
-	KindMissingInput:      `Symfony\Component\Console\Exception\MissingInputException`,
-	KindSPLRuntime:        `RuntimeException`,
-	KindSPLLogic:          `LogicException`,
+	KindInvalidArgument:    `Symfony\Component\Console\Exception\InvalidArgumentException`,
+	KindInvalidOption:      `Symfony\Component\Console\Exception\InvalidOptionException`,
+	KindCommandNotFound:    ClassCommandNotFound,
+	KindNamespaceNotFound:  `Symfony\Component\Console\Exception\NamespaceNotFoundException`,
+	KindLogic:              `Symfony\Component\Console\Exception\LogicException`,
+	KindRuntime:            `Symfony\Component\Console\Exception\RuntimeException`,
+	KindMissingInput:       `Symfony\Component\Console\Exception\MissingInputException`,
+	KindSPLRuntime:         `RuntimeException`,
+	KindSPLLogic:           `LogicException`,
+	KindSPLInvalidArgument: `InvalidArgumentException`,
 
 	KindValueError:            `ValueError`,
 	KindStringInvalidArgument: `Symfony\Component\String\Exception\InvalidArgumentException`,

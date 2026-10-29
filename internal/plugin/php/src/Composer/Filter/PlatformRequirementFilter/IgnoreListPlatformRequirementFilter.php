@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Filter\PlatformRequirementFilter\IgnoreListPlatformRequirementFilter,
- * reimplemented with Composer 2.10.3's behaviour. Given to maestro, it is
+ * reimplemented with Composer 2.11.0's behaviour. Given to maestro, it is
  * maestro's filter of the same list.
  * Written for PHP 7.2.5 to 8.5.
  */

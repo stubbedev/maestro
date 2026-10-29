@@ -22,6 +22,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/resolver"
 	"github.com/stubbedev/maestro/internal/resolver/operation"
 	"github.com/stubbedev/maestro/internal/script"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -73,8 +74,9 @@ func NewCreateProjectCommand() *CreateProjectCommand {
 		console.MustOption("no-install", "", console.OptionValueNone, "Whether to skip installation of the package dependencies.", nil),
 		console.MustOption("no-audit", "", console.OptionValueNone, "Whether to skip auditing of the installed package dependencies (can also be set via the COMPOSER_NO_AUDIT=1 env var).", nil),
 		optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json" or "summary".`, advisory.FormatSummary, advisory.Formats.Names()...),
-		console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
-		console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+		console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories, that are abandoned or that are still in the cooldown period (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
+		console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command, including the cooldown period (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+		console.MustOption("no-cooldown", "", console.OptionValueNone, "Disables the cooldown policy blocking during this command, other policies still apply.", nil),
 		console.MustOption("ignore-platform-req", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore a specific platform requirement (php & ext- packages).", nil),
 		console.MustOption("ignore-platform-reqs", "", console.OptionValueNone, "Ignore all platform requirements (php & ext- packages).", nil),
 		console.MustOption("ask", "", console.OptionValueNone, "Whether to ask for project directory.", nil),
@@ -716,7 +718,14 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 	}
 
 	// find the latest version if there are multiple
+	cooldown, err := c.GetBlockingCooldownPolicy(cfg, in)
+	if err != nil {
+		return false, err
+	}
 	versionSelector := version.NewVersionSelector(repositorySet, platformPackages)
+	if cooldown != nil {
+		versionSelector = version.NewVersionSelector(repositorySet, platformPackages, cooldown)
+	}
 	p, err := versionSelector.FindBestCandidate(name, version.FindBestCandidateOptions{
 		TargetPackageVersion:      packageVersion,
 		PreferredStability:        stability,
@@ -745,6 +754,19 @@ func (c *CreateProjectCommand) installRootPackage(in console.Input, cio io.IO, c
 			}
 			if candidate != nil {
 				return false, NewError(ClassInvalidArgument, errorMessage+" in a version installable using your PHP version, PHP extensions and Composer version.")
+			}
+		}
+		if cooldown != nil {
+			candidate, err := version.NewVersionSelector(repositorySet, platformPackages).FindBestCandidate(name, version.FindBestCandidateOptions{
+				TargetPackageVersion:      packageVersion,
+				PreferredStability:        stability,
+				PlatformRequirementFilter: platformRequirementFilter,
+			})
+			if err != nil {
+				return false, err
+			}
+			if candidate != nil {
+				return false, NewError(ClassInvalidArgument, errorMessage+` that is past the cooldown period configured in "policy.cooldown". `+resolver.CooldownRemedy)
 			}
 		}
 
@@ -839,6 +861,9 @@ func (c *CreateProjectCommand) handleAbortSignals(realDir string) func() {
 		case sig := <-ch:
 			cio.WriteError("Received "+util.SignalName(sig)+", aborting", true, io.Debug)
 			_, _ = util.NewFilesystem(nil).RemoveDirectory(realDir)
+			if cio, ok := c.IO().(*io.ConsoleIO); ok {
+				cio.WriteProgramStatus(console.ProgramStatusIdle(nil))
+			}
 			util.ExitWithSignal(sig)
 		case <-done:
 		}

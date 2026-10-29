@@ -8,9 +8,10 @@ In Factory.php line 231:
 
 Exception trace:
   at @COMPOSER@/src/Composer/Factory.php:231
- Composer\Factory::getComposerFile() at @COMPOSER@/src/Composer/Console/Application.php:197
+ Composer\Factory::getComposerFile() at @COMPOSER@/src/Composer/Console/Application.php:244
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 exit 1

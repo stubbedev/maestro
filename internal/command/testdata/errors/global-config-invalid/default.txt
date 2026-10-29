@@ -10,7 +10,7 @@ Composer could not detect the root package (acme/app) version, defaulting to '1.
  - config.bin-compat : Does not have a value in the enumeration ["auto","full","proxy","symlink"]
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In Config.php line 472:
+In Config.php line 474:
                                                                       
   Invalid value for 'bin-compat': nope. Expected auto, full or proxy  
                                                                       

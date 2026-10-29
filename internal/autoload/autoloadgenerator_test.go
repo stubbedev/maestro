@@ -439,6 +439,113 @@ func TestAutoloadGenerator_VendorsClassMapAutoloading(t *testing.T) {
 	e.assertAutoloadFiles("classmap4", e.vendorDir+"/composer", "classmap")
 }
 
+func TestAutoloadGenerator_RootClassMapExcludesVendorDirWhenScanned(t *testing.T) {
+	// A root classmap entry that contains the vendor dir (e.g. ".") must not
+	// map the installed packages living inside vendor, consistently with the
+	// psr-0/psr-4 handling.
+	e := setUp(t)
+	p := newRoot("root/a")
+	p.SetAutoload(arr("classmap", list(".")))
+	p.SetRequires(links(link("a", "b/b")))
+
+	// The vendor package declares no autoload: the only way its class could
+	// reach the classmap is the root "." scan wrongly descending into vendor.
+	e.packages(newPackage("b/b"))
+
+	e.mkdir(e.vendorDir + "/composer")
+	e.mkdir(e.vendorDir + "/b/b/src")
+	e.mkdir(e.workingDir + "/src")
+	e.write(e.workingDir+"/src/RootClass.php", `<?php class RootClass {}`)
+	e.write(e.vendorDir+"/b/b/src/VendorClass.php", `<?php class VendorClass {}`)
+
+	e.dump(p, true, "_12867")
+
+	assertEntries(t, include(t, e.vendorDir+"/composer/autoload_classmap.php"), [][2]string{
+		{`Composer\InstalledVersions`, e.vendorDir + "/composer/InstalledVersions.php"},
+		{"RootClass", e.workingDir + "/src/RootClass.php"},
+	})
+}
+
+func TestAutoloadGenerator_RootScanExcludesVendorDirWithRegexCharsInPath(t *testing.T) {
+	e := setUp(t)
+	workingDir := e.workingDir + string(filepath.Separator) + "c++ (x86) [x]"
+	e.vendorDir = workingDir + string(filepath.Separator) + "vendor"
+	e.mkdir(workingDir)
+	t.Chdir(workingDir)
+	e.im = testIM{vendorDir: func() string { return e.vendorDir }}
+	e.config["vendor-dir"] = func() any { return e.vendorDir }
+
+	p := newRoot("root/a")
+	p.SetAutoload(arr(
+		"classmap", list("."),
+		"psr-4", arr("", "."),
+	))
+	p.SetRequires(links(link("a", "b/b")))
+	e.packages(newPackage("b/b"))
+
+	e.mkdir(e.vendorDir + "/composer")
+	e.mkdir(e.vendorDir + "/b/b/src")
+	e.write(workingDir+"/RootClass.php", `<?php class RootClass {}`)
+	e.write(e.vendorDir+"/b/b/src/VendorClass.php", `<?php class VendorClass {}`)
+
+	e.dump(p, true, "_regexchars")
+
+	assertEntries(t, include(t, e.vendorDir+"/composer/autoload_classmap.php"), [][2]string{
+		{`Composer\InstalledVersions`, e.vendorDir + "/composer/InstalledVersions.php"},
+		{"RootClass", workingDir + "/RootClass.php"},
+	})
+}
+
+func TestAutoloadGenerator_CreateLoaderExcludesVendorDirFromRootClassMap(t *testing.T) {
+	e := setUp(t)
+	e.mkdir(e.vendorDir + "/b/b/src")
+	e.mkdir(e.workingDir + "/src")
+	e.write(e.workingDir+"/src/RootClass.php", `<?php class RootClass {}`)
+	e.write(e.vendorDir+"/b/b/src/VendorClass.php", `<?php class VendorClass {}`)
+
+	autoloads := &Autoloads{
+		PSR0:     php.NewArray(),
+		PSR4:     php.NewArray(),
+		Classmap: []string{"."},
+		Files:    php.NewArray(),
+	}
+
+	l, err := e.generator.CreateLoader(autoloads, e.vendorDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "array (\n  'RootClass' => '" + filepath.ToSlash(e.workingDir) + "/src/RootClass.php',\n)"
+	if got := php.VarExport(l.ClassMap); got != want {
+		t.Errorf("classMap %s, want %s", got, want)
+	}
+}
+
+func TestAutoloadGenerator_AmbiguousPathCasingWarning(t *testing.T) {
+	e := setUp(t)
+	p := newRoot("root/a")
+	p.SetAutoload(arr("classmap", list("src/")))
+	e.packages()
+
+	e.mkdir(e.vendorDir + "/composer")
+	e.mkdir(e.workingDir + "/src/Foo")
+	e.mkdir(e.workingDir + "/src/foo")
+	e.write(e.workingDir+"/src/Foo/A.php", `<?php class CasingA {}`)
+	e.write(e.workingDir+"/src/foo/B.php", `<?php class CasingB {}`)
+
+	e.dump(p, false, "_casing")
+
+	out := php.NormalizeEOL(e.io.Output())
+	for _, want := range []string{
+		`<warning>Warning: Ambiguous path casing, "` + filepath.ToSlash(e.workingDir) + `/src/Foo", "` + filepath.ToSlash(e.workingDir) + `/src/foo" only differ in casing and merge into one on case-insensitive filesystems (e.g. Windows and macOS), which breaks autoloading there.</warning>`,
+		"To resolve ambiguity in classes not under your control you can ignore them by path using",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output %q lacks %q", out, want)
+		}
+	}
+}
+
 func TestAutoloadGenerator_VendorsClassMapAutoloadingWithTargetDir(t *testing.T) {
 	e := setUp(t)
 	p := newRoot("root/a")

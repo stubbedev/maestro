@@ -77,17 +77,17 @@ class ShowCommand extends \Composer\Command\BaseCommand
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\ShowCommand::printLinks() in plugins yet');
     }
 
-    protected function printMeta(\Composer\Package\CompletePackageInterface $package, array $versions, \Composer\Repository\InstalledRepository $installedRepo, ?\Composer\Package\PackageInterface $latestPackage = null): void
+    protected function printMeta(\Composer\Package\CompletePackageInterface $package, array $versions, \Composer\Repository\InstalledRepository $installedRepo, ?\Composer\Package\PackageInterface $latestPackage = null, ?array $withheld = null): void
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\ShowCommand::printMeta() in plugins yet');
     }
 
-    protected function printPackageInfo(\Composer\Package\CompletePackageInterface $package, array $versions, \Composer\Repository\InstalledRepository $installedRepo, ?\Composer\Package\PackageInterface $latestPackage = null): void
+    protected function printPackageInfo(\Composer\Package\CompletePackageInterface $package, array $versions, \Composer\Repository\InstalledRepository $installedRepo, ?\Composer\Package\PackageInterface $latestPackage = null, ?array $withheld = null): void
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\ShowCommand::printPackageInfo() in plugins yet');
     }
 
-    protected function printPackageInfoAsJson(\Composer\Package\CompletePackageInterface $package, array $versions, \Composer\Repository\InstalledRepository $installedRepo, ?\Composer\Package\PackageInterface $latestPackage = null): void
+    protected function printPackageInfoAsJson(\Composer\Package\CompletePackageInterface $package, array $versions, \Composer\Repository\InstalledRepository $installedRepo, ?\Composer\Package\PackageInterface $latestPackage = null, ?array $withheld = null): void
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Command\\ShowCommand::printPackageInfoAsJson() in plugins yet');
     }

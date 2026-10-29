@@ -1,5 +1,5 @@
 
-In JsonFile.php line 393:
+In JsonFile.php line 396:
                                          
   [Seld\JsonLint\ParsingException]       
   The input does not contain valid JSON  
@@ -10,16 +10,17 @@ In JsonFile.php line 393:
                                          
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Json/JsonFile.php:393
- Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:363
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:396
+ Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:366
  Composer\Json\JsonFile::parseJson() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:49
  Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/InitCommand.php:104
  Composer\Command\InitCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]

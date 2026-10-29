@@ -177,6 +177,9 @@ func (r *ArtifactRepository) composerInformation(pathname string) (pkg.PackageIn
 	if !isArray {
 		return nil, &util.ErrorException{Message: "Cannot use a scalar value as an array"}
 	}
+	// only a Composer repository can vouch for a publication date, the
+	// package's own composer.json cannot
+	data.Delete("published-time")
 	shasum, err := php.Sha1File(util.Realpath(pathname))
 	if err != nil {
 		return nil, err

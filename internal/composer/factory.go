@@ -679,6 +679,9 @@ func (f *Factory) initLocker(out io.IO, c *Composer, cfg *config.Config, compose
 	if err != nil {
 		return err
 	}
+	if rm := c.RepositoryManager(); rm != nil {
+		l.SetRepositoryManager(rm)
+	}
 	c.SetLocker(l)
 
 	return nil
@@ -756,6 +759,7 @@ func (f *Factory) addLocalRepository(out io.IO, rm *repository.RepositoryManager
 	if err != nil {
 		return err
 	}
+	repo.SetRepositoryManager(rm)
 	rt := f.runtime()
 	rt.mu.Lock()
 	sink := rt.installedVersionsSink
@@ -811,14 +815,6 @@ func (f *Factory) createDownloadManager(out io.IO, cfg *config.Config, httpDownl
 		if _, err := dm.SetPreferences(a); err != nil {
 			return nil, err
 		}
-	}
-
-	sourceFallback, err := cfg.Get("source-fallback", 0)
-	if err != nil {
-		return nil, err
-	}
-	if php.ToBool(sourceFallback) {
-		dm.SetSourceFallback(true)
 	}
 
 	method, err := store.ParseMethod(os.Getenv(store.MethodEnv))

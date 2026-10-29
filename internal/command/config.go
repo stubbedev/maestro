@@ -128,8 +128,8 @@ func NewConfigCommand() *ConfigCommand {
 			console.MustOption("list", "l", console.OptionValueNone, "List configuration settings", nil),
 			console.MustOption("file", "f", console.OptionValueRequired, "If you want to choose a different composer.json or config.json", nil),
 			console.MustOption("absolute", "", console.OptionValueNone, "Returns absolute paths when fetching *-dir config values instead of relative", nil),
-			console.MustOption("json", "j", console.OptionValueNone, "JSON decode the setting value, to be used with extra.* keys", nil),
-			console.MustOption("merge", "m", console.OptionValueNone, "Merge the setting value with the current value, to be used with extra.* or audit.ignore[-abandoned] keys in combination with --json", nil),
+			console.MustOption("json", "j", console.OptionValueNone, "JSON decode the setting value, only supported for extra.*, policy.*.ignore, policy.advisories.ignore-id, policy.ignore-unreachable and audit.ignore[-abandoned] keys", nil),
+			console.MustOption("merge", "m", console.OptionValueNone, "Merge the setting value with the current value, only supported for extra.* keys in combination with --json, and for policy.*.ignore, policy.advisories.ignore-id and audit.ignore[-abandoned] keys", nil),
 			console.MustOption("append", "", console.OptionValueNone, "When adding a repository, append it (lowest priority) to the existing ones instead of prepending it (highest priority)", nil),
 			console.MustOption("source", "", console.OptionValueNone, "Display where the config value is loaded from", nil),
 			console.MustArgument("setting-key", console.ArgumentOptional, "Setting key", nil).WithSuggestFunc(c.suggestSettingKeys()),
@@ -266,7 +266,7 @@ var (
 	reposKeyPattern         = php.MustCompile(`/^repos?(?:itories)?\.(.+)/`)
 	cacheMaxsizePattern     = php.MustCompile(`/^\s*([0-9.]+)\s*(?:([kmg])(?:i?b)?)?\s*$/i`)
 	policyListPattern       = php.MustCompile(`/^policy\.([^.]+)$/`)
-	policyCustomPattern     = php.MustCompile(`/^policy\.([^.]+)\.(block|audit)$/`)
+	policyCustomPattern     = php.MustCompile(`/^policy\.([^.]+)\.(block|block-scope|audit)$/`)
 	policySourcesPattern    = php.MustCompile(`/^policy\.([^.]+)\.sources$/`)
 	preferredInstallPattern = php.MustCompile(`/^preferred-install\.(.+)/`)
 	allowPluginsPattern     = php.MustCompile(`{^allow-plugins\.([a-zA-Z0-9/*-]+)}`)
@@ -318,9 +318,13 @@ func nullIfNull(val string) (any, error) {
 }
 
 var (
-	boolPair  = configValidator{booleanValidator, booleanNormalizer}
-	auditPair = configValidator{oneOf(policy.AuditIgnore, policy.AuditReport, policy.AuditFail), keepAsIs}
-	strPair   = configValidator{isString, keepAsIs}
+	boolPair       = configValidator{booleanValidator, booleanNormalizer}
+	auditPair      = configValidator{oneOf(policy.AuditIgnore, policy.AuditReport, policy.AuditFail), keepAsIs}
+	strPair        = configValidator{isString, keepAsIs}
+	blockScopePair = configValidator{
+		func(val string) (bool, error) { return slices.Contains(policy.AvailableBlockScopes[:], val), nil },
+		keepAsIs,
+	}
 )
 
 func keywordOrBool(keyword ...string) func(string) (any, error) {
@@ -369,6 +373,7 @@ var uniqueConfigValues = map[string]configValidator{
 	"autoloader-suffix":           {isString, nullIfNull},
 	"sort-packages":               boolPair,
 	"optimize-autoloader":         boolPair,
+	"strict-psr-autoloader":       boolPair,
 	"classmap-authoritative":      boolPair,
 	"apcu-autoloader":             boolPair,
 	"prepend-autoloader":          boolPair,
@@ -402,11 +407,33 @@ var uniqueConfigValues = map[string]configValidator{
 	"policy.advisories.block":    boolPair,
 	"policy.advisories.audit":    auditPair,
 	"policy.malware.block":       boolPair,
-	"policy.malware.block-scope": {oneOf("all", "update", "install"), keepAsIs},
+	"policy.malware.block-scope": blockScopePair,
 	"policy.malware.audit":       auditPair,
 	"policy.abandoned.block":     boolPair,
 	"policy.abandoned.audit":     auditPair,
-	"policy.ignore-unreachable":  boolPair,
+	"policy.cooldown.block":      boolPair,
+	"policy.cooldown.audit":      auditPair,
+	"policy.cooldown.period": {
+		func(val string) (bool, error) {
+			if val == "null" || val == "" {
+				return true, nil
+			}
+			_, err := policy.ParseDuration(val)
+
+			return err == nil, nil
+		},
+		func(val string) (any, error) {
+			if val == "null" || val == "" {
+				return nil, nil
+			}
+			if php.IsNumeric(val) {
+				return php.ToInt(val), nil
+			}
+
+			return val, nil
+		},
+	},
+	"policy.ignore-unreachable": boolPair,
 }
 
 func listOf(vals []string) any { return stringList(vals) }
@@ -890,6 +917,13 @@ func (c *ConfigCommand) setValue(in console.Input, settingKey string, values []s
 			}
 			v, _ := booleanNormalizer(first)
 			if err := src.AddConfigSetting(settingKey, v); err != nil {
+				return 0, err
+			}
+		} else if m.Get(2) == "block-scope" {
+			if ok, _ := blockScopePair.validate(first); !ok {
+				return 0, configErr(ClassRuntime, `"`+first+`" is an invalid value for `+settingKey+", must be one of: all, update, install")
+			}
+			if err := src.AddConfigSetting(settingKey, first); err != nil {
 				return 0, err
 			}
 		} else {

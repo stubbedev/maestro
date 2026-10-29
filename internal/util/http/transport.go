@@ -134,6 +134,10 @@ type transferResult struct {
 	// raises for the failure, which RemoteFilesystem reports instead of
 	// errMsg.
 	streamWarnings []string
+	// distrustedCert names the distrusted certificate a chain presented
+	// (TlsChainDenylist), "" when there was none; err is the exception it
+	// raised.
+	distrustedCert string
 
 	status  int
 	headers []string
@@ -348,6 +352,7 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 
 	if !s.verifyPeer {
 		cfg.InsecureSkipVerify = true // verify_peer false asks for exactly this
+		cfg.VerifyConnection = checkDistrustedChain
 
 		return cfg, nil
 	}
@@ -363,10 +368,40 @@ func buildTLSConfig(s tlsSettings) (*tls.Config, *transferResult) {
 	selfSigned := s.allowSelfSigned
 	stream := s.stream
 	cfg.VerifyConnection = func(cs tls.ConnectionState) error {
-		return verifyPeer(cs, roots, checkName, selfSigned, maxDepth, stream)
+		if err := verifyPeer(cs, roots, checkName, selfSigned, maxDepth, stream); err != nil {
+			return err
+		}
+
+		return checkDistrustedChain(cs)
 	}
 
 	return cfg, nil
+}
+
+// distrustedChainError is the handshake failure checkDistrustedChain
+// raises; the transfer turns it into the TlsChainDenylist exception naming
+// its URL.
+type distrustedChainError struct{ cert string }
+
+func (e *distrustedChainError) Error() string {
+	return "tls: certificate chain holds the distrusted certificate " + e.cert
+}
+
+// checkDistrustedChain is TlsChainDenylist's inspection of the chain a
+// server presented: a distrusted (e.g. compromised) intermediate is
+// rejected even when the system CA store trusts the roots above it. Go
+// runs it once the handshake is done, before the request is written.
+func checkDistrustedChain(cs tls.ConnectionState) error {
+	chain := make([][]byte, len(cs.PeerCertificates))
+	for i, cert := range cs.PeerCertificates {
+		chain[i] = cert.Raw
+	}
+
+	if name := FindDistrustedCertificate(chain); name != "" {
+		return &distrustedChainError{cert: name}
+	}
+
+	return nil
 }
 
 // errChainTooLong is X509_V_ERR_CERT_CHAIN_TOO_LONG.
@@ -647,6 +682,13 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	}
 
 	if err != nil {
+		if distrusted, ok := errors.AsType[*distrustedChainError](err); ok {
+			res.err = NewTlsChainError(r.url, distrusted.cert)
+			res.distrustedCert = distrusted.cert
+
+			return finish()
+		}
+
 		if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 			res.err = cause
 

@@ -39,6 +39,10 @@ const DefaultEncodeFlags = php.JSONUnescapedSlashes | php.JSONPrettyPrint | php.
 // draft04 is the $schema JsonFile::validateJsonSchema declares.
 const draft04 = "https://json-schema.org/draft-04/schema#"
 
+// ConflictedContentHash is JsonFile::CONFLICTED_CONTENT_HASH, the content
+// hash a lock file's merge conflict is read as.
+const ConflictedContentHash = "VCS merge conflict detected. Please run `composer update --lock`."
+
 // HTTPDownloader is the part of Composer\Util\HttpDownloader JsonFile uses:
 // the body of a GET request. Its errors are TransportExceptions; Read
 // rethrows them as RuntimeExceptions with the same message.
@@ -79,7 +83,7 @@ type File struct {
 var decodedFiles = cache.NewDecoded(decodedFormat, 4096, decodedFilesSlots)
 
 // decodedFormat is the version of decodedFiles' slots.
-var decodedFormat = fsstate.Format{Name: "json", Version: 6}
+var decodedFormat = fsstate.Format{Name: "json", Version: 7}
 
 // decodedFilesSlots is how many files' slots decodedFiles keeps: a slot
 // per project of the machine's most recent ones.
@@ -466,7 +470,7 @@ func ParseJSON(json, file string) (any, error) {
 
 	// attempt resolving simple conflicts in lock files so that one can run `composer update --lock` and get a valid lock file
 	if file != "" && strings.HasSuffix(file, ".lock") && strings.Contains(json, `"content-hash"`) {
-		replaced, count, rerr := lockMergeConflict.Replace(json, "    \"content-hash\": \"VCS merge conflict detected. Please run `composer update --lock`.\",$1", 1)
+		replaced, count, rerr := lockMergeConflict.Replace(json, "    \"content-hash\": \""+ConflictedContentHash+"\",$1", 1)
 		if rerr != nil {
 			return nil, rerr
 		}

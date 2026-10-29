@@ -282,6 +282,8 @@ func TestStreamContextFactory_UserAgentUsesRunningOperationWhenNoCommand(t *test
 }
 
 func TestStreamContextFactory_UserAgentFormat(t *testing.T) {
+	withAIAgent(t, "")
+
 	rt := newStreamContextTest(t)
 	rt.SetPlatformPHPVersion("8.1.0")
 	t.Setenv("CI", "1")
@@ -296,6 +298,50 @@ func TestStreamContextFactory_UserAgentFormat(t *testing.T) {
 	t.Setenv("CI", "0")
 
 	if ua := userAgentOf(t, NewStaticRuntime("", "1.2.3")); !strings.Contains(ua, "; PHP unknown; maestro 1.2.3)") {
+		t.Fatal(ua)
+	}
+}
+
+// withAIAgent has UserAgent report agent, as Platform::getAiAgent() does
+// when a coding agent runs Composer.
+func withAIAgent(t *testing.T, agent string) {
+	t.Helper()
+
+	old := aiAgent
+	aiAgent = func() (string, bool) { return agent, agent != "" }
+
+	t.Cleanup(func() { aiAgent = old })
+}
+
+func TestStreamContextFactory_UserAgentIncludesAgentFlagWhenRunByACodingAgent(t *testing.T) {
+	withAIAgent(t, "claude-code")
+
+	if ok, _ := php.PregIsMatch(`{; agent:claude-code[;)]}`, userAgentOf(t, newStreamContextTest(t))); !ok {
+		t.Fatal(userAgentOf(t, newStreamContextTest(t)))
+	}
+}
+
+func TestStreamContextFactory_UserAgentIncludesUnknownAgentWhenAgentCannotBeIdentified(t *testing.T) {
+	withAIAgent(t, "unknown")
+
+	if ok, _ := php.PregIsMatch(`{; agent:unknown[;)]}`, userAgentOf(t, newStreamContextTest(t))); !ok {
+		t.Fatal(userAgentOf(t, newStreamContextTest(t)))
+	}
+}
+
+func TestStreamContextFactory_UserAgentIncludesSanitizedUnknownAgentName(t *testing.T) {
+	// Platform::getAiAgent() already sanitized it
+	withAIAgent(t, "some-agent")
+
+	if ok, _ := php.PregIsMatch(`{; agent:some-agent[;)]}`, userAgentOf(t, newStreamContextTest(t))); !ok {
+		t.Fatal(userAgentOf(t, newStreamContextTest(t)))
+	}
+}
+
+func TestStreamContextFactory_UserAgentOmitsAgentFlagWhenRunByAHuman(t *testing.T) {
+	withAIAgent(t, "")
+
+	if ua := userAgentOf(t, newStreamContextTest(t)); strings.Contains(ua, "; agent") {
 		t.Fatal(ua)
 	}
 }

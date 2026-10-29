@@ -281,6 +281,9 @@ func (a *AliasPackage) PhpExt() *php.Array { return a.aliasOf.PhpExt() }
 // ReleaseDate ports AliasPackage::getReleaseDate.
 func (a *AliasPackage) ReleaseDate() (time.Time, bool) { return a.aliasOf.ReleaseDate() }
 
+// PublishedDate ports AliasPackage::getPublishedDate.
+func (a *AliasPackage) PublishedDate() (time.Time, bool) { return a.aliasOf.PublishedDate() }
+
 // Binaries ports AliasPackage::getBinaries.
 func (a *AliasPackage) Binaries() *php.Array { return a.aliasOf.Binaries() }
 

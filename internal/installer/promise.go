@@ -81,15 +81,25 @@ func Await(loop *http.Loop, p *Promise) error {
 		return nil
 	}
 
-	return wait(loop, []*Promise{p}, nil)
+	return wait(loop, []*Promise{p})
 }
 
-// wait is Loop::wait($promises, $progress) for installer promises.
-func wait(loop *http.Loop, promises []*Promise, progress *console.ProgressBar) error {
+// wait is Loop::wait($promises) for installer promises.
+func wait(loop *http.Loop, promises []*Promise) error {
+	return waitProgress(loop, promises, nil, nil)
+}
+
+// waitProgress is Loop::wait($promises, $progress, $onProgress): onProgress
+// receives the download progress as a percentage when there is one.
+func waitProgress(loop *http.Loop, promises []*Promise, progress *console.ProgressBar, onProgress func(percent int)) error {
 	waitables := make([]http.Waitable, len(promises))
 	for i, p := range promises {
 		waitables[i] = p
 	}
 
-	return loop.Wait(waitables, progress)
+	if onProgress != nil {
+		defer onProgress(-1)
+	}
+
+	return loop.WaitProgress(waitables, progress, onProgress)
 }

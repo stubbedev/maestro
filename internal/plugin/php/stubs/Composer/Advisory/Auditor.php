@@ -19,6 +19,11 @@ class Auditor
     public const STATUS_FAILED = 1;
     public const STATUS_OK = 0;
 
+    public function __construct(?\Composer\Advisory\CooldownAuditor $cooldownAuditor = null)
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Advisory\\Auditor::__construct() in plugins yet');
+    }
+
     public function audit(\Composer\IO\IOInterface $io, \Composer\Repository\RepositorySet $repoSet, \Composer\Policy\PolicyConfig $policyConfig, array $packages, string $format, bool $warningOnly = true, ?\Composer\FilterList\FilterListProvider\FilterListProviderSet $filterListProviderSet = null): int
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Advisory\\Auditor::audit() in plugins yet');

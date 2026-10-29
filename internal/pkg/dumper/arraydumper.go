@@ -93,6 +93,10 @@ func (ArrayDumper) Dump(p pkg.PackageInterface) (*php.Array, error) {
 		data.Set("time", date.Format(RFC3339))
 	}
 
+	if date, ok := p.PublishedDate(); ok {
+		data.Set("published-time", date.Format(RFC3339))
+	}
+
 	if p.IsDefaultBranch() {
 		data.Set("default-branch", true)
 	}

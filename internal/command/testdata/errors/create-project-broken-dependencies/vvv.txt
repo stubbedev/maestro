@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/broken" project at "./out"
@@ -15,23 +15,23 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.2xJDSU-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.03jNHo-run-p-packages.json/packages.json into cache
 Installing x/broken (1.0.0)
   - Downloading x/broken (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/broken.zip
 [200] http://@SERVER@/broken.zip
-Writing @DIR@/cache/files/x/broken/9130ad642010902a2bdea7e16a5a0bae9a00d542.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
+Writing @DIR@/cache/files/x/broken/e3ef5b6b864c622e17754603f839ce29660a53de.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
   - Installing x/broken (1.0.0): Extracting archive
-Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/273d232b'
-Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/273d232b'
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/804038d9'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/804038d9'
 Created project in @DIR@/p/out
 Reading ./composer.json (@DIR@/p/out/composer.json)
 Loading config file ./composer.json (@DIR@/p/out/composer.json)
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 Loading composer repositories with package information
-Built pool.
+Built pool in 0.00046706199645996s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.
@@ -49,7 +49,7 @@ Your requirements could not be resolved to an installable set of packages.
 Potential causes:
  - A typo in the package name
  - The package is not available in a stable-enough version according to your minimum-stability setting
-   see <https://getcomposer.org/doc/04-schema.md#minimum-stability> for more details.
+   see <https://getcomposer.org/doc/04-schema.md#minimum-stability-root-only> for more details.
  - It's a private package and you forgot to add a custom repository to find it
 
 Read <https://getcomposer.org/doc/articles/troubleshooting.md> for further common problems.

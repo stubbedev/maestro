@@ -111,7 +111,7 @@
             "pattern": "{ComposerAutoloaderInit([^:\\s]+)::}",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:423"
+                "src/Composer/Autoload/AutoloadGenerator.php:425"
             ],
             "subjects": [
                 "",
@@ -147,7 +147,7 @@
             "pattern": "{^[a-f0-9]+$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:432",
+                "src/Composer/Autoload/AutoloadGenerator.php:434",
                 "src/Composer/Compiler.php:323"
             ],
             "subjects": [
@@ -186,7 +186,7 @@
             "pattern": "{^(([^.+*?\\[^\\]$(){}=!<>|:\\\\#-]+|\\\\[.+*?\\[^\\]$(){}=!<>|:#-])*).*}",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:508"
+                "src/Composer/Autoload/AutoloadGenerator.php:529"
             ],
             "subjects": [
                 "",
@@ -224,7 +224,7 @@
             "pattern": "{\\.phar([\\\\/]|$)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:790"
+                "src/Composer/Autoload/AutoloadGenerator.php:816"
             ],
             "subjects": [
                 "",
@@ -262,8 +262,8 @@
             "pattern": "{^ext-(.+)$}iD",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:813",
-                "src/Composer/Autoload/AutoloadGenerator.php:842"
+                "src/Composer/Autoload/AutoloadGenerator.php:839",
+                "src/Composer/Autoload/AutoloadGenerator.php:868"
             ],
             "subjects": [
                 "",
@@ -301,7 +301,7 @@
             "pattern": "/^ */m",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:1225"
+                "src/Composer/Autoload/AutoloadGenerator.php:1251"
             ],
             "subjects": [
                 "",
@@ -339,7 +339,7 @@
             "pattern": "/ +$/m",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:1226"
+                "src/Composer/Autoload/AutoloadGenerator.php:1252"
             ],
             "subjects": [
                 "",
@@ -399,7 +399,7 @@
             "pattern": "{/+}",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:1295"
+                "src/Composer/Autoload/AutoloadGenerator.php:1321"
             ],
             "subjects": [
                 "",
@@ -437,7 +437,7 @@
             "pattern": "{^((?:(?:\\\\\\.){1,2}+/)+)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Autoload/AutoloadGenerator.php:1302"
+                "src/Composer/Autoload/AutoloadGenerator.php:1328"
             ],
             "subjects": [
                 "",
@@ -831,7 +831,7 @@
             "pattern": "/^repos?(?:itories)?(?:\\.(.+))?/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:250"
+                "src/Composer/Command/ConfigCommand.php:251"
             ],
             "subjects": [
                 "",
@@ -863,8 +863,8 @@
             "pattern": "/^\\s*([0-9.]+)\\s*(?:([kmg])(?:i?b)?)?\\s*$/i",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:399",
-                "src/Composer/Config.php:433"
+                "src/Composer/Command/ConfigCommand.php:403",
+                "src/Composer/Config.php:435"
             ],
             "subjects": [
                 "",
@@ -912,7 +912,7 @@
             "pattern": "/^policy\\.([^.]+)$/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:692"
+                "src/Composer/Command/ConfigCommand.php:715"
             ],
             "subjects": [
                 "",
@@ -947,10 +947,10 @@
             ]
         },
         {
-            "pattern": "/^policy\\.([^.]+)\\.(block|audit)$/",
+            "pattern": "/^policy\\.([^.]+)\\.(block|block-scope|audit)$/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:708"
+                "src/Composer/Command/ConfigCommand.php:731"
             ],
             "subjects": [
                 "",
@@ -961,34 +961,15 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "version",
-                "policy.malware.audit",
-                "policy.advisories.audit",
-                "policy.abandoned.audit",
-                "random-prop",
-                "policy.malware.block",
-                "policy.advisories.block",
-                "policy.abandoned.block",
-                "audit.ignore"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "version",
-                "policy.malware.audit",
-                "policy.advisories.audit",
-                "policy.abandoned.audit",
-                "random-prop",
-                "policy.malware.block",
-                "policy.advisories.block",
-                "policy.abandoned.block",
-                "audit.ignore"
-            ]
+            "logged": []
         },
         {
             "pattern": "/^policy\\.([^.]+)\\.sources$/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:732"
+                "src/Composer/Command/ConfigCommand.php:760"
             ],
             "subjects": [
                 "",
@@ -1026,7 +1007,7 @@
             "pattern": "/^preferred-install\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:759"
+                "src/Composer/Command/ConfigCommand.php:787"
             ],
             "subjects": [
                 "",
@@ -1064,7 +1045,7 @@
             "pattern": "{^allow-plugins\\.([a-zA-Z0-9/*-]+)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:777"
+                "src/Composer/Command/ConfigCommand.php:805"
             ],
             "subjects": [
                 "",
@@ -1102,7 +1083,7 @@
             "pattern": "/^repos?(?:itories)?\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:872"
+                "src/Composer/Command/ConfigCommand.php:900"
             ],
             "subjects": [
                 "",
@@ -1140,7 +1121,7 @@
             "pattern": "/^extra\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:908"
+                "src/Composer/Command/ConfigCommand.php:936"
             ],
             "subjects": [
                 "",
@@ -1178,7 +1159,7 @@
             "pattern": "/^suggest\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:939"
+                "src/Composer/Command/ConfigCommand.php:967"
             ],
             "subjects": [
                 "",
@@ -1214,7 +1195,7 @@
             "pattern": "/^platform\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:959"
+                "src/Composer/Command/ConfigCommand.php:987"
             ],
             "subjects": [
                 "",
@@ -1250,7 +1231,7 @@
             "pattern": "/^(bitbucket-oauth|github-oauth|gitlab-oauth|gitlab-token|http-basic|custom-headers|bearer|forgejo-token)\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1017"
+                "src/Composer/Command/ConfigCommand.php:1045"
             ],
             "subjects": [
                 "",
@@ -1280,7 +1261,7 @@
             "pattern": "/^[^:]+:\\s*.+$/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1059"
+                "src/Composer/Command/ConfigCommand.php:1087"
             ],
             "subjects": [
                 "",
@@ -1299,7 +1280,7 @@
             "pattern": "/^scripts\\.(.+)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1080"
+                "src/Composer/Command/ConfigCommand.php:1108"
             ],
             "subjects": [
                 "",
@@ -1329,7 +1310,7 @@
             "pattern": "{^config\\.}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1168"
+                "src/Composer/Command/ConfigCommand.php:1196"
             ],
             "subjects": [
                 "",
@@ -1348,7 +1329,7 @@
             "pattern": "{\\..*$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1195"
+                "src/Composer/Command/ConfigCommand.php:1223"
             ],
             "subjects": [
                 "",
@@ -1367,7 +1348,7 @@
             "pattern": "{[^a-z0-9]}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1196",
+                "src/Composer/Command/ConfigCommand.php:1224",
                 "src/Composer/Repository/Vcs/FossilDriver.php:59",
                 "src/Composer/Repository/Vcs/HgDriver.php:51"
             ],
@@ -1407,7 +1388,7 @@
             "pattern": "{-+}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ConfigCommand.php:1197"
+                "src/Composer/Command/ConfigCommand.php:1225"
             ],
             "subjects": [
                 "",
@@ -1498,8 +1479,8 @@
                 "src/Composer/Command/GlobalCommand.php:102",
                 "src/Composer/Repository/ArrayRepository.php:152",
                 "src/Composer/Repository/ArrayRepository.php:155",
-                "src/Composer/Repository/ComposerRepository.php:647",
-                "src/Composer/Repository/ComposerRepository.php:674"
+                "src/Composer/Repository/ComposerRepository.php:669",
+                "src/Composer/Repository/ComposerRepository.php:696"
             ],
             "subjects": [
                 "",
@@ -1568,7 +1549,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Command/InitCommand.php:89",
-                "src/Composer/Command/InitCommand.php:284"
+                "src/Composer/Command/InitCommand.php:300"
             ],
             "subjects": [
                 "",
@@ -1596,7 +1577,7 @@
             "pattern": "{^[^/][A-Za-z0-9\\-_/]+/$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:421"
+                "src/Composer/Command/InitCommand.php:437"
             ],
             "subjects": [
                 "",
@@ -1615,7 +1596,7 @@
             "pattern": "/^(?P<name>[- .,\\p{L}\\p{N}\\p{Mn}'’\"()]+)(?:\\s+<(?P<email>.+?)>)?$/u",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:441"
+                "src/Composer/Command/InitCommand.php:457"
             ],
             "subjects": [
                 "",
@@ -1653,7 +1634,7 @@
             "pattern": "/[^a-z0-9]/i",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:484"
+                "src/Composer/Command/InitCommand.php:500"
             ],
             "subjects": [
                 "",
@@ -1683,7 +1664,7 @@
             "pattern": "{^([^=]+)=(.*)$}m",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:508"
+                "src/Composer/Command/InitCommand.php:524"
             ],
             "subjects": [
                 "",
@@ -1727,8 +1708,8 @@
             "pattern": "{(?:([a-z])([A-Z])|([A-Z])([A-Z][a-z]))}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:607",
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:665",
+                "src/Composer/Command/InitCommand.php:665",
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:664",
                 "src/Composer/Util/ConfigValidator.php:135"
             ],
             "subjects": [
@@ -1767,7 +1748,7 @@
             "pattern": "{^[_.-]+|[_.-]+$|[^a-z0-9_.-]}u",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:609"
+                "src/Composer/Command/InitCommand.php:667"
             ],
             "subjects": [
                 "",
@@ -1795,7 +1776,7 @@
             "pattern": "{([_.-]){2,}}u",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/InitCommand.php:610"
+                "src/Composer/Command/InitCommand.php:668"
             ],
             "subjects": [
                 "",
@@ -1823,7 +1804,7 @@
             "pattern": "{^\\d+(\\.\\d+)?$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/PackageDiscoveryTrait.php:114"
+                "src/Composer/Command/PackageDiscoveryTrait.php:116"
             ],
             "subjects": [
                 "",
@@ -1845,7 +1826,7 @@
             "pattern": "{^\\s*(?P<name>[\\S/]+)(?:\\s+(?P<version>\\S+))?\\s*$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/PackageDiscoveryTrait.php:222"
+                "src/Composer/Command/PackageDiscoveryTrait.php:224"
             ],
             "subjects": [
                 "",
@@ -2052,7 +2033,7 @@
             "pattern": "{^dev-(?!main$|master$|trunk$|latest$)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/RequireCommand.php:543"
+                "src/Composer/Command/RequireCommand.php:550"
             ],
             "subjects": [
                 "",
@@ -2106,9 +2087,9 @@
             "pattern": "{^(\\d+).*}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:182",
-                "src/Composer/Command/SelfUpdateCommand.php:183",
-                "src/Composer/Command/SelfUpdateCommand.php:184"
+                "src/Composer/Command/SelfUpdateCommand.php:184",
+                "src/Composer/Command/SelfUpdateCommand.php:185",
+                "src/Composer/Command/SelfUpdateCommand.php:186"
             ],
             "subjects": [
                 "",
@@ -2134,8 +2115,8 @@
             "pattern": "{^[0-9a-f]{40}$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:241",
-                "src/Composer/Command/SelfUpdateCommand.php:278",
+                "src/Composer/Command/SelfUpdateCommand.php:243",
+                "src/Composer/Command/SelfUpdateCommand.php:280",
                 "src/Composer/Downloader/GitDownloader.php:628"
             ],
             "subjects": [
@@ -2174,7 +2155,7 @@
             "pattern": "{^([0-9a-f]{7})[0-9a-f]{33}$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:274"
+                "src/Composer/Command/SelfUpdateCommand.php:276"
             ],
             "subjects": [
                 "",
@@ -2196,7 +2177,7 @@
             "pattern": "{^-----BEGIN PUBLIC KEY-----$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:343"
+                "src/Composer/Command/SelfUpdateCommand.php:345"
             ],
             "subjects": [
                 "",
@@ -2215,8 +2196,8 @@
             "pattern": "{(-----BEGIN PUBLIC KEY-----.+?-----END PUBLIC KEY-----)}s",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:351",
-                "src/Composer/Command/SelfUpdateCommand.php:364"
+                "src/Composer/Command/SelfUpdateCommand.php:353",
+                "src/Composer/Command/SelfUpdateCommand.php:366"
             ],
             "subjects": [
                 "",
@@ -2235,7 +2216,7 @@
             "pattern": "{^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-(?<version>.+)$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:663"
+                "src/Composer/Command/SelfUpdateCommand.php:665"
             ],
             "subjects": [
                 "",
@@ -2267,7 +2248,7 @@
             "pattern": "{^[0-9a-f]{7}$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/SelfUpdateCommand.php:667"
+                "src/Composer/Command/SelfUpdateCommand.php:669"
             ],
             "subjects": [
                 "",
@@ -2358,7 +2339,7 @@
             "pattern": "{^(?P<zero_major>(?:0\\.)+)?(?P<first_meaningful>\\d+)\\.}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ShowCommand.php:1500"
+                "src/Composer/Command/ShowCommand.php:1610"
             ],
             "subjects": [
                 "",
@@ -2386,7 +2367,7 @@
             "pattern": "{(\\.0)+$}D",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/ShowCommand.php:1509"
+                "src/Composer/Command/ShowCommand.php:1619"
             ],
             "subjects": [
                 "",
@@ -2414,7 +2395,7 @@
             "pattern": "{\\S+[ =:]\\S+}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/UpdateCommand.php:148"
+                "src/Composer/Command/UpdateCommand.php:149"
             ],
             "subjects": [
                 "",
@@ -2448,7 +2429,7 @@
             "pattern": "{^([^ =:]+)[ =:].*$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/UpdateCommand.php:156"
+                "src/Composer/Command/UpdateCommand.php:157"
             ],
             "subjects": [
                 "",
@@ -2514,7 +2495,7 @@
             "pattern": "{^(\\d+\\.\\d+\\.\\d+)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Command/UpdateCommand.php:207"
+                "src/Composer/Command/UpdateCommand.php:208"
             ],
             "subjects": [
                 "",
@@ -2794,7 +2775,7 @@
                 "src/Composer/Downloader/GitDownloader.php:465",
                 "src/Composer/Downloader/GitDownloader.php:478",
                 "src/Composer/Package/Archiver/ArchiveManager.php:89",
-                "src/Composer/Util/Git.php:420"
+                "src/Composer/Util/Git.php:423"
             ],
             "subjects": [
                 "",
@@ -2832,7 +2813,7 @@
             "pattern": "{^https?://(?:[a-z0-9-.]+\\.)?packagist.org(/|$)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Config.php:322"
+                "src/Composer/Config.php:323"
             ],
             "subjects": [
                 "",
@@ -2866,7 +2847,7 @@
             "pattern": "#\\{\\$(.+)\\}#",
             "origin": "static",
             "sources": [
-                "src/Composer/Config.php:640"
+                "src/Composer/Config.php:642"
             ],
             "subjects": [
                 "",
@@ -2904,7 +2885,7 @@
             "pattern": "{^(?:/|[a-z]:|[a-z0-9.]+://|\\\\\\\\)}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Config.php:652"
+                "src/Composer/Config.php:654"
             ],
             "subjects": [
                 "",
@@ -2939,14 +2920,10 @@
             ]
         },
         {
-            "pattern": "{^https?://}i",
+            "pattern": "{^[a-z][a-z0-9+.-]*::(.+)$}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Config.php:695",
-                "src/Composer/Json/JsonFile.php:69",
-                "src/Composer/Repository/ComposerRepository.php:1745",
-                "src/Composer/Repository/RepositoryFactory.php:182",
-                "src/Composer/Util/HttpDownloader.php:543"
+                "src/Composer/Config.php:698"
             ],
             "subjects": [
                 "",
@@ -2957,28 +2934,28 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "/",
-                "https://first.test",
-                "http://💛@example.org",
-                "deps-*",
-                "https://example.org",
-                "evil-*",
-                "https://example.org/a",
-                "plugin-*",
-                "https://example.org/b"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "/",
-                "https://first.test",
-                "http://💛@example.org",
-                "deps-*",
-                "https://example.org",
-                "evil-*",
-                "https://example.org/a",
-                "plugin-*",
-                "https://example.org/b"
-            ]
+            "logged": []
+        },
+        {
+            "pattern": "{^([a-z][a-z0-9+.-]*)://}i",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Config.php:704"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
         },
         {
             "pattern": "{^(bitbucket-oauth|github-oauth|gitlab-oauth|gitlab-token|bearer|http-basic|custom-headers|forgejo-token|platform)\\.}",
@@ -3014,6 +2991,83 @@
             ]
         },
         {
+            "pattern": "{^(suggest|extra|scripts)\\.}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Config/JsonConfigSource.php:319"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^(suggest|extra|scripts|autoload|autoload-dev)\\.}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Config/JsonConfigSource.php:342"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{[\\x00-\\x1f\\x7f-\\x9f]}u",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Console/AbstractOscProgramStatusEncoder.php:35",
+                "src/Composer/Console/OscHelper.php:34"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{[\\xc2-\\xdf]$|[\\xe0-\\xef][\\x80-\\xbf]{0,1}$|[\\xf0-\\xf4][\\x80-\\xbf]{0,2}$}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Console/AbstractOscProgramStatusEncoder.php:41"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
             "pattern": "{\u001b\\[([0-9;]+)m(.*?)\u001b\\[(?:(?:39|49|0|22|24|25|27|28);)*?(?:39|49|0|22|24|25|27|28)m}s",
             "origin": "dynamic",
             "sources": [
@@ -3036,11 +3090,49 @@
             ]
         },
         {
+            "pattern": "{^(?:screen|tmux)(?:[-.]|$)}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Console/TerminalStatusPolicy.php:90"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^\\d+\\.\\d+\\.\\d+$}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Console/TerminalStatusPolicy.php:102"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
             "pattern": "{^https?://(?:(?:www\\.)?bitbucket\\.org|(api\\.)?github\\.com|(?:www\\.)?gitlab\\.com)/}i",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/LockTransaction.php:163",
-                "src/Composer/Package/Package.php:646"
+                "src/Composer/DependencyResolver/LockTransaction.php:160",
+                "src/Composer/Package/Package.php:717"
             ],
             "subjects": [
                 "",
@@ -3078,8 +3170,8 @@
             "pattern": "{(?<=/|sha=)[a-f0-9]{40}(?=/|$)}i",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/LockTransaction.php:165",
-                "src/Composer/Package/Package.php:649"
+                "src/Composer/DependencyResolver/LockTransaction.php:162",
+                "src/Composer/Package/Package.php:720"
             ],
             "subjects": [
                 "",
@@ -3332,7 +3424,7 @@
             "pattern": "{^(?P<package>\\S+) (?P<version>\\S+) (?P<type>requires|conflicts)}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:179"
+                "src/Composer/DependencyResolver/Problem.php:244"
             ],
             "subjects": [
                 "",
@@ -3370,7 +3462,7 @@
             "pattern": "{^\\S+ \\S+ }",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:181"
+                "src/Composer/DependencyResolver/Problem.php:246"
             ],
             "subjects": [
                 "",
@@ -3408,7 +3500,7 @@
             "pattern": "{^(%s%s (?:require|conflict))s}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:203"
+                "src/Composer/DependencyResolver/Problem.php:268"
             ],
             "subjects": [
                 "",
@@ -3436,7 +3528,7 @@
             "pattern": "{^dev-.*#.*}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:339"
+                "src/Composer/DependencyResolver/Problem.php:404"
             ],
             "subjects": [
                 "",
@@ -3474,7 +3566,7 @@
             "pattern": "{ +as +([^,\\s|]+)$}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:340"
+                "src/Composer/DependencyResolver/Problem.php:405"
             ],
             "subjects": [
                 "",
@@ -3498,8 +3590,8 @@
             "pattern": "{^[A-Za-z0-9_./-]+$}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:493",
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:442"
+                "src/Composer/DependencyResolver/Problem.php:503",
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:441"
             ],
             "subjects": [
                 "",
@@ -3537,7 +3629,7 @@
             "pattern": "{[A-Za-z0-9_./-]+}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:494"
+                "src/Composer/DependencyResolver/Problem.php:504"
             ],
             "subjects": [
                 "",
@@ -3556,7 +3648,7 @@
             "pattern": "{^(\\d+)\\..*}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:641"
+                "src/Composer/DependencyResolver/Problem.php:642"
             ],
             "subjects": [
                 "",
@@ -3594,7 +3686,7 @@
             "pattern": "{^\\d+(?:\\.\\d+)*$}",
             "origin": "static",
             "sources": [
-                "src/Composer/DependencyResolver/Problem.php:733"
+                "src/Composer/DependencyResolver/Problem.php:734"
             ],
             "subjects": [
                 "",
@@ -3649,6 +3741,48 @@
             ]
         },
         {
+            "pattern": "{^https?://}i",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Downloader/FileDownloader.php:245",
+                "src/Composer/Json/JsonFile.php:72",
+                "src/Composer/Repository/ComposerRepository.php:1811",
+                "src/Composer/Repository/RepositoryFactory.php:182",
+                "src/Composer/Util/HttpDownloader.php:505"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "/",
+                "https://first.test",
+                "http://💛@example.org",
+                "deps-*",
+                "https://example.org",
+                "evil-*",
+                "https://example.org/a",
+                "plugin-*",
+                "https://example.org/b"
+            ],
+            "logged": [
+                "/",
+                "https://first.test",
+                "http://💛@example.org",
+                "deps-*",
+                "https://example.org",
+                "evil-*",
+                "https://example.org/a",
+                "plugin-*",
+                "https://example.org/b"
+            ]
+        },
+        {
             "pattern": "/\\d\\d:\\d\\d:\\d\\d\\s+\\[a1b2c3d4e5\\]/",
             "origin": "manual",
             "sources": [
@@ -3689,7 +3823,7 @@
                 "src/Composer/Downloader/GitDownloader.php:70",
                 "src/Composer/Downloader/GitDownloader.php:95",
                 "src/Composer/Downloader/GitDownloader.php:158",
-                "src/Composer/Repository/ComposerRepository.php:206",
+                "src/Composer/Repository/ComposerRepository.php:220",
                 "src/Composer/Repository/Vcs/GitDriver.php:55",
                 "src/Composer/Repository/Vcs/GitDriver.php:84",
                 "src/Composer/Repository/Vcs/SvnDriver.php:86"
@@ -3937,7 +4071,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Downloader/GitDownloader.php:445",
-                "src/Composer/Util/Git.php:421"
+                "src/Composer/Util/Git.php:424"
             ],
             "subjects": [
                 "",
@@ -4280,7 +4414,7 @@
             "pattern": "{^\\s*7-Zip(?: \\[64\\])? ([0-9.]+)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Downloader/ZipDownloader.php:139"
+                "src/Composer/Downloader/ZipDownloader.php:156"
             ],
             "subjects": [
                 "",
@@ -4408,8 +4542,8 @@
             "pattern": "{^\\S+}",
             "origin": "static",
             "sources": [
-                "src/Composer/EventDispatcher/EventDispatcher.php:391",
-                "src/Composer/EventDispatcher/EventDispatcher.php:421"
+                "src/Composer/EventDispatcher/EventDispatcher.php:412",
+                "src/Composer/EventDispatcher/EventDispatcher.php:442"
             ],
             "subjects": [
                 "",
@@ -4428,7 +4562,7 @@
             "pattern": "{^[^'\"\\s/\\\\]+}",
             "origin": "static",
             "sources": [
-                "src/Composer/EventDispatcher/EventDispatcher.php:397"
+                "src/Composer/EventDispatcher/EventDispatcher.php:418"
             ],
             "subjects": [
                 "",
@@ -4452,7 +4586,45 @@
             "pattern": "{\\.(exe|bat|cmd|com)$}i",
             "origin": "static",
             "sources": [
-                "src/Composer/EventDispatcher/EventDispatcher.php:402"
+                "src/Composer/EventDispatcher/EventDispatcher.php:423"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{(?:[^\\s\"']+|\"[^\"]*\"|'[^']*'|[\"'])+}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/EventDispatcher/EventDispatcher.php:676"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{([\"'])(.*?)\\1}s",
+            "origin": "static",
+            "sources": [
+                "src/Composer/EventDispatcher/EventDispatcher.php:679"
             ],
             "subjects": [
                 "",
@@ -4939,10 +5111,10 @@
             ]
         },
         {
-            "pattern": "{^#!/(?:usr/bin/env )?(?:[^/]+/)*(.+)$}m",
+            "pattern": "{^#!(?:/[a-zA-Z0-9_.+-]+)*/([a-zA-Z0-9_.+][a-zA-Z0-9_.+-]*(?:[ \\t].*)?)$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Installer/BinaryInstaller.php:147"
+                "src/Composer/Installer/BinaryInstaller.php:179"
             ],
             "subjects": [
                 "",
@@ -4953,34 +5125,92 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                ".",
-                "#!/usr/bin/env php\n",
-                "/",
-                "..",
-                "*.php",
-                "<?php\n",
-                "!/keep/this",
-                "c:/Users/me",
-                "vfs://root/dir"
+                "a\r\nb\n"
             ],
-            "logged": [
-                ".",
-                "#!/usr/bin/env php\n",
-                "/",
-                "..",
-                "*.php",
-                "<?php\n",
-                "!/keep/this",
-                "c:/Users/me",
-                "vfs://root/dir"
-            ]
+            "logged": []
+        },
+        {
+            "pattern": "{[*$`\"&^|<>()%!;\\x00-\\x1f\\x7f]}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Installer/BinaryInstaller.php:180",
+                "src/Composer/Installer/BinaryInstaller.php:216"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^env[ \\t]+(?:-S[ \\t]*)?}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Installer/BinaryInstaller.php:187"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^php[0-9.]*(?:[ \\t]|$)}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Installer/BinaryInstaller.php:201"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{[\"\\r\\n\\x1a]}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Installer/BinaryInstaller.php:252"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
         },
         {
             "pattern": "{^(#!.*\\r?\\n)?[\\r\\n\\t ]*<\\?php}",
             "origin": "static",
             "sources": [
-                "src/Composer/Installer/BinaryInstaller.php:243"
+                "src/Composer/Installer/BinaryInstaller.php:341"
             ],
             "subjects": [
                 "",
@@ -5094,7 +5324,7 @@
             "pattern": "#^ {4,}#m",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonFile.php:289"
+                "src/Composer/Json/JsonFile.php:292"
             ],
             "subjects": [
                 "",
@@ -5128,7 +5358,7 @@
             "pattern": "{\\r?\\n<<<<<<< [^\\r\\n]+\\r?\\n\\s+\"content-hash\": *\"[0-9a-f]+\", *\\r?\\n(?:\\|{7} [^\\r\\n]+\\r?\\n\\s+\"content-hash\": *\"[0-9a-f]+\", *\\r?\\n)?=======\\r?\\n\\s+\"content-hash\": *\"[0-9a-f]+\", *\\r?\\n>>>>>>> [^\\r\\n]+(\\r?\\n)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonFile.php:348"
+                "src/Composer/Json/JsonFile.php:351"
             ],
             "subjects": [
                 "",
@@ -5162,7 +5392,7 @@
             "pattern": "#^([ \\t]+)\"#m",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonFile.php:407"
+                "src/Composer/Json/JsonFile.php:410"
             ],
             "subjects": [
                 "",
@@ -6123,7 +6353,7 @@
             "pattern": "#^\\{(?P<leadingspace>\\s*?)(?P<content>\\S+.*?)?(?P<trailingspace>\\s*)\\}$#s",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:548"
+                "src/Composer/Json/JsonManipulator.php:554"
             ],
             "subjects": [
                 "",
@@ -6695,10 +6925,49 @@
             ]
         },
         {
+            "pattern": "{,\\s*$}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Json/JsonManipulator.php:649",
+                "src/Composer/Json/JsonManipulator.php:650"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^\\s*,?\\s*}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Json/JsonManipulator.php:652"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
             "pattern": "#^\\{\\s*?(?P<content>\\S+.*?)?(?P<trailingspace>\\s*)\\}$#s",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:663"
+                "src/Composer/Json/JsonManipulator.php:657"
             ],
             "subjects": [
                 "",
@@ -6786,7 +7055,7 @@
             "pattern": "#^\\[(?P<leadingspace>\\s*?)(?P<content>\\S+.*?)?(?P<trailingspace>\\s*)\\]$#s",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:742"
+                "src/Composer/Json/JsonManipulator.php:736"
             ],
             "subjects": [
                 "",
@@ -7066,7 +7335,7 @@
             "pattern": "#[^{\\s](\\s*)\\}$#",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:946"
+                "src/Composer/Json/JsonManipulator.php:940"
             ],
             "subjects": [
                 "",
@@ -7126,7 +7395,7 @@
             "pattern": "#\\}$#",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:957"
+                "src/Composer/Json/JsonManipulator.php:951"
             ],
             "subjects": [
                 "",
@@ -7248,7 +7517,7 @@
             "pattern": "#,\\s*$#",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:988"
+                "src/Composer/Json/JsonManipulator.php:982"
             ],
             "subjects": [
                 "",
@@ -7286,7 +7555,7 @@
             "pattern": "#^\\}$#",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:988"
+                "src/Composer/Json/JsonManipulator.php:982"
             ],
             "subjects": [
                 "",
@@ -7324,7 +7593,7 @@
             "pattern": "#,(\\s*)$#",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:989"
+                "src/Composer/Json/JsonManipulator.php:983"
             ],
             "subjects": [
                 "",
@@ -7362,7 +7631,7 @@
             "pattern": "#^\\{\\s*\\}\\s*$#",
             "origin": "static",
             "sources": [
-                "src/Composer/Json/JsonManipulator.php:993"
+                "src/Composer/Json/JsonManipulator.php:987"
             ],
             "subjects": [
                 "",
@@ -7671,51 +7940,13 @@
             ]
         },
         {
-            "pattern": "/^\\d++$/D",
-            "origin": "static",
-            "sources": [
-                "src/Composer/Package/Loader/ArrayLoader.php:244"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "*",
-                "20100102",
-                "1",
-                "v",
-                "x",
-                "1.0",
-                "1.x",
-                "~1.2",
-                " 1.0 "
-            ],
-            "logged": [
-                "*",
-                "20100102",
-                "1",
-                "v",
-                "x",
-                "1.0",
-                "1.x",
-                "~1.2",
-                " 1.0 "
-            ]
-        },
-        {
             "pattern": "{(\\.9{7})+}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Loader/ArrayLoader.php:315",
+                "src/Composer/Package/Loader/ArrayLoader.php:325",
                 "src/Composer/Package/Version/VersionGuesser.php:119",
                 "src/Composer/Package/Version/VersionGuesser.php:123",
-                "src/Composer/Repository/VcsRepository.php:350"
+                "src/Composer/Repository/VcsRepository.php:366"
             ],
             "subjects": [
                 "",
@@ -7753,7 +7984,7 @@
             "pattern": "{^v}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Loader/ArrayLoader.php:481"
+                "src/Composer/Package/Loader/ArrayLoader.php:489"
             ],
             "subjects": [
                 "",
@@ -7830,7 +8061,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Package/Loader/RootPackageLoader.php:250",
-                "vendor/composer/semver/src/VersionParser.php:262"
+                "vendor/composer/semver/src/VersionParser.php:278"
             ],
             "subjects": [
                 "",
@@ -7869,7 +8100,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Package/Loader/RootPackageLoader.php:252",
-                "vendor/composer/semver/src/VersionParser.php:269"
+                "vendor/composer/semver/src/VersionParser.php:285"
             ],
             "subjects": [
                 "",
@@ -8041,52 +8272,12 @@
             ]
         },
         {
-            "pattern": "{(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)}",
-            "origin": "static",
-            "sources": [
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:124",
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:130",
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:724"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "*",
-                "nested/../../escape",
-                "../escape",
-                "../../../../etc/evil",
-                "1",
-                "../../../../escape-target.txt",
-                "v",
-                "x",
-                "1.0"
-            ],
-            "logged": [
-                "*",
-                "nested/../../escape",
-                "../escape",
-                "../../../../etc/evil",
-                "1",
-                "../../../../escape-target.txt",
-                "v",
-                "x",
-                "1.0"
-            ]
-        },
-        {
             "pattern": "{^\\s*-}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:549",
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:552",
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:707"
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:548",
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:551",
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:706"
             ],
             "subjects": [
                 "",
@@ -8124,7 +8315,7 @@
             "pattern": "{^[a-z0-9](?:[_.-]?[a-z0-9]++)*+/[a-z0-9](?:(?:[_.]|-{1,2})?[a-z0-9]++)*+$}iD",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:646"
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:645"
             ],
             "subjects": [
                 "",
@@ -8162,7 +8353,7 @@
             "pattern": "{\\.json$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:656"
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:655"
             ],
             "subjects": [
                 "",
@@ -8200,7 +8391,7 @@
             "pattern": "{[A-Z]}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Loader/ValidatingArrayLoader.php:660",
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:659",
                 "src/Composer/Util/ConfigValidator.php:134"
             ],
             "subjects": [
@@ -8233,6 +8424,45 @@
                 "x",
                 "1.0",
                 "1.x"
+            ]
+        },
+        {
+            "pattern": "{(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:723",
+                "src/Composer/Package/Loader/ValidatingArrayLoader.php:739"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "*",
+                "nested/../../escape",
+                "../escape",
+                "../../../../etc/evil",
+                "1",
+                "../../../../escape-target.txt",
+                "v",
+                "x",
+                "1.0"
+            ],
+            "logged": [
+                "*",
+                "nested/../../escape",
+                "../escape",
+                "../../../../etc/evil",
+                "1",
+                "../../../../escape-target.txt",
+                "v",
+                "x",
+                "1.0"
             ]
         },
         {
@@ -8283,7 +8513,7 @@
             "pattern": "{^\\s*\\d+\\s*$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Locker.php:560"
+                "src/Composer/Package/Locker.php:599"
             ],
             "subjects": [
                 "",
@@ -8302,7 +8532,7 @@
             "pattern": "{^\\s*(\\d+)\\s*}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Locker.php:567"
+                "src/Composer/Package/Locker.php:606"
             ],
             "subjects": [
                 "",
@@ -8321,7 +8551,7 @@
             "pattern": "{ (?:^|[\\\\/]+) \\.\\.? (?:[\\\\/]+|$) (?:\\.\\.? (?:[\\\\/]+|$) )*}x",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Package.php:169"
+                "src/Composer/Package/Package.php:177"
             ],
             "subjects": [
                 "",
@@ -9039,7 +9269,7 @@
             "pattern": "{^(\\d+\\.\\d+\\.\\d+)(\\.9999999)-dev$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Version/VersionSelector.php:225"
+                "src/Composer/Package/Version/VersionSelector.php:346"
             ],
             "subjects": [
                 "",
@@ -9077,7 +9307,7 @@
             "pattern": "{^\\d+\\D?}",
             "origin": "static",
             "sources": [
-                "src/Composer/Package/Version/VersionSelector.php:243"
+                "src/Composer/Package/Version/VersionSelector.php:364"
             ],
             "subjects": [
                 "",
@@ -9427,6 +9657,44 @@
             ]
         },
         {
+            "pattern": "/^\\d+$/D",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Policy/CooldownPolicyConfig.php:318"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "/^(\\d+)\\s*(second|minute|hour|day|week)s?$/D",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Policy/CooldownPolicyConfig.php:340"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
             "pattern": "/^ja$/i",
             "origin": "dynamic",
             "sources": [
@@ -9610,7 +9878,7 @@
             "pattern": "{^[\\w.]+\\??://}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/ComposerRepository.php:164"
+                "src/Composer/Repository/ComposerRepository.php:175"
             ],
             "subjects": [
                 "",
@@ -9648,7 +9916,7 @@
             "pattern": "{^(?P<proto>https?)://packagist\\.org/?$}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/ComposerRepository.php:198"
+                "src/Composer/Repository/ComposerRepository.php:212"
             ],
             "subjects": [
                 "",
@@ -9686,7 +9954,7 @@
             "pattern": "{(?:/[^/\\\\]+\\.json)?(?:[?#].*)?$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/ComposerRepository.php:202"
+                "src/Composer/Repository/ComposerRepository.php:216"
             ],
             "subjects": [
                 "",
@@ -9743,30 +10011,6 @@
             ]
         },
         {
-            "pattern": "{^\\^(?P<query>(?P<vendor>[a-z0-9_.-]+)/[a-z0-9_.-]*)\\*?$}i",
-            "origin": "static",
-            "sources": [
-                "src/Composer/Repository/ComposerRepository.php:659"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "^symfony/http\\-",
-                "^symfony/http\\-ker"
-            ],
-            "logged": [
-                "^symfony/http\\-",
-                "^symfony/http\\-ker"
-            ]
-        },
-        {
             "pattern": "{(?:^symfony/http\\-)}i",
             "origin": "dynamic",
             "sources": [
@@ -9811,10 +10055,34 @@
             ]
         },
         {
+            "pattern": "{^\\^(?P<query>(?P<vendor>[a-z0-9_.-]+)/[a-z0-9_.-]*)\\*?$}i",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Repository/ComposerRepository.php:681"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "^symfony/http\\-",
+                "^symfony/http\\-ker"
+            ],
+            "logged": [
+                "^symfony/http\\-",
+                "^symfony/http\\-ker"
+            ]
+        },
+        {
             "pattern": "{~dev$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/ComposerRepository.php:1306"
+                "src/Composer/Repository/ComposerRepository.php:1372"
             ],
             "subjects": [
                 "",
@@ -9844,7 +10112,7 @@
             "pattern": "{^[^:]++://[^/]*+}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/ComposerRepository.php:1587"
+                "src/Composer/Repository/ComposerRepository.php:1653"
             ],
             "subjects": [
                 "",
@@ -9910,7 +10178,7 @@
             "pattern": "{Property .*? does not exist}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/FilesystemRepository.php:187"
+                "src/Composer/Repository/FilesystemRepository.php:205"
             ],
             "subjects": [
                 "",
@@ -9951,7 +10219,7 @@
             "pattern": "{=>\\s*+__DIR__\\s*+\\.\\s*+(['\"])}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/FilesystemRepository.php:216"
+                "src/Composer/Repository/FilesystemRepository.php:234"
             ],
             "subjects": [
                 "",
@@ -10105,7 +10373,7 @@
             "pattern": "{^array }",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PackageRepository.php:79"
+                "src/Composer/Repository/PackageRepository.php:78"
             ],
             "subjects": [
                 "",
@@ -10157,7 +10425,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Repository/PlatformRepository.php:152",
-                "src/Composer/Repository/PlatformRepository.php:568"
+                "src/Composer/Repository/PlatformRepository.php:569"
             ],
             "subjects": [
                 "",
@@ -10743,7 +11011,7 @@
             "pattern": "/^(?:oniguruma|Multibyte regex \\(oniguruma\\)) version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:402"
+                "src/Composer/Repository/PlatformRepository.php:403"
             ],
             "subjects": [
                 "",
@@ -10767,7 +11035,7 @@
             "pattern": "/^libmemcached version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:412"
+                "src/Composer/Repository/PlatformRepository.php:413"
             ],
             "subjects": [
                 "",
@@ -10789,7 +11057,7 @@
             "pattern": "{^(?:OpenSSL|LibreSSL)?\\s*(?<version>\\S+)}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:419"
+                "src/Composer/Repository/PlatformRepository.php:420"
             ],
             "subjects": [
                 "",
@@ -10827,7 +11095,7 @@
             "pattern": "{^(\\S+).*}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:426"
+                "src/Composer/Repository/PlatformRepository.php:427"
             ],
             "subjects": [
                 "",
@@ -10853,7 +11121,7 @@
             "pattern": "/^PCRE Unicode Version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:431"
+                "src/Composer/Repository/PlatformRepository.php:432"
             ],
             "subjects": [
                 "",
@@ -10881,7 +11149,7 @@
             "pattern": "/^(?:Client API version|Version) => mysqlnd (?<version>.+?) /mi",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:441"
+                "src/Composer/Repository/PlatformRepository.php:442"
             ],
             "subjects": [
                 "",
@@ -10909,7 +11177,7 @@
             "pattern": "/^libmongoc bundled version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:449"
+                "src/Composer/Repository/PlatformRepository.php:450"
             ],
             "subjects": [
                 "",
@@ -10931,7 +11199,7 @@
             "pattern": "/^libbson bundled version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:453"
+                "src/Composer/Repository/PlatformRepository.php:454"
             ],
             "subjects": [
                 "",
@@ -10953,7 +11221,7 @@
             "pattern": "/^PostgreSQL\\(libpq\\) Version => (?<version>.*)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:468"
+                "src/Composer/Repository/PlatformRepository.php:469"
             ],
             "subjects": [
                 "",
@@ -10977,7 +11245,7 @@
             "pattern": "/^libpq => (?<compiled>.+) => (?<linked>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:478"
+                "src/Composer/Repository/PlatformRepository.php:479"
             ],
             "subjects": [
                 "",
@@ -10999,7 +11267,7 @@
             "pattern": "/^SQLite Library => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:511"
+                "src/Composer/Repository/PlatformRepository.php:512"
             ],
             "subjects": [
                 "",
@@ -11029,7 +11297,7 @@
             "pattern": "/^libssh2 version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:519"
+                "src/Composer/Repository/PlatformRepository.php:520"
             ],
             "subjects": [
                 "",
@@ -11051,7 +11319,7 @@
             "pattern": "/^libxslt compiled against libxml Version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:528"
+                "src/Composer/Repository/PlatformRepository.php:529"
             ],
             "subjects": [
                 "",
@@ -11073,7 +11341,7 @@
             "pattern": "/^LibYAML Version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:536"
+                "src/Composer/Repository/PlatformRepository.php:537"
             ],
             "subjects": [
                 "",
@@ -11095,7 +11363,7 @@
             "pattern": "/^Linked Version => (?<version>.+)$/im",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:552"
+                "src/Composer/Repository/PlatformRepository.php:553"
             ],
             "subjects": [
                 "",
@@ -11117,7 +11385,7 @@
             "pattern": "{^(\\d+\\.\\d+\\.\\d+(?:\\.\\d+)?)}",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:661"
+                "src/Composer/Repository/PlatformRepository.php:662"
             ],
             "subjects": [
                 "",
@@ -11139,7 +11407,7 @@
             "pattern": "{^(?:php(?:-64bit|-ipv6|-zts|-debug)?|hhvm|(?:ext|lib)-[a-z0-9](?:[_.-]?[a-z0-9]+)*|composer(?:-(?:plugin|runtime)-api)?)$}iD",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/PlatformRepository.php:751"
+                "src/Composer/Repository/PlatformRepository.php:752"
             ],
             "subjects": [
                 "",
@@ -11178,7 +11446,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Repository/Vcs/ForgejoDriver.php:282",
-                "src/Composer/Repository/Vcs/GitHubDriver.php:656",
+                "src/Composer/Repository/Vcs/GitHubDriver.php:681",
                 "src/Composer/Repository/Vcs/GitLabDriver.php:603"
             ],
             "subjects": [
@@ -11751,7 +12019,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Repository/Vcs/GitHubDriver.php:238",
-                "src/Composer/Util/ProcessExecutor.php:436"
+                "src/Composer/Util/ProcessExecutor.php:441"
             ],
             "subjects": [
                 "",
@@ -12744,7 +13012,7 @@
             "pattern": "{[.-]?dev$}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/VcsRepository.php:270"
+                "src/Composer/Repository/VcsRepository.php:282"
             ],
             "subjects": [
                 "",
@@ -12766,8 +13034,8 @@
             "pattern": "{(^dev-|[.-]?dev$)}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Repository/VcsRepository.php:271",
-                "src/Composer/Repository/VcsRepository.php:279"
+                "src/Composer/Repository/VcsRepository.php:283",
+                "src/Composer/Repository/VcsRepository.php:291"
             ],
             "subjects": [
                 "",
@@ -12832,7 +13100,7 @@
             "pattern": "{^https?://api\\.github\\.com/}",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/AuthHelper.php:301"
+                "src/Composer/Util/AuthHelper.php:303"
             ],
             "subjects": [
                 "",
@@ -13594,7 +13862,7 @@
             ]
         },
         {
-            "pattern": "{^(git)@(bitbucket\\.org):(.+?\\.git)$}i",
+            "pattern": "{^(git)@(?:ssh\\.)?(bitbucket\\.org):(.+?\\.git)$}i",
             "origin": "static",
             "sources": [
                 "src/Composer/Util/Git.php:218"
@@ -13608,28 +13876,28 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "/",
-                "git@bitbucket.org:acme/repo.git",
-                "C:\\Users\\me\\repo",
-                "git version 2.43.0",
-                "git://github.com/composer/composer",
-                "git@github.com:composer/composer.git",
-                "https://github.com/composer/composer",
-                "svn+ssh://svn.example.org/repo/trunk",
-                "https://example.com/composer/composer"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "/",
-                "git@bitbucket.org:acme/repo.git",
-                "C:\\Users\\me\\repo",
-                "git version 2.43.0",
-                "git://github.com/composer/composer",
-                "git@github.com:composer/composer.git",
-                "https://github.com/composer/composer",
-                "svn+ssh://svn.example.org/repo/trunk",
-                "https://example.com/composer/composer"
-            ]
+            "logged": []
+        },
+        {
+            "pattern": "{^(ssh)://git@(?:ssh\\.)?(bitbucket\\.org)/(.*?)(?:\\.git)?$}i",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Git.php:219"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
         },
         {
             "pattern": "{^(git)@(gitlab\\.com):(.+?\\.git)$}i",
@@ -13748,7 +14016,7 @@
             "pattern": "{^commit [a-f0-9]{40}\\n?}m",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Git.php:520"
+                "src/Composer/Util/Git.php:523"
             ],
             "subjects": [
                 "",
@@ -13786,7 +14054,7 @@
             "pattern": "{^(https?://)([^/]+)(.*)$}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Git.php:541"
+                "src/Composer/Util/Git.php:544"
             ],
             "subjects": [
                 "",
@@ -13824,7 +14092,7 @@
             "pattern": "{^\\s*HEAD branch:\\s(.+)\\s*$}m",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Git.php:587"
+                "src/Composer/Util/Git.php:590"
             ],
             "subjects": [
                 "",
@@ -13862,7 +14130,7 @@
             "pattern": "/^git version (\\d+(?:\\.\\d+)+)/m",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Git.php:674"
+                "src/Composer/Util/Git.php:677"
             ],
             "subjects": [
                 "",
@@ -14090,8 +14358,8 @@
             "pattern": "{^http://(repo\\.)?packagist\\.org/p/}",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Http/CurlDownloader.php:180",
-                "src/Composer/Util/RemoteFilesystem.php:286"
+                "src/Composer/Util/Http/CurlDownloader.php:211",
+                "src/Composer/Util/RemoteFilesystem.php:299"
             ],
             "subjects": [
                 "",
@@ -14129,7 +14397,7 @@
             "pattern": "{^fopen\\(.*?\\): }",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Http/CurlDownloader.php:209"
+                "src/Composer/Util/Http/CurlDownloader.php:245"
             ],
             "subjects": [
                 "",
@@ -14173,8 +14441,8 @@
             "pattern": "{^(.+/)[^/?]*(?:\\?.*)?$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Http/CurlDownloader.php:568",
-                "src/Composer/Util/RemoteFilesystem.php:682"
+                "src/Composer/Util/Http/CurlDownloader.php:670",
+                "src/Composer/Util/RemoteFilesystem.php:706"
             ],
             "subjects": [
                 "",
@@ -14193,8 +14461,27 @@
             "pattern": "{^text/html\\b}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Http/CurlDownloader.php:608",
-                "src/Composer/Util/RemoteFilesystem.php:379"
+                "src/Composer/Util/Http/CurlDownloader.php:710",
+                "src/Composer/Util/RemoteFilesystem.php:403"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^\\d{1,9}$}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Http/CurlDownloader.php:797"
             ],
             "subjects": [
                 "",
@@ -14214,7 +14501,7 @@
             "origin": "static",
             "sources": [
                 "src/Composer/Util/Http/Response.php:58",
-                "src/Composer/Util/RemoteFilesystem.php:192"
+                "src/Composer/Util/RemoteFilesystem.php:197"
             ],
             "subjects": [
                 "",
@@ -14334,7 +14621,7 @@
             "pattern": "{^https?://([^:/]+):([^@/]+)@([^/]+)}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/HttpDownloader.php:230"
+                "src/Composer/Util/HttpDownloader.php:228"
             ],
             "subjects": [
                 "",
@@ -14542,7 +14829,7 @@
             "pattern": "#^~[\\/]#",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Platform.php:160"
+                "src/Composer/Util/Platform.php:294"
             ],
             "subjects": [
                 "",
@@ -14580,7 +14867,7 @@
             "pattern": "#^(\\$|(?P<percent>%))(?P<var>\\w++)(?(percent)%)(?P<path>.*)#",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Platform.php:164"
+                "src/Composer/Util/Platform.php:298"
             ],
             "subjects": [
                 "",
@@ -14615,10 +14902,105 @@
             ]
         },
         {
+            "pattern": "{-?v?\\d+(\\.\\d+)*$}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Platform.php:389"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{[\\s@/:].*$}s",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Platform.php:391"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{-{2,}}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Platform.php:401"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{[^a-z-]+}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Platform.php:401"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
+            "pattern": "{^(?:\\._.*|\\.DS_Store|__MACOSX|\\.AppleDouble|\\.fseventsd|\\.Spotlight-V100|\\.Trashes|(?i:thumbs\\.db|desktop\\.ini))$}",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Platform.php:594"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
+        },
+        {
             "pattern": "{^([^:/\\\\]++) }",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:129"
+                "src/Composer/Util/ProcessExecutor.php:131"
             ],
             "subjects": [
                 "",
@@ -14656,7 +15038,7 @@
             "pattern": "{--password (.*[^\\\\]\\') }",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:486"
+                "src/Composer/Util/ProcessExecutor.php:502"
             ],
             "subjects": [
                 "",
@@ -14694,7 +15076,7 @@
             "pattern": "/(\\\\*)\"/",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:534",
+                "src/Composer/Util/ProcessExecutor.php:550",
                 "vendor/composer/xdebug-handler/src/Process.php:43"
             ],
             "subjects": [
@@ -14733,7 +15115,7 @@
             "pattern": "/%[^%]+%|![^!]+!/",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:535"
+                "src/Composer/Util/ProcessExecutor.php:551"
             ],
             "subjects": [
                 "",
@@ -14771,7 +15153,7 @@
             "pattern": "/(\\\\*)$/",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:542",
+                "src/Composer/Util/ProcessExecutor.php:558",
                 "vendor/composer/xdebug-handler/src/Process.php:57"
             ],
             "subjects": [
@@ -14810,7 +15192,7 @@
             "pattern": "/([\"^&|<>()%])/",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:546",
+                "src/Composer/Util/ProcessExecutor.php:562",
                 "vendor/composer/xdebug-handler/src/Process.php:61"
             ],
             "subjects": [
@@ -14849,7 +15231,7 @@
             "pattern": "/(!)/",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/ProcessExecutor.php:547"
+                "src/Composer/Util/ProcessExecutor.php:563"
             ],
             "subjects": [
                 "",
@@ -14887,7 +15269,7 @@
             "pattern": "{^HTTP/\\S+ (\\d+)}i",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/RemoteFilesystem.php:174"
+                "src/Composer/Util/RemoteFilesystem.php:179"
             ],
             "subjects": [
                 "",
@@ -14925,7 +15307,7 @@
             "pattern": "{^file_get_contents\\(.*?\\): }",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/RemoteFilesystem.php:301"
+                "src/Composer/Util/RemoteFilesystem.php:314"
             ],
             "subjects": [
                 "",
@@ -14944,7 +15326,7 @@
             "pattern": "{^file_put_contents\\(.*?\\): }",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/RemoteFilesystem.php:456"
+                "src/Composer/Util/RemoteFilesystem.php:480"
             ],
             "subjects": [
                 "",
@@ -15460,7 +15842,7 @@
             ]
         },
         {
-            "pattern": "{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\\A)(?P<user>[^:/\\s?#]*)(?::(?P<password>[^\\s/?#]+))?@}i",
+            "pattern": "{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\\A)(?P<user>[^:/\\s?#]*)(?::(?P<password>[^\\s/?#]*))?@}i",
             "origin": "static",
             "sources": [
                 "src/Composer/Util/Url.php:138"
@@ -15474,31 +15856,12 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "/",
-                "https://x-token-auth:secret@bitbucket.org/acme/repo",
-                "https://:***@example.org/",
-                "https://github_pat_1234567890abcdefghijkl_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW@github.com/acme/repo",
-                "ghp_1234567890abcdefghijklmnopqrstuvwxyzAB@github.com/acme/repo",
-                "http://abcdefghijkl:bar@example.org:123/",
-                "http://10a***@example.org",
-                "https://ghp_1234567890abcdefghijklmnopqrstuvwxyzAB@github.com/acme/repo",
-                "https://x-token-auth:***@bitbucket.org/acme/repo"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "/",
-                "https://x-token-auth:secret@bitbucket.org/acme/repo",
-                "https://:***@example.org/",
-                "https://github_pat_1234567890abcdefghijkl_1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW@github.com/acme/repo",
-                "ghp_1234567890abcdefghijklmnopqrstuvwxyzAB@github.com/acme/repo",
-                "http://abcdefghijkl:bar@example.org:123/",
-                "http://10a***@example.org",
-                "https://ghp_1234567890abcdefghijklmnopqrstuvwxyzAB@github.com/acme/repo",
-                "https://x-token-auth:***@bitbucket.org/acme/repo"
-            ]
+            "logged": []
         },
         {
-            "pattern": "{://[^/\\s?#]+@}",
+            "pattern": "{(?P<prefix>[a-z0-9][a-z0-9+.-]*://)(?P<user>[^:/\\s?#]*)(?::(?P<password>[^\\s/?#]*))?@}i",
             "origin": "static",
             "sources": [
                 "src/Composer/Util/Url.php:157"
@@ -15512,34 +15875,34 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "/",
-                "https://user:secret@example.com/repo.git",
-                "https://user:pass@example.org/repo.git",
-                "https://ghp_1234567890abcdefghijklmnopqrstuvwxyzAB@example.com/repo.git",
-                "https://user:sec@ret@example.com/repo.git",
-                "https://user:pa@ss@example.org/repo.git",
-                "ssh://git@gitlab.com:2222/group/sub/project.git",
-                "C:\\Users\\me\\repo",
-                "https://user:p%40ss@bitbucket.org/user/repo.git"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "/",
-                "https://user:secret@example.com/repo.git",
-                "https://user:pass@example.org/repo.git",
-                "https://ghp_1234567890abcdefghijklmnopqrstuvwxyzAB@example.com/repo.git",
-                "https://user:sec@ret@example.com/repo.git",
-                "https://user:pa@ss@example.org/repo.git",
-                "ssh://git@gitlab.com:2222/group/sub/project.git",
-                "C:\\Users\\me\\repo",
-                "https://user:p%40ss@bitbucket.org/user/repo.git"
-            ]
+            "logged": []
+        },
+        {
+            "pattern": "{^https?://$}i",
+            "origin": "static",
+            "sources": [
+                "src/Composer/Util/Url.php:158"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
         },
         {
             "pattern": "{^([a-f0-9]{12,}|gh[a-z]_[a-zA-Z0-9_.-]+|github_pat_[a-zA-Z0-9_]+)$}",
             "origin": "static",
             "sources": [
-                "src/Composer/Util/Url.php:174"
+                "src/Composer/Util/Url.php:180"
             ],
             "subjects": [
                 "",
@@ -15577,7 +15940,7 @@
             "pattern": "/^(\\-+(?:BEGIN|END))\\s+TRUSTED\\s+(CERTIFICATE\\-+)$/m",
             "origin": "static",
             "sources": [
-                "vendor/composer/ca-bundle/src/CaBundle.php:169"
+                "vendor/composer/ca-bundle/src/CaBundle.php:187"
             ],
             "subjects": [
                 "",
@@ -15616,6 +15979,25 @@
             "logged": [
                 "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>"
             ]
+        },
+        {
+            "pattern": "{^(?:[0-9a-z]{2,}+:(?://(?:[a-z]:)?)?|[a-z]:)}i",
+            "origin": "static",
+            "sources": [
+                "vendor/composer/class-map-generator/src/ClassMap.php:194"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n"
+            ],
+            "logged": []
         },
         {
             "pattern": "{^(?:https|ftps|php|file|glob|data|http|ftp|compress\\.zlib|zip|phar)://}",
@@ -15662,7 +16044,7 @@
             ]
         },
         {
-            "pattern": "{(?<!:)[\\\\/]{2,}}",
+            "pattern": "{(?<![:/])[\\\\/]{2,}}",
             "origin": "static",
             "sources": [
                 "vendor/composer/class-map-generator/src/ClassMapGenerator.php:155"
@@ -15676,28 +16058,9 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "test://InvalidUnicode.php",
-                "<?php\n/* class Commented */\n// interface Nope\n$x = <<<EOT\nclass InHeredoc {}\nEOT;\ntrait T1 {}\nenum Suit: string { case Hearts = 'H'; }\n",
-                "test://BackslashLineEndingString.php",
-                "/tmp/nix-shell.mt4aPL/composer-classmap-58786ac3baa6a75bf/A.php",
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>",
-                "/tmp/nix-shell.mt4aPL/composer-test-734847b9c8be1911a52b/class.php",
-                "/tmp/nix-shell.mt4aPL/composer-classmap-25036ac3baa6a7856/src/A.php",
-                "/tmp/nix-shell.mt4aPL/composer-classmap-25036ac3baa6a7856/src/B.php",
-                "/tmp/nix-shell.mt4aPL/composer-test-734847b9c8be1911a52b/Foo/Bar.php"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "test://InvalidUnicode.php",
-                "<?php\n/* class Commented */\n// interface Nope\n$x = <<<EOT\nclass InHeredoc {}\nEOT;\ntrait T1 {}\nenum Suit: string { case Hearts = 'H'; }\n",
-                "test://BackslashLineEndingString.php",
-                "/tmp/nix-shell.mt4aPL/composer-classmap-58786ac3baa6a75bf/A.php",
-                "<?php ?>\n<html>class NotPhp {}</html>\n<?php class AfterHtml {} ?>",
-                "/tmp/nix-shell.mt4aPL/composer-test-734847b9c8be1911a52b/class.php",
-                "/tmp/nix-shell.mt4aPL/composer-classmap-25036ac3baa6a7856/src/A.php",
-                "/tmp/nix-shell.mt4aPL/composer-classmap-25036ac3baa6a7856/src/B.php",
-                "/tmp/nix-shell.mt4aPL/composer-test-734847b9c8be1911a52b/Foo/Bar.php"
-            ]
+            "logged": []
         },
         {
             "pattern": "{(/tmp/nix\\-shell\\.mt4aPL/composer\\-test\\-759078a04ae2fc23207f/classmap2($|/))}",
@@ -16242,8 +16605,8 @@
             "pattern": "{^([^,\\s]++) ++as ++([^,\\s]++)$}",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:117",
-                "vendor/composer/semver/src/VersionParser.php:312"
+                "vendor/composer/semver/src/VersionParser.php:133",
+                "vendor/composer/semver/src/VersionParser.php:328"
             ],
             "subjects": [
                 "",
@@ -16281,7 +16644,7 @@
             "pattern": "{@(?:stable|RC|beta|alpha|dev)$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:122"
+                "vendor/composer/semver/src/VersionParser.php:138"
             ],
             "subjects": [
                 "",
@@ -16319,7 +16682,7 @@
             "pattern": "{^([^,\\s+]++)\\+[^\\s]++$}",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:137"
+                "vendor/composer/semver/src/VersionParser.php:153"
             ],
             "subjects": [
                 "",
@@ -16357,7 +16720,7 @@
             "pattern": "{^v?(\\d{1,5}+)(\\.\\d++)?(\\.\\d++)?(\\.\\d++)?[._-]?(?:(stable|beta|b|RC|alpha|a|patch|pl|p)((?:[.-]?\\d+)*+)?)?([.-]?dev)?$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:142"
+                "vendor/composer/semver/src/VersionParser.php:158"
             ],
             "subjects": [
                 "",
@@ -16395,7 +16758,7 @@
             "pattern": "{^v?(\\d{4}(?:[.:-]?\\d{2}){1,6}(?:[.:-]?\\d{1,3}){0,2})[._-]?(?:(stable|beta|b|RC|alpha|a|patch|pl|p)((?:[.-]?\\d+)*+)?)?([.-]?dev)?$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:149"
+                "vendor/composer/semver/src/VersionParser.php:165"
             ],
             "subjects": [
                 "",
@@ -16433,7 +16796,7 @@
             "pattern": "{\\D}",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:150"
+                "vendor/composer/semver/src/VersionParser.php:166"
             ],
             "subjects": [
                 "",
@@ -16465,44 +16828,6 @@
                 "*",
                 "1.x",
                 " 1.0 "
-            ]
-        },
-        {
-            "pattern": "{(.*?)[.-]?dev$}i",
-            "origin": "static",
-            "sources": [
-                "vendor/composer/semver/src/VersionParser.php:171"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "*",
-                "1.0.0<1.0.5-dev",
-                "*-dev",
-                "201903.x-dev",
-                "0.x-dev",
-                "041.x-dev",
-                "1.0.0@dev",
-                "1.0.0-dev<1.0.5-dev",
-                "20100102.203040.x-dev"
-            ],
-            "logged": [
-                "*",
-                "1.0.0<1.0.5-dev",
-                "*-dev",
-                "201903.x-dev",
-                "0.x-dev",
-                "041.x-dev",
-                "1.0.0@dev",
-                "1.0.0-dev<1.0.5-dev",
-                "20100102.203040.x-dev"
             ]
         },
         {
@@ -16591,6 +16916,44 @@
             ],
             "logged": [
                 "*"
+            ]
+        },
+        {
+            "pattern": "{(.*?)[.-]?dev$}i",
+            "origin": "static",
+            "sources": [
+                "vendor/composer/semver/src/VersionParser.php:187"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "*",
+                "1.0.0<1.0.5-dev",
+                "*-dev",
+                "201903.x-dev",
+                "0.x-dev",
+                "041.x-dev",
+                "1.0.0@dev",
+                "1.0.0-dev<1.0.5-dev",
+                "20100102.203040.x-dev"
+            ],
+            "logged": [
+                "*",
+                "1.0.0<1.0.5-dev",
+                "*-dev",
+                "201903.x-dev",
+                "0.x-dev",
+                "041.x-dev",
+                "1.0.0@dev",
+                "1.0.0-dev<1.0.5-dev",
+                "20100102.203040.x-dev"
             ]
         },
         {
@@ -16685,7 +17048,7 @@
             "pattern": "{^(?P<version>(\\d++\\.)*\\d++)(?:\\.x)?-dev$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:203"
+                "vendor/composer/semver/src/VersionParser.php:219"
             ],
             "subjects": [
                 "",
@@ -16723,7 +17086,7 @@
             "pattern": "{^v?(\\d++)(\\.(?:\\d++|[xX*]))?(\\.(?:\\d++|[xX*]))?(\\.(?:\\d++|[xX*]))?$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:221"
+                "vendor/composer/semver/src/VersionParser.php:237"
             ],
             "subjects": [
                 "",
@@ -16761,7 +17124,7 @@
             "pattern": "{^([^,\\s]*?)@(stable|RC|beta|alpha|dev)$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:317"
+                "vendor/composer/semver/src/VersionParser.php:333"
             ],
             "subjects": [
                 "",
@@ -16799,7 +17162,7 @@
             "pattern": "{^(dev-[^,\\s@]+?|[^,\\s@]+?\\.x-dev)#.+$}i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:325"
+                "vendor/composer/semver/src/VersionParser.php:341"
             ],
             "subjects": [
                 "",
@@ -16831,44 +17194,6 @@
                 "dev-master#1111111111111111111111111111111111111111",
                 "1.0.x-dev#trunk/@123",
                 "dev-main#def000"
-            ]
-        },
-        {
-            "pattern": "{^(v)?[xX*](\\.[xX*])*$}i",
-            "origin": "static",
-            "sources": [
-                "vendor/composer/semver/src/VersionParser.php:329"
-            ],
-            "subjects": [
-                "",
-                "\n",
-                "1.0.0",
-                "vendor/package",
-                "ünïcödé ✓ 😀",
-                {
-                    "base64": "//4gaW52YWxpZCDD"
-                },
-                "a\r\nb\n",
-                "0",
-                "*",
-                "v*.*",
-                "*.x.*",
-                "*.*",
-                "v*",
-                "x.X.x.*",
-                "1",
-                "x"
-            ],
-            "logged": [
-                "0",
-                "*",
-                "v*.*",
-                "*.x.*",
-                "*.*",
-                "v*",
-                "x.X.x.*",
-                "1",
-                "x"
             ]
         },
         {
@@ -16891,6 +17216,44 @@
             ],
             "logged": [
                 "*"
+            ]
+        },
+        {
+            "pattern": "{^(v)?[xX*](\\.[xX*])*$}i",
+            "origin": "static",
+            "sources": [
+                "vendor/composer/semver/src/VersionParser.php:345"
+            ],
+            "subjects": [
+                "",
+                "\n",
+                "1.0.0",
+                "vendor/package",
+                "ünïcödé ✓ 😀",
+                {
+                    "base64": "//4gaW52YWxpZCDD"
+                },
+                "a\r\nb\n",
+                "0",
+                "*",
+                "v*.*",
+                "*.x.*",
+                "*.*",
+                "v*",
+                "x.X.x.*",
+                "1",
+                "x"
+            ],
+            "logged": [
+                "0",
+                "*",
+                "v*.*",
+                "*.x.*",
+                "*.*",
+                "v*",
+                "x.X.x.*",
+                "1",
+                "x"
             ]
         },
         {
@@ -16919,7 +17282,7 @@
             "pattern": "{^v?(\\d++)(?:\\.(\\d++))?(?:\\.(\\d++))?(?:\\.[xX*])++$}",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:428"
+                "vendor/composer/semver/src/VersionParser.php:444"
             ],
             "subjects": [
                 "",
@@ -16979,7 +17342,7 @@
             "pattern": "{^(<>|!=|>=?|<=?|==?)?\\s*(.*)}",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:490"
+                "vendor/composer/semver/src/VersionParser.php:506"
             ],
             "subjects": [
                 "",
@@ -17017,7 +17380,7 @@
             "pattern": "{^[0-9a-zA-Z-./]+$}",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:497"
+                "vendor/composer/semver/src/VersionParser.php:513"
             ],
             "subjects": [
                 "",
@@ -17052,10 +17415,10 @@
             ]
         },
         {
-            "pattern": "/-[._-]?(?:(stable|beta|b|RC|alpha|a|patch|pl|p)((?:[.-]?\\d+)*+)?)?([.-]?dev)?$/",
+            "pattern": "/-[._-]?(?:(stable|beta|b|RC|alpha|a|patch|pl|p)((?:[.-]?\\d+)*+)?)?([.-]?dev)?$/i",
             "origin": "static",
             "sources": [
-                "vendor/composer/semver/src/VersionParser.php:509"
+                "vendor/composer/semver/src/VersionParser.php:525"
             ],
             "subjects": [
                 "",
@@ -17066,28 +17429,9 @@
                 {
                     "base64": "//4gaW52YWxpZCDD"
                 },
-                "a\r\nb\n",
-                "*",
-                "1.0.0-alpha.3",
-                "1.2-beta2",
-                "1.0-dev",
-                "1.0.0-RC2",
-                "1.1.0-alpha4",
-                "1.0.0-stable",
-                "1.0.0-",
-                "1.0.0-p1"
+                "a\r\nb\n"
             ],
-            "logged": [
-                "*",
-                "1.0.0-alpha.3",
-                "1.2-beta2",
-                "1.0-dev",
-                "1.0.0-RC2",
-                "1.1.0-alpha4",
-                "1.0.0-stable",
-                "1.0.0-",
-                "1.0.0-p1"
-            ]
+            "logged": []
         },
         {
             "pattern": "{\n(?(DEFINE)\n    # idstring: 1*( ALPHA / DIGIT / - / . )\n    (?<idstring>[\\pL\\pN.-]{1,})\n\n    # license-id: taken from list\n    (?<licenseid>zpl\\-2\\.1|zpl\\-2\\.0|zpl\\-1\\.1|zlib\\-acknowledgement|zlib|zimbra\\-1\\.4|zimbra\\-1\\.3|zend\\-2\\.0|zeeff|zed|ypl\\-1\\.1|ypl\\-1\\.0|xzoom|xskat|xpp|xnet|xlock|xkeyboard\\-config\\-zinoviev|xinetd|xfree86\\-1\\.1|xfig|xerox|xdebug\\-1\\.03|x11\\-swapped|x11\\-no\\-permit\\-persons|x11\\-distribute\\-modifications\\-variant|x11|wxwindows|wwl|wtfpl|wtfnmfpl|wsuipa|wordnet|widget\\-workshop|watcom\\-1\\.0|w3m|w3c\\-20150513|w3c\\-19980720|w3c|vsl\\-1\\.0|vostrom|vixie\\-cron|vim|urt\\-rle|upl\\-1\\.0|unrar|unlicense\\-libwhirlpool|unlicense\\-libtelnet|unlicense|unixcrypt|unicode\\-tou|unicode\\-dfs\\-2016|unicode\\-dfs\\-2015|unicode\\-3\\.0|umich\\-merit|ulem|ucl\\-1\\.0|ucar|ubuntu\\-font\\-1\\.0|tu\\-berlin\\-2\\.0|tu\\-berlin\\-1\\.0|ttyp0|ttwl|trustedqsl|tpl\\-1\\.0|tpdl|tosl|torque\\-1\\.1|tmate|threeparttable|thirdeye|tgppl\\-1\\.0|termreadkey|tekhvc|tcp\\-wrappers|tcl|tapr\\-ohl\\-1\\.0|symlinks|swrule|swl|sunpro|sun\\-ppp\\-2000|sun\\-ppp|sul\\-1\\.0|sugarcrm\\-1\\.1\\.3|standardml\\-nj|sspl\\-1\\.0|ssleay\\-standalone|ssh\\-short|ssh\\-openssh|ssh\\-keyscan|spl\\-1\\.0|spencer\\-99|spencer\\-94|spencer\\-86|soundex|softsurfer|sofa|snprintf|snia|smppl|smlnj|smail\\-gpl|sleepycat|sl|sissl\\-1\\.2|sissl|simpl\\-2\\.0|shl\\-0\\.51|shl\\-0\\.5|sgp4|sgmlug\\-pm|sgi\\-opengl|sgi\\-b\\-2\\.0|sgi\\-b\\-1\\.1|sgi\\-b\\-1\\.0|sendmail\\-open\\-source\\-1\\.1|sendmail\\-8\\.23|sendmail|schemereport|scea|saxpath|sax\\-pd\\-2\\.0|sax\\-pd|ruby\\-pty|ruby|rscpl|rsa\\-md|rpsl\\-1\\.0|rpl\\-1\\.5|rpl\\-1\\.1|rhecos\\-1\\.1|rdisc|radvd|qpl\\-1\\.0\\-inria\\-2004|qpl\\-1\\.0|qhull|python\\-ldap|python\\-2\\.0\\.1|python\\-2\\.0|psutils|psfrag|psf\\-2\\.0|ppl|postgresql|polyform\\-small\\-business\\-1\\.0\\.0|polyform\\-noncommercial\\-1\\.0\\.0|pnmstitch|plexus|pkgconf|pixar|php\\-3\\.01|php\\-3\\.0|pddl\\-1\\.0|parity\\-7\\.0\\.0|parity\\-6\\.0\\.0|paratype\\-free\\-font\\-1\\.3|padl|ossp|osl\\-3\\.0|osl\\-2\\.1|osl\\-2\\.0|osl\\-1\\.1|osl\\-1\\.0|oset\\-pl\\-2\\.1|osc\\-1\\.0|opubl\\-1\\.0|opl\\-uk\\-3\\.0|opl\\-1\\.0|openvision|openssl\\-standalone|openssl|openpbs\\-2\\.3|openmdw\\-1\\.0|oml|olfl\\-1\\.3|oldap\\-2\\.8|oldap\\-2\\.7|oldap\\-2\\.6|oldap\\-2\\.5|oldap\\-2\\.4|oldap\\-2\\.3|oldap\\-2\\.2\\.2|oldap\\-2\\.2\\.1|oldap\\-2\\.2|oldap\\-2\\.1|oldap\\-2\\.0\\.1|oldap\\-2\\.0|oldap\\-1\\.4|oldap\\-1\\.3|oldap\\-1\\.2|oldap\\-1\\.1|ogtsl|ogl\\-uk\\-3\\.0|ogl\\-uk\\-2\\.0|ogl\\-uk\\-1\\.0|ogl\\-canada\\-2\\.0|ogdl\\-taiwan\\-1\\.0|ogc\\-1\\.0|ofl\\-1\\.1\\-rfn|ofl\\-1\\.1\\-no\\-rfn|ofl\\-1\\.1|ofl\\-1\\.0\\-rfn|ofl\\-1\\.0\\-no\\-rfn|ofl\\-1\\.0|offis|odc\\-by\\-1\\.0|odbl\\-1\\.0|oclc\\-2\\.0|occt\\-pl|oar|o\\-uda\\-1\\.0|nunit|ntp\\-0|ntp|ntia\\-pd|nrl|nposl\\-3\\.0|npl\\-1\\.1|npl\\-1\\.0|noweb|nosl|nokia|nlpl|nlod\\-2\\.0|nlod\\-1\\.0|nist\\-software|nist\\-pd\\-tnt|nist\\-pd\\-fallback|nist\\-pd|nicta\\-1\\.0|ngrep|ngpl|newsletr|netcdf|net\\-snmp|ncsa|ncl|ncgl\\-uk\\-2\\.0|ncbi\\-pd|nbpl\\-1\\.0|naumen|nasa\\-1\\.3|naist\\-2003|mup|multics|mulanpsl\\-2\\.0|mulanpsl\\-1\\.0|mtll|ms\\-rl|ms\\-pl|ms\\-lpl|mplus|mpl\\-2\\.0\\-no\\-copyleft\\-exception|mpl\\-2\\.0|mpl\\-1\\.1|mpl\\-1\\.0|mpich2|mpi\\-permissive|mpeg\\-ssg|motosoto|mmpl\\-1\\.0\\.1|mmixware|mitnfa|mit\\-wu|mit\\-testregex|mit\\-stk|mit\\-open\\-group|mit\\-modern\\-variant|mit\\-khronos\\-old|mit\\-festival|mit\\-feh|mit\\-enna|mit\\-cmu|mit\\-click|mit\\-advertising|mit\\-0|mit|miros|mips|minpack|metamail|mcphee\\-slideshow|martin\\-birgmeier|man2html|makeindex|mailprio|magaz|mackerras\\-3\\-clause\\-acknowledgment|mackerras\\-3\\-clause|lzma\\-sdk\\-9\\.22|lzma\\-sdk\\-9\\.11\\-to\\-9\\.20|lucida\\-bitmap\\-fonts|lsof|lppl\\-1\\.3c|lppl\\-1\\.3a|lppl\\-1\\.2|lppl\\-1\\.1|lppl\\-1\\.0|lpl\\-1\\.02|lpl\\-1\\.0|lpd\\-document|loop|linux\\-openib|linux\\-man\\-pages\\-copyleft\\-var|linux\\-man\\-pages\\-copyleft\\-2\\-para|linux\\-man\\-pages\\-copyleft|linux\\-man\\-pages\\-1\\-para|liliq\\-rplus\\-1\\.1|liliq\\-r\\-1\\.1|liliq\\-p\\-1\\.1|libutil\\-david\\-nugent|libtiff|libselinux\\-1\\.0|libpng\\-2\\.0|libpng\\-1\\.6\\.35|libpng|lgpllr|lgpl\\-3\\.0\\-or\\-later|lgpl\\-3\\.0\\-only|lgpl\\-3\\.0\\+|lgpl\\-3\\.0|lgpl\\-2\\.1\\-or\\-later|lgpl\\-2\\.1\\-only|lgpl\\-2\\.1\\+|lgpl\\-2\\.1|lgpl\\-2\\.0\\-or\\-later|lgpl\\-2\\.0\\-only|lgpl\\-2\\.0\\+|lgpl\\-2\\.0|leptonica|latex2e\\-translated\\-notice|latex2e|lal\\-1\\.3|lal\\-1\\.2|knuth\\-ctan|kazlib|kastrup|json|jpnic|jpl\\-image|jove|jasper\\-2\\.0|jam|iso\\-permission|isc\\-veillard|isc|ipl\\-1\\.0|ipa|interbase\\-1\\.0|intel\\-acpi|intel|innosetup|inner\\-net\\-2\\.0|info\\-zip|imlib2|imatix|imagemagick|ijg\\-short|ijg|iec\\-code\\-components\\-eula|icu|ibm\\-pibs|hyphen\\-bulgarian|htmltidy|hpnd\\-uc\\-export\\-us|hpnd\\-uc|hpnd\\-smc|hpnd\\-sell\\-variant\\-mit\\-disclaimer\\-rev|hpnd\\-sell\\-variant\\-mit\\-disclaimer|hpnd\\-sell\\-variant\\-critical\\-systems|hpnd\\-sell\\-variant|hpnd\\-sell\\-regexpr|hpnd\\-sell\\-mit\\-disclaimer\\-xserver|hpnd\\-pbmplus|hpnd\\-netrek|hpnd\\-mit\\-disclaimer|hpnd\\-merchantability\\-variant|hpnd\\-markus\\-kuhn|hpnd\\-kevlin\\-henney|hpnd\\-intel|hpnd\\-inria\\-imag|hpnd\\-fenneberg\\-livingston|hpnd\\-export\\-us\\-modify|hpnd\\-export\\-us\\-acknowledgement|hpnd\\-export\\-us|hpnd\\-export2\\-us|hpnd\\-doc\\-sell|hpnd\\-doc|hpnd\\-dec|hpnd|hp\\-1989|hp\\-1986|hippocratic\\-2\\.1|hidapi|hdparm|hdf5|haskellreport|gutmann|gtkbook|gsoap\\-1\\.3b|graphics\\-gems|gpl\\-3\\.0\\-with\\-gcc\\-exception|gpl\\-3\\.0\\-with\\-autoconf\\-exception|gpl\\-3\\.0\\-or\\-later|gpl\\-3\\.0\\-only|gpl\\-3\\.0\\+|gpl\\-3\\.0|gpl\\-2\\.0\\-with\\-gcc\\-exception|gpl\\-2\\.0\\-with\\-font\\-exception|gpl\\-2\\.0\\-with\\-classpath\\-exception|gpl\\-2\\.0\\-with\\-bison\\-exception|gpl\\-2\\.0\\-with\\-autoconf\\-exception|gpl\\-2\\.0\\-or\\-later|gpl\\-2\\.0\\-only|gpl\\-2\\.0\\+|gpl\\-2\\.0|gpl\\-1\\.0\\-or\\-later|gpl\\-1\\.0\\-only|gpl\\-1\\.0\\+|gpl\\-1\\.0|gnuplot|glwtpl|glulxe|glide|gl2ps|giftware|gfdl\\-1\\.3\\-or\\-later|gfdl\\-1\\.3\\-only|gfdl\\-1\\.3\\-no\\-invariants\\-or\\-later|gfdl\\-1\\.3\\-no\\-invariants\\-only|gfdl\\-1\\.3\\-invariants\\-or\\-later|gfdl\\-1\\.3\\-invariants\\-only|gfdl\\-1\\.3|gfdl\\-1\\.2\\-or\\-later|gfdl\\-1\\.2\\-only|gfdl\\-1\\.2\\-no\\-invariants\\-or\\-later|gfdl\\-1\\.2\\-no\\-invariants\\-only|gfdl\\-1\\.2\\-invariants\\-or\\-later|gfdl\\-1\\.2\\-invariants\\-only|gfdl\\-1\\.2|gfdl\\-1\\.1\\-or\\-later|gfdl\\-1\\.1\\-only|gfdl\\-1\\.1\\-no\\-invariants\\-or\\-later|gfdl\\-1\\.1\\-no\\-invariants\\-only|gfdl\\-1\\.1\\-invariants\\-or\\-later|gfdl\\-1\\.1\\-invariants\\-only|gfdl\\-1\\.1|generic\\-xts|gd|gcr\\-docs|game\\-programming\\-gems|fwlw|furuseth|ftl|fsl\\-1\\.1\\-mit|fsl\\-1\\.1\\-alv2|fsfullrwd|fsfullrsd|fsfullr|fsful|fsfap\\-no\\-warranty\\-disclaimer|fsfap|freeimage|freebsd\\-doc|frameworx\\-1\\.0|ferguson\\-twofish|fdk\\-aac|fbm|fair|eurosym|eupl\\-1\\.2|eupl\\-1\\.1|eupl\\-1\\.0|eudatagrid|etalab\\-2\\.0|esa\\-pl\\-weak\\-copyleft\\-2\\.4|esa\\-pl\\-strong\\-copyleft\\-2\\.4|esa\\-pl\\-permissive\\-2\\.4|erlpl\\-1\\.1|epl\\-2\\.0|epl\\-1\\.0|epics|entessa|elastic\\-2\\.0|egenix|efl\\-2\\.0|efl\\-1\\.0|ecos\\-2\\.0|ecl\\-2\\.0|ecl\\-1\\.0|dvipdfm|dtoa|dsdp|drl\\-1\\.1|drl\\-1\\.0|dotseqn|docbook\\-xml|docbook\\-stylesheet|docbook\\-schema|docbook\\-dtd|doc|dl\\-de\\-zero\\-2\\.0|dl\\-de\\-by\\-2\\.0|diffmark|dec\\-3\\-clause|d\\-fsl\\-1\\.0|cve\\-tou|curl|cube|cua\\-opl\\-1\\.0|crystalstacker|cryptoswift|crossword|cronyx|cpol\\-1\\.02|cpl\\-1\\.0|cpal\\-1\\.0|cornell\\-lossless\\-jpeg|copyleft\\-next\\-0\\.3\\.1|copyleft\\-next\\-0\\.3\\.0|condor\\-1\\.1|community\\-spec\\-1\\.0|coil\\-1\\.0|cnri\\-python\\-gpl\\-compatible|cnri\\-python|cnri\\-jython|cmu\\-mach\\-nodoc|cmu\\-mach|clips|clartistic|checkmk|check\\-cvs|cfitsio|cern\\-ohl\\-w\\-2\\.0|cern\\-ohl\\-s\\-2\\.0|cern\\-ohl\\-p\\-2\\.0|cern\\-ohl\\-1\\.2|cern\\-ohl\\-1\\.1|cecill\\-c|cecill\\-b|cecill\\-2\\.1|cecill\\-2\\.0|cecill\\-1\\.1|cecill\\-1\\.0|cdla\\-sharing\\-1\\.0|cdla\\-permissive\\-2\\.0|cdla\\-permissive\\-1\\.0|cdl\\-1\\.0|cddl\\-1\\.1|cddl\\-1\\.0|cc\\-sa\\-1\\.0|cc\\-pdm\\-1\\.0|cc\\-pddc|cc\\-by\\-sa\\-4\\.0|cc\\-by\\-sa\\-3\\.0\\-igo|cc\\-by\\-sa\\-3\\.0\\-de|cc\\-by\\-sa\\-3\\.0\\-at|cc\\-by\\-sa\\-3\\.0|cc\\-by\\-sa\\-2\\.5|cc\\-by\\-sa\\-2\\.1\\-jp|cc\\-by\\-sa\\-2\\.0\\-uk|cc\\-by\\-sa\\-2\\.0|cc\\-by\\-sa\\-1\\.0|cc\\-by\\-nd\\-4\\.0|cc\\-by\\-nd\\-3\\.0\\-de|cc\\-by\\-nd\\-3\\.0|cc\\-by\\-nd\\-2\\.5|cc\\-by\\-nd\\-2\\.0|cc\\-by\\-nd\\-1\\.0|cc\\-by\\-nc\\-sa\\-4\\.0|cc\\-by\\-nc\\-sa\\-3\\.0\\-igo|cc\\-by\\-nc\\-sa\\-3\\.0\\-de|cc\\-by\\-nc\\-sa\\-3\\.0|cc\\-by\\-nc\\-sa\\-2\\.5|cc\\-by\\-nc\\-sa\\-2\\.0\\-uk|cc\\-by\\-nc\\-sa\\-2\\.0\\-fr|cc\\-by\\-nc\\-sa\\-2\\.0\\-de|cc\\-by\\-nc\\-sa\\-2\\.0|cc\\-by\\-nc\\-sa\\-1\\.0|cc\\-by\\-nc\\-nd\\-4\\.0|cc\\-by\\-nc\\-nd\\-3\\.0\\-igo|cc\\-by\\-nc\\-nd\\-3\\.0\\-de|cc\\-by\\-nc\\-nd\\-3\\.0|cc\\-by\\-nc\\-nd\\-2\\.5|cc\\-by\\-nc\\-nd\\-2\\.0|cc\\-by\\-nc\\-nd\\-1\\.0|cc\\-by\\-nc\\-4\\.0|cc\\-by\\-nc\\-3\\.0\\-de|cc\\-by\\-nc\\-3\\.0|cc\\-by\\-nc\\-2\\.5|cc\\-by\\-nc\\-2\\.0|cc\\-by\\-nc\\-1\\.0|cc\\-by\\-4\\.0|cc\\-by\\-3\\.0\\-us|cc\\-by\\-3\\.0\\-nl|cc\\-by\\-3\\.0\\-igo|cc\\-by\\-3\\.0\\-de|cc\\-by\\-3\\.0\\-au|cc\\-by\\-3\\.0\\-at|cc\\-by\\-3\\.0|cc\\-by\\-2\\.5\\-au|cc\\-by\\-2\\.5|cc\\-by\\-2\\.0|cc\\-by\\-1\\.0|cc0\\-1\\.0|catosl\\-1\\.1|catharon|capec\\-tou|caldera\\-no\\-preamble|caldera|cal\\-1\\.0\\-combined\\-work\\-exception|cal\\-1\\.0|c\\-uda\\-1\\.0|bzip2\\-1\\.0\\.6|bzip2\\-1\\.0\\.5|busl\\-1\\.1|buddy|bsl\\-1\\.0|bsd\\-systemics\\-w3works|bsd\\-systemics|bsd\\-source\\-code|bsd\\-source\\-beginning\\-file|bsd\\-protection|bsd\\-mark\\-modifications|bsd\\-inferno\\-nettverk|bsd\\-attribution\\-hpnd\\-disclaimer|bsd\\-advertising\\-acknowledgement|bsd\\-4\\.3tahoe|bsd\\-4\\.3reno|bsd\\-4\\-clause\\-uc|bsd\\-4\\-clause\\-shortened|bsd\\-4\\-clause|bsd\\-3\\-clause\\-tso|bsd\\-3\\-clause\\-sun|bsd\\-3\\-clause\\-open\\-mpi|bsd\\-3\\-clause\\-no\\-nuclear\\-warranty|bsd\\-3\\-clause\\-no\\-nuclear\\-license\\-2014|bsd\\-3\\-clause\\-no\\-nuclear\\-license|bsd\\-3\\-clause\\-no\\-military\\-license|bsd\\-3\\-clause\\-modification|bsd\\-3\\-clause\\-lbnl|bsd\\-3\\-clause\\-hp|bsd\\-3\\-clause\\-flex|bsd\\-3\\-clause\\-clear|bsd\\-3\\-clause\\-attribution|bsd\\-3\\-clause\\-acpica|bsd\\-3\\-clause|bsd\\-2\\-clause\\-views|bsd\\-2\\-clause\\-pkgconf\\-disclaimer|bsd\\-2\\-clause\\-patent|bsd\\-2\\-clause\\-netbsd|bsd\\-2\\-clause\\-freebsd|bsd\\-2\\-clause\\-first\\-lines|bsd\\-2\\-clause\\-darwin|bsd\\-2\\-clause|bsd\\-1\\-clause|brian\\-gladman\\-3\\-clause|brian\\-gladman\\-2\\-clause|borceux|bola\\-1\\.1|boehm\\-gc\\-without\\-fee|boehm\\-gc|blueoak\\-1\\.0\\.0|blessing|bittorrent\\-1\\.1|bittorrent\\-1\\.0|bitstream\\-vera|bitstream\\-charter|beerware|bcrypt\\-solar\\-designer|barr|bahyph|baekmuk|aswf\\-digital\\-assets\\-1\\.1|aswf\\-digital\\-assets\\-1\\.0|aspell\\-ru|artistic\\-dist|artistic\\-2\\.0|artistic\\-1\\.0\\-perl|artistic\\-1\\.0\\-cl8|artistic\\-1\\.0|arphic\\-1999|apsl\\-2\\.0|apsl\\-1\\.2|apsl\\-1\\.1|apsl\\-1\\.0|app\\-s2p|apl\\-1\\.0|apafml|apache\\-2\\.0|apache\\-1\\.1|apache\\-1\\.0|any\\-osi\\-perl\\-modules|any\\-osi|antlr\\-pd\\-fallback|antlr\\-pd|ampas|aml\\-glslang|aml|amdplpa|amd\\-newlib|alglib\\-documentation|aladdin|agpl\\-3\\.0\\-or\\-later|agpl\\-3\\.0\\-only|agpl\\-3\\.0|agpl\\-1\\.0\\-or\\-later|agpl\\-1\\.0\\-only|agpl\\-1\\.0|afmparse|afl\\-3\\.0|afl\\-2\\.1|afl\\-2\\.0|afl\\-1\\.2|afl\\-1\\.1|advanced\\-cryptics\\-dictionary|adsl|adobe\\-utopia|adobe\\-glyph|adobe\\-display\\-postscript|adobe\\-2006|adacore\\-doc|abstyles|aal|3d\\-slicer\\-1\\.0|0bsd)\n\n    # license-exception-id: taken from list\n    (?<licenseexceptionid>x11vnc\\-openssl\\-exception|wxwindows\\-exception\\-3\\.1|vsftpd\\-openssl\\-exception|universal\\-foss\\-exception\\-1\\.0|ubdl\\-exception|u\\-boot\\-exception\\-2\\.0|texinfo\\-exception|swift\\-exception|swi\\-exception|stunnel\\-exception|sqlitestudio\\-openssl\\-exception|simple\\-library\\-usage\\-exception|shl\\-2\\.1|shl\\-2\\.0|sane\\-exception|rsync\\-linking\\-exception|rrdtool\\-floss\\-exception\\-2\\.0|romic\\-exception|qwt\\-exception\\-1\\.0|qt\\-lgpl\\-exception\\-1\\.1|qt\\-gpl\\-exception\\-1\\.0|qpl\\-1\\.0\\-inria\\-2004\\-exception|ps\\-or\\-pdf\\-font\\-exception\\-20170817|polyparse\\-exception|pcre2\\-exception|openvpn\\-openssl\\-exception|openjdk\\-assembly\\-exception\\-1\\.0|occt\\-exception\\-1\\.0|ocaml\\-lgpl\\-linking\\-exception|nokia\\-qt\\-exception\\-1\\.1|mxml\\-exception|mif\\-exception|lzma\\-exception|llvm\\-exception|llgpl|linux\\-syscall\\-note|libtool\\-exception|libpri\\-openh323\\-exception|lgpl\\-3\\.0\\-linking\\-exception|kvirc\\-openssl\\-exception|kicad\\-libraries\\-exception|independent\\-modules\\-exception|i2p\\-gpl\\-java\\-exception|harbour\\-exception|gstreamer\\-exception\\-2008|gstreamer\\-exception\\-2005|gpl\\-cc\\-1\\.0|gpl\\-3\\.0\\-linking\\-source\\-exception|gpl\\-3\\.0\\-linking\\-exception|gpl\\-3\\.0\\-interface\\-exception|gpl\\-3\\.0\\-389\\-ds\\-base\\-exception|gnu\\-javamail\\-exception|gnu\\-compiler\\-exception|gnome\\-examples\\-exception|gnat\\-exception|gmsh\\-exception|gcc\\-exception\\-3\\.1|gcc\\-exception\\-2\\.0\\-note|gcc\\-exception\\-2\\.0|freertos\\-exception\\-2\\.0|font\\-exception\\-2\\.0|fmt\\-exception|fltk\\-exception|fawkes\\-runtime\\-exception|erlang\\-otp\\-linking\\-exception|ecos\\-exception\\-2\\.0|digirule\\-foss\\-exception|digia\\-qt\\-lgpl\\-exception\\-1\\.1|cryptsetup\\-openssl\\-exception|clisp\\-exception\\-2\\.0|classpath\\-exception\\-2\\.0\\-short|classpath\\-exception\\-2\\.0|cgal\\-linking\\-exception|bootloader\\-exception|bison\\-exception\\-2\\.2|bison\\-exception\\-1\\.24|autoconf\\-exception\\-macro|autoconf\\-exception\\-generic\\-3\\.0|autoconf\\-exception\\-generic|autoconf\\-exception\\-3\\.0|autoconf\\-exception\\-2\\.0|asterisk\\-linking\\-protocols\\-exception|asterisk\\-exception|389\\-exception)\n\n    # license-ref: [DocumentRef-1*(idstring):]LicenseRef-1*(idstring)\n    (?<licenseref>(?:DocumentRef-(?&idstring):)?LicenseRef-(?&idstring))\n\n    # simple-expresssion: license-id / license-id+ / license-ref\n    (?<simple_expression>(?&licenseid)\\+? | (?&licenseid) | (?&licenseref))\n\n    # compound-expression: 1*(\n    #   simple-expression /\n    #   simple-expression WITH license-exception-id /\n    #   compound-expression AND compound-expression /\n    #   compound-expression OR compound-expression\n    # ) / ( compound-expression ) )\n    (?<compound_head>\n        (?&simple_expression) ( \\s+ WITH \\s+ (?&licenseexceptionid))?\n            | \\( \\s* (?&compound_expression) \\s* \\)\n    )\n    (?<compound_expression>\n        (?&compound_head) (?: \\s+ (?:AND|OR) \\s+ (?&compound_expression))?\n    )\n\n    # license-expression: 1*1(simple-expression / compound-expression)\n    (?<license_expression>(?&compound_expression) | (?&simple_expression))\n) # end of define\n\n^(NONE | NOASSERTION | (?&license_expression))$\n}xi",
@@ -17413,8 +17757,8 @@
             "pattern": "{__HALT_COMPILER\\(\\);(?: +\\?>)?\\r?\\n}",
             "origin": "static",
             "sources": [
-                "vendor/seld/phar-utils/src/Timestamps.php:44",
-                "vendor/seld/phar-utils/src/Timestamps.php:147"
+                "vendor/seld/phar-utils/src/Timestamps.php:46",
+                "vendor/seld/phar-utils/src/Timestamps.php:156"
             ],
             "subjects": [
                 "",

@@ -9,8 +9,8 @@
             "release-age": "",
             "release-date": "",
             "latest": "1.0.0",
-            "latest-status": "up-to-date",
             "latest-release-date": "",
+            "latest-status": "up-to-date",
             "description": null,
             "abandoned": false
         },
@@ -23,8 +23,8 @@
             "release-age": "",
             "release-date": "",
             "latest": "1.0.0",
-            "latest-status": "up-to-date",
             "latest-release-date": "",
+            "latest-status": "up-to-date",
             "description": null,
             "abandoned": false
         },
@@ -37,8 +37,8 @@
             "release-age": "",
             "release-date": "",
             "latest": "2.0.0",
-            "latest-status": "update-possible",
             "latest-release-date": "",
+            "latest-status": "update-possible",
             "description": null,
             "abandoned": false
         }

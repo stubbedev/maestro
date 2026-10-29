@@ -19,7 +19,7 @@ Options:
       --apcu-autoloader-prefix=APCU-AUTOLOADER-PREFIX  Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader
       --ignore-platform-req=IGNORE-PLATFORM-REQ        Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
       --ignore-platform-reqs                           Ignore all platform requirements (php & ext- packages).
-      --type=TYPE                                      Filter packages to reinstall by type(s) (multiple values allowed)
+      --type=TYPE                                      Filter packages to reinstall by exact type(s) (multiple values allowed)
   -h, --help                                           Display help for the given command. When no command is given display help for the list command
   -q, --quiet                                          Do not output any message
   -V, --version                                        Display this application version
@@ -33,11 +33,12 @@ Options:
   -v|vv|vvv, --verbose                                 Increase the verbosity of messages: 1 for normal output, 2 for more verbose output and 3 for debug
 
 Help:
-  The reinstall command looks up installed packages by name,
-  uninstalls them and reinstalls them. This lets you do a clean install
+  The reinstall command looks up installed packages by name
+  (or by type with --type), uninstalls them and reinstalls them. This lets you do a clean install
   of a package if you messed with its files, or if you wish to change
   the installation type using --prefer-install.
   
   php composer.phar reinstall acme/foo "acme/bar-*"
+  php composer.phar reinstall --type=composer-plugin
   
   Read more at https://getcomposer.org/doc/03-cli.md#reinstall

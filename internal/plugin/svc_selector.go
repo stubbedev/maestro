@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/resolver"
 )
@@ -129,6 +130,14 @@ func (r *Runtime) registerSelectors() {
 
 		return s.IsPackageAcceptable(names, a.str(2)), nil
 	})
+	method("preloadPackages", func(s *repository.RepositorySet, a args) (any, error) {
+		var names []string
+		for _, n := range a.arrayOrEmpty(1).Values() {
+			names = append(names, php.ToString(n))
+		}
+
+		return nil, s.PreloadPackages(names)
+	})
 
 	method("createPool", func(s *repository.RepositorySet, a args) (any, error) {
 		req, ok := unwrap(a.at(1)).(*resolver.Request)
@@ -224,8 +233,12 @@ func (r *Runtime) registerSelectors() {
 				return nil, err
 			}
 		}
-		s := version.NewVersionSelector(set, platform)
-		s.PHPVersion = a.str(3)
+		var cooldown version.Cooldown
+		if c, ok := serviceValue(a.at(3)).(*policy.CooldownPolicyConfig); ok {
+			cooldown = c
+		}
+		s := version.NewVersionSelector(set, platform, cooldown)
+		s.PHPVersion = a.str(4)
 
 		return nil, r.adopt(a, s)
 	})
@@ -304,20 +317,42 @@ func (r *Runtime) registerSelectors() {
 
 		return s.FindRecommendedRequireVersion(p)
 	})
+	withheld := func(c *version.WithheldCandidate) *php.Array {
+		out := php.NewArrayCap(2)
+		out.Set("package", r.packageObject(c.Package))
+		out.Set("releaseDate", dateValue{c.ReleaseDate})
+
+		return out
+	}
+	selectorMethod("getFirstClearingWithheldCandidate", func(s *version.VersionSelector, _ args) (any, error) {
+		if c := s.FirstClearingWithheldCandidate(); c != nil {
+			return withheld(c), nil
+		}
+
+		return nil, nil
+	})
+	selectorMethod("getWithheldCandidates", func(s *version.VersionSelector, _ args) (any, error) {
+		cs := s.WithheldCandidates()
+		out := php.NewArrayCap(len(cs))
+		for i := range cs {
+			out.Append(withheld(&cs[i]))
+		}
+
+		return out, nil
+	})
+	selectorMethod("getPlatformRejectedCandidates", func(s *version.VersionSelector, _ args) (any, error) {
+		return r.packageList(s.PlatformRejectedCandidates()), nil
+	})
 }
 
 // poolValue describes a pool for the shim's PHP-local Pool: its packages
 // (in id order), the unacceptable fixed or locked ones, and what the pool
 // builder and its filters removed, as Composer's PoolBuilder hands them to
 // new Pool(): the versions the optimizer removed (by name, and by the
-// package it kept, whose spl_object_id PHP keys them by), the versions
-// security advisories removed (with Composer's advisory objects), the
-// abandoned ones and the filter list removals (with Composer's
-// FilterListEntry objects). An advisory or entry that removed several
-// versions is one object in PHP too (getFilterListEntryForPackageVersion()
-// tells them apart by spl_object_id()): each crosses once, in
-// "advisories" and "filterListEntries", and the removals name them by
-// index.
+// package it kept, whose spl_object_id PHP keys them by) and, per package
+// name and normalized version, why a dependency policy removed it (a
+// PolicyRemovalReason, with the advisories and filter list entries that
+// caused it).
 func (r *Runtime) poolValue(p *resolver.Pool) *php.Array {
 	versions := func(m *repository.NameMap[*resolver.VersionMap]) *php.Array {
 		out := php.NewArray()
@@ -357,46 +392,13 @@ func (r *Runtime) poolValue(p *resolver.Pool) *php.Array {
 		}
 	}
 
-	advisories := php.NewArray()
-	advisoryIndex := map[repository.Advisory]int64{}
-	security := php.NewArray()
-	for name, byVersion := range p.AllSecurityRemovedPackageVersions().All() {
+	policy := php.NewArray()
+	for name, byVersion := range p.AllPolicyRemovedVersions().All() {
 		out := php.NewArray()
-		for version, list := range byVersion.All() {
-			refs := php.NewArrayCap(len(list))
-			for _, adv := range list {
-				i, ok := advisoryIndex[adv]
-				if !ok {
-					i = int64(advisories.Len())
-					advisoryIndex[adv] = i
-					advisories.Append(advisoryValue(adv))
-				}
-				refs.Append(i)
-			}
-			out.Set(version, refs)
+		for version, reason := range byVersion.All() {
+			out.Set(version, policyRemovalReasonValue(reason))
 		}
-		security.Set(name, out)
-	}
-
-	entries := php.NewArray()
-	entryIndex := map[*repository.FilterListEntry]int64{}
-	filterList := php.NewArray()
-	for name, byVersion := range p.AllFilterListRemovedPackageVersions().All() {
-		out := php.NewArray()
-		for version, list := range byVersion.All() {
-			refs := php.NewArrayCap(len(list))
-			for _, e := range list {
-				i, ok := entryIndex[e]
-				if !ok {
-					i = int64(entries.Len())
-					entryIndex[e] = i
-					entries.Append(filterListEntryValue(e))
-				}
-				refs.Append(i)
-			}
-			out.Set(version, refs)
-		}
-		filterList.Set(name, out)
+		policy.Set(name, out)
 	}
 
 	return php.ArrayOf(
@@ -404,11 +406,34 @@ func (r *Runtime) poolValue(p *resolver.Pool) *php.Array {
 		"unacceptable", r.lazyPackageList(p.UnacceptableFixedOrLockedPackages()),
 		"removedVersions", versions(p.AllRemovedVersions()),
 		"removedVersionsByPackage", byPackage,
+		"policyRemovedVersions", policy,
+	)
+}
+
+// policyRemovalReasonValue describes a PolicyRemovalReason for the shim's
+// PolicyRemovalReason objects (its fields, with the advisories and filter
+// list entries that caused the removal).
+func policyRemovalReasonValue(reason *resolver.PolicyRemovalReason) *php.Array {
+	advisories := php.NewArrayCap(len(reason.Advisories))
+	for _, adv := range reason.Advisories {
+		advisories.Append(advisoryValue(adv))
+	}
+	entries := php.NewArrayCap(len(reason.FilterEntries))
+	for _, e := range reason.FilterEntries {
+		entries.Append(filterListEntryValue(e))
+	}
+	var cooldown any
+	if c := reason.Cooldown; c != nil {
+		cooldown = php.ArrayOf("releaseDate", c.ReleaseDate, "availableIn", c.AvailableIn, "source", c.Source)
+	}
+
+	return php.ArrayOf(
+		"type", reason.Type,
+		"packageName", reason.PackageName,
+		"prettyVersion", reason.PrettyVersion,
 		"advisories", advisories,
-		"securityRemovedVersions", security,
-		"abandonedRemovedVersions", versions(p.AllAbandonedRemovedPackageVersions()),
 		"filterListEntries", entries,
-		"filterListRemovedVersions", filterList,
+		"cooldown", cooldown,
 	)
 }
 

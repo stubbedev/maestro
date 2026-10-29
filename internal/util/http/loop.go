@@ -5,6 +5,7 @@ package http
 
 import (
 	"maps"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -122,6 +123,17 @@ func (l *Loop) ProcessExecutor() *util.ProcessExecutor { return l.processExecuto
 // A nil Loop drives the schedulers the promises wait on until they
 // settled (tests building promises without a Loop).
 func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
+	return l.wait(promises, progress, nil)
+}
+
+// WaitProgress is wait($promises, $progress, $onProgress): it also reports
+// the download progress, as a percentage, whenever the bar advances and
+// once more at 100%.
+func (l *Loop) WaitProgress(promises []Waitable, progress *console.ProgressBar, onProgress func(percent int)) error {
+	return l.wait(promises, progress, onProgress)
+}
+
+func (l *Loop) wait(promises []Waitable, progress *console.ProgressBar, onProgress func(percent int)) error {
 	if l == nil {
 		return util.AwaitAll(promises)
 	}
@@ -136,6 +148,13 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	l.currentPromises[waitIndex] = promises
 	l.mu.Unlock()
 
+	// (an error leaves the group, as Composer's finally does)
+	defer func() {
+		l.mu.Lock()
+		delete(l.currentPromises, waitIndex)
+		l.mu.Unlock()
+	}()
+
 	sched := l.httpDownloader.Scheduler()
 
 	if progress != nil {
@@ -149,6 +168,10 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	var lastUpdate time.Time
 
 	for {
+		// as countActiveJobs() does, a queued request whose origin is no
+		// longer on hold is started
+		l.httpDownloader.StartQueuedJobs()
+
 		external, err := l.sourceJobs()
 		if err != nil {
 			return err
@@ -156,10 +179,14 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 
 		if progress != nil && time.Since(lastUpdate) > 100*time.Millisecond {
 			lastUpdate = time.Now()
-			progress.SetProgress(progress.MaxSteps() - (sched.Counted() + l.queuedJobs() + external))
+			progress.SetProgress(progress.MaxSteps() - (sched.Counted() + l.queuedJobs() + l.parkedJobs() + external))
+
+			if onProgress != nil && progress.MaxSteps() > 0 {
+				onProgress(int(math.Floor(100 * float64(progress.Progress()) / float64(progress.MaxSteps()))))
+			}
 		}
 
-		if sched.Pending()+l.queuedJobs()+external == 0 {
+		if sched.Pending()+l.queuedJobs()+l.parkedJobs()+external == 0 {
 			break
 		}
 
@@ -177,6 +204,13 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 				}
 			}
 
+			if sched.Pending() == 0 && l.queuedJobs()+l.parkedJobs() > 0 {
+				// a request waiting for its slot or for a hold of its
+				// origin is looked at again shortly, as curl's select
+				// timeout makes Composer's loop look again
+				wait = 10 * time.Millisecond
+			}
+
 			sched.WaitReady(wait, nil)
 		}
 	}
@@ -185,12 +219,11 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 	// one last one here at 100%
 	if progress != nil {
 		progress.Finish()
-	}
 
-	// (an exception above leaves the group, as in Composer)
-	l.mu.Lock()
-	delete(l.currentPromises, waitIndex)
-	l.mu.Unlock()
+		if onProgress != nil {
+			onProgress(100)
+		}
+	}
 
 	return uncaught()
 }
@@ -208,7 +241,13 @@ func (l *Loop) Wait(promises []Waitable, progress *console.ProgressBar) error {
 func (l *Loop) countedJobs(sched *util.Scheduler) (int, error) {
 	external, err := l.sourceJobs()
 
-	return sched.Counted() + l.queuedJobs() + external, err
+	return sched.Counted() + l.queuedJobs() + l.parkedJobs() + external, err
+}
+
+// parkedJobs counts the retries waiting for their Retry-After: a request
+// Composer's loop keeps counting, as its slot is held until it is settled.
+func (l *Loop) parkedJobs() int {
+	return l.httpDownloader.CountDelayedJobs()
 }
 
 // queuedJobs is the number of requests and processes waiting for a slot.

@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Repository\ArrayRepository,
- * reimplemented with Composer 2.10.3's behaviour (docs/PLUGINS.md §4.6).
+ * reimplemented with Composer 2.11.0's behaviour (docs/PLUGINS.md §4.6).
  *
  * A Go-owned repository (the local repository, a remote one, ...) is a
  * service proxy: each method is maestro's (`repo.*`). A repository created

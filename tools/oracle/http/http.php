@@ -147,6 +147,8 @@ $authCases = [
     ['gitlab.com', 'https://gitlab.com/api/v4/x', 'glpat-xyz', 'oauth2'],
     ['gitlab.com', 'https://gitlab.com/api/v4/x', 'glpat-xyz', 'private-token'],
     ['gitlab.com', 'https://gitlab.com/api/v4/x', 'glpat-xyz', 'gitlab-ci-token'],
+    ['gitlab.com', 'https://gitlab.com/api/v4/x', 'my_token', 'gitlab-ci-token'],
+    ['gitlab.com', 'https://gitlab.com/api/v4/x', 'gitlab-ci-token', 'my_token'],
     ['gitlab.example.org', 'https://gitlab.example.org/x', 'glpat-xyz', 'private-token'],
     ['bitbucket.org', 'https://bitbucket.org/a/b/get/c.zip', 'x-token-auth', 'access'],
     ['bitbucket.org', 'https://bitbucket.org/a/b/downloads/c.zip', 'x-token-auth', 'access'],
@@ -233,7 +235,9 @@ $warningData = [
 foreach ($warningData as $data) {
     foreach ([false, true] as $decorated) {
         $io = new BufferIO('', OutputInterface::VERBOSITY_NORMAL, new \Symfony\Component\Console\Formatter\OutputFormatter($decorated));
-        $wrote = @\Composer\Util\HttpDownloader::outputWarnings($io, 'https://user:secret@repo.example.org', $data);
+        // a fresh process, as each case would run in
+        \Composer\Util\Http\ResponseWarnings::reset();
+        $wrote = \Composer\Util\Http\ResponseWarnings::output($io, 'https://user:secret@repo.example.org', $data);
         $out['warnings'][] = ['data' => $data, 'decorated' => $decorated, 'wrote' => $wrote, 'output' => $io->getOutput()];
     }
 }

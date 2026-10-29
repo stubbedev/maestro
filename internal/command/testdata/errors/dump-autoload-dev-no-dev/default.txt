@@ -1,6 +1,6 @@
 Generating autoload files
 
-In DumpAutoloadCommand.php line 107:
+In DumpAutoloadCommand.php line 108:
                                                                              
   You can not use both --no-dev and --dev as they conflict with each other.  
                                                                              

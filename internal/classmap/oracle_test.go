@@ -20,7 +20,7 @@ import (
 )
 
 // The goldens are written by tools/oracle/classmap/*.php, which run the real
-// composer/class-map-generator 1.7.3 on PHP 8.4, except versions.* (every
+// composer/class-map-generator 1.8.0 on PHP 8.4, except versions.* (every
 // PHP from 7.2 to 8.5, tools/oracle/classmap/versions.sh).
 
 // record is record() of tools/oracle/classmap/common.php for the Go port.

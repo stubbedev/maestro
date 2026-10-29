@@ -10,8 +10,8 @@ Composer could not detect the root package (acme/app) version, defaulting to '1.
             "release-age": "",
             "release-date": "",
             "latest": "1.1.0",
-            "latest-status": "semver-safe-update",
             "latest-release-date": "",
+            "latest-status": "semver-safe-update",
             "description": null,
             "abandoned": false
         }

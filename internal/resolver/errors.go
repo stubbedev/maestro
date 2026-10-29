@@ -111,7 +111,7 @@ func (e *SolverProblemsError) PrettyString(repositorySet *repository.RepositoryS
 
 	var hints []string
 	if !isDevExtraction && (strings.Contains(result, "could not be found") || strings.Contains(result, "no matching package found")) {
-		hints = append(hints, "Potential causes:\n - A typo in the package name\n - The package is not available in a stable-enough version according to your minimum-stability setting\n   see <https://getcomposer.org/doc/04-schema.md#minimum-stability> for more details.\n - It's a private package and you forgot to add a custom repository to find it\n\nRead <https://getcomposer.org/doc/articles/troubleshooting.md> for further common problems.")
+		hints = append(hints, "Potential causes:\n - A typo in the package name\n - The package is not available in a stable-enough version according to your minimum-stability setting\n   see <https://getcomposer.org/doc/04-schema.md#minimum-stability-root-only> for more details.\n - It's a private package and you forgot to add a custom repository to find it\n\nRead <https://getcomposer.org/doc/articles/troubleshooting.md> for further common problems.")
 	}
 
 	if missingExtensions.Len() > 0 {

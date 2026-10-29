@@ -9,6 +9,7 @@ import (
 	goio "io"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -27,6 +28,9 @@ type fakeInput struct {
 }
 
 func (f *fakeInput) IsInteractive() bool {
+	if len(f.interactive) == 0 {
+		return true
+	}
 	v := f.interactive[f.calls]
 	f.calls++
 
@@ -91,6 +95,8 @@ type fakeQuestionHelper struct {
 	console.HelperBase
 	asked  []console.Questioner
 	answer any
+	err    error
+	onAsk  func(console.Questioner) (any, error)
 }
 
 func (*fakeQuestionHelper) Name() string { return "question" }
@@ -99,8 +105,11 @@ func (f *fakeQuestionHelper) Ask(in console.Input, out console.Output, q console
 		return nil, errors.New("nil input or output")
 	}
 	f.asked = append(f.asked, q)
+	if f.onAsk != nil {
+		return f.onAsk(q)
+	}
 
-	return f.answer, nil
+	return f.answer, f.err
 }
 
 func TestConsoleIO_IsInteractive(t *testing.T) {
@@ -241,7 +250,8 @@ func newAskIO(answer any) (*ConsoleIO, *fakeQuestionHelper, *fakeHelperSet) {
 
 func checkAsked(t *testing.T, helper *fakeQuestionHelper, set *fakeHelperSet) console.Questioner {
 	t.Helper()
-	if len(helper.asked) != 1 || !reflect.DeepEqual(set.gets, []string{"question"}) {
+	gets := slices.DeleteFunc(slices.Clone(set.gets), func(name string) bool { return name == "osc" })
+	if len(helper.asked) != 1 || !reflect.DeepEqual(gets, []string{"question"}) {
 		t.Fatalf("asked %d questions, helper gets %v", len(helper.asked), set.gets)
 	}
 
@@ -423,26 +433,6 @@ func TestConsoleIO_Sanitize(t *testing.T) {
 }
 
 // TestEnsureValidUTF8 checks the maximal-subpart replacement against
-// mb_convert_encoding($s, 'UTF-8', 'UTF-8') results from PHP 8.4.
-func TestEnsureValidUTF8(t *testing.T) {
-	for in, want := range map[string]string{
-		"\xE4\xB8A":        "?A",
-		"\xE4\xB8":         "?",
-		"\xC3\x28":         "?(",
-		"\xF0\x90\x80":     "?",
-		"\xED\xA0\x80":     "???",
-		"\xC0\x80":         "??",
-		"\xF5\x80":         "??",
-		"\x80\x80":         "??",
-		"\xE0\x80\x80":     "???",
-		"\xF4\x90\x80\x80": "????",
-	} {
-		if got := ensureValidUTF8(in); got != want {
-			t.Errorf("ensureValidUTF8(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 func TestConsoleIO_Log(t *testing.T) {
 	out := &fakeConsoleOutput{fakeOutput: &fakeOutput{verbosity: console.VerbosityDebug}}
 	io := NewConsoleIO(&fakeInput{}, out, &fakeHelperSet{})

@@ -7,7 +7,7 @@
 This command will guide you through creating your composer.json config.
 
 Package name (<vendor>/<name>) [acme/p]: Description []: Author [n to skip]: Minimum Stability []: Package Type (e.g. library, project, metapackage, composer-plugin) []: License []: 
-In InitCommand.php line 370:
+In InitCommand.php line 386:
                                                                                
   [InvalidArgumentException]                                                   
   Invalid license provided: Not-A-License. Only SPDX license identifiers (htt  
@@ -15,13 +15,14 @@ In InitCommand.php line 370:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/InitCommand.php:370
+  at @COMPOSER@/src/Composer/Command/InitCommand.php:386
  Composer\Command\InitCommand->interact() at @COMPOSER@/vendor/symfony/console/Command/Command.php:283
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 init [--name NAME] [--description DESCRIPTION] [--author AUTHOR] [--type TYPE] [--homepage HOMEPAGE] [--require REQUIRE] [--require-dev REQUIRE-DEV] [-s|--stability STABILITY] [-l|--license LICENSE] [--repository REPOSITORY] [-a|--autoload AUTOLOAD]

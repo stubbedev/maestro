@@ -68,17 +68,29 @@ func (t *Transaction) ResultPackagesByName() []NamedPackages {
 func (t *Transaction) CalculateOperations() []operation.Operation { return t.calculateOperations() }
 
 // NewTransaction is new Transaction($presentPackages, $resultPackages).
-func NewTransaction(presentPackages, resultPackages []pkg.PackageInterface) *Transaction {
+func NewTransaction(presentPackages, resultPackages []pkg.PackageInterface) (*Transaction, error) {
 	t := &Transaction{}
-	t.init(presentPackages, resultPackages)
+	if err := t.init(presentPackages, resultPackages); err != nil {
+		return nil, err
+	}
 
-	return t
+	return t, nil
 }
 
-func (t *Transaction) init(presentPackages, resultPackages []pkg.PackageInterface) {
+func (t *Transaction) init(presentPackages, resultPackages []pkg.PackageInterface) error {
+	// present packages may come from installed.json which is loaded without
+	// validation
+	for _, p := range slices.Concat(presentPackages, resultPackages) {
+		if err := loader.ValidatePackage(p); err != nil {
+			return err
+		}
+	}
+
 	t.presentPackages = presentPackages
 	t.setResultPackageMaps(resultPackages)
 	t.operations = t.calculateOperations()
+
+	return nil
 }
 
 // Operations ports getOperations.
@@ -446,7 +458,9 @@ func NewLockTransaction(pool *Pool, presentMap, unlockable []pkg.PackageInterfac
 	if err := t.SetResultPackages(pool, decisions); err != nil {
 		return nil, err
 	}
-	t.init(t.presentMap.appendTo(nil), t.all)
+	if err := t.init(t.presentMap.appendTo(nil), t.all); err != nil {
+		return nil, err
+	}
 
 	return t, nil
 }
@@ -478,9 +492,6 @@ func (t *LockTransaction) SetResultPackages(pool *Pool, decisions *Decisions) er
 			continue
 		}
 		p := pool.LiteralToPackage(decision.Literal)
-		if err := loader.ValidatePackage(p); err != nil {
-			return err
-		}
 		t.all = append(t.all, p)
 		if _, ok := t.unlockableMap[p.ID()]; !ok {
 			t.nonDev = append(t.nonDev, p)
@@ -660,5 +671,5 @@ func NewLocalRepoTransaction(lockedRepository repository.RepositoryInterface, lo
 		return nil, err
 	}
 
-	return NewTransaction(present, result), nil
+	return NewTransaction(present, result)
 }

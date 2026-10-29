@@ -81,7 +81,9 @@ docs=(README.md docs/PORTING.md docs/PLUGINS.md)
 replace "${old[version]}" "$new" "${docs[@]}"
 replace "${old[date]}" "${phar[RELEASE_DATE]}" "${docs[@]}"
 replace "'${old[plugin]}'" "'${phar[PLUGIN_API_VERSION]}'" "${docs[@]}"
+replace "\"${old[plugin]}\"" "\"${phar[PLUGIN_API_VERSION]}\"" "${docs[@]}"
 replace "'${old[runtime]}'" "'${phar[RUNTIME_API_VERSION]}'" "${docs[@]}"
+replace "\"${old[runtime]}\"" "\"${phar[RUNTIME_API_VERSION]}\"" "${docs[@]}"
 
 go generate ./internal/plugin # the shim's MANIFEST
 go test ./internal/upstream ./internal/composer ./internal/plugin -run 'TestUpstream|TestComposer_GetVersion|TestShim_PinnedVersions|TestShim_ManifestIsCurrent'

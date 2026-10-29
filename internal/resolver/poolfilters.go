@@ -5,6 +5,7 @@ package resolver
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/filterlist"
@@ -52,6 +53,7 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 
 	var packagesForAdvisories []pkg.PackageInterface
 	for _, p := range pool.Packages() {
+		p = advisoryTarget(p)
 		if _, isRoot := p.(pkg.RootPackageInterface); !isRoot && !repository.IsPlatformPackage(p.Name()) && !request.IsLockedPackage(p) {
 			packagesForAdvisories = append(packagesForAdvisories, p)
 		}
@@ -80,8 +82,10 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 	ignoreAbandonedForBlocking := abandoned.FlatIgnoreForOperation("block")
 
 	var packages []pkg.PackageInterface
-	securityRemovedVersions := &repository.NameMap[*repository.NameMap[[]repository.Advisory]]{}
-	abandonedRemovedVersions := &repository.NameMap[*VersionMap]{}
+	policyRemovedVersions := pool.AllPolicyRemovedVersions()
+	if policyRemovedVersions == nil {
+		policyRemovedVersions = &repository.NameMap[*repository.NameMap[*PolicyRemovalReason]]{}
+	}
 	matching := parallelMatchingAdvisories(pool.Packages(), advisoryMap)
 	for i, p := range pool.Packages() {
 		if abandoned.Block {
@@ -90,14 +94,7 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 				return nil, err
 			}
 			if len(filtered) != 0 {
-				for _, packageName := range p.Names(false) {
-					versions, ok := abandonedRemovedVersions.Get(packageName)
-					if !ok {
-						versions = &VersionMap{}
-						abandonedRemovedVersions.Set(packageName, versions)
-					}
-					versions.Set(p.Version(), p.PrettyVersion())
-				}
+				RecordPolicyRemoval(policyRemovedVersions, p, NewAbandonedRemovalReason(p.Name(), p.PrettyVersion()))
 
 				continue
 			}
@@ -105,14 +102,7 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 
 		matchingAdvisories := matching[i]
 		if len(matchingAdvisories) > 0 {
-			for _, packageName := range p.Names(false) {
-				versions, ok := securityRemovedVersions.Get(packageName)
-				if !ok {
-					versions = &repository.NameMap[[]repository.Advisory]{}
-					securityRemovedVersions.Set(packageName, versions)
-				}
-				versions.Set(p.Version(), matchingAdvisories)
-			}
+			RecordPolicyRemoval(policyRemovedVersions, p, NewAdvisoriesRemovalReason(p.Name(), p.PrettyVersion(), matchingAdvisories))
 
 			continue
 		}
@@ -123,8 +113,7 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 	return NewPool(packages, pool.UnacceptableFixedOrLockedPackages(), &Removed{
 		Versions:  pool.AllRemovedVersions(),
 		ByPackage: pool.AllRemovedVersionsByPackage(),
-		Security:  securityRemovedVersions,
-		Abandoned: abandonedRemovedVersions,
+		Policy:    policyRemovedVersions,
 	}), nil
 }
 
@@ -150,7 +139,9 @@ func parallelMatchingAdvisories(packages []pkg.PackageInterface, advisoryMap *re
 
 // matchingAdvisories ports getMatchingAdvisories.
 func matchingAdvisories(p pkg.PackageInterface, advisoryMap *repository.NameMap[[]repository.Advisory]) []repository.Advisory {
-	if p.IsDev() {
+	p = advisoryTarget(p)
+
+	if isUnversionedBranch(p) {
 		return nil
 	}
 
@@ -170,6 +161,22 @@ func matchingAdvisories(p pkg.PackageInterface, advisoryMap *repository.NameMap[
 	}
 
 	return matching
+}
+
+// advisoryTarget ports getAdvisoryTarget: a root alias version is chosen by
+// the root package author and says nothing about the actual code, so
+// advisories are checked against the aliased package.
+func advisoryTarget(p pkg.PackageInterface) pkg.PackageInterface {
+	if a, ok := p.(pkg.Alias); ok && a.IsRootPackageAlias() {
+		return a.AliasOf()
+	}
+
+	return p
+}
+
+// isUnversionedBranch ports RepositorySet::isUnversionedBranch.
+func isUnversionedBranch(p pkg.PackageInterface) bool {
+	return strings.HasPrefix(p.Version(), "dev-") || p.Version() == pkg.DefaultBranchAlias
 }
 
 // FilterListPoolFilter ports Composer\DependencyResolver\FilterListPoolFilter:
@@ -258,7 +265,10 @@ func (f *FilterListPoolFilter) Filter(pool *Pool, request *Request) (*Pool, erro
 	}
 
 	var packages []pkg.PackageInterface
-	filterListRemovedVersions := &repository.NameMap[*repository.NameMap[[]*repository.FilterListEntry]]{}
+	policyRemovedVersions := pool.AllPolicyRemovedVersions()
+	if policyRemovedVersions == nil {
+		policyRemovedVersions = &repository.NameMap[*repository.NameMap[*PolicyRemovalReason]]{}
+	}
 	for _, p := range pool.Packages() {
 		if !isFilterable(p) {
 			packages = append(packages, p)
@@ -277,14 +287,7 @@ func (f *FilterListPoolFilter) Filter(pool *Pool, request *Request) (*Pool, erro
 		}
 
 		if len(matchingEntries) > 0 {
-			for _, packageName := range p.Names(false) {
-				versions, ok := filterListRemovedVersions.Get(packageName)
-				if !ok {
-					versions = &repository.NameMap[[]*repository.FilterListEntry]{}
-					filterListRemovedVersions.Set(packageName, versions)
-				}
-				versions.Set(p.Version(), matchingEntries)
-			}
+			RecordPolicyRemoval(policyRemovedVersions, p, NewFilterListRemovalReason(p.Name(), p.PrettyVersion(), matchingEntries))
 
 			continue
 		}
@@ -293,11 +296,9 @@ func (f *FilterListPoolFilter) Filter(pool *Pool, request *Request) (*Pool, erro
 	}
 
 	return NewPool(packages, pool.UnacceptableFixedOrLockedPackages(), &Removed{
-		Versions:   pool.AllRemovedVersions(),
-		ByPackage:  pool.AllRemovedVersionsByPackage(),
-		Security:   pool.AllSecurityRemovedPackageVersions(),
-		Abandoned:  pool.AllAbandonedRemovedPackageVersions(),
-		FilterList: filterListRemovedVersions,
+		Versions:  pool.AllRemovedVersions(),
+		ByPackage: pool.AllRemovedVersionsByPackage(),
+		Policy:    policyRemovedVersions,
 	}), nil
 }
 

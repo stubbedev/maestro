@@ -3,9 +3,11 @@
 package command_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
+	"github.com/stubbedev/maestro/internal/composer"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -93,6 +95,37 @@ func rootMetapackages(t *testing.T) (rootReq, another *pkg.CompletePackage) {
 	another.SetType("metapackage")
 
 	return rootReq, another
+}
+
+func TestInstallCommand_InstallRejectsConflictedLockFile(t *testing.T) {
+	lock := mergeConflictedLock(t)
+	dir := commandtest.InitTempComposer(t, `{"name": "vendor/test"}`, nil, nil, true)
+	if err := os.WriteFile(dir+"/composer.lock", lock, 0o666); err != nil {
+		t.Fatal(err)
+	}
+
+	appTester := commandtest.GetApplicationTester(t)
+	code := runAppTester(t, appTester, console.P("command", "install"))
+
+	if code != composer.ErrorLockFileInvalid {
+		t.Errorf("status %d, want %d", code, composer.ErrorLockFileInvalid)
+	}
+	assertDisplayContains(t, appTester.Display(true), "VCS merge conflict detected. Please run `composer update --lock`.", true)
+	if _, err := os.Stat(dir + "/vendor"); !os.IsNotExist(err) {
+		t.Errorf("vendor dir exists: %v", err)
+	}
+}
+
+// mergeConflictedLock reads Composer's merge-conflicted lock fixture; it
+// must be called before InitTempComposer chdirs away.
+func mergeConflictedLock(t *testing.T) []byte {
+	t.Helper()
+	fixture, err := os.ReadFile("testdata/Fixtures/composer-lock-merge-conflict-simple.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return fixture
 }
 
 func TestInstallCommand_InstallFromEmptyVendor(t *testing.T) {

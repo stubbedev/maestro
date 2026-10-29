@@ -490,3 +490,65 @@ func TestInitCommand_HasVendorIgnore(t *testing.T) {
 		t.Fatal("expected true")
 	}
 }
+
+func TestInitCommand_AddVendorIgnoreKeepsTrailingNewline(t *testing.T) {
+	initSetUp(t)
+	ignoreFile := commandtest.UniqueTmpDirectory(t) + "/ignore"
+	if err := os.WriteFile(ignoreFile, []byte("foo\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	command.AddVendorIgnore(ignoreFile, "/vendor/")
+	content, err := os.ReadFile(ignoreFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(content), "foo\n/vendor/\n"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestInitCommand_ExportIgnoreForLockfile(t *testing.T) {
+	cases := []struct {
+		name     string
+		initial  *string
+		detected bool
+		expected string
+	}{
+		{"missing file", nil, false, "composer.lock export-ignore\n"},
+		{"empty file", new(""), false, "composer.lock export-ignore\n"},
+		{"no trailing newline", new("*.php diff=php"), false, "*.php diff=php\ncomposer.lock export-ignore\n"},
+		{"already present", new("/composer.lock export-ignore\n"), true, "/composer.lock export-ignore\n"},
+		{"present with crlf and trailing space", new("composer.lock -diff export-ignore \r\n"), true, "composer.lock -diff export-ignore \r\n"},
+		{"bare lockfile line is left alone", new("composer.lock\n"), false, "composer.lock\ncomposer.lock export-ignore\n"},
+		{"unset export-ignore is overridden", new("composer.lock -export-ignore\n"), false, "composer.lock -export-ignore\ncomposer.lock export-ignore\n"},
+		{"similar paths are left alone", new("composer.lock.dist text\n"), false, "composer.lock.dist text\ncomposer.lock export-ignore\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			initSetUp(t)
+			attributesFile := commandtest.UniqueTmpDirectory(t) + "/.gitattributes"
+			if tc.initial != nil {
+				if err := os.WriteFile(attributesFile, []byte(*tc.initial), 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if got := command.HasExportIgnoreForLockfile(attributesFile, "composer.lock"); got != tc.detected {
+				t.Fatalf("hasExportIgnoreForLockfile = %v, want %v", got, tc.detected)
+			}
+			if !tc.detected {
+				command.AddExportIgnoreForLockfile(attributesFile, "composer.lock")
+				if !command.HasExportIgnoreForLockfile(attributesFile, "composer.lock") {
+					t.Fatal("expected true after addExportIgnoreForLockfile")
+				}
+			}
+			content, err := os.ReadFile(attributesFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(content); got != tc.expected {
+				t.Fatalf("got %q, want %q", got, tc.expected)
+			}
+		})
+	}
+}

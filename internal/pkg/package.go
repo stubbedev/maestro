@@ -26,6 +26,7 @@ const (
 	setDistSha1Checksum
 	setNotificationURL
 	setReleaseDate
+	setPublishedDate
 	setDescription
 	setHomepage
 	setArchiveName
@@ -70,6 +71,7 @@ type Package struct {
 	distSha1Checksum   string
 	notificationURL    string
 	releaseDate        time.Time
+	publishedDate      time.Time
 
 	sourceMirrors    *php.Array
 	distMirrors      *php.Array
@@ -469,6 +471,28 @@ func (p *Package) SetReleaseDate(releaseDate time.Time, ok bool) {
 func (p *Package) ReleaseDate() (time.Time, bool) {
 	p.need()
 	return p.releaseDate, p.set&setReleaseDate != 0
+}
+
+// SetPublishedDate ports Package::setPublishedDate; ok false is null.
+func (p *Package) SetPublishedDate(publishedDate time.Time, ok bool) {
+	p.need()
+	p.publishedDate = publishedDate
+	if ok {
+		p.set |= setPublishedDate
+	} else {
+		p.set &^= setPublishedDate
+		p.publishedDate = time.Time{}
+	}
+
+	p.changed()
+}
+
+// PublishedDate ports Package::getPublishedDate: the publication date the
+// repository vouched for, unlike ReleaseDate's author-set `time`; false is
+// null.
+func (p *Package) PublishedDate() (time.Time, bool) {
+	p.need()
+	return p.publishedDate, p.set&setPublishedDate != 0
 }
 
 // setLinks stores links, converting a list as Package::setRequires and

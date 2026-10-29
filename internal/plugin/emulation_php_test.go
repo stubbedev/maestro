@@ -321,9 +321,9 @@ func TestInternals_AsyncProcessesOnMaestrosLoop(t *testing.T) {
 }
 
 // A Pool from maestro holds what Composer's PoolBuilder passes to new
-// Pool(): the optimizer's removals by name and by kept package, and the
-// security advisories' and filter lists' removals with Composer's objects,
-// one per advisory or entry however many versions it removed.
+// Pool(): the optimizer's removals by name and by kept package, and, per
+// package version a dependency policy took out, a PolicyRemovalReason
+// with the advisories, filter list entries or cooldown that caused it.
 func TestInternals_PoolRemovals(t *testing.T) {
 	requirePHP(t)
 
@@ -353,27 +353,29 @@ func TestInternals_PoolRemovals(t *testing.T) {
 	removed.Set("a/a", versions("1.1.0.0", "1.1.0", "1.0.0.0", "1.0.0"))
 
 	adv := &repository.PartialSecurityAdvisory{AdvisoryID: "PKSA-1", PackageName: "c/c", AffectedVersions: constraint("<2")}
-	security := &repository.NameMap[*repository.NameMap[[]repository.Advisory]]{}
-	byVersion := &repository.NameMap[[]repository.Advisory]{}
-	byVersion.Set("1.0.0.0", []repository.Advisory{adv})
-	byVersion.Set("1.5.0.0", []repository.Advisory{adv})
-	security.Set("c/c", byVersion)
+	policy := &repository.NameMap[*repository.NameMap[*resolver.PolicyRemovalReason]]{}
+	byVersion := &repository.NameMap[*resolver.PolicyRemovalReason]{}
+	byVersion.Set("1.0.0.0", resolver.NewAdvisoriesRemovalReason("c/c", "1.0.0", []repository.Advisory{adv}))
+	byVersion.Set("1.5.0.0", resolver.NewAdvisoriesRemovalReason("c/c", "1.5.0", []repository.Advisory{adv}))
+	policy.Set("c/c", byVersion)
 
 	entry := &repository.FilterListEntry{
 		PackageName: "d/d", ListName: "malware", Constraint: constraint("*"),
 		URL: pkg.NullString{S: "https://example.org/d", Valid: true}, Source: pkg.NullString{S: "acme", Valid: true},
 	}
-	filterList := &repository.NameMap[*repository.NameMap[[]*repository.FilterListEntry]]{}
-	entries := &repository.NameMap[[]*repository.FilterListEntry]{}
-	entries.Set("3.0.0.0", []*repository.FilterListEntry{entry})
-	entries.Set("3.1.0.0", []*repository.FilterListEntry{entry})
-	filterList.Set("d/d", entries)
+	filtered := &repository.NameMap[*resolver.PolicyRemovalReason]{}
+	filtered.Set("3.0.0.0", resolver.NewFilterListRemovalReason("d/d", "3.0.0", []*repository.FilterListEntry{entry}))
+	filtered.Set("3.1.0.0", resolver.NewFilterListRemovalReason("d/d", "3.1.0", []*repository.FilterListEntry{entry}))
+	policy.Set("d/d", filtered)
+
+	cooled := &repository.NameMap[*resolver.PolicyRemovalReason]{}
+	cooled.Set("1.0.0.0", resolver.NewCooldownRemovalReason("e/e", "1.0.0", "2026-01-14T12:00:00+00:00", "3 days", "time"))
+	policy.Set("e/e", cooled)
 
 	pool := resolver.NewPool([]pkg.PackageInterface{kept, other}, nil, &resolver.Removed{
-		Versions:   removed,
-		ByPackage:  map[pkg.PackageInterface]*resolver.VersionMap{kept: versions("1.1.0.0", "1.1.0")},
-		Security:   security,
-		FilterList: filterList,
+		Versions:  removed,
+		ByPackage: map[pkg.PackageInterface]*resolver.VersionMap{kept: versions("1.1.0.0", "1.1.0")},
+		Policy:    policy,
 	})
 
 	got := evalPHP(t, rt, `
@@ -381,37 +383,53 @@ func TestInternals_PoolRemovals(t *testing.T) {
 			return self::pool($d);
 		}, null, \Composer\Repository\RepositorySet::class)($vars['pool']);
 		$any = new \Composer\Semver\Constraint\MatchAllConstraint();
-		$sec = $pool->getAllSecurityRemovedPackageVersions();
-		$lists = $pool->getAllFilterListRemovedPackageVersions();
 		$kept = $pool->packageById(1);
+		$c = $pool->getPolicyRemovedVersions('c/c');
+		$reason = reset($c);
+		$filtered = $pool->getPolicyRemovalReason('d/d', '3.0.0.0');
+		$cooled = $pool->getPolicyRemovalReason('e/e', '1.0.0.0');
 
 		return [
 			'removed' => json_encode($pool->getAllRemovedVersions()),
 			'byPackage' => json_encode($pool->getRemovedVersionsByPackage(spl_object_id($kept))),
-			'security' => $pool->isSecurityRemovedPackageVersion('c/c', $any) ? 'yes' : 'no',
-			'ids' => implode(',', $pool->getSecurityAdvisoryIdentifiersForPackageVersion('c/c', $any)),
-			'advisoryClass' => get_class($sec['c/c']['1.0.0.0'][0]),
-			'sameAdvisory' => $sec['c/c']['1.0.0.0'][0] === $sec['c/c']['1.5.0.0'][0] ? 'yes' : 'no',
-			'filtered' => $pool->isFilterListRemovedPackageVersion('d/d', $any) ? 'yes' : 'no',
-			'entry' => json_encode($pool->getFilterListEntryForPackageVersion('d/d', $any)),
-			'entryClass' => get_class($lists['d/d']['3.0.0.0'][0]),
-			'sameEntry' => $lists['d/d']['3.0.0.0'][0] === $lists['d/d']['3.1.0.0'][0] ? 'yes' : 'no',
-			'notFiltered' => $pool->isFilterListRemovedPackageVersion('a/a', $any) ? 'yes' : 'no',
+			'versions' => implode(',', array_keys($c)),
+			'reasonClass' => get_class($reason),
+			'sameReason' => $pool->getPolicyRemovalReason('c/c', '1.0.0.0') === $pool->getPolicyRemovalReason('c/c', '1.5.0.0') ? 'yes' : 'no',
+			'type' => $reason->getType(),
+			'description' => $reason->getDescription(),
+			'remedy' => $reason->getRemedy(),
+			'offSwitch' => $reason->getOffSwitch(),
+			'verb' => $reason->getVerb(true),
+			'advisoryClass' => get_class($reason->getAdvisories()[0]),
+			'filteredType' => $filtered->getType(),
+			'filteredDescription' => $filtered->getDescription(),
+			'filteredRemedy' => $filtered->getRemedy(),
+			'filteredVerb' => $filtered->getVerb(false),
+			'cooledDescription' => $cooled->getDescription(),
+			'cooledInfo' => json_encode($cooled->getCooldownInfo()),
+			'notRemoved' => $pool->getPolicyRemovalReason('a/a', '1.1.0.0') === null ? 'yes' : 'no',
 		];
 	`, php.ArrayOf("pool", rt.poolValue(pool)))
 
 	for key, want := range map[string]string{
-		"removed":       `{"a\/a":{"1.1.0.0":"1.1.0","1.0.0.0":"1.0.0"}}`,
-		"byPackage":     `{"1.1.0.0":"1.1.0"}`,
-		"security":      "yes",
-		"ids":           "PKSA-1",
-		"advisoryClass": `Composer\Advisory\PartialSecurityAdvisory`,
-		"sameAdvisory":  "yes",
-		"filtered":      "yes",
-		"entry":         `{"malware":"flagged as malware reported by acme (see https:\/\/example.org\/d)"}`,
-		"entryClass":    `Composer\FilterList\FilterListEntry`,
-		"sameEntry":     "yes",
-		"notFiltered":   "no",
+		"removed":             `{"a\/a":{"1.1.0.0":"1.1.0","1.0.0.0":"1.0.0"}}`,
+		"byPackage":           `{"1.1.0.0":"1.1.0"}`,
+		"versions":            "1.0.0.0,1.5.0.0",
+		"reasonClass":         `Composer\DependencyResolver\PolicyRemovalReason`,
+		"sameReason":          "no",
+		"type":                "advisories",
+		"description":         `affected by security advisories ("<href=https://packagist.org/security-advisories/PKSA-1>PKSA-1</>")`,
+		"remedy":              `Go to https://packagist.org/security-advisories/ to find advisory details. To ignore the advisories, add their IDs to the "policy.advisories.ignore-id" config or add the package to "policy.advisories.ignore".`,
+		"offSwitch":           `"policy.advisories.block"`,
+		"verb":                "are",
+		"advisoryClass":       `Composer\Advisory\PartialSecurityAdvisory`,
+		"filteredType":        "filter-list",
+		"filteredDescription": `flagged as malware reported by acme (see https://example.org/d)`,
+		"filteredRemedy":      `To ignore filters for this package, add the package to the "policy.malware.ignore" config.`,
+		"filteredVerb":        "was",
+		"cooledDescription":   `still in the cooldown period configured in "policy.cooldown" (available in 3 days, based on the package-supplied time field as the repository provides no published-time)`,
+		"cooledInfo":          `{"releaseDate":"2026-01-14T12:00:00+00:00","availableIn":"3 days","source":"time"}`,
+		"notRemoved":          "yes",
 	} {
 		if g := php.ToString(get(t, got, key)); g != want {
 			t.Errorf("%s = %s, want %s", key, g, want)

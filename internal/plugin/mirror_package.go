@@ -12,6 +12,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/plugin/rpc"
 )
 
@@ -199,6 +200,11 @@ func setRest(s *php.Array, p pkg.PackageInterface) {
 	} else {
 		s.Set("releaseDate", nil)
 	}
+	if t, ok := p.PublishedDate(); ok {
+		s.Set("publishedDate", t.Format(releaseDateLayout))
+	} else {
+		s.Set("publishedDate", nil)
+	}
 	s.Set("binaries", p.Binaries())
 	s.Set("dev", p.IsDev())
 	s.Set("stability", p.Stability())
@@ -350,6 +356,41 @@ func nullString(a args, i int) pkg.NullString {
 }
 
 // registerPackages registers the `pkg.*` methods.
+// dateArg is a `?\DateTimeInterface $date` param: the date, and whether
+// it is set (false is null).
+func dateArg(a args, i int) (time.Time, bool, error) {
+	if !a.has(i) {
+		return time.Time{}, false, nil
+	}
+	t, ok := a.at(i).(dateValue)
+	if !ok {
+		return time.Time{}, false, a.errorf("param %d is not a date", i)
+	}
+
+	return t.t, true, nil
+}
+
+// dateStringValue is Package::prepareDateString() with the lazy parse
+// Composer does: bare digits are an epoch, anything else parses as PHP
+// parses a date, and a string neither reads is no date at all.
+func dateStringValue(v any) (time.Time, bool) {
+	s := php.ToString(v)
+	digits := s != ""
+	for i := range len(s) {
+		if s[i] < '0' || s[i] > '9' {
+			digits = false
+
+			break
+		}
+	}
+	if digits {
+		s = "@" + s
+	}
+	t, err := loader.ParseDateTime(s)
+
+	return t, err == nil
+}
+
 func (r *Runtime) registerPackages() {
 	r.RegisterMirrorFactory(packageBase, r.adoptPackage)
 
@@ -531,15 +572,32 @@ func (r *Runtime) registerPackages() {
 		return nil
 	})
 	pkgSetter("setReleaseDate", func(p *pkg.Package, a args) error {
-		if !a.has(1) {
-			p.SetReleaseDate(time.Time{}, false)
-			return nil
+		t, set, err := dateArg(a, 1)
+		if err != nil {
+			return err
 		}
-		t, ok := a.at(1).(dateValue)
-		if !ok {
-			return a.errorf("param 1 is not a date")
+		p.SetReleaseDate(t, set)
+
+		return nil
+	})
+	pkgSetter("setPublishedDate", func(p *pkg.Package, a args) error {
+		t, set, err := dateArg(a, 1)
+		if err != nil {
+			return err
 		}
-		p.SetReleaseDate(t.t, true)
+		p.SetPublishedDate(t, set)
+
+		return nil
+	})
+	pkgSetter("setReleaseDateString", func(p *pkg.Package, a args) error {
+		t, ok := dateStringValue(a.at(1))
+		p.SetReleaseDate(t, ok)
+
+		return nil
+	})
+	pkgSetter("setPublishedDateString", func(p *pkg.Package, a args) error {
+		t, ok := dateStringValue(a.at(1))
+		p.SetPublishedDate(t, ok)
 
 		return nil
 	})

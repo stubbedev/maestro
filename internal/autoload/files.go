@@ -489,14 +489,7 @@ func (d *dump) psrScans(autoloads *Autoloads, excluded []string) []psrScan {
 					continue
 				}
 
-				// if the vendor dir is contained within a psr-0/psr-4 dir
-				// being scanned we exclude it
-				dirExcluded := excluded
-				if strings.Contains(string(d.vendorPath), dir+"/") {
-					dirExcluded = append(slices.Clip(excluded), string(d.vendorPath)+"/")
-				}
-
-				scans = append(scans, psrScan{dir, buildExclusionRegex(dir, dirExcluded), group.typ, namespace.String()})
+				scans = append(scans, psrScan{dir, buildExclusionRegexWithVendorDir(dir, excluded, string(d.vendorPath)), group.typ, namespace.String()})
 			}
 		}
 	}

@@ -4,5 +4,6 @@
         "x/dev": null,
         "x/foo": "x/bar"
     },
-    "filter": []
+    "filter": [],
+    "cooldown": []
 }

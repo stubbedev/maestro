@@ -192,7 +192,7 @@ func newLocalRepoTransaction(locked repository.RepositoryInterface, local reposi
 
 		return t
 	}
-	t.transaction = resolver.NewTransaction(present, result)
+	t.transaction, t.err = resolver.NewTransaction(present, result)
 	t.state = packagesStateOf(present, result)
 
 	return t

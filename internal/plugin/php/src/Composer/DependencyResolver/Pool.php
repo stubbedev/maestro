@@ -5,14 +5,14 @@
  * §4.12; tier 6). A PHP-local container with Composer's behaviour: `new
  * Pool($packages)` (php-http/discovery's pre-RepositorySet path) and the
  * pools RepositorySet::createPool*() build in maestro, which come back as
- * their packages (each with the id maestro's pool gave it) and the
- * versions the pool builder removed.
+ * their packages (each with the id maestro's pool gave it) and what the
+ * pool builder and its filters removed, with a PolicyRemovalReason for
+ * every version a dependency policy took out.
  * Written for PHP 7.2.5 to 8.5.
  */
 
 namespace Composer\DependencyResolver;
 
-use Composer\Package\BasePackage;
 use Composer\Package\Version\VersionParser;
 use Composer\Semver\CompilingMatcher;
 use Composer\Semver\Constraint\Constraint;
@@ -27,11 +27,9 @@ class Pool implements \Countable, \Stringable
     protected $removedVersionsByPackage = [];
     protected $unacceptableFixedOrLockedPackages;
     protected $versionParser;
-    private $securityRemovedVersions = [];
-    private $abandonedRemovedVersions = [];
-    private $filterListRemovedVersions = [];
+    private $policyRemovedVersions = [];
 
-    public function __construct(array $packages = [], array $unacceptableFixedOrLockedPackages = [], array $removedVersions = [], array $removedVersionsByPackage = [], array $securityRemovedVersions = [], array $abandonedRemovedVersions = [], array $filterListRemovedVersions = [])
+    public function __construct(array $packages = [], array $unacceptableFixedOrLockedPackages = [], array $removedVersions = [], array $removedVersionsByPackage = [], array $policyRemovedVersions = [])
     {
         $this->versionParser = new VersionParser();
         $id = 1;
@@ -45,9 +43,7 @@ class Pool implements \Countable, \Stringable
         $this->unacceptableFixedOrLockedPackages = $unacceptableFixedOrLockedPackages;
         $this->removedVersions = $removedVersions;
         $this->removedVersionsByPackage = $removedVersionsByPackage;
-        $this->securityRemovedVersions = $securityRemovedVersions;
-        $this->abandonedRemovedVersions = $abandonedRemovedVersions;
-        $this->filterListRemovedVersions = $filterListRemovedVersions;
+        $this->policyRemovedVersions = $policyRemovedVersions;
     }
 
     public function __toString(): string
@@ -65,14 +61,9 @@ class Pool implements \Countable, \Stringable
         return \count($this->packages);
     }
 
-    public function getAllAbandonedRemovedPackageVersions(): array
+    public function getAllPolicyRemovedVersions(): array
     {
-        return $this->abandonedRemovedVersions;
-    }
-
-    public function getAllFilterListRemovedPackageVersions(): array
-    {
-        return $this->filterListRemovedVersions;
+        return $this->policyRemovedVersions;
     }
 
     public function getAllRemovedVersions(): array
@@ -85,41 +76,50 @@ class Pool implements \Countable, \Stringable
         return $this->removedVersionsByPackage;
     }
 
-    public function getAllSecurityRemovedPackageVersions(): array
-    {
-        return $this->securityRemovedVersions;
-    }
-
-    public function getFilterListEntryForPackageVersion(string $packageName, ?\Composer\Semver\Constraint\ConstraintInterface $constraint): array
-    {
-        $byList = [];
-        $seen = [];
-        foreach (isset($this->filterListRemovedVersions[$packageName]) ? $this->filterListRemovedVersions[$packageName] : [] as $version => $entries) {
-            if ($constraint === null || !$constraint->matches(new Constraint('==', (string) $version))) {
-                continue;
-            }
-            foreach ($entries as $entry) {
-                if (isset($seen[spl_object_id($entry)])) {
-                    continue;
-                }
-                $seen[spl_object_id($entry)] = true;
-                $byList[$entry->listName][] = ((bool) $entry->source ? ' reported by '.$entry->source : '')
-                    .((bool) $entry->url ? ' (see '.$entry->url.')' : '')
-                    .((bool) $entry->reason ? ' reason: '.$entry->reason : '');
-            }
-        }
-
-        $out = [];
-        foreach ($byList as $listName => $parts) {
-            $out[$listName] = ($listName === 'malware' ? 'flagged as ' : 'filtered by ').$listName.implode(', ', $parts);
-        }
-
-        return $out;
-    }
-
     public function getPackages(): array
     {
         return $this->packages;
+    }
+
+    /**
+     * Versions of a package that dependency policies removed from the pool, with the reason for each
+     *
+     * @return array<string, PolicyRemovalReason> normalized version => reason, in ascending version order
+     */
+    public function getPolicyRemovedVersions(string $packageName, ?ConstraintInterface $constraint = null): array
+    {
+        $result = [];
+        foreach (isset($this->policyRemovedVersions[$packageName]) ? $this->policyRemovedVersions[$packageName] : [] as $version => $reason) {
+            if ($constraint === null || $constraint->matches(new Constraint('==', (string) $version))) {
+                $result[$version] = $reason;
+            }
+        }
+        uksort($result, static function (string $a, string $b): int {
+            return version_compare($a, $b);
+        });
+
+        return $result;
+    }
+
+    public function getPolicyRemovalReason(string $packageName, string $version): ?PolicyRemovalReason
+    {
+        return isset($this->policyRemovedVersions[$packageName][$version]) ? $this->policyRemovedVersions[$packageName][$version] : null;
+    }
+
+    /**
+     * Records a removal under every name of the package, but a replacer never hides the removal of the package itself
+     *
+     * @internal
+     * @param array<string, array<string, PolicyRemovalReason>> $policyRemovedVersions
+     */
+    public static function recordPolicyRemoval(array &$policyRemovedVersions, \Composer\Package\BasePackage $package, PolicyRemovalReason $reason): void
+    {
+        foreach ($package->getNames(false) as $name) {
+            $existing = isset($policyRemovedVersions[$name][$package->getVersion()]) ? $policyRemovedVersions[$name][$package->getVersion()] : null;
+            if ($existing === null || ($existing->getPackageName() !== $name && $package->getName() === $name)) {
+                $policyRemovedVersions[$name][$package->getVersion()] = $reason;
+            }
+        }
     }
 
     public function getRemovedVersions(string $name, \Composer\Semver\Constraint\ConstraintInterface $constraint): array
@@ -139,40 +139,9 @@ class Pool implements \Countable, \Stringable
         return isset($this->removedVersionsByPackage[$objectId]) ? $this->removedVersionsByPackage[$objectId] : [];
     }
 
-    public function getSecurityAdvisoryIdentifiersForPackageVersion(string $packageName, ?\Composer\Semver\Constraint\ConstraintInterface $constraint): array
-    {
-        foreach (isset($this->securityRemovedVersions[$packageName]) ? $this->securityRemovedVersions[$packageName] : [] as $version => $advisories) {
-            if ($constraint !== null && $constraint->matches(new Constraint('==', (string) $version))) {
-                $ids = [];
-                foreach ($advisories as $advisory) {
-                    $ids[] = $advisory->advisoryId;
-                }
-
-                return $ids;
-            }
-        }
-
-        return [];
-    }
-
     public function getUnacceptableFixedOrLockedPackages(): array
     {
         return $this->unacceptableFixedOrLockedPackages;
-    }
-
-    public function isAbandonedRemovedPackageVersion(string $packageName, ?\Composer\Semver\Constraint\ConstraintInterface $constraint): bool
-    {
-        return self::anyVersionMatches(isset($this->abandonedRemovedVersions[$packageName]) ? $this->abandonedRemovedVersions[$packageName] : [], $constraint);
-    }
-
-    public function isFilterListRemovedPackageVersion(string $packageName, ?\Composer\Semver\Constraint\ConstraintInterface $constraint): bool
-    {
-        return self::anyVersionMatches(isset($this->filterListRemovedVersions[$packageName]) ? $this->filterListRemovedVersions[$packageName] : [], $constraint);
-    }
-
-    public function isSecurityRemovedPackageVersion(string $packageName, ?\Composer\Semver\Constraint\ConstraintInterface $constraint): bool
-    {
-        return self::anyVersionMatches(isset($this->securityRemovedVersions[$packageName]) ? $this->securityRemovedVersions[$packageName] : [], $constraint);
     }
 
     public function isUnacceptableFixedOrLockedPackage(\Composer\Package\BasePackage $package): bool
@@ -247,19 +216,5 @@ class Pool implements \Countable, \Stringable
         }
 
         return $this->providerCache[$name][$key];
-    }
-
-    /**
-     * @param array<string, mixed> $versions
-     */
-    private static function anyVersionMatches(array $versions, ?ConstraintInterface $constraint): bool
-    {
-        foreach ($versions as $version => $_) {
-            if ($constraint !== null && $constraint->matches(new Constraint('==', (string) $version))) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

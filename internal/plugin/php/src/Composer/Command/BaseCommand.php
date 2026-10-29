@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Command\BaseCommand, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.11) for commands run in
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §4.11) for commands run in
  * PHP: the Composer instance it holds (setComposer() or its Application's),
  * its IO, and initialize() with the PRE_COMMAND_RUN event and the COMPOSER_*
  * option variables. maestro's Application runs plugin commands here
@@ -74,7 +74,7 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
         // Installer::setPolicyConfig().
         $policyConfig = \Maestro\Shim\Rpc::call('policy.fromConfig', [$config]);
 
-        // --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + custom)
+        // --no-blocking / --no-security-blocking: disable ALL blocking (advisories + malware + abandoned + cooldown + custom)
         $noBlocking = \Composer\Util\Platform::getBoolEnv('COMPOSER_NO_BLOCKING', false)
             || \Composer\Util\Platform::getBoolEnv('COMPOSER_NO_SECURITY_BLOCKING', false)
             || ($input !== null && $input->hasOption('no-security-blocking') && $input->getOption('no-security-blocking'))
@@ -82,9 +82,23 @@ abstract class BaseCommand extends \Symfony\Component\Console\Command\Command
 
         if ($noBlocking) {
             $policyConfig = \Maestro\Shim\Rpc::call('policy.withBlockingDisabled', [$policyConfig]);
+        } elseif ($input !== null && $input->hasOption('no-cooldown') && $input->getOption('no-cooldown')) {
+            $policyConfig = \Maestro\Shim\Rpc::call('policy.withCooldownBlockingDisabled', [$policyConfig]);
         }
 
         return $policyConfig;
+    }
+
+    /**
+     * The cooldown policy that would block during an update, to apply when picking versions, or null when none applies.
+     */
+    protected function getBlockingCooldownPolicy(\Composer\Config $config, ?\Symfony\Component\Console\Input\InputInterface $input): ?\Composer\Policy\CooldownPolicyConfig
+    {
+        // enabled && cooldown->shouldBlock(ListPolicyConfig::BLOCK_SCOPE_UPDATE),
+        // of maestro's PolicyConfig (policy.blockingCooldown).
+        $policyConfig = $this->createPolicyConfig($config, $input);
+
+        return \Maestro\Shim\Rpc::call('policy.blockingCooldown', [$policyConfig]);
     }
 
     protected function formatRequirements(array $requirements)

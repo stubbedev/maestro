@@ -734,7 +734,9 @@ func (r *PlatformRepository) addExtensionLibraries(libraries platformLibraries, 
 		if err != nil {
 			return err
 		}
-		if php.ToInt(versionID) < 90000 && r.runtime.HasConstant("MB_ONIGURUMA_VERSION", "") {
+		// MB_ONIGURUMA_VERSION is deprecated as of PHP 8.6, reading it would
+		// emit a notice
+		if php.ToInt(versionID) < 80600 && r.runtime.HasConstant("MB_ONIGURUMA_VERSION", "") {
 			v, err := r.constantString("MB_ONIGURUMA_VERSION", "")
 			if err != nil {
 				return err

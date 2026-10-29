@@ -12,6 +12,7 @@ import (
 	"github.com/stubbedev/maestro/internal/phperr"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/policy"
+	"github.com/stubbedev/maestro/internal/semver"
 )
 
 func TestAuditCommand_SuccessfulResponseCodeWhenNoPackagesAreRequired(t *testing.T) {
@@ -131,7 +132,7 @@ func auditFilterEntry(name, reason string) *php.Array {
 
 func TestAuditCommand_AuditWithMalwareAndCustomListBothFail(t *testing.T) {
 	packages := []auditTestPackage{{"safe/pkg", "1.0.0"}, {"malicious/pkg", "1.0.0"}, {"banned/pkg", "1.0.0"}}
-	auditInitTempComposerWithFilterLists(t, packages)
+	auditInitTempComposerWithFilterLists(t, packages, nil)
 	auditCreateComposerLockWithPackages(t, packages)
 
 	appTester := commandtest.GetApplicationTester(t)
@@ -185,9 +186,9 @@ func TestAuditCommand_AuditWithCustomListAuditReportDoesNotFail(t *testing.T) {
 	}
 }
 
-func auditInitTempComposerWithFilterLists(t *testing.T, packages []auditTestPackage) {
+func auditInitTempComposerWithFilterLists(t *testing.T, packages []auditTestPackage, extraConfig *php.Array) {
 	t.Helper()
-	commandtest.InitTempComposer(t, php.ArrayOf(
+	config := php.ArrayOf(
 		"repositories", php.ArrayOf(
 			"packages", php.ArrayOf(
 				"type", "package",
@@ -203,7 +204,76 @@ func auditInitTempComposerWithFilterLists(t *testing.T, packages []auditTestPack
 				"company-banned", true,
 			),
 		),
-	), nil, nil, true)
+	)
+	// $extraConfig + [repositories => ..., config => ...]: the extra keys win
+	if extraConfig != nil {
+		merged := php.NewArray()
+		for k, v := range extraConfig.All() {
+			merged.SetKey(k, v)
+		}
+		for k, v := range config.All() {
+			if _, ok := merged.Get(k.String()); !ok {
+				merged.SetKey(k, v)
+			}
+		}
+		config = merged
+	}
+	commandtest.InitTempComposer(t, config, nil, nil, true)
+}
+
+// TestAuditCommand_DirectSkipsTransitiveDependencies ports
+// testAuditDirectSkipsTransitiveDependencies.
+func TestAuditCommand_DirectSkipsTransitiveDependencies(t *testing.T) {
+	packages := []auditTestPackage{{"safe/pkg", "1.0.0"}, {"malicious/pkg", "1.0.0"}}
+	auditInitTempComposerWithFilterLists(t, packages, php.ArrayOf("require", php.ArrayOf("safe/pkg", "1.0.0")))
+	auditCreateComposerLockWithPackages(t, packages)
+
+	for _, locked := range []bool{false, true} {
+		params := gbParams("command", "audit", "--direct", true)
+		if locked {
+			params = gbParams("command", "audit", "--direct", true, "--locked", true)
+		}
+		appTester := gbRun(t, params)
+
+		if code := appTester.StatusCode(); code != advisory.StatusOK {
+			t.Errorf("locked %v: exit code %d", locked, code)
+		}
+		gbNotContains(t, appTester.Display(true), "malicious/pkg")
+	}
+
+	appTester := gbRun(t, gbParams("command", "audit", "--locked", true))
+	if code := appTester.StatusCode(); code != advisory.StatusFailed {
+		t.Errorf("exit code %d", code)
+	}
+}
+
+// TestAuditCommand_DirectIncludesReplacingPackage ports
+// testAuditDirectIncludesReplacingPackage.
+func TestAuditCommand_DirectIncludesReplacingPackage(t *testing.T) {
+	auditInitTempComposerWithFilterLists(t, []auditTestPackage{{"malicious/pkg", "1.0.0"}}, php.ArrayOf("require", php.ArrayOf("replaced/pkg", "*")))
+
+	p := commandtest.GetPackage(t, "malicious/pkg", "1.0.0")
+	p.SetReplaces(pkg.LinksOf(pkg.NewLink("malicious/pkg", "replaced/pkg", semver.NewMatchAllConstraint(), pkg.TypeReplace, pkg.Str("*"))))
+	commandtest.CreateInstalledJSON(t, gbPkgs(p), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "audit", "--direct", true))
+	if code := appTester.StatusCode(); code != advisory.StatusFailed {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "malicious/pkg")
+}
+
+// TestAuditCommand_DirectWithNoDirectPackagesInstalled ports
+// testAuditDirectWithNoDirectPackagesInstalled.
+func TestAuditCommand_DirectWithNoDirectPackagesInstalled(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf("require", php.ArrayOf("php", "*")), nil, nil, true)
+	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "dummy/pkg", "1.0.0")), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "audit", "--direct", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbAssertSame(t, "No direct dependencies - skipping audit.", gbTrim(appTester))
 }
 
 func auditCreateComposerLockWithPackages(t *testing.T, packages []auditTestPackage) {

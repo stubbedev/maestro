@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -18,29 +18,30 @@ Executing command (CWD): sleep 3
 The following exception is caused by a process timeout
 Check https://getcomposer.org/doc/06-config.md#process-timeout for details
 
-In Process.php line 1205:
+In Process.php line 1209:
                                                                   
   [Symfony\Component\Process\Exception\ProcessTimedOutException]  
   The process "sleep 3" exceeded the timeout of 1 seconds.        
                                                                   
 
 Exception trace:
-  at @COMPOSER@/vendor/symfony/process/Process.php:1205
- Symfony\Component\Process\Process->checkTimeout() at @COMPOSER@/vendor/symfony/process/Process.php:431
+  at @COMPOSER@/vendor/symfony/process/Process.php:1209
+ Symfony\Component\Process\Process->checkTimeout() at @COMPOSER@/vendor/symfony/process/Process.php:435
  Symfony\Component\Process\Process->wait() at @COMPOSER@/vendor/symfony/process/Process.php:255
- Symfony\Component\Process\Process->run() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:168
- Composer\Util\ProcessExecutor->runProcess() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:213
- Composer\Util\ProcessExecutor->doExecute() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:99
- Composer\Util\ProcessExecutor->execute() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:480
- Composer\EventDispatcher\EventDispatcher->executeTty() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:434
+ Symfony\Component\Process\Process->run() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:170
+ Composer\Util\ProcessExecutor->runProcess() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:218
+ Composer\Util\ProcessExecutor->doExecute() at @COMPOSER@/src/Composer/Util/ProcessExecutor.php:101
+ Composer\Util\ProcessExecutor->execute() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:501
+ Composer\EventDispatcher\EventDispatcher->executeTty() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:455
  Composer\EventDispatcher\EventDispatcher->doDispatch() at @COMPOSER@/src/Composer/EventDispatcher/EventDispatcher.php:142
  Composer\EventDispatcher\EventDispatcher->dispatchScript() at @COMPOSER@/src/Composer/Command/RunScriptCommand.php:140
  Composer\Command\RunScriptCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 run-script [--timeout TIMEOUT] [--dev] [--no-dev] [-l|--list] [--] [<script> [<args>...]]

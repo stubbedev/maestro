@@ -4,6 +4,7 @@ package version
 
 import (
 	"strings"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
@@ -52,6 +53,13 @@ type VersionSelector struct {
 	repositorySet       RepositorySet
 	platformConstraints map[string][]*semver.Constraint
 	parser              *pkg.VersionParser
+	// cooldown, when set, withholds versions still inside the configured
+	// cooldown period.
+	cooldown Cooldown
+
+	firstClearingWithheldCandidate *WithheldCandidate
+	withheldCandidates             []WithheldCandidate
+	platformRejectedCandidates     []pkg.PackageInterface
 
 	// PHPVersion is "major.minor.release" of the PHP running the project
 	// (PHP_MAJOR_VERSION.PHP_MINOR_VERSION.PHP_RELEASE_VERSION in Composer):
@@ -60,13 +68,49 @@ type VersionSelector struct {
 	PHPVersion string
 }
 
+// WithheldCandidate is a package version the cooldown withheld, with the
+// date the cooldown was measured against.
+type WithheldCandidate struct {
+	Package     pkg.PackageInterface
+	ReleaseDate time.Time
+}
+
+// Cooldown is the part of Composer\Policy\CooldownPolicyConfig the
+// selector uses: *policy.CooldownPolicyConfig implements it (the layer
+// that constructs the selector wraps it where the config and
+// PolicyRemovalReason are both in reach).
+type Cooldown interface {
+	// HasCooldown is hasCooldown: whether a duration is configured at all.
+	HasCooldown() bool
+	// Blocks is the config's public $block.
+	Blocks() bool
+	// IsIgnored is isIgnored($package, $operation).
+	IsIgnored(p pkg.PackageInterface, operation string) bool
+	// AssertPublishedTimeProvided is assertPublishedTimeProvided.
+	AssertPublishedTimeProvided(p pkg.PackageInterface) error
+	// EffectiveDate is getEffectiveDate: the published date, else the
+	// release date; false is null.
+	EffectiveDate(p pkg.PackageInterface) (time.Time, bool)
+	// IsWithinCooldown is isWithinCooldown.
+	IsWithinCooldown(effectiveDate, now time.Time) bool
+	// FormatTimeUntilAvailable is formatTimeUntilAvailable.
+	FormatTimeUntilAvailable(effectiveDate, now time.Time, short bool) string
+}
+
 // NewVersionSelector ports VersionSelector::__construct; platformPackages
 // are the packages of the platform repository (nil when there is none).
-func NewVersionSelector(repositorySet RepositorySet, platformPackages []pkg.PackageInterface) *VersionSelector {
+// cooldown is Composer's third constructor argument, a
+// *policy.CooldownPolicyConfig, which the selector only reads through
+// Cooldown.
+func NewVersionSelector(repositorySet RepositorySet, platformPackages []pkg.PackageInterface, cooldown ...Cooldown) *VersionSelector {
 	s := &VersionSelector{repositorySet: repositorySet, platformConstraints: map[string][]*semver.Constraint{}}
 
 	for _, p := range platformPackages {
 		s.platformConstraints[p.Name()] = append(s.platformConstraints[p.Name()], semver.NewConstraintOp(semver.OpEQ, p.Version()))
+	}
+
+	if len(cooldown) > 0 {
+		s.cooldown = cooldown[0]
 	}
 
 	return s
@@ -147,6 +191,15 @@ func (s *VersionSelector) FindBestCandidate(packageName string, opts FindBestCan
 		// select highest version of the two
 		return semver.VersionCompare(b.Version(), a.Version())
 	})
+
+	s.firstClearingWithheldCandidate = nil
+	s.withheldCandidates = nil
+	s.platformRejectedCandidates = nil
+	if s.cooldown != nil && s.cooldown.HasCooldown() && s.cooldown.Blocks() {
+		if candidates, err = s.filterCooldownCandidates(s.cooldown, candidates, opts); err != nil {
+			return nil, err
+		}
+	}
 
 	var selected pkg.PackageInterface
 
@@ -242,9 +295,122 @@ func (s *VersionSelector) firstPlatformCompatible(candidates []pkg.PackageInterf
 		if !skip {
 			return p, nil
 		}
+
+		s.platformRejectedCandidates = append(s.platformRejectedCandidates, p)
 	}
 
 	return nil, nil
+}
+
+// FirstClearingWithheldCandidate ports
+// VersionSelector::getFirstClearingWithheldCandidate: the candidate the
+// cooldown withheld in the last FindBestCandidate call that becomes
+// available first; nil for none.
+func (s *VersionSelector) FirstClearingWithheldCandidate() *WithheldCandidate {
+	return s.firstClearingWithheldCandidate
+}
+
+// WithheldCandidates ports VersionSelector::getWithheldCandidates: every
+// candidate the cooldown withheld in the last FindBestCandidate call, in
+// candidate order.
+func (s *VersionSelector) WithheldCandidates() []WithheldCandidate {
+	return s.withheldCandidates
+}
+
+// PlatformRejectedCandidates ports
+// VersionSelector::getPlatformRejectedCandidates: every candidate skipped
+// for its platform requirements in the last FindBestCandidate call, in
+// candidate order.
+func (s *VersionSelector) PlatformRejectedCandidates() []pkg.PackageInterface {
+	return s.platformRejectedCandidates
+}
+
+// filterCooldownCandidates ports VersionSelector::filterCooldownCandidates:
+// it drops the candidates still inside the cooldown so the selected version
+// is one the solver will accept.
+func (s *VersionSelector) filterCooldownCandidates(cooldown Cooldown, candidates []pkg.PackageInterface, opts FindBestCandidateOptions) ([]pkg.PackageInterface, error) {
+	now := time.Now()
+	alreadySeenNames := map[string]bool{}
+	acceptedNames := map[string]bool{}
+	result := make([]pkg.PackageInterface, 0, len(candidates))
+
+	for _, p := range candidates {
+		// decide on the aliased package, as the pool filter does
+		target := p
+		if a, ok := p.(pkg.Alias); ok {
+			target = a.AliasOf()
+		}
+
+		if target.IsDev() || cooldown.IsIgnored(target, "block") {
+			result = append(result, p)
+			acceptedNames[p.Name()] = true
+
+			continue
+		}
+
+		if err := cooldown.AssertPublishedTimeProvided(target); err != nil {
+			return nil, err
+		}
+
+		releaseDate, ok := cooldown.EffectiveDate(target)
+		if !ok || !cooldown.IsWithinCooldown(releaseDate, now) {
+			result = append(result, p)
+			acceptedNames[p.Name()] = true
+
+			continue
+		}
+
+		if s.firstClearingWithheldCandidate == nil || releaseDate.Before(s.firstClearingWithheldCandidate.ReleaseDate) {
+			s.firstClearingWithheldCandidate = &WithheldCandidate{Package: p, ReleaseDate: releaseDate}
+		}
+		s.withheldCandidates = append(s.withheldCandidates, WithheldCandidate{Package: p, ReleaseDate: releaseDate})
+
+		// ranked below a usable candidate (e.g. an LTS backport), so
+		// withholding it does not affect the pick
+		if acceptedNames[p.Name()] {
+			continue
+		}
+
+		isLatestVersion := !alreadySeenNames[p.Name()]
+		alreadySeenNames[p.Name()] = true
+		if opts.IO != nil && (opts.ShowWarnings == nil || opts.ShowWarnings(p)) {
+			source := "time"
+			if _, ok := target.PublishedDate(); ok {
+				source = "published-time"
+			}
+
+			latest := ""
+			if isLatestVersion {
+				latest = "'s latest version"
+			}
+
+			verbosity := io.Verbose
+			if isLatestVersion {
+				verbosity = io.Normal
+			}
+
+			opts.IO.WriteError("<warning>Cannot use "+p.PrettyName()+latest+" "+p.PrettyVersion()+" as it is "+
+				CooldownDescription(cooldown.FormatTimeUntilAvailable(releaseDate, now, false), source)+".</>", true, verbosity)
+		}
+	}
+
+	return result, nil
+}
+
+// CooldownDescription is PolicyRemovalReason's description of a cooldown
+// removal (its COOLDOWN case), which the selector words its warning with.
+// The resolver's PolicyRemovalReason calls it too, so the sentence exists
+// once: availableIn is Cooldown.FormatTimeUntilAvailable's result and
+// source "published-time" or "time".
+func CooldownDescription(availableIn, source string) string {
+	note := ""
+	if source == "time" {
+		// say so when the policy had to rely on the author-controlled
+		// `time` field, as the protection is weaker
+		note = ", based on the package-supplied time field as the repository provides no published-time"
+	}
+
+	return `still in the cooldown period configured in "policy.cooldown" (available in ` + availableIn + note + ")"
 }
 
 var (

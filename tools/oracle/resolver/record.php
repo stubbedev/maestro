@@ -1,7 +1,7 @@
 <?php
 // Records the repository data the real-world resolver oracles replay
 // offline (internal/resolver/testdata/oracle/<project>.json.gz): it runs
-// Composer 2.10.3's PoolBuilder against packagist.org for a project's
+// Composer 2.11.0's PoolBuilder against packagist.org for a project's
 // composer.json and saves every package the pool loaded, with the derived
 // root package data, so that tools/oracle/resolver/solve.php and the Go
 // tests can rebuild the same pool without the network.

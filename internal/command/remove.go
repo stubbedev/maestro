@@ -16,6 +16,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/resolver"
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 func init() {
@@ -44,8 +45,9 @@ func NewRemoveCommand() *RemoveCommand {
 			console.MustOption("no-install", "", console.OptionValueNone, "Skip the install step after updating the composer.lock file.", nil),
 			console.MustOption("no-audit", "", console.OptionValueNone, "Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).", nil),
 			optionWithSuggestions("audit-format", "", console.OptionValueRequired, `Audit output format. Must be "table", "plain", "json", or "summary".`, advisory.FormatSummary, advisory.Formats.Names()...),
-			console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
-			console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+			console.MustOption("no-security-blocking", "", console.OptionValueNone, "DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories, that are abandoned or that are still in the cooldown period (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).", nil),
+			console.MustOption("no-blocking", "", console.OptionValueNone, "Disables all policy blocking during this command, including the cooldown period (can also be set via the COMPOSER_NO_BLOCKING=1 env var).", nil),
+			console.MustOption("no-cooldown", "", console.OptionValueNone, "Disables the cooldown policy blocking during this command, other policies still apply.", nil),
 			console.MustOption("update-no-dev", "", console.OptionValueNone, "Run the dependency update with the --no-dev option.", nil),
 			console.MustOption("update-with-dependencies", "w", console.OptionValueNone, "Allows inherited dependencies to be updated with explicit dependencies (can also be set via the COMPOSER_WITH_DEPENDENCIES=1 env var). (Deprecated, is now default behavior)", nil),
 			console.MustOption("update-with-all-dependencies", "W", console.OptionValueNone, "Allows all inherited dependencies to be updated, including those that are root requirements (can also be set via the COMPOSER_WITH_ALL_DEPENDENCIES=1 env var).", nil),
@@ -65,7 +67,7 @@ list of installed packages
 
 <info>php composer.phar remove</info>
 
-Read more at https://getcomposer.org/doc/03-cli.md#remove-rm`)
+Read more at https://getcomposer.org/doc/03-cli.md#remove--rm--uninstall`)
 
 	return c
 }
@@ -453,7 +455,7 @@ func (c *RemoveCommand) Execute(in console.Input, out console.Output) (int, erro
 	}
 	if status != 0 {
 		out2.WriteError("\n<error>Removal failed, reverting "+file+" to its original content.</error>", true, io.Normal)
-		if err := os.WriteFile(jsonFile.Path(), composerBackup, 0o666); err != nil {
+		if _, err := util.SafeFilePutContents(jsonFile.Path(), composerBackup); err != nil {
 			return 0, err
 		}
 	}

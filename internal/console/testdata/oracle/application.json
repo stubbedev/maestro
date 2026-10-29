@@ -1201,105 +1201,105 @@
             "columns": 120,
             "verbosity": 32,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\n"
         },
         {
             "exception": 6,
             "columns": 120,
             "verbosity": 64,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  [Exception]                                                      \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\nException trace:\n  at /app/Tags.php:3\n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  [Exception]                                                      \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\nException trace:\n  at /app/Tags.php:3\n\n"
         },
         {
             "exception": 6,
             "columns": 120,
             "verbosity": 16,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\n"
         },
         {
             "exception": 6,
             "columns": 80,
             "verbosity": 32,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\n"
         },
         {
             "exception": 6,
             "columns": 80,
             "verbosity": 32,
             "decorated": true,
-            "output": "\n\u001b[33mIn Tags.php line 3:\u001b[39m\n\u001b[37;41m                                                                   \u001b[39;49m\n\u001b[37;41m  Tags <info>are</info> escaped <error>x</error> and <backslash>  \u001b[39;49m\n\u001b[37;41m                                                                   \u001b[39;49m\n\n"
+            "output": "\n\u001b[33mIn Tags.php line 3:\u001b[39m\n\u001b[37;41m                                                                   \u001b[39;49m\n\u001b[37;41m  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \u001b[39;49m\n\u001b[37;41m                                                                   \u001b[39;49m\n\n"
         },
         {
             "exception": 6,
             "columns": 80,
             "verbosity": 64,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  [Exception]                                                      \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\nException trace:\n  at /app/Tags.php:3\n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  [Exception]                                                      \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\nException trace:\n  at /app/Tags.php:3\n\n"
         },
         {
             "exception": 6,
             "columns": 80,
             "verbosity": 64,
             "decorated": true,
-            "output": "\n\u001b[33mIn Tags.php line 3:\u001b[39m\n\u001b[37;41m                                                                   \u001b[39;49m\n\u001b[37;41m  [Exception]                                                      \u001b[39;49m\n\u001b[37;41m  Tags <info>are</info> escaped <error>x</error> and <backslash>  \u001b[39;49m\n\u001b[37;41m                                                                   \u001b[39;49m\n\n\u001b[33mException trace:\u001b[39m\n  at \u001b[32m/app/Tags.php:3\u001b[39m\n\n"
+            "output": "\n\u001b[33mIn Tags.php line 3:\u001b[39m\n\u001b[37;41m                                                                   \u001b[39;49m\n\u001b[37;41m  [Exception]                                                      \u001b[39;49m\n\u001b[37;41m  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \u001b[39;49m\n\u001b[37;41m                                                                   \u001b[39;49m\n\n\u001b[33mException trace:\u001b[39m\n  at \u001b[32m/app/Tags.php:3\u001b[39m\n\n"
         },
         {
             "exception": 6,
             "columns": 80,
             "verbosity": 16,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\n"
         },
         {
             "exception": 6,
             "columns": 80,
             "verbosity": 16,
             "decorated": true,
-            "output": "\n\u001b[33mIn Tags.php line 3:\u001b[39m\n\u001b[37;41m                                                                   \u001b[39;49m\n\u001b[37;41m  Tags <info>are</info> escaped <error>x</error> and <backslash>  \u001b[39;49m\n\u001b[37;41m                                                                   \u001b[39;49m\n\n"
+            "output": "\n\u001b[33mIn Tags.php line 3:\u001b[39m\n\u001b[37;41m                                                                   \u001b[39;49m\n\u001b[37;41m  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \u001b[39;49m\n\u001b[37;41m                                                                   \u001b[39;49m\n\n"
         },
         {
             "exception": 6,
             "columns": 32,
             "verbosity": 32,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                               \n  Tags <info>are</info> escap  \n  ed <error>x</error> and <b  \n  ackslash>                    \n                               \n\n"
+            "output": "\nIn Tags.php line 3:\n                               \n  Tags <info>are</info> escap  \n  ed <error>x</error> and \\<b  \n  ackslash>                    \n                               \n\n"
         },
         {
             "exception": 6,
             "columns": 32,
             "verbosity": 64,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                               \n  [Exception]                  \n  Tags <info>are</info> escap  \n  ed <error>x</error> and <b  \n  ackslash>                    \n                               \n\nException trace:\n  at /app/Tags.php:3\n\n"
+            "output": "\nIn Tags.php line 3:\n                               \n  [Exception]                  \n  Tags <info>are</info> escap  \n  ed <error>x</error> and \\<b  \n  ackslash>                    \n                               \n\nException trace:\n  at /app/Tags.php:3\n\n"
         },
         {
             "exception": 6,
             "columns": 32,
             "verbosity": 16,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                               \n  Tags <info>are</info> escap  \n  ed <error>x</error> and <b  \n  ackslash>                    \n                               \n\n"
+            "output": "\nIn Tags.php line 3:\n                               \n  Tags <info>are</info> escap  \n  ed <error>x</error> and \\<b  \n  ackslash>                    \n                               \n\n"
         },
         {
             "exception": 6,
             "columns": 10,
             "verbosity": 32,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n         \n  Tags   \n  <info  \n  >are<  \n  /info  \n  > esc  \n  aped   \n  <erro  \n  r>x</  \n  error  \n  > and  \n   <ba  \n  cksla  \n  sh>    \n         \n\n"
+            "output": "\nIn Tags.php line 3:\n         \n  Tags   \n  <info  \n  >are<  \n  /info  \n  > esc  \n  aped   \n  <erro  \n  r>x</  \n  error  \n  > and  \n   \\<ba  \n  cksla  \n  sh>    \n         \n\n"
         },
         {
             "exception": 6,
             "columns": 10,
             "verbosity": 64,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n               \n  [Exception]  \n  Tags         \n  <info        \n  >are<        \n  /info        \n  > esc        \n  aped         \n  <erro        \n  r>x</        \n  error        \n  > and        \n   <ba        \n  cksla        \n  sh>          \n               \n\nException trace:\n  at /app/Tags.php:3\n\n"
+            "output": "\nIn Tags.php line 3:\n               \n  [Exception]  \n  Tags         \n  <info        \n  >are<        \n  /info        \n  > esc        \n  aped         \n  <erro        \n  r>x</        \n  error        \n  > and        \n   \\<ba        \n  cksla        \n  sh>          \n               \n\nException trace:\n  at /app/Tags.php:3\n\n"
         },
         {
             "exception": 6,
             "columns": 10,
             "verbosity": 16,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n         \n  Tags   \n  <info  \n  >are<  \n  /info  \n  > esc  \n  aped   \n  <erro  \n  r>x</  \n  error  \n  > and  \n   <ba  \n  cksla  \n  sh>    \n         \n\n"
+            "output": "\nIn Tags.php line 3:\n         \n  Tags   \n  <info  \n  >are<  \n  /info  \n  > esc  \n  aped   \n  <erro  \n  r>x</  \n  error  \n  > and  \n   \\<ba  \n  cksla  \n  sh>    \n         \n\n"
         },
         {
             "exception": 6,
@@ -1348,21 +1348,21 @@
             "columns": 0,
             "verbosity": 32,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\n"
         },
         {
             "exception": 6,
             "columns": 0,
             "verbosity": 64,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  [Exception]                                                      \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\nException trace:\n  at /app/Tags.php:3\n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  [Exception]                                                      \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\nException trace:\n  at /app/Tags.php:3\n\n"
         },
         {
             "exception": 6,
             "columns": 0,
             "verbosity": 16,
             "decorated": false,
-            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and <backslash>  \n                                                                   \n\n"
+            "output": "\nIn Tags.php line 3:\n                                                                   \n  Tags <info>are</info> escaped <error>x</error> and \\<backslash>  \n                                                                   \n\n"
         },
         {
             "exception": 7,

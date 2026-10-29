@@ -1,7 +1,7 @@
 package plugin
 
 // Members of Composer's API the shim implements beyond the surveyed
-// plugins' needs: each against Composer 2.10.3's behaviour, in the shim,
+// plugins' needs: each against Composer 2.11.0's behaviour, in the shim,
 // on a fixture project.
 
 import (

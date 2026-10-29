@@ -11,6 +11,8 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/archive"
 	mio "github.com/stubbedev/maestro/internal/io"
@@ -109,6 +111,50 @@ func (a *ArchiveDownloader) download(c call, p pkg.PackageInterface, path string
 
 func (a *ArchiveDownloader) installOperationAppendix(pkg.PackageInterface, string) (string, error) {
 	return ": Extracting archive", nil
+}
+
+// validateDownloadedFile is ZipDownloader::validateDownloadedFile: the end
+// of central directory record is 22 bytes followed by an up to 64KiB
+// comment, a truncated download lacks it.
+func (a *ArchiveDownloader) validateDownloadedFile(p pkg.PackageInterface, fileName string) error {
+	if a.format != archive.Zip {
+		return nil
+	}
+
+	fi, err := os.Stat(fileName)
+	if err != nil {
+		return nil
+	}
+
+	size := fi.Size()
+	tail, ok := readFrom(fileName, max(0, size-22-65535))
+	if ok && !strings.Contains(tail, "PK\x05\x06") {
+		return &util.TransportError{Message: "The downloaded archive for " + p.Name() + " is truncated or corrupt, zip end of central directory not found (file size: " + strconv.FormatInt(size, 10) + " bytes)"}
+	}
+
+	return nil
+}
+
+// readFrom is (string) @file_get_contents($path, false, null, $offset):
+// ok false where PHP returns false.
+func readFrom(path string, offset int64) (string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+
+	defer func() { _ = f.Close() }()
+
+	if _, err := f.Seek(offset, io.SeekStart); err != nil {
+		return "", false
+	}
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return "", false
+	}
+
+	return string(data), true
 }
 
 func (a *ArchiveDownloader) install(c call, p pkg.PackageInterface, path string) (*Promise, error) {
@@ -304,7 +350,9 @@ func (a *ArchiveDownloader) moveIntoPlace(p pkg.PackageInterface, extracted, pat
 	from := extracted
 
 	if singleDir {
-		contentDir, err := folderContent(extracted)
+		// metadata siblings must not prevent unwrapping a single top-level
+		// dir
+		contentDir, err := folderContent(extracted, true)
 		if err != nil {
 			return err
 		}
@@ -329,7 +377,7 @@ func (a *ArchiveDownloader) moveIntoPlace(p pkg.PackageInterface, extracted, pat
 // packages may share paths, the source directory gets merged into the
 // target one if the target exists.
 func (a *ArchiveDownloader) renameRecursively(p pkg.PackageInterface, from, to string) error {
-	contentDir, err := folderContent(from)
+	contentDir, err := folderContent(from, false)
 	if err != nil {
 		return err
 	}
@@ -360,7 +408,9 @@ func (a *ArchiveDownloader) renameRecursively(p pkg.PackageInterface, from, to s
 
 // folderContent is install()'s $getFolderContent: the entries of dir,
 // excluding .DS_Store.
-func folderContent(dir string) ([]string, error) {
+// folderContent is install()'s $getFolderContent: the entries directly in
+// dir, optionally excluding OS metadata entries.
+func folderContent(dir string, skipMetadata bool) ([]string, error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -373,7 +423,9 @@ func folderContent(dir string) ([]string, error) {
 		return nil, err
 	}
 
-	names = slices.DeleteFunc(names, func(name string) bool { return name == ".DS_Store" })
+	if skipMetadata {
+		names = slices.DeleteFunc(names, util.IsMetadataPath)
+	}
 	for i, name := range names {
 		names[i] = dir + "/" + name
 	}

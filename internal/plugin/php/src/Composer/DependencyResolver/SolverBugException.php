@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\DependencyResolver\SolverBugException,
- * Composer 2.10.3's.
+ * Composer 2.11.0's.
  * Written for PHP 7.2.5 to 8.5.
  */
 

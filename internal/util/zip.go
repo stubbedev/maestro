@@ -63,8 +63,9 @@ func zipLocateFile(files []*zip.File, filename string) ([]byte, error) {
 	for _, f := range files {
 		name := f.Name
 
-		// Ignore the OSX specific resource fork folder.
-		if strings.Contains(name, "__MACOSX") {
+		// Ignore well-known OS/editor metadata entries (resource forks,
+		// thumbnail caches, etc.).
+		if IsMetadataPath(name) {
 			continue
 		}
 

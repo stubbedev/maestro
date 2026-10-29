@@ -12,6 +12,7 @@
 
 namespace Composer\IO;
 
+use Composer\Console\ProgramStatus;
 use Composer\Question\StrictConfirmationQuestion;
 use Maestro\Shim\Remote;
 use Maestro\Shim\Rpc;
@@ -31,6 +32,12 @@ class ConsoleIO extends \Composer\IO\BaseIO
     protected $lastMessage = '';
     protected $lastMessageErr = '';
     protected $output;
+
+    /** @var list<\Composer\Console\AbstractOscProgramStatusEncoder> */
+    private $programStatusEncoders = [];
+
+    /** @var ProgramStatus|null */
+    private $programStatus;
 
     private $sendTimestamps = false;
     private $startTime;
@@ -193,6 +200,89 @@ class ConsoleIO extends \Composer\IO\BaseIO
         }
 
         return $this->output->isVeryVerbose();
+    }
+
+    /**
+     * Sends a terminal command to stderr without changing normal message output.
+     */
+    public function writeOsc(string $command, string $payload): void
+    {
+        if (Remote::owned($this)) {
+            Rpc::call('io.writeOsc', [$this, $command, $payload]);
+
+            return;
+        }
+
+        $this->oscHelper()->write($this->getErrorOutput(), $command, $payload);
+    }
+
+    public function isProgramStatusEnabled(): bool
+    {
+        if (Remote::owned($this)) {
+            return Rpc::call('io.isProgramStatusEnabled', [$this]);
+        }
+
+        // maestro's terminal encoders are Go's: a ConsoleIO created in PHP
+        // has none, and reports what Composer reports without any.
+        return $this->programStatusEncoders !== [] && $this->oscHelper()->supportsOutput($this->getErrorOutput());
+    }
+
+    public function startProgramStatus(): void
+    {
+        if (Remote::owned($this)) {
+            Rpc::call('io.startProgramStatus', [$this]);
+
+            return;
+        }
+
+        $this->programStatus = ProgramStatus::working();
+        foreach ($this->programStatusEncoders as $encoder) {
+            $payload = $encoder->encodeStart();
+            if ($payload !== null) {
+                $this->writeOsc($encoder->getCommand(), $payload);
+            }
+        }
+    }
+
+    /**
+     * @param ProgramStatus $status
+     */
+    public function writeProgramStatus(ProgramStatus $status): void
+    {
+        if (Remote::owned($this)) {
+            Rpc::call('io.writeProgramStatus', [$this, $status->getState(), $status->getMessage(), $status->getProgress()]);
+
+            return;
+        }
+
+        $this->programStatus = $status;
+        foreach ($this->programStatusEncoders as $encoder) {
+            $this->writeOsc($encoder->getCommand(), $encoder->encode($status));
+        }
+    }
+
+    public function writeProgress(?int $progress): void
+    {
+        if (Remote::owned($this)) {
+            Rpc::call('io.writeProgress', [$this, $progress]);
+
+            return;
+        }
+
+        $status = $this->programStatus ?? ProgramStatus::working();
+        $this->writeProgramStatus($status->withProgress($progress));
+    }
+
+    private function oscHelper(): \Composer\Console\OscHelper
+    {
+        if ($this->helperSet !== null && $this->helperSet->has('osc')) {
+            /** @var \Composer\Console\OscHelper $helper */
+            $helper = $this->helperSet->get('osc');
+
+            return $helper;
+        }
+
+        return new \Composer\Console\OscHelper();
     }
 
     public function overwrite($messages, bool $newline = true, ?int $size = null, int $verbosity = self::NORMAL)

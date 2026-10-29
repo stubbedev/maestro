@@ -63,6 +63,23 @@ func TestPathRepository_LoadPackageFromFileSystemWithVersion(t *testing.T) {
 	}
 }
 
+func TestPathRepository_LoadPackageFromFileSystemIgnoresPublishedTime(t *testing.T) {
+	repo := createPathRepo(t, php.ArrayOf("url", fixturePath(t, "path", "with-published-time")))
+	packages := must(repo.Packages())
+
+	if count(t, repo) != 1 {
+		t.Fatal("count")
+	}
+	if packages[0].Name() != "test/path-published-time" {
+		t.Fatal(packages[0].Name())
+	}
+	// a publication date can only come from a Composer repository, not from
+	// the package itself
+	if date, ok := packages[0].PublishedDate(); ok {
+		t.Fatalf("published date %v", date)
+	}
+}
+
 func TestPathRepository_LoadPackageFromFileSystemWithoutVersion(t *testing.T) {
 	repo := createPathRepo(t, php.ArrayOf("url", fixturePath(t, "path", "without-version")))
 	packages := must(repo.Packages())
@@ -79,13 +96,19 @@ func TestPathRepository_LoadPackageFromFileSystemWithWildcard(t *testing.T) {
 	repo := createPathRepo(t, php.ArrayOf("url", fixturePath(t, "path", "*")))
 	packages := must(repo.Packages())
 
-	if count(t, repo) < 2 {
+	if count(t, repo) < 3 {
 		t.Fatal("count")
 	}
-	got := []string{packages[0].Name(), packages[1].Name()}
-	sort.Strings(got)
-	if !slices.Equal(got, []string{"test/path-unversioned", "test/path-versioned"}) {
-		t.Fatal(got)
+
+	var names []string
+	for _, p := range packages {
+		if !slices.Contains(names, p.Name()) {
+			names = append(names, p.Name())
+		}
+	}
+	sort.Strings(names)
+	if !slices.Equal(names, []string{"test/path-published-time", "test/path-unversioned", "test/path-versioned"}) {
+		t.Fatal(names)
 	}
 }
 
@@ -93,15 +116,19 @@ func TestPathRepository_LoadPackageWithExplicitVersions(t *testing.T) {
 	options := php.ArrayOf("versions", php.ArrayOf(
 		"test/path-unversioned", "4.3.2.1",
 		"test/path-versioned", "3.2.1.0",
+		"test/path-published-time", "2.1.0.0",
 	))
 	repo := createPathRepo(t, php.ArrayOf("url", fixturePath(t, "path", "*"), "options", options))
 	packages := must(repo.Packages())
 
-	if count(t, repo) != 2 {
+	if count(t, repo) != 3 {
 		t.Fatal("count")
 	}
-	versions := map[string]string{packages[0].Name(): packages[0].Version(), packages[1].Name(): packages[1].Version()}
-	if versions["test/path-unversioned"] != "4.3.2.1" || versions["test/path-versioned"] != "3.2.1.0" {
+	versions := map[string]string{}
+	for _, p := range packages {
+		versions[p.Name()] = p.Version()
+	}
+	if versions["test/path-unversioned"] != "4.3.2.1" || versions["test/path-versioned"] != "3.2.1.0" || versions["test/path-published-time"] != "2.1.0.0" {
 		t.Fatal(versions)
 	}
 }

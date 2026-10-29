@@ -47,6 +47,10 @@ $contents = [
     'bash' => "#!/usr/bin/env bash\necho hello\n",
     'node' => "#!/usr/local/bin/node\nconsole.log(1)\n",
     'python' => "#!/usr/bin/env python3 -u\nprint(1)\n",
+    'env-split' => "#!/usr/bin/env -S bash -e\necho hi\n",
+    'env-options' => "#!/usr/bin/env -i bash -e\necho hi\n",
+    'shebang-metachars' => "#!/usr/bin/env php\" \" & calc.exe\n<?php echo 1;\n",
+    'shebang-substitution' => "#!/usr/bin/env php\$(id)\n<?php echo 1;\n",
     'noshebang' => "echo hello\n",
     'empty' => '',
     'phar' => $phar,
@@ -118,6 +122,11 @@ $add('remove keeps other files', ['binaries' => ['bin/tool'], 'files' => ['vendo
 $add('remove without binaries', ['binaries' => [], 'steps' => [['remove']]]);
 $add('remove missing proxies', ['binaries' => ['bin/tool'], 'symlinks' => ['vendor/bin/tool' => 'nowhere'], 'steps' => [['remove']]]);
 $add('no binaries', ['binaries' => [], 'steps' => [['install', true]]]);
+$add('unsafe bin path', ['binaries' => ['bin/pwn$(id)', 'bin/x;y', 'bin/a&b'], 'files' => ['vendor/foo/bar/bin/pwn$(id)' => [$contents['sh'], 0644], 'vendor/foo/bar/bin/x;y' => [$contents['sh'], 0644], 'vendor/foo/bar/bin/a&b' => [$contents['sh'], 0644]]]);
+$add('unsafe bin path full', ['binCompat' => 'full', 'binaries' => ['bin/pwn`id`'], 'files' => ['vendor/foo/bar/bin/pwn`id`' => [$contents['sh'], 0644]]]);
+$add('bin dir with a double quote', ['binCompat' => 'full', 'binDir' => 'we"ird/bin', 'binaries' => ['bin/tool'], 'files' => ['vendor/foo/bar/bin/tool' => [$contents['sh'], 0644]]]);
+$add('bin dir with a newline', ['binCompat' => 'full', 'binDir' => "we\nird/bin", 'binaries' => ['bin/tool'], 'files' => ['vendor/foo/bar/bin/tool' => [$contents['sh'], 0644]]]);
+$add('bin dir with a double quote proxy', ['binDir' => 'we"ird/bin', 'binaries' => ['bin/tool'], 'files' => ['vendor/foo/bar/bin/tool' => [$contents['php'], 0644]]]);
 
 $fs = new Filesystem();
 $results = [];

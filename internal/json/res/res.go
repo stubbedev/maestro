@@ -1,6 +1,6 @@
 // Package res embeds the JSON schemas of Composer's res/ directory
 // (res/composer-schema.json, res/composer-lock-schema.json and
-// res/composer-repository-schema.json), copied verbatim from Composer 2.10.3.
+// res/composer-repository-schema.json), copied verbatim from Composer 2.11.0.
 package res
 
 import _ "embed"

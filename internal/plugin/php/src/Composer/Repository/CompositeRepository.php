@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Repository\CompositeRepository,
- * reimplemented with Composer 2.10.3's behaviour (docs/PLUGINS.md §4.6):
+ * reimplemented with Composer 2.11.0's behaviour (docs/PLUGINS.md §4.6):
  * a composite created in PHP asks its repositories (maestro's proxies or
  * PHP's own); one of maestro's is a proxy (repo.*).
  * Written for PHP 7.2.5 to 8.5.

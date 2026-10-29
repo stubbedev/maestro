@@ -6,6 +6,8 @@ package archive
 import (
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/util"
 )
 
 const (
@@ -136,15 +138,15 @@ func ValidPath(p string) bool {
 }
 
 // finish applies ArchiveDownloader's rule and returns the package tree:
-// when the extraction holds exactly one entry besides .DS_Store and it is a
-// directory, that directory is the package; otherwise the temporary
+// when the extraction holds exactly one entry besides OS metadata files and
+// it is a directory, that directory is the package; otherwise the temporary
 // directory is. Entries come out root first, each after its parent.
 func (b *builder) finish() ([]Entry, error) {
 	root, prefix := 0, ""
 	only, count := 0, 0
 
 	for i := 1; i < len(b.all); i++ {
-		if p := b.all[i].Path; strings.IndexByte(p, '/') < 0 && p != ".DS_Store" {
+		if p := b.all[i].Path; strings.IndexByte(p, '/') < 0 && !util.IsMetadataPath(p) {
 			only = i
 			count++
 		}

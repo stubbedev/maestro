@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -15,15 +15,15 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Searching for the specified package.
 
-In VersionParser.php line 526:
+In VersionParser.php line 542:
                                                                         
   [UnexpectedValueException]                                            
   Could not parse version constraint ^^1: Invalid version string "^^1"  
                                                                         
 
 Exception trace:
-  at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:526
- Composer\Semver\VersionParser->parseConstraint() at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:281
+  at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:542
+ Composer\Semver\VersionParser->parseConstraint() at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:297
  Composer\Semver\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Package/Version/VersionParser.php:34
  Composer\Package\Version\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Command/ArchiveCommand.php:179
  Composer\Command\ArchiveCommand->selectPackage() at @COMPOSER@/src/Composer/Command/ArchiveCommand.php:133
@@ -31,9 +31,10 @@ Exception trace:
  Composer\Command\ArchiveCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 archive [-f|--format FORMAT] [--dir DIR] [--file FILE] [--ignore-filters] [--] [<package> [<version>]]

@@ -84,6 +84,7 @@ type Request struct {
 	lockedPackages                    pkgSet
 	fixedLockedPackages               pkgSet
 	updateAllowList                   []string
+	updateAllowListRegex              *php.Regexp
 	updateAllowTransitiveDependencies int
 	restrictedPackages                []string
 }
@@ -136,7 +137,23 @@ func (r *Request) UnlockPackage(p pkg.PackageInterface) { r.lockedPackages.remov
 // Update* constants.
 func (r *Request) SetUpdateAllowList(updateAllowList []string, transitive int) {
 	r.updateAllowList = updateAllowList
+	r.updateAllowListRegex = nil
+	if len(updateAllowList) > 0 {
+		r.updateAllowListRegex = php.MustCompile(pkg.PackageNamesToRegexp(updateAllowList, "{^(?:%s)$}iD"))
+	}
 	r.updateAllowTransitiveDependencies = transitive
+}
+
+// IsInUpdateAllowList ports isInUpdateAllowList: whether the package name
+// matches one of the update allow list patterns (not including transitive
+// dependencies).
+func (r *Request) IsInUpdateAllowList(packageName string) bool {
+	if r.updateAllowListRegex == nil {
+		return false
+	}
+	matched, err := r.updateAllowListRegex.IsMatch(packageName)
+
+	return err == nil && matched
 }
 
 // UpdateAllowList ports getUpdateAllowList.

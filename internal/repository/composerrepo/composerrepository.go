@@ -101,10 +101,13 @@ type ComposerRepository struct {
 	versionParser     *pkg.VersionParser
 	loader            *loader.ArrayLoader
 	allowSslDowngrade bool
-	eventDispatcher   EventDispatcher
-	sourceMirrors     map[string]*php.Array // type => list of ['url' => ..., 'preferred' => ...]
-	distMirrors       *php.Array            // nil for null
-	degradedMode      bool
+	// requirePublishedTime tells whether the cooldown policy must refuse
+	// versions from this repository that carry no published-time.
+	requirePublishedTime bool
+	eventDispatcher      EventDispatcher
+	sourceMirrors        map[string]*php.Array // type => list of ['url' => ..., 'preferred' => ...]
+	distMirrors          *php.Array            // nil for null
+	degradedMode         bool
 	// rootData is loadRootServerFile's result: unset (rootLoaded false),
 	// the packages.json data, or true once the partial packages consumed
 	// it (rootConsumed).
@@ -242,12 +245,16 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 		io:                    ioi,
 		httpDownloader:        httpDownloader,
 		eventDispatcher:       eventDispatcher,
+		requirePublishedTime:  true,
 		freshMetadataUrls:     map[string]struct{}{},
 		packagesNotFoundCache: map[string]struct{}{},
 		fetched:               map[string]fetchedFile{},
 	}
 	if v, _ := repoConfig.Get("allow_ssl_downgrade"); v == true {
 		r.allowSslDowngrade = true
+	}
+	if v, _ := repoConfig.Get("require-published-time"); v == false {
+		r.requirePublishedTime = false
 	}
 
 	// $this->options = $repoConfig['options'] (an untyped property): a
@@ -348,6 +355,11 @@ func (r *ComposerRepository) parseUserFilterConfig(rawFilter any) error {
 func (r *ComposerRepository) RepoName() string {
 	return "composer repo (" + util.SanitizeURL(r.url) + ")"
 }
+
+// RequiresPublishedTime ports requiresPublishedTime: whether the cooldown
+// policy must refuse versions from this repository that carry no
+// published-time.
+func (r *ComposerRepository) RequiresPublishedTime() bool { return r.requirePublishedTime }
 
 // PHPClass returns the PHP class name.
 func (r *ComposerRepository) PHPClass() string { return Class }
@@ -1137,14 +1149,32 @@ func (r *ComposerRepository) configurePackageTransportOptions(p pkg.PackageInter
 
 // configureTransportOptions is configurePackageTransportOptions with c.
 func (c loadedConfig) configureTransportOptions(p pkg.PackageInterface) {
-	for _, url := range p.DistURLs() {
-		if strings.HasPrefix(url, c.baseURL) {
-			p.SetTransportOptions(c.options)
-
-			return
-		}
+	if isOwnDistURL(c.baseURL, p) {
+		p.SetTransportOptions(c.options)
 	}
 }
+
+// IsOwnDistUrl ports isOwnDistUrl: whether one of the package's dist URLs
+// belongs to this repository.
+func (r *ComposerRepository) IsOwnDistUrl(p pkg.PackageInterface) bool {
+	return isOwnDistURL(r.loadedConfig().baseURL, p)
+}
+
+// isOwnDistURL is isOwnDistUrl for a repository whose base URL is baseURL.
+func isOwnDistURL(baseURL string, p pkg.PackageInterface) bool {
+	for _, url := range p.DistURLs() {
+		// require a boundary after the base URL so e.g.
+		// https://example.org.example.net does not match https://example.org
+		if rest, ok := strings.CutPrefix(url, baseURL); ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// BaseURL ports getBaseUrl.
+func (r *ComposerRepository) BaseURL() string { return r.baseURL }
 
 // AddPackage ports addPackage.
 func (r *ComposerRepository) AddPackage(p pkg.PackageInterface) error {

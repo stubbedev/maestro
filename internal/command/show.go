@@ -6,8 +6,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	mio "github.com/stubbedev/maestro/internal/io"
@@ -15,6 +18,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
+	"github.com/stubbedev/maestro/internal/policy"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/repository/composerrepo"
 	"github.com/stubbedev/maestro/internal/resolver"
@@ -74,6 +78,7 @@ func NewShowCommand() *ShowCommand {
 		console.MustOption("minor-only", "m", console.OptionValueNone, "Show only packages that have minor SemVer-compatible updates. Use with the --latest or --outdated option.", nil),
 		console.MustOption("patch-only", "", console.OptionValueNone, "Show only packages that have patch SemVer-compatible updates. Use with the --latest or --outdated option.", nil),
 		console.MustOption("sort-by-age", "A", console.OptionValueNone, "Displays the installed version's age, and sorts packages oldest first. Use with the --latest or --outdated option.", nil),
+		console.MustOption("cooldown-period", "", console.OptionValueRequired, "Overrides the configured policy.cooldown.period while looking up latest versions, even when the policy is disabled or not blocking, 0 disables it for this run. Use with the --latest or --outdated option", nil),
 		console.MustOption("direct", "D", console.OptionValueNone, "Shows only packages that are directly required by the root package", nil),
 		console.MustOption("strict", "", console.OptionValueNone, "Return a non-zero exit code when there are outdated packages", nil),
 		formatOption("Format of the output: text or json", "text", jsonTextFormats),
@@ -84,7 +89,7 @@ func NewShowCommand() *ShowCommand {
 	c.SetHelp(`The show command displays detailed information about a package, or
 lists all packages available.
 
-Read more at https://getcomposer.org/doc/03-cli.md#show-info`)
+Read more at https://getcomposer.org/doc/03-cli.md#show--info`)
 
 	return c
 }
@@ -446,6 +451,13 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		input.SetOption("latest", false)
 	}
 
+	var cooldown *policy.CooldownPolicyConfig
+	if console.BoolOption(input, "latest") && comp != nil {
+		if cooldown, err = c.getCooldownPolicyConfig(comp.Config(), input); err != nil {
+			return 0, err
+		}
+	}
+
 	packageFilterValue := input.Argument("package")
 	packageFilter, hasPackageFilter := packageFilterValue.(string)
 
@@ -532,11 +544,14 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		}
 
 		var latestPackage pkg.PackageInterface
+		var withheld *withheldRelease
 		if console.BoolOption(input, "latest") {
-			latestPackage, err = c.findLatestPackage(single, comp, platformRepo, console.BoolOption(input, "major-only"), console.BoolOption(input, "minor-only"), console.BoolOption(input, "patch-only"), platformReqFilter)
+			found, err := c.findLatestPackage(single, comp, platformRepo, console.BoolOption(input, "major-only"), console.BoolOption(input, "minor-only"), console.BoolOption(input, "patch-only"), platformReqFilter, cooldown)
 			if err != nil {
 				return 0, err
 			}
+			latestPackage = found.latest
+			withheld = found.withheld
 		}
 		if console.BoolOption(input, "outdated") &&
 			console.BoolOption(input, "strict") &&
@@ -562,9 +577,9 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		}
 
 		if format == "json" {
-			err = c.printPackageInfoAsJSON(single, versions, installedRepo, latestPackage)
+			err = c.printPackageInfoAsJSON(single, versions, installedRepo, latestPackage, withheld)
 		} else {
-			err = c.printPackageInfo(single, versions, installedRepo, latestPackage)
+			err = c.printPackageInfo(single, versions, installedRepo, latestPackage, withheld)
 		}
 
 		return exitCode, err
@@ -709,6 +724,7 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		indent = "  "
 	}
 	latestPackages := map[string]pkg.PackageInterface{}
+	withheldPackages := map[string]*withheldRelease{}
 	exitCode := 0
 	viewData := php.NewArray()
 	viewMetaData := map[string]showMeta{}
@@ -721,8 +737,55 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 		return 0, err
 	}
 
+	latestLookups := map[string][]pkg.PackageInterface{}
 	if showLatest {
-		c.prefetchLatest(packages, comp, ignoredPackagesRegex, showMajorOnly)
+		for _, typ := range []string{"platform", "locked", "installed"} {
+			list := packages[typ]
+			if list == nil {
+				continue
+			}
+			for _, entry := range list.values() {
+				if entry.pkg == nil {
+					continue
+				}
+				ignored, err := ignoredPackagesRegex.IsMatch(entry.pkg.PrettyName())
+				if err != nil {
+					return 0, err
+				}
+				if ignored {
+					continue
+				}
+				latestLookups[typ] = append(latestLookups[typ], entry.pkg)
+			}
+		}
+
+		// load all metadata in parallel upfront so the per-package lookups
+		// hit the fresh cache, which needs the cache to be usable
+		if len(latestLookups) > 0 && comp != nil {
+			repoDir, err := comp.Config().Get("cache-repo-dir", 0)
+			if err != nil {
+				return 0, err
+			}
+			if cache.IsUsable(php.ToString(repoDir)) {
+				var names []string
+				seen := map[string]bool{}
+				for _, typ := range []string{"platform", "locked", "installed"} {
+					for _, p := range latestLookups[typ] {
+						if !seen[p.Name()] {
+							seen[p.Name()] = true
+							names = append(names, p.Name())
+						}
+					}
+				}
+				set, err := c.getRepositorySet(comp)
+				if err != nil {
+					return 0, err
+				}
+				if err := set.PreloadPackages(names); err != nil {
+					return 0, err
+				}
+			}
+		}
 	}
 
 	for _, t := range showListTypes {
@@ -735,26 +798,17 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 
 		nameLength, versionLength, latestLength, releaseDateLength := 0, 0, 0, 0
 
-		if showLatest && t.showVersion {
-			for _, entry := range list.values() {
-				if entry.pkg == nil {
-					continue
-				}
-				ignored, err := ignoredPackagesRegex.IsMatch(entry.pkg.PrettyName())
-				if err != nil {
-					return 0, err
-				}
-				if ignored {
-					continue
-				}
-				latestPackage, err := c.findLatestPackage(entry.pkg, comp, platformRepo, showMajorOnly, showMinorOnly, showPatchOnly, platformReqFilter)
-				if err != nil {
-					return 0, err
-				}
-				if latestPackage == nil {
-					continue
-				}
-				latestPackages[entry.pkg.PrettyName()] = latestPackage
+		for _, p := range latestLookups[typ] {
+			delete(withheldPackages, p.PrettyName())
+			found, err := c.findLatestPackage(p, comp, platformRepo, showMajorOnly, showMinorOnly, showPatchOnly, platformReqFilter, cooldown)
+			if err != nil {
+				return 0, err
+			}
+			if found.latest != nil {
+				latestPackages[p.PrettyName()] = found.latest
+			}
+			if found.withheld != nil {
+				withheldPackages[p.PrettyName()] = found.withheld
 			}
 		}
 
@@ -795,11 +849,13 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 				if err != nil {
 					return 0, err
 				}
-				if console.BoolOption(input, "outdated") && (packageIsUpToDate || packageIsIgnored) {
+				withheld := withheldPackages[p.PrettyName()]
+				if console.BoolOption(input, "outdated") && (packageIsIgnored || (packageIsUpToDate && withheld == nil)) {
 					continue
 				}
 
-				if console.BoolOption(input, "outdated") || console.BoolOption(input, "strict") {
+				// a release still in the cooldown period cannot be installed yet, so it does not make the package outdated
+				if (console.BoolOption(input, "outdated") || console.BoolOption(input, "strict")) && !packageIsUpToDate {
 					hasOutdatedPackages = true
 				}
 
@@ -836,24 +892,54 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 						packageViewData.Set("release-date", "")
 					}
 				}
-				if writeLatest && latestPackage != nil {
-					latest := latestPackage.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
+				// the installable update takes the slot, else the release waiting for the cooldown period to end
+				hasInstallableUpdate := latestPackage != nil && latestPackage.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev) != p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
+				shownPackage := latestPackage
+				if withheld != nil && !hasInstallableUpdate {
+					shownPackage = withheld.pkg
+				}
+				if writeLatest && shownPackage != nil {
+					shortAvailableIn := ""
+					if withheld != nil && cooldown != nil {
+						shortAvailableIn = cooldown.FormatTimeUntilAvailable(withheld.releaseDate, time.Now(), true)
+					}
+					latest := shownPackage.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
 					if format == "text" {
 						latest = php.LtrimSet(latest, "v")
 					}
 					packageViewData.Set("latest", latest)
-					status, err := getUpdateStatus(latestPackage, p)
-					if err != nil {
-						return 0, err
-					}
-					packageViewData.Set("latest-status", status)
-					latestLength = max(latestLength, len(latest))
-
-					if releaseDate, ok := latestPackage.ReleaseDate(); ok {
+					if releaseDate, ok := shownPackage.ReleaseDate(); ok {
 						packageViewData.Set("latest-release-date", releaseDate.Format(atomFormat))
 					} else {
 						packageViewData.Set("latest-release-date", "")
 					}
+					suffix := ""
+					if withheld != nil && !hasInstallableUpdate {
+						packageViewData.Set("latest-status", "cooldown")
+						packageViewData.Set("cooldown-available-in", withheld.availableIn)
+						if format == "text" {
+							suffix = " (" + shortAvailableIn + " left)"
+						}
+					} else {
+						status, err := getUpdateStatus(shownPackage, p)
+						if err != nil {
+							return 0, err
+						}
+						packageViewData.Set("latest-status", status)
+						if withheld != nil {
+							cooldownLatest := withheld.pkg.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
+							packageViewData.Set("cooldown-latest", cooldownLatest)
+							packageViewData.Set("cooldown-available-in", withheld.availableIn)
+							if format == "text" {
+								suffix = " (" + php.LtrimSet(cooldownLatest, "v") + " in " + shortAvailableIn + ")"
+							}
+						}
+					}
+					if suffix != "" {
+						latest += suffix
+						packageViewData.Set("latest", latest)
+					}
+					latestLength = max(latestLength, len(latest))
 				} else if writeLatest {
 					packageViewData.Set("latest", "[none matched]")
 					packageViewData.Set("latest-status", "up-to-date")
@@ -937,6 +1023,9 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 			io.WriteError("Legend:", true, mio.Normal)
 			io.WriteError("! patch or minor release available - update recommended", true, mio.Normal)
 			io.WriteError("~ major release available - update possible", true, mio.Normal)
+			if cooldown != nil {
+				io.WriteError("c newer release still in the cooldown period - not installable yet", true, mio.Normal)
+			}
 			if !console.BoolOption(input, "outdated") {
 				io.WriteError("= up to date version", true, mio.Normal)
 			}
@@ -944,6 +1033,9 @@ func (c *ShowCommand) Execute(input console.Input, output console.Output) (int, 
 			io.WriteError("<info>Color legend:</info>", true, mio.Normal)
 			io.WriteError("- <highlight>patch or minor</highlight> release available - update recommended", true, mio.Normal)
 			io.WriteError("- <comment>major</comment> release available - update possible", true, mio.Normal)
+			if cooldown != nil {
+				io.WriteError("- release still in the cooldown period - not installable yet (shown without color)", true, mio.Normal)
+			}
 			if !console.BoolOption(input, "outdated") {
 				io.WriteError("- <info>up to date</info> version", true, mio.Normal)
 			}
@@ -1144,9 +1236,14 @@ func (c *ShowCommand) printPackages(io mio.IO, packages []*php.Array, o printOpt
 		if ok1 && ok2 && o.writeLatest {
 			style := updateStatusToVersionStyle(updateStatus)
 			if !io.IsDecorated() {
-				latestVersion = strings.NewReplacer("up-to-date", "=", "semver-safe-update", "!", "update-possible", "~").Replace(updateStatus) + " " + latestVersion
+				latestVersion = strings.NewReplacer("up-to-date", "=", "semver-safe-update", "!", "update-possible", "~", "cooldown", "c").Replace(updateStatus) + " " + latestVersion
 			}
-			io.Write(" <"+style+">"+pad(latestVersion, padLatest, o.latestLength)+"</"+style+">", false, mio.Normal)
+			latestVersion = pad(latestVersion, padLatest, o.latestLength)
+			if style != "" {
+				io.Write(" <"+style+">"+latestVersion+"</"+style+">", false, mio.Normal)
+			} else {
+				io.Write(" "+latestVersion, false, mio.Normal)
+			}
 			if age, ok := str(p, "release-age"); o.writeReleaseDate && ok {
 				io.Write(" "+pad(age, padReleaseDate, o.releaseDateLength), false, mio.Normal)
 			}
@@ -1300,11 +1397,12 @@ func (c *ShowCommand) getPackage(installedRepo *repository.InstalledRepository, 
 	return cp, versions, nil
 }
 
-// printPackageInfo ports ShowCommand::printPackageInfo.
-func (c *ShowCommand) printPackageInfo(p pkg.CompletePackageInterface, versions *php.Array, installedRepo *repository.InstalledRepository, latestPackage pkg.PackageInterface) error {
+// printPackageInfo ports ShowCommand::printPackageInfo; withheld is the
+// release still in the cooldown period, nil for none.
+func (c *ShowCommand) printPackageInfo(p pkg.CompletePackageInterface, versions *php.Array, installedRepo *repository.InstalledRepository, latestPackage pkg.PackageInterface, withheld *withheldRelease) error {
 	io := c.IO()
 
-	if err := c.printMeta(p, versions, installedRepo, latestPackage); err != nil {
+	if err := c.printMeta(p, versions, installedRepo, latestPackage, withheld); err != nil {
 		return err
 	}
 	if err := c.printLinks(p, pkg.TypeRequire, ""); err != nil {
@@ -1330,8 +1428,9 @@ func (c *ShowCommand) printPackageInfo(p pkg.CompletePackageInterface, versions 
 	return nil
 }
 
-// printMeta ports ShowCommand::printMeta.
-func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Array, installedRepo *repository.InstalledRepository, latestPackage pkg.PackageInterface) error {
+// printMeta ports ShowCommand::printMeta; withheld is the release still in
+// the cooldown period, nil for none.
+func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Array, installedRepo *repository.InstalledRepository, latestPackage pkg.PackageInterface, withheld *withheldRelease) error {
 	isInstalledPackage := false
 	if !repository.IsPlatformPackage(p.Name()) {
 		has, err := installedRepo.HasPackage(p)
@@ -1351,7 +1450,13 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 	if releaseDate, ok := p.ReleaseDate(); isInstalledPackage && ok {
 		io.Write("<info>released</info> : "+releaseDate.Format("2006-01-02")+", "+c.getRelativeTime(releaseDate), true, mio.Normal)
 	}
-	if latestPackage != nil {
+	hasInstallableUpdate := latestPackage != nil && latestPackage.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev) != p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
+	if withheld != nil && !hasInstallableUpdate {
+		io.Write("<info>latest</info>   : "+withheld.pkg.PrettyVersion()+" (still in the cooldown period, "+withheld.availableIn+" left)", true, mio.Normal)
+		if latestPackage == nil {
+			latestPackage = p
+		}
+	} else if latestPackage != nil {
 		style, err := getVersionStyle(latestPackage, p)
 		if err != nil {
 			return err
@@ -1361,6 +1466,9 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 			releasedTime = " released " + releaseDate.Format("2006-01-02") + ", " + c.getRelativeTime(releaseDate)
 		}
 		io.Write("<info>latest</info>   : <"+style+">"+latestPackage.PrettyVersion()+"</"+style+">"+releasedTime, true, mio.Normal)
+		if withheld != nil {
+			io.Write("<info>cooldown</info> : "+withheld.pkg.PrettyVersion()+" (still in the cooldown period, "+withheld.availableIn+" left)", true, mio.Normal)
+		}
 	} else {
 		latestPackage = p
 	}
@@ -1547,8 +1655,9 @@ func (c *ShowCommand) printLicenses(p pkg.CompletePackageInterface) {
 	}
 }
 
-// printPackageInfoAsJSON ports ShowCommand::printPackageInfoAsJson.
-func (c *ShowCommand) printPackageInfoAsJSON(p pkg.CompletePackageInterface, versions *php.Array, installedRepo *repository.InstalledRepository, latestPackage pkg.PackageInterface) error {
+// printPackageInfoAsJSON ports ShowCommand::printPackageInfoAsJson;
+// withheld is the release still in the cooldown period, nil for none.
+func (c *ShowCommand) printPackageInfoAsJSON(p pkg.CompletePackageInterface, versions *php.Array, installedRepo *repository.InstalledRepository, latestPackage pkg.PackageInterface, withheld *withheldRelease) error {
 	keywords := p.Keywords()
 	if keywords == nil {
 		keywords = php.NewArray()
@@ -1565,8 +1674,20 @@ func (c *ShowCommand) printPackageInfoAsJSON(p pkg.CompletePackageInterface, ver
 	appendVersions(j, versions)
 	appendLicenses(j, p)
 
-	if latestPackage != nil {
+	hasInstallableUpdate := latestPackage != nil && latestPackage.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev) != p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)
+	if withheld != nil && !hasInstallableUpdate {
+		j.Set("latest", withheld.pkg.PrettyVersion())
+		j.Set("latest-status", "cooldown")
+		j.Set("cooldown-available-in", withheld.availableIn)
+		if latestPackage == nil {
+			latestPackage = p
+		}
+	} else if latestPackage != nil {
 		j.Set("latest", latestPackage.PrettyVersion())
+		if withheld != nil {
+			j.Set("cooldown-latest", withheld.pkg.PrettyVersion())
+			j.Set("cooldown-available-in", withheld.availableIn)
+		}
 	} else {
 		latestPackage = p
 	}
@@ -1748,6 +1869,9 @@ func (c *ShowCommand) initStyles() { c.colors = ui.TreeTags() }
 type treeNode struct {
 	name    string
 	version string
+	// installed is the pretty version of the installed package matching the
+	// requirement, nil when it is not installed.
+	installed *string
 	// description is set for top-level entries only.
 	hasDescription bool
 	description    pkg.NullString
@@ -1756,6 +1880,9 @@ type treeNode struct {
 
 func (n *treeNode) toArray() *php.Array {
 	a := php.ArrayOf("name", n.name, "version", n.version)
+	if n.installed != nil {
+		a.Set("installed", *n.installed)
+	}
 	if n.hasDescription {
 		a.Set("description", nullable(n.description))
 	}
@@ -1815,6 +1942,11 @@ func (c *ShowCommand) generatePackageTree(p pkg.PackageInterface, installedRepo 
 			return nil, err
 		}
 		treeChildDesc := &treeNode{name: requireName, version: constraint}
+		if installedVersion, ok, err := c.getInstalledVersion(installedRepo, requireName); err != nil {
+			return nil, err
+		} else if ok {
+			treeChildDesc.installed = &installedVersion
+		}
 
 		deepChildren, err := c.addTree(requireName, require.link, installedRepo, remoteRepos, packagesInTree)
 		if err != nil {
@@ -1913,6 +2045,11 @@ func (c *ShowCommand) addTree(name string, link *pkg.Link, installedRepo *reposi
 				return nil, err
 			}
 			treeChildDesc := &treeNode{name: requireName, version: constraint}
+			if installedVersion, ok, err := c.getInstalledVersion(installedRepo, requireName); err != nil {
+				return nil, err
+			} else if ok {
+				treeChildDesc.installed = &installedVersion
+			}
 
 			if !slices.Contains(currentTree, requireName) {
 				currentTree = append(currentTree, requireName)
@@ -1930,11 +2067,37 @@ func (c *ShowCommand) addTree(name string, link *pkg.Link, installedRepo *reposi
 	return children, nil
 }
 
+// getInstalledVersion ports ShowCommand::getInstalledVersion: the pretty
+// version of the installed package matching name (honouring
+// replace/provide), false when it is not installed.
+func (c *ShowCommand) getInstalledVersion(installedRepo *repository.InstalledRepository, name string) (string, bool, error) {
+	packages, err := installedRepo.FindPackagesWithReplacersAndProviders(name, nil)
+	if err != nil {
+		return "", false, err
+	}
+	if len(packages) == 0 {
+		return "", false, nil
+	}
+
+	p := packages[0]
+	// resolve aliases to report the actually installed version rather than the alias version
+	for {
+		alias, ok := p.(pkg.Alias)
+		if !ok {
+			break
+		}
+		p = alias.AliasOf()
+	}
+
+	return p.PrettyVersion(), true, nil
+}
+
 func updateStatusToVersionStyle(updateStatus string) string {
 	// 'up-to-date' is printed green
 	// 'semver-safe-update' is printed red
 	// 'update-possible' is printed yellow
-	return strings.NewReplacer("up-to-date", "info", "semver-safe-update", "highlight", "update-possible", "comment").Replace(updateStatus)
+	// 'cooldown' is printed without color, as it is neither fine nor actionable yet
+	return strings.NewReplacer("up-to-date", "info", "semver-safe-update", "highlight", "update-possible", "comment", "cooldown", "").Replace(updateStatus)
 }
 
 func getVersionStyle(latestPackage, p pkg.PackageInterface) (string, error) {
@@ -1988,49 +2151,40 @@ var showListTypes = []struct {
 	showVersion bool
 }{{"platform", true}, {"locked", true}, {"available", false}, {"installed", true}}
 
-// prefetchLatest starts at once the metadata requests the lookups of the
-// packages' latest versions (findLatestPackage) make one after another,
-// for exactly the packages looked up (deliberate deviation 3: the lookups
-// run and print as before, and find the requests answered).
-func (c *ShowCommand) prefetchLatest(packages showLists, comp *composer.Composer, ignored *php.Regexp, majorOnly bool) {
-	set, err := c.getRepositorySet(comp)
-	if err != nil {
-		return
-	}
-	var names []string
-	for _, t := range showListTypes {
-		if list := packages[t.typ]; list != nil && t.showVersion {
-			for _, entry := range list.values() {
-				if entry.pkg == nil {
-					continue
-				}
-				if skip, err := ignored.IsMatch(entry.pkg.PrettyName()); skip || err != nil {
-					continue
-				}
-				// a dev branch has no newer major version to look up
-				if majorOnly && strings.HasPrefix(entry.pkg.Version(), "dev-") {
-					continue
-				}
-				names = append(names, entry.pkg.Name())
-			}
-		}
-	}
-	repository.PrefetchPackages(set.Repositories(), names, set.AcceptableStabilities(), set.StabilityFlags())
+// withheldRelease is a newer release than the newest installable version
+// that is still in the cooldown period.
+type withheldRelease struct {
+	pkg         pkg.PackageInterface
+	releaseDate time.Time
+	availableIn string
 }
 
-// findLatestPackage ports ShowCommand::findLatestPackage.
-func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.Composer, platformRepo *repository.PlatformRepository, majorOnly, minorOnly, patchOnly bool, platformReqFilter version.PlatformRequirementFilter) (pkg.PackageInterface, error) {
+// latestFound is findLatestPackage's result: the latest package matching
+// the installed one, and the release still in the cooldown period that
+// becomes installable first.
+type latestFound struct {
+	latest   pkg.PackageInterface
+	withheld *withheldRelease
+}
+
+// findLatestPackage ports ShowCommand::findLatestPackage; cooldown is the
+// policy to apply while looking up the latest version, nil for none.
+func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.Composer, platformRepo *repository.PlatformRepository, majorOnly, minorOnly, patchOnly bool, platformReqFilter version.PlatformRequirementFilter, cooldown *policy.CooldownPolicyConfig) (latestFound, error) {
 	// find the latest version allowed in this repo set
 	name := p.Name()
 	repositorySet, err := c.getRepositorySet(comp)
 	if err != nil {
-		return nil, err
+		return latestFound{}, err
 	}
 	platformPackages, err := platformRepo.Packages()
 	if err != nil {
-		return nil, err
+		return latestFound{}, err
 	}
-	versionSelector := version.NewVersionSelector(repositorySet, platformPackages)
+	var selectorCooldown []version.Cooldown
+	if cooldown != nil {
+		selectorCooldown = append(selectorCooldown, cooldown)
+	}
+	versionSelector := version.NewVersionSelector(repositorySet, platformPackages, selectorCooldown...)
 	stability := comp.Package().MinimumStability()
 	flags := comp.Package().StabilityFlags()
 	if flag, ok := flags.Get(name); ok {
@@ -2055,7 +2209,7 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 
 		// dev-x branches are considered to be on the latest major version always, do not look up for a new commit as that is deemed a minor upgrade (albeit risky)
 		if majorOnly {
-			return nil, nil
+			return latestFound{}, nil
 		}
 	}
 
@@ -2063,7 +2217,7 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 		if majorOnly {
 			m, err := showMajorPattern.Match(p.Version())
 			if err != nil {
-				return nil, err
+				return latestFound{}, err
 			}
 			if m != nil {
 				fm, _ := m.Named("first_meaningful")
@@ -2080,7 +2234,7 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 		if patchOnly {
 			trimmedVersion, _, err := showTrailingZero.Replace(p.Version(), "", -1)
 			if err != nil {
-				return nil, err
+				return latestFound{}, err
 			}
 			partsNeeded := 3
 			if strings.HasPrefix(trimmedVersion, "0") {
@@ -2111,7 +2265,7 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 		ShowWarnings:              showWarnings,
 	})
 	if err != nil {
-		return nil, err
+		return latestFound{}, err
 	}
 	for {
 		alias, ok := candidate.(pkg.Alias)
@@ -2121,7 +2275,82 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 		candidate = alias.AliasOf()
 	}
 
-	return candidate, nil
+	latest := candidate
+	// versions exist but none is installable on this platform, so there is nothing to update to
+	if latest == nil && len(versionSelector.PlatformRejectedCandidates()) > 0 {
+		latest = p
+	}
+
+	var withheld *withheldRelease
+	if cooldown != nil && !strings.HasPrefix(p.Version(), "dev-") {
+		// a waiting release is only worth mentioning if it is newer than what can be installed already
+		baseline := p
+		if latest != nil && semver.VersionCompare(latest.Version(), p.Version()) > 0 {
+			baseline = latest
+		}
+		installedIsWithheld := false
+		var found *withheldRelease
+		for _, withheldCandidate := range versionSelector.WithheldCandidates() {
+			withheldPackage := withheldCandidate.Package
+			for {
+				alias, ok := withheldPackage.(pkg.Alias)
+				if !ok {
+					break
+				}
+				withheldPackage = alias.AliasOf()
+			}
+			if withheldPackage.Version() == p.Version() {
+				installedIsWithheld = true
+			}
+			// the first release to clear the cooldown period among those newer than the baseline,
+			// a withheld backport to an older branch is no update
+			if semver.VersionCompare(withheldPackage.Version(), baseline.Version()) <= 0 {
+				continue
+			}
+			if found == nil || withheldCandidate.ReleaseDate.Before(found.releaseDate) {
+				found = &withheldRelease{pkg: withheldPackage, releaseDate: withheldCandidate.ReleaseDate}
+			}
+		}
+
+		// the installed version is itself still in the cooldown period, e.g. the period was configured after
+		// installing it, so the older releases the selector fell back to are no update either
+		if installedIsWithheld && (latest == nil || semver.VersionCompare(latest.Version(), p.Version()) < 0) {
+			latest = p
+		}
+
+		if found != nil {
+			found.availableIn = cooldown.FormatTimeUntilAvailable(found.releaseDate, time.Now(), false)
+			withheld = found
+		}
+	}
+
+	return latestFound{latest: latest, withheld: withheld}, nil
+}
+
+// getCooldownPolicyConfig ports ShowCommand::getCooldownPolicyConfig: the
+// cooldown policy to apply while looking up latest versions, so that the
+// result matches what update would install, or nil when no cooldown period
+// applies.
+func (c *ShowCommand) getCooldownPolicyConfig(cfg *config.Config, in console.Input) (*policy.CooldownPolicyConfig, error) {
+	if override, ok := in.Option("cooldown-period").(string); ok {
+		period, err := policy.ParseDuration(override)
+		if err != nil {
+			return nil, &Error{Class: ClassInvalidArgument, Message: `Invalid --cooldown-period value "` + override + `", use an integer number of seconds or a duration like "7 days".`, Prev: err}
+		}
+		// an explicit period simulates an enabled, blocking policy whatever the configuration says
+		policyConfig, err := c.CreatePolicyConfig(cfg, in)
+		if err != nil {
+			return nil, err
+		}
+		cooldown := policy.NewCooldownPolicyConfig(true, policyConfig.Cooldown.Audit, policyConfig.Cooldown.Ignore, period)
+		if cooldown.HasCooldown() {
+			return cooldown, nil
+		}
+
+		return nil, nil
+	}
+
+	return c.GetBlockingCooldownPolicy(cfg, in)
 }
 
 func (c *ShowCommand) getRepositorySet(comp *composer.Composer) (*repository.RepositorySet, error) {

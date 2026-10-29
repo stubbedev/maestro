@@ -1,7 +1,7 @@
 name     : composer-plugin-api
 descrip. : The Composer Plugin API
 keywords : 
-versions : * 2.9.0
+versions : * 2.11.0
 type     : library
 homepage : 
 source   : []  

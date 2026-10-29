@@ -37,6 +37,7 @@ class JsonFile
     // Composer's res/ schemas, which the extracted shim holds at the same
     // place relative to this file as the phar does (shimbuild.VirtualFiles).
     public const COMPOSER_SCHEMA_PATH = __DIR__ . '/../../../res/composer-schema.json';
+    public const CONFLICTED_CONTENT_HASH = 'VCS merge conflict detected. Please run `composer update --lock`.';
     public const INDENT_DEFAULT = '    ';
     public const JSON_PRETTY_PRINT = 128;
     public const JSON_UNESCAPED_SLASHES = 64;

@@ -17,9 +17,9 @@ use Maestro\Shim\Rpc;
 
 class VersionSelector
 {
-    public function __construct(RepositorySet $repositorySet, ?PlatformRepository $platformRepo = null)
+    public function __construct(RepositorySet $repositorySet, ?PlatformRepository $platformRepo = null, ?\Composer\Policy\CooldownPolicyConfig $cooldown = null)
     {
-        Rpc::call('selector.new', [$this, $repositorySet, $platformRepo, PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION.'.'.PHP_RELEASE_VERSION]);
+        Rpc::call('selector.new', [$this, $repositorySet, $platformRepo, $cooldown, PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION.'.'.PHP_RELEASE_VERSION]);
     }
 
     public function findBestCandidate(string $packageName, ?string $targetPackageVersion = null, string $preferredStability = 'stable', $platformRequirementFilter = null, int $repoSetFlags = 0, ?IOInterface $io = null, $showWarnings = true)
@@ -57,5 +57,35 @@ class VersionSelector
     public function findRecommendedRequireVersion(PackageInterface $package): string
     {
         return Rpc::call('selector.findRecommendedRequireVersion', [$this, $package]);
+    }
+
+    /**
+     * Returns the candidate withheld by the cooldown in the last findBestCandidate() call that becomes available first
+     *
+     * @return ?array{package: PackageInterface, releaseDate: \DateTimeInterface}
+     */
+    public function getFirstClearingWithheldCandidate(): ?array
+    {
+        return Rpc::call('selector.getFirstClearingWithheldCandidate', [$this]);
+    }
+
+    /**
+     * Returns every candidate withheld by the cooldown in the last findBestCandidate() call, in candidate order
+     *
+     * @return list<array{package: PackageInterface, releaseDate: \DateTimeInterface}>
+     */
+    public function getWithheldCandidates(): array
+    {
+        return Rpc::call('selector.getWithheldCandidates', [$this]);
+    }
+
+    /**
+     * Returns every candidate skipped for its platform requirements in the last findBestCandidate() call, in candidate order
+     *
+     * @return list<PackageInterface>
+     */
+    public function getPlatformRejectedCandidates(): array
+    {
+        return Rpc::call('selector.getPlatformRejectedCandidates', [$this]);
     }
 }

@@ -1,6 +1,9 @@
 package vcs
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -73,6 +76,58 @@ func TestHgDriver_GetChangeDateInvalidIdentifier(t *testing.T) {
 
 	_, _, err := driver.ChangeDate("-r foo")
 	expectRuntimeError(t, err, "Invalid hg identifier detected. Identifier must not start with a -, given: -r foo")
+}
+
+func TestHgDriver_UpdateFailureOutputIsSanitized(t *testing.T) {
+	home := t.TempDir()
+	repoDir := filepath.Join(home, "cache", "vcs", "https---example-org-acme") + "/"
+	noErr(t, os.MkdirAll(repoDir, 0o777))
+
+	process := processmock.New()
+	process.Expects([]processmock.Expectation{
+		{Cmd: processmock.Cmd("hg", "summary").Cmd},
+		{Cmd: processmock.Cmd("hg", "pull").Cmd, Return: 255, Stderr: "pulling from https://user:secret@example.org/acme\nabort: HTTP Error 500\n"},
+	}, false, nil)
+
+	ioi := newTestIO()
+	cfg := newConfig(t, home, "cache-vcs-dir", filepath.Join(home, "cache", "vcs"))
+	driver := NewHgDriver(php.ArrayOf("url", "https://example.org/acme"), deps(ioi, cfg, httpmock.New(), process))
+	noErr(t, driver.Initialize())
+
+	output := strings.Join(ioi.messages(), "\n")
+	if !strings.Contains(output, "pulling from https://user:***@example.org/acme") {
+		t.Errorf("output %q", output)
+	}
+	if strings.Contains(output, "secret") {
+		t.Errorf("output %q holds the credentials", output)
+	}
+}
+
+func TestFossilDriver_CloneFailureOutputIsSanitized(t *testing.T) {
+	home := t.TempDir()
+	url := "https://user:secret@example.org/acme"
+	repoFile := filepath.Join(home, "cache", "repo", "https---user-----example-org-acme.fossil")
+
+	process := processmock.New()
+	process.Expects([]processmock.Expectation{
+		{Cmd: processmock.Cmd("fossil", "version").Cmd},
+		{Cmd: processmock.Cmd("fossil", "clone", "--", url, repoFile).Cmd, Return: 1, Stderr: `Error: unable to connect to "` + url + `"`},
+	}, true, nil)
+
+	cfg := newConfig(t, home,
+		"cache-repo-dir", filepath.Join(home, "cache", "repo"),
+		"cache-vcs-dir", filepath.Join(home, "cache", "vcs"),
+	)
+	driver := NewFossilDriver(php.ArrayOf("url", url), deps(newTestIO(), cfg, httpmock.New(), process))
+
+	err := driver.Initialize()
+	expectRuntimeError(t, err, "")
+	if !strings.Contains(err.Error(), `unable to connect to "https://user:***@example.org/acme"`) {
+		t.Errorf("error %q", err)
+	}
+	if strings.Contains(err.Error(), "secret") {
+		t.Errorf("error %q holds the credentials", err)
+	}
 }
 
 func TestFossilDriver_Support(t *testing.T) {

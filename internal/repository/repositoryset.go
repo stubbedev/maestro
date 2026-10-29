@@ -6,6 +6,7 @@ package repository
 import (
 	"errors"
 	"slices"
+	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
@@ -234,6 +235,34 @@ func (s *RepositorySet) FindPackages(name string, constraint semver.ConstraintIn
 	return result, nil
 }
 
+// PreloadPackages ports RepositorySet::preloadPackages: it loads the
+// packages from all repositories in one batch per repository, to warm up
+// caches before many FindPackages calls.
+func (s *RepositorySet) PreloadPackages(names []string) error {
+	nameMap := &ConstraintMap{}
+	for _, name := range names {
+		nameMap.Set(name, nil)
+	}
+
+	for _, repo := range s.repositories {
+		if nameMap.Len() == 0 {
+			break
+		}
+
+		result, err := repo.LoadPackages(nameMap, s.acceptableStabilities, s.stabilityFlags, nil)
+		if err != nil {
+			return err
+		}
+		for _, name := range result.NamesFound {
+			// like findPackages, do not query lower priority repositories
+			// for names already found
+			nameMap.Delete(name)
+		}
+	}
+
+	return nil
+}
+
 // SecurityAdvisoriesResult is getSecurityAdvisories' result.
 type SecurityAdvisoriesResult struct {
 	// Advisories maps package names, sorted, to their advisories.
@@ -258,6 +287,10 @@ func (s *RepositorySet) GetSecurityAdvisories(packageNames []string, allowPartia
 // RepositorySet::getMatchingSecurityAdvisories: the advisories affecting
 // the versions of the packages (root aliases left out).
 func (s *RepositorySet) GetMatchingSecurityAdvisories(packages []pkg.PackageInterface, allowPartial, ignoreUnreachable bool) (SecurityAdvisoriesResult, error) {
+	// an unversioned branch has no version ordering for an advisory range
+	// to match
+	packages = slices.DeleteFunc(slices.Clone(packages), IsUnversionedBranch)
+
 	return s.securityAdvisoriesForConstraints(PackageVersionsConstraintMap(packages), allowPartial, ignoreUnreachable)
 }
 
@@ -378,6 +411,14 @@ func (s *RepositorySet) Providers(packageName string) ([]ProviderInfo, error) {
 // settings.
 func (s *RepositorySet) IsPackageAcceptable(names []string, stability string) bool {
 	return version.IsPackageAcceptable(s.acceptableStabilities, s.stabilityFlags, names, stability)
+}
+
+// IsUnversionedBranch ports RepositorySet::isUnversionedBranch: dev-*
+// branches and the default branch alias have no version ordering, so
+// advisory ranges cannot meaningfully match them, unlike numeric branches
+// such as 3.3.x-dev.
+func IsUnversionedBranch(p pkg.PackageInterface) bool {
+	return strings.HasPrefix(p.Version(), "dev-") || p.Version() == pkg.DefaultBranchAlias
 }
 
 // RootAliasesFromArray converts the aliases RootPackage::getAliases (or the

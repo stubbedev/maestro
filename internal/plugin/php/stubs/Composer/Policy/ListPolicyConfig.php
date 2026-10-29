@@ -12,6 +12,7 @@ abstract class ListPolicyConfig
     public const AUDIT_FAIL = 'fail';
     public const AUDIT_IGNORE = 'ignore';
     public const AUDIT_REPORT = 'report';
+    public const AVAILABLE_BLOCK_SCOPES = ['update', 'install', 'all'];
     public const BLOCK_SCOPE_ALL = 'all';
     public const BLOCK_SCOPE_INSTALL = 'install';
     public const BLOCK_SCOPE_UPDATE = 'update';

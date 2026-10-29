@@ -11,14 +11,15 @@ In Factory.php line 317:
 Exception trace:
   at @COMPOSER@/src/Composer/Factory.php:317
  Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Command/BaseCommand.php:315
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Command/BaseCommand.php:317
  Composer\Command\BaseCommand->createComposerInstance() at @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
  Composer\Command\ValidateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 validate [--no-check-all] [--check-lock] [--no-check-lock] [--no-check-publish] [--no-check-version] [-A|--with-dependencies] [--strict] [--] [<file>]

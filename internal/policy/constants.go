@@ -20,6 +20,10 @@ const (
 	BlockScopeAll     = "all"
 )
 
+// AvailableBlockScopes is ListPolicyConfig::AVAILABLE_BLOCK_SCOPES. Treat it
+// as read-only.
+var AvailableBlockScopes = [...]string{BlockScopeUpdate, BlockScopeInstall, BlockScopeAll}
+
 // NonListKeys is PolicyConfig::NON_LIST_KEYS: keys at the top level of the
 // policy config that are not list names. Treat it as read-only.
 var NonListKeys = [...]string{"ignore-unreachable"}

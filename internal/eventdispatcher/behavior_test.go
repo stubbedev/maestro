@@ -344,8 +344,8 @@ func TestDispatch_ScriptReferenceArguments(t *testing.T) {
 	if !slices.Equal(got[0].Arguments(), []string{"a", "b", "u1", "u2"}) || got[0].OriginatingEvent() != Event(origin) {
 		t.Errorf("plain: args %q, origin %v", got[0].Arguments(), got[0].OriginatingEvent())
 	}
-	// Composer assigns array_splice()'s (empty) return value to $args
-	if len(got[1].Arguments()) != 0 || !got[1].IsDevMode() {
+	// @additional_args is replaced by the event's arguments
+	if !slices.Equal(got[1].Arguments(), []string{"a", "u1", "b"}) || !got[1].IsDevMode() {
 		t.Errorf("spot: args %q, dev %v", got[1].Arguments(), got[1].IsDevMode())
 	}
 	if !slices.Equal(got[2].Arguments(), []string{"a"}) {

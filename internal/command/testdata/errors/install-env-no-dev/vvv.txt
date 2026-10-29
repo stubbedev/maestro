@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -18,7 +18,7 @@ COMPOSER_IGNORE_PLATFORM_REQS is set. You may experience unexpected errors.
 Installing dependencies from lock file
 Verifying lock file contents can be installed on current platform.
 Reading ./composer.lock (@DIR@/p/composer.lock)
-Built pool.
+Built pool in 0.00046801567077637s
 Running filter list pool filter.
 Generating rules
 Resolving dependencies through SAT

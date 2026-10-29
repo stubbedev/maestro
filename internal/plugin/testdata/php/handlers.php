@@ -389,6 +389,7 @@ Server::register('test.plugins', function ($a) {
 Server::register('test.capability', function ($a) {
     require_once __DIR__.'/../Plugin/Mock/Capability.php';
     require_once __DIR__.'/../Plugin/Mock/CapablePluginInterface.php';
+    require_once __DIR__.'/../Plugin/Mock/WrongCapability.php';
     $pm = $a['pm'];
 
     if (!empty($a['commands'])) {

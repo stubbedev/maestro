@@ -70,6 +70,7 @@ type hooks interface {
 	install(c call, p pkg.PackageInterface, path string) (*Promise, error)
 	remove(c call, p pkg.PackageInterface, path string) (*Promise, error)
 	installOperationAppendix(p pkg.PackageInterface, path string) (string, error)
+	validateDownloadedFile(p pkg.PackageInterface, fileName string) error
 }
 
 // call carries what PHP passes implicitly: the IO ($this->io, which
@@ -368,7 +369,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 		}
 
 		result = then(transfer, func(r *http.Response) (*Promise, string, error) {
-			return nil, d.accept(st, r), nil
+			return d.accept(st, r)
 		}, func(e error) (*Promise, string, error) {
 			promise, err := d.reject(st, e)
 
@@ -512,9 +513,10 @@ func postFileDownloadEvent(st *dlState, url dlURL, checksum pkg.NullString) *eve
 }
 
 // accept is download()'s $accept closure.
-func (d *FileDownloader) accept(st *dlState, r *http.Response) string {
+func (d *FileDownloader) accept(st *dlState, r *http.Response) (*Promise, string, error) {
 	p := st.p
-	key := st.urls[0].cacheKey
+	url := st.urls[0]
+	key := url.cacheKey
 
 	if d.metadata != nil {
 		var fileSize any
@@ -530,6 +532,21 @@ func (d *FileDownloader) accept(st *dlState, r *http.Response) string {
 		d.metadata.set(p.Name(), fileSize)
 	}
 
+	if err := d.self.validateDownloadedFile(p, st.fileName); err != nil {
+		// a broken file from a local source will not get better by
+		// downloading it again
+		if !matchURL(url.processed) {
+			st.retries = 0
+		} else if st.retries > 0 {
+			st.c.io.WriteError("    <warning>"+err.Error()+", retrying</warning>", true, mio.Normal)
+		}
+
+		r.Collect()
+		promise, rerr := d.reject(st, err)
+
+		return promise, "", rerr
+	}
+
 	if d.cache != nil && !d.cache.IsReadOnly() {
 		d.mu.Lock()
 		d.lastCacheWrites[p.Name()] = key
@@ -540,7 +557,24 @@ func (d *FileDownloader) accept(st *dlState, r *http.Response) string {
 
 	r.Collect()
 
-	return st.fileName
+	return nil, st.fileName, nil
+}
+
+// validateDownloadedFile is validateDownloadedFile(): it checks that a
+// downloaded file is usable, e.g. not truncated, before it is written to
+// the cache. Returning a TransportError makes the file get downloaded
+// again.
+func (d *FileDownloader) validateDownloadedFile(pkg.PackageInterface, string) error { return nil }
+
+// reHTTPURL is Preg::isMatch('{^https?://}i', $url).
+var reHTTPURL = php.MustCompile(`{^https?://}i`)
+
+// matchURL is Preg::isMatch('{^https?://}i', $url), true where the pattern
+// fails to run.
+func matchURL(url string) bool {
+	ok, err := reHTTPURL.IsMatch(url)
+
+	return err != nil || ok
 }
 
 // reject is download()'s $reject closure.

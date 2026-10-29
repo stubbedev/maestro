@@ -3,7 +3,7 @@ Cache directory does not exist (cache-vcs-dir):
 Cache directory does not exist (cache-repo-dir): 
 Garbage-collecting cache (cache-files-dir): @DIR@/p/cache-files
 
-In Config.php line 434:
+In Config.php line 436:
                                                             
   Could not parse the value of 'cache-files-maxsize': lots  
                                                             

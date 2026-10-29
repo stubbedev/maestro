@@ -21,3 +21,9 @@ var AddVendorIgnore = addVendorIgnore
 
 // HasVendorIgnore exposes hasVendorIgnore.
 var HasVendorIgnore = hasVendorIgnore
+
+// AddExportIgnoreForLockfile exposes addExportIgnoreForLockfile.
+var AddExportIgnoreForLockfile = addExportIgnoreForLockfile
+
+// HasExportIgnoreForLockfile exposes hasExportIgnoreForLockfile.
+var HasExportIgnoreForLockfile = hasExportIgnoreForLockfile

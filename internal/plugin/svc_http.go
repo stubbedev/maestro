@@ -14,6 +14,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/downloader"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
@@ -275,9 +276,27 @@ func (r *Runtime) registerHTTP() {
 	})
 	// wait($promises): PHP checks its promises itself (React's all()), as
 	// Composer's Loop does; maestro runs its loop until no job is left,
-	// settling the promises of its work, PHP's included.
-	loopMethod("wait", func(l *http.Loop, _ args) (any, error) {
-		return nil, l.Wait(nil, nil)
+	// settling the promises of its work, PHP's included. With a callable
+	// and the bar's max steps, wait($promises, $progress, $onProgress)
+	// reports the progress percentage to it, as Composer does with its bar.
+	loopMethod("wait", func(l *http.Loop, a args) (any, error) {
+		callable := a.at(1)
+		if callable == nil {
+			return nil, l.Wait(nil, nil)
+		}
+		bar := console.NewProgressBar(console.NewNullOutput(), a.integer(2), console.DefaultMinSecondsBetweenRedraws)
+		var callbackErr error
+		err := l.WaitProgress(nil, bar, func(percent int) {
+			if callbackErr != nil {
+				return
+			}
+			_, callbackErr = r.Call("callable.invoke", php.ArrayOf("callable", callable, "args", php.ListOf(int64(percent))))
+		})
+		if callbackErr != nil {
+			return nil, callbackErr
+		}
+
+		return nil, err
 	})
 	loopMethod("abortJobs", func(l *http.Loop, _ args) (any, error) {
 		l.AbortJobs()
@@ -373,11 +392,6 @@ func (r *Runtime) registerDownloadManager() {
 		_, err := dm.SetPreferences(a.arrayOrEmpty(1))
 
 		return nil, err
-	})
-	dmMethod("setSourceFallback", func(dm *downloader.DownloadManager, a args) (any, error) {
-		dm.SetSourceFallback(a.boolean(1))
-
-		return nil, nil
 	})
 	dmMethod("setDownloader", func(dm *downloader.DownloadManager, a args) (any, error) {
 		var d downloader.Downloader

@@ -162,6 +162,14 @@ func TestConfig_MergeGithubOauth(t *testing.T) {
 	assertSame(t, arr(t, `{"foo": "bar", "bar": "baz"}`), mustGet(t, config, "github-oauth", 0))
 }
 
+func TestConfig_MergeCustomHeaders(t *testing.T) {
+	config := New(false, "")
+	merge(t, config, cfg(t, `{"custom-headers": {"foo.example.org": ["API-TOKEN: foo"]}}`), SourceUnknown)
+	merge(t, config, cfg(t, `{"custom-headers": {"bar.example.org": ["API-TOKEN: bar"]}}`), SourceUnknown)
+
+	assertSame(t, arr(t, `{"foo.example.org": ["API-TOKEN: foo"], "bar.example.org": ["API-TOKEN: bar"]}`), mustGet(t, config, "custom-headers", 0))
+}
+
 func userHome() string {
 	home := os.Getenv("HOME")
 	if home == "" {
@@ -236,6 +244,8 @@ func TestConfig_AllowedUrlsPass(t *testing.T) {
 		"file://example.org/mygit.git",
 		"git:Department/Repo.git",
 		"ssh://[user@]host.xz[:port]/path/to/repo.git/",
+		"http::https://example.org/repo.git",
+		"https://example.org/re po.git",
 	} {
 		if err := New(false, "").ProhibitURLByConfig(url, nil, nil); err != nil {
 			t.Errorf("%s: %v", url, err)
@@ -254,6 +264,14 @@ func TestConfig_ProhibitedUrlsThrowException(t *testing.T) {
 		"svn://192.168.0.1/trunk",
 		"svn://1.2.3.4/trunk",
 		"git://5.6.7.8/git.git",
+		"HTTP://example.org/foo.git",
+		"git://example.org/re po.git",
+		"git://example.org/répo.git",
+		"git://exämple.org/repo.git",
+		"http::http://example.org/repo.git",
+		"https::http://example.org/repo.git",
+		"git::git://example.org/repo.git",
+		"http::http::http://example.org/repo.git",
 	} {
 		err := New(false, "").ProhibitURLByConfig(url, nil, nil)
 		var te *util.TransportError
@@ -553,21 +571,21 @@ func TestConfig_AllowsAllPluginsFromLocalBoolean(t *testing.T) {
 	assertSame(t, true, mustGet(t, config, "allow-plugins", 0))
 }
 
-func TestConfig_SourceFallbackDefaultsToFalse(t *testing.T) {
-	assertSame(t, false, mustGet(t, New(false, ""), "source-fallback", 0))
+func TestConfig_StrictPsrAutoloaderDefaultsToFalse(t *testing.T) {
+	assertSame(t, false, mustGet(t, New(false, ""), "strict-psr-autoloader", 0))
 }
 
-func TestConfig_SourceFallbackCanBeDisabled(t *testing.T) {
+func TestConfig_StrictPsrAutoloaderCanBeDisabled(t *testing.T) {
 	config := New(false, "")
-	merge(t, config, cfg(t, `{"source-fallback": false}`), SourceUnknown)
-	assertSame(t, false, mustGet(t, config, "source-fallback", 0))
+	merge(t, config, cfg(t, `{"strict-psr-autoloader": false}`), SourceUnknown)
+	assertSame(t, false, mustGet(t, config, "strict-psr-autoloader", 0))
 }
 
-func TestConfig_SourceFallbackCanBeSetFromString(t *testing.T) {
+func TestConfig_StrictPsrAutoloaderCanBeSetFromString(t *testing.T) {
 	config := New(false, "")
-	merge(t, config, cfg(t, `{"source-fallback": "false"}`), SourceUnknown)
-	assertSame(t, false, mustGet(t, config, "source-fallback", 0))
+	merge(t, config, cfg(t, `{"strict-psr-autoloader": "false"}`), SourceUnknown)
+	assertSame(t, false, mustGet(t, config, "strict-psr-autoloader", 0))
 
-	merge(t, config, cfg(t, `{"source-fallback": "true"}`), SourceUnknown)
-	assertSame(t, true, mustGet(t, config, "source-fallback", 0))
+	merge(t, config, cfg(t, `{"strict-psr-autoloader": "true"}`), SourceUnknown)
+	assertSame(t, true, mustGet(t, config, "strict-psr-autoloader", 0))
 }

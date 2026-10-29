@@ -173,8 +173,10 @@ type AdvisoryProvider interface {
 	HasSecurityAdvisories() (bool, error)
 	// SecurityAdvisories ports getSecurityAdvisories: packageConstraintMap
 	// maps package names to the constraint advisories must affect
-	// (MatchAllConstraint for all of them). Without allowPartial every
-	// advisory is a *SecurityAdvisory.
+	// (MatchAllConstraint for all of them). With allowPartial, loading full
+	// advisories is skipped when partial ones are available; without it,
+	// full advisories are loaded where the repository can provide them, but
+	// partial ones may still be returned.
 	SecurityAdvisories(packageConstraintMap *ConstraintMap, allowPartial bool) (AdvisoryResult, error)
 }
 

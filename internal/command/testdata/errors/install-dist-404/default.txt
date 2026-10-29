@@ -4,8 +4,9 @@ Verifying lock file contents can be installed on current platform.
 Package operations: 1 install, 0 updates, 0 removals
   - Downloading x/y (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
+    Failed to download x/y from dist: The "http://@SERVER@/status/404/x.zip" file could not be downloaded (HTTP/1.1 404 Not Found)
 
-In CurlDownloader.php line 686:
+In CurlDownloader.php line 966:
                                                                                
   The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
   (HTTP/1.1 404 Not Found)                                                     

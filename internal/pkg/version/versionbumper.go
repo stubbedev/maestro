@@ -80,7 +80,7 @@ func (VersionBumper) BumpRequirement(constraint semver.ConstraintInterface, p pk
                 \^v?` + major + `(?:\.\d+)* # e.g. ^2.anything
                 | ~v?` + major + `(?:\.\d+){1,3} # e.g. ~2.2 or ~2.2.2 or ~2.2.2.2
                 | v?` + major + `(?:\.[*x])+ # e.g. 2.* or 2.*.* or 2.x.x.x etc
-                | >=v?\d(?:\.\d+)* # e.g. >=2 or >=1.2 etc
+                | >=v?\d+(?:\.\d+)* # e.g. >=2 or >=1.2 etc
                 | \* # full wildcard
             )
             (?=,|$|\ |\||@) # trailing separator
@@ -104,6 +104,30 @@ func (VersionBumper) BumpRequirement(constraint semver.ConstraintInterface, p pk
 
 	for _, m := range slices.Backward(matches) {
 		match, offset := m.Get(1), m.Offset(1)
+
+		// only bump a lower bound whose own AND part contains the
+		// installed version, as other ranges of the constraint would be
+		// corrupted
+		if strings.HasPrefix(match, ">=") {
+			partStart := strings.LastIndex(prettyConstraint[:offset], "|") + 1
+			partEnd := strings.Index(prettyConstraint[offset:], "|")
+			if partEnd < 0 {
+				partEnd = len(prettyConstraint)
+			} else {
+				partEnd += offset
+			}
+
+			part, err := parser.ParseConstraints(strings.TrimSpace(prettyConstraint[partStart:partEnd]))
+			if err != nil {
+				return "", err
+			}
+
+			installed := semver.NewConstraintOp(semver.OpEQ, version)
+			if !part.Matches(installed) {
+				continue
+			}
+		}
+
 		dots := strings.Count(match, ".")
 
 		suffix := ""

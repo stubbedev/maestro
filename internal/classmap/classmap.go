@@ -6,6 +6,8 @@ import (
 	"iter"
 	"slices"
 	"strings"
+
+	"github.com/stubbedev/maestro/internal/php"
 )
 
 // ClassMap is the result of a scan: class names mapped to the file they
@@ -123,6 +125,161 @@ func (m *ClassMap) AmbiguousClasses(duplicatesFilter Matcher) ([]AmbiguousClass,
 	}
 
 	return result, nil
+}
+
+// AmbiguousFolders returns the sets of paths which are identical except
+// for their casing (getAmbiguousFolders()). Case-insensitive filesystems
+// fold each such set into a single file or directory, so a project which
+// autoloads correctly on a case-sensitive filesystem can behave
+// differently there.
+//
+// Every folder or file whose own name differs in casing is reported, while
+// differences a path only inherits from a parent folder are reported once
+// at that parent's level. A nil filter returns everything (PHP's false);
+// DefaultDuplicatesFilter ignores the paths of tests, fixtures, examples and
+// stubs, as those are typically dummy classes, but only leaves a set out
+// when every path below it is ignored.
+func (m *ClassMap) AmbiguousFolders(duplicatesFilter Matcher) ([][]string, error) {
+	paths := make([]string, 0, len(m.classes)+len(m.ambiguous))
+	for _, path := range m.paths {
+		paths = append(paths, strings.ReplaceAll(path, `\`, "/"))
+	}
+	// a class found in several files only has one of them in the map, but the
+	// others are just as relevant here, and typically are the renamed
+	// folder's stale copies
+	for _, a := range m.ambiguous {
+		for _, path := range a.Paths {
+			paths = append(paths, strings.ReplaceAll(path, `\`, "/"))
+		}
+	}
+	// sorted so the result does not depend on scan order, and so that each
+	// path can skip the folders it shares with the previous one as those
+	// were already registered
+	slices.Sort(paths)
+
+	// first maps a folded prefix to the first path seen for it, which has the
+	// lowest casing as paths are sorted
+	first := make(map[string]string, len(paths))
+	// variants maps a folded prefix to the name of its last segment as
+	// written, to the first path seen with that name
+	variants := make(map[string][]string)
+	variantNames := make(map[string]map[string]bool)
+	previous := ""
+	for _, path := range paths {
+		// the common prefix with the previous path: only whole folders were
+		// registered already, so a path can skip those it shares with it
+		common := commonPrefix(path, previous)
+		skipUntil := 0
+		if common > 0 {
+			if i := strings.LastIndexByte(path[:common], '/'); i >= 0 {
+				skipUntil = i
+			}
+		}
+		previous = path
+
+		// walk every prefix of the path, the full path included so that
+		// files which only differ in casing are caught as well as the
+		// folders above them
+		foldedPath := foldCase(path)
+		// drive letters and stream wrapper schemes are never case sensitive
+		// so they are skipped, as ClassMapGenerator::normalizePath does
+		rootLength := pathRootLength(path)
+		offset := 0
+		for name := range strings.SplitSeq(path, "/") {
+			end := offset + len(name)
+			if name != "" && end > rootLength && end > skipUntil {
+				foldedPrefix := foldedPath[:end]
+				if f, ok := first[foldedPrefix]; !ok {
+					first[foldedPrefix] = path[:offset] + name
+				} else if f[offset:] != name && !variantNames[foldedPrefix][name] {
+					// a name written the same way as the first one only differs
+					// by its parents, which get reported at their own level
+					if variantNames[foldedPrefix] == nil {
+						variantNames[foldedPrefix] = make(map[string]bool)
+					}
+					variantNames[foldedPrefix][name] = true
+					variants[foldedPrefix] = append(variants[foldedPrefix], path[:offset]+name)
+				}
+			}
+			offset = end + 1
+		}
+	}
+
+	if len(variants) == 0 {
+		return nil, nil
+	}
+
+	// only look for paths which are not filtered out once something was found
+	var relevant map[string]bool
+	if duplicatesFilter != nil {
+		relevant = make(map[string]bool, len(paths))
+		for _, path := range paths {
+			matched, err := duplicatesFilter.IsMatch(path)
+			if err != nil {
+				return nil, err
+			}
+			if matched {
+				continue
+			}
+			foldedPath := foldCase(path)
+			offset := 0
+			for {
+				i := strings.IndexByte(foldedPath[offset:], '/')
+				if i < 0 {
+					break
+				}
+				relevant[foldedPath[:offset+i]] = true
+				offset += i + 1
+			}
+			relevant[foldedPath] = true
+		}
+	}
+
+	foldedPrefixes := make([]string, 0, len(variants))
+	for foldedPrefix := range variants {
+		foldedPrefixes = append(foldedPrefixes, foldedPrefix)
+	}
+	slices.Sort(foldedPrefixes)
+
+	var ambiguous [][]string
+	for _, foldedPrefix := range foldedPrefixes {
+		if relevant != nil && !relevant[foldedPrefix] {
+			continue
+		}
+		// already sorted as the paths were walked in order
+		ambiguous = append(ambiguous, append([]string{first[foldedPrefix]}, variants[foldedPrefix]...))
+	}
+
+	return ambiguous, nil
+}
+
+// rootPrefix is the drive letter or stream wrapper scheme at the start of a
+// path, which is case insensitive, in findAmbiguousFolders()' pattern
+// '{^(?:[0-9a-z]{2,}+:(?://(?:[a-z]:)?)?|[a-z]:)}i'.
+var rootPrefix = php.MustCompile(`{^(?:[0-9a-z]{2,}+:(?://(?:[a-z]:)?)?|[a-z]:)}i`)
+
+// pathRootLength is the length of the drive letter or stream wrapper scheme
+// at the start of path, 0 for none.
+func pathRootLength(path string) int {
+	m, err := rootPrefix.Match(path)
+	if err != nil || m == nil {
+		return 0
+	}
+
+	return len(m.Get(0))
+}
+
+// foldCase is foldCase(): it lowercases ASCII characters only, as strtolower
+// is locale dependent before PHP 8.2.
+func foldCase(s string) string {
+	b := []byte(s)
+	for i := range b {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			b[i] += 'a' - 'A'
+		}
+	}
+
+	return string(b)
 }
 
 // Sort sorts the class map alphabetically by class names (ksort()). Class
@@ -246,8 +403,9 @@ type Matcher interface {
 }
 
 // DefaultDuplicatesFilter is getAmbiguousClasses()' default filter,
-// '{/(test|fixture|example|stub)s?/}i': a path segment that is test,
-// fixture, example or stub, optionally plural, in any ASCII case.
+// '{(?:^|/)(test|fixture|example|stub)s?/}i': a path segment that is test,
+// fixture, example or stub, optionally plural, in any ASCII case, at the
+// start of the path or after a slash.
 var DefaultDuplicatesFilter Matcher = duplicatesFilter{}
 
 type duplicatesFilter struct{}
@@ -255,8 +413,8 @@ type duplicatesFilter struct{}
 func (duplicatesFilter) IsMatch(s string) (bool, error) { return matchesDuplicates(s), nil }
 
 func matchesDuplicates(s string) bool {
-	for i := range len(s) {
-		if s[i] != '/' {
+	for i := -1; i < len(s); i++ {
+		if i >= 0 && s[i] != '/' {
 			continue
 		}
 		rest := s[i+1:]

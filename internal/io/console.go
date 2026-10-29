@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime/metrics"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/console"
@@ -17,6 +18,13 @@ import (
 // implements it.
 type HelperGetter interface {
 	Get(name string) (console.Helper, error)
+}
+
+// HelperRegistrar is the part of a HelperSet ConsoleIO registers a missing
+// helper in; *console.HelperSet implements it.
+type HelperRegistrar interface {
+	Has(name string) bool
+	Set(helper console.Helper, alias string)
 }
 
 // QuestionAsker is the part of QuestionHelper ConsoleIO uses;
@@ -39,6 +47,11 @@ type ConsoleIO struct {
 	debugging bool
 	startTime time.Time
 
+	osc                   *console.OscHelper
+	programStatus         *console.ProgramStatus
+	programStatusMu       sync.Mutex
+	programStatusEncoders []console.ProgramStatusEncoder
+
 	// recorder records what is written (Record), nil when nothing does
 	recorder *Recorder
 }
@@ -49,9 +62,29 @@ func (*ConsoleIO) PHPClass() string { return `Composer\IO\ConsoleIO` }
 // NewConsoleIO mirrors new ConsoleIO($input, $output, $helperSet).
 func NewConsoleIO(input console.Input, output console.Output, helperSet HelperGetter) *ConsoleIO {
 	c := &ConsoleIO{input: input, output: output, helperSet: helperSet}
+	c.osc = oscHelperOf(helperSet)
+	c.programStatusEncoders = console.TerminalStatusPolicyFromEnvironment().Encoders()
 	c.init(c)
 
 	return c
+}
+
+// oscHelperOf is the "osc" helper ConsoleIO needs, registered in the set
+// when it has none (the console of the ConsoleIO constructor).
+func oscHelperOf(helperSet HelperGetter) *console.OscHelper {
+	if helperSet != nil {
+		if h, err := helperSet.Get("osc"); err == nil {
+			if osc, ok := h.(*console.OscHelper); ok {
+				return osc
+			}
+		}
+	}
+	osc := console.NewOscHelper()
+	if registrar, ok := helperSet.(HelperRegistrar); ok {
+		registrar.Set(osc, "")
+	}
+
+	return osc
 }
 
 // EnableDebugging prefixes every message with the memory usage and the time
@@ -99,6 +132,55 @@ func (c *ConsoleIO) IsVeryVerbose() bool { return c.output.IsVeryVerbose() }
 
 // IsDebug implements IO.
 func (c *ConsoleIO) IsDebug() bool { return c.output.IsDebug() }
+
+// WriteOsc sends a terminal command to stderr without changing normal
+// message output (writeOsc()).
+func (c *ConsoleIO) WriteOsc(command, payload string) error {
+	return c.osc.Write(c.errorOutput(), command, payload)
+}
+
+// IsProgramStatusEnabled is isProgramStatusEnabled().
+func (c *ConsoleIO) IsProgramStatusEnabled() bool {
+	return len(c.programStatusEncoders) != 0 && c.osc.SupportsOutput(c.errorOutput())
+}
+
+// StartProgramStatus is startProgramStatus().
+func (c *ConsoleIO) StartProgramStatus() {
+	c.programStatusMu.Lock()
+	c.programStatus = console.ProgramStatusWorking(nil)
+	c.programStatusMu.Unlock()
+	for _, encoder := range c.programStatusEncoders {
+		if payload := encoder.EncodeStart(); payload != nil {
+			_ = c.WriteOsc(encoder.Command(), *payload)
+		}
+	}
+}
+
+// WriteProgramStatus is writeProgramStatus().
+func (c *ConsoleIO) WriteProgramStatus(status *console.ProgramStatus) {
+	c.programStatusMu.Lock()
+	c.programStatus = status
+	c.programStatusMu.Unlock()
+	for _, encoder := range c.programStatusEncoders {
+		_ = c.WriteOsc(encoder.Command(), encoder.Encode(status))
+	}
+}
+
+// WriteProgress is writeProgress(): the current status, working when there
+// is none, with progress (-1 meaning PHP's null).
+func (c *ConsoleIO) WriteProgress(progress int) {
+	var value *int
+	if progress != -1 {
+		value = &progress
+	}
+	c.programStatusMu.Lock()
+	status := c.programStatus
+	c.programStatusMu.Unlock()
+	if status == nil {
+		status = console.ProgramStatusWorking(nil)
+	}
+	c.WriteProgramStatus(status.WithProgress(value))
+}
 
 // Write implements IO.
 func (c *ConsoleIO) Write(message string, newline bool, verbosity Verbosity) {
@@ -298,24 +380,54 @@ func sanitizeDefault(def any) any {
 	return def
 }
 
-func (c *ConsoleIO) ask(q console.Questioner) (any, error) {
+func (c *ConsoleIO) ask(q console.Questioner, protocolOptions map[string]map[string]any) (any, error) {
 	c.spoil()
 	helper, err := c.questionHelper()
 	if err != nil {
 		return nil, err
 	}
+	if !c.IsInteractive() {
+		return helper.Ask(c.input, c.errorOutput(), q)
+	}
+
+	previous := c.currentProgramStatus()
+	if previous == nil {
+		previous = console.ProgramStatusWorking(nil)
+	}
+	question := q.Q().Question()
+	status := console.ProgramStatusBlocked(&question)
+	for protocol, options := range protocolOptions {
+		for name, value := range options {
+			status = status.WithProtocolOption(protocol, name, value)
+		}
+	}
+	c.WriteProgramStatus(status)
+	defer c.WriteProgramStatus(previous)
 
 	return helper.Ask(c.input, c.errorOutput(), q)
 }
 
+// askKind is the protocol options of an interactive question of kind (the
+// OSC 7501 protocol's kind).
+func askKind(kind string) map[string]map[string]any {
+	return map[string]map[string]any{console.Osc7501Protocol: {"kind": kind}}
+}
+
+func (c *ConsoleIO) currentProgramStatus() *console.ProgramStatus {
+	c.programStatusMu.Lock()
+	defer c.programStatusMu.Unlock()
+
+	return c.programStatus
+}
+
 // Ask implements IO.
 func (c *ConsoleIO) Ask(question string, def any) (any, error) {
-	return c.ask(console.NewQuestion(Sanitize(question, true), sanitizeDefault(def)))
+	return c.ask(console.NewQuestion(Sanitize(question, true), sanitizeDefault(def)), askKind(console.Osc7501KindQuestion))
 }
 
 // AskConfirmation implements IO.
 func (c *ConsoleIO) AskConfirmation(question string, def bool) (bool, error) {
-	answer, err := c.ask(console.NewStrictConfirmationQuestion(Sanitize(question, true), def, nil, nil))
+	answer, err := c.ask(console.NewStrictConfirmationQuestion(Sanitize(question, true), def, nil, nil), askKind(console.Osc7501KindPermission))
 	if err != nil {
 		return false, err
 	}
@@ -331,7 +443,7 @@ func (c *ConsoleIO) AskAndValidate(question string, validator console.Validator,
 		return nil, err
 	}
 
-	return c.ask(q)
+	return c.ask(q, askKind(console.Osc7501KindQuestion))
 }
 
 // AskAndHideAnswer implements IO.
@@ -341,7 +453,7 @@ func (c *ConsoleIO) AskAndHideAnswer(question string) (any, error) {
 		return nil, err
 	}
 
-	return c.ask(q)
+	return c.ask(q, askKind(console.Osc7501KindAuth))
 }
 
 // Select implements IO. For a list of choices the answer is the index of
@@ -363,7 +475,7 @@ func (c *ConsoleIO) Select(question string, choices *php.Array, def any, attempt
 	q.SetErrorMessage(errorMessage)
 	q.SetMultiselect(multiselect)
 
-	result, err := c.ask(q)
+	result, err := c.ask(q, askKind(console.Osc7501KindQuestion))
 	if err != nil {
 		return nil, err
 	}

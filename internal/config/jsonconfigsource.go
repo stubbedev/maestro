@@ -190,6 +190,13 @@ func (s *JSONConfigSource) RemoveRepository(name string) error {
 
 var authSettingPattern = php.MustCompile(`{^(bitbucket-oauth|github-oauth|gitlab-oauth|gitlab-token|bearer|http-basic|custom-headers|forgejo-token|platform)\.}`)
 
+// propertyNodePattern and propertyRemovePattern match the property keys
+// addProperty and removeProperty nest instead of setting literally.
+var (
+	propertyNodePattern   = php.MustCompile(`{^(suggest|extra|scripts)\.}`)
+	propertyRemovePattern = php.MustCompile(`{^(suggest|extra|scripts|autoload|autoload-dev)\.}`)
+)
+
 // AddConfigSetting ports JsonConfigSource::addConfigSetting.
 func (s *JSONConfigSource) AddConfigSetting(name string, value any) error {
 	authConfig := s.authConfig
@@ -305,35 +312,24 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 	return s.manipulateJSON("addProperty", func(cfg *php.Array, args []any) error {
 		key := php.ToString(arg(args, 0))
 		val := arg(args, 1)
-		if !strings.HasPrefix(key, "extra.") && !strings.HasPrefix(key, "scripts.") {
+		if m, err := propertyNodePattern.IsMatch(key); err != nil {
+			return err
+		} else if !m {
 			cfg.Set(key, val)
 
 			return nil
 		}
 
-		bits := strings.Split(key, ".")
+		bits := splitPropertyKey(key)
 		last := bits[len(bits)-1]
-		bits = bits[:len(bits)-1]
-		// $arr = &$config[reset($bits)], then every bit, the first one
-		// included, below it: the reference is holder[hkey]
-		holder, hkey := cfg, any(bits[0])
-		for _, bit := range bits {
-			v, _ := holder.Get(hkey)
-			// if (!isset($arr[$bit])) { $arr[$bit] = []; }
-			a, ok := v.(*php.Array)
-			if !ok || getIn(a, bit) == nil {
-				var err error
-				if a, err = child(holder, hkey); err != nil {
-					return err
-				}
-				a.Set(bit, php.NewArray())
+		arr := cfg
+		for _, bit := range bits[:len(bits)-1] {
+			next, ok := arr.GetArray(bit)
+			if !ok {
+				next = php.NewArray()
+				arr.Set(bit, next)
 			}
-			// $arr = &$arr[$bit]
-			holder, hkey = a, bit
-		}
-		arr, err := child(holder, hkey)
-		if err != nil {
-			return err
+			arr = next
 		}
 		arr.Set(last, val)
 
@@ -345,38 +341,37 @@ func (s *JSONConfigSource) AddProperty(name string, value any) error {
 func (s *JSONConfigSource) RemoveProperty(name string) error {
 	return s.manipulateJSON("removeProperty", func(cfg *php.Array, args []any) error {
 		key := php.ToString(arg(args, 0))
-		lower := php.Strtolower(key)
-		if !strings.HasPrefix(key, "extra.") && !strings.HasPrefix(key, "scripts.") && !strings.HasPrefix(lower, "autoload.") && !strings.HasPrefix(lower, "autoload-dev.") {
+		if m, err := propertyRemovePattern.IsMatch(key); err != nil {
+			return err
+		} else if !m {
 			cfg.Delete(key)
 
 			return nil
 		}
 
-		bits := strings.Split(key, ".")
+		bits := splitPropertyKey(key)
 		last := bits[len(bits)-1]
-		bits = bits[:len(bits)-1]
-		// $arr = &$config[reset($bits)] creates the key, as null, when it
-		// is missing
-		if !cfg.Has(bits[0]) {
-			cfg.Set(bits[0], nil)
-		}
-		var cur any
-		cur, _ = cfg.Get(bits[0])
-		for _, bit := range bits {
-			arr, ok := cur.(*php.Array)
+		arr, holder, keyOfArr := cfg, cfg, bits[0]
+		for _, bit := range bits[:len(bits)-1] {
+			next, ok := arr.GetArray(bit)
 			if !ok {
-				// isset() of a string offset or on a scalar; the bits
-				// are never numeric where it could be true
 				return nil
 			}
-			next, _ := arr.Get(bit)
-			if next == nil {
-				return nil
-			}
-			cur = next
+			holder, keyOfArr, arr = arr, bit, next
+		}
+		wasList, err := arrayIsList(arr)
+		if err != nil {
+			return err
+		}
+		arr.Delete(last)
+		// keep lists as lists and emptied objects as objects, as JsonManipulator does
+		if wasList {
+			holder.Set(keyOfArr, php.ArrayValues(arr))
+		} else if arr.Len() == 0 {
+			holder.Set(keyOfArr, php.NewObject())
 		}
 
-		return unsetIn(php.ArrayOf("v", cur), "v", last)
+		return nil
 	}, name)
 }
 
@@ -474,7 +469,7 @@ func (s *JSONConfigSource) manipulate(method string, fb fallback, args []any) er
 		return err
 	}
 	if ok {
-		if _, err := util.FilePutContentsIfModified(path, []byte(manipulator.Contents())); err != nil {
+		if _, err := util.SafeFilePutContents(path, []byte(manipulator.Contents())); err != nil {
 			return err
 		}
 	} else if err := s.rewrite(fb, args); err != nil {
@@ -487,7 +482,7 @@ func (s *JSONConfigSource) manipulate(method string, fb fallback, args []any) er
 			return err
 		}
 		// restore contents to the original state
-		_, _ = util.FilePutContentsIfModified(path, []byte(contents))
+		_, _ = util.SafeFilePutContents(path, []byte(contents))
 
 		return &util.RuntimeError{Message: "Failed to update composer.json with a valid format, reverting to the original content. Please report an issue to us with details (command you run and a copy of your composer.json). " + php.EOL + strings.Join(ve.Errors, php.EOL), Prev: ve}
 	}
@@ -585,6 +580,21 @@ func callManipulator(m *json.Manipulator, method string, args []any) (bool, erro
 	}
 
 	panic("unknown JsonManipulator method " + method)
+}
+
+// splitPropertyKey ports JsonConfigSource::splitPropertyKey: extra and
+// scripts nest at most two levels deep, the rest stays a literal dotted key.
+func splitPropertyKey(key string) []string {
+	mainNode, name, _ := strings.Cut(key, ".")
+	if mainNode != "extra" && mainNode != "scripts" {
+		return []string{mainNode, name}
+	}
+	first, rest, found := strings.Cut(name, ".")
+	if !found {
+		return []string{mainNode, first}
+	}
+
+	return []string{mainNode, first, rest}
 }
 
 // arg is $args[$i] (null when missing, as PHP passes too few arguments

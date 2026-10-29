@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -424,5 +425,141 @@ func TestEventDispatcher_WillDispatchToIsQuiet(t *testing.T) {
 
 	if len(ioi.errors) != 0 {
 		t.Errorf("output %q, want none", ioi.errors)
+	}
+}
+
+func TestEventDispatcher_DispatcherEscapesAdditionalArgsForComposerScripts(t *testing.T) {
+	process := processmock.New()
+	out := bufferIO(t, console.VerbosityVerbose)
+	d := newDispatcher(t, createComposerInstance(), out, process)
+	d.listenersFor = listenersReturning(scripts(
+		"@composer show --format=json",
+		"@composer show @additional_args --format=json",
+		"@composer show @additional_args && echo @additional_args",
+	)...)
+
+	phpCmd, err := d.getPhpExecCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("COMPOSER_BINARY", "/path/to/composer")
+	composerCmd := phpCmd + " " + util.Escape("/path/to/composer")
+
+	args := util.Escape("; echo foo") + " " + util.Escape("$(echo bar)")
+	process.Expects([]processmock.Expectation{
+		processmock.Shell(composerCmd + " show --format=json " + args),
+		processmock.Shell(composerCmd + " show " + args + " --format=json"),
+		processmock.Shell(composerCmd + " show " + args + " && echo " + args),
+	}, true, nil)
+
+	if _, err := d.DispatchScript("foo", false, []string{"; echo foo", "$(echo bar)"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := process.AssertComplete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEventDispatcher_DispatcherPassesScriptReferenceArgsToComposerScripts(t *testing.T) {
+	process := processmock.New()
+	out := bufferIO(t, console.VerbosityVerbose)
+	composer := createComposerInstance()
+	d := newDispatcher(t, composer, out, process)
+	d.listenersFor = func(ev Event) []Listener {
+		switch ev.Name() {
+		case "outer":
+			return scripts(`@inner --working-dir "my project" --opt="a b" "it's"`)
+		case "inner":
+			return scripts("@composer validate")
+		}
+
+		return nil
+	}
+
+	phpCmd, err := d.getPhpExecCommand()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("COMPOSER_BINARY", "/path/to/composer")
+	composerCmd := phpCmd + " " + util.Escape("/path/to/composer")
+
+	expected := make([]string, 0, 5)
+	for _, arg := range []string{"--working-dir", "my project", "--opt=a b", "it's", "ARG"} {
+		expected = append(expected, util.Escape(arg))
+	}
+	process.Expects([]processmock.Expectation{
+		processmock.Shell(composerCmd + " validate " + strings.Join(expected, " ")),
+	}, true, nil)
+
+	if _, err := d.Dispatch("outer", NewScriptEvent("outer", composer, out, false, []string{"ARG"}, nil)); err != nil {
+		t.Fatal(err)
+	}
+	if err := process.AssertComplete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEventDispatcher_DispatcherSupportsAdditionalArgsInScriptReferences(t *testing.T) {
+	out := bufferIO(t, console.VerbosityVerbose)
+	composer := createComposerInstance()
+	d := newDispatcher(t, composer, out, processmock.New())
+
+	var innerEvents []Event
+	d.listenersFor = func(ev Event) []Listener {
+		switch ev.Name() {
+		case "outer":
+			return scripts("@inner @additional_args --x @additional_args", "@inner --y")
+		case "inner":
+			return []Listener{GoFunc(func(ev Event) error {
+				innerEvents = append(innerEvents, ev)
+
+				return nil
+			})}
+		}
+
+		return nil
+	}
+
+	if _, err := d.Dispatch("outer", NewScriptEvent("outer", composer, out, false, []string{"ARG", "ARG 2"}, php.ArrayOf("script-alias-input", "ARG 'ARG 2'"))); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(innerEvents) != 2 {
+		t.Fatalf("got %d events", len(innerEvents))
+	}
+	if got := innerEvents[0].Arguments(); !slices.Equal(got, []string{"ARG", "ARG 2", "--x", "ARG", "ARG 2"}) {
+		t.Errorf("arguments = %q", got)
+	}
+	if v, _ := innerEvents[0].Flags().GetString("script-alias-input"); v != "ARG 'ARG 2' "+util.Escape("--x")+" ARG 'ARG 2'" {
+		t.Errorf("script-alias-input = %q", v)
+	}
+	if got := innerEvents[1].Arguments(); !slices.Equal(got, []string{"--y", "ARG", "ARG 2"}) {
+		t.Errorf("arguments = %q", got)
+	}
+	if v, _ := innerEvents[1].Flags().GetString("script-alias-input"); v != util.Escape("--y")+" ARG 'ARG 2'" {
+		t.Errorf("script-alias-input = %q", v)
+	}
+}
+
+func TestEventDispatcher_DispatcherSkipsEmptyStringScript(t *testing.T) {
+	process := processmock.New()
+	out := bufferIO(t, console.VerbosityVerbose)
+	d := newDispatcher(t, createComposerInstance(), out, process)
+	d.listenersFor = listenersReturning(scripts("echo BEFORE", "", "echo AFTER")...)
+
+	process.Expects([]processmock.Expectation{
+		processmock.Shell("echo BEFORE"),
+		processmock.Shell("echo AFTER"),
+	}, true, nil)
+
+	if _, err := d.DispatchScript(script.PostInstallCmd, false, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	expectOutput(t, out,
+		"> post-install-cmd: echo BEFORE",
+		"> post-install-cmd: echo AFTER",
+	)
+	if err := process.AssertComplete(); err != nil {
+		t.Fatal(err)
 	}
 }

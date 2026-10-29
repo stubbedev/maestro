@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -190,6 +191,31 @@ func TestClassMapGenerator_StreamWrapperSupport(t *testing.T) {
 	} {
 		if got := isStreamWrapperPath(path); got != want {
 			t.Errorf("isStreamWrapperPath(%s) = %v", path, got)
+		}
+	}
+}
+
+// TestClassMapGenerator_StreamWrapperWithAbsolutePath: a stream wrapper
+// path keeps the "//" of its absolute path instead of being collapsed.
+func TestClassMapGenerator_StreamWrapperWithAbsolutePath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Absolute paths start with a drive letter on Windows")
+	}
+
+	for _, path := range []string{
+		"phar:///tmp/class-map-generator-1a2b/src/Foo.php",
+		"file:///tmp/src//Foo.php",
+		"phar:///tmp/x.phar//src/Foo.php",
+	} {
+		want := path
+		if path == "file:///tmp/src//Foo.php" {
+			want = "file:///tmp/src/Foo.php"
+		}
+		if path == "phar:///tmp/x.phar//src/Foo.php" {
+			want = "phar:///tmp/x.phar/src/Foo.php"
+		}
+		if got := collapseSeparators(path); got != want {
+			t.Errorf("collapseSeparators(%q) = %q, want %q", path, got, want)
 		}
 	}
 }

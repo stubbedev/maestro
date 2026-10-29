@@ -6,6 +6,7 @@ package composerrepo
 
 import (
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,10 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
 )
+
+// advisoryAPIBatchSize is ADVISORY_API_BATCH_SIZE: the package names per
+// security-advisories API request.
+const advisoryAPIBatchSize = 500
 
 // HasSecurityAdvisories ports hasSecurityAdvisories.
 func (r *ComposerRepository) HasSecurityAdvisories() (bool, error) {
@@ -94,9 +99,6 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 		advisory, err := repository.CreatePartialSecurityAdvisory(name, dataArray, parser)
 		if err != nil {
 			return nil, err
-		}
-		if _, full := advisory.(*repository.SecurityAdvisory); !allowPartialAdvisories && !full {
-			return nil, &util.RuntimeError{Message: "Advisory for " + name + " could not be loaded as a full advisory from " + r.RepoName() + php.EOL + php.VarExport(dataArray)}
 		}
 		constraint, ok := packageConstraintMap.Get(name)
 		if !ok {
@@ -212,35 +214,73 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 	if apiURL != "" && packageConstraintMap.Len() > 0 {
 		parser := pkg.NewVersionParser()
-		pairs := make([]string, 0, 2*packageConstraintMap.Len())
-		for i, name := range packageConstraintMap.Keys() {
-			pairs = append(pairs, "packages["+strconv.Itoa(i)+"]", name)
-		}
-		options := filterlist.PostOptions(r.options, "Content-type: application/x-www-form-urlencoded", php.HTTPBuildQuery(pairs...))
+		requested := packageConstraintMap.Keys()
 
-		advisoryData, err := r.getJSON(apiURL, options)
-		if err != nil {
-			return repository.AdvisoryResult{}, err
-		}
-		warned := false
-		for k, raw := range asArray(advisoryData.At("advisories")).All() {
-			name := k.String()
-			if v, _ := packageConstraintMap.Get(name); v == nil {
-				if !warned {
-					r.io.WriteError("<warning>"+r.RepoName()+" returned names which were not requested in response to the security-advisories API. "+name+" was not requested but is present in the response. Requested names were: "+strings.Join(packageConstraintMap.Keys(), ", ")+"</warning>", true, io.Normal)
-					warned = true
-				}
-
-				continue
+		// each name costs one form input var, and PHP silently truncates
+		// $_POST past max_input_vars (1000 by default), which would drop
+		// advisories without any error
+		var promises []*util.Promise[*http.Response]
+		r.uncached = true
+		for batch := range slices.Chunk(requested, advisoryAPIBatchSize) {
+			pairs := make([]string, 0, 2*len(batch))
+			for j, name := range batch {
+				pairs = append(pairs, "packages["+strconv.Itoa(j)+"]", name)
 			}
-			if list := asArray(raw); list.Len() > 0 {
-				created, err := createAll(parser, list, name)
-				if err != nil {
+
+			options := filterlist.PostOptions(r.options, "Content-type: application/x-www-form-urlencoded", php.HTTPBuildQuery(pairs...))
+			promise, err := r.httpDownloader.Add(apiURL, options)
+			if err != nil {
+				return repository.AdvisoryResult{}, err
+			}
+			promises = append(promises, promise)
+		}
+
+		responses := make([]*php.Array, len(promises))
+		for i, promise := range promises {
+			response, err := promise.Wait()
+			if err != nil {
+				return repository.AdvisoryResult{}, err
+			}
+			decoded, err := response.DecodeJSONArray()
+			if err != nil {
+				return repository.AdvisoryResult{}, err
+			}
+			responses[i] = asArray(decoded)
+		}
+
+		repoWarningsShown := false
+		warnedAboutUnrequestedNames := false
+		for _, advisoryData := range responses {
+			if !repoWarningsShown {
+				if _, err := http.OutputResponseWarnings(r.io, r.url, advisoryData); err != nil {
 					return repository.AdvisoryResult{}, err
 				}
-				advisories.Set(name, created)
+				repoWarningsShown = true
 			}
-			namesFound.Set(name, struct{}{})
+
+			for k, raw := range asArray(advisoryData.At("advisories")).All() {
+				name := k.String()
+				if v, _ := packageConstraintMap.Get(name); v == nil {
+					if !warnedAboutUnrequestedNames {
+						requestedList := strings.Join(requested, ", ")
+						if len(requested) > 20 {
+							requestedList = strings.Join(requested[:20], ", ") + " and " + strconv.Itoa(len(requested)-20) + " more"
+						}
+						r.io.WriteError("<warning>"+r.RepoName()+" returned names which were not requested in response to the security-advisories API. "+name+" was not requested but is present in the response. Requested names were: "+requestedList+"</warning>", true, io.Normal)
+						warnedAboutUnrequestedNames = true
+					}
+
+					continue
+				}
+				if list := asArray(raw); list.Len() > 0 {
+					created, err := createAll(parser, list, name)
+					if err != nil {
+						return repository.AdvisoryResult{}, err
+					}
+					advisories.Set(name, created)
+				}
+				namesFound.Set(name, struct{}{})
+			}
 		}
 	}
 

@@ -130,7 +130,7 @@ What the survey shows:
 | D3 | **Synchronous, re-entrant RPC over one channel.** Exactly one side runs at any moment. Either side may call the other while handling a call, to any depth. | Mirrors Composer's single call stack, so output order and side effects stay deterministic. There are no races and no locks. |
 | D4 | **State syncs at every control transfer.** Each message carries the deltas (revision-based) of mirrored objects, env vars, cwd and Composer statics changed since the last message. | In-place mutations (`setAutoload`, `setExtra`, root `setRequires`, `putenv`, `chdir`) become visible to the other side before it runs again. That is the only moment it could observe them. |
 | D5 | **Transport: inherited pipes on fds 3 and 4** (Unix), loopback TCP with a 256-bit token (Windows). Frames are a 4-byte length plus JSON. | stdin, stdout and stderr stay the user's terminal, so plugin `echo`, `proc_open` with inherited stdio and TTY prompts behave as in Composer. JSON is native to PHP and fast enough. |
-| D6 | **Vendor the third-party libraries the 2.11.0 phar ships** (§5.1) verbatim into the shim: symfony/console 5.4.47, process, filesystem, finder, string, polyfills, composer/semver, pcre, class-map-generator, ca-bundle, metadata-minifier, spdx-licenses, xdebug-handler, react/promise, seld/jsonlint, signal-handler, phar-utils, justinrainbow/json-schema, marc-mabe/php-enum, psr/log, psr/container. | Plugins use these directly, assume Composer bundles them, and depend on their exact behaviour (Symfony Console commands, real semver constraint objects, React promises). They are MIT and not Composer's code. Loading them first in the child also reproduces the phar's class precedence. |
+| D6 | **Vendor the third-party libraries the 2.11.0 phar ships** (§5.1) verbatim into the shim: symfony/console 5.4.54, process, filesystem, finder, string, polyfills, composer/semver 3.6.0, pcre, class-map-generator 1.8.0, ca-bundle 1.6.0, metadata-minifier, spdx-licenses, xdebug-handler, react/promise, seld/jsonlint, seld/phar-utils, signal-handler, justinrainbow/json-schema 6.13.1, marc-mabe/php-enum, psr/log, psr/container. | Plugins use these directly, assume Composer bundles them, and depend on their exact behaviour (Symfony Console commands, real semver constraint objects, React promises). They are MIT and not Composer's code. Loading them first in the child also reproduces the phar's class precedence. |
 | D7 | **API presence parity.** Every class, interface, trait, public or protected method and constant in Composer 2.11.0's `src/` (minus `Compiler`, `PHPStan\*`) exists in the shim with the same signature. Unsupported members throw `Maestro\Shim\UnsupportedApiException`. No class Composer lacks is defined (no `PearInstaller`, no `Script\CommandEvent`). | Plugins feature-sniff with `class_exists`/`method_exists`/`defined` (flex checks `BaseConfigCommand`, mnsami guards `PearInstaller`, laminas ships a stub of `PrePoolCreateEvent`). The answers must be identical. |
 | D8 | **Plugin loading is split.** Go does the policy: which packages, order, `allow-plugins` with its prompt, API version, autoload map. PHP does the mechanism: ClassLoader, `files` requires, the eval-rename hack, instantiation, `activate`, `addSubscriber`. | The policy needs Go's repositories, autoload generator and config. The mechanism must happen inside PHP. |
 | D9 | **Custom installers use a virtual-dispatch table.** At `addInstaller`, the shim reports which `InstallerInterface`/`LibraryInstaller` methods the PHP class overrides. Go calls PHP only for those. Inherited behaviour runs natively in Go, and calls back into PHP for overridden hooks such as `getInstallPath`. | `composer/installers` overrides only `supports`, `getInstallPath` and `uninstall`. Downloads and extraction stay native and parallel (deviations 1 and 3). |
@@ -226,7 +226,7 @@ them, and refusing them is acceptable elsewhere.
 | `Package`, `CompletePackage`, `RootPackage` (`new`, `extends Package` by civicrm, public `$id`) | 5 | Mirror; PHP-born objects register lazily (§5.3) | 2 (read), 5 (new or extend) |
 | `BasePackage` constants (`STABILITY_*`, `$stabilities`, `SUPPORTED_LINK_TYPES`), `packageNameToRegexp`, `packageNamesToRegexp` | 3 | PHP | 2 |
 | `Link` (`getSource`, `getTarget` 3, `getConstraint` 4, `getPrettyConstraint` 4, `getDescription`, `new Link`) | 1 (+getters 7) | PHP value class (no handle) | 2 |
-| `Semver\*`: `VersionParser`, `Constraint`, `MultiConstraint` (also extended), `MatchAllConstraint`, `MatchNoneConstraint`, `Intervals`, `Comparator`, `Semver` | 4 / 4 / 2 / 1 / 0 / 3 / 1 / 1 | **Vendored** composer/semver 3.4.4. Constraints cross as structures (§6.4). | 2 |
+| `Semver\*`: `VersionParser`, `Constraint`, `MultiConstraint` (also extended), `MatchAllConstraint`, `MatchNoneConstraint`, `Intervals`, `Comparator`, `Semver` | 4 / 4 / 2 / 1 / 0 / 3 / 1 / 1 | **Vendored** composer/semver 3.6.0. Constraints cross as structures (§6.4). | 2 |
 | `Package\Version\VersionParser` (Composer's subclass: `parseNameVersionPairs`, `isUpgrade` static, `normalizeStability`, `parseStability`) | 6 | PHP subclass of vendored semver; the Composer-specific methods are RPC | 2 |
 | `Package\Version\VersionSelector` (`findBestCandidate`, `findRecommendedRequireVersion` 2) | 2 | RPC constructor plus proxy | 5 |
 | `Package\Loader\ArrayLoader::load`, `loadPackages`; `Dumper\ArrayDumper::dump` | 1 / 0 | RPC; returns new Go-owned mirrors | 5 |
@@ -299,7 +299,7 @@ them, and refusing them is acceptable elsewhere.
 | `Command\BaseCommand` (extended by 7): `getComposer`, `requireComposer` 4, `tryComposer`, `setComposer` 3, `resetComposer`, `getIO`, `setIO`, `isProxyCommand`, `getApplication` 3, `initialize`, `getPreferredInstallOptions`, `formatRequirements`, `normalizeRequirements`, `renderTable`, `getTerminalWidth`, `complete`, `createComposerInstance`, `getPlatformRequirementFilter` | 9 | PHP class extending vendored `Symfony\Component\Console\Command\Command`. Composer-object methods are RPC. | 4 |
 | `Command\GlobalCommand`, `BaseConfigCommand`, every built-in command class | 1 / 1 | PHP classes whose instances mirror Go's built-in commands (for `instanceof`, `find`, `getDefinition`); `run` from PHP is an RPC | 4 (presence), 6 (frames) |
 | `Console\Application`: `new` 3 + `run`/`doRun` (nested runs), `find`, `has`, `add`/`addCommand`, `all`, `get`, `getVersion`, `getComposer`, `resetComposer`, `getIO`, `getDefinition`, `getHelperSet`, `setAutoExit`, `setCatchExceptions` | 5 | PHP subclass of vendored Symfony Application. The running app is a mirror of Go's Application. `new Application()` creates a new Go app peer. | 4 |
-| `Symfony\Component\Console\*`: Input (ArgvInput, ArrayInput, StringInput, InputArgument, InputOption, InputInterface), Output (ConsoleOutput, StreamOutput, OutputInterface), helpers, questions, exceptions | 10 | Vendored symfony/console 5.4.47 | 4 |
+| `Symfony\Component\Console\*`: Input (ArgvInput, ArrayInput, StringInput, InputArgument, InputOption, InputInterface), Output (ConsoleOutput, StreamOutput, OutputInterface), helpers, questions, exceptions | 10 | Vendored symfony/console 5.4.54 | 4 |
 | `Symfony\Component\{Process,Filesystem,Finder}` | 4 / 2 / 1 | Vendored | 2 |
 
 ### 4.12 Nested runs and plugin management
@@ -352,14 +352,16 @@ tools/shimvendor/     copies the exact library versions from .ref/composer/vendo
 ```
 
 **Vendored set.** This is exactly the phar's runtime dependencies (from
-`.ref/composer/vendor/composer/installed.json`): composer/ca-bundle 1.5.12,
-class-map-generator 1.7.3, metadata-minifier 1.0.1, pcre 2.3.2, semver 3.4.4,
-spdx-licenses 1.6.0, xdebug-handler 3.0.5; justinrainbow/json-schema 6.10.0;
+`.ref/composer/vendor/composer/installed.json`): composer/ca-bundle 1.6.0,
+class-map-generator 1.8.0, metadata-minifier 1.0.1, pcre 2.3.2, semver 3.6.0,
+spdx-licenses 1.6.0, xdebug-handler 3.0.5; justinrainbow/json-schema 6.13.1;
 marc-mabe/php-enum 4.7.2; psr/container 1.1.1; psr/log 1.1.4; react/promise
-3.3.0; seld/jsonlint 1.12.1, phar-utils 1.2.1, signal-handler 2.0.2;
-symfony/console 5.4.47, deprecation-contracts 2.5.4, filesystem 5.4.45,
-finder 5.4.45, polyfill-ctype/-intl-grapheme/-intl-normalizer/-mbstring/-php73/-php80/-php81/-php84,
-process 5.4.51, service-contracts 2.5.4, string 5.4.47.
+3.3.0; seld/jsonlint 1.12.1, phar-utils 1.2.3, signal-handler 2.0.2;
+symfony/console 5.4.54, deprecation-contracts 2.5.4, filesystem 5.4.54,
+finder 5.4.45, polyfill-ctype 1.37.0, polyfill-intl-grapheme 1.43.0,
+polyfill-intl-normalizer 1.43.0, polyfill-mbstring 1.43.0, polyfill-php73
+1.37.0, polyfill-php80 1.43.0, polyfill-php81 1.38.1, polyfill-php84 1.43.0,
+process 5.4.54, service-contracts 2.5.4, string 5.4.47.
 `tools/shimvendor` copies them (the files `Compiler.php` puts into the phar,
 verbatim) and records their versions in `lib/composer/installed.json`. A test
 fails if they drift from `.ref/composer/composer.lock` or from the files
@@ -1426,7 +1428,7 @@ mistake, so keep it exact.
 interactive prompt, persistence through `JsonConfigSource` and `Config.Merge`,
 `Too many failed prompts, aborting.`, and the `PluginBlockedException` text.
 
-**Plugin API version.** This is Go's `PluginAPIVersion = "2.9.0"`, also
+**Plugin API version.** This is Go's `PluginAPIVersion = "2.11.0"`, also
 emitted as the `composer-plugin-api` platform package. The shim's
 `PluginInterface::PLUGIN_API_VERSION` constant must equal it. A test pins
 both.
@@ -1727,9 +1729,9 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `pkg.*` | every setter of the package classes (`setExtra`, `setAutoload`, `replaceVersion`, …), `getRepository`, `getSourceUrls`, `getDistUrls`, `urls` (ComposerMirror URLs of a PHP-born package); `load` and `register` with the lazy tiers and PHP-born packages |
 | `event.*` | `stopPropagation`, `setOriginatingEvent` |
 | `repo.*` | `packages` (handles plus snapshots), `findPackage`, `findPackages`, `search`, `loadPackages`, `getProviders`, `addPackage`, `removePackage`, `write`, `reload`, `setDevPackageNames`, `getDevPackageNames`, `getDevMode`, `isFresh`, `getRepoName`, `count`, `new` (array/installed/composite/platform/root) |
-| `rm.*` | `getLocalRepository`, `getRepositories`, `findPackage`, `findPackages`, `createRepository`, `addRepository`, `prependRepository`, `setRepositoryClass`, `setLocalRepository` |
+| `rm.*` | `getLocalRepository`, `getRepositories`, `findPackage`, `findPackages`, `createRepository`, `addRepository`, `prependRepository`, `setRepositoryClass`, `setLocalRepository`, `restoreHttpHeaders`, `removeRestorableHttpHeaders` |
 | `im.*` | `getInstallPath`, `addInstaller`, `removeInstaller`, `getInstaller`, `isPackageInstalled`, `download`, `install`, `update`, `uninstall`, `markAliasInstalled`, `markAliasUninstalled`, `execute`, `reset`, `ensureBinariesPresence`, `disablePlugins`, `setOutputProgress`, `notifyInstalls` |
-| `installer.*` | `new`, `base`, `newBinary`, `binary`, `determineBinaryCaller` (the installers, §5.6); `clone`, `run` (Composer\Installer), Installer setters |
+| `installer.*` | `new`, `base`, `newBinary`, `binary`, `determineBinaryCaller`, `isSafeBinPath` (the installers, §5.6); `clone`, `run` (Composer\Installer), Installer setters |
 | `promise.*` | `settled {id, ok}` (PHP's promise `id` settled), `rejection {id}` (throws the rejection reason of maestro's promise `id`) |
 | `dm.*`, `downloader.*` | DownloadManager and downloader methods (promises are returned as handles) |
 | `http.*` | HttpDownloader `get`, `add`, `copy`, `addCopy`, `wait`, `getOptions`, `setOptions`, `new`; RemoteFilesystem |
@@ -1748,7 +1750,7 @@ method's body is literally `return $this->__rpc(__FUNCTION__, func_get_args());`
 | `output.*` | `write` (a GoOutput's formatted message), `errorOutput` |
 | `cache.*` | `Cache` methods, `new` |
 | `builtin.*` | `initialize`, `interact`, `execute`, `run`, `isProxyCommand`, `complete`: the hooks of maestro's own commands run from PHP (§5.7) |
-| `policy.*` | `fromConfig`, `withBlockingDisabled` (BaseCommand::createPolicyConfig()) |
+| `policy.*` | `fromConfig`, `withBlockingDisabled`, `withCooldownBlockingDisabled`, `blockingCooldown` (BaseCommand::createPolicyConfig(), getBlockingCooldownPolicy()) |
 | `callable.go` | `[callable, args]`: calls the Go function a `Maestro\Shim\GoCallable` stands for |
 | `request.new`, `config.new`, `rm.new`, `im.new`, `dm.new`, `pm.new` | Composer's services constructed in PHP, adopted |
 
@@ -2072,7 +2074,7 @@ patches change), `plugin-patches2` (2.0.0: patches.lock.json,
 `patches-relock`, `patches-repatch`, `patches-doctor`, `help`),
 `plugin-laminas-dependency` (laminas-dependency-plugin 2.7.0's code from a
 path repository: its release requires composer-plugin-api <2.3.0, so
-Composer 2.10 skips it; PRE_POOL_CREATE slipstreaming, composer.json
+Composer 2.11 skips it; PRE_POOL_CREATE slipstreaming, composer.json
 rewrite, nested `update --lock`), `plugin-laminas-component`
 (laminas-component-installer 3.8.0), `plugin-civicrm`
 (civicrm/composer-downloads-plugin 4.0.0: file and archive downloads, root

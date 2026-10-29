@@ -146,8 +146,10 @@ func IsAllowedRedirect(url string) bool {
 }
 
 var (
-	accessTokenParam = php.MustCompile(`{([&?]access_token=)[^&]+}`)
-	urlCredentials   = php.MustCompile(`{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\A)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]+))?@}i`)
+	accessTokenParam     = php.MustCompile(`{([&?]access_token=)[^&]+}`)
+	urlCredentials       = php.MustCompile(`{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\A)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]*))?@}i`)
+	urlSchemeCredentials = php.MustCompile(`{(?P<prefix>[a-z0-9][a-z0-9+.-]*://)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]*))?@}i`)
+	urlHTTPPrefix        = php.MustCompile(`{^https?://$}i`)
 )
 
 // SanitizeURL ports Url::sanitize for messages: masks access tokens and the
@@ -192,14 +194,28 @@ func SanitizeURLChecked(s string) (string, error) {
 	return s, nil
 }
 
-// urlUserinfo and gitHubTokenRegex cannot exhaust PCRE's limits (checked
-// against megabyte subjects): their errors are not checked.
-var urlUserinfo = php.MustCompile(`{://[^/\s?#]+@}`)
-
-// StripCredentials ports Url::stripCredentials: removes the whole userinfo
-// from URLs that get persisted (e.g. as a git remote).
+// StripCredentials ports Url::stripCredentials: removes the credentials
+// from URLs that get persisted (e.g. as a git remote), but keeps a login
+// name that is not one (ssh's "git@") when there is no password.
+//
+// urlSchemeCredentials and gitHubTokenRegex cannot exhaust PCRE's limits
+// (checked against megabyte subjects): their errors are not checked.
 func StripCredentials(url string) string {
-	url, _, _ = urlUserinfo.Replace(url, "://", -1)
+	url, _, _ = urlSchemeCredentials.ReplaceCallback(url, func(m *php.Match) string {
+		prefix, _ := m.Named("prefix")
+		if password, _ := m.Named("password"); password != "" {
+			return prefix
+		}
+
+		// http(s) URLs have no login name, a user slot there is a token.
+		if http, _ := urlHTTPPrefix.IsMatch(prefix); http {
+			return prefix
+		}
+
+		user, _ := m.Named("user")
+
+		return prefix + user + "@"
+	}, -1)
 
 	return url
 }

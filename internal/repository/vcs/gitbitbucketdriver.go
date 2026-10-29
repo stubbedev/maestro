@@ -378,7 +378,7 @@ func (d *GitBitbucketDriver) fetchWithOAuthCredentials(url string, fetchingRepoD
 
 // generateSSHURL ports generateSshUrl.
 func (d *GitBitbucketDriver) generateSSHURL() string {
-	return "git@" + d.originURL + ":" + d.owner + "/" + d.repository + ".git"
+	return "git@ssh." + d.originURL + ":" + d.owner + "/" + d.repository + ".git"
 }
 
 // attemptCloneFallback ports attemptCloneFallback: switch to a GitDriver

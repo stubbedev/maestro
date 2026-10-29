@@ -5,6 +5,7 @@ package loader
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -133,6 +134,30 @@ func setLinks(p *pkg.Package, method string, links pkg.Links) {
 
 // empty reports empty($v).
 func empty(v any) bool { return !php.ToBool(v) }
+
+// timeString is (string) $v for a `time` or `published-time` value PHP
+// accepts (is_int($v) || is_string($v)), and whether it is one: anything
+// else is ignored, as a JSON array or float cannot be a date.
+func timeString(v any) (string, bool) {
+	switch v := v.(type) {
+	case string:
+		return v, true
+	case int64:
+		return strconv.FormatInt(v, 10), true
+	}
+
+	return "", false
+}
+
+// prepareDateString ports Package::prepareDateString: a bare timestamp is
+// read as the unix time it is.
+func prepareDateString(s string) string {
+	if mustMatch(digitsOnly, s) {
+		return "@" + s
+	}
+
+	return s
+}
 
 func isScalar(v any) bool {
 	switch v.(type) {
@@ -398,17 +423,20 @@ func configureFields(p *pkg.CompletePackage, config *php.Array) error {
 	}
 
 	if t := config.At("time"); !empty(t) {
-		s, ok := t.(string)
-		if !ok {
-			return pkg.ArgumentTypeError(`Composer\Pcre\Preg::isMatch`, 2, "subject", "string", t)
+		if s, ok := timeString(t); ok {
+			if date, err := parseDateTime(prepareDateString(s)); err == nil {
+				p.SetReleaseDate(date, true)
+			}
 		}
+	}
 
-		if mustMatch(digitsOnly, s) {
-			s = "@" + s
-		}
-
-		if date, err := parseDateTime(s); err == nil {
-			p.SetReleaseDate(date, true)
+	// repositories may send timestamps as JSON numbers, which must not
+	// crash the loader
+	if t := config.At("published-time"); t != nil {
+		if s, ok := timeString(t); ok && s != "" {
+			if date, err := parseDateTime(prepareDateString(s)); err == nil {
+				p.SetPublishedDate(date, true)
+			}
 		}
 	}
 

@@ -44,7 +44,7 @@ func UseGuessCache(dir string) {
 }
 
 // guessFormat is the version of the entries; its Header starts one.
-var guessFormat = fsstate.Format{Name: "root-version", Version: 1}
+var guessFormat = fsstate.Format{Name: "root-version", Version: 2}
 
 // guessCacheMaxEntries bounds the entries kept, one per checkout: past it,
 // the least recently written are removed.

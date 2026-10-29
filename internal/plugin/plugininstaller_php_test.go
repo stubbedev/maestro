@@ -546,6 +546,7 @@ func TestPluginInstaller_QueryingWithInvalidCapabilityClassNameThrows(t *testing
 		"empty list":                      {php.NewArray(), "UnexpectedValueException"},
 		"stdClass object":                 {php.NewObject(), "UnexpectedValueException"},
 		"stdClass":                        {`\stdClass`, "RuntimeException"},
+		"DateTime":                        {`\DateTime`, "RuntimeException"},
 		"NonExistentClassLikeMiddleClass": {"NonExistentClassLikeMiddleClass", "RuntimeException"},
 	} {
 		_, err := pt.capability(php.ArrayOf("capabilities", php.ArrayOf(api, tc.value), "api", api))
@@ -553,6 +554,24 @@ func TestPluginInstaller_QueryingWithInvalidCapabilityClassNameThrows(t *testing
 		if !ok || pe.Class != tc.expect {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+}
+
+func TestPluginInstaller_WrongCapabilityIsRejectedBeforeConstruction(t *testing.T) {
+	requirePHP(t)
+
+	pt := setUpPluginInstallerTest(t)
+	pt.composerWith()
+	api := `Composer\Plugin\Capability\CommandProvider`
+	implementation := `Composer\Test\Plugin\Mock\WrongCapability`
+
+	_, err := pt.capability(php.ArrayOf("capabilities", php.ArrayOf(api, implementation), "api", api))
+	pe, ok := errors.AsType[*PHPException](err)
+	if !ok || pe.Class != "RuntimeException" {
+		t.Fatalf("err = %v", err)
+	}
+	if want := "Class " + implementation + ` must implement both Composer\Plugin\Capability\Capability and ` + api + "."; pe.Message != want {
+		t.Errorf("message = %q, want %q", pe.Message, want)
 	}
 }
 

@@ -29,4 +29,4 @@ Help:
   
   php composer.phar depends composer/composer
   
-  Read more at https://getcomposer.org/doc/03-cli.md#depends-why
+  Read more at https://getcomposer.org/doc/03-cli.md#depends--why

@@ -1,6 +1,6 @@
 <?php
 // Shared helpers for the internal/pkg oracle generators. Every generator
-// runs the real Composer 2.10.3 from .ref/composer and writes goldens into
+// runs the real Composer 2.11.0 from .ref/composer and writes goldens into
 // the testdata/ of the Go package it covers.
 
 $root = dirname(__DIR__, 3);

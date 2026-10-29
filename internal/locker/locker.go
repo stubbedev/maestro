@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/stubbedev/maestro/internal/io"
@@ -27,6 +28,7 @@ import (
 // Locker ports Composer\Package\Locker. It is not safe for concurrent
 // use.
 type Locker struct {
+	io                  io.IO
 	lockFile            repository.JSONFile
 	installationManager repository.InstallationManager
 	hash                string
@@ -35,6 +37,9 @@ type Locker struct {
 	process             vcs.Process
 	lockDataCache       *php.Array
 	virtualFileWritten  bool
+	// repositoryManager, when set, keeps http headers out of the lock file
+	// and restores them from the repository config when loading it.
+	repositoryManager *repository.RepositoryManager
 	// lockRead is what the lock file held when LockData decoded it, with
 	// the hashes IsFresh compares; nil when the file cannot tell.
 	lockRead *lockRead
@@ -68,6 +73,7 @@ func New(out io.IO, lockFile repository.JSONFile, installationManager repository
 	}
 
 	return &Locker{
+		io:                  out,
 		lockFile:            lockFile,
 		installationManager: installationManager,
 		hash:                php.Md5(composerFileContents),
@@ -75,6 +81,13 @@ func New(out io.IO, lockFile repository.JSONFile, installationManager repository
 		loader:              loader.NewArrayLoader(nil, true),
 		process:             process,
 	}, nil
+}
+
+// SetRepositoryManager ports Locker::setRepositoryManager: enable keeping
+// http headers out of the lock file, they are restored from the repository
+// config when loading it.
+func (l *Locker) SetRepositoryManager(repositoryManager *repository.RepositoryManager) {
+	l.repositoryManager = repositoryManager
 }
 
 // JSONFile ports getJsonFile.
@@ -116,6 +129,12 @@ func GetContentHash(composerFileContents string) (string, error) {
 	if cfg, ok := content.GetArray("config"); ok {
 		if platform, _ := cfg.Get("platform"); platform != nil {
 			relevantContent.Set("config", php.ArrayOf("platform", platform))
+		}
+		// policy changes which versions an update may pick, so changing it
+		// should flag the lock as outdated
+		if policy, _ := cfg.Get("policy"); policy != nil {
+			config := relevantContent.ArrayAtOrCreate("config")
+			config.Set("policy", policy)
 		}
 	}
 
@@ -259,6 +278,9 @@ func (l *Locker) LockedRepository(withDevReqs bool) (*repository.LockArrayReposi
 		p, err := l.loader.Load(data, pkg.ClassCompletePackage)
 		if err != nil {
 			return nil, err
+		}
+		if l.repositoryManager != nil {
+			l.repositoryManager.RestoreHttpHeaders(p)
 		}
 		if err := packages.AddPackage(p); err != nil {
 			return nil, err
@@ -731,6 +753,7 @@ func fixupJSONDataType(lockData *php.Array) *php.Array {
 // packages (aliases left out), sorted by name and version.
 func (l *Locker) lockPackages(packages []pkg.PackageInterface) (*php.Array, error) {
 	var locked []*php.Array
+	var packagesWithHeaders []string
 	var arrayDumper dumper.ArrayDumper
 
 	for _, p := range packages {
@@ -748,9 +771,11 @@ func (l *Locker) lockPackages(packages []pkg.PackageInterface) (*php.Array, erro
 		}
 		spec.Delete("version_normalized")
 
-		// always move time to the end of the package definition
+		// always move time and published-time to the end of the package definition
 		t, _ := spec.Get("time")
+		publishedTime, _ := spec.Get("published-time")
 		spec.Delete("time")
+		spec.Delete("published-time")
 		if p.IsDev() && p.InstallationSource().S == pkg.FromSource {
 			// use the exact commit time of the current reference if it's a dev package
 			packageTime, err := l.packageTime(p)
@@ -764,10 +789,24 @@ func (l *Locker) lockPackages(packages []pkg.PackageInterface) (*php.Array, erro
 		if t != nil {
 			spec.Set("time", t)
 		}
+		if publishedTime != nil {
+			spec.Set("published-time", publishedTime)
+		}
 
 		spec.Delete("installation-source")
 
+		if l.repositoryManager != nil {
+			spec = l.repositoryManager.RemoveRestorableHttpHeaders(p, spec)
+		}
+		if spec.Path("transport-options", "http", "header") != nil {
+			packagesWithHeaders = append(packagesWithHeaders, p.Name())
+		}
+
 		locked = append(locked, spec)
+	}
+
+	if len(packagesWithHeaders) > 0 {
+		l.io.WriteError("<warning>The transport options of "+strings.Join(packagesWithHeaders, ", ")+" contain http headers which will be stored in composer.lock. If they contain credentials, configure them in auth.json or on a composer repository's options instead.</warning>", true, io.Normal)
 	}
 
 	php.SortSlice(locked, func(a, b *php.Array) int {
@@ -949,7 +988,7 @@ func (l *Locker) MissingRequirementInfo(root pkg.RootPackageInterface, includeDe
 		info = append(info,
 			"This usually happens when composer files are incorrectly merged or the composer.json file is manually edited.",
 			"Read more about correctly resolving merge conflicts https://getcomposer.org/doc/articles/resolving-merge-conflicts.md",
-			"and prefer using the \"require\" command over editing the composer.json file directly https://getcomposer.org/doc/03-cli.md#require-r",
+			"and prefer using the \"require\" command over editing the composer.json file directly https://getcomposer.org/doc/03-cli.md#require--r",
 		)
 	}
 

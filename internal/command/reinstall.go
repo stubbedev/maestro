@@ -41,15 +41,16 @@ func NewReinstallCommand() *ReinstallCommand {
 		console.MustOption("apcu-autoloader-prefix", "", console.OptionValueRequired, "Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader", nil),
 		console.MustOption("ignore-platform-req", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore a specific platform requirement (php & ext- packages).", nil),
 		console.MustOption("ignore-platform-reqs", "", console.OptionValueNone, "Ignore all platform requirements (php & ext- packages).", nil),
-		optionWithSuggestFunc("type", "", console.OptionValueRequired|console.OptionValueIsArray, "Filter packages to reinstall by type(s)", nil, c.SuggestInstalledPackageTypes(false)),
+		optionWithSuggestFunc("type", "", console.OptionValueRequired|console.OptionValueIsArray, "Filter packages to reinstall by exact type(s)", nil, c.SuggestInstalledPackageTypes(false)),
 		console.MustArgument("packages", console.ArgumentIsArray, "List of package names to reinstall, can include a wildcard (*) to match any substring.", nil).WithSuggestFunc(c.SuggestInstalledPackage(false, false)),
 	)
-	c.SetHelp(`The <info>reinstall</info> command looks up installed packages by name,
-uninstalls them and reinstalls them. This lets you do a clean install
+	c.SetHelp(`The <info>reinstall</info> command looks up installed packages by name
+(or by type with --type), uninstalls them and reinstalls them. This lets you do a clean install
 of a package if you messed with its files, or if you wish to change
 the installation type using --prefer-install.
 
 <info>php composer.phar reinstall acme/foo "acme/bar-*"</info>
+<info>php composer.phar reinstall --type=composer-plugin</info>
 
 Read more at https://getcomposer.org/doc/03-cli.md#reinstall`)
 
@@ -133,7 +134,10 @@ func (c *ReinstallCommand) Execute(in console.Input, out console.Output) (int, e
 			presentPackages = append(presentPackages, p)
 		}
 	}
-	transaction := resolver.NewTransaction(presentPackages, resultPackages)
+	transaction, err := resolver.NewTransaction(presentPackages, resultPackages)
+	if err != nil {
+		return 0, err
+	}
 	installOperations := transaction.Operations()
 
 	// reverse-sort the uninstalls based on the install order

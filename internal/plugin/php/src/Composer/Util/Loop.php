@@ -52,7 +52,7 @@ class Loop
         return $this->processExecutor;
     }
 
-    public function wait(array $promises, ?ProgressBar $progress = null): void
+    public function wait(array $promises, ?ProgressBar $progress = null, ?callable $onProgress = null): void
     {
         $uncaught = null;
 
@@ -71,7 +71,13 @@ class Loop
         if ($progress !== null) {
             $progress->start(Rpc::call('loop.countJobs', [$this]));
         }
-        Rpc::call('loop.wait', [$this]);
+        if ($progress !== null && $onProgress !== null) {
+            // The percentage of Composer's runJobs(), from the bar's max
+            // steps (loop.wait, docs/PLUGINS.md §4.8).
+            Rpc::call('loop.wait', [$this, $onProgress, $progress->getMaxSteps()]);
+        } else {
+            Rpc::call('loop.wait', [$this]);
+        }
         if ($progress !== null) {
             $progress->finish();
         }

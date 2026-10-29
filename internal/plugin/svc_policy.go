@@ -128,6 +128,32 @@ func (r *Runtime) registerPolicy() {
 
 		return r.serviceObject(pc.WithBlockingDisabled(), classPolicyConfig), nil
 	})
+	r.Handle("policy.withCooldownBlockingDisabled", func(v any) (any, error) {
+		a := argsOf("policy.withCooldownBlockingDisabled", v)
+		pc, err := param[*policy.PolicyConfig](a, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		return r.serviceObject(pc.WithCooldownBlockingDisabled(), classPolicyConfig), nil
+	})
+	// BaseCommand::getBlockingCooldownPolicy(): the cooldown policy that
+	// blocks during an update, or null.
+	r.Handle("policy.blockingCooldown", func(v any) (any, error) {
+		a := argsOf("policy.blockingCooldown", v)
+		pc, err := param[*policy.PolicyConfig](a, 0)
+		if err != nil {
+			return nil, err
+		}
+		if pc.Enabled && pc.Cooldown.ShouldBlock(policy.BlockScopeUpdate) {
+			return r.serviceObject(pc.Cooldown, classCooldownPolicyConfig), nil
+		}
+
+		return nil, nil
+	})
 }
 
-const classPolicyConfig = `Composer\Policy\PolicyConfig`
+const (
+	classPolicyConfig         = `Composer\Policy\PolicyConfig`
+	classCooldownPolicyConfig = `Composer\Policy\CooldownPolicyConfig`
+)

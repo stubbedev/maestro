@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/plain" project at "./out"
@@ -15,16 +15,16 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.2xJDSU-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.03jNHo-run-p-packages.json/packages.json into cache
 Installing x/plain (1.0.0)
   - Downloading x/plain (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/plain.zip
 [200] http://@SERVER@/plain.zip
-Writing @DIR@/cache/files/x/plain/366489752ac70b01dae3f7849cf6009a353cada6.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
+Writing @DIR@/cache/files/x/plain/9be661e5200e5107d88911c002fc86fd0ebec677.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
   - Installing x/plain (1.0.0): Extracting archive
-Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/73c28b04'
-Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/73c28b04'
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/7057c68a'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/7057c68a'
 Created project in @DIR@/p/out
 Reading ./composer.json (@DIR@/p/out/composer.json)
 Loading config file ./composer.json (@DIR@/p/out/composer.json)
@@ -36,7 +36,7 @@ Loading config file ./composer.json (@DIR@/p/out/composer.json)
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 
-In JsonFile.php line 116:
+In JsonFile.php line 119:
                                                                                
   [RuntimeException]                                                           
   The "packages.json" file could not be downloaded: Failed to open stream: No  
@@ -44,19 +44,20 @@ In JsonFile.php line 116:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Json/JsonFile.php:116
+  at @COMPOSER@/src/Composer/Json/JsonFile.php:119
  Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:39
- Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:211
- Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+ Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:215
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:159
  Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-In RemoteFilesystem.php line 481:
+In RemoteFilesystem.php line 505:
                                                                                
   [Composer\Downloader\TransportException]                                     
   The "packages.json" file could not be downloaded: Failed to open stream: No  
@@ -64,25 +65,26 @@ In RemoteFilesystem.php line 481:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:481
- Composer\Util\RemoteFilesystem->get() at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:122
- Composer\Util\RemoteFilesystem->getContents() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:258
- Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():243}() at @COMPOSER@/vendor/react/promise/src/Promise.php:284
+  at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:505
+ Composer\Util\RemoteFilesystem->get() at @COMPOSER@/src/Composer/Util/RemoteFilesystem.php:127
+ Composer\Util\RemoteFilesystem->getContents() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:256
+ Composer\Util\HttpDownloader::{closure:Composer\Util\HttpDownloader::addJob():241}() at @COMPOSER@/vendor/react/promise/src/Promise.php:284
  React\Promise\Promise->call() at @COMPOSER@/vendor/react/promise/src/Promise.php:41
- React\Promise\Promise->__construct() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:283
- Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:110
- Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Json/JsonFile.php:100
+ React\Promise\Promise->__construct() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:281
+ Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:108
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Json/JsonFile.php:103
  Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Repository/RepositoryFactory.php:39
- Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:211
- Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+ Composer\Repository\RepositoryFactory::configFromString() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:215
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:159
  Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-cooldown] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
 
 exit 1

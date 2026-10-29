@@ -2,7 +2,7 @@
 
 /*
  * maestro's plugin shim: Composer\Package\Link, reimplemented with
- * Composer 2.10.3's behaviour (docs/PLUGINS.md §4.5). A value class: links
+ * Composer 2.11.0's behaviour (docs/PLUGINS.md §4.5). A value class: links
  * cross the channel as values, not by handle (Maestro\Shim\Values).
  * Written for PHP 7.2.5 to 8.5.
  */

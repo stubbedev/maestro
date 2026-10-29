@@ -8,7 +8,7 @@ namespace Composer\DependencyResolver;
 
 class PoolBuilder
 {
-    public function __construct(array $acceptableStabilities, array $stabilityFlags, array $rootAliases, array $rootReferences, \Composer\IO\IOInterface $io, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null, ?\Composer\DependencyResolver\PoolOptimizer $poolOptimizer = null, array $temporaryConstraints = [], ?\Composer\DependencyResolver\SecurityAdvisoryPoolFilter $securityAdvisoryPoolFilter = null, ?\Composer\DependencyResolver\FilterListPoolFilter $filterListPoolFilter = null)
+    public function __construct(array $acceptableStabilities, array $stabilityFlags, array $rootAliases, array $rootReferences, \Composer\IO\IOInterface $io, ?\Composer\EventDispatcher\EventDispatcher $eventDispatcher = null, ?\Composer\DependencyResolver\PoolOptimizer $poolOptimizer = null, array $temporaryConstraints = [], ?\Composer\DependencyResolver\SecurityAdvisoryPoolFilter $securityAdvisoryPoolFilter = null, ?\Composer\DependencyResolver\FilterListPoolFilter $filterListPoolFilter = null, ?\Composer\DependencyResolver\CooldownPoolFilter $cooldownPoolFilter = null)
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\DependencyResolver\\PoolBuilder::__construct() in plugins yet');
     }

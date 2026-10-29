@@ -15,40 +15,180 @@
             "error": null,
             "map": [
                 [
-                    "Other\\Controller\\Page",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                    "Namespaced\\Bar",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
                 ],
                 [
-                    "Other\\Widget",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                    "Namespaced\\Baz",
+                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
                 ],
                 [
-                    "Other_Service",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                    "Namespaced\\Foo",
+                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
                 ],
                 [
-                    "Acme_Utils_Helper",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                    "Pearlike_Bar",
+                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
                 ],
                 [
-                    "Acme_Logger",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                    "Pearlike_Baz",
+                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
                 ],
                 [
-                    "PrefixCollision_A_B_Foo",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                    "Pearlike_Foo",
+                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
                 ],
                 [
-                    "PrefixCollision_A_B_Bar",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                    "NamespaceCollision\\A\\B\\Bar",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
                 ],
                 [
                     "NamespaceCollision\\A\\B\\Foo",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ],
                 [
-                    "NamespaceCollision\\A\\B\\Bar",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
+                    "PrefixCollision_A_B_Bar",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                ],
+                [
+                    "PrefixCollision_A_B_Foo",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                ],
+                [
+                    "Foo\\SlashedA",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Foo\\SlashedB",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Block",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Blockclose",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Foo\\LargeClass",
+                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
+                ],
+                [
+                    "Foo\\LargeGap",
+                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
+                ],
+                [
+                    "ClassMap\\LongString",
+                    "<cwd>/tests/Fixtures/classmap/LongString.php"
+                ],
+                [
+                    "Foo\\MissingSpace",
+                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
+                ],
+                [
+                    "ShortOpenTag",
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php"
+                ],
+                [
+                    "ShortOpenTagDocblock",
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
+                ],
+                [
+                    "ClassMap\\SomeClass",
+                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
+                ],
+                [
+                    "ClassMap\\SomeInterface",
+                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
+                ],
+                [
+                    "ClassMap\\SomeParent",
+                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
+                ],
+                [
+                    "Foo\\StripNoise",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Foo\\First",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Foo\\Second",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Foo\\Third",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Unicode\\\u2191\\\u2191",
+                    "<cwd>/tests/Fixtures/classmap/Unicode.php"
+                ],
+                [
+                    "Alpha\\A",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Alpha\\B",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "A",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Be\\ta\\A",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Be\\ta\\B",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Foo\\Bar\\A",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
+                ],
+                [
+                    "Foo\\Bar\\B",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
+                ],
+                [
+                    "GenericsClass",
+                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
+                ],
+                [
+                    "FooEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
+                ],
+                [
+                    "Foo\\BarEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
+                ],
+                [
+                    "Foo\\VeryLongHeredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongHereDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongNowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Heredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Nowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongNowDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
                 ],
                 [
                     "TFoo",
@@ -75,56 +215,8 @@
                     "<cwd>/tests/Fixtures/php5.4/traits.php"
                 ],
                 [
-                    "Pearlike_Baz",
-                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
-                ],
-                [
-                    "Pearlike_Foo",
-                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
-                ],
-                [
-                    "Pearlike_Bar",
-                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
-                ],
-                [
-                    "GenericsClass",
-                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
-                ],
-                [
-                    "Foo\\BarEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
-                ],
-                [
-                    "FooEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
-                ],
-                [
-                    "Foo\\StripNoise",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
-                ],
-                [
-                    "Foo\\VeryLongHeredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongHereDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Nowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongNowDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongNowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Heredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                    "Dummy\\Test\\AnonClassHolder",
+                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ],
                 [
                     "RolesBackedEnum",
@@ -135,16 +227,40 @@
                     "<cwd>/tests/Fixtures/php8.1/enum_basic.php"
                 ],
                 [
-                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
-                ],
-                [
                     "RolesClassLikeEnum",
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php"
                 ],
                 [
+                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
+                ],
+                [
+                    "Acme_Logger",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                ],
+                [
+                    "Acme_Utils_Helper",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                ],
+                [
+                    "Other\\Controller\\Page",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                ],
+                [
+                    "Other_Service",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                ],
+                [
+                    "Other\\Widget",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                ],
+                [
                     "ExpectedNamespace\\ClassWithCorrectNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php"
+                ],
+                [
+                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
                 ],
                 [
                     "UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope",
@@ -153,129 +269,13 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
-                ],
-                [
-                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
-                ],
-                [
-                    "Namespaced\\Baz",
-                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
-                ],
-                [
-                    "Namespaced\\Foo",
-                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
-                ],
-                [
-                    "Namespaced\\Bar",
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
-                ],
-                [
-                    "Dummy\\Test\\AnonClassHolder",
-                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
-                ],
-                [
-                    "ShortOpenTag",
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php"
-                ],
-                [
-                    "Foo\\First",
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
-                ],
-                [
-                    "Foo\\Second",
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
-                ],
-                [
-                    "Foo\\Third",
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
-                ],
-                [
-                    "Foo\\Bar\\A",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\Bar\\B",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\MissingSpace",
-                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
-                ],
-                [
-                    "Unicode\\\u2191\\\u2191",
-                    "<cwd>/tests/Fixtures/classmap/Unicode.php"
-                ],
-                [
-                    "Foo\\LargeClass",
-                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
-                ],
-                [
-                    "Alpha\\A",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "Alpha\\B",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "A",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "Be\\ta\\A",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "Be\\ta\\B",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "ClassMap\\SomeParent",
-                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
-                ],
-                [
-                    "Foo\\SlashedA",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
-                ],
-                [
-                    "Foo\\SlashedB",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
-                ],
-                [
-                    "Foo\\LargeGap",
-                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
-                ],
-                [
-                    "ClassMap\\SomeInterface",
-                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
-                ],
-                [
-                    "ClassMap\\SomeClass",
-                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
-                ],
-                [
-                    "ClassMap\\LongString",
-                    "<cwd>/tests/Fixtures/classmap/LongString.php"
-                ],
-                [
-                    "ShortOpenTagDocblock",
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Block",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Blockclose",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
                 ]
             ],
             "ambiguous": [
                 [
                     "Foo\\StripNoise",
                     [
-                        "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                        "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
                     ]
                 ]
             ],
@@ -300,40 +300,180 @@
             "error": null,
             "map": [
                 [
-                    "Other\\Controller\\Page",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                    "Namespaced\\Bar",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
                 ],
                 [
-                    "Other\\Widget",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                    "Namespaced\\Baz",
+                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
                 ],
                 [
-                    "Other_Service",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                    "Namespaced\\Foo",
+                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
                 ],
                 [
-                    "Acme_Utils_Helper",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                    "Pearlike_Bar",
+                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
                 ],
                 [
-                    "Acme_Logger",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                    "Pearlike_Baz",
+                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
                 ],
                 [
-                    "PrefixCollision_A_B_Foo",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                    "Pearlike_Foo",
+                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
                 ],
                 [
-                    "PrefixCollision_A_B_Bar",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                    "NamespaceCollision\\A\\B\\Bar",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
                 ],
                 [
                     "NamespaceCollision\\A\\B\\Foo",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ],
                 [
-                    "NamespaceCollision\\A\\B\\Bar",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
+                    "PrefixCollision_A_B_Bar",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                ],
+                [
+                    "PrefixCollision_A_B_Foo",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                ],
+                [
+                    "Foo\\SlashedA",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Foo\\SlashedB",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Block",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Blockclose",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Foo\\LargeClass",
+                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
+                ],
+                [
+                    "Foo\\LargeGap",
+                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
+                ],
+                [
+                    "ClassMap\\LongString",
+                    "<cwd>/tests/Fixtures/classmap/LongString.php"
+                ],
+                [
+                    "Foo\\MissingSpace",
+                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
+                ],
+                [
+                    "ShortOpenTag",
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php"
+                ],
+                [
+                    "ShortOpenTagDocblock",
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
+                ],
+                [
+                    "ClassMap\\SomeClass",
+                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
+                ],
+                [
+                    "ClassMap\\SomeInterface",
+                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
+                ],
+                [
+                    "ClassMap\\SomeParent",
+                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
+                ],
+                [
+                    "Foo\\StripNoise",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Foo\\First",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Foo\\Second",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Foo\\Third",
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                ],
+                [
+                    "Unicode\\\u2191\\\u2191",
+                    "<cwd>/tests/Fixtures/classmap/Unicode.php"
+                ],
+                [
+                    "Alpha\\A",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Alpha\\B",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "A",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Be\\ta\\A",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Be\\ta\\B",
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
+                ],
+                [
+                    "Foo\\Bar\\A",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
+                ],
+                [
+                    "Foo\\Bar\\B",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
+                ],
+                [
+                    "GenericsClass",
+                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
+                ],
+                [
+                    "FooEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
+                ],
+                [
+                    "Foo\\BarEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
+                ],
+                [
+                    "Foo\\VeryLongHeredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongHereDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongNowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Heredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Nowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongNowDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
                 ],
                 [
                     "TFoo",
@@ -360,56 +500,8 @@
                     "<cwd>/tests/Fixtures/php5.4/traits.php"
                 ],
                 [
-                    "Pearlike_Baz",
-                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
-                ],
-                [
-                    "Pearlike_Foo",
-                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
-                ],
-                [
-                    "Pearlike_Bar",
-                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
-                ],
-                [
-                    "GenericsClass",
-                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
-                ],
-                [
-                    "Foo\\BarEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
-                ],
-                [
-                    "FooEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
-                ],
-                [
-                    "Foo\\StripNoise",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
-                ],
-                [
-                    "Foo\\VeryLongHeredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongHereDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Nowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongNowDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongNowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Heredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                    "Dummy\\Test\\AnonClassHolder",
+                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ],
                 [
                     "RolesBackedEnum",
@@ -420,16 +512,40 @@
                     "<cwd>/tests/Fixtures/php8.1/enum_basic.php"
                 ],
                 [
-                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
-                ],
-                [
                     "RolesClassLikeEnum",
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php"
                 ],
                 [
+                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
+                ],
+                [
+                    "Acme_Logger",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                ],
+                [
+                    "Acme_Utils_Helper",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                ],
+                [
+                    "Other\\Controller\\Page",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                ],
+                [
+                    "Other_Service",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                ],
+                [
+                    "Other\\Widget",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                ],
+                [
                     "ExpectedNamespace\\ClassWithCorrectNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php"
+                ],
+                [
+                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
                 ],
                 [
                     "UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope",
@@ -438,129 +554,13 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
-                ],
-                [
-                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
-                ],
-                [
-                    "Namespaced\\Baz",
-                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
-                ],
-                [
-                    "Namespaced\\Foo",
-                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
-                ],
-                [
-                    "Namespaced\\Bar",
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
-                ],
-                [
-                    "Dummy\\Test\\AnonClassHolder",
-                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
-                ],
-                [
-                    "ShortOpenTag",
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php"
-                ],
-                [
-                    "Foo\\First",
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
-                ],
-                [
-                    "Foo\\Second",
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
-                ],
-                [
-                    "Foo\\Third",
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php"
-                ],
-                [
-                    "Foo\\Bar\\A",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\Bar\\B",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\MissingSpace",
-                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
-                ],
-                [
-                    "Unicode\\\u2191\\\u2191",
-                    "<cwd>/tests/Fixtures/classmap/Unicode.php"
-                ],
-                [
-                    "Foo\\LargeClass",
-                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
-                ],
-                [
-                    "Alpha\\A",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "Alpha\\B",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "A",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "Be\\ta\\A",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "Be\\ta\\B",
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php"
-                ],
-                [
-                    "ClassMap\\SomeParent",
-                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
-                ],
-                [
-                    "Foo\\SlashedA",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
-                ],
-                [
-                    "Foo\\SlashedB",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
-                ],
-                [
-                    "Foo\\LargeGap",
-                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
-                ],
-                [
-                    "ClassMap\\SomeInterface",
-                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
-                ],
-                [
-                    "ClassMap\\SomeClass",
-                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
-                ],
-                [
-                    "ClassMap\\LongString",
-                    "<cwd>/tests/Fixtures/classmap/LongString.php"
-                ],
-                [
-                    "ShortOpenTagDocblock",
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Block",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Blockclose",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
                 ]
             ],
             "ambiguous": [
                 [
                     "Foo\\StripNoise",
                     [
-                        "<cwd>/tests/Fixtures/classmap/StripNoise.php"
+                        "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
                     ]
                 ]
             ],
@@ -600,8 +600,56 @@
             "error": null,
             "map": [
                 [
+                    "Foo\\SlashedA",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Foo\\SlashedB",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Block",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Blockclose",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Foo\\LargeClass",
+                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
+                ],
+                [
+                    "Foo\\LargeGap",
+                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
+                ],
+                [
+                    "ClassMap\\LongString",
+                    "<cwd>/tests/Fixtures/classmap/LongString.php"
+                ],
+                [
+                    "Foo\\MissingSpace",
+                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
+                ],
+                [
                     "ShortOpenTag",
                     "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php"
+                ],
+                [
+                    "ShortOpenTagDocblock",
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
+                ],
+                [
+                    "ClassMap\\SomeClass",
+                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
+                ],
+                [
+                    "ClassMap\\SomeInterface",
+                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
+                ],
+                [
+                    "ClassMap\\SomeParent",
+                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
                 ],
                 [
                     "Foo\\StripNoise",
@@ -620,24 +668,8 @@
                     "<cwd>/tests/Fixtures/classmap/StripNoise.php"
                 ],
                 [
-                    "Foo\\Bar\\A",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\Bar\\B",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\MissingSpace",
-                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
-                ],
-                [
                     "Unicode\\\u2191\\\u2191",
                     "<cwd>/tests/Fixtures/classmap/Unicode.php"
-                ],
-                [
-                    "Foo\\LargeClass",
-                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
                 ],
                 [
                     "Alpha\\A",
@@ -660,80 +692,88 @@
                     "<cwd>/tests/Fixtures/classmap/multipleNs.php"
                 ],
                 [
-                    "ClassMap\\SomeParent",
-                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
+                    "Foo\\Bar\\A",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
                 ],
                 [
-                    "Foo\\SlashedA",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                    "Foo\\Bar\\B",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
                 ],
                 [
-                    "Foo\\SlashedB",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                    "Namespaced\\Bar",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
                 ],
                 [
-                    "Foo\\LargeGap",
-                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
+                    "Namespaced\\Baz",
+                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
                 ],
                 [
-                    "ClassMap\\SomeInterface",
-                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
+                    "Namespaced\\Foo",
+                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
                 ],
                 [
-                    "ClassMap\\SomeClass",
-                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
+                    "Pearlike_Bar",
+                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
                 ],
                 [
-                    "ClassMap\\LongString",
-                    "<cwd>/tests/Fixtures/classmap/LongString.php"
+                    "Pearlike_Baz",
+                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
                 ],
                 [
-                    "ShortOpenTagDocblock",
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
+                    "Pearlike_Foo",
+                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
                 ],
                 [
-                    "Smarty_Internal_Compile_Block",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Blockclose",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
-                ],
-                [
-                    "Other\\Controller\\Page",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
-                ],
-                [
-                    "Other\\Widget",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
-                ],
-                [
-                    "Other_Service",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
-                ],
-                [
-                    "Acme_Utils_Helper",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
-                ],
-                [
-                    "Acme_Logger",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
-                ],
-                [
-                    "PrefixCollision_A_B_Foo",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
-                ],
-                [
-                    "PrefixCollision_A_B_Bar",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                    "NamespaceCollision\\A\\B\\Bar",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
                 ],
                 [
                     "NamespaceCollision\\A\\B\\Foo",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ],
                 [
-                    "NamespaceCollision\\A\\B\\Bar",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
+                    "PrefixCollision_A_B_Bar",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                ],
+                [
+                    "PrefixCollision_A_B_Foo",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                ],
+                [
+                    "GenericsClass",
+                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
+                ],
+                [
+                    "FooEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
+                ],
+                [
+                    "Foo\\BarEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
+                ],
+                [
+                    "Foo\\VeryLongHeredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongHereDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongNowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Heredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Nowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongNowDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
                 ],
                 [
                     "TFoo",
@@ -760,52 +800,8 @@
                     "<cwd>/tests/Fixtures/php5.4/traits.php"
                 ],
                 [
-                    "Pearlike_Baz",
-                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
-                ],
-                [
-                    "Pearlike_Foo",
-                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
-                ],
-                [
-                    "Pearlike_Bar",
-                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
-                ],
-                [
-                    "GenericsClass",
-                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
-                ],
-                [
-                    "Foo\\BarEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
-                ],
-                [
-                    "FooEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
-                ],
-                [
-                    "Foo\\VeryLongHeredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongHereDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Nowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongNowDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongNowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Heredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                    "Dummy\\Test\\AnonClassHolder",
+                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ],
                 [
                     "RolesBackedEnum",
@@ -816,16 +812,40 @@
                     "<cwd>/tests/Fixtures/php8.1/enum_basic.php"
                 ],
                 [
-                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
-                ],
-                [
                     "RolesClassLikeEnum",
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php"
                 ],
                 [
+                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
+                ],
+                [
+                    "Acme_Logger",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                ],
+                [
+                    "Acme_Utils_Helper",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                ],
+                [
+                    "Other\\Controller\\Page",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                ],
+                [
+                    "Other_Service",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                ],
+                [
+                    "Other\\Widget",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                ],
+                [
                     "ExpectedNamespace\\ClassWithCorrectNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php"
+                ],
+                [
+                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
                 ],
                 [
                     "UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope",
@@ -834,26 +854,6 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
-                ],
-                [
-                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
-                ],
-                [
-                    "Namespaced\\Baz",
-                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
-                ],
-                [
-                    "Namespaced\\Foo",
-                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
-                ],
-                [
-                    "Namespaced\\Bar",
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
-                ],
-                [
-                    "Dummy\\Test\\AnonClassHolder",
-                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ]
             ],
             "ambiguous": [
@@ -892,11 +892,20 @@
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
+                "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
                 "Class UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope located in ./tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
-                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
-                "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping."
+                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping."
             ],
             "rawViolations": [
+                [
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
+                    [
+                        [
+                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
+                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
+                        ]
+                    ]
+                ],
                 [
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php",
                     [
@@ -912,15 +921,6 @@
                         [
                             "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
                             "ClassWithoutNameSpace"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
-                    [
-                        [
-                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
-                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
                         ]
                     ]
                 ]
@@ -946,9 +946,9 @@
             "ambiguousFiltered": [],
             "violations": [
                 "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
+                "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
                 "Class UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope located in ./tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
-                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
-                "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping."
+                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping."
             ],
             "rawViolations": [
                 [
@@ -957,6 +957,15 @@
                         [
                             "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
                             "ExpectedNamespace\\ClassWithCorrectNameSpace"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
+                    [
+                        [
+                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
+                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
                         ]
                     ]
                 ],
@@ -975,15 +984,6 @@
                         [
                             "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
                             "ClassWithoutNameSpace"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
-                    [
-                        [
-                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => tests/Fixtures/psrViolations). Skipping.",
-                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
                         ]
                     ]
                 ]
@@ -1009,9 +1009,9 @@
             "ambiguousFiltered": [],
             "violations": [
                 "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
+                "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
                 "Class UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope located in ./tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
-                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
-                "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping."
+                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping."
             ],
             "rawViolations": [
                 [
@@ -1020,6 +1020,15 @@
                         [
                             "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
                             "ExpectedNamespace\\ClassWithCorrectNameSpace"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
+                    [
+                        [
+                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
+                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
                         ]
                     ]
                 ],
@@ -1038,15 +1047,6 @@
                         [
                             "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
                             "ClassWithoutNameSpace"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
-                    [
-                        [
-                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-4 autoloading standard (rule: ExpectedNamespace\\ => ./tests/Fixtures/psrViolations). Skipping.",
-                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
                         ]
                     ]
                 ]
@@ -1069,36 +1069,36 @@
             "error": null,
             "map": [
                 [
-                    "NamespaceCollision\\A\\B\\Foo",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
-                ],
-                [
                     "NamespaceCollision\\A\\B\\Bar",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
+                ],
+                [
+                    "NamespaceCollision\\A\\B\\Foo",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ]
             ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
-                "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping.",
-                "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping."
+                "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping.",
+                "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping."
             ],
             "rawViolations": [
-                [
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php",
-                    [
-                        [
-                            "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping.",
-                            "PrefixCollision_A_B_Foo"
-                        ]
-                    ]
-                ],
                 [
                     "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php",
                     [
                         [
                             "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping.",
                             "PrefixCollision_A_B_Bar"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php",
+                    [
+                        [
+                            "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./tests/Fixtures/beta). Skipping.",
+                            "PrefixCollision_A_B_Foo"
                         ]
                     ]
                 ]
@@ -1121,16 +1121,16 @@
             "error": null,
             "map": [
                 [
+                    "Namespaced\\Bar",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
+                ],
+                [
                     "Namespaced\\Baz",
                     "<cwd>/tests/Fixtures/Namespaced/Baz.php"
                 ],
                 [
                     "Namespaced\\Foo",
                     "<cwd>/tests/Fixtures/Namespaced/Foo.php"
-                ],
-                [
-                    "Namespaced\\Bar",
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
                 ]
             ],
             "ambiguous": [],
@@ -1155,20 +1155,20 @@
             "error": null,
             "map": [
                 [
-                    "Acme_Utils_Helper",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
-                ],
-                [
                     "Acme_Logger",
                     "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                ],
+                [
+                    "Acme_Utils_Helper",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
                 ]
             ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
                 "Class Other\\Controller\\Page located in ./tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping.",
-                "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping.",
-                "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping."
+                "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping.",
+                "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping."
             ],
             "rawViolations": [
                 [
@@ -1181,20 +1181,20 @@
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php",
-                    [
-                        [
-                            "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping.",
-                            "Other\\Widget"
-                        ]
-                    ]
-                ],
-                [
                     "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php",
                     [
                         [
                             "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping.",
                             "Other_Service"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php",
+                    [
+                        [
+                            "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Acme_ => ./tests/Fixtures/psr0NamespacePrefix). Skipping.",
+                            "Other\\Widget"
                         ]
                     ]
                 ]
@@ -1217,24 +1217,24 @@
             "error": null,
             "map": [
                 [
-                    "Other\\Controller\\Page",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
-                ],
-                [
-                    "Other\\Widget",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
-                ],
-                [
-                    "Other_Service",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                    "Acme_Logger",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
                 ],
                 [
                     "Acme_Utils_Helper",
                     "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
                 ],
                 [
-                    "Acme_Logger",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                    "Other\\Controller\\Page",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                ],
+                [
+                    "Other_Service",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                ],
+                [
+                    "Other\\Widget",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
                 ]
             ],
             "ambiguous": [],
@@ -1274,20 +1274,20 @@
             "error": null,
             "map": [
                 [
-                    "NamespaceCollision\\A\\B\\Foo",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
-                ],
-                [
                     "NamespaceCollision\\A\\B\\Bar",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
                 ],
                 [
-                    "PrefixCollision_A_B_Foo",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                    "NamespaceCollision\\A\\B\\Foo",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ],
                 [
                     "PrefixCollision_A_B_Bar",
                     "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                ],
+                [
+                    "PrefixCollision_A_B_Foo",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
                 ]
             ],
             "ambiguous": [],
@@ -1312,145 +1312,118 @@
             "error": null,
             "map": [
                 [
+                    "Pearlike_Bar",
+                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
+                ],
+                [
                     "Pearlike_Baz",
                     "<cwd>/tests/Fixtures/Pearlike/Baz.php"
                 ],
                 [
                     "Pearlike_Foo",
                     "<cwd>/tests/Fixtures/Pearlike/Foo.php"
-                ],
-                [
-                    "Pearlike_Bar",
-                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
                 ]
             ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
-                "Class Other\\Controller\\Page located in ./tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Acme_Utils_Helper located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Acme_Logger located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class NamespaceCollision\\A\\B\\Foo located in ./tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Namespaced\\Bar located in ./tests/Fixtures/Namespaced/Bar.inc does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Namespaced\\Baz located in ./tests/Fixtures/Namespaced/Baz.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Namespaced\\Foo located in ./tests/Fixtures/Namespaced/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class NamespaceCollision\\A\\B\\Bar located in ./tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class NamespaceCollision\\A\\B\\Foo located in ./tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\SlashedA located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\SlashedB located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Smarty_Internal_Compile_Block located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Smarty_Internal_Compile_Blockclose located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\LargeClass located in ./tests/Fixtures/classmap/LargeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\LargeGap located in ./tests/Fixtures/classmap/LargeGap.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ClassMap\\LongString located in ./tests/Fixtures/classmap/LongString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\MissingSpace located in ./tests/Fixtures/classmap/MissingSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ShortOpenTag located in ./tests/Fixtures/classmap/ShortOpenTag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ShortOpenTagDocblock located in ./tests/Fixtures/classmap/ShortOpenTagDocblock.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ClassMap\\SomeClass located in ./tests/Fixtures/classmap/SomeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ClassMap\\SomeInterface located in ./tests/Fixtures/classmap/SomeInterface.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ClassMap\\SomeParent located in ./tests/Fixtures/classmap/SomeParent.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\StripNoise located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\First located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\Second located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\Third located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Unicode\\\u2191\\\u2191 located in ./tests/Fixtures/classmap/Unicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Alpha\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Alpha\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Be\\ta\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Be\\ta\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\Bar\\A located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\Bar\\B located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class GenericsClass located in ./tests/Fixtures/hhvm3.3/Generics.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class FooEnum located in ./tests/Fixtures/hhvm3.3/HackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\BarEnum located in ./tests/Fixtures/hhvm3.3/NamespacedHackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\StripNoise located in ./tests/Fixtures/pcrebacktracelimit/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\VeryLongHeredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\ClassAfterLongHereDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\VeryLongNowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\VeryLongPHP73Heredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\VeryLongPHP73Nowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\ClassAfterLongNowDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class TFoo located in ./tests/Fixtures/php5.4/traits.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class CFoo located in ./tests/Fixtures/php5.4/traits.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class Foo\\TBar located in ./tests/Fixtures/php5.4/traits.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class Foo\\IBar located in ./tests/Fixtures/php5.4/traits.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class Foo\\TFooBar located in ./tests/Fixtures/php5.4/traits.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class Foo\\CBar located in ./tests/Fixtures/php5.4/traits.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class GenericsClass located in ./tests/Fixtures/hhvm3.3/Generics.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\BarEnum located in ./tests/Fixtures/hhvm3.3/NamespacedHackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class FooEnum located in ./tests/Fixtures/hhvm3.3/HackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\StripNoise located in ./tests/Fixtures/pcrebacktracelimit/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\VeryLongHeredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\ClassAfterLongHereDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\VeryLongPHP73Nowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\ClassAfterLongNowDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\VeryLongNowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\VeryLongPHP73Heredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Dummy\\Test\\AnonClassHolder located in ./tests/Fixtures/php7.0/anonclass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class RolesBackedEnum located in ./tests/Fixtures/php8.1/enum_backed.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class RolesBasicEnum located in ./tests/Fixtures/php8.1/enum_basic.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\Bar\\RolesClassLikeNamespacedEnum located in ./tests/Fixtures/php8.1/enum_namespaced.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class RolesClassLikeEnum located in ./tests/Fixtures/php8.1/enum_class_semantics.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Foo\\Bar\\RolesClassLikeNamespacedEnum located in ./tests/Fixtures/php8.1/enum_namespaced.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Acme_Logger located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Acme_Utils_Helper located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Other\\Controller\\Page located in ./tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope located in ./tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Namespaced\\Baz located in ./tests/Fixtures/Namespaced/Baz.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Namespaced\\Foo located in ./tests/Fixtures/Namespaced/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Namespaced\\Bar located in ./tests/Fixtures/Namespaced/Bar.inc does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Dummy\\Test\\AnonClassHolder located in ./tests/Fixtures/php7.0/anonclass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ShortOpenTag located in ./tests/Fixtures/classmap/ShortOpenTag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\StripNoise located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\First located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\Second located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\Third located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\Bar\\A located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\Bar\\B located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\MissingSpace located in ./tests/Fixtures/classmap/MissingSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Unicode\\\u2191\\\u2191 located in ./tests/Fixtures/classmap/Unicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\LargeClass located in ./tests/Fixtures/classmap/LargeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Alpha\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Alpha\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Be\\ta\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Be\\ta\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ClassMap\\SomeParent located in ./tests/Fixtures/classmap/SomeParent.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\SlashedA located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\SlashedB located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Foo\\LargeGap located in ./tests/Fixtures/classmap/LargeGap.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ClassMap\\SomeInterface located in ./tests/Fixtures/classmap/SomeInterface.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ClassMap\\SomeClass located in ./tests/Fixtures/classmap/SomeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ClassMap\\LongString located in ./tests/Fixtures/classmap/LongString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ShortOpenTagDocblock located in ./tests/Fixtures/classmap/ShortOpenTagDocblock.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Smarty_Internal_Compile_Block located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class Smarty_Internal_Compile_Blockclose located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping."
+                "Class UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope located in ./tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping."
             ],
             "rawViolations": [
                 [
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc",
                     [
                         [
-                            "Class Other\\Controller\\Page located in ./tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Other\\Controller\\Page"
+                            "Class Namespaced\\Bar located in ./tests/Fixtures/Namespaced/Bar.inc does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Namespaced\\Bar"
                         ]
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php",
+                    "<cwd>/tests/Fixtures/Namespaced/Baz.php",
                     [
                         [
-                            "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Other\\Widget"
+                            "Class Namespaced\\Baz located in ./tests/Fixtures/Namespaced/Baz.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Namespaced\\Baz"
                         ]
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php",
+                    "<cwd>/tests/Fixtures/Namespaced/Foo.php",
                     [
                         [
-                            "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Other_Service"
+                            "Class Namespaced\\Foo located in ./tests/Fixtures/Namespaced/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Namespaced\\Foo"
                         ]
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php",
                     [
                         [
-                            "Class Acme_Utils_Helper located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Acme_Utils_Helper"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php",
-                    [
-                        [
-                            "Class Acme_Logger located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Acme_Logger"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php",
-                    [
-                        [
-                            "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "PrefixCollision_A_B_Foo"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php",
-                    [
-                        [
-                            "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "PrefixCollision_A_B_Bar"
+                            "Class NamespaceCollision\\A\\B\\Bar located in ./tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "NamespaceCollision\\A\\B\\Bar"
                         ]
                     ]
                 ],
@@ -1464,11 +1437,275 @@
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php",
                     [
                         [
-                            "Class NamespaceCollision\\A\\B\\Bar located in ./tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "NamespaceCollision\\A\\B\\Bar"
+                            "Class PrefixCollision_A_B_Bar located in ./tests/Fixtures/beta/PrefixCollision/A/B/Bar.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "PrefixCollision_A_B_Bar"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php",
+                    [
+                        [
+                            "Class PrefixCollision_A_B_Foo located in ./tests/Fixtures/beta/PrefixCollision/A/B/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "PrefixCollision_A_B_Foo"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php",
+                    [
+                        [
+                            "Class Foo\\SlashedA located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\SlashedA"
+                        ],
+                        [
+                            "Class Foo\\SlashedB located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\SlashedB"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php",
+                    [
+                        [
+                            "Class Smarty_Internal_Compile_Block located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Smarty_Internal_Compile_Block"
+                        ],
+                        [
+                            "Class Smarty_Internal_Compile_Blockclose located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Smarty_Internal_Compile_Blockclose"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/LargeClass.php",
+                    [
+                        [
+                            "Class Foo\\LargeClass located in ./tests/Fixtures/classmap/LargeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\LargeClass"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/LargeGap.php",
+                    [
+                        [
+                            "Class Foo\\LargeGap located in ./tests/Fixtures/classmap/LargeGap.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\LargeGap"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/LongString.php",
+                    [
+                        [
+                            "Class ClassMap\\LongString located in ./tests/Fixtures/classmap/LongString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ClassMap\\LongString"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php",
+                    [
+                        [
+                            "Class Foo\\MissingSpace located in ./tests/Fixtures/classmap/MissingSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\MissingSpace"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php",
+                    [
+                        [
+                            "Class ShortOpenTag located in ./tests/Fixtures/classmap/ShortOpenTag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ShortOpenTag"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php",
+                    [
+                        [
+                            "Class ShortOpenTagDocblock located in ./tests/Fixtures/classmap/ShortOpenTagDocblock.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ShortOpenTagDocblock"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/SomeClass.php",
+                    [
+                        [
+                            "Class ClassMap\\SomeClass located in ./tests/Fixtures/classmap/SomeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ClassMap\\SomeClass"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php",
+                    [
+                        [
+                            "Class ClassMap\\SomeInterface located in ./tests/Fixtures/classmap/SomeInterface.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ClassMap\\SomeInterface"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/SomeParent.php",
+                    [
+                        [
+                            "Class ClassMap\\SomeParent located in ./tests/Fixtures/classmap/SomeParent.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ClassMap\\SomeParent"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/StripNoise.php",
+                    [
+                        [
+                            "Class Foo\\StripNoise located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\StripNoise"
+                        ],
+                        [
+                            "Class Foo\\First located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\First"
+                        ],
+                        [
+                            "Class Foo\\Second located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\Second"
+                        ],
+                        [
+                            "Class Foo\\Third located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\Third"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/Unicode.php",
+                    [
+                        [
+                            "Class Unicode\\\u2191\\\u2191 located in ./tests/Fixtures/classmap/Unicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Unicode\\\u2191\\\u2191"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/multipleNs.php",
+                    [
+                        [
+                            "Class Alpha\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Alpha\\A"
+                        ],
+                        [
+                            "Class Alpha\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Alpha\\B"
+                        ],
+                        [
+                            "Class A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "A"
+                        ],
+                        [
+                            "Class Be\\ta\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Be\\ta\\A"
+                        ],
+                        [
+                            "Class Be\\ta\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Be\\ta\\B"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php",
+                    [
+                        [
+                            "Class Foo\\Bar\\A located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\Bar\\A"
+                        ],
+                        [
+                            "Class Foo\\Bar\\B located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\Bar\\B"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php",
+                    [
+                        [
+                            "Class GenericsClass located in ./tests/Fixtures/hhvm3.3/Generics.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "GenericsClass"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php",
+                    [
+                        [
+                            "Class FooEnum located in ./tests/Fixtures/hhvm3.3/HackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "FooEnum"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php",
+                    [
+                        [
+                            "Class Foo\\BarEnum located in ./tests/Fixtures/hhvm3.3/NamespacedHackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\BarEnum"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php",
+                    [
+                        [
+                            "Class Foo\\StripNoise located in ./tests/Fixtures/pcrebacktracelimit/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\StripNoise"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php",
+                    [
+                        [
+                            "Class Foo\\VeryLongHeredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\VeryLongHeredoc"
+                        ],
+                        [
+                            "Class Foo\\ClassAfterLongHereDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\ClassAfterLongHereDoc"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php",
+                    [
+                        [
+                            "Class Foo\\VeryLongNowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\VeryLongNowdoc"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php",
+                    [
+                        [
+                            "Class Foo\\VeryLongPHP73Heredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\VeryLongPHP73Heredoc"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php",
+                    [
+                        [
+                            "Class Foo\\VeryLongPHP73Nowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\VeryLongPHP73Nowdoc"
+                        ],
+                        [
+                            "Class Foo\\ClassAfterLongNowDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\ClassAfterLongNowDoc"
                         ]
                     ]
                 ],
@@ -1502,82 +1739,11 @@
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php",
+                    "<cwd>/tests/Fixtures/php7.0/anonclass.php",
                     [
                         [
-                            "Class GenericsClass located in ./tests/Fixtures/hhvm3.3/Generics.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "GenericsClass"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php",
-                    [
-                        [
-                            "Class Foo\\BarEnum located in ./tests/Fixtures/hhvm3.3/NamespacedHackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\BarEnum"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php",
-                    [
-                        [
-                            "Class FooEnum located in ./tests/Fixtures/hhvm3.3/HackEnum.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "FooEnum"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php",
-                    [
-                        [
-                            "Class Foo\\StripNoise located in ./tests/Fixtures/pcrebacktracelimit/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\StripNoise"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php",
-                    [
-                        [
-                            "Class Foo\\VeryLongHeredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\VeryLongHeredoc"
-                        ],
-                        [
-                            "Class Foo\\ClassAfterLongHereDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\ClassAfterLongHereDoc"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php",
-                    [
-                        [
-                            "Class Foo\\VeryLongPHP73Nowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\VeryLongPHP73Nowdoc"
-                        ],
-                        [
-                            "Class Foo\\ClassAfterLongNowDoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\ClassAfterLongNowDoc"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php",
-                    [
-                        [
-                            "Class Foo\\VeryLongNowdoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\VeryLongNowdoc"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php",
-                    [
-                        [
-                            "Class Foo\\VeryLongPHP73Heredoc located in ./tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\VeryLongPHP73Heredoc"
+                            "Class Dummy\\Test\\AnonClassHolder located in ./tests/Fixtures/php7.0/anonclass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Dummy\\Test\\AnonClassHolder"
                         ]
                     ]
                 ],
@@ -1600,15 +1766,6 @@
                     ]
                 ],
                 [
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php",
-                    [
-                        [
-                            "Class Foo\\Bar\\RolesClassLikeNamespacedEnum located in ./tests/Fixtures/php8.1/enum_namespaced.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\Bar\\RolesClassLikeNamespacedEnum"
-                        ]
-                    ]
-                ],
-                [
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php",
                     [
                         [
@@ -1618,11 +1775,74 @@
                     ]
                 ],
                 [
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php",
+                    [
+                        [
+                            "Class Foo\\Bar\\RolesClassLikeNamespacedEnum located in ./tests/Fixtures/php8.1/enum_namespaced.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Foo\\Bar\\RolesClassLikeNamespacedEnum"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php",
+                    [
+                        [
+                            "Class Acme_Logger located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Acme_Logger"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php",
+                    [
+                        [
+                            "Class Acme_Utils_Helper located in ./tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Acme_Utils_Helper"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php",
+                    [
+                        [
+                            "Class Other\\Controller\\Page located in ./tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Other\\Controller\\Page"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php",
+                    [
+                        [
+                            "Class Other_Service located in ./tests/Fixtures/psr0NamespacePrefix/Other/Service.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Other_Service"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php",
+                    [
+                        [
+                            "Class Other\\Widget located in ./tests/Fixtures/psr0NamespacePrefix/Other/Widget.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Other\\Widget"
+                        ]
+                    ]
+                ],
+                [
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php",
                     [
                         [
                             "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                             "ExpectedNamespace\\ClassWithCorrectNameSpace"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
+                    [
+                        [
+                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
                         ]
                     ]
                 ],
@@ -1641,226 +1861,6 @@
                         [
                             "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                             "ClassWithoutNameSpace"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php",
-                    [
-                        [
-                            "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/Namespaced/Baz.php",
-                    [
-                        [
-                            "Class Namespaced\\Baz located in ./tests/Fixtures/Namespaced/Baz.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Namespaced\\Baz"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/Namespaced/Foo.php",
-                    [
-                        [
-                            "Class Namespaced\\Foo located in ./tests/Fixtures/Namespaced/Foo.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Namespaced\\Foo"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc",
-                    [
-                        [
-                            "Class Namespaced\\Bar located in ./tests/Fixtures/Namespaced/Bar.inc does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Namespaced\\Bar"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/php7.0/anonclass.php",
-                    [
-                        [
-                            "Class Dummy\\Test\\AnonClassHolder located in ./tests/Fixtures/php7.0/anonclass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Dummy\\Test\\AnonClassHolder"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php",
-                    [
-                        [
-                            "Class ShortOpenTag located in ./tests/Fixtures/classmap/ShortOpenTag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ShortOpenTag"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/StripNoise.php",
-                    [
-                        [
-                            "Class Foo\\StripNoise located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\StripNoise"
-                        ],
-                        [
-                            "Class Foo\\First located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\First"
-                        ],
-                        [
-                            "Class Foo\\Second located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\Second"
-                        ],
-                        [
-                            "Class Foo\\Third located in ./tests/Fixtures/classmap/StripNoise.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\Third"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php",
-                    [
-                        [
-                            "Class Foo\\Bar\\A located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\Bar\\A"
-                        ],
-                        [
-                            "Class Foo\\Bar\\B located in ./tests/Fixtures/classmap/sameNsMultipleClasses.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\Bar\\B"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php",
-                    [
-                        [
-                            "Class Foo\\MissingSpace located in ./tests/Fixtures/classmap/MissingSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\MissingSpace"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/Unicode.php",
-                    [
-                        [
-                            "Class Unicode\\\u2191\\\u2191 located in ./tests/Fixtures/classmap/Unicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Unicode\\\u2191\\\u2191"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/LargeClass.php",
-                    [
-                        [
-                            "Class Foo\\LargeClass located in ./tests/Fixtures/classmap/LargeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\LargeClass"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/multipleNs.php",
-                    [
-                        [
-                            "Class Alpha\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Alpha\\A"
-                        ],
-                        [
-                            "Class Alpha\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Alpha\\B"
-                        ],
-                        [
-                            "Class A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "A"
-                        ],
-                        [
-                            "Class Be\\ta\\A located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Be\\ta\\A"
-                        ],
-                        [
-                            "Class Be\\ta\\B located in ./tests/Fixtures/classmap/multipleNs.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Be\\ta\\B"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/SomeParent.php",
-                    [
-                        [
-                            "Class ClassMap\\SomeParent located in ./tests/Fixtures/classmap/SomeParent.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ClassMap\\SomeParent"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php",
-                    [
-                        [
-                            "Class Foo\\SlashedA located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\SlashedA"
-                        ],
-                        [
-                            "Class Foo\\SlashedB located in ./tests/Fixtures/classmap/BackslashLineEndingString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\SlashedB"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/LargeGap.php",
-                    [
-                        [
-                            "Class Foo\\LargeGap located in ./tests/Fixtures/classmap/LargeGap.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Foo\\LargeGap"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php",
-                    [
-                        [
-                            "Class ClassMap\\SomeInterface located in ./tests/Fixtures/classmap/SomeInterface.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ClassMap\\SomeInterface"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/SomeClass.php",
-                    [
-                        [
-                            "Class ClassMap\\SomeClass located in ./tests/Fixtures/classmap/SomeClass.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ClassMap\\SomeClass"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/LongString.php",
-                    [
-                        [
-                            "Class ClassMap\\LongString located in ./tests/Fixtures/classmap/LongString.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ClassMap\\LongString"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php",
-                    [
-                        [
-                            "Class ShortOpenTagDocblock located in ./tests/Fixtures/classmap/ShortOpenTagDocblock.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "ShortOpenTagDocblock"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php",
-                    [
-                        [
-                            "Class Smarty_Internal_Compile_Block located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Smarty_Internal_Compile_Block"
-                        ],
-                        [
-                            "Class Smarty_Internal_Compile_Blockclose located in ./tests/Fixtures/classmap/InvalidUnicode.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                            "Smarty_Internal_Compile_Blockclose"
                         ]
                     ]
                 ]
@@ -1887,24 +1887,68 @@
             "error": null,
             "map": [
                 [
-                    "Other\\Controller\\Page",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                    "Namespaced\\Bar",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
                 ],
                 [
-                    "Other\\Widget",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                    "Namespaced\\Baz",
+                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
                 ],
                 [
-                    "Other_Service",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                    "Namespaced\\Foo",
+                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
                 ],
                 [
-                    "Acme_Utils_Helper",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                    "Pearlike_Bar",
+                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
                 ],
                 [
-                    "Acme_Logger",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                    "Pearlike_Baz",
+                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
+                ],
+                [
+                    "Pearlike_Foo",
+                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
+                ],
+                [
+                    "GenericsClass",
+                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
+                ],
+                [
+                    "FooEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
+                ],
+                [
+                    "Foo\\BarEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
+                ],
+                [
+                    "Foo\\StripNoise",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
+                ],
+                [
+                    "Foo\\VeryLongHeredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongHereDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongNowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Heredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Nowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongNowDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
                 ],
                 [
                     "TFoo",
@@ -1931,56 +1975,8 @@
                     "<cwd>/tests/Fixtures/php5.4/traits.php"
                 ],
                 [
-                    "Pearlike_Baz",
-                    "<cwd>/tests/Fixtures/Pearlike/Baz.php"
-                ],
-                [
-                    "Pearlike_Foo",
-                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
-                ],
-                [
-                    "Pearlike_Bar",
-                    "<cwd>/tests/Fixtures/Pearlike/Bar.php"
-                ],
-                [
-                    "GenericsClass",
-                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
-                ],
-                [
-                    "Foo\\BarEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
-                ],
-                [
-                    "FooEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
-                ],
-                [
-                    "Foo\\StripNoise",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
-                ],
-                [
-                    "Foo\\VeryLongHeredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongHereDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Nowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongNowDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongNowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Heredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                    "Dummy\\Test\\AnonClassHolder",
+                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ],
                 [
                     "RolesBackedEnum",
@@ -1991,16 +1987,40 @@
                     "<cwd>/tests/Fixtures/php8.1/enum_basic.php"
                 ],
                 [
-                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
-                ],
-                [
                     "RolesClassLikeEnum",
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php"
                 ],
                 [
+                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
+                ],
+                [
+                    "Acme_Logger",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                ],
+                [
+                    "Acme_Utils_Helper",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                ],
+                [
+                    "Other\\Controller\\Page",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                ],
+                [
+                    "Other_Service",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                ],
+                [
+                    "Other\\Widget",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                ],
+                [
                     "ExpectedNamespace\\ClassWithCorrectNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php"
+                ],
+                [
+                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
                 ],
                 [
                     "UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope",
@@ -2009,26 +2029,6 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
-                ],
-                [
-                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
-                ],
-                [
-                    "Namespaced\\Baz",
-                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
-                ],
-                [
-                    "Namespaced\\Foo",
-                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
-                ],
-                [
-                    "Namespaced\\Bar",
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
-                ],
-                [
-                    "Dummy\\Test\\AnonClassHolder",
-                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ]
             ],
             "ambiguous": [],
@@ -2053,40 +2053,76 @@
             "error": null,
             "map": [
                 [
-                    "Other\\Controller\\Page",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                    "Namespaced\\Bar",
+                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
                 ],
                 [
-                    "Other\\Widget",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                    "Namespaced\\Baz",
+                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
                 ],
                 [
-                    "Other_Service",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                    "Namespaced\\Foo",
+                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
                 ],
                 [
-                    "Acme_Utils_Helper",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                    "Pearlike_Foo",
+                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
                 ],
                 [
-                    "Acme_Logger",
-                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
-                ],
-                [
-                    "PrefixCollision_A_B_Foo",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
-                ],
-                [
-                    "PrefixCollision_A_B_Bar",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                    "NamespaceCollision\\A\\B\\Bar",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
                 ],
                 [
                     "NamespaceCollision\\A\\B\\Foo",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ],
                 [
-                    "NamespaceCollision\\A\\B\\Bar",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
+                    "PrefixCollision_A_B_Bar",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                ],
+                [
+                    "PrefixCollision_A_B_Foo",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                ],
+                [
+                    "GenericsClass",
+                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
+                ],
+                [
+                    "FooEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
+                ],
+                [
+                    "Foo\\BarEnum",
+                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
+                ],
+                [
+                    "Foo\\StripNoise",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
+                ],
+                [
+                    "Foo\\VeryLongHeredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongHereDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongNowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Heredoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                ],
+                [
+                    "Foo\\VeryLongPHP73Nowdoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
+                ],
+                [
+                    "Foo\\ClassAfterLongNowDoc",
+                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
                 ],
                 [
                     "TFoo",
@@ -2113,48 +2149,8 @@
                     "<cwd>/tests/Fixtures/php5.4/traits.php"
                 ],
                 [
-                    "Pearlike_Foo",
-                    "<cwd>/tests/Fixtures/Pearlike/Foo.php"
-                ],
-                [
-                    "GenericsClass",
-                    "<cwd>/tests/Fixtures/hhvm3.3/Generics.php"
-                ],
-                [
-                    "Foo\\BarEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/NamespacedHackEnum.php"
-                ],
-                [
-                    "FooEnum",
-                    "<cwd>/tests/Fixtures/hhvm3.3/HackEnum.php"
-                ],
-                [
-                    "Foo\\StripNoise",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/StripNoise.php"
-                ],
-                [
-                    "Foo\\VeryLongHeredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongHereDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongHeredoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Nowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\ClassAfterLongNowDoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Nowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongNowdoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongNowdoc.php"
-                ],
-                [
-                    "Foo\\VeryLongPHP73Heredoc",
-                    "<cwd>/tests/Fixtures/pcrebacktracelimit/VeryLongPHP73Heredoc.php"
+                    "Dummy\\Test\\AnonClassHolder",
+                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ],
                 [
                     "RolesBackedEnum",
@@ -2165,16 +2161,40 @@
                     "<cwd>/tests/Fixtures/php8.1/enum_basic.php"
                 ],
                 [
-                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
-                ],
-                [
                     "RolesClassLikeEnum",
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php"
                 ],
                 [
+                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
+                ],
+                [
+                    "Acme_Logger",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Logger.php"
+                ],
+                [
+                    "Acme_Utils_Helper",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Acme/Utils/Helper.php"
+                ],
+                [
+                    "Other\\Controller\\Page",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Controller/Page.php"
+                ],
+                [
+                    "Other_Service",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Service.php"
+                ],
+                [
+                    "Other\\Widget",
+                    "<cwd>/tests/Fixtures/psr0NamespacePrefix/Other/Widget.php"
+                ],
+                [
                     "ExpectedNamespace\\ClassWithCorrectNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php"
+                ],
+                [
+                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
+                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
                 ],
                 [
                     "UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope",
@@ -2183,26 +2203,6 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
-                ],
-                [
-                    "ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace",
-                    "<cwd>/tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php"
-                ],
-                [
-                    "Namespaced\\Baz",
-                    "<cwd>/tests/Fixtures/Namespaced/Baz.php"
-                ],
-                [
-                    "Namespaced\\Foo",
-                    "<cwd>/tests/Fixtures/Namespaced/Foo.php"
-                ],
-                [
-                    "Namespaced\\Bar",
-                    "<cwd>/tests/Fixtures/Namespaced/Bar.inc"
-                ],
-                [
-                    "Dummy\\Test\\AnonClassHolder",
-                    "<cwd>/tests/Fixtures/php7.0/anonclass.php"
                 ]
             ],
             "ambiguous": [],
@@ -2270,28 +2270,28 @@
                     "<cwd>/tests/Fixtures/php8.1/enum_basic.php"
                 ],
                 [
-                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
-                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
-                ],
-                [
                     "RolesClassLikeEnum",
                     "<cwd>/tests/Fixtures/php8.1/enum_class_semantics.php"
                 ],
                 [
-                    "NamespaceCollision\\A\\B\\Foo",
-                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
+                    "Foo\\Bar\\RolesClassLikeNamespacedEnum",
+                    "<cwd>/tests/Fixtures/php8.1/enum_namespaced.php"
                 ],
                 [
                     "NamespaceCollision\\A\\B\\Bar",
                     "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Bar.php"
                 ],
                 [
-                    "PrefixCollision_A_B_Foo",
-                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
+                    "NamespaceCollision\\A\\B\\Foo",
+                    "<cwd>/tests/Fixtures/beta/NamespaceCollision/A/B/Foo.php"
                 ],
                 [
                     "PrefixCollision_A_B_Bar",
                     "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Bar.php"
+                ],
+                [
+                    "PrefixCollision_A_B_Foo",
+                    "<cwd>/tests/Fixtures/beta/PrefixCollision/A/B/Foo.php"
                 ]
             ],
             "ambiguous": [],
@@ -2399,8 +2399,56 @@
             },
             "map": [
                 [
+                    "Foo\\SlashedA",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Foo\\SlashedB",
+                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Block",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Smarty_Internal_Compile_Blockclose",
+                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                ],
+                [
+                    "Foo\\LargeClass",
+                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
+                ],
+                [
+                    "Foo\\LargeGap",
+                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
+                ],
+                [
+                    "ClassMap\\LongString",
+                    "<cwd>/tests/Fixtures/classmap/LongString.php"
+                ],
+                [
+                    "Foo\\MissingSpace",
+                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
+                ],
+                [
                     "ShortOpenTag",
                     "<cwd>/tests/Fixtures/classmap/ShortOpenTag.php"
+                ],
+                [
+                    "ShortOpenTagDocblock",
+                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
+                ],
+                [
+                    "ClassMap\\SomeClass",
+                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
+                ],
+                [
+                    "ClassMap\\SomeInterface",
+                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
+                ],
+                [
+                    "ClassMap\\SomeParent",
+                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
                 ],
                 [
                     "Foo\\StripNoise",
@@ -2419,24 +2467,8 @@
                     "<cwd>/tests/Fixtures/classmap/StripNoise.php"
                 ],
                 [
-                    "Foo\\Bar\\A",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\Bar\\B",
-                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
-                ],
-                [
-                    "Foo\\MissingSpace",
-                    "<cwd>/tests/Fixtures/classmap/MissingSpace.php"
-                ],
-                [
                     "Unicode\\\u2191\\\u2191",
                     "<cwd>/tests/Fixtures/classmap/Unicode.php"
-                ],
-                [
-                    "Foo\\LargeClass",
-                    "<cwd>/tests/Fixtures/classmap/LargeClass.php"
                 ],
                 [
                     "Alpha\\A",
@@ -2459,44 +2491,12 @@
                     "<cwd>/tests/Fixtures/classmap/multipleNs.php"
                 ],
                 [
-                    "ClassMap\\SomeParent",
-                    "<cwd>/tests/Fixtures/classmap/SomeParent.php"
+                    "Foo\\Bar\\A",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
                 ],
                 [
-                    "Foo\\SlashedA",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
-                ],
-                [
-                    "Foo\\SlashedB",
-                    "<cwd>/tests/Fixtures/classmap/BackslashLineEndingString.php"
-                ],
-                [
-                    "Foo\\LargeGap",
-                    "<cwd>/tests/Fixtures/classmap/LargeGap.php"
-                ],
-                [
-                    "ClassMap\\SomeInterface",
-                    "<cwd>/tests/Fixtures/classmap/SomeInterface.php"
-                ],
-                [
-                    "ClassMap\\SomeClass",
-                    "<cwd>/tests/Fixtures/classmap/SomeClass.php"
-                ],
-                [
-                    "ClassMap\\LongString",
-                    "<cwd>/tests/Fixtures/classmap/LongString.php"
-                ],
-                [
-                    "ShortOpenTagDocblock",
-                    "<cwd>/tests/Fixtures/classmap/ShortOpenTagDocblock.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Block",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
-                ],
-                [
-                    "Smarty_Internal_Compile_Blockclose",
-                    "<cwd>/tests/Fixtures/classmap/InvalidUnicode.php"
+                    "Foo\\Bar\\B",
+                    "<cwd>/tests/Fixtures/classmap/sameNsMultipleClasses.php"
                 ]
             ],
             "ambiguous": [],
@@ -2785,7 +2785,7 @@
             }
         ],
         "result": {
-            "digest": "31f58746f843b69624b8ad17cd8502fb"
+            "digest": "fa6f74f7e02032234d80229219748112"
         }
     },
     {
@@ -2808,7 +2808,7 @@
             }
         ],
         "result": {
-            "digest": "fdc828df52b8e20fc0841e5cd04bda36"
+            "digest": "45d0093f0c37942198c10bb12526ce90"
         }
     },
     {
@@ -2827,7 +2827,7 @@
             }
         ],
         "result": {
-            "digest": "09059ee487b60e6f34c543908d8f7d44"
+            "digest": "ea720c272d6fb475ac840a8eae5ce64c"
         }
     },
     {
@@ -2984,28 +2984,28 @@
             "error": null,
             "map": [
                 [
-                    "B",
-                    "<cwd>/src/filelink.php"
-                ],
-                [
-                    "Deep\\E",
-                    "<cwd>/src/link/deep/E.inc"
-                ],
-                [
-                    "WithSpace",
-                    "<cwd>/src/link/with space.php"
-                ],
-                [
-                    "Hack",
-                    "<cwd>/src/link/hack.hh"
+                    "A",
+                    "<cwd>/src/A.php"
                 ],
                 [
                     "D",
                     "<cwd>/src/CVSx/D.php"
                 ],
                 [
-                    "A",
-                    "<cwd>/src/A.php"
+                    "B",
+                    "<cwd>/src/sub/B.php"
+                ],
+                [
+                    "Hack",
+                    "<cwd>/src/sub/hack.hh"
+                ],
+                [
+                    "WithSpace",
+                    "<cwd>/src/sub/with space.php"
+                ],
+                [
+                    "Deep\\E",
+                    "<cwd>/src/sub/deep/E.inc"
                 ]
             ],
             "ambiguous": [
@@ -3013,25 +3013,25 @@
                     "B",
                     [
                         "<cwd>/src/link/B.php",
-                        "<cwd>/src/sub/B.php"
-                    ]
-                ],
-                [
-                    "Deep\\E",
-                    [
-                        "<cwd>/src/sub/deep/E.inc"
-                    ]
-                ],
-                [
-                    "WithSpace",
-                    [
-                        "<cwd>/src/sub/with space.php"
+                        "<cwd>/src/filelink.php"
                     ]
                 ],
                 [
                     "Hack",
                     [
-                        "<cwd>/src/sub/hack.hh"
+                        "<cwd>/src/link/hack.hh"
+                    ]
+                ],
+                [
+                    "WithSpace",
+                    [
+                        "<cwd>/src/link/with space.php"
+                    ]
+                ],
+                [
+                    "Deep\\E",
+                    [
+                        "<cwd>/src/link/deep/E.inc"
                     ]
                 ]
             ],
@@ -3040,25 +3040,25 @@
                     "B",
                     [
                         "<cwd>/src/link/B.php",
-                        "<cwd>/src/sub/B.php"
-                    ]
-                ],
-                [
-                    "Deep\\E",
-                    [
-                        "<cwd>/src/sub/deep/E.inc"
-                    ]
-                ],
-                [
-                    "WithSpace",
-                    [
-                        "<cwd>/src/sub/with space.php"
+                        "<cwd>/src/filelink.php"
                     ]
                 ],
                 [
                     "Hack",
                     [
-                        "<cwd>/src/sub/hack.hh"
+                        "<cwd>/src/link/hack.hh"
+                    ]
+                ],
+                [
+                    "WithSpace",
+                    [
+                        "<cwd>/src/link/with space.php"
+                    ]
+                ],
+                [
+                    "Deep\\E",
+                    [
+                        "<cwd>/src/link/deep/E.inc"
                     ]
                 ]
             ],
@@ -3220,28 +3220,28 @@
             "error": null,
             "map": [
                 [
-                    "B",
-                    "<cwd>/src/filelink.php"
-                ],
-                [
-                    "Deep\\E",
-                    "<cwd>/src/link/deep/E.inc"
-                ],
-                [
-                    "WithSpace",
-                    "<cwd>/src/link/with space.php"
-                ],
-                [
-                    "Hack",
-                    "<cwd>/src/link/hack.hh"
+                    "A",
+                    "<cwd>/src/A.php"
                 ],
                 [
                     "D",
                     "<cwd>/src/CVSx/D.php"
                 ],
                 [
-                    "A",
-                    "<cwd>/src/A.php"
+                    "B",
+                    "<cwd>/src/sub/B.php"
+                ],
+                [
+                    "Hack",
+                    "<cwd>/src/sub/hack.hh"
+                ],
+                [
+                    "WithSpace",
+                    "<cwd>/src/sub/with space.php"
+                ],
+                [
+                    "Deep\\E",
+                    "<cwd>/src/sub/deep/E.inc"
                 ]
             ],
             "ambiguous": [
@@ -3249,25 +3249,25 @@
                     "B",
                     [
                         "<cwd>/src/link/B.php",
-                        "<cwd>/src/sub/B.php"
-                    ]
-                ],
-                [
-                    "Deep\\E",
-                    [
-                        "<cwd>/src/sub/deep/E.inc"
-                    ]
-                ],
-                [
-                    "WithSpace",
-                    [
-                        "<cwd>/src/sub/with space.php"
+                        "<cwd>/src/filelink.php"
                     ]
                 ],
                 [
                     "Hack",
                     [
-                        "<cwd>/src/sub/hack.hh"
+                        "<cwd>/src/link/hack.hh"
+                    ]
+                ],
+                [
+                    "WithSpace",
+                    [
+                        "<cwd>/src/link/with space.php"
+                    ]
+                ],
+                [
+                    "Deep\\E",
+                    [
+                        "<cwd>/src/link/deep/E.inc"
                     ]
                 ]
             ],
@@ -3276,25 +3276,25 @@
                     "B",
                     [
                         "<cwd>/src/link/B.php",
-                        "<cwd>/src/sub/B.php"
-                    ]
-                ],
-                [
-                    "Deep\\E",
-                    [
-                        "<cwd>/src/sub/deep/E.inc"
-                    ]
-                ],
-                [
-                    "WithSpace",
-                    [
-                        "<cwd>/src/sub/with space.php"
+                        "<cwd>/src/filelink.php"
                     ]
                 ],
                 [
                     "Hack",
                     [
-                        "<cwd>/src/sub/hack.hh"
+                        "<cwd>/src/link/hack.hh"
+                    ]
+                ],
+                [
+                    "WithSpace",
+                    [
+                        "<cwd>/src/link/with space.php"
+                    ]
+                ],
+                [
+                    "Deep\\E",
+                    [
+                        "<cwd>/src/link/deep/E.inc"
                     ]
                 ]
             ],
@@ -3470,28 +3470,28 @@
             "error": null,
             "map": [
                 [
-                    "B",
-                    "<cwd>/src/filelink.php"
-                ],
-                [
-                    "Deep\\E",
-                    "<cwd>/src/link/deep/E.inc"
-                ],
-                [
-                    "WithSpace",
-                    "<cwd>/src/link/with space.php"
-                ],
-                [
-                    "Hack",
-                    "<cwd>/src/link/hack.hh"
+                    "A",
+                    "<cwd>/src/A.php"
                 ],
                 [
                     "D",
                     "<cwd>/src/CVSx/D.php"
                 ],
                 [
-                    "A",
-                    "<cwd>/src/A.php"
+                    "B",
+                    "<cwd>/src/sub/B.php"
+                ],
+                [
+                    "Hack",
+                    "<cwd>/src/sub/hack.hh"
+                ],
+                [
+                    "WithSpace",
+                    "<cwd>/src/sub/with space.php"
+                ],
+                [
+                    "Deep\\E",
+                    "<cwd>/src/sub/deep/E.inc"
                 ]
             ],
             "ambiguous": [],
@@ -3654,12 +3654,12 @@
             "error": null,
             "map": [
                 [
-                    "D",
-                    "<cwd>/src/CVSx/D.php"
-                ],
-                [
                     "A",
                     "<cwd>/src/A.php"
+                ],
+                [
+                    "D",
+                    "<cwd>/src/CVSx/D.php"
                 ]
             ],
             "ambiguous": [],
@@ -3826,16 +3826,16 @@
             "error": null,
             "map": [
                 [
-                    "B",
-                    "<cwd>/src/filelink.php"
+                    "A",
+                    "<cwd>/src/A.php"
                 ],
                 [
                     "D",
                     "<cwd>/src/CVSx/D.php"
                 ],
                 [
-                    "A",
-                    "<cwd>/src/A.php"
+                    "B",
+                    "<cwd>/src/filelink.php"
                 ]
             ],
             "ambiguous": [],
@@ -4005,24 +4005,28 @@
             "error": null,
             "map": [
                 [
-                    "Deep\\E",
-                    "<cwd>/src/sub/deep/E.inc"
-                ],
-                [
-                    "WithSpace",
-                    "<cwd>/src/sub/with space.php"
+                    "B",
+                    "<cwd>/src/sub/B.php"
                 ],
                 [
                     "Hack",
                     "<cwd>/src/sub/hack.hh"
                 ],
                 [
-                    "B",
-                    "<cwd>/src/sub/B.php"
+                    "WithSpace",
+                    "<cwd>/src/sub/with space.php"
                 ],
                 [
-                    "Vendor\\Pkg\\Sub\\Deep",
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
+                    "Deep\\E",
+                    "<cwd>/src/sub/deep/E.inc"
+                ],
+                [
+                    "Vendor\\Pkg\\Foo",
+                    "<cwd>/psr/Vendor/Pkg/Foo.php"
+                ],
+                [
+                    "Vendor\\Pkg\\Wrong",
+                    "<cwd>/psr/Vendor/Pkg/Bad.php"
                 ],
                 [
                     "Vendor\\Pkg\\Two",
@@ -4033,12 +4037,8 @@
                     "<cwd>/psr/Vendor/Pkg/Two.php"
                 ],
                 [
-                    "Vendor\\Pkg\\Wrong",
-                    "<cwd>/psr/Vendor/Pkg/Bad.php"
-                ],
-                [
-                    "Vendor\\Pkg\\Foo",
-                    "<cwd>/psr/Vendor/Pkg/Foo.php"
+                    "Vendor\\Pkg\\Sub\\Deep",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
                 ]
             ],
             "ambiguous": [],
@@ -4202,7 +4202,12 @@
                 "class": "RuntimeException",
                 "message": "realpath of <cwd>/broken/broken.php failed to resolve, got false"
             },
-            "map": [],
+            "map": [
+                [
+                    "Ok",
+                    "<cwd>/broken/ok.php"
+                ]
+            ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [],
@@ -4364,7 +4369,12 @@
                 "class": "Symfony\\Component\\Finder\\Exception\\AccessDeniedException",
                 "message": "RecursiveDirectoryIterator::__construct(perm/noperm): Failed to open directory: Permission denied"
             },
-            "map": [],
+            "map": [
+                [
+                    "PermA",
+                    "<cwd>/perm/a.php"
+                ]
+            ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [],
@@ -4701,45 +4711,32 @@
             "error": null,
             "map": [
                 [
-                    "Vendor\\Pkg\\Sub\\Deep",
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
+                    "Vendor\\Pkg\\Foo",
+                    "<cwd>/psr/Vendor/Pkg/Foo.php"
                 ],
                 [
                     "Vendor\\Pkg\\Two",
                     "<cwd>/psr/Vendor/Pkg/Two.php"
                 ],
                 [
-                    "Vendor\\Pkg\\Foo",
-                    "<cwd>/psr/Vendor/Pkg/Foo.php"
+                    "Vendor\\Pkg\\Sub\\Deep",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
                 ]
             ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
-                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr). Skipping.",
-                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr). Skipping.",
                 "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => ./psr/Vendor). Skipping.",
                 "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
-                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
+                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr). Skipping.",
+                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
+                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Two located in ./psr/Vendor/Pkg/Two.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Other located in ./psr/Vendor/Pkg/Two.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
-                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping."
+                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping."
             ],
             "rawViolations": [
-                [
-                    "<cwd>/psr/Vendor_Pkg_Old.php",
-                    [
-                        [
-                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr). Skipping.",
-                            "Vendor_Pkg_Old"
-                        ],
-                        [
-                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
-                            "Vendor_Pkg_Old"
-                        ]
-                    ]
-                ],
                 [
                     "<cwd>/psr/Vendor/Pkg/Bad.php",
                     [
@@ -4758,11 +4755,24 @@
                     ]
                 ],
                 [
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php",
+                    "<cwd>/psr/Vendor_Pkg_Old.php",
                     [
                         [
-                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
-                            "Vendor\\Pkg\\Sub\\Deep"
+                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr). Skipping.",
+                            "Vendor_Pkg_Old"
+                        ],
+                        [
+                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
+                            "Vendor_Pkg_Old"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/psr/Vendor/Pkg/Foo.php",
+                    [
+                        [
+                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
+                            "Vendor\\Pkg\\Foo"
                         ]
                     ]
                 ],
@@ -4780,11 +4790,11 @@
                     ]
                 ],
                 [
-                    "<cwd>/psr/Vendor/Pkg/Foo.php",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php",
                     [
                         [
-                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
-                            "Vendor\\Pkg\\Foo"
+                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => ./psr). Skipping.",
+                            "Vendor\\Pkg\\Sub\\Deep"
                         ]
                     ]
                 ]
@@ -4961,39 +4971,56 @@
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
-                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
-                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
+                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
+                "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Two located in ./psr/Vendor/Pkg/Two.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
                 "Class Vendor\\Pkg\\Other located in ./psr/Vendor/Pkg/Two.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
                 "Class Vendor\\Pkg\\Two located in ./psr/Vendor/Pkg/Two.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Other located in ./psr/Vendor/Pkg/Two.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Two located in ./psr/Vendor/Pkg/Two.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Other located in ./psr/Vendor/Pkg/Two.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
-                "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
-                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
+                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping."
             ],
             "rawViolations": [
                 [
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php",
+                    "<cwd>/psr/Vendor/Pkg/Foo.php",
                     [
                         [
-                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
-                            "Vendor\\Pkg\\Sub\\Deep"
+                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
+                            "Vendor\\Pkg\\Foo"
                         ],
                         [
-                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Sub\\Deep"
+                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Foo"
                         ],
                         [
-                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Sub\\Deep"
+                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Foo"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/psr/Vendor/Pkg/Bad.php",
+                    [
+                        [
+                            "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
+                            "Vendor\\Pkg\\Wrong"
+                        ],
+                        [
+                            "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Wrong"
+                        ],
+                        [
+                            "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Wrong"
                         ]
                     ]
                 ],
@@ -5027,36 +5054,19 @@
                     ]
                 ],
                 [
-                    "<cwd>/psr/Vendor/Pkg/Bad.php",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php",
                     [
                         [
-                            "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
-                            "Vendor\\Pkg\\Wrong"
+                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
+                            "Vendor\\Pkg\\Sub\\Deep"
                         ],
                         [
-                            "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Wrong"
+                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Sub\\Deep"
                         ],
                         [
-                            "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Wrong"
-                        ]
-                    ]
-                ],
-                [
-                    "<cwd>/psr/Vendor/Pkg/Foo.php",
-                    [
-                        [
-                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule: Vendor\\ => psr/Vendor). Skipping.",
-                            "Vendor\\Pkg\\Foo"
-                        ],
-                        [
-                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-4 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Foo"
-                        ],
-                        [
-                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Foo"
+                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Sub\\Deep"
                         ]
                     ]
                 ],
@@ -5244,24 +5254,24 @@
             "error": null,
             "map": [
                 [
-                    "Vendor\\Pkg\\Sub\\Deep",
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
+                    "Vendor\\Pkg\\Foo",
+                    "<cwd>/psr/Vendor/Pkg/Foo.php"
                 ],
                 [
                     "Vendor\\Pkg\\Two",
                     "<cwd>/psr/Vendor/Pkg/Two.php"
                 ],
                 [
-                    "Vendor\\Pkg\\Foo",
-                    "<cwd>/psr/Vendor/Pkg/Foo.php"
-                ],
-                [
-                    "Vendor_Pkg_Old",
-                    "<cwd>/psr/Vendor_Pkg_Old.php"
+                    "Vendor\\Pkg\\Sub\\Deep",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
                 ],
                 [
                     "Vendor\\Pkg\\Wrong",
                     "<cwd>/psr/Vendor/Pkg/Bad.php"
+                ],
+                [
+                    "Vendor_Pkg_Old",
+                    "<cwd>/psr/Vendor_Pkg_Old.php"
                 ]
             ],
             "ambiguous": [],
@@ -5438,54 +5448,37 @@
             "error": null,
             "map": [
                 [
-                    "Vendor\\Pkg\\Sub\\Deep",
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
+                    "Vendor\\Pkg\\Foo",
+                    "<cwd>/psr/Vendor/Pkg/Foo.php"
                 ],
                 [
                     "Vendor\\Pkg\\Two",
                     "<cwd>/psr/Vendor/Pkg/Two.php"
                 ],
                 [
-                    "Vendor\\Pkg\\Foo",
-                    "<cwd>/psr/Vendor/Pkg/Foo.php"
+                    "Vendor\\Pkg\\Sub\\Deep",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php"
                 ]
             ],
             "ambiguous": [],
             "ambiguousFiltered": [],
             "violations": [
-                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor => ./psr). Skipping.",
-                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
-                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule: Vendor => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Wrong located in ./psr/Vendor/Pkg/Bad.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
-                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor => ./psr). Skipping.",
+                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
+                "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
+                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Two located in ./psr/Vendor/Pkg/Two.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Other located in ./psr/Vendor/Pkg/Two.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
                 "Class Vendor\\Pkg\\Two located in ./psr/Vendor/Pkg/Two.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
                 "Class Vendor\\Pkg\\Other located in ./psr/Vendor/Pkg/Two.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
-                "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping."
+                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
+                "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping."
             ],
             "rawViolations": [
-                [
-                    "<cwd>/psr/Vendor_Pkg_Old.php",
-                    [
-                        [
-                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor => ./psr). Skipping.",
-                            "Vendor_Pkg_Old"
-                        ],
-                        [
-                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
-                            "Vendor_Pkg_Old"
-                        ],
-                        [
-                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor_Pkg_Old"
-                        ]
-                    ]
-                ],
                 [
                     "<cwd>/psr/Vendor/Pkg/Bad.php",
                     [
@@ -5504,15 +5497,32 @@
                     ]
                 ],
                 [
-                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php",
+                    "<cwd>/psr/Vendor_Pkg_Old.php",
                     [
                         [
-                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
-                            "Vendor\\Pkg\\Sub\\Deep"
+                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor => ./psr). Skipping.",
+                            "Vendor_Pkg_Old"
                         ],
                         [
-                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Sub\\Deep"
+                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
+                            "Vendor_Pkg_Old"
+                        ],
+                        [
+                            "Class Vendor_Pkg_Old located in ./psr/Vendor_Pkg_Old.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor_Pkg_Old"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/psr/Vendor/Pkg/Foo.php",
+                    [
+                        [
+                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
+                            "Vendor\\Pkg\\Foo"
+                        ],
+                        [
+                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Foo"
                         ]
                     ]
                 ],
@@ -5538,15 +5548,15 @@
                     ]
                 ],
                 [
-                    "<cwd>/psr/Vendor/Pkg/Foo.php",
+                    "<cwd>/psr/Vendor/Pkg/Sub/Deep.php",
                     [
                         [
-                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
-                            "Vendor\\Pkg\\Foo"
+                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule: Vendor_ => ./psr). Skipping.",
+                            "Vendor\\Pkg\\Sub\\Deep"
                         ],
                         [
-                            "Class Vendor\\Pkg\\Foo located in ./psr/Vendor/Pkg/Foo.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
-                            "Vendor\\Pkg\\Foo"
+                            "Class Vendor\\Pkg\\Sub\\Deep located in ./psr/Vendor/Pkg/Sub/Deep.php does not comply with psr-0 autoloading standard (rule:  => psr). Skipping.",
+                            "Vendor\\Pkg\\Sub\\Deep"
                         ]
                     ]
                 ]

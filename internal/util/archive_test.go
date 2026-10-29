@@ -68,6 +68,11 @@ func TestTar_ReturnsComposerJsonInFirstFolder(t *testing.T) {
 	assertComposerJSON(t, "folder.tar.gz", content, ok, err)
 }
 
+func TestTar_ReturnsComposerJsonIgnoringOsMetadataEntries(t *testing.T) {
+	content, ok, err := TarGetComposerJSON(tarFixtures + "metadata.tar.gz")
+	assertComposerJSON(t, "metadata.tar.gz", content, ok, err)
+}
+
 func TestTar_MultipleTopLevelDirsIsInvalid(t *testing.T) {
 	_, _, err := TarGetComposerJSON(tarFixtures + "multiple.tar.gz")
 	assertArchiveError(t, "multiple.tar.gz", err, noComposerJSONMessage)
@@ -113,4 +118,9 @@ func TestZip_MultipleTopLevelDirsIsInvalid(t *testing.T) {
 func TestZip_ReturnsComposerJsonFromFirstSubfolder(t *testing.T) {
 	content, ok, err := ZipGetComposerJSON(zipFixtures + "single-sub.zip")
 	assertComposerJSON(t, "single-sub.zip", content, ok, err)
+}
+
+func TestZip_ReturnsComposerJsonIgnoringOsMetadataEntries(t *testing.T) {
+	content, ok, err := ZipGetComposerJSON(zipFixtures + "metadata.zip")
+	assertComposerJSON(t, "metadata.zip", content, ok, err)
 }

@@ -32,4 +32,4 @@ Options:
 Help:
   php composer.phar dump-autoload
   
-  Read more at https://getcomposer.org/doc/03-cli.md#dump-autoload-dumpautoload
+  Read more at https://getcomposer.org/doc/03-cli.md#dump-autoload--dumpautoload

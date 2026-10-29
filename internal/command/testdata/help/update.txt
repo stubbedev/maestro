@@ -21,8 +21,9 @@ Options:
       --no-install                                     Skip the install step after updating the composer.lock file.
       --no-audit                                       Skip the audit step after updating the composer.lock file (can also be set via the COMPOSER_NO_AUDIT=1 env var).
       --audit-format=AUDIT-FORMAT                      Audit output format. Must be "table", "plain", "json", or "summary". [default: "summary"]
-      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories or that are abandoned (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
-      --no-blocking                                    Disables all policy blocking during this command (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --no-security-blocking                           DEPRECATED: use --no-blocking instead. Allows installing packages with security advisories, that are abandoned or that are still in the cooldown period (can also be set via the COMPOSER_NO_SECURITY_BLOCKING=1 env var).
+      --no-blocking                                    Disables all policy blocking during this command, including the cooldown period (can also be set via the COMPOSER_NO_BLOCKING=1 env var).
+      --no-cooldown                                    Disables the cooldown policy blocking during this command, other policies still apply.
       --no-autoloader                                  Skips autoloader generation
       --no-suggest                                     DEPRECATED: This flag does not exist anymore.
       --no-progress                                    Do not output download progress.
@@ -30,7 +31,7 @@ Options:
   -W, --with-all-dependencies                          Update also dependencies of packages in the argument list, including those which are root requirements (can also be set via the COMPOSER_WITH_ALL_DEPENDENCIES=1 env var).
   -o, --optimize-autoloader                            Optimize autoloader during autoloader dump.
   -a, --classmap-authoritative                         Autoload classes from the classmap only. Implicitly enables `--optimize-autoloader`.
-      --strict-psr-autoloader                          Return a failed status code (6) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize-autoloader to work.
+      --strict-psr-autoloader                          Return a failed status code (6) if PSR-4 or PSR-0 mapping errors are present. Requires --optimize-autoloader or --classmap-authoritative to work.
       --apcu-autoloader                                Use APCu to cache found/not-found classes.
       --apcu-autoloader-prefix=APCU-AUTOLOADER-PREFIX  Use a custom prefix for the APCu autoloader cache. Implicitly enables --apcu-autoloader
       --ignore-platform-req=IGNORE-PLATFORM-REQ        Ignore a specific platform requirement (php & ext- packages). (multiple values allowed)
@@ -81,4 +82,4 @@ Help:
   
   To select packages names interactively with auto-completion use -i.
   
-  Read more at https://getcomposer.org/doc/03-cli.md#update-u-upgrade
+  Read more at https://getcomposer.org/doc/03-cli.md#update--u--upgrade

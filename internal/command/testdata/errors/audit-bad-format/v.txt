@@ -1,22 +1,23 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In BaseCommand.php line 467:
+In BaseCommand.php line 469:
                                                         
   [InvalidArgumentException]                            
   --format must be one of table, plain, json, summary.  
                                                         
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/BaseCommand.php:467
- Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/AuditCommand.php:106
+  at @COMPOSER@/src/Composer/Command/BaseCommand.php:469
+ Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/AuditCommand.php:119
  Composer\Command\AuditCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-audit [--no-dev] [-f|--format FORMAT] [--locked] [--abandoned ABANDONED] [--ignore-severity IGNORE-SEVERITY] [--ignore-unreachable]
+audit [--no-dev] [-f|--format FORMAT] [--locked] [--abandoned ABANDONED] [--ignore-severity IGNORE-SEVERITY] [--ignore-unreachable] [-D|--direct]
 
 exit 1

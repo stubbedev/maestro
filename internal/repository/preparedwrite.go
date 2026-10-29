@@ -109,7 +109,7 @@ func (r *FilesystemRepository) PrepareWrite(devMode bool, im InstallationManager
 			return
 		}
 	}
-	in := writeInput{devMode, slices.Clone(canonical), slices.Clone(packages), slices.Clone(devPackageNames), r.rootPackage, r.dumpVersions, repoDir}
+	in := writeInput{devMode, slices.Clone(canonical), slices.Clone(packages), slices.Clone(devPackageNames), r.rootPackage, r.dumpVersions, repoDir, r.dumpPackage}
 	jsonPath := r.file.Path()
 	r.preparedWrite = util.StartAheadFunc(keyOf(in), writeKey.same, func() (*prepared, error) {
 		pw := &prepared{installPaths: installPaths}

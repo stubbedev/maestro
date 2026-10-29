@@ -20,9 +20,19 @@ class CurlDownloader
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Http\\CurlDownloader::abortRequest() in plugins yet');
     }
 
+    public function countDelayedJobs(): int
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Http\\CurlDownloader::countDelayedJobs() in plugins yet');
+    }
+
     public function download(callable $resolve, callable $reject, string $origin, string $url, array $options, ?string $copyTo = null): int
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Http\\CurlDownloader::download() in plugins yet');
+    }
+
+    public function isOriginOnHold(string $origin): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Http\\CurlDownloader::isOriginOnHold() in plugins yet');
     }
 
     public function tick(): void

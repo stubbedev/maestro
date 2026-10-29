@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -16,7 +16,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 Reading ./composer.json (@DIR@/p/composer.json)
 Reading ./composer.json (@DIR@/p/composer.json)
 
-In Config.php line 513:
+In Config.php line 515:
                                                                                
   [RuntimeException]                                                           
   The http protocol for github is not available anymore, update your config's  
@@ -24,15 +24,16 @@ In Config.php line 513:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Config.php:513
- Composer\Config->get() at @COMPOSER@/src/Composer/Config.php:580
- Composer\Config->all() at @COMPOSER@/src/Composer/Command/ConfigCommand.php:247
+  at @COMPOSER@/src/Composer/Config.php:515
+ Composer\Config->get() at @COMPOSER@/src/Composer/Config.php:582
+ Composer\Config->all() at @COMPOSER@/src/Composer/Command/ConfigCommand.php:248
  Composer\Command\ConfigCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
 config [-g|--global] [-e|--editor] [-a|--auth] [--unset] [-l|--list] [-f|--file FILE] [--absolute] [-j|--json] [-m|--merge] [--append] [--source] [--] [<setting-key> [<setting-value>...]]

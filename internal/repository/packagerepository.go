@@ -136,9 +136,6 @@ func (r *PackageRepository) SecurityAdvisories(packageConstraintMap *ConstraintM
 			if err != nil {
 				return AdvisoryResult{}, err
 			}
-			if _, full := advisory.(*SecurityAdvisory); !allowPartial && !full {
-				return AdvisoryResult{}, &util.RuntimeError{Message: "Advisory for " + packageName + " could not be loaded as a full advisory from " + r.RepoName() + php.EOL + php.VarExport(advisoryData)}
-			}
 
 			if advisory.Partial().AffectedVersions.Matches(constraint) {
 				matching = append(matching, advisory)

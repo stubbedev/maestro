@@ -7,7 +7,6 @@ import (
 
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/version"
-	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -271,7 +270,11 @@ func (g *RuleSetGenerator) addRulesForRequest(request *Request, filter version.P
 		// stale positive id from any prior Pool it was part of (Pool only
 		// re-assigns ids for packages it actually contains, so removed
 		// entries keep their previous id).
-		if request.IsLockedPackage(p) && g.pool.IsFilterListRemovedPackageVersion(p.Name(), semver.NewConstraintOp(semver.OpEQ, p.Version())) {
+		policyRemoval := (*PolicyRemovalReason)(nil)
+		if request.IsLockedPackage(p) {
+			policyRemoval = g.pool.PolicyRemovalReason(p.Name(), p.Version())
+		}
+		if policyRemoval != nil && policyRemoval.Type == PolicyRemovalFilterList {
 			continue
 		}
 

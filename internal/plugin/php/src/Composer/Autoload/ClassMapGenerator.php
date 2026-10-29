@@ -58,6 +58,6 @@ class ClassMapGenerator
             $maps = array_merge($maps, static::createMap($dir));
         }
 
-        file_put_contents($file, sprintf('<?php return %s;', var_export($maps, true)));
+        \Composer\Util\Filesystem::safeFilePutContents($file, sprintf('<?php return %s;', var_export($maps, true)));
     }
 }

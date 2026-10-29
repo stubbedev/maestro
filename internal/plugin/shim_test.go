@@ -306,7 +306,7 @@ func TestShim_Launcher(t *testing.T) {
 	}
 }
 
-// TestShim_Parity reflects the shim in php and requires Composer 2.10.3's
+// TestShim_Parity reflects the shim in php and requires Composer 2.11.0's
 // API exactly (docs/PLUGINS.md D7, §9.2): every class, interface and
 // trait, with the same parents, interfaces, constants, properties and
 // method signatures, and no Composer class Composer lacks.
@@ -376,7 +376,7 @@ func TestShim_Parity(t *testing.T) {
 }
 
 // TestShim_VendoredDrift: the vendored libraries are exactly the versions
-// Composer 2.10.3 locks, with exactly the files its phar ships
+// Composer 2.11.0 locks, with exactly the files its phar ships
 // (docs/PLUGINS.md §5.1, §9.2). It needs .ref/composer (`ref-sync`).
 func TestShim_VendoredDrift(t *testing.T) {
 	const ref = "../../.ref/composer"

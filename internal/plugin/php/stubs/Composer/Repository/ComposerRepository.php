@@ -60,6 +60,11 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::findPackages() in plugins yet');
     }
 
+    public function getBaseUrl(): string
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::getBaseUrl() in plugins yet');
+    }
+
     public function getFilter(array $packageConstraintMap, array $configuredLists): array
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::getFilter() in plugins yet');
@@ -127,6 +132,11 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::initialize() in plugins yet');
     }
 
+    public function isOwnDistUrl(\Composer\Package\PackageInterface $package): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::isOwnDistUrl() in plugins yet');
+    }
+
     protected function lazyProvidersRepoContains(string $name)
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::lazyProvidersRepoContains() in plugins yet');
@@ -144,6 +154,11 @@ class ComposerRepository extends \Composer\Repository\ArrayRepository implements
     protected function loadRootServerFile(?int $rootMaxAge = null)
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::loadRootServerFile() in plugins yet');
+    }
+
+    public function requiresPublishedTime(): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\ComposerRepository::requiresPublishedTime() in plugins yet');
     }
 
     public function search(string $query, int $mode = 0, ?string $type = null)

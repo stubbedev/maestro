@@ -249,6 +249,30 @@ func (c *InitCommand) Execute(in console.Input, out console.Output) (int, error)
 		}
 	}
 
+	typeIsLibraryOrUnset := in.Option("type") == nil
+	if typ, ok := in.Option("type").(string); ok && typ == "library" {
+		typeIsLibraryOrUnset = true
+	}
+	if in.IsInteractive() && php.IsDir(".git") && typeIsLibraryOrUnset {
+		attributesFile, ok := php.Realpath(".gitattributes")
+		if !ok {
+			cwd, _ := php.Realpath(".")
+			attributesFile = cwd + "/.gitattributes"
+		}
+
+		if !hasExportIgnoreForLockfile(attributesFile, "composer.lock") {
+			question := "Would you like <info>composer.lock</info> marked as export-ignore in your <info>.gitattributes</info> [<comment>yes</comment>]? "
+
+			ok, err := cio.AskConfirmation(question, true)
+			if err != nil {
+				return 0, err
+			}
+			if ok {
+				addExportIgnoreForLockfile(attributesFile, "composer.lock")
+			}
+		}
+	}
+
 	question := "Would you like to install dependencies now [<comment>yes</comment>]? "
 	if in.IsInteractive() && hasDependencies(options) {
 		ok, err := cio.AskConfirmation(question, true)
@@ -780,12 +804,45 @@ func addVendorIgnore(ignoreFile, vendor string) {
 	if data, err := os.ReadFile(ignoreFile); err == nil {
 		contents = string(data)
 
-		if !strings.HasPrefix(contents, "\n") {
+		if contents != "" && !strings.HasSuffix(contents, "\n") {
 			contents += "\n"
 		}
 	}
 
-	_ = os.WriteFile(ignoreFile, []byte(contents+vendor+"\n"), 0o666)
+	_, _ = util.SafeFilePutContents(ignoreFile, []byte(contents+vendor+"\n"))
+}
+
+// hasExportIgnoreForLockfile ports hasExportIgnoreForLockfile: whether
+// the .gitattributes file marks the lock file as export-ignore.
+func hasExportIgnoreForLockfile(gitAttributesFile, lockfile string) bool {
+	data, err := os.ReadFile(gitAttributesFile)
+	if err != nil {
+		return false
+	}
+
+	pattern := php.MustCompile(`{^/?` + php.PregQuote(lockfile, "") + `\s(?:.*\s)?export-ignore(?:\s|$)\s*$}`)
+
+	for _, line := range phpFileLines(string(data)) {
+		if ok, _ := pattern.IsMatch(line); ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+// addExportIgnoreForLockfile ports addExportIgnoreForLockfile.
+func addExportIgnoreForLockfile(gitAttributesFile, lockfile string) {
+	contents := ""
+	if data, err := os.ReadFile(gitAttributesFile); err == nil {
+		contents = string(data)
+
+		if contents != "" && !strings.HasSuffix(contents, "\n") {
+			contents += "\n"
+		}
+	}
+
+	_, _ = util.SafeFilePutContents(gitAttributesFile, []byte(contents+lockfile+" export-ignore\n"))
 }
 
 // isValidEmail ports isValidEmail.

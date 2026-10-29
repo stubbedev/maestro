@@ -3,6 +3,7 @@
 package command_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
@@ -126,5 +127,19 @@ func TestReinstallCommand_ReinstallCommand(t *testing.T) {
 				t.Errorf("output mismatch\nwant:\n%s\ngot:\n%s", tt.expected, got)
 			}
 		})
+	}
+}
+
+func TestReinstallCommand_ReinstallAbortsOnInvalidInstalledPackageName(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+
+	evil := commandtest.GetPackage(t, "root/../../evil", "1.0.0")
+	evil.SetType("metapackage")
+	commandtest.CreateInstalledJSON(t, []pkg.PackageInterface{evil}, nil, true)
+
+	appTester := commandtest.GetApplicationTester(t)
+	_, err := appTester.RunArgs(commandtest.Options{}, "command", "reinstall", "--no-progress", true, "--no-plugins", true, "packages", []string{"root/*"})
+	if err == nil || !strings.Contains(err.Error(), "root/../../evil is invalid") {
+		t.Fatalf("exception %v, want a SecurityException about root/../../evil", err)
 	}
 }

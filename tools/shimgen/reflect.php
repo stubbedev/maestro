@@ -3,7 +3,7 @@
 /*
  * Reflects Composer's public API for the plugin shim's presence parity
  * (docs/PLUGINS.md D7, §9.2). As plugins-survey/tools/apiindex.php does,
- * it loads every class of Composer 2.10.3's src/ and records, per class:
+ * it loads every class of Composer 2.11.0's src/ and records, per class:
  * kind, flags, parent, interfaces, traits, public and protected constants
  * and properties with their values, and every public or protected method
  * declared by the class with its exact signature. Values and defaults are

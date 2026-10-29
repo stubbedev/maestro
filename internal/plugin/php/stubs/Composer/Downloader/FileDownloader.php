@@ -163,4 +163,9 @@ class FileDownloader implements \Composer\Downloader\ChangeReportInterface, \Com
 
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::update() in plugins yet');
     }
+
+    protected function validateDownloadedFile(\Composer\Package\PackageInterface $package, string $fileName): void
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Downloader\\FileDownloader::validateDownloadedFile() in plugins yet');
+    }
 }

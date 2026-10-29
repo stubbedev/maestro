@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/ui"
@@ -245,6 +246,44 @@ func (r *Runtime) registerIO() {
 		}
 		format := a.str(1)
 		c.EnableTimestampsFunc(func(t time.Time) string { return php.DateFormat(format, t.In(loc)) })
+
+		return nil, nil
+	})
+	method("isProgramStatusEnabled", func(out io.IO, _ args) (any, error) {
+		return out.IsProgramStatusEnabled(), nil
+	})
+	method("startProgramStatus", func(out io.IO, _ args) (any, error) {
+		out.StartProgramStatus()
+
+		return nil, nil
+	})
+	method("writeOsc", func(out io.IO, a args) (any, error) {
+		if err := out.WriteOsc(a.str(1), a.str(2)); err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	})
+	method("writeProgramStatus", func(out io.IO, a args) (any, error) {
+		status, err := console.NewProgramStatus(a.str(1), nullableStr(a.at(2)))
+		if err != nil {
+			return nil, err
+		}
+		var progress *int
+		if a.has(3) {
+			p := a.integer(3)
+			progress = &p
+		}
+		out.WriteProgramStatus(status.WithProgress(progress))
+
+		return nil, nil
+	})
+	method("writeProgress", func(out io.IO, a args) (any, error) {
+		progress := -1
+		if a.has(1) {
+			progress = a.integer(1)
+		}
+		out.WriteProgress(progress)
 
 		return nil, nil
 	})

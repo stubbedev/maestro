@@ -7,11 +7,13 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http/httpmock"
 )
 
@@ -78,7 +80,8 @@ func newGitFixture(t *testing.T) string {
 
 	// add version to composer.json
 	run("checkout", "-q", "master")
-	write("composer.json", `{"name":"a\/b","version":"1.0.0"}`)
+	// must be ignored, only Composer repositories can provide it
+	write("composer.json", `{"name":"a\/b","version":"1.0.0","published-time":"2020-01-01T00:00:00+00:00"}`)
 	run("add", "composer.json")
 	run("commit", "-q", "-m", "addversion")
 
@@ -163,6 +166,145 @@ func TestVcsRepository_LoadVersions(t *testing.T) {
 
 	if len(expected) > 0 {
 		t.Fatalf("Missing versions: %s", strings.Join(expected, ", "))
+	}
+
+	packages, err := r.Packages()
+	noErr(t, err)
+	for _, p := range packages {
+		if _, ok := p.PublishedDate(); ok {
+			t.Errorf("published-time from composer.json must not be trusted for %s", p.PrettyVersion())
+		}
+	}
+}
+
+func TestVcsRepository_LoadVersionsWithOnlyBranchesFilter(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name         string
+		onlyBranches []string
+		expected     []string
+	}{
+		{
+			"patterns",
+			[]string{"1.1.x", "feature/*"},
+			[]string{"0.6.0", "1.0.0", "1.1.x-dev", "dev-feature/a-1.0-B", "dev-master", "9999999-dev"},
+		},
+		{
+			"empty list keeps only the default branch",
+			[]string{},
+			[]string{"0.6.0", "1.0.0", "dev-master", "9999999-dev"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := newGitFixture(t)
+			cfg := newConfig(t, t.TempDir())
+			only := make([]any, len(tc.onlyBranches))
+			for i, b := range tc.onlyBranches {
+				only[i] = b
+			}
+
+			r, err := NewVcsRepository(php.ArrayOf("url", repo, "type", "vcs", "only-branches", php.ListOf(only...)), io.NewNullIO(), cfg.ForHTTP(), httpmock.New(), nil, Options{})
+			noErr(t, err)
+
+			expected := slices.Clone(tc.expected)
+			got := prettyVersions(t, r)
+			for _, v := range got {
+				i := slices.Index(expected, v)
+				if i < 0 {
+					t.Fatalf("Unexpected version %s in %q", v, got)
+				}
+
+				expected = slices.Delete(expected, i, i+1)
+			}
+
+			if len(expected) > 0 {
+				t.Fatalf("Missing versions: %s", strings.Join(expected, ", "))
+			}
+		})
+	}
+}
+
+// fakeSvnDriver mimics the branch layout of SvnDriver without running
+// svn.
+type fakeSvnDriver struct{ url string }
+
+func (d *fakeSvnDriver) Initialize() error { return nil }
+
+func (d *fakeSvnDriver) ComposerInformation(string) (*php.Array, error) {
+	return php.ArrayOf("name", "foo/bar"), nil
+}
+
+func (d *fakeSvnDriver) FileContent(string, string) (string, bool, error) { return "", false, nil }
+
+func (d *fakeSvnDriver) ChangeDate(string) (time.Time, bool, error) { return time.Time{}, false, nil }
+
+func (d *fakeSvnDriver) RootIdentifier() (string, error) { return "/trunk/@3", nil }
+
+func (d *fakeSvnDriver) Branches() (*php.Array, error) {
+	return strMap("trunk", "/trunk/@3", "1.0", "/branches/1.0/@2", "2.0", "/branches/2.0/@1"), nil
+}
+
+func (d *fakeSvnDriver) Tags() (*php.Array, error) { return php.NewArray(), nil }
+
+func (d *fakeSvnDriver) Dist(string) *php.Array { return nil }
+
+func (d *fakeSvnDriver) Source(identifier string) *php.Array {
+	return php.ArrayOf("type", "svn", "url", d.url, "reference", identifier)
+}
+
+func (d *fakeSvnDriver) URL() string { return d.url }
+
+func (d *fakeSvnDriver) HasComposerFile(string) (bool, error) { return true, nil }
+
+func (d *fakeSvnDriver) Cleanup() error { return nil }
+
+func (d *fakeSvnDriver) PHPClass() string { return `Composer\Repository\Vcs\SvnDriver` }
+
+func fakeSvnDriverType() DriverType {
+	return DriverType{
+		Class: `Composer\Repository\Vcs\SvnDriver`,
+		New: func(repoConfig *php.Array, _ Deps) Driver {
+			return &fakeSvnDriver{url: php.ToString(repoConfig.At("url"))}
+		},
+		Supports: func(Deps, string, bool) (bool, error) { return true, nil },
+	}
+}
+
+func TestVcsRepository_OnlyBranchesFilterKeepsSvnTrunk(t *testing.T) {
+	t.Parallel()
+
+	opts := Options{Drivers: []NamedDriver{{"svn", fakeSvnDriverType()}}}
+	r, err := NewVcsRepository(php.ArrayOf("url", "svn://example.org/repo", "type", "svn", "only-branches", php.ListOf("1.*")), io.NewNullIO(), newConfig(t, t.TempDir()).ForHTTP(), httpmock.New(), nil, opts)
+	noErr(t, err)
+
+	versions := prettyVersions(t, r)
+	slices.Sort(versions)
+
+	if want := []string{"1.0.x-dev", "dev-trunk"}; !slices.Equal(versions, want) {
+		t.Errorf("versions %q, want %q", versions, want)
+	}
+}
+
+func TestVcsRepository_InvalidOnlyBranchesThrows(t *testing.T) {
+	t.Parallel()
+
+	repo := filepath.Join(t.TempDir(), "repo")
+	for _, tc := range []struct {
+		name         string
+		onlyBranches any
+	}{
+		{"string", "7.4"},
+		{"non-string item", php.ListOf("7.4", php.ListOf("8.*"))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewVcsRepository(php.ArrayOf("url", repo, "type", "vcs", "only-branches", tc.onlyBranches), io.NewNullIO(), newConfig(t, t.TempDir()).ForHTTP(), httpmock.New(), nil, Options{})
+			expectError[*util.InvalidArgumentError](t, err, `"only-branches" key for repository `+repo+` should be an array of strings`)
+		})
 	}
 }
 

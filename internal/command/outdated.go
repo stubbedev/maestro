@@ -30,6 +30,7 @@ func NewOutdatedCommand() *OutdatedCommand {
 		console.MustOption("minor-only", "m", console.OptionValueNone, "Show only packages that have minor SemVer-compatible updates.", nil),
 		console.MustOption("patch-only", "p", console.OptionValueNone, "Show only packages that have patch SemVer-compatible updates.", nil),
 		console.MustOption("sort-by-age", "A", console.OptionValueNone, "Displays the installed version's age, and sorts packages oldest first.", nil),
+		console.MustOption("cooldown-period", "", console.OptionValueRequired, "Overrides the configured policy.cooldown.period while looking up latest versions, even when the policy is disabled or not blocking, 0 disables it for this run.", nil),
 		formatOption("Format of the output: text or json", "text", jsonTextFormats),
 		optionWithSuggestFunc("ignore", "", console.OptionValueRequired|console.OptionValueIsArray, "Ignore specified package(s). Can contain wildcards (*). Use it if you don't want to be informed about new versions of some packages.", nil, c.SuggestInstalledPackage(false, false)),
 		console.MustOption("no-dev", "", console.OptionValueNone, "Disables search in require-dev packages.", nil),
@@ -45,6 +46,7 @@ The color coding (or signage if you have ANSI colors disabled) for dependency ve
   compatibility breaks according to semver, so upgrade when you can but it
   may involve work.
 - <highlight>red</highlight> (!): Dependency has a new version that is semver-compatible and you should upgrade it.
+- uncolored (c): Dependency has a newer version that is still in the cooldown period and cannot be installed yet.
 
 Read more at https://getcomposer.org/doc/03-cli.md#outdated`)
 
@@ -86,6 +88,9 @@ func (c *OutdatedCommand) Execute(in console.Input, out console.Output) (int, er
 	flag("locked", "--locked")
 	flag("no-dev", "--no-dev")
 	flag("sort-by-age", "--sort-by-age")
+	if v := in.Option("cooldown-period"); v != nil {
+		args = append(args, console.P("--cooldown-period", v))
+	}
 	args = append(args, console.P("--ignore-platform-req", in.Option("ignore-platform-req")))
 	flag("ignore-platform-reqs", "--ignore-platform-reqs")
 	args = append(args, console.P("--format", in.Option("format")))

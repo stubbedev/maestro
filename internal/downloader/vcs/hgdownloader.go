@@ -47,7 +47,7 @@ func (d *HgDownloader) doInstall(p pkg.PackageInterface, path, url string) error
 		return err
 	}
 
-	return d.mustExecute([]string{"hg", "up", "--", p.SourceReference().S}, nil, php.RealpathString(path))
+	return d.mustExecuteSanitized([]string{"hg", "up", "--", p.SourceReference().S}, nil, php.RealpathString(path))
 }
 
 func (d *HgDownloader) doUpdate(_, target pkg.PackageInterface, path, url string) error {
@@ -86,7 +86,7 @@ func (d *HgDownloader) LocalChanges(_ pkg.PackageInterface, path string) (pkg.Nu
 
 func (d *HgDownloader) commitLogs(fromReference, toReference, path string) (string, error) {
 	var output string
-	if err := d.mustExecute([]string{"hg", "log", "-r", fromReference + ":" + toReference, "--style", "compact"}, &output, php.RealpathString(path)); err != nil {
+	if err := d.mustExecuteSanitized([]string{"hg", "log", "-r", fromReference + ":" + toReference, "--style", "compact"}, &output, php.RealpathString(path)); err != nil {
 		return "", err
 	}
 

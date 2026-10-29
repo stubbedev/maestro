@@ -62,6 +62,12 @@ func TarGetComposerJSON(pathToArchive string) (content string, ok bool, err erro
 			continue
 		}
 
+		// Ignore well-known OS/editor metadata entries (resource forks,
+		// thumbnail caches, etc.).
+		if IsMetadataPath(first) {
+			continue
+		}
+
 		roots[first] = roots[first] || nested || entry.isDir
 	}
 

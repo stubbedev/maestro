@@ -20,6 +20,7 @@ type Hooks struct {
 	InstallOperationAppendix func(p pkg.PackageInterface, path string) (string, error)
 	FileName                 func(p pkg.PackageInterface, path string) (string, error)
 	ProcessURL               func(p pkg.PackageInterface, url string) (string, error)
+	ValidateDownloadedFile   func(p pkg.PackageInterface, fileName string) error
 }
 
 // hookedSelf is the $this of a downloader with hooks: the subclass's
@@ -59,6 +60,14 @@ func (s hookedSelf) installOperationAppendix(p pkg.PackageInterface, path string
 	}
 
 	return s.own.installOperationAppendix(p, path)
+}
+
+func (s hookedSelf) validateDownloadedFile(p pkg.PackageInterface, fileName string) error {
+	if s.h.ValidateDownloadedFile != nil {
+		return s.h.ValidateDownloadedFile(p, fileName)
+	}
+
+	return s.own.validateDownloadedFile(p, fileName)
 }
 
 // fileDownloader is the FileDownloader a downloader is or extends (the

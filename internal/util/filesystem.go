@@ -4,6 +4,8 @@ package util
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"io"
 	"io/fs"
@@ -1003,16 +1005,148 @@ func FilePutContentsIfModified(path string, content []byte) (int, error) {
 		return 0, nil
 	}
 
-	if err := os.WriteFile(path, content, 0o666); err != nil {
-		return 0, streamWarning("file_put_contents", path, err)
+	return SafeFilePutContents(path, content)
+}
+
+// SafeFilePutContents ports Filesystem::safeFilePutContents: it replaces
+// path with content by renaming a temporary file onto it, so that readers
+// never see a half-written file and paths hard-linked to the previous inode
+// keep their content, and writes it directly where it cannot be replaced.
+func SafeFilePutContents(path string, content []byte) (int, error) {
+	replaced := replaceFile(path, func(handle *os.File) bool {
+		n, err := handle.Write(content)
+
+		return err == nil && n == len(content)
+	})
+
+	if !replaced {
+		if err := os.WriteFile(path, content, 0o666); err != nil {
+			return 0, streamWarning("file_put_contents", path, err)
+		}
 	}
 
 	return len(content), nil
 }
 
+// replaceFile ports Filesystem::replaceFile: it fills a temporary file with
+// write and renames it onto path, or reports false where path has to be
+// written directly.
+func replaceFile(path string, write func(handle *os.File) bool) bool {
+	// stream wrappers (php://memory, ...) do not support renaming
+	if strings.Contains(path, "://") {
+		return false
+	}
+
+	// write through symlinks instead of replacing them
+	if isLink(path) {
+		real, ok := php.Realpath(path)
+		if !ok {
+			return false
+		}
+
+		path = real
+	}
+
+	// rename() only needs the dir to be writable, so read-only files are
+	// left to the direct write which fails as before, and so are is_writable
+	// false negatives, see https://github.com/composer/composer/issues/8231
+	if php.FileExists(path) && !IsWritable(path) {
+		return false
+	}
+
+	tempPath := path + "~" + randomTempSuffix() + ".tmp"
+
+	handle, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o666) //nolint:gosec // PHP's fopen "x"; relaxed to 0600 below before anything is written.
+	if err != nil {
+		return false
+	}
+
+	created, err := handle.Stat()
+	if err != nil {
+		_ = handle.Close()
+		_ = os.Remove(tempPath)
+
+		return false
+	}
+
+	// restrict permissions before writing as the content may be sensitive,
+	// e.g. auth.json
+	written := handle.Chmod(0o600) == nil
+
+	stat, statErr := os.Stat(path)
+	if written && statErr == nil {
+		// the renamed file would be ours, so only replace it if its owner
+		// and group can be kept
+		tempStat, err := handle.Stat()
+		written = err == nil && chownFrom(tempPath, tempStat, stat)
+	}
+
+	written = written && write(handle)
+	written = handle.Close() == nil && written
+
+	if written {
+		// os.Stat follows the symlink path was resolved from.
+		mode := created.Mode().Perm()
+		if statErr == nil {
+			mode = stat.Mode().Perm()
+		}
+
+		_ = os.Chmod(tempPath, mode)
+
+		// not using Filesystem::rename() as its fallbacks copy onto the
+		// target, rewriting it in place
+		if err := os.Rename(tempPath, path); err == nil {
+			return true
+		}
+	}
+
+	_ = os.Remove(tempPath)
+
+	return false
+}
+
+// randomTempSuffix is bin2hex(random_bytes(5)), which names a temporary
+// file uniquely without keeping state.
+func randomTempSuffix() string {
+	var b [5]byte
+	_, _ = rand.Read(b[:])
+
+	return hex.EncodeToString(b[:])
+}
+
+// chownFrom gives temp the owner and group of stat where they differ, as
+// Filesystem::replaceFile does before renaming, and reports whether it
+// could.
+func chownFrom(temp string, tempStat, stat os.FileInfo) bool {
+	uid, gid, ok := fileOwner(stat)
+	if !ok {
+		return true
+	}
+
+	tempUID, tempGID, ok := fileOwner(tempStat)
+	if !ok {
+		return false
+	}
+
+	if uid != tempUID {
+		if err := os.Chown(temp, uid, -1); err != nil {
+			return false
+		}
+	}
+
+	if gid != tempGID {
+		if err := os.Chown(temp, -1, gid); err != nil {
+			return false
+		}
+	}
+
+	return true
+}
+
 // SafeCopy ports Filesystem::safeCopy: copies source over target unless
-// both exist with equal contents, then gives target source's mtime and
-// atime in whole seconds, as touch() does.
+// both exist with equal contents, replacing target by a renamed temporary
+// file where it can, then gives target source's mtime and atime in whole
+// seconds, as touch() does.
 func SafeCopy(source, target string) error {
 	if php.FileExists(target) && php.FileExists(source) {
 		equal, err := filesAreEqual(source, target)
@@ -1031,19 +1165,29 @@ func SafeCopy(source, target string) error {
 	}
 	defer src.Close()
 
-	dst, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // PHP's "w+" mode; the umask applies.
-	if err != nil {
-		return streamWarning("fopen", target, err)
-	}
+	replaced := replaceFile(target, func(handle *os.File) bool {
+		_, err := io.Copy(handle, src)
 
-	if _, err := io.Copy(dst, src); err != nil {
-		_ = dst.Close()
+		return err == nil
+	})
 
-		return warning("stream_copy_to_stream", source, err)
-	}
+	if !replaced {
+		_, _ = src.Seek(0, io.SeekStart)
 
-	if err := dst.Close(); err != nil {
-		return warning("fclose", target, err)
+		dst, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o666) //nolint:gosec // PHP's "w+" mode; the umask applies.
+		if err != nil {
+			return streamWarning("fopen", target, err)
+		}
+
+		if _, err := io.Copy(dst, src); err != nil {
+			_ = dst.Close()
+
+			return warning("stream_copy_to_stream", source, err)
+		}
+
+		if err := dst.Close(); err != nil {
+			return warning("fclose", target, err)
+		}
 	}
 
 	fi, err := src.Stat()

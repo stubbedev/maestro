@@ -6,10 +6,12 @@ package pkg_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/pkg/internal/pkgtest"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/semver"
 	"github.com/stubbedev/maestro/internal/util"
 )
@@ -138,6 +140,38 @@ func TestCompletePackage_GetTargetDir(t *testing.T) {
 		if got := p.TargetDir(); got != pkg.Str(c[1]) {
 			t.Errorf("%q: got %v, want %q", c[0], got, c[1])
 		}
+	}
+}
+
+func TestCompletePackage_LastDateSetterWins(t *testing.T) {
+	p := pkg.NewPackage("foo", "1.0.0.0", "1.0")
+	at := func(s string) time.Time {
+		t.Helper()
+
+		parsed, err := loader.ParseDateTime(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return parsed
+	}
+
+	p.SetReleaseDate(at("2025-01-15T10:00:00+00:00"), true)
+	p.SetReleaseDate(at("2020-01-01T00:00:00+00:00"), true)
+	if date, ok := p.ReleaseDate(); !ok || date.Format("2006-01-02") != "2020-01-01" {
+		t.Errorf("release date %v %v, want 2020-01-01", date, ok)
+	}
+
+	p.SetPublishedDate(at("2025-01-15T10:00:00+00:00"), true)
+	p.SetPublishedDate(time.Time{}, false)
+	if date, ok := p.PublishedDate(); ok {
+		t.Errorf("published date %v set, want null", date)
+	}
+
+	p.SetPublishedDate(at("2020-01-01T00:00:00+00:00"), true)
+	p.SetPublishedDate(time.Unix(1747685025, 0).UTC(), true)
+	if date, ok := p.PublishedDate(); !ok || date.Unix() != 1747685025 {
+		t.Errorf("published date %v %v, want timestamp 1747685025", date, ok)
 	}
 }
 

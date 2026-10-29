@@ -30,4 +30,4 @@ Help:
   
   php composer.phar prohibits composer/composer
   
-  Read more at https://getcomposer.org/doc/03-cli.md#prohibits-why-not
+  Read more at https://getcomposer.org/doc/03-cli.md#prohibits--why-not

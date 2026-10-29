@@ -9,9 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/php"
 )
 
-// Ports tests/Composer/Test/Json/ComposerSchemaTest.php. assertAmbiguousRepositoryNotPossible
-// is not ported: it is no test (PHPUnit never runs it) and would fail, as
-// check() never returns false.
+// Ports tests/Composer/Test/Json/ComposerSchemaTest.php.
 
 func resRetriever(uri string) (string, error) {
 	if text, ok := res.Lookup(uri); ok {
@@ -187,6 +185,68 @@ func TestComposerSchema_RegularPolicyCustomListNameIsAccepted(t *testing.T) {
 	assertValid(t, `{"name": "vendor/package", "description": "description", "config": {"policy": {"company-policy": {"block": true}}}}`)
 }
 
+func TestComposerSchema_AmbiguousRepositoryNotPossible(t *testing.T) {
+	if errs := check(t, `{
+    "repositories": {
+        "foo": {
+            "name": "bar",
+            "type": "path",
+            "url": "vendor/package"
+        }
+    }
+}`); len(errs) == 0 {
+		t.Error("a named repository under the object form is ambiguous")
+	}
+
+	assertValid(t, `{
+    "repositories": {
+        "foo": {
+            "type": "path",
+            "url": "vendor/package"
+        }
+    }
+}`)
+	assertValid(t, `{
+    "repositories": [
+        {
+            "name": "foo",
+            "type": "path",
+            "url": "vendor/package"
+        }
+    ]
+}`)
+	assertValid(t, `{
+    "repositories": [
+        {
+            "type": "path",
+            "url": "vendor/package"
+        }
+    ]
+}`)
+}
+
 func TestComposerSchema_IgnoreUnreachablePolicyKeyIsAccepted(t *testing.T) {
 	assertValid(t, `{"name": "vendor/package", "description": "description", "config": {"policy": {"ignore-unreachable": true}}}`)
+}
+
+func TestComposerSchema_CooldownPeriodPattern(t *testing.T) {
+	cases := []struct {
+		period string
+		valid  bool
+	}{
+		{"7 days", true},
+		{"3600", true},
+		{"", true},
+		{"   ", false},
+		{" 7 days ", false},
+		{"7 Days", false},
+	}
+	for _, c := range cases {
+		json := `{"name": "vendor/package", "description": "description", "config": {"policy": {"cooldown": {"period": "` + c.period + `"}}}}`
+		if c.valid {
+			assertValid(t, json)
+		} else if errs := check(t, json); len(errs) == 0 {
+			t.Errorf("%s: expected errors", json)
+		}
+	}
 }

@@ -1,4 +1,4 @@
-Running 2.10.3 (2026-08-27 13:34:23) with PHP @PHP@ on @OS@
+Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/plain" project at "./out"
@@ -15,16 +15,16 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.2xJDSU-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.03jNHo-run-p-packages.json/packages.json into cache
 Installing x/plain (1.0.0)
   - Downloading x/plain (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/plain.zip
 [200] http://@SERVER@/plain.zip
-Writing @DIR@/cache/files/x/plain/366489752ac70b01dae3f7849cf6009a353cada6.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
+Writing @DIR@/cache/files/x/plain/9be661e5200e5107d88911c002fc86fd0ebec677.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
   - Installing x/plain (1.0.0): Extracting archive
-Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/4ed74e04'
-Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/4ed74e04'
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/912bbae9'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/912bbae9'
 Created project in @DIR@/p/out
 Reading ./composer.json (@DIR@/p/out/composer.json)
 Loading config file ./composer.json (@DIR@/p/out/composer.json)
@@ -35,25 +35,26 @@ Loading config file ./composer.json (@DIR@/p/out/composer.json)
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 
-In BaseCommand.php line 467:
+In BaseCommand.php line 469:
                                                               
   [InvalidArgumentException]                                  
   --audit-format must be one of table, plain, json, summary.  
                                                               
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/BaseCommand.php:467
- Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/BaseCommand.php:508
- Composer\Command\BaseCommand->createAuditConfig() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:277
- Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:155
+  at @COMPOSER@/src/Composer/Command/BaseCommand.php:469
+ Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/BaseCommand.php:527
+ Composer\Command\BaseCommand->createAuditConfig() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:281
+ Composer\Command\CreateProjectCommand->installProject() at @COMPOSER@/src/Composer/Command/CreateProjectCommand.php:159
  Composer\Command\CreateProjectCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
- Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:457
+ Symfony\Component\Console\Application->doRun() at @COMPOSER@/src/Composer/Console/Application.php:504
+ Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171
- Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:141
+ Symfony\Component\Console\Application->run() at @COMPOSER@/src/Composer/Console/Application.php:142
  Composer\Console\Application->run() at @COMPOSER@/bin/composer:113
 
-create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
+create-project [-s|--stability STABILITY] [--prefer-source] [--prefer-dist] [--prefer-install PREFER-INSTALL] [--repository REPOSITORY] [--repository-url REPOSITORY-URL] [--add-repository] [--require REQUIRE] [--dev] [--no-dev] [--no-custom-installers] [--no-scripts] [--no-progress] [--no-secure-http] [--keep-vcs] [--remove-vcs] [--no-install] [--no-audit] [--audit-format AUDIT-FORMAT] [--no-security-blocking] [--no-blocking] [--no-cooldown] [--ignore-platform-req IGNORE-PLATFORM-REQ] [--ignore-platform-reqs] [--ask] [--] [<package> [<directory> [<version>]]]
 
 exit 1

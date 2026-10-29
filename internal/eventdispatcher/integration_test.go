@@ -87,8 +87,9 @@ func TestIntegration_AdditionalArgs(t *testing.T) {
 	)
 }
 
-// Verified against Composer 2.10.3: an @script reference using
-// @additional_args gets no arguments at all (array_splice's return value).
+// Verified against Composer 2.11.0: an @script reference's fixed
+// arguments are unquoted and passed on to the referenced script, and
+// @additional_args is replaced by the event's arguments.
 func TestIntegration_VerboseReferences(t *testing.T) {
 	d, _, _ := realDispatcher(t, php.ArrayOf(
 		"test", php.ListOf("@missing", "echo x @no_additional_args", "@sub a @additional_args b"),
@@ -106,7 +107,7 @@ func TestIntegration_VerboseReferences(t *testing.T) {
 		"<warning>You made a reference to a non-existent script @missing</warning>",
 		"> test: echo x", "x",
 		"> test (u): @sub a @additional_args b",
-		"> sub: echo sub", "sub",
+		"> sub: echo sub 'a' 'u' 'b'", "sub a u b",
 	)
 }
 
