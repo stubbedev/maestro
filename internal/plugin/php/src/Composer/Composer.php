@@ -16,9 +16,9 @@ use Maestro\Shim\Sync;
 
 class Composer extends PartialComposer
 {
-    public const VERSION = '2.11.0';
+    public const VERSION = '2.11.1';
     public const BRANCH_ALIAS_VERSION = '';
-    public const RELEASE_DATE = '2026-10-29 10:23:20';
+    public const RELEASE_DATE = '2026-10-30 14:52:10';
     public const SOURCE_VERSION = '';
     public const RUNTIME_API_VERSION = '2.2.2';
 
