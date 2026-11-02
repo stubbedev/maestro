@@ -44,7 +44,8 @@
 //     checked-out commit, the current branch and the remotes' URLs.
 //   - The name of a dist's temporary file in messages
 //     (vendor/composer/tmp-<md5 including spl_object_hash()>).
-//   - Durations printed at -vv ("... completed in 0.003 seconds").
+//   - Durations printed at -vv ("... completed in 0.003 seconds") and -vvv
+//     ("Built pool in 0.00046s").
 //   - The "Maestro version X" line `--version` adds on stderr (maestro's
 //     own build, cmd/maestro/main.go).
 //   - The script each tool runs as, Composer's phar or maestro's binary
@@ -780,6 +781,10 @@ var progressLine = regexp.MustCompile(`^(?:(?: *\d+/\d+ \[[=>-]*\] +\d+%(?: +(?:
 // completed in 0.003 seconds", "Dependency resolution completed in ...").
 var timings = regexp.MustCompile(`(completed in )\d+(?:\.\d+)? seconds`)
 
+// poolBuildTime is the duration "Built pool in 0.00046s" prints at -vvv, PHP's
+// string form of a float, which may have an exponent.
+var poolBuildTime = regexp.MustCompile(`(Built pool in )[0-9.eE+-]+s`)
+
 // tmpFile is FileDownloader's temporary dist file, vendor/composer/tmp-<md5
 // of the package and spl_object_hash($package)>: the object hash varies
 // between processes. Its hex digits become "x", also where an exception
@@ -838,6 +843,7 @@ func normalizeOutput(s string) string {
 
 	s = strings.Join(out, "\n")
 	s = timings.ReplaceAllString(s, "${1}<time> seconds")
+	s = poolBuildTime.ReplaceAllString(s, "${1}<time>s")
 	s = tmpFile.ReplaceAllStringFunc(s, func(m string) string {
 		return m[:len("/tmp-")] + regexp.MustCompile(`[0-9a-f]`).ReplaceAllString(m[len("/tmp-"):], "x")
 	})

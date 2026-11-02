@@ -368,7 +368,7 @@ func fixtureScenarios() []scenario {
 				{args: []string{"run-script", "args", "extra", "more"}},
 				{args: []string{"run-script", "fail"}},
 				{args: []string{"run-script", "nested"}},
-				{args: []string{"run-script", "bin-path"}},
+				{args: []string{"run-script", "bin-path"}, setup: addBinDir},
 				{args: []string{"run-script", "php-binary"}},
 				{args: []string{"run-script", "--list"}},
 				{args: []string{"run-script", "post-install-cmd", "--no-dev"}},
@@ -1008,6 +1008,17 @@ func artifacts(t *testing.T, root string) {
 }
 
 // addConflict makes composer.json conflict with what it requires.
+// addBinDir creates vendor/bin, which only exists at this point of a run in
+// Composer (deviation 7 in docs/PORTING.md): a bin dir that exists goes on
+// the PATH of scripts.
+func addBinDir(t *testing.T, root string) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Join(root, "project", "vendor", "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func addConflict(t *testing.T, root string) {
 	t.Helper()
 
