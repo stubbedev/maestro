@@ -73,15 +73,22 @@ set_value "$shim/src/Composer/Composer.php" "public const RUNTIME_API_VERSION" "
 set_value "$shim/stubs/Composer/Plugin/PluginInterface.php" "public const PLUGIN_API_VERSION" "${phar[PLUGIN_API_VERSION]}"
 
 # replace OLD NEW FILE...: OLD where it stands alone (not inside a longer
-# version), in the docs that state what maestro ports
+# version, and not the version of a package another release names, as in
+# "symfony/flex 2.11.0"), in the docs that state what maestro ports
 replace() {
-	OLD="$1" NEW="$2" perl -pi -e 's/(?<![\d.])\Q$ENV{OLD}\E(?![\d])/$ENV{NEW}/g' "${@:3}"
+	OLD="$1" NEW="$2" perl -pi -e 's{([a-z0-9_.-]+/[a-z0-9_.-]+ )?(?<![\d.])\Q$ENV{OLD}\E(?![\d])}{defined $1 ? $& : $ENV{NEW}}ge' "${@:3}"
+}
+# set_doc_api NAME VALUE FILE...: the quoted value stated right after NAME.
+# By name and not by value: an API version can equal the release's version
+# and move separately from it, so this runs after the release's replace.
+set_doc_api() {
+	NAME="$1" VALUE="$2" perl -pi -e 's/(\Q$ENV{NAME}\E\s*={1,3}\s*)(["\x27])[^"\x27]*\2/$1$2$ENV{VALUE}$2/g' "${@:3}"
 }
 docs=(README.md docs/PORTING.md docs/PLUGINS.md)
 replace "${old[version]}" "$new" "${docs[@]}"
 replace "${old[date]}" "${phar[RELEASE_DATE]}" "${docs[@]}"
-replace "'${old[plugin]}'" "'${phar[PLUGIN_API_VERSION]}'" "${docs[@]}"
-replace "\"${old[plugin]}\"" "\"${phar[PLUGIN_API_VERSION]}\"" "${docs[@]}"
+set_doc_api PLUGIN_API_VERSION "${phar[PLUGIN_API_VERSION]}" "${docs[@]}"
+set_doc_api PluginAPIVersion "${phar[PLUGIN_API_VERSION]}" "${docs[@]}"
 replace "'${old[runtime]}'" "'${phar[RUNTIME_API_VERSION]}'" "${docs[@]}"
 replace "\"${old[runtime]}\"" "\"${phar[RUNTIME_API_VERSION]}\"" "${docs[@]}"
 
