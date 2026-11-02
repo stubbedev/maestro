@@ -1,4 +1,4 @@
-Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
+Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -40,8 +40,8 @@ In BaseCommand.php line 366:
 
 Exception trace:
   at @COMPOSER@/src/Composer/Command/BaseCommand.php:366
- Composer\Command\BaseCommand->getPreferredInstallOptions() at @COMPOSER@/src/Composer/Command/RequireCommand.php:475
- Composer\Command\RequireCommand->doUpdate() at @COMPOSER@/src/Composer/Command/RequireCommand.php:344
+ Composer\Command\BaseCommand->getPreferredInstallOptions() at @COMPOSER@/src/Composer/Command/RequireCommand.php:476
+ Composer\Command\RequireCommand->doUpdate() at @COMPOSER@/src/Composer/Command/RequireCommand.php:345
  Composer\Command\RequireCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

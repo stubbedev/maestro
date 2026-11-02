@@ -1,6 +1,6 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In JsonConfigSource.php line 398:
+In JsonConfigSource.php line 437:
                                                
   The file "./composer.json" is not writable.  
                                                

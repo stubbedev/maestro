@@ -1,4 +1,4 @@
-Composer version: 2.11.0
+Composer version: 2.11.1
 Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
 PHP version: @PHPVERSION@
 PHP binary path: @MACHINE@

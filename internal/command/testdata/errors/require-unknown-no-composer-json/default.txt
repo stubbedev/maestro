@@ -1,7 +1,7 @@
 
 Installation failed, deleting ./composer.json.
 
-In RequireCommand.php line 230:
+In RequireCommand.php line 231:
                                                                                
   No composer.json present in the current directory (./composer.json), this m  
   ay be the cause of the following exception.                                  

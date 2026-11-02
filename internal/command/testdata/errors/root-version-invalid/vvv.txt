@@ -1,4 +1,4 @@
-Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
+Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 
@@ -15,7 +15,7 @@ In Factory.php line 317:
 Exception trace:
   at @COMPOSER@/src/Composer/Factory.php:317
  Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:676
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/InstallCommand.php:105
  Composer\Command\InstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298

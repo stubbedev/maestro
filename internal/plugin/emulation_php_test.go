@@ -224,6 +224,7 @@ func TestInternals_Frames(t *testing.T) {
 Symfony\Component\Console\Command\Command->run(2) Composer\Command\LicensesCommand
 Symfony\Component\Console\Application->doRunCommand(3) Composer\Console\Application
 Symfony\Component\Console\Application->doRun(2) Composer\Console\Application
+Composer\Console\Application->doRunComposer(3) Composer\Console\Application
 Composer\Console\Application->doRun(2) Composer\Console\Application
 Symfony\Component\Console\Application->run(2) Composer\Console\Application
 Composer\Console\Application->run(0) Composer\Console\Application`

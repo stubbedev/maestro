@@ -42,7 +42,7 @@ state over IPC. Requirements:
 
 - **Unchanged plugins.** Plugins load, run and see the same API, the same
   `class_exists`/`method_exists` answers, the same constants
-  (`Composer::VERSION === '2.11.1'`, `PluginInterface::PLUGIN_API_VERSION === '2.11.1'`)
+  (`Composer::VERSION === '2.11.1'`, `PluginInterface::PLUGIN_API_VERSION === '2.11.0'`)
   and the same object identities as under Composer 2.11.1.
 - **Identical results.** Output bytes and their order, exit codes, files
   written, `composer.lock` and the vendor tree match real Composer.
@@ -89,7 +89,7 @@ the API tier (§8) the plugin needs to pass its e2e fixture.
 | wikimedia/composer-merge-plugin 2.1.0 | INIT, PRE_INSTALL/UPDATE_CMD, PRE_AUTOLOAD_DUMP (50000) | Root package requires/devRequires/…/repositories **before solving**; `RM::prependRepository` | `new Link`, `MultiConstraint::create`, `ArrayLoader::load`; nested `Installer::create(...)->run()` | 5 |
 | ergebnis/composer-normalize 2.54.0 | none | Command `normalize` writes composer.json, then runs `update --lock` | `new Factory()->createComposer`; `new Console\Application()->run(ArrayInput)` | 4 |
 | bamarni/composer-bin-plugin 1.9.1 | COMMAND, POST_AUTOLOAD_DUMP | Command `bin`: `chdir`, `putenv`, nested `Application::doRun(StringInput)` | Needs `$io instanceof ConsoleIO` and reads its protected `input`/`output`/`helperSet`; `resetComposer()` | 6 |
-| symfony/flex 2.11.1 | PRE_POOL_CREATE, PRE_OPERATIONS_EXEC, PRE/POST_*_CMD, auto-scripts | Pool filtering, recipes, composer.json/lock rewrites, `setLocker`, localRepo writes, re-runs install; `SymfonyPackInstaller extends MetapackageInstaller` | `debug_backtrace` for `Application`+`ArgvInput` and `Installer`; rewrites private `ArgvInput::$tokens`; `Closure::bind` into Transaction; array-cast reads of protected props | 6 |
+| symfony/flex 2.11.0 | PRE_POOL_CREATE, PRE_OPERATIONS_EXEC, PRE/POST_*_CMD, auto-scripts | Pool filtering, recipes, composer.json/lock rewrites, `setLocker`, localRepo writes, re-runs install; `SymfonyPackInstaller extends MetapackageInstaller` | `debug_backtrace` for `Application`+`ArgvInput` and `Installer`; rewrites private `ArgvInput::$tokens`; `Closure::bind` into Transaction; array-cast reads of protected props | 6 |
 | php-http/discovery 1.20.0 | PRE_AUTOLOAD_DUMP, POST_UPDATE_CMD | Root autoload in place; composer.json edit; re-runs the install in-process | `debug_backtrace` to find `Installer`; `clone` + `__construct(9 services)`; protected props through `(array)` casts | 6 |
 
 Also surveyed (in `plugins.md`, same tiering): cakephp/plugin-installer, civicrm/composer-downloads-plugin, drupal/core-project-message, drupal/core-vendor-hardening, endroid/installer, johnpbloch/wordpress-core-installer, laminas/laminas-component-installer, laminas/laminas-dependency-plugin, magento/magento-composer-installer, mcaskill/composer-exclude-files, ocramius/package-versions, pyrech/composer-changelogs, ramsey/composer-repl, symfony/thanks, typo3/class-alias-loader, typo3/cms-composer-installers, vaimo/composer-patches, yiisoft/yii2-composer, zaporylie/composer-drupal-optimizations.
@@ -130,7 +130,7 @@ What the survey shows:
 | D3 | **Synchronous, re-entrant RPC over one channel.** Exactly one side runs at any moment. Either side may call the other while handling a call, to any depth. | Mirrors Composer's single call stack, so output order and side effects stay deterministic. There are no races and no locks. |
 | D4 | **State syncs at every control transfer.** Each message carries the deltas (revision-based) of mirrored objects, env vars, cwd and Composer statics changed since the last message. | In-place mutations (`setAutoload`, `setExtra`, root `setRequires`, `putenv`, `chdir`) become visible to the other side before it runs again. That is the only moment it could observe them. |
 | D5 | **Transport: inherited pipes on fds 3 and 4** (Unix), loopback TCP with a 256-bit token (Windows). Frames are a 4-byte length plus JSON. | stdin, stdout and stderr stay the user's terminal, so plugin `echo`, `proc_open` with inherited stdio and TTY prompts behave as in Composer. JSON is native to PHP and fast enough. |
-| D6 | **Vendor the third-party libraries the 2.11.1 phar ships** (§5.1) verbatim into the shim: symfony/console 5.4.54, process, filesystem, finder, string, polyfills, composer/semver 3.6.0, pcre, class-map-generator 1.8.0, ca-bundle 1.6.0, metadata-minifier, spdx-licenses, xdebug-handler, react/promise, seld/jsonlint, seld/phar-utils, signal-handler, justinrainbow/json-schema 6.13.1, marc-mabe/php-enum, psr/log, psr/container. | Plugins use these directly, assume Composer bundles them, and depend on their exact behaviour (Symfony Console commands, real semver constraint objects, React promises). They are MIT and not Composer's code. Loading them first in the child also reproduces the phar's class precedence. |
+| D6 | **Vendor the third-party libraries the 2.11.1 phar ships** (§5.1) verbatim into the shim: symfony/console 5.4.55, process, filesystem, finder, string, polyfills, composer/semver 3.6.0, pcre, class-map-generator 1.8.0, ca-bundle 1.6.1, metadata-minifier, spdx-licenses, xdebug-handler, react/promise, seld/jsonlint, seld/phar-utils, signal-handler, justinrainbow/json-schema 6.13.1, marc-mabe/php-enum, psr/log, psr/container. | Plugins use these directly, assume Composer bundles them, and depend on their exact behaviour (Symfony Console commands, real semver constraint objects, React promises). They are MIT and not Composer's code. Loading them first in the child also reproduces the phar's class precedence. |
 | D7 | **API presence parity.** Every class, interface, trait, public or protected method and constant in Composer 2.11.1's `src/` (minus `Compiler`, `PHPStan\*`) exists in the shim with the same signature. Unsupported members throw `Maestro\Shim\UnsupportedApiException`. No class Composer lacks is defined (no `PearInstaller`, no `Script\CommandEvent`). | Plugins feature-sniff with `class_exists`/`method_exists`/`defined` (flex checks `BaseConfigCommand`, mnsami guards `PearInstaller`, laminas ships a stub of `PrePoolCreateEvent`). The answers must be identical. |
 | D8 | **Plugin loading is split.** Go does the policy: which packages, order, `allow-plugins` with its prompt, API version, autoload map. PHP does the mechanism: ClassLoader, `files` requires, the eval-rename hack, instantiation, `activate`, `addSubscriber`. | The policy needs Go's repositories, autoload generator and config. The mechanism must happen inside PHP. |
 | D9 | **Custom installers use a virtual-dispatch table.** At `addInstaller`, the shim reports which `InstallerInterface`/`LibraryInstaller` methods the PHP class overrides. Go calls PHP only for those. Inherited behaviour runs natively in Go, and calls back into PHP for overridden hooks such as `getInstallPath`. | `composer/installers` overrides only `supports`, `getInstallPath` and `uninstall`. Downloads and extraction stay native and parallel (deviations 1 and 3). |
@@ -162,7 +162,7 @@ them, and refusing them is acceptable elsewhere.
 
 | Symbol | Used by | Backing |
 | --- | --- | --- |
-| `Plugin\PluginInterface` (`activate`, `deactivate`, `uninstall`, `PLUGIN_API_VERSION = '2.11.1'`) | 41 | PHP interface |
+| `Plugin\PluginInterface` (`activate`, `deactivate`, `uninstall`, `PLUGIN_API_VERSION = '2.11.0'`) | 41 | PHP interface |
 | `EventDispatcher\EventSubscriberInterface::getSubscribedEvents` (all 3 shapes: `'m'`, `['m', prio]`, `[['m', prio], …]`) | 35 | PHP interface |
 | `Plugin\Capable::getCapabilities`, `Plugin\Capability\Capability`, `Capability\CommandProvider::getCommands` | 6 | PHP interface (tier 4) |
 | `Plugin\PluginEvents` constants: INIT, COMMAND, PRE_FILE_DOWNLOAD, POST_FILE_DOWNLOAD, PRE_COMMAND_RUN, PRE_POOL_CREATE | 6 | PHP |
@@ -299,7 +299,7 @@ them, and refusing them is acceptable elsewhere.
 | `Command\BaseCommand` (extended by 7): `getComposer`, `requireComposer` 4, `tryComposer`, `setComposer` 3, `resetComposer`, `getIO`, `setIO`, `isProxyCommand`, `getApplication` 3, `initialize`, `getPreferredInstallOptions`, `formatRequirements`, `normalizeRequirements`, `renderTable`, `getTerminalWidth`, `complete`, `createComposerInstance`, `getPlatformRequirementFilter` | 9 | PHP class extending vendored `Symfony\Component\Console\Command\Command`. Composer-object methods are RPC. | 4 |
 | `Command\GlobalCommand`, `BaseConfigCommand`, every built-in command class | 1 / 1 | PHP classes whose instances mirror Go's built-in commands (for `instanceof`, `find`, `getDefinition`); `run` from PHP is an RPC | 4 (presence), 6 (frames) |
 | `Console\Application`: `new` 3 + `run`/`doRun` (nested runs), `find`, `has`, `add`/`addCommand`, `all`, `get`, `getVersion`, `getComposer`, `resetComposer`, `getIO`, `getDefinition`, `getHelperSet`, `setAutoExit`, `setCatchExceptions` | 5 | PHP subclass of vendored Symfony Application. The running app is a mirror of Go's Application. `new Application()` creates a new Go app peer. | 4 |
-| `Symfony\Component\Console\*`: Input (ArgvInput, ArrayInput, StringInput, InputArgument, InputOption, InputInterface), Output (ConsoleOutput, StreamOutput, OutputInterface), helpers, questions, exceptions | 10 | Vendored symfony/console 5.4.54 | 4 |
+| `Symfony\Component\Console\*`: Input (ArgvInput, ArrayInput, StringInput, InputArgument, InputOption, InputInterface), Output (ConsoleOutput, StreamOutput, OutputInterface), helpers, questions, exceptions | 10 | Vendored symfony/console 5.4.55 | 4 |
 | `Symfony\Component\{Process,Filesystem,Finder}` | 4 / 2 / 1 | Vendored | 2 |
 
 ### 4.12 Nested runs and plugin management
@@ -352,14 +352,14 @@ tools/shimvendor/     copies the exact library versions from .ref/composer/vendo
 ```
 
 **Vendored set.** This is exactly the phar's runtime dependencies (from
-`.ref/composer/vendor/composer/installed.json`): composer/ca-bundle 1.6.0,
+`.ref/composer/vendor/composer/installed.json`): composer/ca-bundle 1.6.1,
 class-map-generator 1.8.0, metadata-minifier 1.0.1, pcre 2.3.2, semver 3.6.0,
 spdx-licenses 1.6.0, xdebug-handler 3.0.5; justinrainbow/json-schema 6.13.1;
 marc-mabe/php-enum 4.7.2; psr/container 1.1.1; psr/log 1.1.4; react/promise
 3.3.0; seld/jsonlint 1.12.1, phar-utils 1.2.3, signal-handler 2.0.2;
-symfony/console 5.4.54, deprecation-contracts 2.5.4, filesystem 5.4.54,
-finder 5.4.45, polyfill-ctype 1.37.0, polyfill-intl-grapheme 1.43.0,
-polyfill-intl-normalizer 1.43.0, polyfill-mbstring 1.43.0, polyfill-php73
+symfony/console 5.4.55, deprecation-contracts 2.5.4, filesystem 5.4.54,
+finder 5.4.45, polyfill-ctype 1.37.0, polyfill-intl-grapheme 1.43.3,
+polyfill-intl-normalizer 1.43.0, polyfill-mbstring 1.43.3, polyfill-php73
 1.37.0, polyfill-php80 1.43.0, polyfill-php81 1.38.1, polyfill-php84 1.43.0,
 process 5.4.54, service-contracts 2.5.4, string 5.4.47.
 `tools/shimvendor` copies them (the files `Compiler.php` puts into the phar,
@@ -1428,7 +1428,7 @@ mistake, so keep it exact.
 interactive prompt, persistence through `JsonConfigSource` and `Config.Merge`,
 `Too many failed prompts, aborting.`, and the `PluginBlockedException` text.
 
-**Plugin API version.** This is Go's `PluginAPIVersion = "2.11.1"`, also
+**Plugin API version.** This is Go's `PluginAPIVersion = "2.11.0"`, also
 emitted as the `composer-plugin-api` platform package. The shim's
 `PluginInterface::PLUGIN_API_VERSION` constant must equal it. A test pins
 both.

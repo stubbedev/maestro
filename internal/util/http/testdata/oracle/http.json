@@ -1423,7 +1423,7 @@
                     ]
                 }
             },
-            "output": ""
+            "output": "Using Bearer token authentication\n"
         },
         {
             "origin": "example.org",
@@ -1471,7 +1471,7 @@
                     ]
                 }
             },
-            "output": ""
+            "output": "<warning>Ignoring custom-headers authentication for example.org as it is not a list of header strings</warning>\n"
         },
         {
             "origin": "github.com",

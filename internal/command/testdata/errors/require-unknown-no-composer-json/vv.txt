@@ -1,7 +1,7 @@
 
 Installation failed, deleting ./composer.json.
 
-In RequireCommand.php line 230:
+In RequireCommand.php line 231:
                                                                                
   [RuntimeException]                                                           
   No composer.json present in the current directory (./composer.json), this m  
@@ -9,7 +9,7 @@ In RequireCommand.php line 230:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/RequireCommand.php:230
+  at @COMPOSER@/src/Composer/Command/RequireCommand.php:231
  Composer\Command\RequireCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301
@@ -30,7 +30,7 @@ In PackageDiscoveryTrait.php line 421:
 Exception trace:
   at @COMPOSER@/src/Composer/Command/PackageDiscoveryTrait.php:421
  Composer\Command\RequireCommand->findBestVersionAndNameForPackage() at @COMPOSER@/src/Composer/Command/PackageDiscoveryTrait.php:122
- Composer\Command\RequireCommand->determineRequirements() at @COMPOSER@/src/Composer/Command/RequireCommand.php:217
+ Composer\Command\RequireCommand->determineRequirements() at @COMPOSER@/src/Composer/Command/RequireCommand.php:218
  Composer\Command\RequireCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

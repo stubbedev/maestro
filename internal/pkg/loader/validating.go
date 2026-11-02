@@ -1178,12 +1178,14 @@ func HasPackageNamingError(name string, isLink bool) (string, bool, error) {
 
 // ValidatePackage ports ValidatingArrayLoader::validatePackage: it rejects
 // names, URLs, references and binaries that could be abused, failing with
-// a *pkg.SecurityError. Root packages are not checked.
+// a *pkg.SecurityError. Root and platform packages are not checked.
 func ValidatePackage(p pkg.PackageInterface) error {
 	// The root package's name/metadata is locally controlled and already validated by
 	// RootPackageLoader (and its "__root__" placeholder name would be a false positive here).
 	// RootPackageInterface covers both RootPackage and RootAliasPackage.
-	if _, ok := p.(pkg.RootPackageInterface); ok {
+	// Platform packages are built locally from the runtime, and extension names can be
+	// arbitrary strings which do not always map to a valid platform package name.
+	if _, ok := p.(pkg.RootPackageInterface); ok || p.IsPlatform() {
 		return nil
 	}
 

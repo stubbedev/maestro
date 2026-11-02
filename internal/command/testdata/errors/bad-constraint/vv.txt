@@ -16,7 +16,7 @@ Exception trace:
  Composer\Package\Loader\ArrayLoader->load() at @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
  Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:394
  Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:676
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:137
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
@@ -44,7 +44,7 @@ Exception trace:
  Composer\Package\Loader\ArrayLoader->load() at @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
  Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:394
  Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:676
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:137
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298

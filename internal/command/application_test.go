@@ -6,12 +6,14 @@ package command_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
@@ -58,6 +60,36 @@ func TestAboutCommand_About(t *testing.T) {
 // testDevWarning and testDevWarningSuppressedForSelfUpdate are not ported:
 // maestro has no COMPOSER_DEV_WARNING_TIME (no dev builds of Composer), and
 // its self-update is its own (SelfUpdateCommandTest covers it).
+
+func TestApplication_WindowsDriveCacheDirWarningPointsAtTheValuesSource(t *testing.T) {
+	const prefix = "<warning>Your Composer cache directory (/mnt/c/cache) is on a Windows drive while Composer runs in WSL, which makes filesystem operations very slow. Move it to the WSL filesystem for better performance, "
+
+	configHome := t.TempDir()
+	globalConfig := filepath.Join(configHome, "config.json")
+	projectConfig := filepath.Join(t.TempDir(), "composer.json")
+	for _, path := range []string{globalConfig, projectConfig} {
+		if err := os.WriteFile(path, []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	onDrive := func(path string) bool { return strings.HasPrefix(path, "/mnt/") }
+
+	for _, tc := range []struct{ name, home, source, fix string }{
+		{"env var", "/home/u", "COMPOSER_CACHE_DIR", "by changing the COMPOSER_CACHE_DIR env var to e.g. ~/.cache/composer"},
+		{"project config", "/home/u", projectConfig, "by changing the cache-dir config in " + projectConfig + " to e.g. ~/.cache/composer"},
+		{"global config", "/home/u", globalConfig, "e.g. by running: composer config --global cache-dir ~/.cache/composer"},
+		{"default", "/home/u", config.SourceDefault, "e.g. by running: composer config --global cache-dir ~/.cache/composer"},
+		{"home on the drive too", "/mnt/c/Users/u", config.SourceDefault, "e.g. by running: composer config --global cache-dir /path/on/wsl/filesystem"},
+		{"no home", "", "COMPOSER_CACHE_DIR", "by changing the COMPOSER_CACHE_DIR env var to e.g. /path/on/wsl/filesystem"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := command.WindowsDriveCacheDirWarning("/mnt/c/cache", tc.home, tc.source, configHome, onDrive)
+			if want := prefix + tc.fix + "</warning>"; got != want {
+				t.Errorf("got  %s\nwant %s", got, want)
+			}
+		})
+	}
+}
 
 func TestApplication_ProcessIsolationWorksMultipleTimes(t *testing.T) {
 	xdebugWarnOff(t)

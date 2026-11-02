@@ -384,30 +384,18 @@ func (s *JSONConfigSource) AddLink(typ, name, value string) error {
 
 // RemoveLink ports JsonConfigSource::removeLink.
 func (s *JSONConfigSource) RemoveLink(typ, name string) error {
-	err := s.manipulateJSON("removeSubNode", func(cfg *php.Array, args []any) error {
-		return unsetIn(cfg, arg(args, 0), arg(args, 1))
-	}, typ, name)
-	if err != nil {
-		return err
-	}
-
-	return s.manipulateJSON("removeMainKeyIfEmpty", func(cfg *php.Array, args []any) error {
-		typ := arg(args, 0)
-		v, set := cfg.Get(typ)
-		if !set {
-			// $config[$type] read without isset: the warning comes first
-			return &util.ErrorException{Message: "Undefined array key " + undefinedKey(typ)}
+	return s.manipulateJSON("removeLink", func(cfg *php.Array, args []any) error {
+		links, ok := getIn(cfg, arg(args, 0)).(*php.Array)
+		if !ok || !links.Isset(arg(args, 1)) {
+			return nil
 		}
-		a, ok := v.(*php.Array)
-		if !ok {
-			return &php.EngineError{Class: "TypeError", Message: "count(): Argument #1 ($value) must be of type Countable|array, " + php.ZvalValueName(v) + " given"}
-		}
-		if a.Len() == 0 {
-			cfg.Delete(typ)
+		links.Delete(arg(args, 1))
+		if links.Len() == 0 {
+			cfg.Delete(arg(args, 0))
 		}
 
 		return nil
-	}, typ)
+	}, typ, name)
 }
 
 // manipulateJSON ports JsonConfigSource::manipulateJson: method is the
@@ -514,8 +502,16 @@ func (s *JSONConfigSource) rewrite(fb fallback, args []any) error {
 		return err
 	}
 
-	// avoid ending up with arrays for keys that should be objects
-	// (apply bottom-up so parent coercion to stdClass doesn't hide deeper sub-keys)
+	RestoreEmptyObjects(config)
+
+	return s.file.Write(config, json.DefaultEncodeFlags)
+}
+
+// RestoreEmptyObjects ports JsonConfigSource::restoreEmptyObjects: empty
+// arrays turned back into objects for the composer.json keys that must be
+// objects.
+func RestoreEmptyObjects(config *php.Array) {
+	// apply bottom-up so parent coercion to stdClass doesn't hide deeper sub-keys
 	if policy, ok := getIn(config, "config", "policy").(*php.Array); ok {
 		for listName, listValue := range policy.All() {
 			if isEmptyArray(listValue) {
@@ -544,8 +540,6 @@ func (s *JSONConfigSource) rewrite(fb fallback, args []any) error {
 			config.Set(prop, php.NewObject())
 		}
 	}
-
-	return s.file.Write(config, json.DefaultEncodeFlags)
 }
 
 // callManipulator is call_user_func_array([$manipulator, $method], $args),
@@ -575,8 +569,8 @@ func callManipulator(m *json.Manipulator, method string, args []any) (bool, erro
 		return m.RemoveProperty(str(0))
 	case "addLink":
 		return m.AddLink(str(0), str(1), str(2), false)
-	case "removeMainKeyIfEmpty":
-		return m.RemoveMainKeyIfEmpty(str(0))
+	case "removeLink":
+		return m.RemoveLink(str(0), str(1))
 	}
 
 	panic("unknown JsonManipulator method " + method)
@@ -629,16 +623,6 @@ func prependName(name any, config *php.Array) *php.Array {
 	}
 
 	return r
-}
-
-// undefinedKey is how PHP's "Undefined array key" warning names key.
-func undefinedKey(key any) string {
-	k := php.ToKey(key)
-	if k.IsInt() {
-		return k.String()
-	}
-
-	return `"` + k.String() + `"`
 }
 
 // convertRepositoriesToList ports the conversion of an associative

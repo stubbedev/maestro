@@ -19,6 +19,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
@@ -209,7 +210,9 @@ func (a *Application) DoRun(in console.Input, out console.Output) (code int, err
 		// This IO keeps its encoders while nested Composer processes inherit disabled reporting.
 		util.PutEnv("COMPOSER_TERMINAL_STATUS", "off")
 	}
-	code, err = a.doRun(in, out, cio)
+	code, err = a.CallOn(`Composer\Console\Application->doRunComposer`, a, []any{in, out, cio}, func() (int, error) {
+		return a.doRunComposer(in, out, cio)
+	})
 	if ec, ok := errors.AsType[ExitCoder](err); ok {
 		return ec.ExitCode(), nil
 	}
@@ -252,7 +255,7 @@ func watchProgramStatusSignals(cio *io.ConsoleIO, enabled bool) func() {
 	}
 }
 
-func (a *Application) doRun(in console.Input, out console.Output, cio *io.ConsoleIO) (int, error) {
+func (a *Application) doRunComposer(in console.Input, out console.Output, cio *io.ConsoleIO) (int, error) {
 	a.disablePluginsByDefault = in.HasParameterOption([]string{"--no-plugins"}, false)
 	a.disableScriptsByDefault = in.HasParameterOption([]string{"--no-scripts"}, false)
 
@@ -439,7 +442,7 @@ func (a *Application) doRun(in console.Input, out console.Output, cio *io.Consol
 		}
 	}
 
-	return a.runCommand(in, out, cio, oldWorkingDir)
+	return a.runCommand(in, out, cio, oldWorkingDir, isProxyCommand)
 }
 
 // noComposerJSONCommands are the commands that can function without
@@ -829,7 +832,7 @@ func (*Application) adoptScriptCommand(cio *io.ConsoleIO, cmd console.Commander,
 }
 
 // runCommand is the try block around parent::doRun.
-func (a *Application) runCommand(in console.Input, out console.Output, cio *io.ConsoleIO, oldWorkingDir string) (int, error) {
+func (a *Application) runCommand(in console.Input, out console.Output, cio *io.ConsoleIO, oldWorkingDir string, isProxyCommand bool) (int, error) {
 	var startTime time.Time
 	profile := in.HasParameterOption([]string{"--profile"}, false)
 	if profile {
@@ -842,6 +845,12 @@ func (a *Application) runCommand(in console.Input, out console.Output, cio *io.C
 	})
 	if err != nil {
 		return a.handleRunError(err, out, cio)
+	}
+
+	if !isProxyCommand && a.commandName != "_complete" && util.IsWindowsSubsystemForLinux() {
+		if err := a.warnIfCacheDirIsOnWindowsDrive(cio); err != nil {
+			return a.handleRunError(err, out, cio)
+		}
 	}
 
 	if in.HasParameterOption([]string{"--version", "-V"}, true) {
@@ -1219,6 +1228,67 @@ func (a *Application) DisablePluginsByDefault() bool { return a.disablePluginsBy
 
 // DisableScriptsByDefault ports getDisableScriptsByDefault.
 func (a *Application) DisableScriptsByDefault() bool { return a.disableScriptsByDefault }
+
+// warnIfCacheDirIsOnWindowsDrive ports warnIfCacheDirIsOnWindowsDrive.
+func (a *Application) warnIfCacheDirIsOnWindowsDrive(cio *io.ConsoleIO) error {
+	// reuse the loaded Composer instance if any so project-level config is taken into account
+	var cfg *config.Config
+	if a.composer != nil {
+		cfg = a.composer.Config()
+	} else {
+		created, err := a.factory.CreateConfig(a.io, "")
+		if err != nil {
+			return err
+		}
+		cfg = created
+	}
+
+	cacheDirValue, err := cfg.Get("cache-dir", 0)
+	if err != nil {
+		return err
+	}
+	cacheDir := php.ToString(cacheDirValue)
+	if !util.IsWindowsMountInWSL(cacheDir) {
+		return nil
+	}
+
+	home, _ := util.GetEnv("HOME")
+	source, err := cfg.SourceOfValue("cache-dir")
+	if err != nil {
+		return err
+	}
+	configHome, err := cfg.Get("home", 0)
+	if err != nil {
+		return err
+	}
+
+	cio.WriteError(windowsDriveCacheDirWarning(cacheDir, home, source, php.ToString(configHome), util.IsWindowsMountInWSL), true, io.Normal)
+
+	return nil
+}
+
+// windowsDriveCacheDirWarning is the warning about a cache directory on a
+// Windows drive, pointing at wherever cache-dir's value comes from (source).
+func windowsDriveCacheDirWarning(cacheDir, home, source, configHome string, isWindowsMount func(string) bool) string {
+	// ~/.cache is no fix if the home dir itself is on the Windows drive
+	suggestedDir := "/path/on/wsl/filesystem"
+	if home != "" && !isWindowsMount(home) {
+		suggestedDir = "~/.cache/composer"
+	}
+
+	// point at wherever the value comes from, as env and project config override the global config
+	var fix string
+	switch {
+	case source == "COMPOSER_CACHE_DIR":
+		fix = "by changing the COMPOSER_CACHE_DIR env var to e.g. " + suggestedDir
+	case php.IsFile(source) && php.RealpathString(php.Dirname(source)) != php.RealpathString(configHome):
+		fix = "by changing the cache-dir config in " + source + " to e.g. " + suggestedDir
+	default:
+		fix = "e.g. by running: composer config --global cache-dir " + suggestedDir
+	}
+
+	return "<warning>Your Composer cache directory (" + cacheDir + ") is on a Windows drive while Composer runs in WSL, which makes filesystem operations very slow. Move it to the WSL filesystem for better performance, " + fix + "</warning>"
+}
 
 // useParentDirConfigValue ports getUseParentDirConfigValue: true, false or
 // "prompt".

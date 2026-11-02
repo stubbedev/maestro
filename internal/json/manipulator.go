@@ -617,11 +617,28 @@ func isDisabledRepo(repository any, name string) bool {
 
 // RemoveRepository ports JsonManipulator::removeRepository.
 func (m *Manipulator) RemoveRepository(name string) (bool, error) {
-	if ok, err := m.doRemoveRepository(name); err != nil || !ok {
+	return m.removeThenDropEmptied("repositories", func() (bool, error) { return m.doRemoveRepository(name) })
+}
+
+// RemoveLink ports JsonManipulator::removeLink: the link, and the link type
+// key if this removal emptied it (an already empty key is kept).
+func (m *Manipulator) RemoveLink(typ, pkg string) (bool, error) {
+	return m.removeThenDropEmptied(typ, func() (bool, error) { return m.RemoveSubNode(typ, pkg) })
+}
+
+// removeThenDropEmptied runs remove, then drops the main key only if that
+// changed the contents.
+func (m *Manipulator) removeThenDropEmptied(key string, remove func() (bool, error)) (bool, error) {
+	contents := m.contents
+	if ok, err := remove(); err != nil || !ok {
 		return false, err
 	}
 
-	return m.RemoveMainKeyIfEmpty("repositories")
+	if contents == m.contents {
+		return true, nil
+	}
+
+	return m.RemoveMainKeyIfEmpty(key)
 }
 
 func (m *Manipulator) doRemoveRepository(name string) (bool, error) {

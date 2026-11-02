@@ -3,6 +3,7 @@
 package command_test
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -226,6 +227,83 @@ Using version 1.1.0 for required/pkg`,
 				t.Errorf("output:\n%s\nwant:\n%s", got, expected)
 			}
 		})
+	}
+}
+
+func TestRequireCommand_RequireKeepsEmptyRemoveKey(t *testing.T) {
+	for _, tc := range []struct {
+		name                  string
+		isDev                 bool
+		requireKey, removeKey string
+	}{
+		{"require", false, "require", "require-dev"},
+		{"require --dev", true, "require-dev", "require"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			composerJSON := commandtest.ToArray(t, `{"repositories": {"packages": {"type": "package", "package": [
+				{"name": "required/pkg", "version": "1.0.0"}]}}}`)
+			composerJSON.Set(tc.removeKey, php.NewObject())
+			dir := commandtest.InitTempComposer(t, composerJSON, nil, nil, true)
+
+			if code, err := commandtest.GetApplicationTester(t).Run(cmd("require", "--no-audit", true, "--no-install", true, "--dev", tc.isDev, "packages", []string{"required/pkg"}), commandtest.Options{}); err != nil || code != 0 {
+				t.Fatalf("require: code %d, %v", code, err)
+			}
+
+			contents, err := os.ReadFile(filepath.Join(dir, "composer.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(contents), `"`+tc.removeKey+`": {}`) {
+				t.Errorf("%s was not kept empty:\n%s", tc.removeKey, contents)
+			}
+			if !strings.Contains(string(contents), `"required/pkg": "^1.0"`) {
+				t.Errorf("required/pkg was not added to %s:\n%s", tc.requireKey, contents)
+			}
+		})
+	}
+}
+
+func TestRequireCommand_UpdateFileFallbackMatchesManipulator(t *testing.T) {
+	for _, tc := range []struct{ name, original, expected string }{
+		{"moving the last package removes the key", `{"require-dev": {"a/b": "1"}}`, `{"require":{"a\/b":"^1"}}`},
+		{"moving a package keeps the other ones", `{"require-dev": {"a/b": "1", "c/d": "1"}}`, `{"require-dev":{"c\/d":"1"},"require":{"a\/b":"^1"}}`},
+		{"empty objects stay objects", `{"config": {}, "require-dev": {"a/b": "1", "c/d": "1"}}`, `{"config":{},"require-dev":{"c\/d":"1"},"require":{"a\/b":"^1"}}`},
+	} {
+		for name, update := range map[string]func(path string, requirements *php.Array) error{
+			"JsonManipulator path": func(path string, requirements *php.Array) error {
+				return command.RequireUpdateFile(path, requirements, "require", "require-dev")
+			},
+			"fallback path": func(path string, requirements *php.Array) error {
+				return command.RequireUpdateFileWhole(path, requirements, "require", "require-dev")
+			},
+		} {
+			t.Run(tc.name+", "+name, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "composer.json")
+				if err := os.WriteFile(path, []byte(tc.original), 0o600); err != nil {
+					t.Fatal(err)
+				}
+
+				if err := update(path, php.ArrayOf("a/b", "^1")); err != nil {
+					t.Fatal(err)
+				}
+
+				contents, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				decoded, err := php.JSONDecode(string(contents), false)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := php.JSONEncode(decoded, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got != tc.expected {
+					t.Errorf("got %s, want %s", got, tc.expected)
+				}
+			})
+		}
 	}
 }
 
