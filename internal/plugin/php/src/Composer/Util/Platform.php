@@ -459,6 +459,53 @@ class Platform
         return self::$isWindowsSubsystemForLinux;
     }
 
+    /**
+     * @internal
+     */
+    public static function isWindowsMountInWsl(string $path): bool
+    {
+        if (strpos($path, '/') !== 0 || !self::isWindowsSubsystemForLinux() || !is_readable('/proc/mounts')) {
+            return false;
+        }
+
+        while (false === ($realPath = realpath($path))) {
+            $parent = dirname($path);
+            if ($parent === $path) {
+                return false;
+            }
+            $path = $parent;
+        }
+
+        return self::isDrvfsMount($realPath, (string) Silencer::call('file_get_contents', '/proc/mounts'));
+    }
+
+    /**
+     * @internal
+     */
+    public static function isDrvfsMount(string $realPath, string $procMounts): bool
+    {
+        $bestMatch = '';
+        $isDrvfs = false;
+        foreach (explode("\n", $procMounts) as $line) {
+            $parts = explode(' ', $line);
+            if (count($parts) < 4) {
+                continue;
+            }
+            $mountPoint = stripcslashes($parts[1]);
+            if (
+                strlen($mountPoint) >= strlen($bestMatch)
+                && ($realPath === $mountPoint || strpos($realPath, rtrim($mountPoint, '/').'/') === 0)
+            ) {
+                $bestMatch = $mountPoint;
+                $isDrvfs = $parts[2] === 'drvfs'
+                    || ($parts[2] === '9p' && strpos($parts[3], 'aname=drvfs') !== false)
+                    || preg_match('{^[a-z]:\\\\}i', stripcslashes($parts[0])) === 1;
+            }
+        }
+
+        return $isDrvfs;
+    }
+
     public static function putEnv(string $name, string $value): void
     {
         putenv($name . '=' . $value);

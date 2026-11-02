@@ -318,7 +318,7 @@ function key_($cur, array $path, array $pool)
 
 function operation($cur): array
 {
-    switch (mt_rand(0, 21)) {
+    switch (mt_rand(0, 22)) {
         case 0: case 1: case 2: return ['addLink', [pick(LINK_TYPES), pick(PACKAGES), pick(CONSTRAINTS), chance(30)]];
         case 3: return ['addRepository', [pick(REPO_NAMES), repoConfig(), chance(70)]];
         case 4: return ['setRepositoryUrl', [key_($cur, ['repositories'], REPO_NAMES), pick(URLS)]];
@@ -337,6 +337,7 @@ function operation($cur): array
         case 18: return ['removeMainKey', [key_($cur, [], MAIN_KEYS)]];
         case 19: return ['changeEmptyMainKeyFromAssocToList', [key_($cur, [], MAIN_KEYS)]];
         case 20: return ['removeMainKeyIfEmpty', [key_($cur, [], MAIN_KEYS)]];
+        case 21: return ['removeLink', [$type = pick(LINK_TYPES), key_($cur, [$type], PACKAGES)]];
         default: return ['format', [value(), mt_rand(0, 2), chance(30)]];
     }
 }

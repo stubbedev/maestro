@@ -7,7 +7,7 @@ In JsonConfigSource.php line 255:
 
 Exception trace:
   at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:255
- Composer\Config\JsonConfigSource::{closure:Composer\Config\JsonConfigSource::addConfigSetting():231}() at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:434
+ Composer\Config\JsonConfigSource::{closure:Composer\Config\JsonConfigSource::addConfigSetting():231}() at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:473
  Composer\Config\JsonConfigSource->manipulateJson() at @COMPOSER@/src/Composer/Config/JsonConfigSource.php:231
  Composer\Config\JsonConfigSource->addConfigSetting() at n/a:n/a
  call_user_func() at @COMPOSER@/src/Composer/Command/ConfigCommand.php:1158

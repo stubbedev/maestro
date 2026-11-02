@@ -329,6 +329,8 @@ func (r *Runtime) registerManipulator() {
 			return m.RemoveConfigSetting(p.str(0))
 		case "removeListItem":
 			return m.RemoveListItem(p.str(0), p.integer(1))
+		case "removeLink":
+			return m.RemoveLink(p.str(0), p.str(1))
 		case "removeMainKey":
 			return m.RemoveMainKey(p.str(0))
 		case "removeMainKeyIfEmpty":

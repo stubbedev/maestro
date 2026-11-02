@@ -36,6 +36,7 @@ final class Frames
     private const ENTERED = [
         'Composer\\Console\\Application->run' => true,
         'Composer\\Console\\Application->doRun' => true,
+        'Composer\\Console\\Application->doRunComposer' => true,
         'Composer\\Console\\Application->getComposer' => true,
         'Composer\\Console\\Application->getPluginCommands' => true,
         // the bundled Console's, which resume as SymfonyHooks loads them

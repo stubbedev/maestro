@@ -10,6 +10,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/composer"
+	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/console"
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
 	"github.com/stubbedev/maestro/internal/io"
@@ -849,6 +850,12 @@ func (c *RequireCommand) updateFile(newRequirements *php.Array, requireKey, remo
 		return err
 	}
 
+	return c.updateFileWhole(newRequirements, requireKey, removeKey)
+}
+
+// updateFileWhole is updateFile's fallback: decode the file, move the
+// requirements and write the whole file back.
+func (c *RequireCommand) updateFileWhole(newRequirements *php.Array, requireKey, removeKey string) error {
 	composerDefinition, err := c.readComposerJSON()
 	if err != nil {
 		return err
@@ -857,13 +864,14 @@ func (c *RequireCommand) updateFile(newRequirements *php.Array, requireKey, remo
 		name := k.String()
 		arraySetNested(composerDefinition, requireKey, name, version)
 		v, _ := composerDefinition.Get(removeKey)
-		if a, ok := v.(*php.Array); ok {
+		if a, ok := v.(*php.Array); ok && a.Isset(name) {
 			a.Delete(name)
 			if a.Len() == 0 {
 				composerDefinition.Delete(removeKey)
 			}
 		}
 	}
+	config.RestoreEmptyObjects(composerDefinition)
 
 	return c.json.Write(composerDefinition, json.DefaultEncodeFlags)
 }
@@ -885,13 +893,9 @@ func (c *RequireCommand) updateFileCleanly(newRequirements *php.Array, requireKe
 		if err != nil || !ok {
 			return false, err
 		}
-		if ok, err = manipulator.RemoveSubNode(removeKey, k.String()); err != nil || !ok {
+		if ok, err = manipulator.RemoveLink(removeKey, k.String()); err != nil || !ok {
 			return false, err
 		}
-	}
-
-	if _, err := manipulator.RemoveMainKeyIfEmpty(removeKey); err != nil {
-		return false, err
 	}
 
 	if _, err := util.SafeFilePutContents(c.json.Path(), []byte(manipulator.Contents())); err != nil {

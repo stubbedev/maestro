@@ -78,6 +78,15 @@ class Application extends \Symfony\Component\Console\Application
         return Rpc::call('app.doRun', [$this, Console::inputValue($input), Console::outputValue($output), Console::addedCommands($this)]);
     }
 
+    private function doRunComposer(InputInterface $input, OutputInterface $output, \Composer\IO\ConsoleIO $io): int
+    {
+        if (\Maestro\Shim\Frames::resumes($this, __FUNCTION__)) {
+            return 0;
+        }
+
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Console\\Application::doRunComposer()');
+    }
+
     public function getComposer(bool $required = true, ?bool $disablePlugins = null, ?bool $disableScripts = null): ?\Composer\Composer
     {
         // maestro's getComposer(), as a frame of Composer's stack

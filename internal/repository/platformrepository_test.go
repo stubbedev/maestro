@@ -12,6 +12,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/pkg/loader"
 	"github.com/stubbedev/maestro/internal/platform"
 	"github.com/stubbedev/maestro/internal/platform/platformmock"
 	"github.com/stubbedev/maestro/internal/semver"
@@ -157,6 +158,30 @@ func findPackage(t *testing.T, r RepositoryInterface, name string) pkg.PackageIn
 	t.Helper()
 
 	return must(r.FindPackage(name, semver.NewMatchAllConstraint()))
+}
+
+func TestPlatformRepository_ValidatePackageSkipsItsPackages(t *testing.T) {
+	runtime := &platformmock.Runtime{
+		GetExtensionsFunc:       func() []string { return []string{"Acme Corp - Some Extension"} },
+		GetExtensionVersionFunc: func(string) string { return "1.0.0" },
+		GetConstantFunc: func(name, _ string) (any, error) {
+			if name == "PHP_VERSION" {
+				return "8.2.0", nil
+			}
+
+			return false, nil
+		},
+	}
+	repository := must(NewPlatformRepository(nil, nil, PlatformOptions{Runtime: runtime}))
+
+	found, err := repository.FindPackage("ext-acme-corp---some-extension", mustConstraint(t, "*"))
+	if err != nil || found == nil {
+		t.Fatalf("FindPackage: %v, %v", found, err)
+	}
+
+	if err := loader.ValidatePackage(found); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPlatformRepository_HhvmPackage(t *testing.T) {

@@ -14,6 +14,6 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading ./composer.lock (@DIR@/p/composer.lock)
 Reading @DIR@/p/vendor/composer/installed.json
-Running 2.11.0 (2026-10-29 10:23:20) with PHP @PHP@ on @OS@
+Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
 All your direct dependencies are up to date
 exit 0

@@ -278,7 +278,7 @@ func (b *PoolBuilder) BuildPool(repositories []repository.RepositoryInterface, r
 
 	b.resetState()
 
-	b.io.Debug("Built pool in "+strconv.FormatFloat(time.Since(start).Seconds(), 'f', 3, 64)+"s", nil)
+	b.io.Debug("Built pool in "+php.ToString(time.Since(start).Seconds())+"s", nil)
 
 	// filter vulnerable packages before optimizing the pool otherwise we may end up with inconsistent state where the optimizer took away versions
 	// that were not vulnerable and now suddenly the vulnerable ones are removed and we are missing some versions to make it solvable

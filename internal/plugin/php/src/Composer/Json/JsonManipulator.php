@@ -96,6 +96,11 @@ class JsonManipulator
         return $this->edit('removeListItem', [$mainNode, $nodeIndex]);
     }
 
+    public function removeLink(string $type, string $package): bool
+    {
+        return $this->edit('removeLink', [$type, $package]);
+    }
+
     public function removeMainKey(string $key): bool
     {
         return $this->edit('removeMainKey', [$key]);

@@ -69,6 +69,7 @@ func TestAuthHelper_AddAuthenticationHeaderWithBearerPassword(t *testing.T) {
 
 	assertHeaders(t, append(slices.Clone(baseHeaders), "Authorization: Bearer my_username"), options)
 	assertAuthCalledOnce(t, fio, origin)
+	assertDebugWrite(t, fio, "Using Bearer token authentication")
 }
 
 func TestAuthHelper_AddAuthenticationHeaderWithGithubToken(t *testing.T) {
@@ -96,17 +97,36 @@ func TestAuthHelper_AddAuthenticationOptionsForClientCertificate(t *testing.T) {
 }
 
 func TestAuthHelper_AddAuthenticationHeaderWithGitlabToken(t *testing.T) {
+	const (
+		repositoryArchive = "https://gitlab.com/api/v4/projects/foo%2Fbar/repository/archive.zip?sha=abc"
+		jobTokenMessage   = "Using GitLab CI job token authentication"
+		jobTokenHeader    = "JOB-TOKEN: my_token"
+		basicMessage      = `Using HTTP basic authentication with username "gitlab-ci-token"`
+		basicHeader       = "Authorization: Basic Z2l0bGFiLWNpLXRva2VuOm15X3Rva2Vu"
+	)
+
 	for _, tc := range []struct {
 		name           string
 		username, pass string
 		expectedLog    string
 		expectedHeader string
+		url            string
 	}{
-		{"oauth token", "my_token", "oauth2", "Using GitLab OAuth token authentication", "Authorization: Bearer my_token"},
-		{"private token", "my_token", "private-token", "Using GitLab private token authentication", "PRIVATE-TOKEN: my_token"},
-		{"CI job token", "gitlab-ci-token", "my_token", "Using GitLab CI job token authentication", "JOB-TOKEN: my_token"},
+		{"oauth token", "my_token", "oauth2", "Using GitLab OAuth token authentication", "Authorization: Bearer my_token", repositoryArchive},
+		{"private token", "my_token", "private-token", "Using GitLab private token authentication", "PRIVATE-TOKEN: my_token", repositoryArchive},
+		// GitLab's Composer package registry only accepts job tokens via basic auth
+		{"CI job token, registry", "gitlab-ci-token", "my_token", basicMessage, basicHeader, "https://gitlab.com/api/v4/group/123/-/packages/composer/packages.json"},
 		// GitLab.AuthorizeOAuth swaps the slots, so both orderings must work
-		{"CI job token, slots swapped", "my_token", "gitlab-ci-token", "Using GitLab CI job token authentication", "JOB-TOKEN: my_token"},
+		{"CI job token, slots swapped, registry", "my_token", "gitlab-ci-token", basicMessage, basicHeader, "https://gitlab.com/api/v4/projects/123/packages/composer/archives/foo/bar.zip?sha=abc"},
+		{"CI job token, registry on sub-path install", "gitlab-ci-token", "my_token", basicMessage, basicHeader, "https://gitlab.com/gitlab/api/v4/group/123/-/packages/composer/p2/foo/bar.json"},
+		{"CI job token, project registry root", "gitlab-ci-token", "my_token", basicMessage, basicHeader, "https://gitlab.com/api/v4/projects/123/packages/composer"},
+		// everywhere else GitLab accepts job tokens via the JOB-TOKEN header
+		{"CI job token, repository API", "gitlab-ci-token", "my_token", jobTokenMessage, jobTokenHeader, repositoryArchive},
+		{"CI job token, slots swapped, repository API", "my_token", "gitlab-ci-token", jobTokenMessage, jobTokenHeader, "https://gitlab.com/api/v4/projects/foo%2Fbar/repository/files/composer%2Ejson/raw?ref=abc"},
+		{"CI job token, repository API on sub-path install", "gitlab-ci-token", "my_token", jobTokenMessage, jobTokenHeader, "https://gitlab.com/gitlab/api/v4/projects/123/repository/tags?per_page=100"},
+		{"CI job token, job artifacts", "gitlab-ci-token", "my_token", jobTokenMessage, jobTokenHeader, "https://gitlab.com/api/v4/projects/123/jobs/artifacts/main/download?job=build"},
+		{"CI job token, registry-like query string", "gitlab-ci-token", "my_token", jobTokenMessage, jobTokenHeader, "https://gitlab.com/api/v4/projects/123/repository/files/foo/raw?ref=/api/v4/projects/x/packages/composer/"},
+		{"CI job token, project root", "gitlab-ci-token", "my_token", jobTokenMessage, jobTokenHeader, "https://gitlab.com/api/v4/projects/foo%2Fbar"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fio := newFakeIO()
@@ -114,11 +134,54 @@ func TestAuthHelper_AddAuthenticationHeaderWithGitlabToken(t *testing.T) {
 			h := NewAuthHelper(fio, config)
 			expectsAuthentication(fio, "gitlab.com", auth(tc.username, tc.pass))
 
-			options := h.AddAuthenticationOptions(headerOptions(baseHeaders), "gitlab.com", "https://api.gitlab.com/")
+			options := h.AddAuthenticationOptions(headerOptions(baseHeaders), "gitlab.com", tc.url)
 
 			assertHeaders(t, append(slices.Clone(baseHeaders), tc.expectedHeader), options)
 			assertDebugWrite(t, fio, tc.expectedLog)
 		})
+	}
+}
+
+// A job token stored as http-basic reaches the helper in the same slots as
+// one stored as gitlab-token, and a plain token is a personal access token,
+// whatever the URL.
+func TestAuthHelper_GitLabCiJobTokenAuthentication(t *testing.T) {
+	const origin = "gitlab.example.com"
+	const basic = "Authorization: Basic Z2l0bGFiLWNpLXRva2VuOmpvYi10b2tlbi12YWx1ZQ=="
+	const header = "JOB-TOKEN: job-token-value"
+
+	for _, tc := range []struct{ name, url, want string }{
+		{"registry: group packages.json", "https://gitlab.example.com/api/v4/group/123/-/packages/composer/packages.json", basic},
+		{"registry: group p2 provider", "https://gitlab.example.com/api/v4/group/123/-/packages/composer/p2/acme/package.json", basic},
+		{"registry: project dist archive", "https://gitlab.example.com/api/v4/projects/123/packages/composer/archives/acme/package.zip?sha=abc123", basic},
+		{"repository API: archive", "https://gitlab.example.com/api/v4/projects/acme%2Fpackage/repository/archive.zip?sha=abc123", header},
+		{"repository API: raw file", "https://gitlab.example.com/api/v4/projects/acme%2Fpackage/repository/files/composer%2Ejson/raw?ref=abc123", header},
+		{"repository API: tags", "https://gitlab.example.com/api/v4/projects/acme%2Fpackage/repository/tags?per_page=100", header},
+		{"job artifacts", "https://gitlab.example.com/api/v4/projects/123/jobs/artifacts/main/download?job=build", header},
+	} {
+		for slots, credentials := range map[string]ioAuth{
+			"marker as username": auth("gitlab-ci-token", "job-token-value"),
+			"marker as password": auth("job-token-value", "gitlab-ci-token"),
+		} {
+			t.Run(tc.name+", "+slots, func(t *testing.T) {
+				fio := newFakeIO()
+				h := NewAuthHelper(fio, newFakeConfig(map[string]any{"gitlab-domains": list(origin)}))
+				expectsAuthentication(fio, origin, credentials)
+
+				assertHeaders(t, []string{tc.want}, h.AddAuthenticationOptions(php.NewArray(), origin, tc.url))
+			})
+		}
+	}
+
+	for _, url := range []string{
+		"https://gitlab.example.com/api/v4/group/123/-/packages/composer/packages.json",
+		"https://gitlab.example.com/api/v4/projects/acme%2Fpackage/repository/archive.zip?sha=abc123",
+	} {
+		fio := newFakeIO()
+		h := NewAuthHelper(fio, newFakeConfig(map[string]any{"gitlab-domains": list(origin)}))
+		expectsAuthentication(fio, origin, auth("pat-value", "private-token"))
+
+		assertHeaders(t, []string{"PRIVATE-TOKEN: pat-value"}, h.AddAuthenticationOptions(php.NewArray(), origin, url))
 	}
 }
 
@@ -199,6 +262,22 @@ func TestAuthHelper_AddAuthenticationHeaderWithCustomHeaders(t *testing.T) {
 	}
 
 	assertDebugWrite(t, fio, "Using custom HTTP headers for authentication")
+}
+
+func TestAuthHelper_AddAuthenticationOptionsWarnsAndIgnoresNonStringCustomHeaders(t *testing.T) {
+	fio := newFakeIO()
+	h := NewAuthHelper(fio, newFakeConfig(nil))
+	expectsAuthentication(fio, "example.org", auth(`{"X-Foo": 1, "X-Bar": ["a"]}`, "custom-headers"))
+
+	options := h.AddAuthenticationOptions(php.NewArray(), "example.org", "https://example.org/packages.json")
+	h.AddAuthenticationOptions(php.NewArray(), "example.org", "https://example.org/p2/foo/bar.json")
+
+	assertHeaders(t, nil, options)
+
+	want := "<warning>Ignoring custom-headers authentication for example.org as it is not a list of header strings</warning>|true|2"
+	if len(fio.writes) != 1 || fio.writes[0] != want {
+		t.Fatalf("writes %q, want %q", fio.writes, want)
+	}
 }
 
 func TestAuthHelper_DisplayMessageOncePerOrigin(t *testing.T) {

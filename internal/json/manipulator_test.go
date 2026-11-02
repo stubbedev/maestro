@@ -218,6 +218,14 @@ func TestJsonManipulator_RemoveMainKey(t *testing.T) {
 	runManipulatorTest(t, "testRemoveMainKey")
 }
 
+func TestJsonManipulator_RemoveLink(t *testing.T) {
+	runManipulatorTest(t, "testRemoveLink")
+}
+
+func TestJsonManipulator_RemoveRepositoryKeepsAlreadyEmptyKey(t *testing.T) {
+	runManipulatorTest(t, "testRemoveRepositoryKeepsAlreadyEmptyKey")
+}
+
 func TestJsonManipulator_RemoveMainKeyIfEmpty(t *testing.T) {
 	runManipulatorTest(t, "testRemoveMainKeyIfEmpty")
 }
@@ -320,6 +328,8 @@ func TestJsonManipulator_AllTestsPorted(t *testing.T) {
 		"testAddSubNodeOverwritesKeyContainingSpace":                            true,
 		"testAddSubNodeOverwritesKeyWithEscapedSlash":                           true,
 		"testRemoveSubNodeRemovesTopLevelKeyNotNestedKeyWithSameName":           true,
+		"testRemoveLink":                                                        true,
+		"testRemoveRepositoryKeepsAlreadyEmptyKey":                              true,
 	}
 	for name := range loadRecordedTests(t) {
 		if !ported[name] {

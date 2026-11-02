@@ -431,6 +431,68 @@ func IsWindowsSubsystemForLinux() bool {
 	return isWSL
 }
 
+// IsWindowsMountInWSL ports Platform::isWindowsMountInWsl: whether the path
+// is on a Windows drive mounted into WSL (e.g. /mnt/c), where filesystem IO
+// is very slow.
+func IsWindowsMountInWSL(path string) bool {
+	// relative paths would end up resolving against the CWD below
+	if !strings.HasPrefix(path, "/") || !IsWindowsSubsystemForLinux() {
+		return false
+	}
+
+	procMounts, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		return false
+	}
+
+	// resolve symlinks, walking up to the closest existing parent if the dir does not exist yet
+	realPath, ok := php.Realpath(path)
+	for !ok {
+		parent := php.Dirname(path)
+		if parent == path {
+			return false
+		}
+		path = parent
+		realPath, ok = php.Realpath(path)
+	}
+
+	return IsDrvfsMount(realPath, string(procMounts))
+}
+
+// IsDrvfsMount ports Platform::isDrvfsMount: whether realPath, absolute with
+// symlinks resolved, is on a Windows drive according to procMounts, the
+// contents of /proc/mounts.
+func IsDrvfsMount(realPath, procMounts string) bool {
+	bestMatch := ""
+	isDrvfs := false
+	for line := range strings.SplitSeq(procMounts, "\n") {
+		parts := strings.Split(line, " ")
+		if len(parts) < 4 {
+			continue
+		}
+		// /proc/mounts octal-escapes spaces and other special chars
+		mountPoint := php.Stripcslashes(parts[1])
+		// >= as a later entry for the same mount point is mounted over the earlier one
+		if len(mountPoint) >= len(bestMatch) && (realPath == mountPoint || strings.HasPrefix(realPath, strings.TrimRight(mountPoint, "/")+"/")) {
+			bestMatch = mountPoint
+			// WSL1 uses drvfs, WSL2 drvfs over 9p; otherwise (e.g. virtiofs) a drive letter device gives it away
+			isDrvfs = parts[2] == "drvfs" || (parts[2] == "9p" && strings.Contains(parts[3], "aname=drvfs")) || hasDriveLetterPrefix(php.Stripcslashes(parts[0]))
+		}
+	}
+
+	return isDrvfs
+}
+
+// hasDriveLetterPrefix is the match of {^[a-z]:\\\\}i.
+func hasDriveLetterPrefix(device string) bool {
+	if len(device) < 3 || device[1] != ':' || device[2] != '\\' {
+		return false
+	}
+	letter := device[0] | 0x20
+
+	return letter >= 'a' && letter <= 'z'
+}
+
 // IsWindows ports Platform::isWindows.
 func IsWindows() bool {
 	return php.IsWindows()

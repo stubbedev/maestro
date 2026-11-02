@@ -6,7 +6,7 @@ Stack trace:
  @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
  @COMPOSER@/src/Composer/Factory.php:394
  @COMPOSER@/src/Composer/Factory.php:631
- @COMPOSER@/src/Composer/Console/Application.php:676
+ @COMPOSER@/src/Composer/Console/Application.php:680
  @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  @COMPOSER@/src/Composer/Command/BaseCommand.php:242
  @COMPOSER@/vendor/symfony/console/Command/Command.php:264
@@ -24,7 +24,7 @@ Stack trace:
  @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
  @COMPOSER@/src/Composer/Factory.php:394
  @COMPOSER@/src/Composer/Factory.php:631
- @COMPOSER@/src/Composer/Console/Application.php:676
+ @COMPOSER@/src/Composer/Console/Application.php:680
  @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  @COMPOSER@/src/Composer/Command/BaseCommand.php:242
  @COMPOSER@/vendor/symfony/console/Command/Command.php:264
@@ -41,7 +41,7 @@ Stack trace:
  @COMPOSER@/src/Composer/Factory.php:587
  @COMPOSER@/src/Composer/Factory.php:419
  @COMPOSER@/src/Composer/Factory.php:631
- @COMPOSER@/src/Composer/Console/Application.php:676
+ @COMPOSER@/src/Composer/Console/Application.php:680
  @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  @COMPOSER@/src/Composer/Command/BaseCommand.php:242
  @COMPOSER@/vendor/symfony/console/Command/Command.php:264

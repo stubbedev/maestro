@@ -14,8 +14,8 @@ In BaseCommand.php line 469:
 Exception trace:
   at @COMPOSER@/src/Composer/Command/BaseCommand.php:469
  Composer\Command\BaseCommand->getAuditFormat() at @COMPOSER@/src/Composer/Command/BaseCommand.php:527
- Composer\Command\BaseCommand->createAuditConfig() at @COMPOSER@/src/Composer/Command/RequireCommand.php:493
- Composer\Command\RequireCommand->doUpdate() at @COMPOSER@/src/Composer/Command/RequireCommand.php:344
+ Composer\Command\BaseCommand->createAuditConfig() at @COMPOSER@/src/Composer/Command/RequireCommand.php:494
+ Composer\Command\RequireCommand->doUpdate() at @COMPOSER@/src/Composer/Command/RequireCommand.php:345
  Composer\Command\RequireCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

@@ -10,7 +10,7 @@ Exception trace:
   at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:542
  Composer\Semver\VersionParser->parseConstraint() at @COMPOSER@/vendor/composer/semver/src/VersionParser.php:297
  Composer\Semver\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Package/Version/VersionParser.php:34
- Composer\Package\Version\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Command/RequireCommand.php:294
+ Composer\Package\Version\VersionParser->parseConstraints() at @COMPOSER@/src/Composer/Command/RequireCommand.php:295
  Composer\Command\RequireCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

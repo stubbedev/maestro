@@ -75,4 +75,39 @@ class JsonConfigSource implements ConfigSourceInterface
     {
         Rpc::call('cfgsrc.removeLink', [$this, $type, $name]);
     }
+
+    /**
+     * @internal
+     * @param array<mixed> $config
+     */
+    public static function restoreEmptyObjects(array &$config): void
+    {
+        if (isset($config['config']['policy']) && is_array($config['config']['policy'])) {
+            foreach ($config['config']['policy'] as $listName => $listValue) {
+                if ($listValue === []) {
+                    $config['config']['policy'][$listName] = new \stdClass;
+                }
+            }
+            if ($config['config']['policy'] === []) {
+                $config['config']['policy'] = new \stdClass;
+            }
+        }
+        foreach (['platform', 'http-basic', 'bearer', 'gitlab-token', 'gitlab-oauth', 'github-oauth', 'custom-headers', 'forgejo-token', 'preferred-install'] as $prop) {
+            if (isset($config['config'][$prop]) && $config['config'][$prop] === []) {
+                $config['config'][$prop] = new \stdClass;
+            }
+        }
+        foreach (['psr-0', 'psr-4'] as $prop) {
+            foreach (['autoload', 'autoload-dev'] as $section) {
+                if (isset($config[$section][$prop]) && $config[$section][$prop] === []) {
+                    $config[$section][$prop] = new \stdClass;
+                }
+            }
+        }
+        foreach (['require', 'require-dev', 'conflict', 'provide', 'replace', 'suggest', 'config', 'autoload', 'autoload-dev', 'scripts', 'scripts-descriptions', 'scripts-aliases', 'support'] as $prop) {
+            if (isset($config[$prop]) && $config[$prop] === []) {
+                $config[$prop] = new \stdClass;
+            }
+        }
+    }
 }

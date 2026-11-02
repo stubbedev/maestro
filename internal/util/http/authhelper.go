@@ -52,6 +52,7 @@ type AuthHelper struct {
 
 	mu                             sync.Mutex
 	displayedOriginAuthentications map[string]string
+	warnedInvalidCustomHeaders     map[string]bool
 	bitbucketRetry                 map[string]bool
 	// newGitHub & co create the utilities promptAuthIfNeeded uses; tests
 	// replace them.
@@ -396,7 +397,14 @@ func (h *AuthHelper) AddAuthenticationHeader(headers []string, origin, url strin
 
 // Infallible: the pattern does bounded work per start position, so Preg
 // cannot throw on it and its call sites ignore the error.
-var gitHubAPIRegex = php.MustCompile(`{^https?://api\.github\.com/}`)
+var (
+	gitHubAPIRegex                 = php.MustCompile(`{^https?://api\.github\.com/}`)
+	gitLabComposerRegistryURLRegex = php.MustCompile(`{/api/v4/(?:group/[^/]+/-|projects/[^/]+)/packages/composer(?:/|$)}i`)
+)
+
+// gitLabCIJobTokenMarker is the username naming a credential a GitLab CI job
+// token.
+const gitLabCIJobTokenMarker = "gitlab-ci-token" //nolint:gosec // a credential marker, not a credential
 
 // AddAuthenticationOptions is addAuthenticationOptions($options, $origin,
 // $url): a copy of options with the origin's credentials added as headers
@@ -427,55 +435,45 @@ func (h *AuthHelper) addAuthenticationOptions(options *php.Array, origin, url st
 		return options
 	}
 
-	origin = authOrigin
-	displayMessage := ""
-	auth := h.io.Authentication(origin)
+	message := h.applyAuthentication(options, headerLines, authOrigin, url, h.io.Authentication(authOrigin))
+	if message != "" && h.markDisplayed(authOrigin, message) {
+		h.io.WriteError(message, true, io.Debug)
+	}
+
+	return options
+}
+
+// applyAuthentication ports applyAuthentication: the origin's credentials
+// added to options, and the message describing them ("" when none were
+// added).
+func (h *AuthHelper) applyAuthentication(options, headerLines *php.Array, origin, url string, auth io.Authentication) string {
 	username, password := authString(auth.Username), authString(auth.Password)
 
 	switch {
 	case password == "bearer":
 		headerLines.Append("Authorization: Bearer " + username)
+
+		return "Using Bearer token authentication"
 	case password == "custom-headers":
 		// Handle custom HTTP headers from auth.json
-		if auth.Username != nil {
-			decoded, _ := php.JSONDecode(username, true)
-			if custom, ok := decoded.(*php.Array); ok {
-				for _, header := range custom.All() {
-					headerLines.Append(header)
-				}
-
-				displayMessage = "Using custom HTTP headers for authentication"
-			}
-		}
+		return h.addCustomHeaders(headerLines, origin, auth.Username)
 	case origin == "github.com" && password == "x-oauth-basic": //nolint:gosec // a credential marker, not a credential
 		// only add the access_token if it is actually a github API URL
-		if ok, _ := gitHubAPIRegex.IsMatch(url); ok {
-			headerLines.Append("Authorization: token " + username)
-			displayMessage = "Using GitHub token authentication"
+		if ok, _ := gitHubAPIRegex.IsMatch(url); !ok {
+			return ""
 		}
-	case (username == "gitlab-ci-token" || password == "gitlab-ci-token") && configHas(h.config, "gitlab-domains", origin): //nolint:gosec // credential markers
-		// the marker ends up in either slot depending on whether
-		// GitLab.AuthorizeOAuth normalized the credentials
-		token := password
-		if password == "gitlab-ci-token" { //nolint:gosec // a credential marker, not a credential
-			token = username
-		}
+		headerLines.Append("Authorization: token " + username)
 
-		headerLines.Append("JOB-TOKEN: " + token)
-		displayMessage = "Using GitLab CI job token authentication"
-	case (password == "oauth2" || password == "private-token") && configHas(h.config, "gitlab-domains", origin):
-		if password == "oauth2" {
-			headerLines.Append("Authorization: Bearer " + username)
-			displayMessage = "Using GitLab OAuth token authentication"
-		} else {
-			headerLines.Append("PRIVATE-TOKEN: " + username)
-			displayMessage = "Using GitLab private token authentication"
-		}
+		return "Using GitHub token authentication"
+	case hasGitLabTokenMarker(username, password) && configHas(h.config, "gitlab-domains", origin):
+		return addGitLabAuthentication(headerLines, url, username, password)
 	case origin == "bitbucket.org" && url != BitbucketOAuth2AccessTokenURL && username == "x-token-auth":
-		if !IsPublicBitBucketDownload(url) {
-			headerLines.Append("Authorization: Bearer " + password)
-			displayMessage = "Using Bitbucket OAuth token authentication"
+		if IsPublicBitBucketDownload(url) {
+			return ""
 		}
+		headerLines.Append("Authorization: Bearer " + password)
+
+		return "Using Bitbucket OAuth token authentication"
 	case username == "client-certificate":
 		ssl, _ := options.At("ssl").(*php.Array)
 		if ssl == nil {
@@ -488,17 +486,117 @@ func (h *AuthHelper) addAuthenticationOptions(options *php.Array, origin, url st
 		}
 
 		options.Set("ssl", ssl)
-		displayMessage = "Using SSL client certificate"
-	default:
-		headerLines.Append("Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password)))
-		displayMessage = `Using HTTP basic authentication with username "` + util.SanitizeUsername(username) + `"`
+
+		return "Using SSL client certificate"
 	}
 
-	if displayMessage != "" && h.markDisplayed(origin, displayMessage) {
-		h.io.WriteError(displayMessage, true, io.Debug)
+	headerLines.Append(basicAuthHeader(username, password))
+
+	return `Using HTTP basic authentication with username "` + util.SanitizeUsername(username) + `"`
+}
+
+// basicAuthHeader is the Authorization header of HTTP basic authentication.
+func basicAuthHeader(username, password string) string {
+	return "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+}
+
+// addCustomHeaders ports addCustomHeaders: what is not a list of header
+// strings is ignored, with one warning per origin.
+func (h *AuthHelper) addCustomHeaders(headerLines *php.Array, origin string, encodedHeaders *string) string {
+	custom, valid := decodeCustomHeaders(encodedHeaders)
+	if !valid {
+		if h.markInvalidCustomHeadersWarned(origin) {
+			h.io.WriteError("<warning>Ignoring custom-headers authentication for "+origin+" as it is not a list of header strings</warning>", true, io.Normal)
+		}
+
+		return ""
 	}
 
-	return options
+	for _, header := range custom.All() {
+		headerLines.Append(header)
+	}
+
+	return "Using custom HTTP headers for authentication"
+}
+
+// decodeCustomHeaders decodes a custom-headers credential, reporting
+// whether it is an array of nothing but strings.
+func decodeCustomHeaders(encoded *string) (*php.Array, bool) {
+	if encoded == nil {
+		return nil, false
+	}
+
+	decoded, _ := php.JSONDecode(*encoded, true)
+	custom, ok := decoded.(*php.Array)
+	if !ok {
+		return nil, false
+	}
+
+	for _, header := range custom.All() {
+		if _, isString := header.(string); !isString {
+			return nil, false
+		}
+	}
+
+	return custom, true
+}
+
+// hasGitLabTokenMarker ports hasGitLabTokenMarker.
+func hasGitLabTokenMarker(username, password string) bool {
+	return username == gitLabCIJobTokenMarker || password == gitLabCIJobTokenMarker || password == "oauth2" || password == "private-token"
+}
+
+// addGitLabAuthentication ports addGitLabAuthentication. Its caller has
+// checked hasGitLabTokenMarker, so what is neither a job token nor an OAuth
+// token is a private token.
+func addGitLabAuthentication(headerLines *php.Array, url, username, password string) string {
+	// the marker ends up in either slot depending on whether
+	// GitLab.AuthorizeOAuth normalized the credentials
+	if username == gitLabCIJobTokenMarker || password == gitLabCIJobTokenMarker {
+		jobToken := password
+		if password == gitLabCIJobTokenMarker {
+			jobToken = username
+		}
+
+		if ok, _ := gitLabComposerRegistryURLRegex.IsMatch(util.URLPath(url)); ok {
+			headerLines.Append(basicAuthHeader(gitLabCIJobTokenMarker, jobToken))
+
+			return `Using HTTP basic authentication with username "` + gitLabCIJobTokenMarker + `"`
+		}
+
+		headerLines.Append("JOB-TOKEN: " + jobToken)
+
+		return "Using GitLab CI job token authentication"
+	}
+
+	if password == "oauth2" {
+		headerLines.Append("Authorization: Bearer " + username)
+
+		return "Using GitLab OAuth token authentication"
+	}
+
+	headerLines.Append("PRIVATE-TOKEN: " + username)
+
+	return "Using GitLab private token authentication"
+}
+
+// markInvalidCustomHeadersWarned records the warning about origin's custom
+// headers and reports whether it is the first.
+func (h *AuthHelper) markInvalidCustomHeadersWarned(origin string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.warnedInvalidCustomHeaders[origin] {
+		return false
+	}
+
+	if h.warnedInvalidCustomHeaders == nil {
+		h.warnedInvalidCustomHeaders = map[string]bool{}
+	}
+
+	h.warnedInvalidCustomHeaders[origin] = true
+
+	return true
 }
 
 // markDisplayed records the authentication message shown for origin and

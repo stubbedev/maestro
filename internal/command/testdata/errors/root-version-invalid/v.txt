@@ -12,7 +12,7 @@ In Factory.php line 317:
 Exception trace:
   at @COMPOSER@/src/Composer/Factory.php:317
  Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
- Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:676
+ Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/InstallCommand.php:105
  Composer\Command\InstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298

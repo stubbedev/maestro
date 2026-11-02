@@ -174,6 +174,8 @@ func callManipulator(m *Manipulator, method string, a []any) (any, error) {
 		return m.ChangeEmptyMainKeyFromAssocToList(argStr(a, 0))
 	case "removeMainKeyIfEmpty":
 		return m.RemoveMainKeyIfEmpty(argStr(a, 0))
+	case "removeLink":
+		return m.RemoveLink(argStr(a, 0), argStr(a, 1))
 	case "format":
 		return m.Format(arg(0), argInt(arg(1)), argBool(a, 2, false))
 	}
