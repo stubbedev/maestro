@@ -1093,10 +1093,31 @@ var pharOnlyDiagnose = regexp.MustCompile(`(?s)Checking pubkeys: .*?\nChecking C
 // running binary.
 var diagnoseVariable = regexp.MustCompile(`(?m)^(PHP binary path:).*$`)
 
-// normalizeDiagnose: see pharOnlyDiagnose, diagnoseVariable and
-// testutil.MaestroDiagnoseLine.
+// pharDependencyAudit is the vulnerability check's report when it holds
+// advisories: Composer audits the packages bundled in its phar besides
+// composer/composer, maestro bundles none and audits composer/composer only
+// (DiagnoseCommand), so a report without composer/composer is the phar's
+// own and reads as maestro's OK.
+var (
+	pharDependencyAudit = regexp.MustCompile(`(?m)^(Checking Composer and its dependencies for vulnerabilities: )WARNING(\r?\n)Audit found some issues:\r?\nFound [^\n]*\n(?:[+|][^\n]*\n)+`)
+	composerAdvisoryRow = regexp.MustCompile(`(?m)^\| Package +\| composer/composer +\|`)
+)
+
+func normalizePharDependencyAudit(s string) string {
+	return pharDependencyAudit.ReplaceAllStringFunc(s, func(report string) string {
+		if composerAdvisoryRow.MatchString(report) {
+			return report
+		}
+
+		return pharDependencyAudit.ReplaceAllString(report, "${1}OK$2")
+	})
+}
+
+// normalizeDiagnose: see pharOnlyDiagnose, pharDependencyAudit,
+// diagnoseVariable and testutil.MaestroDiagnoseLine.
 func normalizeDiagnose(s string) string {
 	s = testutil.MaestroDiagnoseLine.ReplaceAllString(pharOnlyDiagnose.ReplaceAllString(s, ""), "")
+	s = normalizePharDependencyAudit(s)
 
 	return diagnoseVariable.ReplaceAllString(s, "$1 <variable>")
 }
@@ -1146,4 +1167,34 @@ func normalizeFund(s string) string {
 	}
 
 	return string(out)
+}
+
+func TestNormalizePharDependencyAudit(t *testing.T) {
+	report := func(eol, pkg string) string {
+		return "Composer version: 2.11.1" + eol +
+			"Checking Composer and its dependencies for vulnerabilities: WARNING" + eol +
+			"Audit found some issues:" + eol +
+			"Found 1 security vulnerability advisory affecting 1 package:" + eol +
+			"+-------------------+----------------------+" + eol +
+			"| Package           | " + pkg + " |" + eol +
+			"| Advisory ID       | PKSA-g499-cm4q-v35y  |" + eol +
+			"+-------------------+----------------------+" + eol +
+			"PHP version: 8.4.27" + eol
+	}
+	ok := func(eol string) string {
+		return "Composer version: 2.11.1" + eol +
+			"Checking Composer and its dependencies for vulnerabilities: OK" + eol +
+			"PHP version: 8.4.27" + eol
+	}
+
+	for _, c := range []struct{ in, want string }{
+		{report("\n", "symfony/filesystem  "), ok("\n")},
+		{report("\r\n", "symfony/filesystem  "), ok("\r\n")},
+		{report("\n", "composer/composer   "), report("\n", "composer/composer   ")},
+		{ok("\n"), ok("\n")},
+	} {
+		if got := normalizePharDependencyAudit(c.in); got != c.want {
+			t.Errorf("normalizePharDependencyAudit(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
 }
