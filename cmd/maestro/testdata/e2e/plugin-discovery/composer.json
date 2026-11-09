@@ -5,7 +5,7 @@
     "require": {
         "php-http/discovery": "1.20.0",
         "php-http/client-implementation": "*",
-        "symfony/http-client": "7.3.4"
+        "symfony/http-client": "7.4.23"
     },
     "config": {
         "allow-plugins": {
