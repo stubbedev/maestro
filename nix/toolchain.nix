@@ -1,15 +1,11 @@
 {
   perSystem = {
+    inputs',
     lib,
     pkgs,
     ...
   }: let
-    # The Go toolchain, pinned to the version go.mod declares: with
-    # GOTOOLCHAIN=local a module asking for a newer Go fails instead of
-    # downloading one. The package and every Go tool in the dev shell are
-    # built with it, so gopls and golangci-lint parse what the compiler
-    # accepts.
-    go = pkgs.go_1_27;
+    go = inputs'.devtools.packages.go;
     buildGoModule = pkgs.buildGoModule.override {inherit go;};
   in {
     _module.args = {
