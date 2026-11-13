@@ -76,7 +76,7 @@ set_value "$shim/stubs/Composer/Plugin/PluginInterface.php" "public const PLUGIN
 # version, and not the version of a package another release names, as in
 # "symfony/flex 2.11.0"), in the docs that state what maestro ports
 replace() {
-	OLD="$1" NEW="$2" perl -pi -e 's{([a-z0-9_.-]+/[a-z0-9_.-]+ )?(?<![\d.])\Q$ENV{OLD}\E(?![\d])}{defined $1 ? $& : $ENV{NEW}}ge' "${@:3}"
+	OLD="$1" NEW="$2" perl -0pi -e 's{([a-z0-9_.-]+/[a-z0-9_.-]+\s+)?(?<![\d.])\Q$ENV{OLD}\E(?![\d])}{defined $1 ? $& : $ENV{NEW}}ge' "${@:3}"
 }
 # set_doc_api NAME VALUE FILE...: the quoted value stated right after NAME.
 # By name and not by value: an API version can equal the release's version

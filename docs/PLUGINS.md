@@ -2167,7 +2167,7 @@ What crosses and how:
   loop's executor whenever it waits, as Composer's one loop does (§5.12).
 
 Fixtures (cmd/maestro e2e_plugins6_test.go): `plugin-flex` (symfony/flex
-2.11.2 with a local recipes endpoint served over http from
+2.11.0 with a local recipes endpoint served over http from
 testdata/e2e/flex-recipes: the first install's re-run, recipes and
 symfony.lock, pack unpacking, `req logger` alias resolution, `recipes`,
 `recipes:install`, `rem`, `-vvv`, `--no-plugins`; flex's random session
