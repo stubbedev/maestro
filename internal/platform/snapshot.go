@@ -185,7 +185,7 @@ func probeResult(output []byte) any {
 // snapshotOf is the snapshot of the probe's decoded result, or why there
 // is none.
 func snapshotOf(binary string, decoded any) (*Snapshot, string) {
-	root, ok := decoded.(*php.Array)
+	root, ok := unwrap(decoded).(*php.Array)
 	if !ok {
 		return nil, "its result is not an object"
 	}
@@ -209,19 +209,11 @@ func (s *Snapshot) fill(root *php.Array) error {
 	s.ini = arrayAt(root, "ini")
 	s.classConstants = arrayAt(root, "class_constants")
 
-	unwrapValues(s.ini)
-
 	constants := arrayAt(root, "constants")
 	s.constants = make(map[string]any, constants.Len())
 
 	for k, v := range constants.All() {
 		s.constants[k.String()] = unwrap(v)
-	}
-
-	for _, v := range s.classConstants.All() {
-		if a, ok := v.(*php.Array); ok {
-			unwrapValues(a)
-		}
 	}
 
 	version, ok := s.constants["PHP_VERSION"].(string)
@@ -237,13 +229,11 @@ func (s *Snapshot) fill(root *php.Array) error {
 	s.ZendExtensions = stringList(arrayAt(root, "zend_extensions"))
 
 	if files := arrayAt(root, "ini_files"); files.Len() == 2 {
-		loaded, _ := files.Get(0)
-		s.loadedIni, _ = unwrap(loaded).(string)
-		scanned, _ := files.Get(1)
-		s.scannedIni, s.hasScannedIni = unwrap(scanned).(string)
+		s.loadedIni, _ = files.GetString(0)
+		s.scannedIni, s.hasScannedIni = files.GetString(1)
 	}
 
-	s.configureCommand, s.hasConfigureCommand = unwrap(valueAt(root, "configure_command")).(string)
+	s.configureCommand, s.hasConfigureCommand = valueAt(root, "configure_command").(string)
 
 	exts := arrayAt(root, "extensions")
 	s.Extensions = make([]Extension, 0, exts.Len())
@@ -260,8 +250,8 @@ func (s *Snapshot) fill(root *php.Array) error {
 		info, _ := row.Get(2)
 
 		ext := Extension{Name: name}
-		ext.Version, ext.VersionOK = unwrap(version).(string)
-		ext.Info, _ = unwrap(info).(string)
+		ext.Version, ext.VersionOK = version.(string)
+		ext.Info, _ = info.(string)
 
 		s.extIndex[php.Strtolower(name)] = len(s.Extensions)
 		s.Extensions = append(s.Extensions, ext)
@@ -309,14 +299,12 @@ func parseCall(v any) probeCall {
 	}
 
 	if args := arrayAt(entry, "args"); args.Len() > 0 {
-		unwrapValues(args)
 		c.args = args.Values()
 	}
 
 	if e := arrayAt(entry, "error"); e.Len() == 2 {
 		class, _ := e.GetString(0)
-		msg, _ := e.Get(1)
-		message, _ := unwrap(msg).(string)
+		message, _ := e.GetString(1)
 		c.err = &PHPError{Class: class, Message: message}
 
 		return c
@@ -360,15 +348,18 @@ func unwrap(v any) any {
 // objects and resources, so they stay wrapped; unwrap them when reading.
 func unwrapValues(a *php.Array) {
 	for k, v := range a.All() {
-		if x, ok := v.(*php.Array); ok {
-			switch u := unwrap(x).(type) {
-			case objectMarker, Resource:
-			default:
-				if u != any(x) {
-					a.SetKey(k, u)
-				}
-			}
+		if u := unwrapElement(v); u != v {
+			a.SetKey(k, u)
 		}
+	}
+}
+
+func unwrapElement(v any) any {
+	switch u := unwrap(v).(type) {
+	case objectMarker, Resource:
+		return v
+	default:
+		return u
 	}
 }
 
@@ -399,7 +390,7 @@ func unwrapMarker(marker string, x any) any {
 			pair, _ := p.(*php.Array)
 			k, _ := pair.Get(0)
 			v, _ := pair.Get(1)
-			out.Set(unwrap(k), unwrap(v))
+			out.Set(unwrap(k), unwrapElement(v))
 		}
 
 		return out
@@ -436,7 +427,7 @@ func valueAt(a *php.Array, key string) any {
 func stringList(a *php.Array) []string {
 	out := make([]string, 0, a.Len())
 	for _, v := range a.All() {
-		if s, ok := unwrap(v).(string); ok {
+		if s, ok := v.(string); ok {
 			out = append(out, s)
 		}
 	}
