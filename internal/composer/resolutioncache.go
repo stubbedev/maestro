@@ -31,7 +31,7 @@ import (
 )
 
 // resolutionFormat is the version of the entries; its Header starts one.
-var resolutionFormat = fsstate.Format{Name: "resolution", Version: 5}
+var resolutionFormat = fsstate.Format{Name: "resolution", Version: 6}
 
 // resolutionCacheMaxEntries bounds the entries kept: past it, the least
 // recently written are removed.

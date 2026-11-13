@@ -9,10 +9,10 @@ require (
 	github.com/klauspost/compress v1.20.3
 	github.com/rivo/uniseg v0.4.7
 	github.com/ulikunitz/xz v0.5.17
-	golang.org/x/crypto v0.58.0
-	golang.org/x/net v0.60.0
-	golang.org/x/sys v0.49.0
-	golang.org/x/term v0.47.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/net v0.62.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
 )
 
 require (
@@ -26,5 +26,5 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 )
