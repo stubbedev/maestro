@@ -6,11 +6,6 @@
 package http
 
 import (
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-
 	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/php"
 )
@@ -137,40 +132,19 @@ func optionString(options *php.Array, keys ...string) (string, bool) {
 	return php.ToString(v), true
 }
 
-// Callables cannot live in a *php.Array, so the prevent_url_access_callable
-// and prevent_ip_access_callable options hold a handle RegisterCallable
-// returned instead.
-var (
-	callables   sync.Map // string -> func(string) bool
-	callableSeq atomic.Uint64
-)
+type AccessCallable func(string) (bool, error)
 
-const callablePrefix = "\x00maestro-callable:"
+func (AccessCallable) PHPOpaque() {}
 
-// RegisterCallable registers fn for use as a callable option value
-// (prevent_url_access_callable, prevent_ip_access_callable) and returns
-// the value to put in the options.
-func RegisterCallable(fn func(string) bool) string {
-	key := callablePrefix + strconv.FormatUint(callableSeq.Add(1), 10)
-	callables.Store(key, fn)
+func (AccessCallable) PHPClass() string { return "Closure" }
 
-	return key
-}
-
-// callableOption resolves a callable option value; false when it is not
-// callable (is_callable() false).
-func callableOption(v any) (func(string) bool, bool) {
-	key, ok := v.(string)
-	if !ok || !strings.HasPrefix(key, callablePrefix) {
-		return nil, false
-	}
-
-	fn, ok := callables.Load(key)
+func accessCallable(options *php.Array, name string) (AccessCallable, bool) {
+	v, ok := path(options, name)
 	if !ok {
 		return nil, false
 	}
 
-	f, ok := fn.(func(string) bool)
+	fn, ok := v.(AccessCallable)
 
-	return f, ok
+	return fn, ok
 }

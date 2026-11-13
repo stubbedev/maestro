@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -16,8 +16,8 @@ Stack trace:
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:281
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:80
  @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
- @COMPOSER@/src/Composer/Factory.php:394
- @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Factory.php:401
+ @COMPOSER@/src/Composer/Factory.php:638
  @COMPOSER@/src/Composer/Console/Application.php:680
  @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  @COMPOSER@/src/Composer/Command/BaseCommand.php:242
@@ -34,8 +34,8 @@ Stack trace:
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:281
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:80
  @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
- @COMPOSER@/src/Composer/Factory.php:394
- @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Factory.php:401
+ @COMPOSER@/src/Composer/Factory.php:638
  @COMPOSER@/src/Composer/Console/Application.php:680
  @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  @COMPOSER@/src/Composer/Command/BaseCommand.php:242
@@ -50,9 +50,9 @@ Stack trace:
 Deprecation Notice: config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in @COMPOSER@/src/Composer/Config.php:480
 Stack trace:
  @COMPOSER@/src/Composer/Config.php:480
- @COMPOSER@/src/Composer/Factory.php:587
- @COMPOSER@/src/Composer/Factory.php:419
- @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Factory.php:594
+ @COMPOSER@/src/Composer/Factory.php:426
+ @COMPOSER@/src/Composer/Factory.php:638
  @COMPOSER@/src/Composer/Console/Application.php:680
  @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  @COMPOSER@/src/Composer/Command/BaseCommand.php:242
@@ -112,8 +112,8 @@ Stack trace:
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:281
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:80
  @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
- @COMPOSER@/src/Composer/Factory.php:394
- @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Factory.php:401
+ @COMPOSER@/src/Composer/Factory.php:638
  @COMPOSER@/src/Composer/Command/BaseCommand.php:317
  @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
  @COMPOSER@/vendor/symfony/console/Command/Command.php:298
@@ -129,8 +129,8 @@ Stack trace:
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:281
  @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:80
  @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
- @COMPOSER@/src/Composer/Factory.php:394
- @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Factory.php:401
+ @COMPOSER@/src/Composer/Factory.php:638
  @COMPOSER@/src/Composer/Command/BaseCommand.php:317
  @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
  @COMPOSER@/vendor/symfony/console/Command/Command.php:298
@@ -144,9 +144,9 @@ Stack trace:
 Deprecation Notice: config.bin-compat "symlink" is deprecated since Composer 2.2, use auto, full (for Windows compatibility) or proxy instead. in @COMPOSER@/src/Composer/Config.php:480
 Stack trace:
  @COMPOSER@/src/Composer/Config.php:480
- @COMPOSER@/src/Composer/Factory.php:587
- @COMPOSER@/src/Composer/Factory.php:419
- @COMPOSER@/src/Composer/Factory.php:631
+ @COMPOSER@/src/Composer/Factory.php:594
+ @COMPOSER@/src/Composer/Factory.php:426
+ @COMPOSER@/src/Composer/Factory.php:638
  @COMPOSER@/src/Composer/Command/BaseCommand.php:317
  @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
  @COMPOSER@/vendor/symfony/console/Command/Command.php:298

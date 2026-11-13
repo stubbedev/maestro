@@ -1,4 +1,4 @@
-// Package jsonschema ports the subset of justinrainbow/json-schema 6.10.0
+// Package jsonschema ports the subset of justinrainbow/json-schema 6.14.0
 // (JsonSchema\Validator in its default, draft-04 mode) that Composer
 // exercises: src/JsonSchema/Validator.php, Constraints/BaseConstraint.php,
 // Constraints/Constraint.php, Constraints/SchemaConstraint.php,
@@ -302,15 +302,15 @@ func message(name string) string {
 	case errDisallow:
 		return "Disallowed value was matched"
 	case errDivisibleBy:
-		return "Is not divisible by %d"
+		return "Is not divisible by %s"
 	case errEnum:
 		return "Does not have a value in the enumeration %s"
 	case errConstant:
 		return "Does not have a value equal to %s"
 	case errExclusiveMinimum:
-		return "Must have a minimum value greater than %d"
+		return "Must have a minimum value greater than %s"
 	case errExclusiveMaximum:
-		return "Must have a maximum value less than %d"
+		return "Must have a maximum value less than %s"
 	case errFalse:
 		return "Boolean schema false"
 	case errFormatColor:
@@ -344,11 +344,11 @@ func message(name string) string {
 	case errMaxItems:
 		return "There must be a maximum of %d items in the array, %d found"
 	case errMaximum:
-		return "Must have a maximum value less than or equal to %d"
+		return "Must have a maximum value less than or equal to %s"
 	case errMinItems:
 		return "There must be a minimum of %d items in the array, %d found"
 	case errMinimum:
-		return "Must have a minimum value greater than or equal to %d"
+		return "Must have a minimum value greater than or equal to %s"
 	case errMissingMaximum:
 		return "Use of exclusiveMaximum requires presence of maximum"
 	case errMissingMinimum:

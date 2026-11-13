@@ -292,6 +292,107 @@ func TestFileDownloader_DownloadWithCustomCacheKey(t *testing.T) {
 	mustContain(t, err, "could not be saved to")
 }
 
+func repositoryHeaderPackage(distURL string, mirror string) *pkg.CompletePackage {
+	p := dummyPackage()
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str(distURL))
+	if mirror != "" {
+		p.SetDistMirrors(php.ListOf(php.ArrayOf("url", mirror, "preferred", true)))
+	}
+	p.SetTransportOptions(php.ArrayOf("http", php.ArrayOf("header", php.ListOf("Authorization: Bearer SECRET"))))
+
+	return p
+}
+
+func sentHeader(t *testing.T, h *fakeHTTP, url string) (any, bool) {
+	t.Helper()
+
+	for i, called := range h.calls {
+		if called != url {
+			continue
+		}
+
+		httpOptions, ok := h.options[i].At("http").(*php.Array)
+		if !ok {
+			return nil, false
+		}
+
+		return httpOptions.Get("header")
+	}
+
+	t.Fatalf("expected %s to be contacted, got %v", url, h.calls)
+
+	return nil, false
+}
+
+func TestFileDownloader_RepositoryHeadersAreOnlySentToTheRepositoryOrigin(t *testing.T) {
+	canonical := "https://repo.example.org/dist/pkg.zip"
+
+	for name, tc := range map[string]struct {
+		distURL, mirror, contactedURL string
+		expectHeader                  bool
+	}{
+		"no mirror: canonical receives the header":               {canonical, "", canonical, true},
+		"preferred mirror on the same origin keeps the header":   {canonical, "https://repo.example.org/mirror/pkg.zip", "https://repo.example.org/mirror/pkg.zip", true},
+		"preferred mirror on another host is stripped":           {canonical, "https://mirror.example.net/pkg.zip", "https://mirror.example.net/pkg.zip", false},
+		"userinfo pointing at another host is stripped":          {canonical, "https://repo.example.org@evil.example.net/pkg.zip", "https://repo.example.org@evil.example.net/pkg.zip", false},
+		"different port on the same host is stripped":            {canonical, "https://repo.example.org:8443/pkg.zip", "https://repo.example.org:8443/pkg.zip", false},
+		"http scheme on the same host is stripped":               {canonical, "http://repo.example.org/pkg.zip", "http://repo.example.org/pkg.zip", false},
+		"URLs without a parseable origin never match each other": {"https:///dist/pkg.zip", "https:///mirror/pkg.zip", "https:///mirror/pkg.zip", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := t.TempDir()
+			config := getConfig(t, "vendor-dir", path+"/vendor", "bin-dir", path+"/vendor/bin")
+			h := &fakeHTTP{}
+			d := newTestFileDownloader(t, nil, config, nil, nil, h)
+
+			err := await(d.Download(repositoryHeaderPackage(tc.distURL, tc.mirror), path, nil))
+			if !phperr.InstanceOf(err, "UnexpectedValueException") {
+				t.Fatalf("expected UnexpectedValueException, got %v", err)
+			}
+
+			header, sent := sentHeader(t, h, tc.contactedURL)
+			if tc.expectHeader && !php.StrictEquals(header, php.ListOf("Authorization: Bearer SECRET")) {
+				t.Errorf("the repository header must be sent to the repository origin, got %v", header)
+			}
+			if !tc.expectHeader && sent {
+				t.Errorf("the repository header must not be sent to a mirror on another origin, got %v", header)
+			}
+		})
+	}
+}
+
+func TestFileDownloader_RepositoryHeadersAreSentToTheCanonicalUrlAfterAMirrorFailed(t *testing.T) {
+	path := t.TempDir()
+	canonical := "https://repo.example.org/dist/pkg.zip"
+	mirror := "https://mirror.example.net/pkg.zip"
+
+	config := getConfig(t, "vendor-dir", path+"/vendor", "bin-dir", path+"/vendor/bin")
+	h := &fakeHTTP{copy: func(url, _ string) (*http.Response, error) {
+		if url == mirror {
+			return nil, util.NewTransportError("Not found", 404)
+		}
+
+		return http.NewResponse(url, 200, nil, "file~"), nil
+	}}
+	d := newTestFileDownloader(t, nil, config, nil, nil, h)
+
+	err := await(d.Download(repositoryHeaderPackage(canonical, mirror), path, nil))
+	if !phperr.InstanceOf(err, "UnexpectedValueException") {
+		t.Fatalf("expected UnexpectedValueException, got %v", err)
+	}
+
+	if len(h.calls) != 2 || h.calls[0] != mirror || h.calls[1] != canonical {
+		t.Fatalf("contacted %v, want [%s %s]", h.calls, mirror, canonical)
+	}
+	if header, sent := sentHeader(t, h, mirror); sent {
+		t.Errorf("the mirror received %v", header)
+	}
+	if header, _ := sentHeader(t, h, canonical); !php.StrictEquals(header, php.ListOf("Authorization: Bearer SECRET")) {
+		t.Errorf("the canonical URL received %v", header)
+	}
+}
+
 func TestFileDownloader_CacheGarbageCollectionIsCalled(t *testing.T) {
 	expectedTTL := 99999999
 	config := getConfig(t, "cache-files-ttl", "99999999", "cache-files-maxsize", "500M")

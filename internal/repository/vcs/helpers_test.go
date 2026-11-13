@@ -118,9 +118,9 @@ func deps(ioi io.IO, cfg *config.Config, h http.Getter, p uvcs.Process) Deps {
 // pinGitVersion pins the process-wide git version, as the static cache
 // of Git::getVersion is warm in Composer's test runs. Tests calling it
 // must not run in parallel.
-func pinGitVersion(t *testing.T) {
+func pinGitVersion(t *testing.T, version string) {
 	t.Helper()
-	uvcs.SetVersion("2.45.0", true)
+	uvcs.SetVersion(version, true)
 	t.Cleanup(func() { uvcs.SetVersion("", false) })
 }
 
@@ -173,6 +173,21 @@ func expectRuntimeError(t *testing.T, err error, msg string) {
 
 	if msg != "" && err.Error() != msg {
 		t.Fatalf("got message %q, want %q", err.Error(), msg)
+	}
+}
+
+func expectGitFallbackDisabled(t *testing.T, err error) {
+	t.Helper()
+
+	expectRuntimeError(t, err, "Fallback to git driver disabled")
+
+	previous, ok := errors.AsType[*util.TransportError](phperr.PreviousOf(err))
+	if !ok {
+		t.Fatalf("previous error %v (%T), want a TransportException", phperr.PreviousOf(err), phperr.PreviousOf(err))
+	}
+
+	if previous.Code != 404 {
+		t.Fatalf("previous error code %d, want 404", previous.Code)
 	}
 }
 

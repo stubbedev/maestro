@@ -30,8 +30,8 @@ In ZipDownloader.php line 116:
 
 Exception trace:
   at @COMPOSER@/src/Composer/Downloader/ZipDownloader.php:116
- Composer\Downloader\ZipDownloader->validateDownloadedFile() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:242
- Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():228}() at @COMPOSER@/vendor/react/promise/src/Internal/FulfilledPromise.php:47
+ Composer\Downloader\ZipDownloader->validateDownloadedFile() at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:272
+ Composer\Downloader\FileDownloader->{closure:Composer\Downloader\FileDownloader::download():258}() at @COMPOSER@/vendor/react/promise/src/Internal/FulfilledPromise.php:47
  React\Promise\Internal\FulfilledPromise->then() at @COMPOSER@/vendor/react/promise/src/Promise.php:174
  React\Promise\Promise::{closure:{closure:React\Promise\Promise::resolver():172}:173}() at @COMPOSER@/vendor/react/promise/src/Promise.php:222
  React\Promise\Promise->settle() at @COMPOSER@/vendor/react/promise/src/Promise.php:287
@@ -39,7 +39,7 @@ Exception trace:
  React\Promise\Internal\FulfilledPromise->then() at @COMPOSER@/vendor/react/promise/src/Promise.php:181
  React\Promise\Promise::{closure:{closure:React\Promise\Promise::resolver():172}:173}() at @COMPOSER@/vendor/react/promise/src/Promise.php:222
  React\Promise\Promise->settle() at @COMPOSER@/vendor/react/promise/src/Promise.php:287
- React\Promise\Promise::{closure:React\Promise\Promise::call():285}() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:576
+ React\Promise\Promise::{closure:React\Promise\Promise::call():285}() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:628
  Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
  Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:103
  Composer\Util\Loop->runJobs() at @COMPOSER@/src/Composer/Util/Loop.php:75

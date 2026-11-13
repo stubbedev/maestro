@@ -23,6 +23,55 @@ func mustLoad(t *testing.T, l loader.LoaderInterface, config *php.Array) pkg.Pac
 	return p
 }
 
+func TestArrayLoader_LoadPackagesSharesLinksWithoutSharingSelfVersionLinks(t *testing.T) {
+	config := php.ArrayOf("name", "vendor/package", "version", "1.0.0")
+	for _, typ := range []string{"require", "require-dev", "conflict", "provide", "replace"} {
+		config.Set(typ, php.ArrayOf("VENDOR/dep", "^1.0", "vendor/self", "self.version"))
+	}
+	nextConfig := config.Clone()
+	nextConfig.Set("version", "2.0.0")
+
+	packages, err := loader.NewArrayLoader(nil, false).LoadPackages([]*php.Array{config, nextConfig})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, second := packages[0], packages[1]
+
+	for _, links := range [][2]pkg.Links{
+		{first.Requires(), second.Requires()},
+		{first.DevRequires(), second.DevRequires()},
+		{first.Conflicts(), second.Conflicts()},
+		{first.Provides(), second.Provides()},
+		{first.Replaces(), second.Replaces()},
+	} {
+		firstDep, _ := links[0].Get("vendor/dep")
+		secondDep, _ := links[1].Get("vendor/dep")
+		if firstDep != secondDep {
+			t.Errorf("vendor/dep links are not shared: %v %v", firstDep, secondDep)
+		}
+		if firstDep.Target() != "vendor/dep" {
+			t.Errorf("target %q, want vendor/dep", firstDep.Target())
+		}
+		firstSelf, _ := links[0].Get("vendor/self")
+		secondSelf, _ := links[1].Get("vendor/self")
+		if firstSelf == secondSelf {
+			t.Error("self.version links are shared")
+		}
+		if got := firstSelf.Constraint().PrettyString(); got != "1.0.0" {
+			t.Errorf("first self.version constraint %q, want 1.0.0", got)
+		}
+		if got := secondSelf.Constraint().PrettyString(); got != "2.0.0" {
+			t.Errorf("second self.version constraint %q, want 2.0.0", got)
+		}
+	}
+
+	require, _ := first.Requires().Get("vendor/dep")
+	provide, _ := first.Provides().Get("vendor/dep")
+	if require == provide {
+		t.Error("the require and provide links are shared")
+	}
+}
+
 func TestArrayLoader_SelfVersion(t *testing.T) {
 	p := mustLoad(t, loader.NewArrayLoader(nil, false), php.ArrayOf("name", "A", "version", "1.2.3.4", "replace", php.ArrayOf("foo", "self.version")))
 
@@ -206,6 +255,23 @@ func TestArrayLoader_ParseDumpTrueLoadConfig(t *testing.T) {
 func TestArrayLoader_ParseDumpFalseLoadConfig(t *testing.T) {
 	for _, config := range parseDumpCases(t) {
 		checkParseDump(t, loader.NewArrayLoader(nil, false), config, withoutTransportOptions(config))
+	}
+}
+
+func TestArrayLoader_TransportOptionCallablesAreNotLoadedFromPackageData(t *testing.T) {
+	p := mustLoad(t, loader.NewArrayLoader(nil, true), php.ArrayOf(
+		"name", "a/b",
+		"version", "1.0.0",
+		"transport-options", php.ArrayOf(
+			"ssl", php.ArrayOf("verify_peer", true),
+			"prevent_url_access_callable", "system",
+			"prevent_ip_access_callable", "system",
+		),
+	))
+
+	want := php.ArrayOf("ssl", php.ArrayOf("verify_peer", true))
+	if got := p.TransportOptions(); !php.StrictEquals(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 

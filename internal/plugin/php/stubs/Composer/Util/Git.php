@@ -39,6 +39,11 @@ class Git
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Git::fetchRefOrSyncMirror() in plugins yet');
     }
 
+    public static function fetchUpdatesMirrorHead(\Composer\Util\ProcessExecutor $process): bool
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Git::fetchUpdatesMirrorHead() in plugins yet');
+    }
+
     public static function getGitHubDomainsRegex(\Composer\Config $config): string
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\Git::getGitHubDomainsRegex() in plugins yet');

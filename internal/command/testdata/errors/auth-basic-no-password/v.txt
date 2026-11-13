@@ -12,8 +12,8 @@ In BaseIO.php line 175:
 Exception trace:
   at @COMPOSER@/src/Composer/IO/BaseIO.php:175
  Composer\Util\ErrorHandler::handle() at @COMPOSER@/src/Composer/IO/BaseIO.php:175
- Composer\IO\BaseIO->loadConfiguration() at @COMPOSER@/src/Composer/Factory.php:357
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\IO\BaseIO->loadConfiguration() at @COMPOSER@/src/Composer/Factory.php:364
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:242

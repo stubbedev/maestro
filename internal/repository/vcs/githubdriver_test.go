@@ -204,7 +204,7 @@ func TestGitHubDriver_PublicRepositoryArchived(t *testing.T) {
 }
 
 func TestGitHubDriver_PrivateRepositoryNoInteraction(t *testing.T) {
-	pinGitVersion(t)
+	pinGitVersion(t, "2.45.0")
 	t.Setenv("COMPOSER_DISABLE_NETWORK", "")
 
 	repoSSHURL := "git@github.com:composer/packagist.git"
@@ -287,7 +287,7 @@ func TestGitHubDriver_GetEmptyFileContent(t *testing.T) {
 }
 
 func TestGitHubDriver_RateLimitIsReportedWhenTheCloneFallbackFails(t *testing.T) {
-	pinGitVersion(t)
+	pinGitVersion(t, "2.45.0")
 	t.Setenv("COMPOSER_DISABLE_NETWORK", "")
 
 	repoURL := "https://github.com/composer/packagist"

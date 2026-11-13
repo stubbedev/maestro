@@ -1,6 +1,6 @@
 <?php
 // Generates internal/json/jsonschema/testdata/oracle/generic.json.gz: the errors
-// (or exception message) of the real justinrainbow/json-schema 6.10.0
+// (or exception message) of the real justinrainbow/json-schema 6.14.0
 // Validator for hand-written schemas exercising every draft-03/04 keyword
 // the default check mode implements (beyond what Composer's own schemas
 // use), each over a corpus of generated documents.

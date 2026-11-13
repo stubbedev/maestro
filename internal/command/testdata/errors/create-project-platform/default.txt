@@ -1,4 +1,5 @@
 Creating a "x/hi" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 Cannot use x/hi's latest version 1.0.0 as it requires php >=99 which is not satisfied by your platform.
 
 In CreateProjectCommand.php line 458:

@@ -338,6 +338,36 @@ func TestRequestProxy_GetCurlOptionsWithSSL(t *testing.T) {
 	}
 }
 
+func TestResponse_FindHeaderValue(t *testing.T) {
+	type want struct {
+		value string
+		found bool
+	}
+
+	for i, tc := range []struct {
+		headers []string
+		name    string
+		want    want
+	}{
+		{[]string{}, "Content-Type", want{}},
+		{[]string{"X-Other: value"}, "Content-Type", want{}},
+		{[]string{"content-type: application/json"}, "Content-Type", want{"application/json", true}},
+		{[]string{"Content-Type: text/plain", "HTTP/1.1 200 OK", "CONTENT-TYPE: application/json"}, "Content-Type", want{"application/json", true}},
+		{[]string{"Content-Type: \tapplication/json \t"}, "Content-Type", want{"application/json", true}},
+		{[]string{"Content-Type:"}, "Content-Type", want{}},
+		{[]string{"Content-Type: "}, "Content-Type", want{}},
+		{[]string{"Content-Type: \t "}, "Content-Type", want{}},
+		{[]string{"Content-Type:  text/html; charset=utf-8 "}, "Content-Type", want{"text/html; charset=utf-8", true}},
+		{[]string{"X.Foo: value", "X-Foo: other"}, "X.Foo", want{"value", true}},
+		{[]string{"X-Test: old", "X-Test: new"}, "X-Test", want{"new", true}},
+	} {
+		value, found := FindHeaderValue(tc.headers, tc.name)
+		if got := (want{value, found}); got != tc.want {
+			t.Errorf("case %d: got %+v, want %+v", i, got, tc.want)
+		}
+	}
+}
+
 func TestResponse_DecodeJsonParsesValidBody(t *testing.T) {
 	response := NewResponse("https://example.org/packages.json", 200, nil, `{"foo":"bar"}`)
 

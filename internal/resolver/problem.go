@@ -1069,20 +1069,27 @@ func loadCompleteAdvisories(removals *repository.NameMap[*PolicyRemovalReason], 
 		}
 	}
 
-	completeAdvisories := map[string]repository.Advisory{}
+	var packages []pkg.PackageInterface
 	for name, constraints := range versionsByName.All() {
-		packages, err := repositorySet.FindPackages(name, semver.CreateMultiConstraint(constraints, false), 0)
+		found, err := repositorySet.FindPackages(name, semver.CreateMultiConstraint(constraints, false), 0)
 		if err != nil {
 			return nil, err
 		}
-		advisories, err := repositorySet.GetMatchingSecurityAdvisories(packages, false, true)
-		if err != nil {
-			return nil, err
-		}
-		for _, list := range advisories.Advisories.All() {
-			for _, advisory := range list {
-				completeAdvisories[advisory.Partial().AdvisoryID] = advisory
-			}
+		packages = append(packages, found...)
+	}
+
+	if len(packages) == 0 {
+		return removals, nil
+	}
+
+	advisories, err := repositorySet.GetMatchingSecurityAdvisories(packages, false, true)
+	if err != nil {
+		return nil, err
+	}
+	completeAdvisories := map[string]repository.Advisory{}
+	for _, list := range advisories.Advisories.All() {
+		for _, advisory := range list {
+			completeAdvisories[advisory.Partial().AdvisoryID] = advisory
 		}
 	}
 

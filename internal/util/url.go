@@ -145,6 +145,28 @@ func IsAllowedRedirect(url string) bool {
 	return ok && u.hasScheme && (php.Strcasecmp(u.scheme, "http") == 0 || php.Strcasecmp(u.scheme, "https") == 0)
 }
 
+var defaultPorts = map[string]int{"http": 80, "https": 443, "ftp": 21, "ftps": 990}
+
+func URLOrigin(url string) (origin string, ok bool) {
+	u, parsed := parseURL(url)
+	if !parsed || !u.hasHost {
+		return "", false
+	}
+
+	scheme := php.Strtolower(u.scheme)
+	origin = scheme + "://" + php.Strtolower(u.host)
+
+	if u.hasPort {
+		return origin + ":" + strconv.Itoa(u.port), true
+	}
+
+	if port, known := defaultPorts[scheme]; known {
+		return origin + ":" + strconv.Itoa(port), true
+	}
+
+	return origin, true
+}
+
 var (
 	accessTokenParam     = php.MustCompile(`{([&?]access_token=)[^&]+}`)
 	urlCredentials       = php.MustCompile(`{(?:(?P<prefix>[a-z0-9][a-z0-9+.-]*://)|\A)(?P<user>[^:/\s?#]*)(?::(?P<password>[^\s/?#]*))?@}i`)
@@ -176,6 +198,10 @@ func SanitizeURLChecked(s string) (string, error) {
 	// accessTokenParam does bounded work per start position (a negated
 	// class run that cannot backtrack into a match): it cannot fail.
 	s, _, _ = accessTokenParam.Replace(s, "$1***", -1)
+
+	if !strings.Contains(s, "@") {
+		return s, nil
+	}
 
 	s, _, err := urlCredentials.ReplaceCallback(s, func(m *php.Match) string {
 		prefix, _ := m.Named("prefix")

@@ -10,7 +10,7 @@ class ForgejoDriver extends \Composer\Repository\Vcs\VcsDriver
 {
     protected $gitDriver;
 
-    protected function attemptCloneFallback(): bool
+    protected function attemptCloneFallback(?\Throwable $e = null): bool
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\Vcs\\ForgejoDriver::attemptCloneFallback() in plugins yet');
     }

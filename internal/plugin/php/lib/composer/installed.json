@@ -27,6 +27,7 @@
                 "symfony/process": "^4.0 || ^5.0 || ^6.0 || ^7.0"
             },
             "time": "2026-10-29T14:10:42+00:00",
+            "published-time": "2026-10-29T14:45:12+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -77,17 +78,17 @@
         },
         {
             "name": "composer/class-map-generator",
-            "version": "1.8.0",
-            "version_normalized": "1.8.0.0",
+            "version": "1.9.0",
+            "version_normalized": "1.9.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/composer/class-map-generator.git",
-                "reference": "c0efbeb2f3fd7e23c7f180a59765c0b48a31fbc4"
+                "reference": "5fa48e0e1992ea8a786df3ceca80625c9a643b75"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/composer/class-map-generator/zipball/c0efbeb2f3fd7e23c7f180a59765c0b48a31fbc4",
-                "reference": "c0efbeb2f3fd7e23c7f180a59765c0b48a31fbc4",
+                "url": "https://api.github.com/repos/composer/class-map-generator/zipball/5fa48e0e1992ea8a786df3ceca80625c9a643b75",
+                "reference": "5fa48e0e1992ea8a786df3ceca80625c9a643b75",
                 "shasum": ""
             },
             "require": {
@@ -103,7 +104,8 @@
                 "phpunit/phpunit": "^8",
                 "symfony/filesystem": "^5.4 || ^6 || ^7 || ^8"
             },
-            "time": "2026-09-25T15:24:19+00:00",
+            "time": "2026-11-03T10:10:19+00:00",
+            "published-time": "2026-11-03T10:12:49+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -133,7 +135,7 @@
             ],
             "support": {
                 "issues": "https://github.com/composer/class-map-generator/issues",
-                "source": "https://github.com/composer/class-map-generator/tree/1.8.0"
+                "source": "https://github.com/composer/class-map-generator/tree/1.9.0"
             },
             "funding": [
                 {
@@ -171,6 +173,7 @@
                 "symfony/phpunit-bridge": "^4.2 || ^5 || ^6 || ^7"
             },
             "time": "2026-06-30T11:34:59+00:00",
+            "published-time": "2026-06-30T11:37:18+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -242,6 +245,7 @@
                 "phpunit/phpunit": "^8 || ^9"
             },
             "time": "2024-11-12T16:24:47+00:00",
+            "published-time": "2024-11-12T16:38:23+00:00",
             "type": "library",
             "extra": {
                 "phpstan": {
@@ -320,6 +324,7 @@
                 "symfony/phpunit-bridge": "^3 || ^7"
             },
             "time": "2026-10-29T09:13:34+00:00",
+            "published-time": "2026-10-29T09:14:11+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -400,6 +405,7 @@
                 "symfony/phpunit-bridge": "^6.4.25 || ^7.3.3 || ^8.0"
             },
             "time": "2026-04-08T20:18:39+00:00",
+            "published-time": "2026-04-08T20:19:56+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -482,6 +488,7 @@
                 "phpunit/phpunit": "^8.5 || ^9.6 || ^10.5"
             },
             "time": "2024-05-06T16:37:16+00:00",
+            "published-time": "2024-05-06T17:01:42+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -527,17 +534,17 @@
         },
         {
             "name": "justinrainbow/json-schema",
-            "version": "6.13.1",
-            "version_normalized": "6.13.1.0",
+            "version": "6.14.0",
+            "version_normalized": "6.14.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/jsonrainbow/json-schema.git",
-                "reference": "e54aacc4c0657b3a4af4f628428d2702146828c6"
+                "reference": "bae415e135dd68260c2d020ba392850231e9b1ab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jsonrainbow/json-schema/zipball/e54aacc4c0657b3a4af4f628428d2702146828c6",
-                "reference": "e54aacc4c0657b3a4af4f628428d2702146828c6",
+                "url": "https://api.github.com/repos/jsonrainbow/json-schema/zipball/bae415e135dd68260c2d020ba392850231e9b1ab",
+                "reference": "bae415e135dd68260c2d020ba392850231e9b1ab",
                 "shasum": ""
             },
             "require": {
@@ -554,7 +561,8 @@
                 "phpstan/phpstan": "^1.12",
                 "phpunit/phpunit": "^8.5"
             },
-            "time": "2026-09-30T07:42:28+00:00",
+            "time": "2026-10-24T08:53:34+00:00",
+            "published-time": "2026-10-24T08:53:38+00:00",
             "bin": [
                 "bin/validate-json"
             ],
@@ -589,7 +597,7 @@
             ],
             "support": {
                 "issues": "https://github.com/jsonrainbow/json-schema/issues",
-                "source": "https://github.com/jsonrainbow/json-schema/tree/6.13.1"
+                "source": "https://github.com/jsonrainbow/json-schema/tree/6.14.0"
             },
             "install-path": "../justinrainbow/json-schema"
         },
@@ -619,6 +627,7 @@
                 "vimeo/psalm": "^4.17.0 | ^5.26.1"
             },
             "time": "2025-09-14T11:18:39+00:00",
+            "published-time": "2025-09-14T11:32:17+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -688,6 +697,7 @@
                 "php": ">=7.2.0"
             },
             "time": "2021-03-05T17:36:06+00:00",
+            "published-time": "2021-03-05T17:38:32+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -739,6 +749,7 @@
                 "php": ">=5.3.0"
             },
             "time": "2021-05-03T11:20:27+00:00",
+            "published-time": "2021-05-03T11:22:56+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -796,6 +807,7 @@
                 "phpunit/phpunit": "^9.6 || ^7.5"
             },
             "time": "2025-08-19T18:57:03+00:00",
+            "published-time": "2025-08-19T19:13:36+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -851,17 +863,17 @@
         },
         {
             "name": "seld/jsonlint",
-            "version": "1.12.1",
-            "version_normalized": "1.12.1.0",
+            "version": "1.12.2",
+            "version_normalized": "1.12.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/jsonlint.git",
-                "reference": "9a90eb5d32d5a500296bf43f946d60246444d5f7"
+                "reference": "4882a0459c88772e4afa3a73ee81b7824490aa9c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/jsonlint/zipball/9a90eb5d32d5a500296bf43f946d60246444d5f7",
-                "reference": "9a90eb5d32d5a500296bf43f946d60246444d5f7",
+                "url": "https://api.github.com/repos/Seldaek/jsonlint/zipball/4882a0459c88772e4afa3a73ee81b7824490aa9c",
+                "reference": "4882a0459c88772e4afa3a73ee81b7824490aa9c",
                 "shasum": ""
             },
             "require": {
@@ -871,7 +883,8 @@
                 "phpstan/phpstan": "^1.11",
                 "phpunit/phpunit": "^4.8.35 || ^5.7 || ^6.0 || ^8.5.13"
             },
-            "time": "2026-06-12T11:32:29+00:00",
+            "time": "2026-11-03T10:16:18+00:00",
+            "published-time": "2026-11-03T10:20:37+00:00",
             "bin": [
                 "bin/jsonlint"
             ],
@@ -902,7 +915,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Seldaek/jsonlint/issues",
-                "source": "https://github.com/Seldaek/jsonlint/tree/1.12.1"
+                "source": "https://github.com/Seldaek/jsonlint/tree/1.12.2"
             },
             "funding": [
                 {
@@ -935,6 +948,7 @@
                 "php": ">=5.3"
             },
             "time": "2026-10-01T08:16:23+00:00",
+            "published-time": "2026-10-01T08:17:41+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -994,6 +1008,7 @@
                 "psr/log": "^1 || ^2 || ^3"
             },
             "time": "2023-09-03T09:24:00+00:00",
+            "published-time": "2023-09-03T09:24:36+00:00",
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -1082,6 +1097,7 @@
                 "symfony/process": ""
             },
             "time": "2026-10-28T09:02:56+00:00",
+            "published-time": "2026-10-28T18:14:06+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -1156,6 +1172,7 @@
                 "php": ">=7.1"
             },
             "time": "2024-09-25T14:11:13+00:00",
+            "published-time": "2024-11-27T12:25:26+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1209,17 +1226,17 @@
         },
         {
             "name": "symfony/filesystem",
-            "version": "v5.4.54",
-            "version_normalized": "5.4.54.0",
+            "version": "v5.4.56",
+            "version_normalized": "5.4.56.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/filesystem.git",
-                "reference": "c4a6cc5733386414f6d17d744ee5ad8b445e349d"
+                "reference": "97768a0b5c3495c2a2469dfc1f3db00e006fc5d5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/filesystem/zipball/c4a6cc5733386414f6d17d744ee5ad8b445e349d",
-                "reference": "c4a6cc5733386414f6d17d744ee5ad8b445e349d",
+                "url": "https://api.github.com/repos/symfony/filesystem/zipball/97768a0b5c3495c2a2469dfc1f3db00e006fc5d5",
+                "reference": "97768a0b5c3495c2a2469dfc1f3db00e006fc5d5",
                 "shasum": ""
             },
             "require": {
@@ -1231,7 +1248,8 @@
             "require-dev": {
                 "symfony/process": "^5.4|^6.4"
             },
-            "time": "2026-08-30T06:54:06+00:00",
+            "time": "2026-11-03T06:18:36+00:00",
+            "published-time": "2026-11-04T10:51:37+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -1259,7 +1277,7 @@
             "description": "Provides basic utilities for the filesystem",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/filesystem/tree/v5.4.54"
+                "source": "https://github.com/symfony/filesystem/tree/v5.4.56"
             },
             "funding": [
                 {
@@ -1302,6 +1320,7 @@
                 "symfony/polyfill-php80": "^1.16"
             },
             "time": "2024-09-28T13:32:08+00:00",
+            "published-time": "2024-10-27T12:57:19+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -1372,6 +1391,7 @@
                 "ext-ctype": "For best performance"
             },
             "time": "2026-04-10T16:19:22+00:00",
+            "published-time": "2026-04-26T14:44:50+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1455,6 +1475,7 @@
                 "ext-intl": "For best performance"
             },
             "time": "2026-10-15T09:18:53+00:00",
+            "published-time": "2026-10-28T10:07:44+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1540,6 +1561,7 @@
                 "ext-intl": "For best performance"
             },
             "time": "2026-09-23T22:02:09+00:00",
+            "published-time": "2026-09-30T10:23:47+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1632,6 +1654,7 @@
                 "ext-mbstring": "For best performance"
             },
             "time": "2026-10-28T09:35:49+00:00",
+            "published-time": "2026-10-28T10:07:45+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1713,6 +1736,7 @@
                 "php": ">=7.2"
             },
             "time": "2024-09-09T11:45:10+00:00",
+            "published-time": "2026-04-26T14:44:49+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1796,6 +1820,7 @@
                 "php": ">=7.2"
             },
             "time": "2026-09-25T15:50:05+00:00",
+            "published-time": "2026-09-30T10:23:35+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1883,6 +1908,7 @@
                 "php": ">=7.2"
             },
             "time": "2026-05-26T12:45:58+00:00",
+            "published-time": "2026-05-26T13:40:34+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -1966,6 +1992,7 @@
                 "php": ">=7.2"
             },
             "time": "2026-09-23T22:01:09+00:00",
+            "published-time": "2026-09-30T10:23:33+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -2050,6 +2077,7 @@
                 "symfony/polyfill-php80": "^1.16"
             },
             "time": "2026-09-01T06:19:14+00:00",
+            "published-time": "2026-10-15T06:52:18+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -2126,6 +2154,7 @@
                 "symfony/service-implementation": ""
             },
             "time": "2024-09-25T14:11:13+00:00",
+            "published-time": "2024-11-27T12:25:27+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -2218,6 +2247,7 @@
                 "symfony/var-exporter": "^4.4|^5.0|^6.0"
             },
             "time": "2024-11-10T20:33:58+00:00",
+            "published-time": "2024-11-13T13:51:58+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {

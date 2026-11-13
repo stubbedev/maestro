@@ -209,7 +209,7 @@ func testSyncMirrorAndFetchRef(t *testing.T, reader bool) {
 	syncCmds := []string{
 		"git remote -v @" + cache,
 		"git remote set-url origin -- " + upstream + " @" + cache,
-		"git remote update --prune origin @" + cache,
+		"git -c remote.origin.followRemoteHEAD=always remote update --prune origin @" + cache,
 		"git gc --auto @" + cache,
 		"git remote -v @" + cache,
 		"git remote set-url origin -- " + upstream + " @" + cache,
@@ -238,7 +238,7 @@ func testSyncMirrorAndFetchRef(t *testing.T, reader bool) {
 	}
 
 	log := process.take()
-	if !slices.Contains(log, "git remote update --prune origin @"+cache) {
+	if !slices.Contains(log, "git -c remote.origin.followRemoteHEAD=always remote update --prune origin @"+cache) {
 		t.Fatalf("mirror not synced:\n%s", strings.Join(log, "\n"))
 	}
 
@@ -248,7 +248,7 @@ func testSyncMirrorAndFetchRef(t *testing.T, reader bool) {
 		t.Fatalf("FetchRefOrSyncMirror: %v %v", ok, err)
 	}
 
-	if log := process.take(); slices.Contains(log, "git remote update --prune origin @"+cache) {
+	if log := process.take(); slices.Contains(log, "git -c remote.origin.followRemoteHEAD=always remote update --prune origin @"+cache) {
 		t.Fatalf("mirror synced:\n%s", strings.Join(log, "\n"))
 	}
 

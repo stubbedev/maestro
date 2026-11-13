@@ -46,7 +46,7 @@ func (f installPaths) InstallPath(p pkg.PackageInterface) (string, bool, error) 
 }
 
 // testRepository is a Composer repository of a repository manager's: its
-// url, its config, and which dist URLs belong to it.
+// url, its config, and whether a canonical dist URL belongs to it.
 type testRepository struct {
 	*ArrayRepository
 	url        string
@@ -60,13 +60,13 @@ func (r *testRepository) BaseURL() string { return r.url }
 func (r *testRepository) RepoConfig() *php.Array { return r.repoConfig }
 
 func (r *testRepository) IsOwnDistUrl(p pkg.PackageInterface) bool {
-	for _, url := range p.DistURLs() {
-		if rest, ok := strings.CutPrefix(url, r.url); ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0) {
-			return true
-		}
+	url := p.DistURL()
+	if !url.Valid {
+		return false
 	}
+	rest, ok := strings.CutPrefix(url.S, r.url)
 
-	return false
+	return ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0)
 }
 
 func TestFilesystemRepository_RepositoryRead(t *testing.T) {

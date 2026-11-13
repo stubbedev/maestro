@@ -26,6 +26,11 @@ import (
 // security-advisories API request.
 const advisoryAPIBatchSize = 500
 
+type advisoryAPIResult struct {
+	advisories []repository.Advisory
+	returned   bool
+}
+
 // HasSecurityAdvisories ports hasSecurityAdvisories.
 func (r *ComposerRepository) HasSecurityAdvisories() (bool, error) {
 	if _, _, err := r.loadRootServerFile(600); err != nil {
@@ -92,11 +97,7 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 
 	// the $create closure, called by the closures array_map() runs
 	create := func(parser *pkg.VersionParser, data any, name string) (repository.Advisory, error) {
-		dataArray, ok := data.(*php.Array)
-		if !ok {
-			return nil, pkg.AdvisoryDataTypeError(name, data)
-		}
-		advisory, err := repository.CreatePartialSecurityAdvisory(name, dataArray, parser)
+		advisory, err := createPartialAdvisory(parser, data, name)
 		if err != nil {
 			return nil, err
 		}
@@ -104,24 +105,9 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 		if !ok {
 			return nil, &util.ErrorException{Message: `Undefined array key "` + name + `"`}
 		}
-		if constraint == nil {
-			// $advisory->affectedVersions->matches(null) at line 729: the
-			// method of the constraint's class
-			class := "Constraint"
-			switch advisory.Partial().AffectedVersions.(type) {
-			case *semver.MultiConstraint:
-				class = "MultiConstraint"
-			case *semver.MatchAllConstraint:
-				class = "MatchAllConstraint"
-			case *semver.MatchNoneConstraint:
-				class = "MatchNoneConstraint"
-			}
-			fn := `Composer\Semver\Constraint\` + class
-
-			return nil, &php.EngineError{Class: php.ClassTypeError, Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}
-		}
-		if !advisory.Partial().AffectedVersions.Matches(constraint) {
-			return nil, nil
+		matched, err := advisoryMatches(advisory, constraint)
+		if err != nil || !matched {
+			return nil, err
 		}
 
 		return advisory, nil
@@ -212,76 +198,35 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 		}
 	}
 
-	if apiURL != "" && packageConstraintMap.Len() > 0 {
-		parser := pkg.NewVersionParser()
-		requested := packageConstraintMap.Keys()
-
-		// each name costs one form input var, and PHP silently truncates
-		// $_POST past max_input_vars (1000 by default), which would drop
-		// advisories without any error
-		var promises []*util.Promise[*http.Response]
-		r.uncached = true
-		for batch := range slices.Chunk(requested, advisoryAPIBatchSize) {
-			pairs := make([]string, 0, 2*len(batch))
-			for j, name := range batch {
-				pairs = append(pairs, "packages["+strconv.Itoa(j)+"]", name)
-			}
-
-			options := filterlist.PostOptions(r.options, "Content-type: application/x-www-form-urlencoded", php.HTTPBuildQuery(pairs...))
-			promise, err := r.httpDownloader.Add(apiURL, options)
-			if err != nil {
-				return repository.AdvisoryResult{}, err
-			}
-			promises = append(promises, promise)
-		}
-		r.waitDownloader()
-
-		responses := make([]*php.Array, len(promises))
-		for i, promise := range promises {
-			response, err := promise.Wait()
-			if err != nil {
-				return repository.AdvisoryResult{}, err
-			}
-			decoded, err := response.DecodeJSONArray()
-			if err != nil {
-				return repository.AdvisoryResult{}, err
-			}
-			responses[i] = asArray(decoded)
+	if apiURL != "" {
+		constraintsByName := repository.NewNameMap[semver.ConstraintInterface](packageConstraintMap.Len())
+		for name, constraint := range packageConstraintMap.All() {
+			constraintsByName.Set(php.Strtolower(name), constraint)
 		}
 
-		repoWarningsShown := false
-		warnedAboutUnrequestedNames := false
-		for _, advisoryData := range responses {
-			if !repoWarningsShown {
-				if _, err := http.OutputResponseWarnings(r.io, r.url, advisoryData); err != nil {
-					return repository.AdvisoryResult{}, err
-				}
-				repoWarningsShown = true
+		if err := r.querySecurityAdvisoryAPI(apiURL, constraintsByName); err != nil {
+			return repository.AdvisoryResult{}, err
+		}
+
+		for name, constraint := range constraintsByName.All() {
+			result := r.securityAdvisoryAPIResults[name]
+			if !result.returned {
+				continue
 			}
-
-			for k, raw := range asArray(advisoryData.At("advisories")).All() {
-				name := k.String()
-				if v, _ := packageConstraintMap.Get(name); v == nil {
-					if !warnedAboutUnrequestedNames {
-						requestedList := strings.Join(requested, ", ")
-						if len(requested) > 20 {
-							requestedList = strings.Join(requested[:20], ", ") + " and " + strconv.Itoa(len(requested)-20) + " more"
-						}
-						r.io.WriteError("<warning>"+r.RepoName()+" returned names which were not requested in response to the security-advisories API. "+name+" was not requested but is present in the response. Requested names were: "+requestedList+"</warning>", true, io.Normal)
-						warnedAboutUnrequestedNames = true
-					}
-
-					continue
-				}
-				if list := asArray(raw); list.Len() > 0 {
-					created, err := createAll(parser, list, name)
+			if len(result.advisories) > 0 {
+				var matching []repository.Advisory
+				for _, advisory := range result.advisories {
+					matched, err := advisoryMatches(advisory, constraint)
 					if err != nil {
 						return repository.AdvisoryResult{}, err
 					}
-					advisories.Set(name, created)
+					if matched {
+						matching = append(matching, advisory)
+					}
 				}
-				namesFound.Set(name, struct{}{})
+				advisories.Set(name, matching)
 			}
+			namesFound.Set(name, struct{}{})
 		}
 	}
 
@@ -293,6 +238,139 @@ func (r *ComposerRepository) SecurityAdvisories(packageConstraintMap *repository
 	}
 
 	return repository.AdvisoryResult{NamesFound: namesFound.Keys(), Advisories: nonEmpty}, nil
+}
+
+func (r *ComposerRepository) querySecurityAdvisoryAPI(apiURL string, constraintsByName *repository.ConstraintMap) error {
+	namesToQuery := repository.NewNameMap[semver.ConstraintInterface](constraintsByName.Len())
+	for name, constraint := range constraintsByName.All() {
+		if _, cached := r.securityAdvisoryAPIResults[name]; !cached {
+			namesToQuery.Set(name, constraint)
+		}
+	}
+	if namesToQuery.Len() == 0 {
+		return nil
+	}
+
+	requested := namesToQuery.Keys()
+
+	// each name costs one form input var, and PHP silently truncates
+	// $_POST past max_input_vars (1000 by default), which would drop
+	// advisories without any error
+	var promises []*util.Promise[*http.Response]
+	r.uncached = true
+	for batch := range slices.Chunk(requested, advisoryAPIBatchSize) {
+		pairs := make([]string, 0, 2*len(batch))
+		for j, name := range batch {
+			pairs = append(pairs, "packages["+strconv.Itoa(j)+"]", name)
+		}
+
+		options := filterlist.PostOptions(r.options, "Content-type: application/x-www-form-urlencoded", php.HTTPBuildQuery(pairs...))
+		promise, err := r.httpDownloader.Add(apiURL, options)
+		if err != nil {
+			return err
+		}
+		promises = append(promises, promise)
+	}
+	r.waitDownloader()
+
+	responses := make([]*php.Array, len(promises))
+	for i, promise := range promises {
+		response, err := promise.Wait()
+		if err != nil {
+			return err
+		}
+		decoded, err := response.DecodeJSONArray()
+		if err != nil {
+			return err
+		}
+		responses[i] = asArray(decoded)
+	}
+
+	parser := pkg.NewVersionParser()
+	repoWarningsShown := false
+	warnedAboutUnrequestedNames := false
+	for _, advisoryData := range responses {
+		if !repoWarningsShown {
+			if _, err := http.OutputResponseWarnings(r.io, r.url, advisoryData); err != nil {
+				return err
+			}
+			repoWarningsShown = true
+		}
+
+		for k, raw := range asArray(advisoryData.At("advisories")).All() {
+			name := php.Strtolower(k.String())
+			if v, _ := namesToQuery.Get(name); v == nil {
+				if v, _ := constraintsByName.Get(name); !warnedAboutUnrequestedNames && v == nil {
+					requestedList := strings.Join(requested, ", ")
+					if len(requested) > 20 {
+						requestedList = strings.Join(requested[:20], ", ") + " and " + strconv.Itoa(len(requested)-20) + " more"
+					}
+					r.io.WriteError("<warning>"+r.RepoName()+" returned names which were not requested in response to the security-advisories API. "+name+" was not requested but is present in the response. Requested names were: "+requestedList+"</warning>", true, io.Normal)
+					warnedAboutUnrequestedNames = true
+				}
+
+				continue
+			}
+			list, err := createPartialAdvisories(parser, raw, name)
+			if err != nil {
+				return err
+			}
+			r.securityAdvisoryAPIResults[name] = advisoryAPIResult{advisories: list, returned: true}
+		}
+	}
+
+	for _, name := range requested {
+		if _, cached := r.securityAdvisoryAPIResults[name]; !cached {
+			r.securityAdvisoryAPIResults[name] = advisoryAPIResult{}
+		}
+	}
+
+	return nil
+}
+
+func createPartialAdvisories(parser *pkg.VersionParser, raw any, name string) ([]repository.Advisory, error) {
+	list, ok := raw.(*php.Array)
+	if !ok {
+		return nil, pkg.ArgumentTypeError("array_map", 2, "array", "array", raw)
+	}
+	advisories := make([]repository.Advisory, 0, list.Len())
+	for _, data := range list.All() {
+		advisory, err := createPartialAdvisory(parser, data, name)
+		if err != nil {
+			return nil, err
+		}
+		advisories = append(advisories, advisory)
+	}
+
+	return advisories, nil
+}
+
+func createPartialAdvisory(parser *pkg.VersionParser, data any, name string) (repository.Advisory, error) {
+	dataArray, ok := data.(*php.Array)
+	if !ok {
+		return nil, pkg.AdvisoryDataTypeError(name, data)
+	}
+
+	return repository.CreatePartialSecurityAdvisory(name, dataArray, parser)
+}
+
+func advisoryMatches(advisory repository.Advisory, constraint semver.ConstraintInterface) (bool, error) {
+	if constraint == nil {
+		class := "Constraint"
+		switch advisory.Partial().AffectedVersions.(type) {
+		case *semver.MultiConstraint:
+			class = "MultiConstraint"
+		case *semver.MatchAllConstraint:
+			class = "MatchAllConstraint"
+		case *semver.MatchNoneConstraint:
+			class = "MatchNoneConstraint"
+		}
+		fn := `Composer\Semver\Constraint\` + class
+
+		return false, &php.EngineError{Class: php.ClassTypeError, Message: fn + "::matches(): Argument #1 ($provider) must be of type Composer\\Semver\\Constraint\\ConstraintInterface, null given"}
+	}
+
+	return advisory.Partial().AffectedVersions.Matches(constraint), nil
 }
 
 // waitDownloads waits for the requests of startCachedAsyncDownloads.

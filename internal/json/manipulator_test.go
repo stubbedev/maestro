@@ -226,12 +226,36 @@ func TestJsonManipulator_RemoveRepositoryKeepsAlreadyEmptyKey(t *testing.T) {
 	runManipulatorTest(t, "testRemoveRepositoryKeepsAlreadyEmptyKey")
 }
 
+func TestJsonManipulator_RemoveConfigSettingKeepsEmptyObjectsInSiblings(t *testing.T) {
+	runManipulatorTest(t, "testRemoveConfigSettingKeepsEmptyObjectsInSiblings")
+}
+
+func TestJsonManipulator_RemovePropertyKeepsNestedObjects(t *testing.T) {
+	runManipulatorTest(t, "testRemovePropertyKeepsNestedObjects")
+}
+
+func TestJsonManipulator_AddPropertyKeepsNestedObjects(t *testing.T) {
+	runManipulatorTest(t, "testAddPropertyKeepsNestedObjects")
+}
+
+func TestJsonManipulator_SubKeyEditsKeepObjectOrListShape(t *testing.T) {
+	runManipulatorTest(t, "testSubKeyEditsKeepObjectOrListShape")
+}
+
 func TestJsonManipulator_RemoveMainKeyIfEmpty(t *testing.T) {
 	runManipulatorTest(t, "testRemoveMainKeyIfEmpty")
 }
 
 func TestJsonManipulator_RemoveMainKeyRemovesKeyWhereValueIsNull(t *testing.T) {
 	runManipulatorTest(t, "testRemoveMainKeyRemovesKeyWhereValueIsNull")
+}
+
+func TestJsonManipulator_RemoveSubNodeRemovesKeyWhereValueIsNull(t *testing.T) {
+	runManipulatorTest(t, "testRemoveSubNodeRemovesKeyWhereValueIsNull")
+}
+
+func TestJsonManipulator_UpdateKeyWhereValueIsNull(t *testing.T) {
+	runManipulatorTest(t, "testUpdateKeyWhereValueIsNull")
 }
 
 func TestJsonManipulator_IndentDetection(t *testing.T) {
@@ -330,6 +354,12 @@ func TestJsonManipulator_AllTestsPorted(t *testing.T) {
 		"testRemoveSubNodeRemovesTopLevelKeyNotNestedKeyWithSameName":           true,
 		"testRemoveLink":                                                        true,
 		"testRemoveRepositoryKeepsAlreadyEmptyKey":                              true,
+		"testRemoveConfigSettingKeepsEmptyObjectsInSiblings":                    true,
+		"testRemovePropertyKeepsNestedObjects":                                  true,
+		"testAddPropertyKeepsNestedObjects":                                     true,
+		"testSubKeyEditsKeepObjectOrListShape":                                  true,
+		"testRemoveSubNodeRemovesKeyWhereValueIsNull":                           true,
+		"testUpdateKeyWhereValueIsNull":                                         true,
 	}
 	for name := range loadRecordedTests(t) {
 		if !ported[name] {

@@ -17,9 +17,9 @@
 //
 // Composer's free-form option arrays ('http' => [...], 'ssl' => [...],
 // 'retry-auth-failure', 'max_file_size', ...) are *php.Array values with
-// the same keys. A *php.Array cannot hold a callable, so the
-// prevent_url_access_callable and prevent_ip_access_callable options hold
-// a handle from RegisterCallable.
+// the same keys. The prevent_url_access_callable and
+// prevent_ip_access_callable options hold an AccessCallable, the Closure
+// Composer requires there, which no decoded data can produce.
 //
 // Facts Composer reads from statics living above this package (the running
 // command, the platform PHP version) come through the Runtime interface;

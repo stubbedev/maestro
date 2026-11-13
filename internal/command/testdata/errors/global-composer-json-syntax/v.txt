@@ -13,8 +13,8 @@ In JsonFile.php line 401:
 Exception trace:
   at @COMPOSER@/src/Composer/Json/JsonFile.php:401
  Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:214
- Composer\Json\JsonFile->validateSchema() at @COMPOSER@/src/Composer/Factory.php:313
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Json\JsonFile->validateSchema() at @COMPOSER@/src/Composer/Factory.php:315
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:242

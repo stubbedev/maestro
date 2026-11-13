@@ -365,7 +365,7 @@ func (d *GitBitbucketDriver) fetchWithOAuthCredentials(url string, fetchingRepoD
 		}
 
 		if !d.io.IsInteractive() && fetchingRepoData {
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(e); err != nil {
 				return nil, err
 			}
 
@@ -383,7 +383,11 @@ func (d *GitBitbucketDriver) generateSSHURL() string {
 
 // attemptCloneFallback ports attemptCloneFallback: switch to a GitDriver
 // on the SSH url.
-func (d *GitBitbucketDriver) attemptCloneFallback() error {
+func (d *GitBitbucketDriver) attemptCloneFallback(previous *util.TransportError) error {
+	if gitFallbackDisabled(d.repoConfig) {
+		return gitFallbackDisabledError(previous)
+	}
+
 	err := d.setupFallbackDriver(d.generateSSHURL())
 	if err != nil && phperr.InstanceOf(err, "RuntimeException") {
 		d.fallbackDriver = nil

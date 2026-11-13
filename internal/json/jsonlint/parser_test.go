@@ -1,7 +1,7 @@
 package jsonlint
 
 // Ports tests/JsonParserTest.php and tests/Utf8ValidatorTest.php of
-// seld/jsonlint 1.12.1. The two tests of the PHP < 7.1 "_empty_" key
+// seld/jsonlint 1.12.2. The two tests of the PHP < 7.1 "_empty_" key
 // (testDetectsKeyOverridesWithEmpty, testDuplicateKeysWithEmpty) are skipped
 // there on PHP 8 and have no port.
 
@@ -316,22 +316,39 @@ func TestUtf8Validator_ValidUtf8(t *testing.T) {
 	}
 }
 
-func TestUtf8Validator_AllErrorTypes(t *testing.T) {
+func TestUtf8Validator_NotAContinuationOctet(t *testing.T) {
 	assertInvalidUTF8(t, "\"abcd\xe9\"", " which is not a continuation octet.")
+	for i := 246; i < 255; i++ { // 245 and 255 already forbidden
+		assertInvalidUTF8(t, "\"abcd\xc3"+string([]byte{byte(i)})+"\"", " which is not a continuation octet.")
+	}
+}
+
+func TestUtf8Validator_PrematureEndOfString(t *testing.T) {
 	assertInvalidUTF8(t, "\"abcd\xe9", ", end of string was found instead of a continuation octet.")
+}
+
+func TestUtf8Validator_ForbiddenOctets(t *testing.T) {
 	for _, forbidden := range []byte{192, 193, 245, 255} {
 		assertInvalidUTF8(t, "\"abcd\xe9"+string([]byte{forbidden})+"\"", " which is one of the four forbidden values (C0, C1, F5, FF).")
 		assertInvalidUTF8(t, "\"abcd"+string([]byte{forbidden})+"\"", " which is one of the four forbidden values (C0, C1, F5, FF).")
 	}
+}
+
+func TestUtf8Validator_UnwantedContinuationOctet(t *testing.T) {
 	assertInvalidUTF8(t, "\"abcd\x81\"", " which is a continuation octet.")
+}
+
+func TestUtf8Validator_ForbiddenSurrogatePairs(t *testing.T) {
 	for i := 160; i <= 191; i++ {
 		assertInvalidUTF8(t, "\"abcd\xed"+string([]byte{byte(i)})+"\x81\"", " which is into the forbidden range of surrogate pairs.")
 		assertInvalidUTF8(t, "\"abcd\xed"+string([]byte{byte(i)})+"\"", " which is into the forbidden range of surrogate pairs.")
 	}
+}
+
+func TestUtf8Validator_OtherInvalidOctetSequences(t *testing.T) {
 	for i := 246; i < 255; i++ { // 245 and 255 already forbidden
 		assertInvalidUTF8(t, "\"abcd"+string([]byte{byte(i)})+"\x81\x81\x81\"", " which is invalid.")
 		assertInvalidUTF8(t, "\"abcd"+string([]byte{byte(i)})+"\"", " which is invalid.")
-		assertInvalidUTF8(t, "\"abcd\xc3"+string([]byte{byte(i)})+"\"", " which is not a continuation octet.")
 	}
 }
 

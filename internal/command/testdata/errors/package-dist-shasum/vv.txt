@@ -15,16 +15,16 @@ Installs: x/y:1.0.0
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
     Failed to download x/y from dist: The checksum verification of the file failed (downloaded from http://@SERVER@/ok.zip)
 
-In FileDownloader.php line 216:
+In FileDownloader.php line 246:
                                                                                
   [UnexpectedValueException]                                                   
   The checksum verification of the file failed (downloaded from http://127.0.  
-  0.1:40545/ok.zip)                                                            
+  0.1:37547/ok.zip)                                                            
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:216
- Composer\Downloader\FileDownloader->{closure:{closure:Composer\Downloader\FileDownloader::download():161}:202}() at @COMPOSER@/vendor/react/promise/src/Internal/FulfilledPromise.php:47
+  at @COMPOSER@/src/Composer/Downloader/FileDownloader.php:246
+ Composer\Downloader\FileDownloader->{closure:{closure:Composer\Downloader\FileDownloader::download():180}:232}() at @COMPOSER@/vendor/react/promise/src/Internal/FulfilledPromise.php:47
  React\Promise\Internal\FulfilledPromise->then() at @COMPOSER@/vendor/react/promise/src/Promise.php:174
  React\Promise\Promise::{closure:{closure:React\Promise\Promise::resolver():172}:173}() at @COMPOSER@/vendor/react/promise/src/Promise.php:222
  React\Promise\Promise->settle() at @COMPOSER@/vendor/react/promise/src/Promise.php:287
@@ -36,7 +36,7 @@ Exception trace:
  React\Promise\Internal\FulfilledPromise->then() at @COMPOSER@/vendor/react/promise/src/Promise.php:181
  React\Promise\Promise::{closure:{closure:React\Promise\Promise::resolver():172}:173}() at @COMPOSER@/vendor/react/promise/src/Promise.php:222
  React\Promise\Promise->settle() at @COMPOSER@/vendor/react/promise/src/Promise.php:287
- React\Promise\Promise::{closure:React\Promise\Promise::call():285}() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:576
+ React\Promise\Promise::{closure:React\Promise\Promise::call():285}() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:628
  Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
  Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:103
  Composer\Util\Loop->runJobs() at @COMPOSER@/src/Composer/Util/Loop.php:75

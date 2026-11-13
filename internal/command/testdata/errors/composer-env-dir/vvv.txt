@@ -1,5 +1,5 @@
 
-In Factory.php line 231:
+In Factory.php line 233:
                                                                                
   [RuntimeException]                                                           
   The COMPOSER environment variable is set to sub which is a directory, this   
@@ -7,7 +7,7 @@ In Factory.php line 231:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Factory.php:231
+  at @COMPOSER@/src/Composer/Factory.php:233
  Composer\Factory::getComposerFile() at @COMPOSER@/src/Composer/Console/Application.php:244
  Composer\Console\Application->doRunComposer() at @COMPOSER@/src/Composer/Console/Application.php:169
  Composer\Console\Application->doRun() at @COMPOSER@/vendor/symfony/console/Application.php:171

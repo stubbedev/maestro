@@ -283,7 +283,7 @@ func (m *Manipulator) AddLink(typ, pkg, constraint string, sortPackages bool) (b
 
 	// try to find existing link
 	packageRegex := strings.ReplaceAll(php.PregQuote(pkg, ""), "/", `\\?/`)
-	packageMatches, err := m.match(`{`+manipulatorDefines+`"(?P<package>`+packageRegex+`)"(\s*:\s*)(?&string)}ix`, links)
+	packageMatches, err := m.match(`{`+manipulatorDefines+`"(?P<package>`+packageRegex+`)"(\s*:\s*)(?&json)}ix`, links)
 	if err != nil {
 		return false, err
 	}
@@ -306,7 +306,7 @@ func (m *Manipulator) AddLink(typ, pkg, constraint string, sortPackages bool) (b
 		// update existing link
 		existingPackage := namedStr(packageMatches, "package")
 		packageRegex = strings.ReplaceAll(php.PregQuote(existingPackage, ""), "/", `\\?/`)
-		re, err := m.re(`{` + manipulatorDefines + `"` + packageRegex + `"(?P<separator>\s*:\s*)(?&string)}ix`)
+		re, err := m.re(`{` + manipulatorDefines + `"` + packageRegex + `"(?P<separator>\s*:\s*)(?&json)}ix`)
 		if err != nil {
 			return false, err
 		}
@@ -861,13 +861,16 @@ func (m *Manipulator) AddSubNode(mainNode, name string, value any, appendItem bo
 			return false, nil
 		}
 		if subName != nil {
-			curVal, _ := php.JSONDecode(namedStr(matches, "content"), true)
-			arr, ok := curVal.(*php.Array)
-			if !ok {
-				arr = php.NewArray()
+			curVal, _ := php.JSONDecode(namedStr(matches, "content"), false)
+			switch cur := curVal.(type) {
+			case *php.Object:
+				cur.Set(*subName, value)
+			case *php.Array:
+				cur.Set(*subName, value)
+			default:
+				curVal = php.ArrayOf(*subName, value)
 			}
-			arr.Set(*subName, value)
-			value = arr
+			value = curVal
 		}
 		formatted, err := m.Format(value, 1, false)
 		if err != nil {
@@ -959,9 +962,14 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 	name, subName := splitSubName(mainNode, name)
 
 	// no node to remove
-	node := index(decoded, mainNode)
-	if !issetIndex(node, name) || (subName != nil && *subName != "" && *subName != "0" && !issetIndex(index(node, name), *subName)) {
+	node, ok := index(decoded, mainNode).(*php.Array)
+	if !ok || !node.Has(name) {
 		return true, nil
+	}
+	if subName != nil {
+		if child, ok := index(node, name).(*php.Array); !ok || !child.Has(*subName) {
+			return true, nil
+		}
 	}
 
 	matches, err := m.matchChild(name, children)
@@ -1007,12 +1015,8 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 
 			// we have a subname, so we restore the rest of $name
 			if subName != nil {
-				curVal, _ := php.JSONDecode(children, true)
-				rest, err := unsetSubName(curVal, name, *subName)
-				if err != nil {
-					return false, err
-				}
-				if _, err := m.AddSubNode(mainNode, name, rest, true); err != nil {
+				curVal, _ := php.JSONDecode(children, false)
+				if _, err := m.AddSubNode(mainNode, name, removeKey(property(curVal, name), *subName), true); err != nil {
 					return false, err
 				}
 			}
@@ -1024,12 +1028,15 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 	m.contents, err = m.replaceCallback(nodeRe, m.contents, func(matches *php.Match) (string, error) {
 		clean := childrenClean
 		if subName != nil {
-			curVal, _ := php.JSONDecode(namedStr(matches, "content"), true)
-			if _, err := unsetSubName(curVal, name, *subName); err != nil {
-				return "", err
+			curVal, _ := php.JSONDecode(namedStr(matches, "content"), false)
+			obj, ok := curVal.(*php.Object)
+			if !ok {
+				return "", &util.LogicError{Message: "Expected the " + mainNode + " node to decode to an object"}
 			}
+			cur, _ := obj.Get(name)
+			obj.Set(name, removeKey(cur, *subName))
 			var err error
-			if clean, err = m.Format(curVal, 0, true); err != nil {
+			if clean, err = m.Format(obj, 0, false); err != nil {
 				return "", err
 			}
 		}
@@ -1040,59 +1047,19 @@ func (m *Manipulator) RemoveSubNode(mainNode, name string) (bool, error) {
 	return err == nil, err
 }
 
-// unsetSubName performs unset($curVal[$name][$subName]), then replaces
-// an emptied $curVal[$name] with an ArrayObject; it returns $curVal[$name].
-func unsetSubName(curVal any, name, subName string) (any, error) {
-	if err := unsetNested(curVal, name, subName); err != nil {
-		return nil, err
-	}
-	child, err := offsetRead(curVal, name)
-	if err != nil {
-		return nil, err
-	}
-	if arr, ok := child.(*php.Array); ok && arr.Len() == 0 {
-		if parent, ok := curVal.(*php.Array); ok {
-			child = php.NewObject()
-			parent.Set(name, child)
-		}
-	}
+func removeKey(node any, key string) any {
+	switch n := node.(type) {
+	case *php.Object:
+		n.Delete(key)
 
-	return child, nil
-}
-
-// unsetNested is unset($a[$k1][$k2]).
-func unsetNested(a any, k1, k2 string) error {
-	switch a := a.(type) {
-	case nil:
-		return nil
+		return n
 	case *php.Array:
-		child, ok := a.Get(k1)
-		if !ok {
-			return nil
-		}
-		switch c := child.(type) {
-		case nil:
-			return nil
-		case *php.Array:
-			c.Delete(k2)
+		n.Delete(key)
 
-			return nil
-		case string:
-			return &php.EngineError{Class: php.ClassError, Message: "Cannot unset string offsets"}
-		case bool:
-			if !c {
-				return nil
-			}
-		}
-	case string:
-		return &php.EngineError{Class: php.ClassError, Message: "Cannot unset string offsets"}
-	case bool:
-		if !a {
-			return nil
-		}
+		return php.ListOf(n.Values()...)
 	}
 
-	return &php.EngineError{Class: php.ClassError, Message: "Cannot unset offset in a non-array variable"}
+	return node
 }
 
 // AddListItem ports JsonManipulator::addListItem.
@@ -1295,7 +1262,7 @@ func (m *Manipulator) RemoveListItem(mainNode string, nodeIndex int) (bool, erro
 	}
 
 	// no node to remove
-	if !issetIndex(index(decoded, mainNode), nodeIndex) {
+	if arr, ok := node.(*php.Array); !ok || !arr.Has(nodeIndex) {
 		return true, nil
 	}
 
@@ -1351,7 +1318,7 @@ func (m *Manipulator) AddMainKey(key string, content any) (bool, error) {
 	}
 
 	// key exists already
-	if issetIndex(decoded, key) {
+	if arrayKeyExists(decoded, key) {
 		matches, err := m.match(mainKeyRegex(encodedKey, "key", ""), m.contents)
 		if err != nil {
 			return false, err
@@ -1537,7 +1504,7 @@ func (m *Manipulator) Format(data any, depth int, wasObject bool) (string, error
 	}
 
 	var b strings.Builder
-	if arr.IsList() {
+	if !wasObject && arr.IsList() {
 		b.WriteByte('[')
 		first := true
 		for _, val := range arr.All() {

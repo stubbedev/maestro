@@ -1,6 +1,7 @@
 You are using the deprecated option "dev". Dev packages are installed by default now.
 You are using the deprecated option "no-custom-installers". Use "no-plugins" instead.
 Creating a "x/plain" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 Installing x/plain (1.0.0)
 Plugins have been disabled.
   - Downloading x/plain (1.0.0)

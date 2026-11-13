@@ -15,11 +15,13 @@ import (
 // prefetchHTTP records PrefetchCopy calls.
 type prefetchHTTP struct {
 	fakeHTTP
-	prefetched []string
+	prefetched        []string
+	prefetchedOptions []*php.Array
 }
 
-func (f *prefetchHTTP) PrefetchCopy(url string, _ *php.Array) {
+func (f *prefetchHTTP) PrefetchCopy(url string, options *php.Array) {
 	f.prefetched = append(f.prefetched, url)
+	f.prefetchedOptions = append(f.prefetchedOptions, options)
 }
 
 // holdsCache is a files cache holding the keys in held.
@@ -94,6 +96,37 @@ func TestDownloadManager_Prefetch(t *testing.T) {
 			}
 			if len(h.calls) != 0 {
 				t.Errorf("downloads %q", h.calls)
+			}
+		})
+	}
+}
+
+func TestDownloadManager_PrefetchOnlySendsRepositoryHeadersToTheRepositoryOrigin(t *testing.T) {
+	for name, tc := range map[string]struct {
+		mirror       string
+		expectHeader bool
+	}{
+		"canonical URL":             {"", true},
+		"mirror on the same origin": {"https://repo.example.org/mirror/pkg.zip", true},
+		"mirror on another host":    {"https://mirror.example.net/pkg.zip", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := &prefetchHTTP{}
+			zip, err := NewZipDownloader(Deps{IO: nullIO(), Config: getConfig(t), HTTPDownloader: h, Cache: &holdsCache{t: t}})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			m := NewDownloadManager(nullIO(), false, nil)
+			m.SetDownloader("zip", zip)
+			m.Prefetch(repositoryHeaderPackage("https://repo.example.org/dist/pkg.zip", tc.mirror), nil)
+
+			if len(h.prefetchedOptions) != 1 {
+				t.Fatalf("prefetched %q", h.prefetched)
+			}
+			httpOptions, _ := h.prefetchedOptions[0].At("http").(*php.Array)
+			if sent := httpOptions != nil && httpOptions.Isset("header"); sent != tc.expectHeader {
+				t.Errorf("prefetch of %s sent the repository header: %v", h.prefetched[0], sent)
 			}
 		})
 	}

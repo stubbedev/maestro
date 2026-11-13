@@ -14,8 +14,8 @@ Exception trace:
  Composer\Package\Loader\ArrayLoader->createLink() at @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:392
  Composer\Package\Loader\ArrayLoader->parseLinks() at @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:71
  Composer\Package\Loader\ArrayLoader->load() at @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
- Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:394
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:401
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:137
@@ -42,8 +42,8 @@ Exception trace:
  Composer\Package\Loader\ArrayLoader->createLink() at @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:392
  Composer\Package\Loader\ArrayLoader->parseLinks() at @COMPOSER@/src/Composer/Package/Loader/ArrayLoader.php:71
  Composer\Package\Loader\ArrayLoader->load() at @COMPOSER@/src/Composer/Package/Loader/RootPackageLoader.php:134
- Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:394
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Package\Loader\RootPackageLoader->load() at @COMPOSER@/src/Composer/Factory.php:401
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:137

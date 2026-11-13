@@ -36,7 +36,7 @@
     },
     {
         "path": "synthetic/class_in_strings.php",
-        "record": "a65959f1b2ce337a34b6d4412104ed28 4e6f744261636b7469636b005265616c4f6e65",
+        "record": "a65959f1b2ce337a34b6d4412104ed28 5265616c4f6e65",
         "strip": "PD9waHAKJGEgPSAnY2xhc3MgTm90U2luZ2xlIHt9JzsgJGIgPSAiY2xhc3MgTm90RG91YmxlIHskY30ge30iOyAkZCA9IGBjbGFzcyBOb3RCYWNrdGlja2A7ICRlID0gIlwiY2xhc3MgTm90RXNjYXBlZCI7ICRmID0gJ2l0XCdzIGNsYXNzIE5vdEVzY2FwZWQyJzsgY2xhc3MgUmVhbE9uZSB7fSBlY2hvIEZvbzo6Y2xhc3MsICR4LT5jbGFzcywgJGNsYXNzOyA="
     },
     {
@@ -161,7 +161,7 @@
     },
     {
         "path": "synthetic/shebang_only.php",
-        "record": "d41d8cd98f00b204e9800998ecf8427e !46696c65206174202273796e7468657469632f73686562616e675f6f6e6c792e7068702220636f756c64206e6f7420626520706172736564206173205048502c206974206d61792062652062696e617279206f7220636f72727570746564",
+        "record": "d41d8cd98f00b204e9800998ecf8427e ",
         "strip": ""
     },
     {
@@ -468,6 +468,51 @@
         "path": "tests/Fixtures/psrViolations/ClassWithoutNameSpace.php",
         "record": "afd05b31fcd63935ab9911dbfa42de0a 436c617373576974686f75744e616d655370616365",
         "strip": "PD9waHAKIGNsYXNzIENsYXNzV2l0aG91dE5hbWVTcGFjZSB7fSA="
+    },
+    {
+        "path": "tests/Fixtures/raw-source/attributes.php",
+        "record": "27b793e5ea5ee4c7c95e2509aacff35f 417474726962757465735c5265616c",
+        "strip": "PD9waHAgbmFtZXNwYWNlIEF0dHJpYnV0ZXM7ICNbQXR0cigiY2xhc3MgRmFrZSB7fSIpXSBjbGFzcyBSZWFsIHt9IA=="
+    },
+    {
+        "path": "tests/Fixtures/raw-source/comment-spliced-keyword.php",
+        "record": "72dbc2a6866c656bc939157d3b017b06 ",
+        "strip": "PD9waHAgbmFtZXNwYWNlIFNwbGljZWQ7IGNsYXNzIFJlYWwge30g"
+    },
+    {
+        "path": "tests/Fixtures/raw-source/docblock.php",
+        "record": "83f5c4caabbe184c9cfb998042a9779c 446f63626c6f636b5c5265616c",
+        "strip": "PD9waHAgIG5hbWVzcGFjZSBEb2NibG9jazsgY2xhc3MgUmVhbCB7IGNvbnN0IFRFWFQgPSAiY2xhc3MgRmFrZSB7fSI7IH0g"
+    },
+    {
+        "path": "tests/Fixtures/raw-source/empty.php",
+        "record": "d41d8cd98f00b204e9800998ecf8427e ",
+        "strip": ""
+    },
+    {
+        "path": "tests/Fixtures/raw-source/hash-close-tag.php",
+        "record": "587ddff03c50e9b4b4ddc03cd46420c7 48617368436c6f73655c5265616c",
+        "strip": "PD9waHAgbmFtZXNwYWNlIEhhc2hDbG9zZTsgPz4gY2xhc3MgT3V0c2lkZSB7fSA8P3BocCBjbGFzcyBSZWFsIHt9IA=="
+    },
+    {
+        "path": "tests/Fixtures/raw-source/hash-comments.php",
+        "record": "aa6ee7d86b1e97cad1b0ec21bcd9908c 48617368436f6d6d656e74735c5265616c",
+        "strip": "PD9waHAgbmFtZXNwYWNlIEhhc2hDb21tZW50czsgY2xhc3MgUmVhbCB7fSA="
+    },
+    {
+        "path": "tests/Fixtures/raw-source/shell-close-tag.php",
+        "record": "322515e40cd9a4679bc7307d7053f1cc 5368656c6c436c6f73655c5265616c",
+        "strip": "PD9waHAgbmFtZXNwYWNlIFNoZWxsQ2xvc2U7ICRjbWQgPSBgZWNobyAvLyA/PiBjbGFzcyBGYWtlIHt9YDsgY2xhc3MgUmVhbCB7fSA="
+    },
+    {
+        "path": "tests/Fixtures/raw-source/shell-hash.php",
+        "record": "06572276611429df8652fbd319ba0137 5368656c6c486173685c5265616c",
+        "strip": "PD9waHAgbmFtZXNwYWNlIFNoZWxsSGFzaDsgJGNtZCA9IGBlY2hvICMgY2xhc3MgRmFrZSB7fWA7IGNsYXNzIFJlYWwge30g"
+    },
+    {
+        "path": "tests/Fixtures/raw-source/slash-close-tag.php",
+        "record": "e2663898994096dc89fd324f53ca9de5 536c617368436c6f73655c5265616c",
+        "strip": "PD9waHAgbmFtZXNwYWNlIFNsYXNoQ2xvc2U7ID8+IGNsYXNzIE91dHNpZGUge30gPD9waHAgY2xhc3MgUmVhbCB7fSA="
     },
     {
         "path": "tests/Fixtures/template/notphp.inc",

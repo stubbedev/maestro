@@ -36,6 +36,7 @@ import (
 // curl error numbers Composer distinguishes.
 const (
 	curleUnsupportedProtocol = 1
+	curleURLMalformat        = 3
 	curleCouldntResolveHost  = util.CurleCouldntResolveHost
 	curleCouldntConnect      = 7
 	curleHTTP2               = 16
@@ -99,6 +100,7 @@ type transferRequest struct {
 	// for the stream wrapper, only the wait for the response.
 	timeout, readTimeout time.Duration
 	connectTimeout       time.Duration
+	stallTimeout         time.Duration
 	key                  transportKey
 	// decode makes the transport undo content encodings as curl does for
 	// CURLOPT_ENCODING "" (encoding.go), advertising them unless a header
@@ -115,7 +117,7 @@ type transferRequest struct {
 	// is unlimited.
 	maxFileSize int64
 	// preventIP, when set, blocks connections to the IPs it rejects.
-	preventIP func(ip string) bool
+	preventIP AccessCallable
 	// safeURL is the URL as messages show it.
 	safeURL string
 	// burst: the transfer was started ahead along with others; over
@@ -522,6 +524,12 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		return res
 	}
 
+	if r.curlStatusLines && strings.ContainsFunc(r.url, func(c rune) bool { return c <= ' ' || c == 0x7f }) {
+		res.fail = util.CurlFailure{Errno: curleURLMalformat, Message: "URL rejected: Malformed input to a URL function"}
+
+		return finish()
+	}
+
 	client, failure := p.client(r.key, r.connectTimeout)
 	if failure != nil {
 		failure.info = res.info
@@ -542,13 +550,11 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 	// The stream wrapper's timeout is an idle timeout: it restarts with
 	// every read. It runs from the connection on (GotConn): the connect
 	// and the TLS handshake have their own (connectTimeout).
-	var idle *time.Timer
-	if r.readTimeout > 0 {
-		idle = time.AfterFunc(time.Hour, func() { cancelTransfer(context.DeadlineExceeded) })
-		idle.Stop()
+	idle := newIdleTimer(r.readTimeout, func() { cancelTransfer(context.DeadlineExceeded) })
+	defer idle.stop()
 
-		defer idle.Stop()
-	}
+	stall := newIdleTimer(r.stallTimeout, func() { cancelTransfer(errStalled) })
+	defer stall.stop()
 
 	var (
 		bodyReader io.Reader
@@ -638,9 +644,8 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				firstConnected(nil)
 			}
 
-			if idle != nil {
-				idle.Reset(r.readTimeout)
-			}
+			idle.reset()
+			stall.reset()
 
 			if hc := asHeadConn(info.Conn); hc != nil {
 				recorder.Store(hc.record(!r.curlStatusLines, method == http.MethodHead))
@@ -656,8 +661,11 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 				ip := addr.IP.String()
 				primaryIP.Store(&ip)
 
-				if r.preventIP != nil && r.preventIP(ip) {
-					cancelTransfer(util.NewTransportError(`IP "`+ip+`" is blocked for "`+r.safeURL+`".`, 400))
+				if err := r.checkIP(ip); err != nil {
+					cancelTransfer(err)
+					if hc := asHeadConn(info.Conn); hc != nil {
+						_ = info.Conn.Close()
+					}
 				}
 			}
 		},
@@ -685,6 +693,12 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		if distrusted, ok := errors.AsType[*distrustedChainError](err); ok {
 			res.err = NewTlsChainError(r.url, distrusted.cert)
 			res.distrustedCert = distrusted.cert
+
+			return finish()
+		}
+
+		if errors.Is(context.Cause(ctx), errStalled) {
+			res.fail = r.stallFailure()
 
 			return finish()
 		}
@@ -717,7 +731,9 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		return finish()
 	}
 
-	counter := &countingReader{r: resp.Body, max: r.maxFileSize, idle: idle, idleTimeout: r.readTimeout}
+	stall.reset()
+
+	counter := &countingReader{r: resp.Body, max: r.maxFileSize, idle: idle, stall: stall}
 
 	var src io.Reader = counter
 
@@ -777,7 +793,9 @@ func (p *transportPool) do(ctx context.Context, r *transferRequest) *transferRes
 		case errors.As(err, &wErr):
 			res.fail = util.CurlFailure{Errno: curleWriteError, Message: "Failure writing output to destination"}
 		default:
-			if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
+			if cause := context.Cause(ctx); errors.Is(cause, errStalled) {
+				res.fail = r.stallFailure()
+			} else if cause != nil && !errors.Is(cause, context.Canceled) && !errors.Is(cause, context.DeadlineExceeded) {
 				res.err = cause
 			} else if !r.curlStatusLines {
 				// PHP's stream wrapper returns what it read before the
@@ -995,16 +1013,16 @@ type countingReader struct {
 	r           io.Reader
 	n           int64
 	max         int64
-	idle        *time.Timer
-	idleTimeout time.Duration
+	idle, stall idleTimer
 }
 
 func (c *countingReader) Read(b []byte) (int, error) {
 	n, err := c.r.Read(b)
 	c.n += int64(n)
 
-	if c.idle != nil && n > 0 {
-		c.idle.Reset(c.idleTimeout)
+	if n > 0 {
+		c.idle.reset()
+		c.stall.reset()
 	}
 
 	if c.max > 0 && c.n > c.max {
@@ -1012,6 +1030,57 @@ func (c *countingReader) Read(b []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+type idleTimer struct {
+	t *time.Timer
+	d time.Duration
+}
+
+func newIdleTimer(d time.Duration, expire func()) idleTimer {
+	if d <= 0 {
+		return idleTimer{}
+	}
+
+	t := time.AfterFunc(time.Hour, expire)
+	t.Stop()
+
+	return idleTimer{t: t, d: d}
+}
+
+func (i idleTimer) reset() {
+	if i.t != nil {
+		i.t.Reset(i.d)
+	}
+}
+
+func (i idleTimer) stop() {
+	if i.t != nil {
+		i.t.Stop()
+	}
+}
+
+var errStalled = errors.New("transfer stalled")
+
+func (r *transferRequest) stallFailure() util.CurlFailure {
+	return util.CurlFailure{Errno: curleOperationTimedout, Message: "Operation too slow. Less than 1 bytes/sec transferred the last " + strconv.FormatInt(int64(r.stallTimeout/time.Second), 10) + " seconds", Timeout: util.TimeoutTransfer}
+}
+
+func (r *transferRequest) checkIP(ip string) error {
+	if r.preventIP == nil {
+		return nil
+	}
+
+	blocked, err := r.preventIP(ip)
+	if err != nil {
+		return err
+	}
+
+	if blocked {
+		return util.NewTransportError(`IP "`+ip+`" is blocked for "`+r.safeURL+`".`, 400)
+	}
+
+	return nil
 }
 
 // writeError marks failures writing the body to its destination.

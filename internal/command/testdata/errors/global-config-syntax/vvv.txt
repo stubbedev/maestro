@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file @DIR@/home/config.json
 Reading ./composer.json (@DIR@/p/composer.json)
@@ -18,10 +18,10 @@ In JsonFile.php line 401:
 Exception trace:
   at @COMPOSER@/src/Composer/Json/JsonFile.php:401
  Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:214
- Composer\Json\JsonFile->validateSchema() at @COMPOSER@/src/Composer/Factory.php:745
- Composer\Factory::validateJsonSchema() at @COMPOSER@/src/Composer/Factory.php:187
- Composer\Factory::createConfig() at @COMPOSER@/src/Composer/Factory.php:326
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Json\JsonFile->validateSchema() at @COMPOSER@/src/Composer/Factory.php:772
+ Composer\Factory::validateJsonSchema() at @COMPOSER@/src/Composer/Factory.php:189
+ Composer\Factory::createConfig() at @COMPOSER@/src/Composer/Factory.php:328
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:242

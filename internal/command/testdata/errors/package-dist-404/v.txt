@@ -15,7 +15,7 @@ Installs: x/y:1.0.0
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
     Failed to download x/y from dist: The "http://@SERVER@/status/404/x.zip" file could not be downloaded (HTTP/1.1 404 Not Found)
 
-In CurlDownloader.php line 966:
+In CurlDownloader.php line 1027:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
@@ -23,8 +23,8 @@ In CurlDownloader.php line 966:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:966
- Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:566
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:1027
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:618
  Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
  Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:103
  Composer\Util\Loop->runJobs() at @COMPOSER@/src/Composer/Util/Loop.php:75

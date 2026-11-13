@@ -351,7 +351,7 @@ func (d *ForgejoDriver) getContents(url string, fetchingRepoData bool) (*http.Re
 		}
 
 		if !d.io.IsInteractive() {
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(e); err != nil {
 				return nil, err
 			}
 
@@ -380,7 +380,11 @@ func (d *ForgejoDriver) getContents(url string, fetchingRepoData bool) (*http.Re
 
 // attemptCloneFallback ports attemptCloneFallback: switch to a GitDriver
 // on the SSH url.
-func (d *ForgejoDriver) attemptCloneFallback() error {
+func (d *ForgejoDriver) attemptCloneFallback(previous *util.TransportError) error {
+	if gitFallbackDisabled(d.repoConfig) {
+		return gitFallbackDisabledError(previous)
+	}
+
 	// If this repository may be private (hard to say for sure,
 	// Forgejo returns 404 for private repositories) and we
 	// cannot ask for authentication credentials (because we

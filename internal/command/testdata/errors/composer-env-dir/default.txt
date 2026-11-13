@@ -1,5 +1,5 @@
 
-In Factory.php line 231:
+In Factory.php line 233:
                                                                                
   The COMPOSER environment variable is set to sub which is a directory, this   
   variable should point to a composer.json or be left unset.                   

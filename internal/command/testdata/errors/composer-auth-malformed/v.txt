@@ -1,5 +1,5 @@
 
-In Factory.php line 692:
+In Factory.php line 699:
                                                                                
   [UnexpectedValueException]                                                   
   COMPOSER_AUTH environment variable is malformed, should be a valid JSON obj  
@@ -7,9 +7,9 @@ In Factory.php line 692:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Factory.php:692
- Composer\Factory::loadComposerAuthEnv() at @COMPOSER@/src/Composer/Factory.php:219
- Composer\Factory::createConfig() at @COMPOSER@/src/Composer/Factory.php:473
+  at @COMPOSER@/src/Composer/Factory.php:699
+ Composer\Factory::loadComposerAuthEnv() at @COMPOSER@/src/Composer/Factory.php:221
+ Composer\Factory::createConfig() at @COMPOSER@/src/Composer/Factory.php:480
  Composer\Factory::createGlobal() at @COMPOSER@/src/Composer/Command/BaseCommand.php:246
  Composer\Command\BaseCommand->initialize() at @COMPOSER@/vendor/symfony/console/Command/Command.php:264
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040

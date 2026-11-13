@@ -181,6 +181,50 @@ func TestFilesystem_DirectorySize(t *testing.T) {
 	}
 }
 
+func TestFilesystem_TrimTrailingSlash(t *testing.T) {
+	for _, c := range []struct{ expected, path string }{
+		{"", ""},
+		{"/", "/"},
+		{"//", "//"},
+		{`\`, `\`},
+		{`/\/`, `/\/`},
+		{"/foo", "/foo///"},
+		{`C:\foo`, `C:\foo\`},
+		{"relative/path", "relative/path"},
+		{"relative/path", `relative/path/\`},
+		{"/foo/\n", "/foo/\n"},
+	} {
+		if got := TrimTrailingSlash(c.path); got != c.expected {
+			t.Errorf("TrimTrailingSlash(%q) = %q, want %q", c.path, got, c.expected)
+		}
+	}
+}
+
+func TestFilesystem_GetPlatformPath(t *testing.T) {
+	for _, c := range []struct{ path, unixPath, windowsPath string }{
+		{"", "", ""},
+		{"/foo", "/foo", "/foo"},
+		{"relative/path", "relative/path", "relative/path"},
+		{"file:///foo", "/foo", "/foo"},
+		{"FiLe:///foo", "/foo", "/foo"},
+		{"file:///c:/foo", "/c:/foo", "c:/foo"},
+		{"file:///C/foo", "/C/foo", "C:/foo"},
+		{"file://", "", ""},
+		{"file:/foo", "file:/foo", "file:/foo"},
+		{"http://example.org", "http://example.org", "http://example.org"},
+	} {
+		if got := getPlatformPath(c.path, false); got != c.unixPath {
+			t.Errorf("getPlatformPath(%q, unix) = %q, want %q", c.path, got, c.unixPath)
+		}
+		if got := getPlatformPath(c.path, true); got != c.windowsPath {
+			t.Errorf("getPlatformPath(%q, windows) = %q, want %q", c.path, got, c.windowsPath)
+		}
+	}
+	if got := GetPlatformPath("file:///C/foo"); got != getPlatformPath("file:///C/foo", IsWindows()) {
+		t.Errorf("GetPlatformPath does not follow the platform: %q", got)
+	}
+}
+
 func TestFilesystem_NormalizePath(t *testing.T) {
 	cases := []struct{ expected, actual string }{
 		{"../foo", "../foo"},

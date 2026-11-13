@@ -18,9 +18,9 @@ In Config.php line 474:
 
 Exception trace:
   at @COMPOSER@/src/Composer/Config.php:474
- Composer\Config->get() at @COMPOSER@/src/Composer/Factory.php:587
- Composer\Factory->createDefaultInstallers() at @COMPOSER@/src/Composer/Factory.php:419
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Config->get() at @COMPOSER@/src/Composer/Factory.php:594
+ Composer\Factory->createDefaultInstallers() at @COMPOSER@/src/Composer/Factory.php:426
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/InstallCommand.php:105

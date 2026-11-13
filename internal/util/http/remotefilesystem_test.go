@@ -249,6 +249,47 @@ func TestRemoteFilesystem_RedirectToDisallowedSchemeIsRejected(t *testing.T) {
 	}
 }
 
+func TestRemoteFilesystem_CredentialHeadersAreOnlyKeptOnSameOriginRedirects(t *testing.T) {
+	for name, tc := range map[string]struct {
+		location         string
+		expectAuthHeader bool
+	}{
+		"same origin, absolute path": {"/other.json", true},
+		"same origin, absolute url":  {"https://example.org:443/other.json", true},
+		"other host":                 {"https://example.net/other.json", false},
+		"other scheme":               {"http://example.org/other.json", false},
+		"other port":                 {"https://example.org:8443/other.json", false},
+	} {
+		var sentHeaders []string
+		r := newTestRFS(t, nil, nil, nil)
+		r.getRemoteContents = func(_, _ string, ctx *php.Array, _ int64) (remoteContents, error) {
+			sentHeaders = append(sentHeaders, strings.Join(headerList(ctx), "\n"))
+			if len(sentHeaders) == 1 {
+				return remoteContents{ok: true, result: "ok", headers: []string{"HTTP/1.1 302 Found", "Location: " + tc.location}}, nil
+			}
+
+			return remoteContents{ok: true, result: "ok", headers: []string{"HTTP/1.1 200 OK"}}, nil
+		}
+
+		if _, err := r.GetContents("example.org", "https://example.org/packages.json", false, headerOptions([]string{"Authorization: Bearer abc", "X-Custom: 1"})); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+
+		if len(sentHeaders) != 2 {
+			t.Fatalf("%s: %d requests, want 2", name, len(sentHeaders))
+		}
+		if !strings.Contains(sentHeaders[0], "Authorization: Bearer abc") {
+			t.Errorf("%s: first request headers %q", name, sentHeaders[0])
+		}
+		if got := strings.Contains(sentHeaders[1], "Authorization: Bearer abc"); got != tc.expectAuthHeader {
+			t.Errorf("%s: redirected request headers %q", name, sentHeaders[1])
+		}
+		if !strings.Contains(sentHeaders[1], "X-Custom: 1") {
+			t.Errorf("%s: redirected request headers %q", name, sentHeaders[1])
+		}
+	}
+}
+
 func TestRemoteFilesystem_GetOptionsForUrlCreatesSecureTlsDefaults(t *testing.T) {
 	cafile := writeTestCA(t)
 	res := callGetOptionsForUrl(t, newFakeIO(), "example.org", php.ArrayOf("ssl", php.ArrayOf("cafile", cafile)), nil, "http://www.example.org")

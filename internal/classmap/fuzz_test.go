@@ -35,7 +35,8 @@ func FuzzFindClasses(f *testing.F) {
 		var b parseBuffers
 		b.src = append(append(b.src, src...), make([]byte, stripPadding)...)
 		classes, err := p.classesIn(&b, len(src), "fuzz.php")
-		strip := string(b.strip)
+		contents, raw := p.contents(&b, len(src), p.phpVersion())
+		seen := string(contents)
 
 		// The same input in a larger, dirty buffer.
 		var b2 parseBuffers
@@ -43,8 +44,9 @@ func FuzzFindClasses(f *testing.F) {
 		b2.src = append(b2.src, "<?php class Dirty {} \"'"...)
 		b2.strip = append(b2.strip, "garbage"...)
 		classes2, err2 := p.classesIn(&b2, len(src), "fuzz.php")
-		if string(b2.strip) != strip || (err == nil) != (err2 == nil) || len(classes) != len(classes2) {
-			t.Fatalf("result depends on the buffer: %q vs %q", strip, b2.strip)
+		contents2, raw2 := p.contents(&b2, len(src), p.phpVersion())
+		if string(contents2) != seen || raw != raw2 || (err == nil) != (err2 == nil) || len(classes) != len(classes2) {
+			t.Fatalf("result depends on the buffer: %q vs %q", seen, contents2)
 		}
 		for i := range classes {
 			if classes[i] != classes2[i] || classes[i] == "" {
@@ -55,7 +57,8 @@ func FuzzFindClasses(f *testing.F) {
 }
 
 // FuzzPhpFileCleaner runs the cleaner alone on arbitrary input, with both
-// strategies (one or more candidate keywords).
+// strategies (one or more candidate keywords), on source and on
+// php_strip_whitespace() output.
 func FuzzPhpFileCleaner(f *testing.F) {
 	fuzzSeeds(f)
 	f.Fuzz(func(t *testing.T, src []byte, single bool, version uint8) {
@@ -63,8 +66,8 @@ func FuzzPhpFileCleaner(f *testing.F) {
 		if single {
 			maxMatches = 1
 		}
-		enums := version%2 == 0
-		clean := cleanPhpFile(nil, src, maxMatches, enums)
-		_ = extractClasses(clean, enums)
+		v := phpVersionOf(fuzzVersions[int(version>>1)%len(fuzzVersions)])
+		clean := cleanPhpFile(nil, src, maxMatches, v, version%2 == 0)
+		_ = extractClasses(clean, v >= php81)
 	})
 }

@@ -11,8 +11,46 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command/commandtest"
 	"github.com/stubbedev/maestro/internal/console"
+	"github.com/stubbedev/maestro/internal/installer"
+	"github.com/stubbedev/maestro/internal/io"
+	"github.com/stubbedev/maestro/internal/php"
+	"github.com/stubbedev/maestro/internal/pkg"
+	"github.com/stubbedev/maestro/internal/switches"
 	"github.com/stubbedev/maestro/internal/util"
 )
+
+func TestExecCommand_ExecFindsInstalledBinaryOnPath(t *testing.T) {
+	if !switches.On(switches.PHPTests) {
+		t.Skip("set MAESTRO_PHP_TESTS=1 to run the PHP binary with php")
+	}
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	p := commandtest.GetPackage(t, "vendor/tool", "1.0.0")
+	p.SetBinaries(php.ListOf("fixture-tool"))
+	commandtest.CreateInstalledJSON(t, []pkg.PackageInterface{p}, nil, true)
+	if err := os.WriteFile("vendor/vendor/tool/fixture-tool", []byte(`<?php file_put_contents("binary-result.txt", "executed");`), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	binaryInstaller := installer.NewBinaryInstaller(io.NewNullIO(), "vendor/bin", "auto", nil, pkg.NullString{})
+	if err := binaryInstaller.InstallBinaries(p, "vendor/vendor/tool", true); err != nil {
+		t.Fatal(err)
+	}
+
+	tester := commandtest.GetApplicationTester(t)
+	code, err := tester.RunArgs(commandtest.Options{}, "command", "exec", "binary", "fixture-tool", "--no-interaction", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 0 {
+		t.Fatalf("status %d: %s", code, tester.Display(true))
+	}
+	result, err := os.ReadFile("binary-result.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(result) != "executed" {
+		t.Errorf("binary-result.txt holds %q", result)
+	}
+}
 
 func TestExecCommand_ListThrowsIfNoBinariesExist(t *testing.T) {
 	composerDir := commandtest.InitTempComposer(t, nil, nil, nil, true)

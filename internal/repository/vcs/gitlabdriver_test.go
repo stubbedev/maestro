@@ -433,3 +433,17 @@ func TestGitLabDriver_ProtocolOverrideRepositoryUrlGeneration(t *testing.T) {
 		t.Fatalf("repository URL = %q, want the http one the config requests", got)
 	}
 }
+
+func TestGitLabDriver_GitFallbackCanBeDisabled(t *testing.T) {
+	t.Parallel()
+
+	http := httpmock.New()
+	http.Expects([]httpmock.Expectation{{URL: "https://gitlab.com/api/v4/projects/mygroup%2Fmyproject", Status: 404}}, true, nil)
+
+	process := processmock.New()
+	process.Expects(nil, false, &processmock.Expectation{Return: 1})
+
+	driver := NewGitLabDriver(php.ArrayOf("url", "https://gitlab.com/mygroup/myproject", "allow-git-fallback", false), deps(newTestIO(), gitLabConfig(t), http, process))
+
+	expectGitFallbackDisabled(t, driver.Initialize())
+}

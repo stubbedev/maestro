@@ -133,7 +133,8 @@ type ComposerRepository struct {
 	freshMetadataUrls map[string]struct{}
 	// packagesNotFoundCache are the URLs which returned a 404 and must
 	// not be fetched again.
-	packagesNotFoundCache map[string]struct{}
+	packagesNotFoundCache      map[string]struct{}
+	securityAdvisoryAPIResults map[string]advisoryAPIResult
 	// fetched are the files asyncFetchFile was asked for, by URL
 	// (Resolved)
 	fetched map[string]fetchedFile
@@ -242,13 +243,14 @@ func New(repoConfig *php.Array, ioi io.IO, config Config, httpDownloader HTTPDow
 		repoConfig.Set("options", php.NewArray())
 	}
 	r := &ComposerRepository{
-		io:                    ioi,
-		httpDownloader:        httpDownloader,
-		eventDispatcher:       eventDispatcher,
-		requirePublishedTime:  true,
-		freshMetadataUrls:     map[string]struct{}{},
-		packagesNotFoundCache: map[string]struct{}{},
-		fetched:               map[string]fetchedFile{},
+		io:                         ioi,
+		httpDownloader:             httpDownloader,
+		eventDispatcher:            eventDispatcher,
+		requirePublishedTime:       true,
+		freshMetadataUrls:          map[string]struct{}{},
+		packagesNotFoundCache:      map[string]struct{}{},
+		securityAdvisoryAPIResults: map[string]advisoryAPIResult{},
+		fetched:                    map[string]fetchedFile{},
 	}
 	if v, _ := repoConfig.Get("allow_ssl_downgrade"); v == true {
 		r.allowSslDowngrade = true
@@ -1154,23 +1156,24 @@ func (c loadedConfig) configureTransportOptions(p pkg.PackageInterface) {
 	}
 }
 
-// IsOwnDistUrl ports isOwnDistUrl: whether one of the package's dist URLs
-// belongs to this repository.
+// IsOwnDistUrl ports isOwnDistUrl: whether the package's canonical dist
+// URL belongs to this repository.
 func (r *ComposerRepository) IsOwnDistUrl(p pkg.PackageInterface) bool {
 	return isOwnDistURL(r.loadedConfig().baseURL, p)
 }
 
 // isOwnDistURL is isOwnDistUrl for a repository whose base URL is baseURL.
 func isOwnDistURL(baseURL string, p pkg.PackageInterface) bool {
-	for _, url := range p.DistURLs() {
-		// require a boundary after the base URL so e.g.
-		// https://example.org.example.net does not match https://example.org
-		if rest, ok := strings.CutPrefix(url, baseURL); ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0) {
-			return true
-		}
+	url := p.DistURL()
+	if !url.Valid {
+		return false
 	}
 
-	return false
+	// require a boundary after the base URL so e.g.
+	// https://example.org.example.net does not match https://example.org
+	rest, ok := strings.CutPrefix(url.S, baseURL)
+
+	return ok && (rest == "" || strings.IndexByte("/?#", rest[0]) >= 0)
 }
 
 // BaseURL ports getBaseUrl.

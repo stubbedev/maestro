@@ -115,7 +115,7 @@ func FindHeaderValue(headers []string, name string) (string, bool) {
 // (*php.PcreError) Preg::isMatch throws: `(.+?)\s*$` exhausts the
 // backtrack limit on a header line holding some 10 KB of whitespace.
 func FindHeaderValueChecked(headers []string, name string) (string, bool, error) {
-	re, err := php.Compile(`{^` + php.PregQuote(name, "") + `:\s*(.+?)\s*$}i`)
+	re, err := php.Compile(`{^` + php.PregQuote(name, "") + `:\s*+(.+?)\s*$}i`)
 	if err != nil {
 		return "", false, err
 	}

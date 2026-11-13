@@ -6,7 +6,7 @@ Package operations: 1 install, 0 updates, 0 removals
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
     Failed to download x/y from dist: The "http://@SERVER@/status/404/x.zip" file could not be downloaded (HTTP/1.1 404 Not Found)
 
-In CurlDownloader.php line 966:
+In CurlDownloader.php line 1027:
                                                                                
   The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
   (HTTP/1.1 404 Not Found)                                                     

@@ -733,7 +733,7 @@ func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOp
 		r.io.WriteError("", true, mio.Debug)
 		r.io.WriteError("Following redirect ("+strconv.Itoa(r.redirects)+") "+util.SanitizeURL(targetURL), true, mio.Debug)
 
-		options := additionalOptions.Clone()
+		options := StripCredentialHeadersOnRedirect(additionalOptions, r.fileURL, targetURL).Clone()
 		options.Set("redirects", r.redirects)
 
 		return r.get(util.URLHost(targetURL), targetURL, options, r.fileName, r.hasFileName, r.progress)

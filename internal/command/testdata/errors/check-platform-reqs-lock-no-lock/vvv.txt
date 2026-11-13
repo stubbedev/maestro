@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -14,15 +14,15 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Checking platform requirements using the lock file
 
-In Locker.php line 361:
+In Locker.php line 357:
                                                      
   [LogicException]                                   
   No lockfile found. Unable to read locked packages  
                                                      
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Package/Locker.php:361
- Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:184
+  at @COMPOSER@/src/Composer/Package/Locker.php:357
+ Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:180
  Composer\Package\Locker->getLockedRepository() at @COMPOSER@/src/Composer/Command/CheckPlatformReqsCommand.php:56
  Composer\Command\CheckPlatformReqsCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040

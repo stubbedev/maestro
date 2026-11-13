@@ -1,4 +1,5 @@
 Creating a "x/plain" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 
 In CreateProjectCommand.php line 464:
                                                     

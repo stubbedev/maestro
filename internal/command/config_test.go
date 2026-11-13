@@ -51,6 +51,24 @@ func runConfig(t *testing.T, params []console.Param) (*commandtest.ApplicationTe
 	return appTester, err
 }
 
+func TestConfigCommand_ListIncludesArrayValuedDefaults(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	appTester, err := runConfig(t, []console.Param{console.P("--list", true)})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	if appTester.StatusCode() != 0 {
+		t.Fatalf("status %d: %s", appTester.StatusCode(), appTester.Display(false))
+	}
+	display := appTester.Display(true)
+	for _, want := range []string{"[use-include-path] false", "[github-protocols] [https, ssh]"} {
+		if !strings.Contains(display, want) {
+			t.Errorf("display lacks %q:\n%s", want, display)
+		}
+	}
+}
+
 func TestConfigCommand_ConfigUpdates(t *testing.T) {
 	cases := []struct {
 		name     string

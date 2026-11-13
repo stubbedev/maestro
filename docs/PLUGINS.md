@@ -42,8 +42,8 @@ state over IPC. Requirements:
 
 - **Unchanged plugins.** Plugins load, run and see the same API, the same
   `class_exists`/`method_exists` answers, the same constants
-  (`Composer::VERSION === '2.11.1'`, `PluginInterface::PLUGIN_API_VERSION === '2.11.0'`)
-  and the same object identities as under Composer 2.11.1.
+  (`Composer::VERSION === '2.11.2'`, `PluginInterface::PLUGIN_API_VERSION === '2.11.0'`)
+  and the same object identities as under Composer 2.11.2.
 - **Identical results.** Output bytes and their order, exit codes, files
   written, `composer.lock` and the vendor tree match real Composer.
 - **Not Composer's code.** The shim reimplements Composer's public API. It
@@ -51,7 +51,7 @@ state over IPC. Requirements:
   `vendor/composer/ClassLoader.php` and `InstalledVersions.php`. maestro must
   already embed these verbatim because it writes them into every vendor dir.
 - **PHP 7.2.5 compatible.** The shim must run on every PHP that Composer
-  2.11.1 runs on (7.2.5 to 8.5), because the child is the project's `php`.
+  2.11.2 runs on (7.2.5 to 8.5), because the child is the project's `php`.
   CI runs the PHP-backed plugin and command tests on 8.4 and on 7.2 (the
   `php-7_2` job); only the API parity test needs PHP 8 (its golden is PHP
   8.4's reflection).
@@ -130,8 +130,8 @@ What the survey shows:
 | D3 | **Synchronous, re-entrant RPC over one channel.** Exactly one side runs at any moment. Either side may call the other while handling a call, to any depth. | Mirrors Composer's single call stack, so output order and side effects stay deterministic. There are no races and no locks. |
 | D4 | **State syncs at every control transfer.** Each message carries the deltas (revision-based) of mirrored objects, env vars, cwd and Composer statics changed since the last message. | In-place mutations (`setAutoload`, `setExtra`, root `setRequires`, `putenv`, `chdir`) become visible to the other side before it runs again. That is the only moment it could observe them. |
 | D5 | **Transport: inherited pipes on fds 3 and 4** (Unix), loopback TCP with a 256-bit token (Windows). Frames are a 4-byte length plus JSON. | stdin, stdout and stderr stay the user's terminal, so plugin `echo`, `proc_open` with inherited stdio and TTY prompts behave as in Composer. JSON is native to PHP and fast enough. |
-| D6 | **Vendor the third-party libraries the 2.11.1 phar ships** (§5.1) verbatim into the shim: symfony/console 5.4.55, process, filesystem, finder, string, polyfills, composer/semver 3.6.0, pcre, class-map-generator 1.8.0, ca-bundle 1.6.1, metadata-minifier, spdx-licenses, xdebug-handler, react/promise, seld/jsonlint, seld/phar-utils, signal-handler, justinrainbow/json-schema 6.13.1, marc-mabe/php-enum, psr/log, psr/container. | Plugins use these directly, assume Composer bundles them, and depend on their exact behaviour (Symfony Console commands, real semver constraint objects, React promises). They are MIT and not Composer's code. Loading them first in the child also reproduces the phar's class precedence. |
-| D7 | **API presence parity.** Every class, interface, trait, public or protected method and constant in Composer 2.11.1's `src/` (minus `Compiler`, `PHPStan\*`) exists in the shim with the same signature. Unsupported members throw `Maestro\Shim\UnsupportedApiException`. No class Composer lacks is defined (no `PearInstaller`, no `Script\CommandEvent`). | Plugins feature-sniff with `class_exists`/`method_exists`/`defined` (flex checks `BaseConfigCommand`, mnsami guards `PearInstaller`, laminas ships a stub of `PrePoolCreateEvent`). The answers must be identical. |
+| D6 | **Vendor the third-party libraries the 2.11.2 phar ships** (§5.1) verbatim into the shim: symfony/console 5.4.55, process, filesystem, finder, string, polyfills, composer/semver 3.6.0, pcre, class-map-generator 1.9.0, ca-bundle 1.6.1, metadata-minifier, spdx-licenses, xdebug-handler, react/promise, seld/jsonlint, seld/phar-utils, signal-handler, justinrainbow/json-schema 6.14.0, marc-mabe/php-enum, psr/log, psr/container. | Plugins use these directly, assume Composer bundles them, and depend on their exact behaviour (Symfony Console commands, real semver constraint objects, React promises). They are MIT and not Composer's code. Loading them first in the child also reproduces the phar's class precedence. |
+| D7 | **API presence parity.** Every class, interface, trait, public or protected method and constant in Composer 2.11.2's `src/` (minus `Compiler`, `PHPStan\*`) exists in the shim with the same signature. Unsupported members throw `Maestro\Shim\UnsupportedApiException`. No class Composer lacks is defined (no `PearInstaller`, no `Script\CommandEvent`). | Plugins feature-sniff with `class_exists`/`method_exists`/`defined` (flex checks `BaseConfigCommand`, mnsami guards `PearInstaller`, laminas ships a stub of `PrePoolCreateEvent`). The answers must be identical. |
 | D8 | **Plugin loading is split.** Go does the policy: which packages, order, `allow-plugins` with its prompt, API version, autoload map. PHP does the mechanism: ClassLoader, `files` requires, the eval-rename hack, instantiation, `activate`, `addSubscriber`. | The policy needs Go's repositories, autoload generator and config. The mechanism must happen inside PHP. |
 | D9 | **Custom installers use a virtual-dispatch table.** At `addInstaller`, the shim reports which `InstallerInterface`/`LibraryInstaller` methods the PHP class overrides. Go calls PHP only for those. Inherited behaviour runs natively in Go, and calls back into PHP for overridden hooks such as `getInstallPath`. | `composer/installers` overrides only `supports`, `getInstallPath` and `uninstall`. Downloads and extraction stay native and parallel (deviations 1 and 3). |
 | D10 | **Plugin commands run in PHP** on the vendored Symfony Console: bind, validate, interact, execute. Go's Application lists, describes and dispatches them through proxy commands built from mirrored definitions. | Exact Symfony semantics for plugin code. `list`/`help`/completion output stays in Go's byte-identical console port. |
@@ -175,7 +175,7 @@ them, and refusing them is acceptable elsewhere.
 | Symbol | Used by | Backing | Tier |
 | --- | --- | --- | --- |
 | `Composer` / `PartialComposer`: `getPackage`, `getConfig`, `getRepositoryManager`, `getInstallationManager`, `getEventDispatcher`, `getLocker`, `getDownloadManager`, `getPluginManager`, `getAutoloadGenerator`, `getLoop`, `getArchiveManager`, `isGlobal` | 42 (`getPackage` 36, `getConfig` 30, `getRepositoryManager` 24) | Proxy. Each getter is an RPC that returns a handle, cached in PHP until a setter or sync invalidates it. | 2 |
-| `Composer::VERSION`, `BRANCH_ALIAS_VERSION`, `RELEASE_DATE`, `SOURCE_VERSION`, `RUNTIME_API_VERSION`, `getVersion()` | 2 | PHP constants (`'2.11.1'`, `''`, `'2026-10-30 14:52:10'`, `''`, `'2.2.2'`) | 2 |
+| `Composer::VERSION`, `BRANCH_ALIAS_VERSION`, `RELEASE_DATE`, `SOURCE_VERSION`, `RUNTIME_API_VERSION`, `getVersion()` | 2 | PHP constants (`'2.11.2'`, `''`, `'2026-11-10 10:09:37'`, `''`, `'2.2.2'`) | 2 |
 | `Composer::get/setRunningCommand`, `get/setRunningOperation` (static) | 0 | PHP statics, synced (§5.3) | 2 |
 | `Composer::setLocker`, `setPackage`, `setConfig`, other setters | 1 (flex) | RPC | 5 |
 | `Config::get($key, $flags)` incl. `RELATIVE_PATHS` | 31 | RPC on every call (no caching; Config can change through `merge`) | 2 |
@@ -353,11 +353,11 @@ tools/shimvendor/     copies the exact library versions from .ref/composer/vendo
 
 **Vendored set.** This is exactly the phar's runtime dependencies (from
 `.ref/composer/vendor/composer/installed.json`): composer/ca-bundle 1.6.1,
-class-map-generator 1.8.0, metadata-minifier 1.0.1, pcre 2.3.2, semver 3.6.0,
-spdx-licenses 1.6.0, xdebug-handler 3.0.5; justinrainbow/json-schema 6.13.1;
+class-map-generator 1.9.0, metadata-minifier 1.0.1, pcre 2.3.2, semver 3.6.0,
+spdx-licenses 1.6.0, xdebug-handler 3.0.5; justinrainbow/json-schema 6.14.0;
 marc-mabe/php-enum 4.7.2; psr/container 1.1.1; psr/log 1.1.4; react/promise
-3.3.0; seld/jsonlint 1.12.1, phar-utils 1.2.3, signal-handler 2.0.2;
-symfony/console 5.4.55, deprecation-contracts 2.5.4, filesystem 5.4.54,
+3.3.0; seld/jsonlint 1.12.2, phar-utils 1.2.3, signal-handler 2.0.2;
+symfony/console 5.4.55, deprecation-contracts 2.5.4, filesystem 5.4.56,
 finder 5.4.45, polyfill-ctype 1.37.0, polyfill-intl-grapheme 1.43.3,
 polyfill-intl-normalizer 1.43.0, polyfill-mbstring 1.43.3, polyfill-php73
 1.37.0, polyfill-php80 1.43.0, polyfill-php81 1.38.1, polyfill-php84 1.43.0,
@@ -1907,7 +1907,7 @@ them, and none of them imports `internal/plugin`.
 
 The plugin API is grouped into six tiers by what a plugin needs (the
 **Tier** columns of §2 and §4). Each tier is covered by e2e fixtures that
-compare maestro with Composer 2.11.1 (§9.3) and by in-process tests.
+compare maestro with Composer 2.11.2 (§9.3) and by in-process tests.
 Tiers 1 to 3 cover the plugins of most real projects, including a typical
 Laravel application's pest, stubbedev and Laravel scripts.
 
@@ -2167,7 +2167,7 @@ What crosses and how:
   loop's executor whenever it waits, as Composer's one loop does (§5.12).
 
 Fixtures (cmd/maestro e2e_plugins6_test.go): `plugin-flex` (symfony/flex
-2.11.1 with a local recipes endpoint served over http from
+2.11.0 with a local recipes endpoint served over http from
 testdata/e2e/flex-recipes: the first install's re-run, recipes and
 symfony.lock, pack unpacking, `req logger` alias resolution, `recipes`,
 `recipes:install`, `rem`, `-vvv`, `--no-plugins`; flex's random session
@@ -2242,7 +2242,7 @@ surveyed plugin needs:
 
 `TestShimStubs_*` (`internal/plugin/stubs_*_php_test.go`,
 MAESTRO_PHP_TESTS=1) cover these in-process; the `plugin-stubs` e2e
-fixture compares with Composer 2.11.1 Composer's commands run from PHP,
+fixture compares with Composer 2.11.2 Composer's commands run from PHP,
 BaseCommand's helpers given to an Installer and IOs created in PHP.
 
 **Remaining stubs.** These members of the hand-written shim (`php/src`)
@@ -2357,7 +2357,7 @@ in e2e_plugins_test.go and e2e_plugins6_test.go, on `TestE2E`'s runner):
   listed in the test. Local plugins come from path repositories in the
   fixture; flex's recipes come from a local endpoint
   (`testdata/e2e/flex-recipes`).
-- **Each scenario runs with both tools,** real Composer 2.11.1 (the pinned
+- **Each scenario runs with both tools,** real Composer 2.11.2 (the pinned
   phar) and maestro, in fresh copies of the fixture with isolated
   `COMPOSER_HOME` and caches, cold (empty caches) and then warm (the
   caches the cold phase left).

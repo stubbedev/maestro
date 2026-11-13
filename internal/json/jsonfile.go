@@ -83,7 +83,7 @@ type File struct {
 var decodedFiles = cache.NewDecoded(decodedFormat, 4096, decodedFilesSlots)
 
 // decodedFormat is the version of decodedFiles' slots.
-var decodedFormat = fsstate.Format{Name: "json", Version: 7}
+var decodedFormat = fsstate.Format{Name: "json", Version: 8}
 
 // decodedFilesSlots is how many files' slots decodedFiles keeps: a slot
 // per project of the machine's most recent ones.

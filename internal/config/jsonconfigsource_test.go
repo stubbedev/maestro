@@ -265,35 +265,51 @@ func assertCompactJSON(t *testing.T, expected, actualFile string) {
 	}
 }
 
-func TestJsonConfigSource_PropertyManipulations(t *testing.T) {
+func TestJsonConfigSource_PropertyFallbackMatchesManipulator(t *testing.T) {
+	type operation struct {
+		run      func(*JSONConfigSource, []any) error
+		fallback fallback
+	}
+	addProperty := operation{func(s *JSONConfigSource, a []any) error { return s.AddProperty(a[0].(string), a[1]) }, addPropertyFallback}
+	removeProperty := operation{func(s *JSONConfigSource, a []any) error { return s.RemoveProperty(a[0].(string)) }, removePropertyFallback}
+	removeLink := operation{func(s *JSONConfigSource, a []any) error { return s.RemoveLink(a[0].(string), a[1].(string)) }, removeLinkFallback}
+	removeRepository := operation{func(s *JSONConfigSource, a []any) error { return s.RemoveRepository(a[0].(string)) }, removeRepositoryFallback}
 	cases := []struct {
 		name     string
 		original string
-		add      bool
-		key      string
-		value    any
+		op       operation
+		args     []any
 		want     string
 	}{
-		{"add nested extra key keeps the remainder literal", `{"extra": {"foo": "bar"}}`, true, "extra.a.b.c", "x", `{"extra":{"foo":"bar","a":{"b.c":"x"}}}`},
-		{"add replaces a scalar parent", `{"extra": {"foo": "bar"}}`, true, "extra.foo.baz", "x", `{"extra":{"foo":{"baz":"x"}}}`},
-		{"add script", `{"scripts": {"test": "phpunit"}}`, true, "scripts.lint", "phpcs", `{"scripts":{"test":"phpunit","lint":"phpcs"}}`},
-		{"add suggest", `{"suggest": {"a/b": "c"}}`, true, "suggest.foo/b.ar", "desc", `{"suggest":{"a\/b":"c","foo\/b.ar":"desc"}}`},
-		{"remove nested extra key with literal remainder", `{"extra": {"a": {"b.c": "x", "d": 1}}}`, false, "extra.a.b.c", nil, `{"extra":{"a":{"d":1}}}`},
-		{"remove last nested key keeps an object", `{"extra": {"foo": {"bar": 1}, "z": 2}}`, false, "extra.foo.bar", nil, `{"extra":{"foo":{},"z":2}}`},
-		{"remove last extra key keeps an object", `{"extra": {"foo": 1}}`, false, "extra.foo", nil, `{"extra":{}}`},
-		{"remove below a scalar is a no-op", `{"extra": {"foo": "bar", "z": 1}}`, false, "extra.foo.0.x", nil, `{"extra":{"foo":"bar","z":1}}`},
-		{"remove suggest", `{"suggest": {"foo/bar": "x", "a/b": "y"}}`, false, "suggest.foo/bar", nil, `{"suggest":{"a\/b":"y"}}`},
-		{"remove autoload type", `{"autoload": {"psr-4": {"A\\\\": "src/"}, "files": ["x.php"]}}`, false, "autoload.psr-4", nil, `{"autoload":{"files":["x.php"]}}`},
+		{"add nested extra key keeps the remainder literal", `{"extra": {"foo": "bar"}}`, addProperty, []any{"extra.a.b.c", "x"}, `{"extra":{"foo":"bar","a":{"b.c":"x"}}}`},
+		{"add replaces a scalar parent", `{"extra": {"foo": "bar"}}`, addProperty, []any{"extra.foo.baz", "x"}, `{"extra":{"foo":{"baz":"x"}}}`},
+		{"add script", `{"scripts": {"test": "phpunit"}}`, addProperty, []any{"scripts.lint", "phpcs"}, `{"scripts":{"test":"phpunit","lint":"phpcs"}}`},
+		{"add suggest", `{"suggest": {"a/b": "c"}}`, addProperty, []any{"suggest.foo/b.ar", "desc"}, `{"suggest":{"a\/b":"c","foo\/b.ar":"desc"}}`},
+		{"remove nested extra key with literal remainder", `{"extra": {"a": {"b.c": "x", "d": 1}}}`, removeProperty, []any{"extra.a.b.c"}, `{"extra":{"a":{"d":1}}}`},
+		{"remove last nested key keeps an object", `{"extra": {"foo": {"bar": 1}, "z": 2}}`, removeProperty, []any{"extra.foo.bar"}, `{"extra":{"foo":{},"z":2}}`},
+		{"remove last extra key keeps an object", `{"extra": {"foo": 1}}`, removeProperty, []any{"extra.foo"}, `{"extra":{}}`},
+		{"remove below a scalar is a no-op", `{"extra": {"foo": "bar", "z": 1}}`, removeProperty, []any{"extra.foo.0.x"}, `{"extra":{"foo":"bar","z":1}}`},
+		{"remove suggest", `{"suggest": {"foo/bar": "x", "a/b": "y"}}`, removeProperty, []any{"suggest.foo/bar"}, `{"suggest":{"a\/b":"y"}}`},
+		{"remove autoload type", `{"autoload": {"psr-4": {"A\\\\": "src/"}, "files": ["x.php"]}}`, removeProperty, []any{"autoload.psr-4"}, `{"autoload":{"files":["x.php"]}}`},
+		{"remove last link removes the key", `{"require": {"a/b": "1"}, "require-dev": {"c/d": "1"}}`, removeLink, []any{"require-dev", "c/d"}, `{"require":{"a\/b":"1"}}`},
+		{"remove link keeps the other links", `{"require-dev": {"a/b": "1", "c/d": "1"}}`, removeLink, []any{"require-dev", "c/d"}, `{"require-dev":{"a\/b":"1"}}`},
+		{"remove missing link keeps the key", `{"require-dev": {"a/b": "1"}}`, removeLink, []any{"require-dev", "c/d"}, `{"require-dev":{"a\/b":"1"}}`},
+		{"remove extra key set to null", `{"extra": {"foo": null, "z": 1}}`, removeProperty, []any{"extra.foo"}, `{"extra":{"z":1}}`},
+		{"remove nested extra key set to null", `{"extra": {"foo": {"bar": null, "z": 1}}}`, removeProperty, []any{"extra.foo.bar"}, `{"extra":{"foo":{"z":1}}}`},
+		{"remove link set to null", `{"require-dev": {"a/b": "1", "c/d": null}}`, removeLink, []any{"require-dev", "c/d"}, `{"require-dev":{"a\/b":"1"}}`},
+		{"remove repository set to null", `{"repositories": {"foo": null, "bar": {"type": "vcs", "url": "x"}}}`, removeRepository, []any{"foo"}, `{"repositories":{"bar":{"type":"vcs","url":"x"}}}`},
+		{"remove repository from list", `{"repositories": [{"name": "foo", "type": "vcs", "url": "x"}, {"name": "bar", "type": "vcs", "url": "y"}]}`, removeRepository, []any{"foo"}, `{"repositories":[{"name":"bar","type":"vcs","url":"y"}]}`},
+		{"remove disabled packagist from list", `{"repositories": [{"packagist.org": false}, {"name": "bar", "type": "vcs", "url": "y"}]}`, removeRepository, []any{"packagist.org"}, `{"repositories":[{"name":"bar","type":"vcs","url":"y"}]}`},
+		{"remove repository with a numeric name from list", `{"repositories": [{"name": "a", "type": "vcs", "url": "x"}, {"name": "b", "type": "vcs", "url": "y"}, {"name": "1", "type": "vcs", "url": "z"}]}`, removeRepository, []any{"1"}, `{"repositories":[{"name":"a","type":"vcs","url":"x"},{"name":"b","type":"vcs","url":"y"}]}`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			config := jcsWrite(t, c.original)
-			source := jcsSource(t, config)
-			if c.add {
-				check(t, source.AddProperty(c.key, c.value))
-			} else {
-				check(t, source.RemoveProperty(c.key))
-			}
+			check(t, c.op.run(jcsSource(t, config), c.args))
+			assertCompactJSON(t, c.want, config)
+
+			config = jcsWrite(t, c.original)
+			check(t, jcsSource(t, config).rewrite(c.op.fallback, c.args))
 			assertCompactJSON(t, c.want, config)
 		})
 	}

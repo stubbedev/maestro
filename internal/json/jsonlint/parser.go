@@ -1,4 +1,4 @@
-// Package jsonlint ports seld/jsonlint 1.12.1 (Seld\JsonLint), the JSON
+// Package jsonlint ports seld/jsonlint 1.12.2 (Seld\JsonLint), the JSON
 // parser Composer falls back to for its "Parse error on line N" messages.
 //
 // Parsed values follow internal/php's value model. Behaviour is that of the
@@ -149,7 +149,7 @@ func Lint(input string, flags int) error {
 
 var (
 	unescapedBackslash = php.MustCompile(`{".+?(\\[^"bfnrt/\\u](...)?)}`)
-	unterminatedString = php.MustCompile(`{"(?:[^"]+|\\")*$}m`)
+	unterminatedString = php.MustCompile(`{"(?:[^"]++|\\")*$}m`)
 )
 
 // Parse ports JsonParser::parse. Errors are *ParsingError,
