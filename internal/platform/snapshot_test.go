@@ -142,6 +142,50 @@ func TestParseSnapshot_Values(t *testing.T) {
 	}
 }
 
+func TestParseSnapshot_PairWrappedMaps(t *testing.T) {
+	output := probeMarker + `{"format":1,
+		"ini":{"\u0000p":[["a","1"],["\u0000b",{"\u0000s":"/w=="}]]},
+		"constants":{"\u0000p":[["PHP_VERSION","8.4.27"],["PHP_VERSION_ID",80427],
+			["\u0000apc_register_serializer-0",1],["STDIN",{"\u0000r":"stream"}]]},
+		"class_constants":{"\u0000p":[["C",{"\u0000p":[["\u0000K",{"\u0000s":"/w=="}]]}]]},
+		"functions":["F",{"\u0000s":"/w=="}],
+		"extensions":[[{"\u0000s":"/w=="},"1.0",null]]}`
+
+	s, err := ParseSnapshot("php", []byte(output))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if s.Version != "8.4.27" || s.VersionID != 80427 {
+		t.Errorf("version %q %d", s.Version, s.VersionID)
+	}
+
+	if v, ok := s.Constant("\x00apc_register_serializer-0"); !ok || v != int64(1) {
+		t.Errorf("Constant(\\0apc_register_serializer-0) = %#v, %v", v, ok)
+	}
+
+	if v, ok := s.Constant("STDIN"); !ok || v != (Resource{Type: "stream"}) {
+		t.Errorf("Constant(STDIN) = %#v, %v", v, ok)
+	}
+
+	if v, ok := s.IniGet("\x00b"); !ok || v != "\xff" {
+		t.Errorf("IniGet(\\0b) = %q, %v", v, ok)
+	}
+
+	if _, ok := s.functions["\xff"]; !ok {
+		t.Errorf("functions = %q", s.functions)
+	}
+
+	if len(s.Extensions) != 1 || s.Extensions[0].Name != "\xff" {
+		t.Errorf("Extensions = %#v", s.Extensions)
+	}
+
+	consts, _ := s.classConstants.GetArray("C")
+	if v, _ := consts.GetString("\x00K"); v != "\xff" {
+		t.Errorf("C::\\0K = %q", v)
+	}
+}
+
 func TestSnapshotRuntime_NotProbed(t *testing.T) {
 	r := NewRuntime(goldenSnapshot(t, "php84"))
 
