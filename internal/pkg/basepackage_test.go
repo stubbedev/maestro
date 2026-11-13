@@ -143,6 +143,25 @@ func TestCompletePackage_GetTargetDir(t *testing.T) {
 	}
 }
 
+func TestCompletePackage_TargetDirectoryPreservesSeparators(t *testing.T) {
+	for _, c := range [][2]pkg.NullString{
+		{{}, {}},
+		{pkg.Str(""), pkg.Str("")},
+		{pkg.Str("src"), pkg.Str("src")},
+		{pkg.Str("//vendor/pkg"), pkg.Str("vendor/pkg")},
+		{pkg.Str("vendor/pkg/"), pkg.Str("vendor/pkg/")},
+		{pkg.Str(`\Foo\Bar`), pkg.Str(`\Foo\Bar`)},
+		{pkg.Str("a.b/c"), pkg.Str("a.b/c")},
+		{pkg.Str("foo/../bar"), pkg.Str("foo/bar")},
+	} {
+		p := pkg.NewPackage("a", "1.0.0.0", "1.0")
+		p.SetTargetDir(c[0])
+		if got := p.TargetDir(); got != c[1] {
+			t.Errorf("%v: got %v, want %v", c[0], got, c[1])
+		}
+	}
+}
+
 func TestCompletePackage_LastDateSetterWins(t *testing.T) {
 	p := pkg.NewPackage("foo", "1.0.0.0", "1.0")
 	at := func(s string) time.Time {

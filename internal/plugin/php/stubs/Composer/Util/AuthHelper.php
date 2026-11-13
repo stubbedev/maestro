@@ -45,4 +45,9 @@ class AuthHelper
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\AuthHelper::storeAuth() in plugins yet');
     }
+
+    public static function stripCredentialHeadersOnRedirect(array $options, string $fromUrl, string $toUrl): array
+    {
+        throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Util\\AuthHelper::stripCredentialHeadersOnRedirect() in plugins yet');
+    }
 }

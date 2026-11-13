@@ -45,7 +45,7 @@ type RepositoryManager struct {
 // findHttpHeaders reads, which a FilterRepository unwraps to.
 type HeaderRepository interface {
 	RepositoryInterface
-	// IsOwnDistUrl is isOwnDistUrl: whether a dist URL of the package
+	// IsOwnDistUrl is isOwnDistUrl: whether the package's canonical dist URL
 	// belongs to the repository.
 	IsOwnDistUrl(p pkg.PackageInterface) bool
 	// BaseURL is getBaseUrl.

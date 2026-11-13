@@ -244,6 +244,9 @@ func (p *Package) TargetDir() NullString {
 	if p.set&setTargetDir == 0 {
 		return NullString{}
 	}
+	if !strings.Contains(p.targetDir, ".") {
+		return Str(php.LtrimSet(p.targetDir, "/"))
+	}
 
 	s, _, err := targetDirDots.Replace(p.targetDir, "/", -1)
 	if err != nil {
@@ -659,18 +662,18 @@ func (p *Package) SetIsDefaultBranch(defaultBranch bool) {
 func (p *Package) IsDefaultBranch() bool { return p.isDefaultBranch }
 
 var (
-	autoDistURLHost = php.MustCompile(`{^https?://(?:(?:www\.)?bitbucket\.org|(api\.)?github\.com|(?:www\.)?gitlab\.com)/}i`)
-	distURLSha      = php.MustCompile(`{(?<=/|sha=)[a-f0-9]{40}(?=/|$)}i`)
+	autoDistURLHost = php.MustCompile(`{^https?://(?:(?:www\.)?bitbucket\.org|(api\.)?github\.com|(?:www\.)?gitlab\.com|codeberg\.org)/}i`)
+	distURLSha      = php.MustCompile(`{(?<=/|sha=)[a-f0-9]{40}(?=/|(?:\.zip)?(?:$|\?))}i`)
 )
 
 // SetSourceDistReferences ports Package::setSourceDistReferences: the
-// source reference, and the dist reference (and URL, for GitHub, GitLab
-// and Bitbucket) when there is one.
+// source reference, and the dist reference (and URL, for GitHub, GitLab,
+// Bitbucket and Codeberg) when there is one.
 func (p *Package) SetSourceDistReferences(reference string) {
 	p.need()
 	p.SetSourceReference(Str(reference))
 
-	// only bitbucket, github and gitlab have auto generated dist URLs that easily allow replacing the reference in the dist URL
+	// only bitbucket, codeberg, github and gitlab have auto generated dist URLs that easily allow replacing the reference in the dist URL
 	distURL := p.DistURL()
 	if distURL.Valid && mustMatch(autoDistURLHost, distURL.S) {
 		p.SetDistReference(Str(reference))

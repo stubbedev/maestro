@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -15,14 +15,14 @@ Failed to initialize global composer: Composer could not find the config file: @
 Reading ./composer.lock (@DIR@/p/composer.lock)
 Installing dependencies from lock file
 
-In Locker.php line 228:
+In Locker.php line 224:
                                                                                
   [RuntimeException]                                                           
   Your composer.lock is invalid. Run "composer update" to generate a new one.  
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Package/Locker.php:228
+  at @COMPOSER@/src/Composer/Package/Locker.php:224
  Composer\Package\Locker->getLockedRepository() at @COMPOSER@/src/Composer/Installer.php:766
  Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:329
  Composer\Installer->run() at @COMPOSER@/src/Composer/Command/InstallCommand.php:153

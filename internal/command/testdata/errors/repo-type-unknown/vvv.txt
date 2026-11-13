@@ -1,8 +1,8 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 
-In Factory.php line 317:
+In Factory.php line 319:
                                                                                
   [Composer\Json\JsonValidationException]                                      
   "./composer.json" does not match the expected JSON schema:                   
@@ -27,8 +27,8 @@ In Factory.php line 317:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Factory.php:317
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+  at @COMPOSER@/src/Composer/Factory.php:319
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:105
  Composer\Command\BaseCommand->requireComposer() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:137

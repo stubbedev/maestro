@@ -1,13 +1,13 @@
 Installing dependencies from lock file
 
-In Locker.php line 228:
+In Locker.php line 224:
                                                                                
   [RuntimeException]                                                           
   Your composer.lock is invalid. Run "composer update" to generate a new one.  
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Package/Locker.php:228
+  at @COMPOSER@/src/Composer/Package/Locker.php:224
  Composer\Package\Locker->getLockedRepository() at @COMPOSER@/src/Composer/Installer.php:766
  Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:329
  Composer\Installer->run() at @COMPOSER@/src/Composer/Command/InstallCommand.php:153

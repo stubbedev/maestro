@@ -1,6 +1,6 @@
 // Ports src/JsonSchema/SchemaStorage.php, src/JsonSchema/Uri/UriResolver.php,
 // src/JsonSchema/Uri/UriRetriever.php and src/JsonSchema/Entity/JsonPointer.php
-// of justinrainbow/json-schema 6.10.0.
+// of justinrainbow/json-schema 6.14.0.
 
 package jsonschema
 
@@ -67,7 +67,14 @@ func (v *Validator) addSchema(id string, schema any, retrieve bool) {
 		}
 	}
 
-	v.scanForSubschemas(schema, id)
+	baseID := id
+	if o, ok := schema.(*php.Object); ok {
+		if rootID, ok := findSchemaIDInObject(o); ok && rootID != id {
+			baseID, _ = resolveURI(rootID, id, true)
+		}
+	}
+
+	v.scanMembersForSubschemas(schema, baseID, "")
 	v.expandRefs(schema, id, "")
 	v.schemas[id] = schema
 }
@@ -123,7 +130,7 @@ func (v *Validator) expandRefs(schema any, parentID, parentProperty string) {
 	}
 
 	for name, member := range o.All() {
-		if parentProperty != "properties" && (name == "enum" || name == "const") {
+		if (name == "enum" || name == "const") && !isSchemaMapKeyword(parentProperty) {
 			continue
 		}
 		childID := parentID
@@ -134,8 +141,17 @@ func (v *Validator) expandRefs(schema any, parentID, parentProperty string) {
 	}
 }
 
-// scanForSubschemas ports SchemaStorage::scanForSubschemas.
-func (v *Validator) scanForSubschemas(schema any, parentID string) {
+func isSchemaMapKeyword(keyword string) bool {
+	switch keyword {
+	case "properties", "patternProperties", "definitions", "$defs", "dependencies", "dependentSchemas":
+		return true
+	}
+
+	return false
+}
+
+// scanMembersForSubschemas ports SchemaStorage::scanMembersForSubschemas.
+func (v *Validator) scanMembersForSubschemas(schema any, parentID, parentProperty string) {
 	var all func(yield func(string, any) bool)
 	switch s := schema.(type) {
 	case *php.Object:
@@ -152,25 +168,35 @@ func (v *Validator) scanForSubschemas(schema any, parentID string) {
 		return
 	}
 
-	for name, sub := range all {
-		so, ok := sub.(*php.Object)
-		if !ok {
-			if a, ok := sub.(*php.Array); ok {
-				for _, item := range a.All() {
-					v.scanForSubschemas(item, parentID)
-				}
+	for name, member := range all {
+		if (name == "enum" || name == "const") && !isSchemaMapKeyword(parentProperty) {
+			continue
+		}
+		if a, ok := member.(*php.Array); ok {
+			for _, item := range a.All() {
+				v.registerAndScanSubschema(item, parentID, name)
 			}
 			continue
 		}
-		if id, ok := findSchemaIDInObject(so); ok && so.Has("type") {
-			if name == "enum" || name == "const" {
-				continue
-			}
-			resolved, _ := resolveURI(id, parentID, true)
-			v.addSchema(resolved, so, false)
-		}
-		v.scanForSubschemas(so, parentID)
+		v.registerAndScanSubschema(member, parentID, name)
 	}
+}
+
+func (v *Validator) registerAndScanSubschema(subSchema any, parentID, parentProperty string) {
+	o, ok := subSchema.(*php.Object)
+	if !ok {
+		v.scanMembersForSubschemas(subSchema, parentID, parentProperty)
+
+		return
+	}
+
+	childID := parentID
+	if id, ok := findSchemaIDInObject(o); ok {
+		childID, _ = resolveURI(id, parentID, true)
+		v.schemas[childID] = o
+	}
+
+	v.scanMembersForSubschemas(o, childID, parentProperty)
 }
 
 // findSchemaIDInObject ports SchemaStorage::findSchemaIdInObject.
@@ -476,7 +502,11 @@ func resolveURI(uri, baseURI string, hasBase bool) (string, bool) {
 	}
 
 	base := parseURI(baseURI)
-	base.path = combineRelativePathWithBasePath(components.path, base.path)
+	basePath := base.path
+	if components.path != "" && basePath == "" && base.authority != "" {
+		basePath = "/"
+	}
+	base.path = combineRelativePathWithBasePath(components.path, basePath)
 	if components.hasFragment {
 		base.fragment, base.hasFragment = components.fragment, true
 	}

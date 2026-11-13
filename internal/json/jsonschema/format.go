@@ -1,6 +1,6 @@
 // Ports src/JsonSchema/Constraints/FormatConstraint.php,
 // Tool/Validator/UriValidator.php, Tool/Validator/RelativeReferenceValidator.php
-// and Rfc3339.php of justinrainbow/json-schema 6.10.0, with the parts of
+// and Rfc3339.php of justinrainbow/json-schema 6.14.0, with the parts of
 // PHP's ext/filter (FILTER_VALIDATE_EMAIL, FILTER_VALIDATE_IP) and
 // DateTime::createFromFormat they rely on.
 
@@ -167,10 +167,6 @@ func isRfc3339(input string) bool {
 	if !validDate(y, mo, d) {
 		return false
 	}
-	// DateTime's "u" takes at most 6 digits
-	if frac := m.Get(5); len(frac) > 7 {
-		return false
-	}
 	if m.Get(4) != "60" {
 		return true
 	}
@@ -302,6 +298,7 @@ var (
 	relativeEmptyAuth = php.MustCompile(`/^\/\/$/`)
 	relativeThree     = php.MustCompile(`/^\/\/\/[^\/]/`)
 	relativeSpace     = php.MustCompile(`/\s/`)
+	relativePercent   = php.MustCompile(`/%(?![0-9A-Fa-f]{2})/`)
 )
 
 // isValidRelativeReference ports RelativeReferenceValidator::isValid.
@@ -312,7 +309,7 @@ func isValidRelativeReference(ref string) bool {
 	if strings.Contains(ref, `\`) {
 		return false
 	}
-	for _, re := range []*php.Regexp{relativeAbsolute, relativeNoScheme, relativeBadSep, relativeEmptyAuth, relativeThree, relativeSpace} {
+	for _, re := range []*php.Regexp{relativeAbsolute, relativeNoScheme, relativeBadSep, relativeEmptyAuth, relativeThree, relativeSpace, relativePercent} {
 		if ok, _ := re.IsMatch(ref); ok {
 			return false
 		}

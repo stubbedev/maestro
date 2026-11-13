@@ -1,7 +1,7 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 Loading composer repositories with package information
 
-In VcsRepository.php line 205:
+In VcsRepository.php line 202:
                                                               
   No driver found to handle VCS repository /nonexistent/repo  
                                                               

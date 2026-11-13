@@ -424,6 +424,34 @@ func TestClassMapGenerator_Psr0OptimizedClassmapRespectsNamespacePrefix(t *testi
 	}
 }
 
+func TestPhpFileParser_RawSourcePreservesClassExtraction(t *testing.T) {
+	cases := []struct {
+		name, file string
+		expected   []string
+	}{
+		{"hash comments", "hash-comments.php", []string{`HashComments\Real`}},
+		{"hash comment ending at a close tag", "hash-close-tag.php", []string{`HashClose\Real`}},
+		{"slash comment ending at a close tag", "slash-close-tag.php", []string{`SlashClose\Real`}},
+		{"attributes", "attributes.php", []string{`Attributes\Real`}},
+		{"comment-spliced keyword", "comment-spliced-keyword.php", nil},
+		{"docblock class names", "docblock.php", []string{`Docblock\Real`}},
+		{"empty file", "empty.php", nil},
+		{"hash inside a shell string", "shell-hash.php", []string{`ShellHash\Real`}},
+		{"close tag inside a shell string", "shell-close-tag.php", []string{`ShellClose\Real`}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := FindClasses(testsDir(t) + "/Fixtures/raw-source/" + c.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got, c.expected) {
+				t.Errorf("got %q, want %q", got, c.expected)
+			}
+		})
+	}
+}
+
 func TestPhpFileParser_FindClassesThrowsWhenFileDoesNotExist(t *testing.T) {
 	_, err := FindClasses(testsDir(t) + "/no-file")
 	expectException(t, err, classRuntime, "does not exist")

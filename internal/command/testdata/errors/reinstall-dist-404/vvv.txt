@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -22,7 +22,7 @@ Downloading http://@SERVER@/status/404/x.zip
 [404] http://@SERVER@/status/404/x.zip
     Failed to download x/y from dist: The "http://@SERVER@/status/404/x.zip" file could not be downloaded (HTTP/1.1 404 Not Found)
 
-In CurlDownloader.php line 966:
+In CurlDownloader.php line 1027:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   The "http://@SERVER@/status/404/x.zip" file could not be downloaded   
@@ -30,8 +30,8 @@ In CurlDownloader.php line 966:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:966
- Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:566
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:1027
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:618
  Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
  Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/Loop.php:103
  Composer\Util\Loop->runJobs() at @COMPOSER@/src/Composer/Util/Loop.php:75

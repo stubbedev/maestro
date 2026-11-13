@@ -15,13 +15,13 @@ Exception trace:
   at @COMPOSER@/src/Composer/Json/JsonFile.php:401
  Composer\Json\JsonFile::validateSyntax() at @COMPOSER@/src/Composer/Json/JsonFile.php:366
  Composer\Json\JsonFile::parseJson() at @COMPOSER@/src/Composer/Json/JsonFile.php:130
- Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Package/Locker.php:364
- Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:150
+ Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Package/Locker.php:360
+ Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:146
  Composer\Package\Locker->isLocked() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:690
  Composer\Plugin\PluginManager->parseAllowedPlugins() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:90
- Composer\Plugin\PluginManager->__construct() at @COMPOSER@/src/Composer/Factory.php:576
- Composer\Factory->createPluginManager() at @COMPOSER@/src/Composer/Factory.php:443
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+ Composer\Plugin\PluginManager->__construct() at @COMPOSER@/src/Composer/Factory.php:583
+ Composer\Factory->createPluginManager() at @COMPOSER@/src/Composer/Factory.php:450
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Console/Application.php:680
  Composer\Console\Application->getComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:131
  Composer\Command\BaseCommand->tryComposer() at @COMPOSER@/src/Composer/Command/BaseCommand.php:242

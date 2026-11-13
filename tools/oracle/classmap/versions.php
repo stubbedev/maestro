@@ -120,6 +120,8 @@ $cases = [
     "<?php function f(#[A] \$a, #[B] \$b) {} class A {}",
     "<?php #[A]?>\nclass B {}",
     "<?php #[A]?>\n<?php class B {}",
+    "<?php namespace Attributes;\n#[Attr(\"class Fake {}\")]\nclass Real {}",
+    "<?php #[A] class B {} # class C {}\n",
     // 8.0: line comments and their newline
     "<?php // c\nclass A {}",
     "<?php \$a//c\n\$b; class A {}",
@@ -134,6 +136,13 @@ $cases = [
     "<?php /** c */class A {}",
     "<?php // c",
     "<?php #",
+    "<?php namespace HashClose; # question? class Fake {} ?> class Outside {} <?php class Real {}",
+    "<?php namespace SlashClose; // question? class Fake {} ?> class Outside {} <?php class Real {}",
+    "<?php # a?b\nclass A {}",
+    "<?php // ??> class B {}",
+    "<?php namespace ShellHash; \$cmd = `echo # class Fake {}`; class Real {}",
+    "<?php namespace ShellClose; \$cmd = `echo // ?> class Fake {}`; class Real {}",
+    "<?php namespace Spliced; cl/**/ass Real {}",
     // 8.0: shebang
     "#!/usr/bin/env php\n<?php class A {}",
     "#!/usr/bin/env php\r\n<?php class A {}",

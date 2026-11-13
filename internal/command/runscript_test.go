@@ -17,6 +17,29 @@ import (
 	"github.com/stubbedev/maestro/internal/switches"
 )
 
+func TestRunScriptCommand_CliScriptInheritsEnvironment(t *testing.T) {
+	if !switches.On(switches.PHPTests) {
+		t.Skip("set MAESTRO_PHP_TESTS=1 to run the @php script with php")
+	}
+	commandtest.InitTempComposer(t, `{"scripts": {"check-env": "@php check-env.php"}}`, nil, nil, true)
+	if err := os.WriteFile("check-env.php", []byte(`<?php echo getenv("COMPOSER_TEST_SCRIPT_ENV");`), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("COMPOSER_TEST_SCRIPT_ENV", "inherited value")
+
+	tester := commandtest.GetApplicationTester(t)
+	code, err := tester.RunArgs(commandtest.Options{CaptureStderrSeparately: true}, "command", "run-script", "script", "check-env", "--no-interaction", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 0 {
+		t.Fatalf("status %d: %s", code, tester.ErrorOutput(true))
+	}
+	if got := tester.Display(false); got != "inherited value" {
+		t.Errorf("output %q, want %q", got, "inherited value")
+	}
+}
+
 func TestRunScriptCommand_DetectAndPassDevModeToEventAndToDispatching(t *testing.T) {
 	for _, tc := range []struct{ dev, noDev bool }{
 		{true, true},

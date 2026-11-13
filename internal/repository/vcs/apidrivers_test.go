@@ -130,6 +130,22 @@ func TestGitBitbucketDriver_Supports(t *testing.T) {
 	}
 }
 
+func TestGitBitbucketDriver_GitFallbackCanBeDisabled(t *testing.T) {
+	t.Parallel()
+
+	http := httpmock.New()
+	http.Expects([]httpmock.Expectation{{URL: bitbucketRepoAPI, Status: 404}}, true, nil)
+
+	process := processmock.New()
+	process.Expects(nil, false, &processmock.Expectation{Return: 1})
+
+	driver := NewGitBitbucketDriver(php.ArrayOf("url", "https://bitbucket.org/user/repo.git", "allow-git-fallback", false), deps(newTestIO(), newConfig(t, t.TempDir()), http, process))
+	noErr(t, driver.Initialize())
+
+	_, err := driver.RootIdentifier()
+	expectGitFallbackDisabled(t, err)
+}
+
 const forgejoRepoData = `{"default_branch":"main","has_issues":true,"archived":false,"private":false,"html_url":"https:\/\/codeberg.org\/acme\/repo","ssh_url":"git@codeberg.org:acme\/repo.git","clone_url":"https:\/\/codeberg.org\/acme\/repo.git"}`
 
 func startForgejoDriver(t *testing.T, expectations ...httpmock.Expectation) (*ForgejoDriver, *httpmock.Downloader) {
@@ -207,4 +223,15 @@ func TestForgejoDriver_Supports(t *testing.T) {
 			t.Errorf("supports(%q) = %v, %v", url, got, err)
 		}
 	}
+}
+
+func TestForgejoDriver_GitFallbackCanBeDisabled(t *testing.T) {
+	t.Parallel()
+
+	http := httpmock.New()
+	http.Expects([]httpmock.Expectation{{URL: "https://codeberg.org/api/v1/repos/acme/repo", Status: 404}}, true, nil)
+
+	driver := NewForgejoDriver(php.ArrayOf("url", "https://codeberg.org/acme/repo.git", "allow-git-fallback", false), deps(newTestIO(), newConfig(t, t.TempDir(), "forgejo-domains", php.ListOf("codeberg.org")), http, processmock.New()))
+
+	expectGitFallbackDisabled(t, driver.Initialize())
 }

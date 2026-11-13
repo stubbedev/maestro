@@ -1,7 +1,8 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/scripts" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
@@ -15,16 +16,16 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.vBhRQo-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.KwXOJw-run-p-packages.json/packages.json into cache
 Installing x/scripts (1.0.0)
   - Downloading x/scripts (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/scripts.zip
 [200] http://@SERVER@/scripts.zip
-Writing @DIR@/cache/files/x/scripts/677ee1d4fdd0b6b5dd03d44a99b7ba9fbaf7f6a7.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
+Writing @DIR@/cache/files/x/scripts/09da6ddd9a04898c5841d4f14ec5e2014922c0ba.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
   - Installing x/scripts (1.0.0): Extracting archive
-Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/1434a428'
-Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/1434a428'
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/6ece25aa'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/6ece25aa'
 Created project in @DIR@/p/out
 Reading ./composer.json (@DIR@/p/out/composer.json)
 Loading config file ./composer.json (@DIR@/p/out/composer.json)
@@ -34,7 +35,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 Executing command (CWD): echo root package installed
 root package installed
 Loading composer repositories with package information
-Built pool in 0.00070095062255859s
+Built pool in 0.00041007995605469s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.

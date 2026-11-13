@@ -3,11 +3,12 @@
 // (Zend/zend_language_scanner.l) that decide its output, as of every PHP
 // minor version Composer 2.10 runs on (7.2 to 8.5; see phpVersion).
 //
-// PhpFileParser::findClasses() runs every file through php_strip_whitespace()
-// before looking for classes, so the classes found depend on exactly how PHP
-// tokenizes the file: which bytes are whitespace or comments (dropped),
-// where strings, heredocs and inline HTML start and end (kept verbatim), and
-// the quirks of zend_strip() around heredoc terminators. That changes from
+// PhpFileParser::findClasses() runs every file holding a shell string through
+// php_strip_whitespace() before looking for classes, so the classes found in
+// those depend on exactly how PHP tokenizes the file: which bytes are
+// whitespace or comments (dropped), where strings, heredocs and inline HTML
+// start and end (kept verbatim), and the quirks of zend_strip() around
+// heredoc terminators. That changes from
 // one PHP version to the next, so the scanner follows the version of the
 // PHP Composer runs on (Parser.PHPVersionID).
 //

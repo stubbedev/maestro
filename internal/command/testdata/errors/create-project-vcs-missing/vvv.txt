@@ -1,7 +1,8 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/plain" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 Checked CA file @CAFILE@: valid
 Executing command (CWD): 'git' '--version'
 Executing command (@DIR@/p): 'git' 'branch' '-a' '--no-color' '--no-abbrev' '-v'
@@ -20,14 +21,14 @@ Executing command (CWD): 'hg' 'identify' '--' 'missing'
 Executing command (CWD): 'p4' '-p' 'missing' 'info' '-s'
 Executing command (CWD): 'svn' 'info' '--non-interactive' '--' 'missing'
 
-In VcsRepository.php line 205:
+In VcsRepository.php line 202:
                                                     
   [InvalidArgumentException]                        
   No driver found to handle VCS repository missing  
                                                     
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Repository/VcsRepository.php:205
+  at @COMPOSER@/src/Composer/Repository/VcsRepository.php:202
  Composer\Repository\VcsRepository->initialize() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:308
  Composer\Repository\ArrayRepository->getPackages() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:62
  Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:203

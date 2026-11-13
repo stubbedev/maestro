@@ -241,11 +241,12 @@ type dlURL struct {
 
 // dlState is what download()'s closures share by reference.
 type dlState struct {
-	c        call
-	p        pkg.PackageInterface
-	fileName string
-	urls     []dlURL
-	retries  int
+	c               call
+	p               pkg.PackageInterface
+	fileName        string
+	urls            []dlURL
+	retries         int
+	canonicalOrigin string
 	// release and archive are a cache hit of a store-backed download whose
 	// release the store holds: the release, and the cached archive, open
 	// in case the store lost objects of it.
@@ -297,6 +298,12 @@ func (d *FileDownloader) startDownload(c call, p pkg.PackageInterface, path stri
 		// the same package in packagist for example.
 		st.urls = append(st.urls, dlURL{base: url, processed: processed, cacheKey: cacheKey(p, processed)})
 	}
+
+	canonicalOrigin, err := d.canonicalDistOrigin(p)
+	if err != nil {
+		return nil, err
+	}
+	st.canonicalOrigin = canonicalOrigin
 
 	fileName, err := d.fileName(p, path)
 	if err != nil {
@@ -363,7 +370,7 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 			st.c.io.WriteError("  - Downloading <info>"+p.Name()+"</info> (<comment>"+p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>)", true, mio.Normal)
 		}
 
-		transfer, err := d.transfer(p, url.processed, st.fileName)
+		transfer, err := d.transfer(p, url.processed, st.fileName, distTransportOptions(p, st.canonicalOrigin, url.processed))
 		if err != nil {
 			return nil, err
 		}
@@ -409,6 +416,35 @@ func (d *FileDownloader) attempt(st *dlState) (*Promise, error) {
 
 		return nil, st.fileName, nil
 	}, nil), nil
+}
+
+func (d *FileDownloader) canonicalDistOrigin(p pkg.PackageInterface) (string, error) {
+	canonical, err := d.processURL(p, p.DistURL().S)
+	if err != nil {
+		return "", err
+	}
+	origin, _ := util.URLOrigin(canonical)
+
+	return origin, nil
+}
+
+func distTransportOptions(p pkg.PackageInterface, canonicalOrigin, url string) *php.Array {
+	options := p.TransportOptions()
+	if httpOptions, ok := options.At("http").(*php.Array); !ok || !httpOptions.Isset("header") {
+		return options
+	}
+	if origin, _ := util.URLOrigin(url); canonicalOrigin != "" && origin == canonicalOrigin {
+		return options
+	}
+
+	options = options.Clone()
+	httpOptions, _ := options.At("http").(*php.Array)
+	httpOptions.Delete("header")
+	if httpOptions.Len() == 0 {
+		options.Delete("http")
+	}
+
+	return options
 }
 
 // fromCache is the files cache branch of download(): the cached archive

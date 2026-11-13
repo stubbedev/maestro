@@ -93,9 +93,9 @@ func TestShimStubs_FileDownloaderSubclass(t *testing.T) {
 		"same true true",
 		"downloaded true",
 		"installed payload",
-		"log processUrl,getFileName,install,getFileName",
+		"log processUrl,processUrl,getFileName,install,getFileName",
 		`update: You must use the ProcessExecutor instance which is part of a Composer\Loop instance to be able to run async processes`,
-		"log processUrl,getFileName,appendix",
+		"log processUrl,processUrl,getFileName,appendix",
 	}, "\n")
 	if g := lines(got); g != want {
 		t.Errorf("got\n%s\nwant\n%s\noutput:\n%s", g, want, p.output())

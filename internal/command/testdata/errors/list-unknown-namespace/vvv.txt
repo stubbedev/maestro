@@ -1,13 +1,13 @@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
    ______
   / ____/___  ____ ___  ____  ____  ________  _____
  / /   / __ \/ __ `__ \/ __ \/ __ \/ ___/ _ \/ ___/
 / /___/ /_/ / / / / / / /_/ / /_/ (__  )  __/ /
 \____/\____/_/ /_/ /_/ .___/\____/____/\___/_/
                     /_/
-Composer version 2.11.1 2026-10-30 14:52:10
+Composer version 2.11.2 2026-11-10 10:09:37
 
 Usage:
   command [options] [arguments]

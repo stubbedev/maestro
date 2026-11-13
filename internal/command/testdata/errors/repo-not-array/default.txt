@@ -1,5 +1,5 @@
 
-In Factory.php line 317:
+In Factory.php line 319:
                                                                           
   "./composer.json" does not match the expected JSON schema:              
    - repositories.foo : String value found, but an object is required     

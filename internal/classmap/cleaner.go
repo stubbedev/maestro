@@ -9,26 +9,37 @@ import "bytes"
 // Before 8.1 "enum" is not one (phpFileCleaner.enums).
 var classTypes = [256]string{'c': "class", 'i': "interface", 't': "trait", 'e': "enum"}
 
-// cleanerReject is PhpFileCleaner::$rejectChars: ?"'</ plus the type keys.
+// cleanerReject is PhpFileCleaner::$rejectChars: ?"'`</# plus the type keys.
 // Without enums "e" is not one, which only changes how PHP copies the
 // text between reject characters, not the result.
-var cleanerReject = [256]bool{'?': true, '"': true, '\'': true, '<': true, '/': true, 'c': true, 'i': true, 't': true, 'e': true}
+var cleanerReject = [256]bool{'?': true, '"': true, '\'': true, '`': true, '<': true, '/': true, '#': true, 'c': true, 'i': true, 't': true, 'e': true}
 
 // phpFileCleaner is PhpFileCleaner: it blanks out strings, heredocs and
-// comments of php_strip_whitespace() output so that class keywords inside
-// them are not found.
+// comments of the source, or of its php_strip_whitespace() output, so that
+// class keywords inside them are not found.
 type phpFileCleaner struct {
 	contents   []byte
 	len        int
 	maxMatches int
 	index      int
 	enums      bool // "enum" is a type keyword
+	attributes bool
+	raw        bool
 }
 
 // cleanPhpFile is PhpFileCleaner::clean() for the given contents and number
-// of candidate type keywords. The result is appended to dst.
-func cleanPhpFile(dst, contents []byte, maxMatches int, enums bool) []byte {
-	p := phpFileCleaner{contents: contents, len: len(contents), maxMatches: maxMatches, enums: enums}
+// of candidate type keywords, under the PHP version v. raw is whether the
+// contents are the source rather than php_strip_whitespace() output. The
+// result is appended to dst.
+func cleanPhpFile(dst, contents []byte, maxMatches int, v phpVersion, raw bool) []byte {
+	p := phpFileCleaner{
+		contents:   contents,
+		len:        len(contents),
+		maxMatches: maxMatches,
+		enums:      v >= php81,
+		attributes: v >= php80,
+		raw:        raw,
+	}
 
 	return p.clean(dst)
 }
@@ -48,7 +59,7 @@ func (p *phpFileCleaner) clean(clean []byte) []byte {
 				p.index += 2
 
 				break inner
-			case char == '"' || char == '\'':
+			case char == '"' || char == '\'' || char == '`':
 				p.skipString(char)
 				clean = append(clean, "null"...)
 
@@ -61,8 +72,12 @@ func (p *phpFileCleaner) clean(clean []byte) []byte {
 
 					continue
 				}
+			case char == '#' && p.raw && (!p.attributes || !p.peek('[')):
+				p.skipToNewline(true)
+
+				continue
 			case char == '/' && p.peek('/'):
-				p.skipToNewline()
+				p.skipToNewline(p.raw)
 
 				continue
 			case char == '/' && p.peek('*'):
@@ -213,11 +228,21 @@ func (p *phpFileCleaner) skipComment() {
 	}
 }
 
-func (p *phpFileCleaner) skipToNewline() {
-	if i := bytes.IndexAny(p.contents[p.index:], "\r\n"); i >= 0 {
-		p.index += i
-	} else {
-		p.index = p.len
+func (p *phpFileCleaner) skipToNewline(phpComment bool) {
+	stops := "\r\n"
+	if phpComment {
+		stops = "\r\n?"
+	}
+	for {
+		if i := bytes.IndexAny(p.contents[p.index:], stops); i >= 0 {
+			p.index += i
+		} else {
+			p.index = p.len
+		}
+		if !phpComment || p.index >= p.len || p.contents[p.index] != '?' || p.peek('>') {
+			return
+		}
+		p.index++
 	}
 }
 
@@ -240,7 +265,7 @@ func (p *phpFileCleaner) skipHeredoc(delimiter []byte) {
 		}
 
 		// skip the rest of the line
-		p.skipToNewline()
+		p.skipToNewline(false)
 
 		// skip newlines
 		for p.index < p.len && (c[p.index] == '\r' || c[p.index] == '\n') {

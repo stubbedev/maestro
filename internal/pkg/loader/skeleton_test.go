@@ -37,13 +37,17 @@ func TestSkeletonFits(t *testing.T) {
 	if !l.SkeletonChecker().Fits(skeletonVersion()) {
 		t.Fatal("a regular version does not fit")
 	}
+	ignoredOptions := skeletonVersion()
+	ignoredOptions.Set("transport-options", "x")
+	if !l.SkeletonChecker().Fits(ignoredOptions) {
+		t.Fatal("a version with transport options that are not an array does not fit")
+	}
 
 	for name, change := range map[string]func(v *php.Array){
 		"reserved script":   func(v *php.Array) { v.Set("scripts", php.ArrayOf("php", "x")) },
 		"relative date":     func(v *php.Array) { v.Set("time", "yesterday noon") },
 		"date of this year": func(v *php.Array) { v.Set("time", "May 6") },
 		"bad dist":          func(v *php.Array) { v.Set("dist", "x") },
-		"bad options":       func(v *php.Array) { v.Set("transport-options", "x") },
 		"bad bin":           func(v *php.Array) { v.Set("bin", php.ListOf(1)) },
 	} {
 		v := skeletonVersion()

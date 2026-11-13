@@ -12,7 +12,7 @@ Executing command (@DIR@/p): 'svn' 'info' '--xml'
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 
 In ShowCommand.php line 245:
                                                                                

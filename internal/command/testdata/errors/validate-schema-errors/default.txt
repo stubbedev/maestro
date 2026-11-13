@@ -1,5 +1,5 @@
 
-In Factory.php line 317:
+In Factory.php line 319:
                                                                                
   "./composer.json" does not match the expected JSON schema:                   
    - name : Does not match the regex pattern ^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z  

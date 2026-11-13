@@ -85,7 +85,7 @@ func (d *GitHubDriver) Initialize() error {
 		return err
 	}
 
-	if v, _ := d.repoConfig.Get("allow-git-fallback"); v == false {
+	if gitFallbackDisabled(d.repoConfig) {
 		d.allowGitFallback = false
 	}
 
@@ -782,12 +782,7 @@ func (d *GitHubDriver) fetchRootIdentifier() error {
 // on the SSH url.
 func (d *GitHubDriver) attemptCloneFallback(previous *util.TransportError) error {
 	if !d.allowGitFallback {
-		fallbackErr := &util.RuntimeError{Message: "Fallback to git driver disabled"}
-		if previous != nil {
-			fallbackErr.Prev = previous
-		}
-
-		return fallbackErr
+		return gitFallbackDisabledError(previous)
 	}
 
 	d.isPrivate = true
@@ -809,7 +804,7 @@ func (d *GitHubDriver) attemptCloneFallback(previous *util.TransportError) error
 // setupGitDriver ports setupGitDriver.
 func (d *GitHubDriver) setupGitDriver(url string) error {
 	if !d.allowGitFallback {
-		return &util.RuntimeError{Message: "Fallback to git driver disabled"}
+		return gitFallbackDisabledError(nil)
 	}
 
 	d.gitDriver = NewGitDriver(php.ArrayOf("url", url), d.deps)

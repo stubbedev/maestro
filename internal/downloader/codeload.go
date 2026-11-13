@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/eventdispatcher"
+	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/util"
 	"github.com/stubbedev/maestro/internal/util/http"
@@ -40,17 +41,25 @@ func (d *FileDownloader) codeloadURL(p pkg.PackageInterface, url string) string 
 	return "https://codeload.github.com/" + parts[0] + "/" + parts[1] + "/legacy.zip/" + parts[3]
 }
 
+func (d *FileDownloader) codeloadRequest(p pkg.PackageInterface, url string, options *php.Array) (string, *php.Array) {
+	direct := d.codeloadURL(p, url)
+	if direct == "" {
+		return "", nil
+	}
+
+	return direct, http.StripCredentialHeadersOnRedirect(options, url, direct)
+}
+
 // transfer requests p's dist at url into file: from codeload.github.com
 // when GitHub serves it there (codeloadURL), and from url when that fails
 // in any way, so that what fails is url's request (a private repository
 // is not found there, and takes url's authentication).
-func (d *FileDownloader) transfer(p pkg.PackageInterface, url, file string) (*util.Promise[*http.Response], error) {
-	options := p.TransportOptions()
-	direct := d.codeloadURL(p, url)
+func (d *FileDownloader) transfer(p pkg.PackageInterface, url, file string, options *php.Array) (*util.Promise[*http.Response], error) {
+	direct, directOptions := d.codeloadRequest(p, url, options)
 	if direct == "" {
 		return d.http.AddCopy(url, file, options)
 	}
-	first, err := d.http.AddCopy(direct, file, options)
+	first, err := d.http.AddCopy(direct, file, directOptions)
 	if err != nil {
 		return d.http.AddCopy(url, file, options)
 	}

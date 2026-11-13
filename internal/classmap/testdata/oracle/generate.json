@@ -269,6 +269,34 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
+                ],
+                [
+                    "Attributes\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/attributes.php"
+                ],
+                [
+                    "Docblock\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/docblock.php"
+                ],
+                [
+                    "HashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-close-tag.php"
+                ],
+                [
+                    "HashComments\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-comments.php"
+                ],
+                [
+                    "ShellClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-close-tag.php"
+                ],
+                [
+                    "ShellHash\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-hash.php"
+                ],
+                [
+                    "SlashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/slash-close-tag.php"
                 ]
             ],
             "ambiguous": [
@@ -554,6 +582,34 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
+                ],
+                [
+                    "Attributes\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/attributes.php"
+                ],
+                [
+                    "Docblock\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/docblock.php"
+                ],
+                [
+                    "HashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-close-tag.php"
+                ],
+                [
+                    "HashComments\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-comments.php"
+                ],
+                [
+                    "ShellClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-close-tag.php"
+                ],
+                [
+                    "ShellHash\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-hash.php"
+                ],
+                [
+                    "SlashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/slash-close-tag.php"
                 ]
             ],
             "ambiguous": [
@@ -854,6 +910,34 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
+                ],
+                [
+                    "Attributes\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/attributes.php"
+                ],
+                [
+                    "Docblock\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/docblock.php"
+                ],
+                [
+                    "HashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-close-tag.php"
+                ],
+                [
+                    "HashComments\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-comments.php"
+                ],
+                [
+                    "ShellClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-close-tag.php"
+                ],
+                [
+                    "ShellHash\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-hash.php"
+                ],
+                [
+                    "SlashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/slash-close-tag.php"
                 ]
             ],
             "ambiguous": [
@@ -1388,7 +1472,14 @@
                 "Class ExpectedNamespace\\ClassWithCorrectNameSpace located in ./tests/Fixtures/psrViolations/ClassWithCorrectNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class ExpectedNamespace\\UnexpectedSubNamespace\\ClassWithIncorrectSubNamespace located in ./tests/Fixtures/psrViolations/ClassWithIncorrectSubNamespace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
                 "Class UnexpectedNamespace\\ClassWithNameSpaceOutsideConfiguredScope located in ./tests/Fixtures/psrViolations/ClassWithNameSpaceOutsideConfiguredScope.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
-                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping."
+                "Class ClassWithoutNameSpace located in ./tests/Fixtures/psrViolations/ClassWithoutNameSpace.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Attributes\\Real located in ./tests/Fixtures/raw-source/attributes.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class Docblock\\Real located in ./tests/Fixtures/raw-source/docblock.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class HashClose\\Real located in ./tests/Fixtures/raw-source/hash-close-tag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class HashComments\\Real located in ./tests/Fixtures/raw-source/hash-comments.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ShellClose\\Real located in ./tests/Fixtures/raw-source/shell-close-tag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class ShellHash\\Real located in ./tests/Fixtures/raw-source/shell-hash.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                "Class SlashClose\\Real located in ./tests/Fixtures/raw-source/slash-close-tag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping."
             ],
             "rawViolations": [
                 [
@@ -1863,6 +1954,69 @@
                             "ClassWithoutNameSpace"
                         ]
                     ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/attributes.php",
+                    [
+                        [
+                            "Class Attributes\\Real located in ./tests/Fixtures/raw-source/attributes.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Attributes\\Real"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/docblock.php",
+                    [
+                        [
+                            "Class Docblock\\Real located in ./tests/Fixtures/raw-source/docblock.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "Docblock\\Real"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/hash-close-tag.php",
+                    [
+                        [
+                            "Class HashClose\\Real located in ./tests/Fixtures/raw-source/hash-close-tag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "HashClose\\Real"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/hash-comments.php",
+                    [
+                        [
+                            "Class HashComments\\Real located in ./tests/Fixtures/raw-source/hash-comments.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "HashComments\\Real"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/shell-close-tag.php",
+                    [
+                        [
+                            "Class ShellClose\\Real located in ./tests/Fixtures/raw-source/shell-close-tag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ShellClose\\Real"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/shell-hash.php",
+                    [
+                        [
+                            "Class ShellHash\\Real located in ./tests/Fixtures/raw-source/shell-hash.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "ShellHash\\Real"
+                        ]
+                    ]
+                ],
+                [
+                    "<cwd>/tests/Fixtures/raw-source/slash-close-tag.php",
+                    [
+                        [
+                            "Class SlashClose\\Real located in ./tests/Fixtures/raw-source/slash-close-tag.php does not comply with psr-0 autoloading standard (rule: Pearlike_ => ./tests/Fixtures). Skipping.",
+                            "SlashClose\\Real"
+                        ]
+                    ]
                 ]
             ]
         }
@@ -2029,6 +2183,34 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
+                ],
+                [
+                    "Attributes\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/attributes.php"
+                ],
+                [
+                    "Docblock\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/docblock.php"
+                ],
+                [
+                    "HashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-close-tag.php"
+                ],
+                [
+                    "HashComments\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-comments.php"
+                ],
+                [
+                    "ShellClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-close-tag.php"
+                ],
+                [
+                    "ShellHash\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-hash.php"
+                ],
+                [
+                    "SlashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/slash-close-tag.php"
                 ]
             ],
             "ambiguous": [],
@@ -2203,6 +2385,34 @@
                 [
                     "ClassWithoutNameSpace",
                     "<cwd>/tests/Fixtures/psrViolations/ClassWithoutNameSpace.php"
+                ],
+                [
+                    "Attributes\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/attributes.php"
+                ],
+                [
+                    "Docblock\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/docblock.php"
+                ],
+                [
+                    "HashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-close-tag.php"
+                ],
+                [
+                    "HashComments\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/hash-comments.php"
+                ],
+                [
+                    "ShellClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-close-tag.php"
+                ],
+                [
+                    "ShellHash\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/shell-hash.php"
+                ],
+                [
+                    "SlashClose\\Real",
+                    "<cwd>/tests/Fixtures/raw-source/slash-close-tag.php"
                 ]
             ],
             "ambiguous": [],
@@ -2785,7 +2995,7 @@
             }
         ],
         "result": {
-            "digest": "fa6f74f7e02032234d80229219748112"
+            "digest": "851661c18685fbcfb637459095cf6797"
         }
     },
     {
@@ -2808,7 +3018,7 @@
             }
         ],
         "result": {
-            "digest": "c2c759771d56b3591426c4441c06de59"
+            "digest": "27c8cad220778c2c681c30fa1471643b"
         }
     },
     {
@@ -2827,7 +3037,7 @@
             }
         ],
         "result": {
-            "digest": "ea720c272d6fb475ac840a8eae5ce64c"
+            "digest": "be21a05074d775e0fa62e9e958074281"
         }
     },
     {

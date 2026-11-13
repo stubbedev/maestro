@@ -857,11 +857,12 @@ func directorySize(dir string) (int64, error) {
 // TrimTrailingSlash ports Filesystem::trimTrailingSlash, which leaves a path
 // of only slashes alone.
 func TrimTrailingSlash(path string) string {
-	if !isOnlySlashes(path) {
-		path = strings.TrimRight(path, `/\`)
+	trimmed := strings.TrimRight(path, `/\`)
+	if trimmed == "" {
+		return path
 	}
 
-	return path
+	return trimmed
 }
 
 // IsLocalPath ports Filesystem::isLocalPath.

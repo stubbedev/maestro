@@ -10,14 +10,14 @@ In Config.php line 721:
 
 Exception trace:
   at @COMPOSER@/src/Composer/Config.php:721
- Composer\Config->prohibitUrlByConfig() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:212
- Composer\Util\Http\CurlDownloader->initDownload() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:180
+ Composer\Config->prohibitUrlByConfig() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:231
+ Composer\Util\Http\CurlDownloader->initDownload() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:193
  Composer\Util\Http\CurlDownloader->download() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:342
  Composer\Util\HttpDownloader->startJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:300
  Composer\Util\HttpDownloader->addJob() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:108
- Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1827
- Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1533
- Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:711
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1858
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1564
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:717
  Composer\Repository\ComposerRepository->hasSecurityAdvisories() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:313
  Composer\Repository\RepositorySet->getSecurityAdvisoriesForConstraints() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:298
  Composer\Repository\RepositorySet->getMatchingSecurityAdvisories() at @COMPOSER@/src/Composer/Advisory/Auditor.php:86

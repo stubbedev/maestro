@@ -96,3 +96,18 @@ func searchLabel(needle string, strict bool, fallback string, haystacks ...func(
 
 	return fallback, nil
 }
+
+func gitFallbackDisabled(repoConfig *php.Array) bool {
+	v, _ := repoConfig.Get("allow-git-fallback")
+
+	return v == false
+}
+
+func gitFallbackDisabledError(previous *util.TransportError) error {
+	err := &util.RuntimeError{Message: "Fallback to git driver disabled"}
+	if previous != nil {
+		err.Prev = previous
+	}
+
+	return err
+}

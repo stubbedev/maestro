@@ -342,7 +342,7 @@ func TestGit_SyncMirrorSanitizesUrlEvenAfterFailedUpdate(t *testing.T) {
 		{Cmd: util.Cmd("git", "rev-parse", "--git-dir"), Stdout: ".\n"},
 		processmock.Cmd("git", "remote", "-v"),
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "https://user:secret@example.com/repo.git"),
-		{Cmd: util.Cmd("git", "remote", "update", "--prune", "origin"), Return: 1},
+		{Cmd: util.Cmd("git", "-c", "remote.origin.followRemoteHEAD=always", "remote", "update", "--prune", "origin"), Return: 1},
 		processmock.Cmd("git", "--version"),
 		processmock.Cmd("git", "remote", "-v"),
 		processmock.Cmd("git", "remote", "set-url", "origin", "--", "https://example.com/repo.git"),

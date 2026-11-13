@@ -135,6 +135,7 @@ type CurlDownloader struct {
 	selectTimeout time.Duration
 	maxRedirects  int
 	maxRetries    int
+	stallTimeout  time.Duration
 }
 
 func newCurlDownloader(ioi io.IO, config Config, rt Runtime, mu *sync.Mutex) *CurlDownloader {
@@ -157,7 +158,25 @@ func newCurlDownloader(ioi io.IO, config Config, rt Runtime, mu *sync.Mutex) *Cu
 		selectTimeout: 5 * time.Second,
 		maxRedirects:  20,
 		maxRetries:    3,
+		stallTimeout:  stallTimeoutFromEnv(),
 	}
+}
+
+func stallTimeoutFromEnv() time.Duration {
+	v, ok := util.GetEnv("COMPOSER_HTTP_STALL_TIMEOUT")
+	if !ok || v == "" || strings.Trim(v, "0123456789") != "" {
+		return 30 * time.Second
+	}
+
+	return secondsDuration(php.ToInt(v))
+}
+
+func secondsDuration(seconds int64) time.Duration {
+	if seconds > int64(math.MaxInt64/time.Second) {
+		return math.MaxInt64
+	}
+
+	return time.Duration(seconds) * time.Second
 }
 
 // Download is download($resolve, $reject, $origin, $url, $options,
@@ -207,6 +226,10 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 
 	originalOptions := options
 
+	if err := checkAccessCallables(options); err != nil {
+		return err
+	}
+
 	// check URL can be accessed (i.e. is not insecure), but allow insecure
 	// Packagist calls to $hashed providers as file integrity is verified
 	// with sha256
@@ -216,8 +239,13 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 		}
 	}
 
-	if v, ok := path(options, "prevent_url_access_callable"); ok {
-		if prevent, ok := callableOption(v); ok && prevent(url) {
+	if prevent, ok := accessCallable(options, "prevent_url_access_callable"); ok {
+		blocked, err := prevent(url)
+		if err != nil {
+			return err
+		}
+
+		if blocked {
 			return util.NewTransportError(`Access to "`+util.SanitizeURL(url)+`" is blocked.`, 400)
 		}
 	}
@@ -277,6 +305,18 @@ func (c *CurlDownloader) initDownload(job *curlJob, origin, url string, options 
 	return nil
 }
 
+func checkAccessCallables(options *php.Array) error {
+	for _, name := range []string{"prevent_url_access_callable", "prevent_ip_access_callable"} {
+		if v, ok := path(options, name); ok {
+			if _, closure := v.(AccessCallable); !closure {
+				return &util.InvalidArgumentError{Message: `The "` + name + `" transport option must be a Closure, got ` + php.TypeName(v) + "."}
+			}
+		}
+	}
+
+	return nil
+}
+
 // buildTransfer is initDownload's preparation of the request from the
 // options (Connection header, proxy, authentication, stream context): the
 // transfer, the proxy and the final options.
@@ -325,6 +365,9 @@ func (c *CurlDownloader) prefetch(origin, url string, options *php.Array, urgent
 		return nil
 	}
 	if _, ok := path(options, "prevent_url_access_callable"); ok {
+		return nil
+	}
+	if checkAccessCallables(options) != nil {
 		return nil
 	}
 	if ssl, _ := options.At("ssl").(*php.Array); !caChecked(ssl) {
@@ -379,6 +422,7 @@ func (c *CurlDownloader) buildRequest(url string, options, ssl *php.Array, proxy
 		headers:         headerList(options),
 		connectTimeout:  10 * time.Second,
 		timeout:         300 * time.Second, // max(default_socket_timeout, 300)
+		stallTimeout:    c.stallTimeout,
 		decode:          true,
 		curlStatusLines: true,
 		body:            bodyFile,
@@ -402,10 +446,8 @@ func (c *CurlDownloader) buildRequest(url string, options, ssl *php.Array, proxy
 		req.maxFileSize = php.ToInt(v)
 	}
 
-	if v, ok := path(options, "prevent_ip_access_callable"); ok {
-		if prevent, ok := callableOption(v); ok {
-			req.preventIP = prevent
-		}
+	if prevent, ok := accessCallable(options, "prevent_ip_access_callable"); ok {
+		req.preventIP = prevent
 	}
 
 	req.key = transportKey{tls: tlsFromOptions(ssl, false), ipResolve: attributes.ipResolve, fresh: attributes.retries > 0}
@@ -670,7 +712,12 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 				return c.restartJobWithDelay(job, job.url, attributes, nil, 0)
 			}
 
-			e := util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(info.URL)+": "+result.fail.Message, 400)
+			message := result.fail.Message
+			if errno == curleOperationTimedout && c.stallTimeout > 0 && strings.Contains(message, "too slow") {
+				message += " (if the server is merely slow to respond, set COMPOSER_HTTP_STALL_TIMEOUT to a higher number of seconds, or 0 to disable this check)"
+			}
+
+			e := util.NewTransportError("curl error "+strconv.Itoa(errno)+" while downloading "+util.SanitizeURL(job.url)+": "+message, 400)
 			e.Curl = &result.fail
 
 			return e
@@ -751,6 +798,7 @@ func (c *CurlDownloader) complete(job *curlJob, result *transferResult) {
 			}
 
 			if location != "" {
+				job.options = StripCredentialHeadersOnRedirect(job.options, job.url, location)
 				attributes := job.attributes
 				attributes.redirects++
 

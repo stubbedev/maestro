@@ -1,5 +1,5 @@
 
-In Factory.php line 317:
+In Factory.php line 319:
                                                                                
   "./composer.json" does not match the expected JSON schema:                   
    - repositories[0].url : The property url is required                        

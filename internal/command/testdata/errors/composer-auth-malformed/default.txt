@@ -1,5 +1,5 @@
 
-In Factory.php line 692:
+In Factory.php line 699:
                                                                                
   COMPOSER_AUTH environment variable is malformed, should be a valid JSON obj  
   ect                                                                          

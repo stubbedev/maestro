@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -831,6 +832,97 @@ func TestComposerRepository_GetSecurityAdvisoriesBatchesLargeRequests(t *testing
 	list, _ := result.Advisories.Get("foo/pkg1100")
 	if list[0].Partial().AdvisoryID != "CVE-1999-1000" {
 		t.Errorf("advisory %q", list[0].Partial().AdvisoryID)
+	}
+}
+
+func TestComposerRepository_GetSecurityAdvisoriesOnlyQueriesTheApiOncePerPackageName(t *testing.T) {
+	fooAdvisory := generateSecurityAdvisory("CVE-1999-1000", "foo/bar", "CVE-1999-1000", ">=1.0.0")
+	bazAdvisory := generateSecurityAdvisory("CVE-1999-2000", "baz/qux", "CVE-1999-2000", ">=2.0.0")
+
+	httpDownloader := mock(t,
+		httpmock.Expectation{
+			URL: "https://example.org/packages.json",
+			Body: encode(t, php.ArrayOf(
+				"metadata-url", "https://example.org/p2/%package%.json",
+				"security-advisories", php.ArrayOf("api-url", "https://example.org/security-advisories"),
+			)),
+			Options: verifyPeerOptions(),
+		},
+		httpmock.Expectation{
+			URL:     "https://example.org/security-advisories",
+			Body:    encode(t, php.ArrayOf("advisories", php.ArrayOf("foo/bar", php.ListOf(fooAdvisory)))),
+			Options: securityAdvisoriesPostOptions("foo/bar", "nope/missing"),
+		},
+		httpmock.Expectation{
+			URL:     "https://example.org/security-advisories",
+			Body:    encode(t, php.ArrayOf("advisories", php.ArrayOf("baz/qux", php.ListOf(bazAdvisory), "foo/bar", php.ListOf(fooAdvisory)))),
+			Options: securityAdvisoriesPostOptions("baz/qux"),
+		},
+	)
+
+	bufferIO := newBufferIO(t)
+	repo, err := New(php.ArrayOf("url", "https://example.org/packages.json", "options", verifyPeerOptions()), bufferIO, createConfig(t), httpDownloader, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertAdvisoryIDs := func(result repository.AdvisoryResult, want map[string]string) {
+		t.Helper()
+
+		if result.Advisories.Len() != len(want) {
+			t.Fatalf("advisories %v, want %v", result.Advisories.Keys(), want)
+		}
+		for name, id := range want {
+			list, _ := result.Advisories.Get(name)
+			if len(list) == 0 || list[0].Partial().AdvisoryID != id {
+				t.Errorf("advisories of %s %v, want %s first", name, list, id)
+			}
+		}
+	}
+
+	first := must(repo.SecurityAdvisories(constraintMapOf("foo/bar", semver.NewMatchAllConstraint(), "nope/missing", semver.NewMatchAllConstraint()), false))
+	if !slices.Equal(first.NamesFound, []string{"foo/bar"}) {
+		t.Errorf("first namesFound %v", first.NamesFound)
+	}
+	assertAdvisoryIDs(first, map[string]string{"foo/bar": "CVE-1999-1000"})
+
+	second := must(repo.SecurityAdvisories(repository.NewConstraintMap("Foo/Bar", semver.NewConstraintOp(semver.OpEQ, "0.9.0.0")), false))
+	if !slices.Equal(second.NamesFound, []string{"foo/bar"}) {
+		t.Errorf("second namesFound %v", second.NamesFound)
+	}
+	assertAdvisoryIDs(second, map[string]string{})
+
+	third := must(repo.SecurityAdvisories(constraintMapOf("foo/bar", semver.NewMatchAllConstraint(), "nope/missing", semver.NewMatchAllConstraint(), "baz/qux", semver.NewMatchAllConstraint()), false))
+	if !slices.Equal(third.NamesFound, []string{"foo/bar", "baz/qux"}) {
+		t.Errorf("third namesFound %v", third.NamesFound)
+	}
+	assertAdvisoryIDs(third, map[string]string{"foo/bar": "CVE-1999-1000", "baz/qux": "CVE-1999-2000"})
+
+	if strings.Contains(bufferIO.Output(), "not requested") {
+		t.Errorf("output %q", bufferIO.Output())
+	}
+}
+
+func constraintMapOf(pairs ...any) *repository.ConstraintMap {
+	m := &repository.ConstraintMap{}
+	for i := 0; i < len(pairs); i += 2 {
+		m.Set(pairs[i].(string), pairs[i+1].(semver.ConstraintInterface))
+	}
+
+	return m
+}
+
+func TestComposerRepository_IsOwnDistUrlIgnoresMirrors(t *testing.T) {
+	options := php.ArrayOf("http", php.ArrayOf("header", php.ListOf("Authorization: Bearer secret")))
+	repo := newRepo(t, php.ArrayOf("url", "https://example.org/packages.json", "options", options), createConfig(t), httpmock.New())
+
+	p := pkg.NewPackage("foo/bar", "1.0.0.0", "1.0.0")
+	p.SetDistType(pkg.Str("zip"))
+	p.SetDistURL(pkg.Str("https://evil.com/foo.zip"))
+	p.SetDistMirrors(php.ListOf(php.ArrayOf("url", "https://example.org/dists/foo.zip", "preferred", true)))
+
+	if repo.IsOwnDistUrl(p) {
+		t.Error("a mirror must not make the repository claim ownership of the dist URL")
 	}
 }
 

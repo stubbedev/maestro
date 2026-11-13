@@ -14,6 +14,54 @@ import (
 	"github.com/stubbedev/maestro/internal/switches"
 )
 
+func TestStatusCommand_StatusForInstalledDistFiles(t *testing.T) {
+	directory := commandtest.InitTempComposer(t, `{"require": {"root/req": "1.*"}, "repositories": []}`, nil, nil, true)
+	if err := os.WriteFile("package.txt", []byte("original content"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	p := commandtest.GetPackage(t, "root/req", "1.0.0")
+	p.SetDistType(pkg.Str("file"))
+	p.SetDistURL(pkg.Str("file://" + directory + "/package.txt"))
+	p.SetInstallationSource(pkg.Some(pkg.FromDist))
+	commandtest.CreateComposerLock(t, []pkg.PackageInterface{p}, nil)
+	appTester := commandtest.GetApplicationTester(t)
+	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "install"); err != nil {
+		t.Fatal(err)
+	}
+	if appTester.StatusCode() != 0 {
+		t.Fatalf("install status %d: %s", appTester.StatusCode(), appTester.Display(false))
+	}
+
+	appTester = commandtest.GetApplicationTester(t)
+	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "status", "--verbose", true); err != nil {
+		t.Fatal(err)
+	}
+	if appTester.StatusCode() != 0 {
+		t.Fatalf("status %d: %s", appTester.StatusCode(), appTester.Display(false))
+	}
+	if got := php.Trim(appTester.Display(true)); got != "No local changes" {
+		t.Errorf("got %q", got)
+	}
+
+	if err := os.WriteFile("vendor/root/req/package.txt", []byte("modified content"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	appTester = commandtest.GetApplicationTester(t)
+	if _, err := appTester.RunArgs(commandtest.Options{}, "command", "status", "--verbose", true); err != nil {
+		t.Fatal(err)
+	}
+	if appTester.StatusCode() != 1 {
+		t.Errorf("status %d, want 1", appTester.StatusCode())
+	}
+	display := appTester.Display(true)
+	if !strings.Contains(display, "package.txt") {
+		t.Errorf("display lacks package.txt:\n%s", display)
+	}
+	if strings.Contains(display, "Failed to detect changes:") {
+		t.Errorf("display holds Failed to detect changes:\n%s", display)
+	}
+}
+
 func TestStatusCommand_NoLocalChanges(t *testing.T) {
 	commandtest.InitTempComposer(t, `{"require": {"root/req": "1.*"}}`, nil, nil, true)
 

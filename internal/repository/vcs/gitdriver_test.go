@@ -1,6 +1,8 @@
 package vcs
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/php"
@@ -67,6 +69,107 @@ func TestGitDriver_GetRootIdentifierFromRemote(t *testing.T) {
 	if msgs := ioi.messages(); len(msgs) != 0 {
 		t.Fatalf("unexpected output %q", msgs)
 	}
+}
+
+func newMirrorSyncDriver(t *testing.T, gitVersion string, existingMirror bool) (*GitDriver, *processmock.Mock, *testIO, string, string) {
+	t.Helper()
+
+	t.Setenv("COMPOSER_DISABLE_NETWORK", "")
+	pinGitVersion(t, gitVersion)
+
+	url := "https://example.org/acme.git"
+	cacheVcsDir := filepath.Join(t.TempDir(), "cache", "vcs")
+	cfg := newConfig(t, t.TempDir(), "cache-vcs-dir", cacheVcsDir)
+	repoDir := cacheVcsDir + "/https---example.org-acme.git/"
+	if existingMirror {
+		noErr(t, os.MkdirAll(repoDir, 0o777))
+	}
+
+	process := processmock.New()
+	ioi := newTestIO()
+	driver := NewGitDriver(php.ArrayOf("url", url), deps(ioi, cfg, httpmock.New(), process))
+
+	return driver, process, ioi, url, repoDir
+}
+
+func TestGitDriver_GetRootIdentifierAfterMirrorSync(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		gitVersion       string
+		existingMirror   bool
+		expectRemoteShow bool
+	}{
+		{"fresh clone on old git uses mirror HEAD", "2.47.0", false, false},
+		{"updated mirror on old git asks the remote", "2.47.0", true, true},
+		{"updated mirror on git 2.48+ uses mirror HEAD", "2.48.0", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			driver, process, ioi, url, repoDir := newMirrorSyncDriver(t, tc.gitVersion, tc.existingMirror)
+
+			var expected []processmock.Expectation
+			if tc.existingMirror {
+				expected = append(expected,
+					processmock.Expectation{Cmd: processmock.Cmd("git", "rev-parse", "--git-dir").Cmd, Stdout: ".\n"},
+					processmock.Cmd("git", "remote", "-v"),
+					processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+					processmock.Cmd("git", "-c", "remote.origin.followRemoteHEAD=always", "remote", "update", "--prune", "origin"),
+					processmock.Cmd("git", "gc", "--auto"),
+				)
+			} else {
+				expected = append(expected, processmock.Cmd("git", "clone", "--mirror", "--", url, repoDir))
+			}
+			expected = append(expected,
+				processmock.Cmd("git", "remote", "-v"),
+				processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+				processmock.Cmd("git", "show-ref", "--tags", "--dereference"),
+				processmock.Cmd("git", "branch", "--no-color", "--no-abbrev", "-v"),
+			)
+			if tc.expectRemoteShow {
+				expected = append(expected,
+					processmock.Cmd("git", "remote", "-v"),
+					processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+					processmock.Expectation{Cmd: processmock.Cmd("git", "remote", "show", "origin").Cmd, Stdout: "* remote origin\n  HEAD branch: main\n"},
+					processmock.Cmd("git", "remote", "-v"),
+					processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+				)
+			} else {
+				expected = append(expected, processmock.Expectation{Cmd: processmock.Cmd("git", "branch", "--no-color").Cmd, Stdout: "  2.2\n* main\n"})
+			}
+			process.Expects(expected, true, nil)
+
+			noErr(t, driver.Initialize())
+			assertRoot(t, driver, "main")
+			assertProcessComplete(t, process)
+
+			if msgs := ioi.messages(); len(msgs) != 0 {
+				t.Fatalf("unexpected output %q", msgs)
+			}
+		})
+	}
+}
+
+func TestGitDriver_GetRootIdentifierAsksRemoteAfterFailedMirrorSync(t *testing.T) {
+	driver, process, _, url, _ := newMirrorSyncDriver(t, "2.48.0", true)
+
+	process.Expects([]processmock.Expectation{
+		{Cmd: processmock.Cmd("git", "rev-parse", "--git-dir").Cmd, Stdout: ".\n"},
+		processmock.Cmd("git", "remote", "-v"),
+		processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+		{Cmd: processmock.Cmd("git", "-c", "remote.origin.followRemoteHEAD=always", "remote", "update", "--prune", "origin").Cmd, Return: 1},
+		processmock.Cmd("git", "remote", "-v"),
+		processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+		processmock.Cmd("git", "show-ref", "--tags", "--dereference"),
+		processmock.Cmd("git", "branch", "--no-color", "--no-abbrev", "-v"),
+		processmock.Cmd("git", "remote", "-v"),
+		processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+		{Cmd: processmock.Cmd("git", "remote", "show", "origin").Cmd, Stdout: "* remote origin\n  HEAD branch: main\n"},
+		processmock.Cmd("git", "remote", "-v"),
+		processmock.Cmd("git", "remote", "set-url", "origin", "--", url),
+	}, true, nil)
+
+	noErr(t, driver.Initialize())
+	assertRoot(t, driver, "main")
+	assertProcessComplete(t, process)
 }
 
 func TestGitDriver_GetRootIdentifierFromLocalWithNetworkDisabled(t *testing.T) {

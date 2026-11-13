@@ -22,8 +22,9 @@ type GitDriver struct {
 	// tags and branches are nil until loaded.
 	tags, branches *php.Array
 	// rootIdentifier is "" until computed.
-	rootIdentifier string
-	repoDir        string
+	rootIdentifier    string
+	repoDir           string
+	mirrorHeadIsFresh bool
 }
 
 func newGitDriver(repoConfig *php.Array, deps Deps) Driver { return NewGitDriver(repoConfig, deps) }
@@ -89,6 +90,7 @@ func (d *GitDriver) Initialize() error {
 			return &util.InvalidArgumentError{Message: "The source URL " + util.SanitizeURL(d.url) + ` is invalid, ssh URLs should have a port number after ":".` + "\n" + "Use ssh://git@example.com:22/path or just git@example.com:path if you do not want to provide a password or custom port."}
 		}
 
+		isFreshClone := !php.IsDir(d.repoDir)
 		gitUtil := uvcs.NewGit(d.io, d.config, d.process, util.NewFilesystem(nil))
 
 		synced, err := gitUtil.SyncMirror(d.url, d.repoDir)
@@ -102,6 +104,10 @@ func (d *GitDriver) Initialize() error {
 			}
 
 			d.io.WriteError("<error>Failed to update "+util.SanitizeURL(d.url)+", package information from this repository may be outdated</error>", true, io.Normal)
+		} else if isFreshClone {
+			d.mirrorHeadIsFresh = true
+		} else if d.mirrorHeadIsFresh, err = uvcs.FetchUpdatesMirrorHead(d.process); err != nil {
+			return err
 		}
 
 		cacheURL = d.url
@@ -133,7 +139,7 @@ func (d *GitDriver) RootIdentifier() (string, error) {
 
 	d.rootIdentifier = "master"
 
-	if !util.IsLocalPath(d.url) {
+	if !d.mirrorHeadIsFresh && !util.IsLocalPath(d.url) {
 		gitUtil := uvcs.NewGit(d.io, d.config, d.process, util.NewFilesystem(nil))
 		if defaultBranch, ok := gitUtil.GetMirrorDefaultBranch(d.url, d.repoDir, false); ok {
 			d.rootIdentifier = defaultBranch

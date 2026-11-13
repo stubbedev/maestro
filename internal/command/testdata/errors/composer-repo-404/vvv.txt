@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -18,7 +18,7 @@ Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/status/404/packages.json
 [404] http://@SERVER@/status/404/packages.json
 
-In CurlDownloader.php line 966:
+In CurlDownloader.php line 1027:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   The "http://@SERVER@/status/404/packages.json" file could not be dow  
@@ -26,15 +26,15 @@ In CurlDownloader.php line 966:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:966
- Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:566
+  at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:1027
+ Composer\Util\Http\CurlDownloader->failResponse() at @COMPOSER@/src/Composer/Util/Http/CurlDownloader.php:618
  Composer\Util\Http\CurlDownloader->tick() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:406
  Composer\Util\HttpDownloader->countActiveJobs() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:379
  Composer\Util\HttpDownloader->wait() at @COMPOSER@/src/Composer/Util/HttpDownloader.php:112
- Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1827
- Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1533
- Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1155
- Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:571
+ Composer\Util\HttpDownloader->get() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1858
+ Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1564
+ Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1186
+ Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:577
  Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:458
  Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:294
  Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:379

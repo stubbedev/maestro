@@ -2,7 +2,7 @@
 // TypeConstraint.php, ObjectConstraint.php, CollectionConstraint.php,
 // StringConstraint.php, NumberConstraint.php, EnumConstraint.php,
 // ConstConstraint.php and TypeCheck/{StrictTypeCheck,LooseTypeCheck}.php of
-// justinrainbow/json-schema 6.10.0, in the default check mode.
+// justinrainbow/json-schema 6.14.0, in the default check mode.
 //
 // Every check takes the errors of the constraint instance PHP would be
 // running ("$this->errors", from start on) appended to errs, and returns
@@ -858,14 +858,48 @@ func (v *Validator) checkString(errs []Error, value any, element string, schema 
 	return v.checkFormat(errs, value, schema, p)
 }
 
-// mbStrlen ports mb_strlen($s, mb_detect_encoding($s)) for ASCII and UTF-8
-// input; invalid UTF-8 counts bytes.
+// mbStrlen ports mb_strlen($s, 'UTF-8'): each maximal ill-formed
+// subsequence counts as one character.
 func mbStrlen(s string) int {
-	if utf8.ValidString(s) {
-		return utf8.RuneCountInString(s)
+	n := 0
+	for i := 0; i < len(s); n++ {
+		if r, size := utf8.DecodeRuneInString(s[i:]); r != utf8.RuneError || size > 1 {
+			i += size
+
+			continue
+		}
+		i += maximalSubpart(s[i:])
 	}
 
-	return len(s)
+	return n
+}
+
+func maximalSubpart(s string) int {
+	lo, hi := byte(0x80), byte(0xBF)
+	size := 1
+	switch b := s[0]; {
+	case b >= 0xC2 && b <= 0xDF:
+		size = 2
+	case b == 0xE0:
+		size, lo = 3, 0xA0
+	case b == 0xED:
+		size, hi = 3, 0x9F
+	case b >= 0xE1 && b <= 0xEF:
+		size = 3
+	case b == 0xF0:
+		size, lo = 4, 0x90
+	case b == 0xF4:
+		size, hi = 4, 0x8F
+	case b >= 0xF1 && b <= 0xF3:
+		size = 4
+	}
+	n := 1
+	for n < size && n < len(s) && s[n] >= lo && s[n] <= hi {
+		n++
+		lo, hi = 0x80, 0xBF
+	}
+
+	return n
 }
 
 // checkNumber ports Constraint::checkNumber and NumberConstraint::check.

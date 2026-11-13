@@ -13,7 +13,7 @@ class GitLabDriver extends \Composer\Repository\Vcs\VcsDriver
     protected $gitDriver;
     protected $protocol;
 
-    protected function attemptCloneFallback(): bool
+    protected function attemptCloneFallback(?\Throwable $e = null): bool
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\Vcs\\GitLabDriver::attemptCloneFallback() in plugins yet');
     }

@@ -5,10 +5,12 @@ package composer
 import (
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stubbedev/maestro/internal/config"
+	"github.com/stubbedev/maestro/internal/io"
 	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/util"
@@ -176,5 +178,100 @@ func TestFactory_DownloadersNameTheirOwnPHPClass(t *testing.T) {
 			t.Errorf("the %s and %s downloaders are both of class %q", other, typ, class)
 		}
 		types[class] = typ
+	}
+}
+
+func factoryTempComposer(t *testing.T, composerJSON, authJSON string) string {
+	t.Helper()
+	dir := tempDir(t)
+	for name, contents := range map[string]string{"composer.json": composerJSON, "auth.json": authJSON} {
+		if err := os.WriteFile(dir+"/"+name, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("COMPOSER_HOME", dir+"/composer-home")
+	t.Setenv("COMPOSER_AUTH", "")
+	t.Setenv("COMPOSER", "")
+	_ = os.Unsetenv("COMPOSER")
+	t.Chdir(dir)
+
+	return dir
+}
+
+func factoryPartialConfig(t *testing.T, out *io.BufferIO) *config.Config {
+	t.Helper()
+	c, err := (&Factory{Runtime: testRuntime(t, 0)}).CreatePartialComposer(out, nil, PluginsDisabled, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return c.Config()
+}
+
+func factoryConfigValue(t *testing.T, cfg *config.Config, key string) any {
+	t.Helper()
+	v, err := cfg.Get(key, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return v
+}
+
+func TestFactory_HomeCannotBeSetByComposerJson(t *testing.T) {
+	dir := factoryTempComposer(t, `{"config": {"home": "custom-home"}}`, `{}`)
+	out := newBufferIO(t)
+
+	cfg := factoryPartialConfig(t, out)
+
+	if got := factoryConfigValue(t, cfg, "home"); got != dir+"/composer-home" {
+		t.Errorf("home = %v, want %s", got, dir+"/composer-home")
+	}
+	if output := bufferOutput(out); !strings.Contains(output, `Ignoring the "home" config set in ./composer.json`) {
+		t.Errorf("output lacks the home warning:\n%s", output)
+	}
+}
+
+func TestFactory_AuthJsonOnlyAppliesAuthConfig(t *testing.T) {
+	dir := factoryTempComposer(t, `{}`, `{
+		"http-basic": {"example.org": {"username": "foo", "password": "bar"}},
+		"gitlab-domains": ["gitlab.example.org"],
+		"vendor-dir": "custom-vendor"
+	}`)
+	out := newBufferIO(t)
+
+	cfg := factoryPartialConfig(t, out)
+
+	want := php.ArrayOf("example.org", php.ArrayOf("username", "foo", "password", "bar"))
+	if got := factoryConfigValue(t, cfg, "http-basic"); !php.StrictEquals(got, want) {
+		t.Errorf("http-basic = %v, want %v", got, want)
+	}
+	domains, _ := factoryConfigValue(t, cfg, "gitlab-domains").(*php.Array)
+	if domains == nil || !slices.Contains(domains.Values(), any("gitlab.example.org")) {
+		t.Errorf("gitlab-domains = %v, want gitlab.example.org among them", domains)
+	}
+	if got := factoryConfigValue(t, cfg, "vendor-dir"); got != dir+"/vendor" {
+		t.Errorf("vendor-dir = %v, want %s", got, dir+"/vendor")
+	}
+	if output := bufferOutput(out); !strings.Contains(output, `Ignoring the "vendor-dir" config set in `+dir+`/auth.json`) {
+		t.Errorf("output lacks the vendor-dir warning:\n%s", output)
+	}
+}
+
+func TestFactory_ComposerAuthEnvOnlyAppliesAuthConfig(t *testing.T) {
+	dir := factoryTempComposer(t, `{}`, `{}`)
+	t.Setenv("COMPOSER_AUTH", `{"bearer":{"example.org":"token"},"vendor-dir":"custom-vendor"}`)
+	out := newBufferIO(t)
+
+	cfg := factoryPartialConfig(t, out)
+
+	if got := factoryConfigValue(t, cfg, "bearer"); !php.StrictEquals(got, php.ArrayOf("example.org", "token")) {
+		t.Errorf("bearer = %v", got)
+	}
+	if got := factoryConfigValue(t, cfg, "vendor-dir"); got != dir+"/vendor" {
+		t.Errorf("vendor-dir = %v, want %s", got, dir+"/vendor")
+	}
+	if output := bufferOutput(out); !strings.Contains(output, `Ignoring the "vendor-dir" config set in COMPOSER_AUTH`) {
+		t.Errorf("output lacks the vendor-dir warning:\n%s", output)
 	}
 }

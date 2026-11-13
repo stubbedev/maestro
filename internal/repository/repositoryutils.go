@@ -12,28 +12,53 @@ import (
 // the packages requirer requires, directly or transitively. Require-dev
 // counts only for requirer itself, with includeRequireDev.
 func FilterRequiredPackages(packages []pkg.PackageInterface, requirer pkg.PackageInterface, includeRequireDev bool) []pkg.PackageInterface {
-	return filterRequiredPackages(packages, requirer, includeRequireDev, nil)
+	packagesByName := map[string][]int{}
+	for index, p := range packages {
+		for _, name := range p.Names(true) {
+			packagesByName[name] = append(packagesByName[name], index)
+		}
+	}
+
+	var bucket []pkg.PackageInterface
+	collectRequiredPackages(packages, packagesByName, requirer, includeRequireDev, &bucket, map[pkg.PackageInterface]struct{}{})
+
+	return bucket
 }
 
-func filterRequiredPackages(packages []pkg.PackageInterface, requirer pkg.PackageInterface, includeRequireDev bool, bucket []pkg.PackageInterface) []pkg.PackageInterface {
+func collectRequiredPackages(packages []pkg.PackageInterface, packagesByName map[string][]int, requirer pkg.PackageInterface, includeRequireDev bool, bucket *[]pkg.PackageInterface, seen map[pkg.PackageInterface]struct{}) {
 	requires := requirer.Requires()
 	if includeRequireDev {
 		requires = MergeLinks(requires, requirer.DevRequires())
 	}
-	for _, candidate := range packages {
-		if slices.ContainsFunc(candidate.Names(true), requires.Has) && !slices.Contains(bucket, candidate) {
-			bucket = append(bucket, candidate)
-			bucket = filterRequiredPackages(packages, candidate, false, bucket)
-		}
-	}
 
-	return bucket
+	var matches []int
+	for name := range requires.All() {
+		matches = append(matches, packagesByName[name]...)
+	}
+	slices.Sort(matches)
+
+	for _, index := range slices.Compact(matches) {
+		candidate := packages[index]
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		*bucket = append(*bucket, candidate)
+		collectRequiredPackages(packages, packagesByName, candidate, false, bucket, seen)
+	}
 }
 
 // FlattenRepositories ports RepositoryUtils::flattenRepositories: the
 // repositories of composite (and installed) repositories, and with
 // unwrapFilterRepos those FilterRepositories wrap, as a flat list.
 func FlattenRepositories(repo RepositoryInterface, unwrapFilterRepos bool) []RepositoryInterface {
+	var repos []RepositoryInterface
+	collectFlattenedRepositories(repo, unwrapFilterRepos, &repos)
+
+	return repos
+}
+
+func collectFlattenedRepositories(repo RepositoryInterface, unwrapFilterRepos bool, repos *[]RepositoryInterface) {
 	// unwrap filter repos
 	if filter, ok := repo.(*FilterRepository); ok && unwrapFilterRepos {
 		repo = filter.Repository()
@@ -41,13 +66,12 @@ func FlattenRepositories(repo RepositoryInterface, unwrapFilterRepos bool) []Rep
 
 	composite, ok := AsComposite(repo)
 	if !ok {
-		return []RepositoryInterface{repo}
+		*repos = append(*repos, repo)
+
+		return
 	}
 
-	var repos []RepositoryInterface
 	for _, r := range composite.Repositories() {
-		repos = append(repos, FlattenRepositories(r, unwrapFilterRepos)...)
+		collectFlattenedRepositories(r, unwrapFilterRepos, repos)
 	}
-
-	return repos
 }

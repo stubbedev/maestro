@@ -556,7 +556,7 @@ func (g *Git) SyncMirror(url, dir string) (bool, error) {
 	} else if isMirror {
 		err := g.RunCommands([][]string{
 			{"git", "remote", "set-url", "origin", "--", "%url%"},
-			{"git", "remote", "update", "--prune", "origin"},
+			{"git", "-c", "remote.origin.followRemoteHEAD=always", "remote", "update", "--prune", "origin"},
 			{"git", "gc", "--auto"},
 		}, url, dir, false, nil)
 
@@ -865,6 +865,12 @@ func GetNoShowSignatureFlags(process Process) ([]string, error) {
 // 2.33+.
 func SupportsNoCommitHeaderFlag(process Process) (bool, error) {
 	return gitVersionAtLeast(process, "2.33.0-rc0")
+}
+
+// FetchUpdatesMirrorHead ports Git::fetchUpdatesMirrorHead: git 2.48+
+// moves the HEAD of a mirror along with the remote default branch on fetch.
+func FetchUpdatesMirrorHead(process Process) (bool, error) {
+	return gitVersionAtLeast(process, "2.48.0")
 }
 
 func gitVersionAtLeast(process Process, min string) (bool, error) {

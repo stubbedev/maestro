@@ -12,7 +12,7 @@ class GitBitbucketDriver extends \Composer\Repository\Vcs\VcsDriver
     protected $owner;
     protected $repository;
 
-    protected function attemptCloneFallback(): bool
+    protected function attemptCloneFallback(?\Throwable $e = null): bool
     {
         throw new \Maestro\Shim\UnsupportedApiException('maestro does not support Composer\\Repository\\Vcs\\GitBitbucketDriver::attemptCloneFallback() in plugins yet');
     }

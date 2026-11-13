@@ -64,14 +64,16 @@ func nullIO() mio.IO { return mio.NewNullIO() }
 // fakeHTTP is an HttpDownloader mock: addCopy answers with copy, which by
 // default resolves with an empty response without writing the file.
 type fakeHTTP struct {
-	copy  func(url, to string) (*http.Response, error)
-	mu    sync.Mutex
-	calls []string
+	copy    func(url, to string) (*http.Response, error)
+	mu      sync.Mutex
+	calls   []string
+	options []*php.Array
 }
 
-func (f *fakeHTTP) AddCopy(url, to string, _ *php.Array) (*util.Promise[*http.Response], error) {
+func (f *fakeHTTP) AddCopy(url, to string, options *php.Array) (*util.Promise[*http.Response], error) {
 	f.mu.Lock()
 	f.calls = append(f.calls, url)
+	f.options = append(f.options, options)
 	f.mu.Unlock()
 
 	if f.copy == nil {

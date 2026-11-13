@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -15,7 +15,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading other.json (@DIR@/p/other.json)
 
-In Factory.php line 317:
+In Factory.php line 319:
                                                                                
   [Composer\Json\JsonValidationException]                                      
   "other.json" does not match the expected JSON schema:                        
@@ -24,8 +24,8 @@ In Factory.php line 317:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Factory.php:317
- Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:631
+  at @COMPOSER@/src/Composer/Factory.php:319
+ Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638
  Composer\Factory::create() at @COMPOSER@/src/Composer/Command/BaseCommand.php:317
  Composer\Command\BaseCommand->createComposerInstance() at @COMPOSER@/src/Composer/Command/ValidateCommand.php:92
  Composer\Command\ValidateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298

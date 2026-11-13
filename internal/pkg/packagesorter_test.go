@@ -23,6 +23,32 @@ func sorterPackage(name string, requires ...string) pkg.PackageInterface {
 	return p
 }
 
+func TestPackageSorter_MostCurrentVersionWithStringKeys(t *testing.T) {
+	first := pkg.NewPackage("foo/bar", "1.0.0.0", "1.0.0")
+	latest := pkg.NewPackage("foo/bar", "2.0.0.0", "2.0.0")
+	packages := []pkg.PackageInterface{first, latest}
+
+	if got := pkg.GetMostCurrentVersion(packages); got != latest {
+		t.Errorf("got %v, want %v", got, latest)
+	}
+
+	first.SetIsDefaultBranch(true)
+	if got := pkg.GetMostCurrentVersion(packages); got != first {
+		t.Errorf("got %v, want %v", got, first)
+	}
+
+	latest.SetIsDefaultBranch(true)
+	if got := pkg.GetMostCurrentVersion(packages); got != first {
+		t.Errorf("got %v, want %v", got, first)
+	}
+}
+
+func TestPackageSorter_MostCurrentVersionWithNoPackages(t *testing.T) {
+	if got := pkg.GetMostCurrentVersion(nil); got != nil {
+		t.Errorf("got %v, want nil", got)
+	}
+}
+
 func TestPackageSorter_SortingDoesNothingWithNoDependencies(t *testing.T) {
 	packages := []pkg.PackageInterface{sorterPackage("foo/bar1"), sorterPackage("foo/bar2"), sorterPackage("foo/bar3"), sorterPackage("foo/bar4")}
 

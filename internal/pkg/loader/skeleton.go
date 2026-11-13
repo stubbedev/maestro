@@ -179,21 +179,15 @@ func (c *SkeletonChecker) Fits(config *php.Array) bool {
 
 // LoadedFits is SkeletonChecker.Fits for a version, config, that a
 // PackageBatch.Load of any loader loaded without error: Load succeeds
-// with it with or without transport options alike but for them (they
-// are configured last), and the version fits unless its transport
-// options fail or loading the rest of it later would not give what
-// loading it now gives.
+// with it with or without transport options alike, and the version fits
+// unless loading the rest of it later would not give what loading it now
+// gives.
 func LoadedFits(config *php.Array) bool {
 	if scripts := config.ArrayAt("scripts"); scripts != nil {
 		for _, reserved := range [...]string{"composer", "php", "putenv"} {
 			if scripts.Has(reserved) {
 				return false
 			}
-		}
-	}
-	if config.Isset("transport-options") {
-		if _, err := transportOptions(config); err != nil {
-			return false
 		}
 	}
 

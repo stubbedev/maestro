@@ -1,6 +1,7 @@
 Creating a "x/plain" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 
-In VcsRepository.php line 205:
+In VcsRepository.php line 202:
                                                     
   No driver found to handle VCS repository missing  
                                                     

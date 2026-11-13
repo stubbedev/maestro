@@ -166,26 +166,39 @@ func (s *JSONConfigSource) SetRepositoryURL(name, url string) error {
 
 // RemoveRepository ports JsonConfigSource::removeRepository.
 func (s *JSONConfigSource) RemoveRepository(name string) error {
-	return s.manipulateJSON("removeRepository", func(cfg *php.Array, args []any) error {
-		repo := arg(args, 0)
-		if getIn(cfg, "repositories", repo) != nil {
-			if err := unsetIn(cfg, "repositories", repo); err != nil {
-				return err
-			}
-		} else {
-			filtered, err := filterRepositoriesByName(cfg, repo)
-			if err != nil {
-				return err
-			}
-			cfg.Set("repositories", filtered)
-		}
+	return s.manipulateJSON("removeRepository", removeRepositoryFallback, name)
+}
 
-		if v, _ := cfg.Get("repositories"); isEmptyArray(v) {
-			cfg.Delete("repositories")
+func removeRepositoryFallback(cfg *php.Array, args []any) error {
+	repo := arg(args, 0)
+	repos := getIn(cfg, "repositories")
+	if repos == nil {
+		repos = php.NewArray()
+	}
+	isList, err := arrayIsList(repos)
+	if err != nil {
+		return err
+	}
+	if list, ok := repos.(*php.Array); ok && !isList && list.Has(repo) {
+		if err := unsetIn(cfg, "repositories", repo); err != nil {
+			return err
 		}
+	} else {
+		disabled := php.ArrayOf(repo, false)
+		filtered, err := filterRepositories(cfg, func(val any) bool {
+			return !php.StrictEquals(repoName(val), repo) && !php.StrictEquals(val, disabled)
+		})
+		if err != nil {
+			return err
+		}
+		cfg.Set("repositories", filtered)
+	}
 
-		return nil
-	}, name)
+	if v, _ := cfg.Get("repositories"); isEmptyArray(v) {
+		cfg.Delete("repositories")
+	}
+
+	return nil
 }
 
 var authSettingPattern = php.MustCompile(`{^(bitbucket-oauth|github-oauth|gitlab-oauth|gitlab-token|bearer|http-basic|custom-headers|forgejo-token|platform)\.}`)
@@ -309,70 +322,74 @@ func (s *JSONConfigSource) RemoveConfigSetting(name string) error {
 
 // AddProperty ports JsonConfigSource::addProperty.
 func (s *JSONConfigSource) AddProperty(name string, value any) error {
-	return s.manipulateJSON("addProperty", func(cfg *php.Array, args []any) error {
-		key := php.ToString(arg(args, 0))
-		val := arg(args, 1)
-		if m, err := propertyNodePattern.IsMatch(key); err != nil {
-			return err
-		} else if !m {
-			cfg.Set(key, val)
+	return s.manipulateJSON("addProperty", addPropertyFallback, name, value)
+}
 
-			return nil
-		}
-
-		bits := splitPropertyKey(key)
-		last := bits[len(bits)-1]
-		arr := cfg
-		for _, bit := range bits[:len(bits)-1] {
-			next, ok := arr.GetArray(bit)
-			if !ok {
-				next = php.NewArray()
-				arr.Set(bit, next)
-			}
-			arr = next
-		}
-		arr.Set(last, val)
+func addPropertyFallback(cfg *php.Array, args []any) error {
+	key := php.ToString(arg(args, 0))
+	val := arg(args, 1)
+	if m, err := propertyNodePattern.IsMatch(key); err != nil {
+		return err
+	} else if !m {
+		cfg.Set(key, val)
 
 		return nil
-	}, name, value)
+	}
+
+	bits := splitPropertyKey(key)
+	last := bits[len(bits)-1]
+	arr := cfg
+	for _, bit := range bits[:len(bits)-1] {
+		next, ok := arr.GetArray(bit)
+		if !ok {
+			next = php.NewArray()
+			arr.Set(bit, next)
+		}
+		arr = next
+	}
+	arr.Set(last, val)
+
+	return nil
 }
 
 // RemoveProperty ports JsonConfigSource::removeProperty.
 func (s *JSONConfigSource) RemoveProperty(name string) error {
-	return s.manipulateJSON("removeProperty", func(cfg *php.Array, args []any) error {
-		key := php.ToString(arg(args, 0))
-		if m, err := propertyRemovePattern.IsMatch(key); err != nil {
-			return err
-		} else if !m {
-			cfg.Delete(key)
+	return s.manipulateJSON("removeProperty", removePropertyFallback, name)
+}
 
-			return nil
-		}
-
-		bits := splitPropertyKey(key)
-		last := bits[len(bits)-1]
-		arr, holder, keyOfArr := cfg, cfg, bits[0]
-		for _, bit := range bits[:len(bits)-1] {
-			next, ok := arr.GetArray(bit)
-			if !ok {
-				return nil
-			}
-			holder, keyOfArr, arr = arr, bit, next
-		}
-		wasList, err := arrayIsList(arr)
-		if err != nil {
-			return err
-		}
-		arr.Delete(last)
-		// keep lists as lists and emptied objects as objects, as JsonManipulator does
-		if wasList {
-			holder.Set(keyOfArr, php.ArrayValues(arr))
-		} else if arr.Len() == 0 {
-			holder.Set(keyOfArr, php.NewObject())
-		}
+func removePropertyFallback(cfg *php.Array, args []any) error {
+	key := php.ToString(arg(args, 0))
+	if m, err := propertyRemovePattern.IsMatch(key); err != nil {
+		return err
+	} else if !m {
+		cfg.Delete(key)
 
 		return nil
-	}, name)
+	}
+
+	bits := splitPropertyKey(key)
+	last := bits[len(bits)-1]
+	arr, holder, keyOfArr := cfg, cfg, bits[0]
+	for _, bit := range bits[:len(bits)-1] {
+		next, ok := arr.GetArray(bit)
+		if !ok {
+			return nil
+		}
+		holder, keyOfArr, arr = arr, bit, next
+	}
+	wasList, err := arrayIsList(arr)
+	if err != nil {
+		return err
+	}
+	arr.Delete(last)
+	// keep lists as lists and emptied objects as objects, as JsonManipulator does
+	if wasList {
+		holder.Set(keyOfArr, php.ArrayValues(arr))
+	} else if arr.Len() == 0 {
+		holder.Set(keyOfArr, php.NewObject())
+	}
+
+	return nil
 }
 
 // AddLink ports JsonConfigSource::addLink.
@@ -384,18 +401,20 @@ func (s *JSONConfigSource) AddLink(typ, name, value string) error {
 
 // RemoveLink ports JsonConfigSource::removeLink.
 func (s *JSONConfigSource) RemoveLink(typ, name string) error {
-	return s.manipulateJSON("removeLink", func(cfg *php.Array, args []any) error {
-		links, ok := getIn(cfg, arg(args, 0)).(*php.Array)
-		if !ok || !links.Isset(arg(args, 1)) {
-			return nil
-		}
-		links.Delete(arg(args, 1))
-		if links.Len() == 0 {
-			cfg.Delete(arg(args, 0))
-		}
+	return s.manipulateJSON("removeLink", removeLinkFallback, typ, name)
+}
 
+func removeLinkFallback(cfg *php.Array, args []any) error {
+	links, ok := getIn(cfg, arg(args, 0)).(*php.Array)
+	if !ok || !links.Has(arg(args, 1)) {
 		return nil
-	}, typ, name)
+	}
+	links.Delete(arg(args, 1))
+	if links.Len() == 0 {
+		cfg.Delete(arg(args, 0))
+	}
+
+	return nil
 }
 
 // manipulateJSON ports JsonConfigSource::manipulateJson: method is the
@@ -661,8 +680,19 @@ func convertRepositoriesToList(cfg *php.Array) error {
 }
 
 // filterRepositoriesByName is array_values(array_filter($config['repositories']
-// ?? [], ...)) with the uniqueness predicate of JsonConfigSource.
+// ?? [], ...)) with the uniqueness predicate of addRepository and
+// insertRepository.
 func filterRepositoriesByName(cfg *php.Array, name any) (*php.Array, error) {
+	disabled := php.ArrayOf(name, false)
+
+	return filterRepositories(cfg, func(val any) bool {
+		valName := repoName(val)
+
+		return valName == nil || !php.StrictEquals(valName, name) || !php.StrictEquals(val, disabled)
+	})
+}
+
+func filterRepositories(cfg *php.Array, keep func(val any) bool) (*php.Array, error) {
 	repos, _ := cfg.Get("repositories")
 	if repos == nil {
 		return php.NewArray(), nil
@@ -672,11 +702,9 @@ func filterRepositoriesByName(cfg *php.Array, name any) (*php.Array, error) {
 		return nil, &php.EngineError{Class: "TypeError", Message: "array_filter(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(repos) + " given"}
 	}
 
-	disabled := php.ArrayOf(name, false)
 	filtered := php.NewArrayCap(list.Len())
 	for _, val := range list.All() {
-		valName := repoName(val)
-		if valName == nil || !php.StrictEquals(valName, name) || !php.StrictEquals(val, disabled) {
+		if keep(val) {
 			filtered.Append(val)
 		}
 	}

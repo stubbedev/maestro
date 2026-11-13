@@ -437,7 +437,11 @@ func (d *GitLabDriver) getJSON(url string, fetchingRepoData bool) (*php.Array, e
 }
 
 // attemptCloneFallback ports attemptCloneFallback: switch to a GitDriver.
-func (d *GitLabDriver) attemptCloneFallback() error {
+func (d *GitLabDriver) attemptCloneFallback(previous *util.TransportError) error {
+	if gitFallbackDisabled(d.repoConfig) {
+		return gitFallbackDisabledError(previous)
+	}
+
 	url := d.generateSSHURL()
 	if !d.isPrivate {
 		url = d.generatePublicURL()
@@ -512,7 +516,7 @@ func (d *GitLabDriver) getContents(url string, fetchingRepoData bool) (*http.Res
 		}
 
 		if !d.io.IsInteractive() {
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(e); err != nil {
 				return nil, err
 			}
 
@@ -533,7 +537,7 @@ func (d *GitLabDriver) getContents(url string, fetchingRepoData bool) (*http.Res
 		}
 
 		if !d.io.IsInteractive() && fetchingRepoData {
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(e); err != nil {
 				return nil, err
 			}
 
@@ -580,7 +584,7 @@ func (d *GitLabDriver) tryGetContents(url string, fetchingRepoData bool) (*http.
 		if !moreThanGuestAccess {
 			d.io.WriteError("<warning>GitLab token with Guest or Planner only access detected</warning>", true, io.Normal)
 
-			if err := d.attemptCloneFallback(); err != nil {
+			if err := d.attemptCloneFallback(nil); err != nil {
 				return nil, err
 			}
 

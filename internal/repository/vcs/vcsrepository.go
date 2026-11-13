@@ -61,9 +61,10 @@ type VcsRepository struct {
 	versionCache               repository.VersionCache
 	emptyReferences            []string
 	versionTransportExceptions TransportErrors
-	// onlyBranchesRegex is the pattern of the "only-branches" repo
-	// config; nil without one.
-	onlyBranchesRegex *php.Regexp
+	// onlyBranchesRegex and excludeBranchesRegex are the patterns of the
+	// "only-branches" and "exclude-branches" repo config; nil without one.
+	onlyBranchesRegex    *php.Regexp
+	excludeBranchesRegex *php.Regexp
 }
 
 var (
@@ -117,30 +118,11 @@ func NewVcsRepository(repoConfig *php.Array, ioi io.IO, config http.Config, http
 		r.processExecutor = http.NewProcessExecutor(ioi)
 	}
 
-	if onlyBranches := repoConfig.At("only-branches"); onlyBranches != nil {
-		branches, isArray := onlyBranches.(*php.Array)
-		var names []string
-		if isArray {
-			names = make([]string, 0, branches.Len())
-			for _, v := range branches.All() {
-				name, isString := v.(string)
-				if !isString {
-					isArray = false
-
-					break
-				}
-				names = append(names, name)
-			}
-		}
-		if !isArray {
-			return nil, &util.InvalidArgumentError{Message: `"only-branches" key for repository ` + util.SanitizeURL(r.url) + ` should be an array of strings`}
-		}
-
-		// branch names are case-sensitive, unlike package names
-		r.onlyBranchesRegex, err = php.Compile(pkg.PackageNamesToRegexp(names, `{^(?:%s)$}D`))
-		if err != nil {
-			return nil, err
-		}
+	if r.onlyBranchesRegex, err = r.createBranchFilterRegex("only-branches"); err != nil {
+		return nil, err
+	}
+	if r.excludeBranchesRegex, err = r.createBranchFilterRegex("exclude-branches"); err != nil {
+		return nil, err
 	}
 
 	return r, nil
@@ -738,10 +720,11 @@ func (r *VcsRepository) preProcess(driver Driver, data *php.Array, identifier st
 	return data
 }
 
-// filterBranches ports filterBranches: the branches matching the
-// "only-branches" repo config patterns, the default branch always kept.
+// filterBranches ports filterBranches: the branches matching
+// "only-branches" and not matching "exclude-branches", the default branch
+// always kept.
 func (r *VcsRepository) filterBranches(branches *php.Array, rootIdentifier string) (*php.Array, error) {
-	if r.onlyBranchesRegex == nil {
+	if r.onlyBranchesRegex == nil && r.excludeBranchesRegex == nil {
 		return branches, nil
 	}
 
@@ -754,20 +737,73 @@ func (r *VcsRepository) filterBranches(branches *php.Array, rootIdentifier strin
 			continue
 		}
 
-		matched, err := r.onlyBranchesRegex.IsMatch(branch)
+		reason, err := r.branchFilterReason(branch)
 		if err != nil {
 			return nil, err
 		}
-		if !matched {
-			if r.isVeryVerbose {
-				r.io.WriteError("<warning>Skipped branch "+branch+", not matching the only-branches filter</warning>", true, io.Normal)
-			}
-
-			branches.DeleteKey(k)
+		if reason == "" {
+			continue
 		}
+		if r.isVeryVerbose {
+			r.io.WriteError("<warning>Skipped branch "+branch+", "+reason+"</warning>", true, io.Normal)
+		}
+
+		branches.DeleteKey(k)
 	}
 
 	return branches, nil
+}
+
+func (r *VcsRepository) branchFilterReason(branch string) (string, error) {
+	if r.onlyBranchesRegex != nil {
+		matched, err := r.onlyBranchesRegex.IsMatch(branch)
+		if err != nil {
+			return "", err
+		}
+		if !matched {
+			return "not matching the only-branches filter", nil
+		}
+	}
+	if r.excludeBranchesRegex != nil {
+		matched, err := r.excludeBranchesRegex.IsMatch(branch)
+		if err != nil {
+			return "", err
+		}
+		if matched {
+			return "matching the exclude-branches filter", nil
+		}
+	}
+
+	return "", nil
+}
+
+func (r *VcsRepository) createBranchFilterRegex(key string) (*php.Regexp, error) {
+	value := r.repoConfig.At(key)
+	if value == nil {
+		return nil, nil
+	}
+	list, isArray := value.(*php.Array)
+	if !isArray {
+		return nil, branchFilterTypeError(key, r.url)
+	}
+	names := make([]string, 0, list.Len())
+	for _, v := range list.All() {
+		name, isString := v.(string)
+		if !isString {
+			return nil, branchFilterTypeError(key, r.url)
+		}
+		names = append(names, name)
+	}
+	if key == "exclude-branches" && len(names) == 0 {
+		return nil, nil
+	}
+
+	// branch names are case-sensitive, unlike package names
+	return php.Compile(pkg.PackageNamesToRegexp(names, `{^(?:%s)$}D`))
+}
+
+func branchFilterTypeError(key, url string) error {
+	return &util.InvalidArgumentError{Message: `"` + key + `" key for repository ` + util.SanitizeURL(url) + ` should be an array of strings`}
 }
 
 // nullable keeps a nil array PHP's null in an array value.

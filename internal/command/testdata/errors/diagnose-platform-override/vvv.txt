@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -13,7 +13,7 @@ Executing command (@DIR@/p): 'svn' 'info' '--xml'
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
-Composer version: 2.11.1
+Composer version: 2.11.2
 Checking Composer and its dependencies for vulnerabilities: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
 PHP version: 7.0.0 - Package overridden via config.platform, actual: @PHPVERSION@
 PHP binary path: @MACHINE@
@@ -25,7 +25,7 @@ Checking composer.json: Reading ./composer.json (@DIR@/p/composer.json)
 OK
 Checking platform settings: OK
 Checking git settings: Executing command (CWD): 'git' 'config' 'color.ui'
-OK git version 2.55.0
+OK git version 2.56.0
 Checking http connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
 Checking https connectivity to packagist: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.
 Checking github.com rate limit: SKIP Network is disabled by COMPOSER_DISABLE_NETWORK.

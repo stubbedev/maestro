@@ -1,6 +1,7 @@
 // Ports the configuration half of src/Composer/Factory.php: getHomeDir,
 // getCacheDir, getDataDir, createConfig, getComposerFile, getLockFile,
-// loadComposerAuthEnv, useXdg, getUserDir and validateJsonSchema.
+// loadComposerAuthEnv, filterAuthConfig, useXdg, getUserDir and
+// validateJsonSchema.
 // internal/composer builds the rest of Factory on these.
 
 package config
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/io"
@@ -338,10 +340,37 @@ func LoadComposerAuthEnv(config *Config, out io.IO) error {
 		return err
 	}
 	if authData, _ = php.JSONDecode(composerAuthEnv, true); authData != nil {
-		return config.Merge(php.ArrayOf("config", authData), "COMPOSER_AUTH")
+		filtered, err := FilterAuthConfig(authData, "COMPOSER_AUTH", out)
+		if err != nil {
+			return err
+		}
+
+		return config.Merge(php.ArrayOf("config", filtered), "COMPOSER_AUTH")
 	}
 
 	return nil
+}
+
+var authConfigKeys = []string{"bitbucket-oauth", "github-oauth", "gitlab-oauth", "gitlab-token", "http-basic", "bearer", "custom-headers", "client-certificate", "forgejo-token", "github-domains", "gitlab-domains", "forgejo-domains"}
+
+func FilterAuthConfig(authData any, source string, out io.IO) (*php.Array, error) {
+	data, ok := authData.(*php.Array)
+	if !ok {
+		return nil, &php.EngineError{Class: "TypeError", Message: "Composer\\Factory::filterAuthConfig(): Argument #1 ($authData) must be of type array, " + php.ZvalValueName(authData) + " given"}
+	}
+	filtered := php.NewArrayCap(data.Len())
+	for key, value := range data.All() {
+		if slices.Contains(authConfigKeys, key.String()) {
+			filtered.SetKey(key, value)
+
+			continue
+		}
+		if out != nil {
+			out.WriteError(`<warning>Ignoring the "`+key.String()+`" config set in `+source+`, only authentication settings can be set there.</warning>`, true, io.Normal)
+		}
+	}
+
+	return filtered, nil
 }
 
 // useXdg ports Factory::useXdg: whether any XDG_ variable is set or

@@ -117,7 +117,7 @@ func GetContentHash(composerFileContents string) (string, error) {
 	}
 	content, ok := decoded.(*php.Array)
 	if !ok {
-		return "", &php.EngineError{Class: php.ClassTypeError, Message: "array_keys(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(decoded) + " given"}
+		return "", &php.EngineError{Class: php.ClassTypeError, Message: "array_intersect_key(): Argument #1 ($array) must be of type array, " + php.ZvalValueName(decoded) + " given"}
 	}
 
 	relevantContent := php.NewArray()

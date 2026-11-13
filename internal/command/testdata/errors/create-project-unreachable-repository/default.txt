@@ -1,7 +1,8 @@
 Creating a "x/plain" project at "./out"
+Ignoring the "home" config set in the root package, use the COMPOSER_HOME env var to change it.
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 
-In CurlDownloader.php line 498:
+In CurlDownloader.php line 549:
                                                                                
   curl error 7 while downloading http://127.0.0.1:1/packages.json: Failed to   
   connect to 127.0.0.1:1 after 0 ms: Could not connect to server               

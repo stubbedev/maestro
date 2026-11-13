@@ -67,8 +67,8 @@ func (p Parser) findClasses(b *parseBuffers, path string) ([]string, error) {
 // classesIn is findClasses() for the contents in b.src[:n].
 func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error) {
 	v := p.phpVersion()
-	b.strip = b.lex.strip(b.strip[:0], b.src, n, p.ShortOpenTag, v)
-	if len(b.strip) == 0 {
+	contents, raw := p.contents(b, n, v)
+	if len(contents) == 0 {
 		if len(bytes.Trim(b.src[:n], php.TrimChars)) == 0 {
 			// The input file was really empty and thus contains no classes
 			return nil, nil
@@ -83,13 +83,22 @@ func (p Parser) classesIn(b *parseBuffers, n int, path string) ([]string, error)
 	enums := v >= php81
 
 	// return early if there is no chance of matching anything in this file
-	maxMatches := countTypeKeywords(b.strip, enums)
+	maxMatches := countTypeKeywords(contents, enums)
 	if maxMatches == 0 {
 		return nil, nil
 	}
-	b.clean = cleanPhpFile(b.clean[:0], b.strip, maxMatches, enums)
+	b.clean = cleanPhpFile(b.clean[:0], contents, maxMatches, v, raw)
 
 	return extractClasses(b.clean, enums), nil
+}
+
+func (p Parser) contents(b *parseBuffers, n int, v phpVersion) ([]byte, bool) {
+	if n > 0 && bytes.IndexByte(b.src[:n], '`') < 0 {
+		return b.src[:n], true
+	}
+	b.strip = b.lex.strip(b.strip[:0], b.src, n, p.ShortOpenTag, v)
+
+	return b.strip, false
 }
 
 // readFile reads the file into b.src, followed by the zero padding the

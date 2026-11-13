@@ -132,7 +132,7 @@ func TestHttpDownloader_CaptureAuthenticationParamsFromUrl(t *testing.T) {
 func TestHttpDownloader_PreventUrlAccessCallableBlocksDownload(t *testing.T) {
 	h, _ := newTestDownloader(t, nil, "")
 
-	_, err := h.Get("https://example.org/blocked", php.ArrayOf("prevent_url_access_callable", RegisterCallable(func(string) bool { return true })))
+	_, err := h.Get("https://example.org/blocked", php.ArrayOf("prevent_url_access_callable", AccessCallable(func(string) (bool, error) { return true, nil })))
 
 	te, ok := errors.AsType[*util.TransportError](err)
 	if !ok || te.Message != `Access to "https://example.org/blocked" is blocked.` {

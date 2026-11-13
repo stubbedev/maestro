@@ -72,7 +72,7 @@ type releaseSet struct {
 // parseFormat is the version of the parse results kept across runs: in
 // the cache file (UseFile) and with each release (AddReleases); its
 // Header starts both.
-var parseFormat = fsstate.Format{Name: "classmap-parse", Version: 1}
+var parseFormat = fsstate.Format{Name: "classmap-parse", Version: 2}
 
 // AddReleases tells the cache about package trees installed from the
 // package store: a scanned file whose stat shows the stamp of a release

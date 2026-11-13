@@ -1322,7 +1322,7 @@
             "values": {
                 "content-type": null,
                 "Content-Type": null,
-                "location": " ",
+                "location": null,
                 "set-cookie": null,
                 "etag": "\"abc\"",
                 "x-ratelimit-limit": "60",

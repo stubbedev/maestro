@@ -368,6 +368,17 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 		// succeeded
 		return nil, nil, mergeErr
 	}
+	if projectConfig, ok := localConfigArray.GetArray("config"); ok && projectConfig.Isset("home") {
+		source := localConfigSource
+		if source == config.SourceUnknown {
+			source = "the root package"
+		}
+		out.WriteError(`<warning>Ignoring the "home" config set in `+source+`, use the COMPOSER_HOME env var to change it.</warning>`, true, io.Normal)
+		projectConfig = projectConfig.ShallowClone()
+		projectConfig.Delete("home")
+		localConfigArray = localConfigArray.ShallowClone()
+		localConfigArray.Set("config", projectConfig)
+	}
 	if err := cfg.Merge(localConfigArray, localConfigSource); err != nil {
 		return nil, nil, err
 	}
@@ -391,6 +402,10 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 				return nil, nil, err
 			}
 			auth, err := localAuthFile.Read()
+			if err != nil {
+				return nil, nil, err
+			}
+			auth, err = config.FilterAuthConfig(auth, localAuthFile.Path(), out)
 			if err != nil {
 				return nil, nil, err
 			}

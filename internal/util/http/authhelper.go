@@ -400,7 +400,51 @@ func (h *AuthHelper) AddAuthenticationHeader(headers []string, origin, url strin
 var (
 	gitHubAPIRegex                 = php.MustCompile(`{^https?://api\.github\.com/}`)
 	gitLabComposerRegistryURLRegex = php.MustCompile(`{/api/v4/(?:group/[^/]+/-|projects/[^/]+)/packages/composer(?:/|$)}i`)
+	headerLineBreakRegex           = php.MustCompile(`{\r?\n}`)
+	credentialHeaderRegex          = php.MustCompile(`{^\s*(?:authorization|cookie)\s*:}i`)
 )
+
+func StripCredentialHeadersOnRedirect(options *php.Array, fromURL, toURL string) *php.Array {
+	headers, ok := path(options, "http", "header")
+	if !ok {
+		return options
+	}
+
+	if from, fromOK := util.URLOrigin(fromURL); fromOK {
+		if to, toOK := util.URLOrigin(toURL); toOK && from == to {
+			return options
+		}
+	}
+
+	var lines []any
+	switch h := headers.(type) {
+	case string:
+		split, _ := headerLineBreakRegex.Split(h, -1, 0)
+		for _, line := range split {
+			lines = append(lines, line)
+		}
+	case *php.Array:
+		lines = h.Values()
+	default:
+		lines = []any{h}
+	}
+
+	kept := php.NewArray()
+	for _, line := range lines {
+		if s, isString := line.(string); isString {
+			if credential, _ := credentialHeaderRegex.IsMatch(s); credential {
+				continue
+			}
+		}
+
+		kept.Append(line)
+	}
+
+	options = options.Clone()
+	HTTPOptions(options).Set("header", kept)
+
+	return options
+}
 
 // gitLabCIJobTokenMarker is the username naming a credential a GitLab CI job
 // token.

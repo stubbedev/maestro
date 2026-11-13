@@ -601,3 +601,20 @@ func TestStoreAuthOf(t *testing.T) {
 		t.Fatal(ComposerVersion)
 	}
 }
+
+func TestAuthHelper_StripCredentialHeadersOnRedirect(t *testing.T) {
+	options := headerOptions([]string{"Authorization: Bearer abc", "Proxy-Authorization: Basic xyz", "Cookie: a=b", "Accept: */*"})
+
+	if got := StripCredentialHeadersOnRedirect(options, "https://example.org/a", "https://EXAMPLE.org:443/b"); !php.StrictEquals(got, options) {
+		t.Errorf("same origin: got %s", jsonOf(t, got))
+	}
+
+	if got := StripCredentialHeadersOnRedirect(options, "https://example.org/a", "https://example.net/b").At("http").(*php.Array).At("header"); !php.StrictEquals(got, list("Proxy-Authorization: Basic xyz", "Accept: */*")) {
+		t.Errorf("other host: got %s", jsonOf(t, got))
+	}
+
+	stringHeaders := php.ArrayOf("http", php.ArrayOf("header", "Accept: */*\nAuthorization: Bearer abc"))
+	if got := StripCredentialHeadersOnRedirect(stringHeaders, "https://example.org/a", "http://example.org/b").At("http").(*php.Array).At("header"); !php.StrictEquals(got, list("Accept: */*")) {
+		t.Errorf("string headers: got %s", jsonOf(t, got))
+	}
+}

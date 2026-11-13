@@ -14,6 +14,7 @@ import (
 
 	"github.com/stubbedev/maestro/internal/command"
 	"github.com/stubbedev/maestro/internal/command/commandtest"
+	"github.com/stubbedev/maestro/internal/json"
 	"github.com/stubbedev/maestro/internal/php"
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/platform"
@@ -513,6 +514,32 @@ available:
 
 installed:
   vendor/installed 2.0.0 description of installed package`, output)
+}
+
+func TestShowCommand_ShowLicensedPackageAsJson(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	p := commandtest.GetPackage(t, "vendor/package", "1.0.0")
+	p.SetLicense(php.ListOf("MIT"))
+	commandtest.CreateInstalledJSON(t, gbPkgs(p), nil, true)
+	appTester := gbRun(t, gbParams("command", "show", "package", "vendor/package", "--format", "json"))
+
+	if appTester.StatusCode() != 0 {
+		t.Fatalf("status %d: %s", appTester.StatusCode(), appTester.Display(false))
+	}
+	parsed, err := json.ParseJSON(appTester.Display(true), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, ok := parsed.(*php.Array)
+	if !ok {
+		t.Fatalf("not an array: %v", parsed)
+	}
+	licenses, _ := doc.Get("licenses")
+	got, err := php.JSONEncode(licenses, php.JSONUnescapedSlashes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gbAssertSame(t, `[{"name":"MIT License","osi":"MIT","url":"https://spdx.org/licenses/MIT.html#licenseText"}]`, got)
 }
 
 func TestShowCommand_LockedRequiresValidLockFile(t *testing.T) {

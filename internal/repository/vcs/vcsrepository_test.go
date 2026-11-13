@@ -137,10 +137,37 @@ func prettyVersions(t *testing.T, r repository.RepositoryInterface) []string {
 	return versions
 }
 
+func assertLoadedVersions(t *testing.T, filters []any, expected []string) []pkg.PackageInterface {
+	t.Helper()
+
+	repo := newGitFixture(t)
+	cfg := newConfig(t, t.TempDir())
+
+	r, err := NewVcsRepository(php.ArrayOf(append([]any{"url", repo, "type", "vcs"}, filters...)...), io.NewNullIO(), cfg.ForHTTP(), httpmock.New(), nil, Options{})
+	noErr(t, err)
+
+	packages, err := r.Packages()
+	noErr(t, err)
+
+	expected = slices.Clone(expected)
+	for _, p := range packages {
+		i := slices.Index(expected, p.PrettyVersion())
+		if i < 0 {
+			t.Fatalf("Unexpected version %s in %q", p.PrettyVersion(), prettyVersions(t, r))
+		}
+
+		expected = slices.Delete(expected, i, i+1)
+	}
+
+	if len(expected) > 0 {
+		t.Fatalf("Missing versions: %s", strings.Join(expected, ", "))
+	}
+
+	return packages
+}
+
 func TestVcsRepository_LoadVersions(t *testing.T) {
 	t.Parallel()
-
-	r, _ := newFixtureRepository(t, io.NewNullIO(), Options{})
 
 	expected := []string{
 		"0.6.0",
@@ -154,23 +181,7 @@ func TestVcsRepository_LoadVersions(t *testing.T) {
 		"9999999-dev", // alias of dev-master
 	}
 
-	got := prettyVersions(t, r)
-	for _, v := range got {
-		i := slices.Index(expected, v)
-		if i < 0 {
-			t.Fatalf("Unexpected version %s in %q", v, got)
-		}
-
-		expected = slices.Delete(expected, i, i+1)
-	}
-
-	if len(expected) > 0 {
-		t.Fatalf("Missing versions: %s", strings.Join(expected, ", "))
-	}
-
-	packages, err := r.Packages()
-	noErr(t, err)
-	for _, p := range packages {
+	for _, p := range assertLoadedVersions(t, nil, expected) {
 		if _, ok := p.PublishedDate(); ok {
 			t.Errorf("published-time from composer.json must not be trusted for %s", p.PrettyVersion())
 		}
@@ -182,47 +193,61 @@ func TestVcsRepository_LoadVersionsWithOnlyBranchesFilter(t *testing.T) {
 
 	for _, tc := range []struct {
 		name         string
-		onlyBranches []string
+		onlyBranches *php.Array
 		expected     []string
 	}{
 		{
 			"patterns",
-			[]string{"1.1.x", "feature/*"},
+			php.ListOf("1.1.x", "feature/*"),
 			[]string{"0.6.0", "1.0.0", "1.1.x-dev", "dev-feature/a-1.0-B", "dev-master", "9999999-dev"},
 		},
 		{
 			"empty list keeps only the default branch",
-			[]string{},
+			php.ListOf(),
 			[]string{"0.6.0", "1.0.0", "dev-master", "9999999-dev"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := newGitFixture(t)
-			cfg := newConfig(t, t.TempDir())
-			only := make([]any, len(tc.onlyBranches))
-			for i, b := range tc.onlyBranches {
-				only[i] = b
-			}
+			assertLoadedVersions(t, []any{"only-branches", tc.onlyBranches}, tc.expected)
+		})
+	}
+}
 
-			r, err := NewVcsRepository(php.ArrayOf("url", repo, "type", "vcs", "only-branches", php.ListOf(only...)), io.NewNullIO(), cfg.ForHTTP(), httpmock.New(), nil, Options{})
-			noErr(t, err)
+func TestVcsRepository_LoadVersionsWithExcludeBranchesFilter(t *testing.T) {
+	t.Parallel()
 
-			expected := slices.Clone(tc.expected)
-			got := prettyVersions(t, r)
-			for _, v := range got {
-				i := slices.Index(expected, v)
-				if i < 0 {
-					t.Fatalf("Unexpected version %s in %q", v, got)
-				}
+	for _, tc := range []struct {
+		name     string
+		filters  []any
+		expected []string
+	}{
+		{
+			"patterns",
+			[]any{"exclude-branches", php.ListOf("1.*", "feature/*")},
+			[]string{"0.6.0", "1.0.0", "dev-feature-b", "dev-foo+bar", "dev-master", "9999999-dev"},
+		},
+		{
+			"empty list loads all branches",
+			[]any{"exclude-branches", php.ListOf()},
+			[]string{"0.6.0", "1.0.0", "1.0.x-dev", "1.1.x-dev", "dev-feature-b", "dev-feature/a-1.0-B", "dev-foo+bar", "dev-master", "9999999-dev"},
+		},
+		{
+			"default branch is always kept",
+			[]any{"exclude-branches", php.ListOf("*")},
+			[]string{"0.6.0", "1.0.0", "dev-master", "9999999-dev"},
+		},
+		{
+			"combined with only-branches",
+			[]any{"only-branches", php.ListOf("1.*", "feature*"), "exclude-branches", php.ListOf("1.1.x", "feature-*")},
+			[]string{"0.6.0", "1.0.0", "1.0.x-dev", "dev-feature/a-1.0-B", "dev-master", "9999999-dev"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-				expected = slices.Delete(expected, i, i+1)
-			}
-
-			if len(expected) > 0 {
-				t.Fatalf("Missing versions: %s", strings.Join(expected, ", "))
-			}
+			assertLoadedVersions(t, tc.filters, tc.expected)
 		})
 	}
 }
@@ -273,38 +298,52 @@ func fakeSvnDriverType() DriverType {
 	}
 }
 
-func TestVcsRepository_OnlyBranchesFilterKeepsSvnTrunk(t *testing.T) {
+func TestVcsRepository_BranchFiltersKeepSvnTrunk(t *testing.T) {
 	t.Parallel()
 
-	opts := Options{Drivers: []NamedDriver{{"svn", fakeSvnDriverType()}}}
-	r, err := NewVcsRepository(php.ArrayOf("url", "svn://example.org/repo", "type", "svn", "only-branches", php.ListOf("1.*")), io.NewNullIO(), newConfig(t, t.TempDir()).ForHTTP(), httpmock.New(), nil, opts)
-	noErr(t, err)
-
-	versions := prettyVersions(t, r)
-	slices.Sort(versions)
-
-	if want := []string{"1.0.x-dev", "dev-trunk"}; !slices.Equal(versions, want) {
-		t.Errorf("versions %q, want %q", versions, want)
-	}
-}
-
-func TestVcsRepository_InvalidOnlyBranchesThrows(t *testing.T) {
-	t.Parallel()
-
-	repo := filepath.Join(t.TempDir(), "repo")
 	for _, tc := range []struct {
-		name         string
-		onlyBranches any
+		name    string
+		filters []any
 	}{
-		{"string", "7.4"},
-		{"non-string item", php.ListOf("7.4", php.ListOf("8.*"))},
+		{"only-branches", []any{"only-branches", php.ListOf("1.*")}},
+		{"exclude-branches", []any{"exclude-branches", php.ListOf("trunk", "2.*")}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, err := NewVcsRepository(php.ArrayOf("url", repo, "type", "vcs", "only-branches", tc.onlyBranches), io.NewNullIO(), newConfig(t, t.TempDir()).ForHTTP(), httpmock.New(), nil, Options{})
-			expectError[*util.InvalidArgumentError](t, err, `"only-branches" key for repository `+repo+` should be an array of strings`)
+			opts := Options{Drivers: []NamedDriver{{"svn", fakeSvnDriverType()}}}
+			r, err := NewVcsRepository(php.ArrayOf(append([]any{"url", "svn://example.org/repo", "type", "svn"}, tc.filters...)...), io.NewNullIO(), newConfig(t, t.TempDir()).ForHTTP(), httpmock.New(), nil, opts)
+			noErr(t, err)
+
+			versions := prettyVersions(t, r)
+			slices.Sort(versions)
+
+			if want := []string{"1.0.x-dev", "dev-trunk"}; !slices.Equal(versions, want) {
+				t.Errorf("versions %q, want %q", versions, want)
+			}
 		})
+	}
+}
+
+func TestVcsRepository_InvalidBranchFilterThrows(t *testing.T) {
+	t.Parallel()
+
+	repo := filepath.Join(t.TempDir(), "repo")
+	for _, key := range []string{"only-branches", "exclude-branches"} {
+		for _, tc := range []struct {
+			name  string
+			value any
+		}{
+			{"string", "7.4"},
+			{"non-string item", php.ListOf("7.4", php.ListOf("8.*"))},
+		} {
+			t.Run(key+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				_, err := NewVcsRepository(php.ArrayOf("url", repo, "type", "vcs", key, tc.value), io.NewNullIO(), newConfig(t, t.TempDir()).ForHTTP(), httpmock.New(), nil, Options{})
+				expectError[*util.InvalidArgumentError](t, err, `"`+key+`" key for repository `+repo+` should be an array of strings`)
+			})
+		}
 	}
 }
 

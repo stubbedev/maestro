@@ -98,11 +98,17 @@ func (d *FileDownloader) prefetch(p pkg.PackageInterface) {
 		}
 	}
 
-	// the request the download makes (transfer)
-	if direct := d.codeloadURL(p, processed); direct != "" {
-		processed = direct
+	canonicalOrigin, err := d.canonicalDistOrigin(p)
+	if err != nil {
+		return
 	}
-	pf.PrefetchCopy(processed, p.TransportOptions())
+
+	// the request the download makes (transfer)
+	options := distTransportOptions(p, canonicalOrigin, processed)
+	if direct, directOptions := d.codeloadRequest(p, processed, options); direct != "" {
+		processed, options = direct, directOptions
+	}
+	pf.PrefetchCopy(processed, options)
 }
 
 // specMaterial is a package tree materialized from the store ahead of the

@@ -1,4 +1,4 @@
-Running 2.11.1 (2026-10-30 14:52:10) with PHP @PHP@ on @OS@
+Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -29,9 +29,9 @@ Fatal error: Uncaught TypeError: version_compare(): Argument #1 ($version1) must
 Stack trace:
 #0 @COMPOSER@/src/Composer/Plugin/PluginManager.php(690): version_compare(220, '2.2.0', '<')
 #1 @COMPOSER@/src/Composer/Plugin/PluginManager.php(90): Composer\Plugin\PluginManager->parseAllowedPlugins(Array, Object(Composer\Package\Locker))
-#2 @COMPOSER@/src/Composer/Factory.php(576): Composer\Plugin\PluginManager->__construct(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
-#3 @COMPOSER@/src/Composer/Factory.php(443): Composer\Factory->createPluginManager(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
-#4 @COMPOSER@/src/Composer/Factory.php(631): Composer\Factory->createComposer(Object(Composer\IO\ConsoleIO), Array, true, '/tmp/maestro-er...', true, false)
+#2 @COMPOSER@/src/Composer/Factory.php(583): Composer\Plugin\PluginManager->__construct(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
+#3 @COMPOSER@/src/Composer/Factory.php(450): Composer\Factory->createPluginManager(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
+#4 @COMPOSER@/src/Composer/Factory.php(638): Composer\Factory->createComposer(Object(Composer\IO\ConsoleIO), Array, true, '/tmp/maestro-er...', true, false)
 #5 @COMPOSER@/src/Composer/Console/Application.php(680): Composer\Factory::create(Object(Composer\IO\ConsoleIO), NULL, true, false)
 #6 @COMPOSER@/src/Composer/Console/Application.php(589): Composer\Console\Application->getComposer(false, true)
 #7 @COMPOSER@/src/Composer/Console/Application.php(536): Composer\Console\Application->hintCommonErrors(Object(TypeError), Object(Symfony\Component\Console\Output\ConsoleOutput))
