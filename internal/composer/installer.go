@@ -605,15 +605,24 @@ func (i *Installer) runAuditor(packages []pkg.PackageInterface, auditConfig advi
 	return 0, nil
 }
 
-// solverProblem reports a SolverProblemsException the way doUpdate,
-// extractDevPackages and doInstall do.
-func (i *Installer) prettyProblem(e *resolver.SolverProblemsError, repositorySet *repository.RepositorySet, request *resolver.Request, pool *resolver.Pool, isDevExtraction bool) (string, error) {
+// problemReport is the report of a SolverProblemsException the way
+// doUpdate, extractDevPackages and doInstall make it.
+func (i *Installer) problemReport(e *resolver.SolverProblemsError, repositorySet *repository.RepositorySet, request *resolver.Request, pool *resolver.Pool, isDevExtraction bool) (*resolver.ProblemReport, error) {
 	var env resolver.Environment
 	if i.runtime != nil {
 		env = i.runtime.Environment()
 	}
 
-	return e.PrettyString(repositorySet, request, pool, i.io.IsVerbose(), isDevExtraction, env)
+	return e.Report(repositorySet, request, pool, i.io.IsVerbose(), isDevExtraction, env)
+}
+
+func (i *Installer) writeProblemReport(report *resolver.ProblemReport) {
+	if io.IsErrorDecorated(i.io) {
+		i.io.WriteErrorMessages(report.UI().Markup(), true, io.Normal)
+
+		return
+	}
+	i.io.WriteError(report.String(), true, io.Normal)
 }
 
 func (i *Installer) emitGithubActionError(message string) {
@@ -750,18 +759,18 @@ func (i *Installer) doUpdate(localRepo repository.InstalledRepositoryInterface, 
 	i.lockTransaction, err = solver.Solve(request, i.platformRequirementFilter)
 	if problems, ok := errors.AsType[*resolver.SolverProblemsError](err); ok {
 		msg := "Your requirements could not be resolved to an installable set of packages."
-		prettyProblem, err := i.prettyProblem(problems, repositorySet, request, pool, false)
+		report, err := i.problemReport(problems, repositorySet, request, pool, false)
 		if err != nil {
 			return 0, err
 		}
 
 		i.io.WriteError("<error>"+msg+"</error>", true, io.Quiet)
-		i.io.WriteError(prettyProblem, true, io.Normal)
+		i.writeProblemReport(report)
 		if !i.devMode {
 			i.io.WriteError("<warning>Running update with --no-dev does not mean require-dev is ignored, it just means the packages will not be installed. If dev requirements are blocking the update you have to resolve those problems.</warning>", true, io.Quiet)
 		}
 
-		i.emitGithubActionError(msg + "\n" + prettyProblem)
+		i.emitGithubActionError(msg + "\n" + report.String())
 
 		return max(ErrorGenericFailure, problems.Code()), nil
 	}
@@ -1050,7 +1059,7 @@ func (i *Installer) extractDevPackages(lockTransaction *resolver.LockTransaction
 	nonDevLockTransaction, err := solver.Solve(request, i.platformRequirementFilter)
 	if problems, ok := errors.AsType[*resolver.SolverProblemsError](err); ok {
 		msg := "Unable to find a compatible set of packages based on your non-dev requirements alone."
-		prettyProblem, err := i.prettyProblem(problems, repositorySet, request, pool, true)
+		report, err := i.problemReport(problems, repositorySet, request, pool, true)
 		if err != nil {
 			return 0, err
 		}
@@ -1058,9 +1067,9 @@ func (i *Installer) extractDevPackages(lockTransaction *resolver.LockTransaction
 		i.io.WriteError("<error>"+msg+"</error>", true, io.Quiet)
 		i.io.WriteError("Your requirements can be resolved successfully when require-dev packages are present.", true, io.Normal)
 		i.io.WriteError("You may need to move packages from require-dev or some of their dependencies to require.", true, io.Normal)
-		i.io.WriteError(prettyProblem, true, io.Normal)
+		i.writeProblemReport(report)
 
-		i.emitGithubActionError(msg + "\n" + prettyProblem)
+		i.emitGithubActionError(msg + "\n" + report.String())
 
 		return problems.Code(), nil
 	}
@@ -1325,15 +1334,15 @@ func (i *Installer) verifyLock(lockedRepository *repository.LockArrayRepository)
 	lockTransaction, err := resolver.NewSolver(policy, pool, i.io).Solve(request, i.platformRequirementFilter)
 	if problems, ok := errors.AsType[*resolver.SolverProblemsError](err); ok {
 		msg := "Your lock file does not contain a compatible set of packages. Please run composer update."
-		prettyProblem, err := i.prettyProblem(problems, repositorySet, request, pool, false)
+		report, err := i.problemReport(problems, repositorySet, request, pool, false)
 		if err != nil {
 			return 0, err
 		}
 
 		i.io.WriteError("<error>"+msg+"</error>", true, io.Quiet)
-		i.io.WriteError(prettyProblem, true, io.Normal)
+		i.writeProblemReport(report)
 
-		i.emitGithubActionError(msg + "\n" + prettyProblem)
+		i.emitGithubActionError(msg + "\n" + report.String())
 
 		return max(ErrorGenericFailure, problems.Code()), nil
 	}

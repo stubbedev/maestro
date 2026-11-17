@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -253,14 +254,24 @@ func (r *Rule) SourcePackage(pool *Pool) (pkg.PackageInterface, error) {
 
 // PrettyString ports getPrettyString.
 func (r *Rule) PrettyString(ctx *PrettyContext) (string, error) {
+	statement, err := r.Statement(ctx)
+
+	return statement.Text, err
+}
+
+func (r *Rule) Statement(ctx *PrettyContext) (ui.Statement, error) {
 	pool := ctx.Pool
 	literals := r.literals
 	switch r.reason {
 	case RuleRootRequire:
 		rr := r.RootRequire()
+		constraint := rr.Constraint.PrettyString()
 		packages := pool.WhatProvides(rr.PackageName, rr.Constraint)
 		if len(packages) == 0 {
-			return "No package found to satisfy root composer.json require " + rr.PackageName + " " + rr.Constraint.PrettyString(), nil
+			return ui.Statement{
+				Kind: ui.StatementRequire, Target: rr.PackageName, Constraint: constraint, Outcome: "no package found to satisfy it",
+				Text: "No package found to satisfy root composer.json require " + rr.PackageName + " " + constraint,
+			}, nil
 		}
 
 		var nonAlias pkg.PackageInterface
@@ -272,26 +283,30 @@ func (r *Rule) PrettyString(ctx *PrettyContext) (string, error) {
 			}
 		}
 		if nonAliasCount == 1 && ctx.Request.IsLockedPackage(nonAlias) {
-			return nonAlias.PrettyName() + " is locked to version " + nonAlias.PrettyVersion() + " and an update of this package was not requested.", nil
+			return lockedStatement(nonAlias), nil
 		}
+		list := ctx.packageList(packages, rr.Constraint, false)
 
-		return "Root composer.json requires " + rr.PackageName + " " + rr.Constraint.PrettyString() + " -> satisfiable by " + ctx.packageList(packages, rr.Constraint, false) + ".", nil
+		return ui.Statement{
+			Kind: ui.StatementRequire, Target: rr.PackageName, Constraint: constraint, Outcome: list, Satisfiable: true,
+			Text: "Root composer.json requires " + rr.PackageName + " " + constraint + " -> satisfiable by " + list + ".",
+		}, nil
 
 	case RuleFixed:
 		p := deduplicateDefaultBranchAlias(r.Package())
 		if ctx.Request.IsLockedPackage(p) {
-			return p.PrettyName() + " is locked to version " + p.PrettyVersion() + " and an update of this package was not requested.", nil
+			return lockedStatement(p), nil
 		}
 
-		return p.PrettyName() + " is present at version " + p.PrettyVersion() + " and cannot be modified by Composer", nil
+		return fixedStatement(p.PrettyName(), nil, "is present at version "+p.PrettyVersion()+" and cannot be modified by Composer"), nil
 
 	case RuleLockedFilterListRemoved:
 		p := deduplicateDefaultBranchAlias(r.Package())
 
-		return p.PrettyName() + " " + p.PrettyVersion() + " was removed by a dependency policy (e.g. malware) and cannot be installed.", nil
+		return fixedStatement(p.PrettyName(), []string{p.PrettyVersion()}, "was removed by a dependency policy (e.g. malware) and cannot be installed."), nil
 
 	case RulePackageConflict:
-		return r.conflictPrettyString(pool)
+		return r.conflictStatement(pool)
 
 	case RulePackageRequires:
 		sourcePackage := deduplicateDefaultBranchAlias(pool.LiteralToPackage(literals[0]))
@@ -301,43 +316,51 @@ func (r *Rule) PrettyString(ctx *PrettyContext) (string, error) {
 			requires = append(requires, pool.LiteralToPackage(literal))
 		}
 
+		statement := ui.Statement{
+			Kind: ui.StatementRequire, Package: sourcePackage.PrettyName(), Versions: []string{sourcePackage.PrettyVersion()},
+			Target: link.Target(), Constraint: link.Constraint().PrettyString(),
+		}
 		text := link.PrettyString(sourcePackage)
 		if len(requires) > 0 {
-			return text + " -> satisfiable by " + ctx.packageList(requires, link.Constraint(), false) + ".", nil
+			statement.Outcome, statement.Satisfiable = ctx.packageList(requires, link.Constraint(), false), true
+			statement.Text = text + " -> satisfiable by " + statement.Outcome + "."
+
+			return statement, nil
 		}
 		reason, err := ctx.MissingPackageReason(link.Target(), link.Constraint())
 		if err != nil {
-			return "", err
+			return ui.Statement{}, err
 		}
+		statement.Outcome, statement.Text = reason[1], text+" -> "+reason[1]
 
-		return text + " -> " + reason[1], nil
+		return statement, nil
 
 	case RulePackageSameName:
-		return r.sameNamePrettyString(ctx)
+		return noteStatement(r.sameNamePrettyString(ctx)), nil
 
 	case RuleLearned:
-		return r.learnedPrettyString(ctx)
+		return noteStatement(r.learnedPrettyString(ctx)), nil
 
 	case RulePackageAlias:
 		aliasPackage := pool.LiteralToPackage(literals[0])
 		// avoid returning content like "9999999-dev is an alias of dev-master" as it is useless
 		if aliasPackage.Version() == pkg.DefaultBranchAlias {
-			return "", nil
+			return ui.Statement{Kind: ui.StatementNote}, nil
 		}
 		p := deduplicateDefaultBranchAlias(pool.LiteralToPackage(literals[1]))
 
-		return aliasPackage.PrettyString() + " is an alias of " + p.PrettyString() + " and thus requires it to be installed too.", nil
+		return ui.Statement{Kind: ui.StatementNote, Text: aliasPackage.PrettyString() + " is an alias of " + p.PrettyString() + " and thus requires it to be installed too."}, nil
 
 	case RulePackageInverseAlias:
 		// inverse alias rules work the other way around than above
 		aliasPackage := pool.LiteralToPackage(literals[1])
 		// avoid returning content like "9999999-dev is an alias of dev-master" as it is useless
 		if aliasPackage.Version() == pkg.DefaultBranchAlias {
-			return "", nil
+			return ui.Statement{Kind: ui.StatementNote}, nil
 		}
 		p := deduplicateDefaultBranchAlias(pool.LiteralToPackage(literals[0]))
 
-		return aliasPackage.PrettyString() + " is an alias of " + p.PrettyString() + " and must be installed with it.", nil
+		return ui.Statement{Kind: ui.StatementNote, Text: aliasPackage.PrettyString() + " is an alias of " + p.PrettyString() + " and must be installed with it."}, nil
 	}
 
 	var b strings.Builder
@@ -350,10 +373,24 @@ func (r *Rule) PrettyString(ctx *PrettyContext) (string, error) {
 	}
 	b.WriteByte(')')
 
-	return b.String(), nil
+	return ui.Statement{Kind: ui.StatementNote, Text: b.String()}, nil
 }
 
-func (r *Rule) conflictPrettyString(pool *Pool) (string, error) {
+func lockedStatement(p pkg.PackageInterface) ui.Statement {
+	return fixedStatement(p.PrettyName(), nil, "is locked to version "+p.PrettyVersion()+" and an update of this package was not requested.")
+}
+
+func fixedStatement(name string, versions []string, outcome string) ui.Statement {
+	text := strings.Join(append([]string{name}, versions...), " ")
+
+	return ui.Statement{Kind: ui.StatementFixed, Package: name, Versions: versions, Outcome: outcome, Text: text + " " + outcome}
+}
+
+func noteStatement(text string) ui.Statement {
+	return ui.Statement{Kind: ui.StatementNote, Text: text}
+}
+
+func (r *Rule) conflictStatement(pool *Pool) (ui.Statement, error) {
 	package1 := deduplicateDefaultBranchAlias(pool.LiteralToPackage(r.literals[0]))
 	package2 := deduplicateDefaultBranchAlias(pool.LiteralToPackage(r.literals[1]))
 	conflictTarget := package1.PrettyString()
@@ -364,7 +401,7 @@ func (r *Rule) conflictPrettyString(pool *Pool) (string, error) {
 		package1, package2 = package2, package1
 		prettyConstraint, err := link.PrettyConstraint()
 		if err != nil {
-			return "", err
+			return ui.Statement{}, err
 		}
 		conflictTarget = package1.PrettyName() + " " + prettyConstraint
 	}
@@ -392,20 +429,23 @@ func (r *Rule) conflictPrettyString(pool *Pool) (string, error) {
 		if provideType != "" {
 			prettyConstraint, err := link.PrettyConstraint()
 			if err != nil {
-				return "", err
+				return ui.Statement{}, err
 			}
 			providedConstraint, err := provided.PrettyConstraint()
 			if err != nil {
-				return "", err
+				return ui.Statement{}, err
 			}
 			conflictTarget = link.Target() + " " + prettyConstraint + " (" + package1.PrettyString() + " " + provideType + " " + link.Target() + " " + providedConstraint + ")"
 		}
 	}
 
-	return package2.PrettyString() + " conflicts with " + conflictTarget + ".", nil
+	return ui.Statement{
+		Kind: ui.StatementConflict, Package: package2.PrettyName(), Versions: []string{package2.PrettyVersion()}, Target: conflictTarget,
+		Text: package2.PrettyString() + " conflicts with " + conflictTarget + ".",
+	}, nil
 }
 
-func (r *Rule) sameNamePrettyString(ctx *PrettyContext) (string, error) {
+func (r *Rule) sameNamePrettyString(ctx *PrettyContext) string {
 	pool := ctx.Pool
 	packageNames := &repository.NameMap[bool]{}
 	for _, literal := range r.literals {
@@ -416,7 +456,7 @@ func (r *Rule) sameNamePrettyString(ctx *PrettyContext) (string, error) {
 	if packageNames.Len() <= 1 {
 		list := ctx.packageListOfLiterals(r.literals, nil, true)
 
-		return "You can only install one version of a package, so only one of these can be installed: " + list + ".", nil
+		return "You can only install one version of a package, so only one of these can be installed: " + list + "."
 	}
 
 	var reason string
@@ -451,20 +491,20 @@ func (r *Rule) sameNamePrettyString(ctx *PrettyContext) (string, error) {
 	}
 
 	if len(installedPackages) > 0 && len(removablePackages) > 0 {
-		return ctx.packageList(removablePackages, nil, true) + " cannot be installed as that would require removing " + ctx.packageList(installedPackages, nil, true) + ". " + reason, nil
+		return ctx.packageList(removablePackages, nil, true) + " cannot be installed as that would require removing " + ctx.packageList(installedPackages, nil, true) + ". " + reason
 	}
 
 	list := ctx.packageListOfLiterals(r.literals, nil, true)
 
-	return "Only one of these can be installed: " + list + ". " + reason, nil
+	return "Only one of these can be installed: " + list + ". " + reason
 }
 
-func (r *Rule) learnedPrettyString(ctx *PrettyContext) (string, error) {
+func (r *Rule) learnedPrettyString(ctx *PrettyContext) string {
 	pool := ctx.Pool
 	const learnedString = " (conflict analysis result)"
 
 	if len(r.literals) == 1 {
-		return "Conclusion: " + pool.LiteralToPrettyString(r.literals[0], ctx.InstalledMap) + learnedString, nil
+		return "Conclusion: " + pool.LiteralToPrettyString(r.literals[0], ctx.InstalledMap) + learnedString
 	}
 
 	groups := &repository.NameMap[[]pkg.PackageInterface]{}
@@ -496,7 +536,7 @@ func (r *Rule) learnedPrettyString(ctx *PrettyContext) (string, error) {
 		ruleTexts = append(ruleTexts, group+oneOf+" "+list)
 	}
 
-	return "Conclusion: " + strings.Join(ruleTexts, " | ") + learnedString, nil
+	return "Conclusion: " + strings.Join(ruleTexts, " | ") + learnedString
 }
 
 // deduplicateDefaultBranchAlias ports Rule::deduplicateDefaultBranchAlias.

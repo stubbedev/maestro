@@ -168,6 +168,19 @@ is `internal/ui`'s, styled and laid out with lipgloss, under these rules:
   a severity badge, the title wrapped to the terminal and every other
   field (IDs and URL as links, an ignored advisory's reason) beneath it;
   undecorated it is Composer's tables, byte for byte.
+- Dependency resolution failures. `internal/resolver` builds a typed
+  model of a SolverProblemsException (`ProblemReport`: per problem, its
+  statements as `ui.Statement`s, each with the package stating it and its
+  versions, the requirement or conflict, why it is or is not satisfiable,
+  and Composer's line; then the hints) and renders it twice. Composer's
+  text is the undecorated output, the GitHub Actions annotation and what
+  `getPrettyString` returns; on a decorated error output the problems are
+  a report (`ui.ProblemReport`): each statement's packages and
+  constraints in their roles, why a requirement fails beneath it with
+  `✖`, a requirement nested under the one that pulled its package in, and
+  the hints as `Hint:` items. As with audit's table, its shape changes, so
+  the check that decorated output without escape sequences is the
+  undecorated output does not apply to it.
 - diagnose. Its report is free (only its exit code and checks are
   frozen). Undecorated it is Composer's lines plus `Maestro version: X`
   after `Composer version`, so a report says which tool ran; decorated

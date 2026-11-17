@@ -11,6 +11,7 @@ import (
 	"github.com/stubbedev/maestro/internal/pkg"
 	"github.com/stubbedev/maestro/internal/repository"
 	"github.com/stubbedev/maestro/internal/semver"
+	"github.com/stubbedev/maestro/internal/ui"
 	"github.com/stubbedev/maestro/internal/util"
 )
 
@@ -81,6 +82,38 @@ func (p *Problem) NextSection() { p.section++ }
 
 // PrettyString ports getPrettyString.
 func (p *Problem) PrettyString(ctx *PrettyContext) (string, error) {
+	detail, err := p.detail(ctx)
+
+	return detail.text(), err
+}
+
+type problemDetail struct {
+	rules, policyExcluded []ui.Statement
+}
+
+const problemBullet = "\n    - "
+
+func (d problemDetail) text() string {
+	var b strings.Builder
+	b.WriteString(problemBullet)
+	for i, s := range d.rules {
+		if i > 0 {
+			b.WriteString(problemBullet)
+		}
+		b.WriteString(s.Text)
+	}
+	for _, s := range d.policyExcluded {
+		b.WriteString(problemBullet + s.Text)
+	}
+
+	return b.String()
+}
+
+func (d problemDetail) statements() []ui.Statement {
+	return slices.Concat(d.rules, d.policyExcluded)
+}
+
+func (p *Problem) detail(ctx *PrettyContext) (problemDetail, error) {
 	// TODO doesn't this entirely defeat the purpose of the problem sections? what's the point of sections?
 	var reasons []*Rule
 	for _, section := range slices.Backward(p.reasons) {
@@ -95,10 +128,13 @@ func (p *Problem) PrettyString(ctx *PrettyContext) (string, error) {
 			if len(ctx.Pool.WhatProvides(rr.PackageName, rr.Constraint)) == 0 {
 				reason, err := ctx.MissingPackageReason(rr.PackageName, rr.Constraint)
 				if err != nil {
-					return "", err
+					return problemDetail{}, err
 				}
 
-				return "\n    " + reason[0] + reason[1], nil
+				return problemDetail{rules: []ui.Statement{{
+					Kind: ui.StatementRequire, Target: rr.PackageName, Constraint: rr.Constraint.PrettyString(), Outcome: reason[1],
+					Text: reasonText(reason),
+				}}}, nil
 			}
 		case RuleLockedFilterListRemoved:
 			// Solver::checkForFilterListRemovedLockedPackages emits these
@@ -106,10 +142,10 @@ func (p *Problem) PrettyString(ctx *PrettyContext) (string, error) {
 			// the pool (typically malware blocked at install time).
 			reason, err := MissingLockedPackageReason(ctx.Pool, rule.Package())
 			if err != nil {
-				return "", err
+				return problemDetail{}, err
 			}
 
-			return "\n    " + reason[0] + reason[1], nil
+			return problemDetail{rules: []ui.Statement{{Kind: ui.StatementNote, Text: reasonText(reason)}}}, nil
 		}
 	}
 
@@ -121,7 +157,7 @@ func (p *Problem) PrettyString(ctx *PrettyContext) (string, error) {
 	for _, rule := range reasons {
 		key, err := sortableString(ctx.Pool, rule)
 		if err != nil {
-			return "", err
+			return problemDetail{}, err
 		}
 		keys[rule] = sortable{rulePriority(rule), key}
 	}
@@ -134,22 +170,26 @@ func (p *Problem) PrettyString(ctx *PrettyContext) (string, error) {
 		return php.Compare(k1.key, k2.key)
 	})
 
-	formatted, err := FormatDeduplicatedRules(reasons, "    ", ctx)
+	rules, err := deduplicatedStatements(reasons, ctx)
 	if err != nil {
-		return "", err
+		return problemDetail{}, err
 	}
 	policyExcluded, err := formatPolicyExcludedConflictAlternatives(reasons, ctx)
 	if err != nil {
-		return "", err
+		return problemDetail{}, err
 	}
 
-	return formatted + policyExcluded, nil
+	return problemDetail{rules: rules, policyExcluded: policyExcluded}, nil
+}
+
+func reasonText(reason [2]string) string {
+	return strings.TrimPrefix(reason[0], "- ") + reason[1]
 }
 
 // formatPolicyExcludedConflictAlternatives ports
 // formatPolicyExcludedConflictAlternatives: it explains when a policy removed
 // versions that the reported conflicts do not exclude.
-func formatPolicyExcludedConflictAlternatives(reasons []*Rule, ctx *PrettyContext) (string, error) {
+func formatPolicyExcludedConflictAlternatives(reasons []*Rule, ctx *PrettyContext) ([]ui.Statement, error) {
 	rootConstraints := &repository.NameMap[semver.ConstraintInterface]{}
 	requireConstraints := &repository.NameMap[[]semver.ConstraintInterface]{}
 	conflictConstraints := &repository.NameMap[[]semver.ConstraintInterface]{}
@@ -169,7 +209,7 @@ func formatPolicyExcludedConflictAlternatives(reasons []*Rule, ctx *PrettyContex
 		}
 	}
 
-	var messages []string
+	var statements []ui.Statement
 	for name, constraints := range conflictConstraints.All() {
 		rootConstraint, hasRoot := rootConstraints.Get(name)
 		_, hasRequire := requireConstraints.Get(name)
@@ -215,22 +255,19 @@ func formatPolicyExcludedConflictAlternatives(reasons []*Rule, ctx *PrettyContex
 		if !ctx.IsVerbose {
 			versions = condenseVersionList(versions, 1, 16)
 		}
-		prettyVersions := make([]string, len(versions))
-		for i, v := range versions {
-			prettyVersions[i] = v.pretty
-		}
+		listed := prettyVersions(versions)
 		reasons, err := formatPolicyRemovalReasons(removals, plural, ctx.RepositorySet)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		// only the conflicts in the problem are checked, those of the removed
 		// versions themselves are unknown
-		messages = append(messages, "\n    - "+name+"["+strings.Join(prettyVersions, ", ")+"] "+pick(plural, "match", "matches")+
-			" the requirements and "+pick(plural, "are", "is")+" not excluded by the conflicts above, but "+
-			pick(plural, "were", "was")+" not loaded, "+reasons)
+		statements = append(statements, ui.Statement{Kind: ui.StatementNote, Text: name + "[" + strings.Join(listed, ", ") + "] " + pick(plural, "match", "matches") +
+			" the requirements and " + pick(plural, "are", "is") + " not excluded by the conflicts above, but " +
+			pick(plural, "were", "was") + " not loaded, " + reasons})
 	}
 
-	return strings.Join(messages, ""), nil
+	return statements, nil
 }
 
 // sortableString ports getSortableString.
@@ -285,28 +322,35 @@ var (
 	dedupGrammarRegex  = php.MustCompile(`{^(%s%s (?:require|conflict))s}`)
 )
 
-// FormatDeduplicatedRules ports Problem::formatDeduplicatedRules.
-func FormatDeduplicatedRules(rules []*Rule, indent string, ctx *PrettyContext) (string, error) {
+// deduplicatedStatements ports Problem::formatDeduplicatedRules: the
+// statements of the rules, those of one requirement or conflict merged
+// across the versions of the package stating it.
+func deduplicatedStatements(rules []*Rule, ctx *PrettyContext) ([]ui.Statement, error) {
 	var messages []string
 	// template => package name => normalized version => pretty version
 	templates := map[string]*repository.NameMap[*VersionMap]{}
+	statements := map[string]ui.Statement{}
 	parser := pkg.NewVersionParser()
 
 	for _, rule := range rules {
-		message, err := rule.PrettyString(ctx)
+		statement, err := rule.Statement(ctx)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
+		message := statement.Text
 		deduplicatable := rule.Reason() == RulePackageRequires || rule.Reason() == RulePackageConflict
 		var m *php.Match
 		if deduplicatable {
 			if m, err = dedupMessageRegex.MatchStrictGroups(message); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 		if m == nil {
 			if message != "" {
 				messages = append(messages, message)
+				if _, ok := statements[message]; !ok {
+					statements[message] = statement
+				}
 			}
 
 			continue
@@ -315,9 +359,12 @@ func FormatDeduplicatedRules(rules []*Rule, indent string, ctx *PrettyContext) (
 		message = strings.ReplaceAll(message, "%", "%%")
 		template, _, err := dedupTemplateRegex.Replace(message, "%s%s ", -1)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		messages = append(messages, template)
+		if _, ok := statements[template]; !ok {
+			statements[template] = statement
+		}
 		byPackage, ok := templates[template]
 		if !ok {
 			byPackage = &repository.NameMap[*VersionMap]{}
@@ -330,53 +377,63 @@ func FormatDeduplicatedRules(rules []*Rule, indent string, ctx *PrettyContext) (
 		}
 		normalized, err := parser.Normalize(m.Get(2))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		versions.Set(normalized, m.Get(2))
 		sourcePackage, err := rule.SourcePackage(ctx.Pool)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		for version, prettyVersion := range ctx.Pool.RemovedVersionsByPackage(sourcePackage).All() {
 			versions.Set(version, prettyVersion)
 		}
 	}
 
-	var result []string
+	var result []ui.Statement
 	for _, message := range uniqueStrings(messages) {
 		byPackage, ok := templates[message]
 		if !ok {
-			result = append(result, message)
+			result = append(result, statements[message])
 
 			continue
 		}
+		statement := statements[message]
 		for packageName, versionMap := range byPackage.All() {
 			versions := sortVersionMap(versionMap)
 			if !ctx.IsVerbose {
 				versions = condenseVersionList(versions, 1, 16)
 			}
+			var line string
 			if len(versions) > 1 {
 				// remove the s from requires/conflicts to correct grammar
 				var err error
 				if message, _, err = dedupGrammarRegex.Replace(message, "$1", -1); err != nil {
-					return "", err
+					return nil, err
 				}
-				line, err := php.Sprintf(message, packageName, "["+joinPretty(versions)+"]")
-				if err != nil {
-					return "", err
+				if line, err = php.Sprintf(message, packageName, "["+joinPretty(versions)+"]"); err != nil {
+					return nil, err
 				}
-				result = append(result, line)
 			} else {
-				line, err := php.Sprintf(message, packageName, " "+versions[0].pretty)
-				if err != nil {
-					return "", err
+				var err error
+				if line, err = php.Sprintf(message, packageName, " "+versions[0].pretty); err != nil {
+					return nil, err
 				}
-				result = append(result, line)
 			}
+			statement.Package, statement.Versions, statement.Text = packageName, prettyVersions(versions), line
+			result = append(result, statement)
 		}
 	}
 
-	return "\n" + indent + "- " + strings.Join(result, "\n"+indent+"- "), nil
+	return result, nil
+}
+
+func prettyVersions(versions []versionEntry) []string {
+	pretty := make([]string, len(versions))
+	for i, v := range versions {
+		pretty[i] = v.pretty
+	}
+
+	return pretty
 }
 
 // uniqueStrings ports array_unique on a list of strings.
@@ -773,15 +830,7 @@ func PackageList(packages []pkg.PackageInterface, isVerbose bool, pool *Pool, co
 }
 
 func joinPretty(versions []versionEntry) string {
-	var b strings.Builder
-	for i, v := range versions {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(v.pretty)
-	}
-
-	return b.String()
+	return strings.Join(prettyVersions(versions), ", ")
 }
 
 // platformPackageVersion ports Problem::getPlatformPackageVersion (whose

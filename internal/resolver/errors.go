@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/stubbedev/maestro/internal/repository"
+	"github.com/stubbedev/maestro/internal/ui"
 )
 
 // OutOfBoundsError is PHP's \OutOfBoundsException.
@@ -73,21 +74,66 @@ func (e *SolverProblemsError) Problems() []*Problem { return e.problems }
 // PrettyString ports getPrettyString. env answers what Composer asks the
 // PHP running it (nil: nothing loaded).
 func (e *SolverProblemsError) PrettyString(repositorySet *repository.RepositorySet, request *Request, pool *Pool, isVerbose, isDevExtraction bool, env Environment) (string, error) {
-	installedMap, err := request.PresentIDMap()
+	report, err := e.Report(repositorySet, request, pool, isVerbose, isDevExtraction, env)
 	if err != nil {
 		return "", err
+	}
+
+	return report.String(), nil
+}
+
+type ProblemReport struct {
+	problems []problemDetail
+	hints    []string
+}
+
+func (r *ProblemReport) problemsText() string {
+	var text strings.Builder
+	text.WriteByte('\n')
+	for i, problem := range r.problems {
+		text.WriteString("  Problem " + strconv.Itoa(i+1) + problem.text() + "\n")
+	}
+
+	return text.String()
+}
+
+func (r *ProblemReport) String() string {
+	if len(r.hints) == 0 {
+		return r.problemsText()
+	}
+
+	return r.problemsText() + "\n" + strings.Join(r.hints, "\n\n")
+}
+
+func (r *ProblemReport) UI() ui.ProblemReport {
+	problems := make([]ui.Problem, len(r.problems))
+	for i, problem := range r.problems {
+		problems[i] = ui.Problem{Statements: problem.statements()}
+	}
+
+	return ui.ProblemReport{Problems: problems, Hints: r.hints}
+}
+
+func (e *SolverProblemsError) Report(repositorySet *repository.RepositorySet, request *Request, pool *Pool, isVerbose, isDevExtraction bool, env Environment) (*ProblemReport, error) {
+	installedMap, err := request.PresentIDMap()
+	if err != nil {
+		return nil, err
 	}
 	ctx := &PrettyContext{RepositorySet: repositorySet, Request: request, Pool: pool, IsVerbose: isVerbose, InstalledMap: installedMap, LearnedPool: e.learnedPool, Env: env}
 
 	missingExtensions := &repository.NameMap[bool]{}
 	isCausedByLock := false
-	problems := make([]string, 0, len(e.problems))
+	report := &ProblemReport{}
+	seen := make(map[string]bool, len(e.problems))
 	for _, problem := range e.problems {
-		pretty, err := problem.PrettyString(ctx)
+		detail, err := problem.detail(ctx)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		problems = append(problems, pretty+"\n")
+		if text := detail.text(); !seen[text] {
+			seen[text] = true
+			report.problems = append(report.problems, detail)
+		}
 		for _, section := range problem.Reasons() {
 			for _, rule := range section {
 				if required, ok := rule.RequiredPackage(); ok && strings.HasPrefix(required, "ext-") {
@@ -97,17 +143,12 @@ func (e *SolverProblemsError) PrettyString(repositorySet *repository.RepositoryS
 		}
 		if !isCausedByLock {
 			if isCausedByLock, err = problem.IsCausedByLock(request, pool); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}
 
-	var text strings.Builder
-	text.WriteByte('\n')
-	for i, problem := range uniqueStrings(problems) {
-		text.WriteString("  Problem " + strconv.Itoa(i+1) + problem)
-	}
-	result := text.String()
+	result := report.problemsText()
 
 	var hints []string
 	if !isDevExtraction && (strings.Contains(result, "could not be found") || strings.Contains(result, "no matching package found")) {
@@ -131,11 +172,9 @@ func (e *SolverProblemsError) PrettyString(repositorySet *repository.RepositoryS
 		hints = append(hints, "You are using Composer 2, which some of your plugins seem to be incompatible with. Make sure you update your plugins or report a plugin-issue to ask them to support Composer 2.")
 	}
 
-	if len(hints) > 0 {
-		result += "\n" + strings.Join(hints, "\n\n")
-	}
+	report.hints = hints
 
-	return result, nil
+	return report, nil
 }
 
 // createExtensionHint ports SolverProblemsException::createExtensionHint.
