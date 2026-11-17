@@ -111,6 +111,7 @@ type Installer struct {
 	// resolutions is the directory updates keep their resolutions in
 	// (keepResolution), "" for none.
 	resolutions string
+	osv         *advisory.OSV
 }
 
 // InstallerDeps are the collaborators of new Installer(...).
@@ -135,6 +136,7 @@ type InstallerDeps struct {
 	// Resolutions is the directory updates keep their resolutions in
 	// (keepResolution), "" for none.
 	Resolutions string
+	OSV         *advisory.OSV
 }
 
 // NewInstaller ports new Installer($io, $config, $package, $downloadManager,
@@ -174,6 +176,7 @@ func NewInstaller(d InstallerDeps) (*Installer, error) {
 		writeLock:                 php.ToBool(writeLock),
 		temporaryConstraints:      &repository.ConstraintMap{},
 		resolutions:               d.Resolutions,
+		osv:                       d.OSV,
 	}, nil
 }
 
@@ -196,8 +199,9 @@ func CreateInstaller(out io.IO, c *Composer) (*Installer, error) {
 	if g := c.AutoloadGenerator(); g != nil {
 		deps.AutoloadGenerator = GeneratorAdapter{g}
 	}
+	deps.OSV = c.OSV()
 	// a plugin may change what an update resolves
-	if plugins, ok := c.PluginManager().(interface{ RegisteredPlugins() []string }); !ok || len(plugins.RegisteredPlugins()) == 0 {
+	if plugins, ok := c.PluginManager().(interface{ RegisteredPlugins() []string }); deps.OSV == nil && (!ok || len(plugins.RegisteredPlugins()) == 0) {
 		deps.Resolutions = cache.Resolutions()
 	}
 
@@ -590,7 +594,7 @@ func (i *Installer) runAuditor(packages []pkg.PackageInterface, auditConfig advi
 		providerSet = set
 	}
 
-	status, err := advisory.Auditor{}.Audit(i.io, repoSet, policyConfig, packages, auditConfig.AuditFormat, true, providerSet)
+	status, err := advisory.Auditor{OSV: i.osv}.Audit(i.io, repoSet, policyConfig, packages, auditConfig.AuditFormat, true, providerSet)
 	if err != nil {
 		return 0, err
 	}
@@ -1747,7 +1751,7 @@ func (i *Installer) createSecurityAuditPoolFilter() (*resolver.SecurityAdvisoryP
 	}
 
 	if policyConfig.Enabled && policyConfig.Advisories.ShouldBlock("update") && !i.updateMirrors {
-		return resolver.NewSecurityAdvisoryPoolFilter(advisory.Auditor{}, policyConfig, i.io), nil
+		return resolver.NewSecurityAdvisoryPoolFilter(advisory.Auditor{OSV: i.osv}, policyConfig, i.io), nil
 	}
 
 	return nil, nil

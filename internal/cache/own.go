@@ -23,6 +23,7 @@ const (
 	resolutionsPath     = "resolution"
 	schemaMemoPath      = "schema/validated"
 	caBundlesPath       = "cacert"
+	osvPath             = "osv"
 )
 
 // Own is one of maestro's own caches.
@@ -47,6 +48,7 @@ var owned = []Own{
 	{resolutionsPath, "cache-repo-dir"},
 	{schemaMemoPath, "cache-dir"},
 	{caBundlesPath, "cache-dir"},
+	{osvPath, "cache-dir"},
 }
 
 // Owned returns maestro's own caches.
@@ -101,6 +103,8 @@ func SchemaMemo() string { return path(schemaMemoPath) }
 // CABundles is the directory the embedded CA bundle is written to, one
 // file per bundle (http.BundledCaBundlePath).
 func CABundles() string { return path(caBundlesPath) }
+
+func OSV() string { return path(osvPath) }
 
 // ClearOwned removes maestro's own caches that clear-cache clears with the
 // cache directory setting with, all but the package store: the store is

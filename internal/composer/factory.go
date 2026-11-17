@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/cache"
 	"github.com/stubbedev/maestro/internal/config"
@@ -551,6 +552,10 @@ func (f *Factory) createComposer(out io.IO, localConfig any, disablePlugins Disa
 			return nil, nil, err
 		}
 		full.SetDownloadManager(dm)
+
+		if os.Getenv(advisory.OSVEnv) == "1" {
+			full.SetOSV(advisory.NewOSV(httpDownloader, cache.OSV()))
+		}
 
 		// initialize autoload generator
 		generator := autoload.NewGenerator(dispatcher, out)

@@ -181,6 +181,9 @@ maestro's test suite goes well beyond the one it was ported from: close to
 - `self-update` updates maestro.
 - `--version` adds a `Maestro version` line on stderr, and the `list`
   banner names maestro.
+- With `MAESTRO_OSV_ADVISORIES=1` (off by default), advisories also come
+  from OSV, which changes `audit`'s findings and exit code and, with
+  `policy.advisories.block`, what resolves.
 
 [docs/PORTING.md](docs/PORTING.md#the-contract) defines the full contract
 and lists every
@@ -210,6 +213,7 @@ It adds the following:
 |---|---|---|
 | `MAESTRO_CACHE_DIR` | `$XDG_CACHE_HOME/maestro`, else the platform cache directory | Location of the package store and maestro's other caches; under `--no-cache`, or when it cannot be created or written, the run uses a directory of its own, removed when it ends |
 | `MAESTRO_PACKAGE_IMPORT_METHOD` | reflink, else hardlink, else copy | Force `clone`, `hardlink` or `copy` when importing from the store |
+| `MAESTRO_OSV_ADVISORIES` | off | Set to `1` to add [OSV](https://osv.dev)'s advisories to the repositories' in `audit`, the audit after `install`/`update` and `policy.advisories.block` |
 
 `maestro clear-cache` clears maestro's caches along with Composer's.
 

@@ -3,6 +3,7 @@
 package advisory
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -67,6 +68,7 @@ type Auditor struct {
 	// CooldownAuditor reports the packages still within the cooldown; nil is
 	// a new CooldownAuditor(), as new Auditor() takes it.
 	CooldownAuditor *CooldownAuditor
+	OSV             *OSV
 }
 
 // NewAuditor ports new Auditor(...): a nil cooldownAuditor is a new
@@ -84,6 +86,52 @@ func (a Auditor) cooldownAuditor() *CooldownAuditor {
 	return a.CooldownAuditor
 }
 
+func (a Auditor) MatchingAdvisories(repoSet RepositorySet, packages []pkg.PackageInterface, allowPartial, ignoreUnreachable bool) (repository.SecurityAdvisoriesResult, error) {
+	if a.OSV == nil {
+		return repoSet.GetMatchingSecurityAdvisories(packages, allowPartial, ignoreUnreachable)
+	}
+
+	result, err := repoSet.GetMatchingSecurityAdvisories(packages, false, ignoreUnreachable)
+	if err != nil {
+		return result, err
+	}
+	found, err := a.OSV.Advisories(repository.AdvisoryConstraintMap(packages), result.Advisories)
+	if transport, ok := errors.AsType[*util.TransportError](err); ok && ignoreUnreachable {
+		result.UnreachableRepos = append(result.UnreachableRepos, transport.Error())
+
+		return result, nil
+	}
+	if err != nil {
+		return result, err
+	}
+	result.Advisories = mergeAdvisories(result.Advisories, found)
+
+	return result, nil
+}
+
+func mergeAdvisories(advisories, more *Advisories) *Advisories {
+	if more.Len() == 0 {
+		return advisories
+	}
+	merged := &Advisories{}
+	for name, list := range advisories.All() {
+		merged.Set(name, list)
+	}
+	for name, list := range more.All() {
+		existing, _ := merged.Get(name)
+		merged.Set(name, append(slices.Clip(existing), list...))
+	}
+	names := merged.Keys()
+	php.SortSlice(names, func(a, b string) int { return php.Compare(a, b) })
+	sorted := &Advisories{}
+	for _, name := range names {
+		list, _ := merged.Get(name)
+		sorted.Set(name, list)
+	}
+
+	return sorted
+}
+
 // Audit ports audit: it reports the advisories, abandoned packages and
 // filter list matches of the packages in format (one of the Format*
 // values), as warnings when warningOnly, else as errors, and returns
@@ -92,7 +140,7 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 	ignoreList := policyConfig.Advisories.IgnoreListForOperation("audit")
 	ignoredSeverities := policyConfig.Advisories.IgnoreSeverityForOperation("audit")
 
-	result, err := repoSet.GetMatchingSecurityAdvisories(packages, format == FormatSummary, policyConfig.IgnoreUnreachable.Audit)
+	result, err := a.MatchingAdvisories(repoSet, packages, format == FormatSummary, policyConfig.IgnoreUnreachable.Audit)
 	if err != nil {
 		return 0, err
 	}
@@ -102,7 +150,7 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 	// we need the CVE & remote IDs set to filter ignores correctly so if we have any matches using the optimized codepath above
 	// and ignores are set then we need to query again the full data to make sure it can be filtered
 	if format == FormatSummary && a.NeedsCompleteAdvisoryLoad(allAdvisories, ignoreList) {
-		result, err = repoSet.GetMatchingSecurityAdvisories(packages, false, policyConfig.IgnoreUnreachable.Audit)
+		result, err = a.MatchingAdvisories(repoSet, packages, false, policyConfig.IgnoreUnreachable.Audit)
 		if err != nil {
 			return 0, err
 		}

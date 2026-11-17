@@ -23,6 +23,7 @@ const root = "../.."
 var runtimeVars = []string{
 	"MAESTRO_CACHE_DIR",
 	"MAESTRO_PACKAGE_IMPORT_METHOD",
+	"MAESTRO_OSV_ADVISORIES",
 	"MAESTRO_BINARY",
 	"MAESTRO_IPC",
 	"MAESTRO_IPC_TOKEN",

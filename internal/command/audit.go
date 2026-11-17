@@ -88,7 +88,7 @@ func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) 
 		}
 	}
 
-	auditor := advisory.Auditor{}
+	auditor := advisory.Auditor{OSV: comp.OSV()}
 	repoSet, err := repository.NewRepositorySet("stable", nil, nil, nil, nil, nil)
 	if err != nil {
 		return 0, err

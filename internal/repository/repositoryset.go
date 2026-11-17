@@ -287,11 +287,15 @@ func (s *RepositorySet) GetSecurityAdvisories(packageNames []string, allowPartia
 // RepositorySet::getMatchingSecurityAdvisories: the advisories affecting
 // the versions of the packages (root aliases left out).
 func (s *RepositorySet) GetMatchingSecurityAdvisories(packages []pkg.PackageInterface, allowPartial, ignoreUnreachable bool) (SecurityAdvisoriesResult, error) {
-	// an unversioned branch has no version ordering for an advisory range
-	// to match
-	packages = slices.DeleteFunc(slices.Clone(packages), IsUnversionedBranch)
+	return s.securityAdvisoriesForConstraints(AdvisoryConstraintMap(packages), allowPartial, ignoreUnreachable)
+}
 
-	return s.securityAdvisoriesForConstraints(PackageVersionsConstraintMap(packages), allowPartial, ignoreUnreachable)
+// AdvisoryConstraintMap is the package constraint map the advisories of
+// packages are looked up for: PackageVersionsConstraintMap without the
+// unversioned branches, which have no version ordering for an advisory
+// range to match.
+func AdvisoryConstraintMap(packages []pkg.PackageInterface) *ConstraintMap {
+	return PackageVersionsConstraintMap(slices.DeleteFunc(slices.Clone(packages), IsUnversionedBranch))
 }
 
 // PackageVersionsConstraintMap is the package constraint map

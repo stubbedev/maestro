@@ -61,12 +61,12 @@ func (f *SecurityAdvisoryPoolFilter) Filter(pool *Pool, repositories []repositor
 
 	ignoreListForBlocking := advisories.IgnoreListForOperation("block")
 	ignoreUnreachableUpdate := f.policyConfig.IgnoreUnreachable.Update
-	allAdvisories, err := repoSet.GetMatchingSecurityAdvisories(packagesForAdvisories, true, ignoreUnreachableUpdate)
+	allAdvisories, err := f.auditor.MatchingAdvisories(repoSet, packagesForAdvisories, true, ignoreUnreachableUpdate)
 	if err != nil {
 		return nil, err
 	}
 	if f.auditor.NeedsCompleteAdvisoryLoad(allAdvisories.Advisories, ignoreListForBlocking) {
-		if allAdvisories, err = repoSet.GetMatchingSecurityAdvisories(packagesForAdvisories, false, ignoreUnreachableUpdate); err != nil {
+		if allAdvisories, err = f.auditor.MatchingAdvisories(repoSet, packagesForAdvisories, false, ignoreUnreachableUpdate); err != nil {
 			return nil, err
 		}
 	}

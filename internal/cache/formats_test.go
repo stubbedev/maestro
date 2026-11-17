@@ -121,6 +121,14 @@ var ownFormats = []ownFormat{
 		},
 	},
 	{
+		format: "internal/advisory.osvFormat",
+		caches: []string{osvPath},
+		roots: []string{
+			"internal/advisory.OSV.Advisories", "internal/advisory.loadOSVRecords",
+			"internal/advisory.storeOSVRecords",
+		},
+	},
+	{
 		format: "internal/archive.rulesFormat",
 		caches: []string{storePath},
 		roots:  []string{"internal/archive.Open", "internal/archive.Archive", "internal/archive.Rules"},

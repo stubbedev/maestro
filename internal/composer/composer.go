@@ -3,6 +3,7 @@
 package composer
 
 import (
+	"github.com/stubbedev/maestro/internal/advisory"
 	"github.com/stubbedev/maestro/internal/autoload"
 	"github.com/stubbedev/maestro/internal/config"
 	"github.com/stubbedev/maestro/internal/downloader"
@@ -135,6 +136,7 @@ type Composer struct {
 	pluginManager     PluginManager
 	autoloadGenerator *autoload.Generator
 	archiveManager    *archiver.ArchiveManager
+	osv               *advisory.OSV
 }
 
 // Partial returns the PartialComposer part, for callers taking either.
@@ -151,6 +153,10 @@ func (c *Composer) SetDownloadManager(m *downloader.DownloadManager) { c.downloa
 
 // DownloadManager ports getDownloadManager.
 func (c *Composer) DownloadManager() *downloader.DownloadManager { return c.downloadManager }
+
+func (c *Composer) SetOSV(o *advisory.OSV) { c.osv = o }
+
+func (c *Composer) OSV() *advisory.OSV { return c.osv }
 
 // SetArchiveManager ports setArchiveManager.
 func (c *Composer) SetArchiveManager(m *archiver.ArchiveManager) { c.archiveManager = m }

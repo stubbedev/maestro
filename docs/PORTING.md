@@ -337,6 +337,33 @@ These change frozen behaviour on purpose; nothing else may.
    commands below it, `list --raw` and `list --format=json|xml|md` stay
    Composer's (`TestHelp_List` and the e2e tests compare all of it but the
    banner).
+9. **OSV advisories, opt-in.** With `MAESTRO_OSV_ADVISORIES=1` in the
+   environment (off by default; not a composer.json `config` key, which
+   `composer config` would refuse), the advisories osv.dev has for the
+   `Packagist` ecosystem are added to those the repositories provide,
+   wherever Composer looks advisories up: `audit` (its output in every
+   format and its exit code), the audit after `install`/`update`, and
+   with `policy.advisories.block` on, which versions resolve
+   (`internal/advisory/osv.go`). Packagist's feed already holds the GitHub
+   Advisory Database and FriendsOfPHP's advisories; OSV adds others, such
+   as the Drupal security team's `DRUPAL-CORE-*` advisories of
+   `drupal/core`. maestro asks `https://api.osv.dev/v1/querybatch` which
+   vulnerabilities each package has, then `/v1/query` for the records of a
+   package whose vulnerabilities it has not kept with the same
+   modification times ("maestro's own caches", `osv`); every request has
+   Composer's 10 second POST timeout, and a failure is an unreachable
+   repository under `policy.ignore-unreachable`. A record's
+   `introduced`/`fixed`/`last_affected`/`limit` events (`ECOSYSTEM` and
+   `SEMVER` ranges) become a Composer constraint (`>=introduced <fixed`,
+   `<=last_affected`; its listed versions when no range can be read), its
+   ID the advisory ID, its summary the title, its first CVE alias the CVE,
+   its osv.dev page the link and GitHub's severity (`moderate` as
+   `medium`) the severity, with `OSV` as the source. An OSV record whose
+   ID or an alias (GHSA, CVE) is a repository advisory's ID, CVE or
+   source ID is left out. With it on, the repositories are always asked
+   for complete advisories, so that duplicates can be told apart, and an
+   update keeps no resolution (`resolution`), since OSV's answer cannot be
+   revalidated.
 
 ### maestro's own caches
 
@@ -398,6 +425,7 @@ as each other cache bounds its own size.
 | `root-version` | the root package's version as guessed from git (Linux, real process executor only, never at `-vvv`), one entry per checkout directory, keyed on the git binary's identity, the environment git reads, its global and system configuration files, the checkout's owner and the identities of its `.git` directory's HEAD, packed refs, shallow, graft and configuration files and of every directory under `refs/`; a linked worktree, a submodule or a checkout git is pointed at (`GIT_DIR` and the like) is not kept; at most 256 | the same format version (`root-version`) and root package fields the guess reads, all of those unchanged | with `cache-dir` |
 | `resolution` | an `update` whose resolution changed nothing in the lock file (no operation, the lock file already holding byte for byte what it would write), by everything it read but the repository metadata: the command line, the `COMPOSER_*` environment, the installer's settings, the root package, the lock file's data, the configuration, the platform packages, the repositories, and the console's verbosity and decoration; with the metadata files each repository read (by identity, or as not found) and the output from the repositories' loading to the lock file's write. Only when every repository is a Composer repository with v2 metadata whose answers its cache keeps (no API request, not degraded), no plugin is registered and the console is below `-v` (whose output times the resolution); at most 64 | the same format version (`resolution`) and key, and every metadata file unchanged: the update sends the conditional requests the loads would, all at once, and each answers 304 (or 404 again) while the cached copy keeps its identity; the update then writes the kept output and goes on to the install from the lock file, building no pool and running no solver | with `cache-repo-dir` |
 | `schema/validated` | the SHA-256 of the last 64 documents that validated against Composer's schemas without a finding | the same format version (`schema-memo`) and document | with `cache-dir` |
+| `osv` | with `MAESTRO_OSV_ADVISORIES=1` (deviation 9), each package's vulnerability records from osv.dev; at most 1024 | the same format version (`osv`), and querybatch lists exactly the kept vulnerabilities, each with the kept modification time; 30 days at most | with `cache-dir` |
 | `cacert` | the embedded CA bundle written out as a file, for what needs a path to one (`CaBundle::getBundledCaBundlePath`) | named by its hash | with `cache-dir` |
 
 ### Go runtime settings

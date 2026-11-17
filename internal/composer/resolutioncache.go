@@ -31,7 +31,7 @@ import (
 )
 
 // resolutionFormat is the version of the entries; its Header starts one.
-var resolutionFormat = fsstate.Format{Name: "resolution", Version: 7}
+var resolutionFormat = fsstate.Format{Name: "resolution", Version: 8}
 
 // resolutionCacheMaxEntries bounds the entries kept: past it, the least
 // recently written are removed.
@@ -242,7 +242,7 @@ var settingsLeftOut = []string{
 	// the root package without its requirements, which the key covers
 	"fixedRootPackage",
 	"suggestedPackagesReporter", "additionalFixedRepository", "lockTransaction", "executedOperations",
-	"resolutions",
+	"resolutions", "osv",
 }
 
 // platformFilterKey names a platform requirement filter, false for one it
