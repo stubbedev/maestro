@@ -4,6 +4,7 @@
 package http
 
 import (
+	"bufio"
 	"errors"
 	"io"
 	"net"
@@ -48,6 +49,27 @@ func acceptClient(t *testing.T, l net.Listener) net.Conn {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	return conn
+}
+
+func answerRequest(t *testing.T, client net.Conn, response string) {
+	t.Helper()
+
+	if err := client.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	reader := bufio.NewReader(client)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("reading the request: %v", err)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+	if _, err := client.Write([]byte(response)); err != nil {
+		t.Fatalf("writing the response: %v", err)
+	}
 }
 
 func tickUntil(t *testing.T, c *CurlDownloader, condition func() bool) {
@@ -204,7 +226,7 @@ func TestCurlDownloader_RequestExceedingTheMaxFileSizeIsRejectedOnceAndRemovedFr
 
 	tickUntil(t, c, func() bool {
 		if client := acceptClient(t, server); client != nil {
-			_, _ = client.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n" + strings.Repeat("a", 500)))
+			answerRequest(t, client, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n"+strings.Repeat("a", 500))
 		}
 
 		return len(errs) > 0
@@ -248,7 +270,7 @@ func TestCurlDownloader_RejectionWhichAbortsAnotherTransferDoesNotBreakTheProgre
 		}
 		if !sent && len(clients) == 2 {
 			for _, client := range clients {
-				_, _ = client.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n"))
+				answerRequest(t, client, "HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n")
 			}
 			sent = true
 		}
