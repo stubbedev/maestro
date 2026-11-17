@@ -3,17 +3,16 @@ package main
 import (
 	"math"
 	"runtime"
-	"runtime/debug"
+	"runtime/metrics"
 	"testing"
 	"time"
 )
 
-// gcSettings reads the collector's settings.
 func gcSettings() (percent int, limit int64) {
-	percent = debug.SetGCPercent(-1)
-	debug.SetGCPercent(percent)
+	samples := []metrics.Sample{{Name: "/gc/gogc:percent"}, {Name: "/gc/gomemlimit:bytes"}}
+	metrics.Read(samples)
 
-	return percent, debug.SetMemoryLimit(-1)
+	return int(samples[0].Value.Uint64()), int64(samples[1].Value.Uint64())
 }
 
 // The collector stays off until the first collection, after which the
