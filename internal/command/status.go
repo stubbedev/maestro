@@ -98,6 +98,20 @@ func indentStatusChanges(changes string) string {
 	return strings.Join(lines, "\n")
 }
 
+// isPathRepoSymlink tells whether targetDir is the symlink a path
+// repository package is installed as, to its source dir, which its symlink
+// option does not force to be a copy.
+func isPathRepoSymlink(dl downloader.Downloader, p pkg.PackageInterface, targetDir string) bool {
+	if _, ok := dl.(*downloader.PathDownloader); !ok {
+		return false
+	}
+	if symlink, _ := p.TransportOptions().Get("symlink"); symlink == false {
+		return false
+	}
+
+	return php.RealpathString(targetDir) == php.RealpathString(p.DistURL().S)
+}
+
 func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 	// init repos
 	comp, err := c.RequireComposer(nil, nil)
@@ -130,9 +144,9 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 	// looked at (deliberate deviation 3), but at -vvv, where a failure
 	// stops the command at its package
 	type localChanges struct {
-		targetDir string
-		symlink   bool
-		changes   func() (pkg.NullString, error)
+		targetDir     string
+		reportSymlink bool
+		changes       func() (pkg.NullString, error)
 	}
 	var reported []localChanges
 
@@ -157,7 +171,7 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 		if reporter, ok := dl.(downloader.ChangeReporter); ok {
 			r := localChanges{targetDir: targetDir}
 			if fi, err := os.Lstat(targetDir); err == nil && fi.Mode()&os.ModeSymlink != 0 {
-				r.symlink = true
+				r.reportSymlink = !isPathRepoSymlink(dl, p, targetDir)
 			}
 
 			if async, ok := dl.(downloader.AsyncChangeReporter); ok && !out.IsDebug() {
@@ -231,7 +245,7 @@ func (c *StatusCommand) doExecute(in console.Input) (int, error) {
 	}
 
 	for _, r := range reported {
-		if r.symlink {
+		if r.reportSymlink {
 			errs.Set(r.targetDir, r.targetDir+" is a symbolic link.")
 		}
 		changes, err := r.changes()

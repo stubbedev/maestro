@@ -295,6 +295,12 @@ func (d *PathDownloader) VcsReference(p pkg.PackageInterface, path string) (pkg.
 		return pkg.NullString{}, err
 	}
 
+	var prefix string
+	code, err := d.process.Execute(util.Cmd("git", "rev-parse", "--show-prefix"), &prefix, path)
+	if err != nil || code != 0 || php.Trim(prefix) != "" {
+		return pkg.NullString{}, err
+	}
+
 	return packageVersion.Commit, nil
 }
 
