@@ -332,7 +332,7 @@ func TestPluginInstaller_InstallPluginAutoloadsMissingDependenciesOnceInstallPat
 	}
 
 	pt.composerWith(dependency)
-	im := &installedElsewhereIM{fixtureIM: fixtureIM{dir: pt.fixtures}, name: "dummy/installed-elsewhere", realPath: realPath}
+	im := &installedElsewhereIM{dir: pt.fixtures, name: "dummy/installed-elsewhere", realPath: realPath}
 	pt.composer.SetInstallationManager(im)
 	if err := pt.pm.LoadInstalledPlugins(); err != nil {
 		t.Fatal(err)
