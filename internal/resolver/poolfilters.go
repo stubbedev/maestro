@@ -145,6 +145,7 @@ func matchingAdvisories(p pkg.PackageInterface, advisoryMap *repository.NameMap[
 		return nil
 	}
 
+	version := p.Version()
 	var matching []repository.Advisory
 	for _, packageName := range p.Names(false) {
 		advisories, ok := advisoryMap.Get(packageName)
@@ -152,9 +153,8 @@ func matchingAdvisories(p pkg.PackageInterface, advisoryMap *repository.NameMap[
 			continue
 		}
 
-		packageConstraint := semver.NewConstraintOp(semver.OpEQ, p.Version())
 		for _, a := range advisories {
-			if a.Partial().AffectedVersions.Matches(packageConstraint) {
+			if semver.CompilingMatcher.Match(a.Partial().AffectedVersions, semver.OpEQ, version) {
 				matching = append(matching, a)
 			}
 		}
