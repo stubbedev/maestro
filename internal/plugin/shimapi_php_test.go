@@ -535,7 +535,7 @@ func TestShimAPI_ListShapedLinks(t *testing.T) {
 	// thrown where Composer's Package.php raises the notice (maestro's
 	// RootAliasPackage has no PHP location)
 	msg := "ErrorException: Package::setRequires must be called with a map of lowercased package name => Link object, got a indexed array, this is deprecated and you should fix your usage."
-	if got != msg+"\n/src/Composer/Package/Package.php:716\n"+msg {
+	if got != msg+"\n/src/Composer/Package/Package.php:791\n"+msg {
 		t.Errorf("got %v", got)
 	}
 	if root.Requires().Len() != 0 {
