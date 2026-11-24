@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -15,6 +15,6 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 > __exec_command: nope-bin
 Executing command (CWD): nope-bin
-sh: line 1: nope-bin: command not found
+sh: 1: nope-bin: not found
 Script nope-bin handling the __exec_command event returned with error code 127
 exit 127

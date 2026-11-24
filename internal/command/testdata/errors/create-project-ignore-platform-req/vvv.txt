@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/hi" project at "./out"
@@ -16,23 +16,23 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.KwXOJw-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.m89bCg-run-p-packages.json/packages.json into cache
 Installing x/hi (1.0.0)
   - Downloading x/hi (1.0.0)
 Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/plain.zip
 [200] http://@SERVER@/plain.zip
-Writing @DIR@/cache/files/x/hi/af61d0cc6b288cef7141b9d45a963bec6a7806f2.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
+Writing @DIR@/cache/files/x/hi/57eb5d5a305cf20aa6a9e4d5a614b0530df95b73.zip into cache from @DIR@/p/out/vendor/composer/tmp-@RAND@.zip
   - Installing x/hi (1.0.0): Extracting archive
-Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/834ec16b'
-Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/834ec16b'
+Executing async command (CWD): '@BIN@/unzip' '-qq' '@DIR@/p/out/vendor/composer/tmp-@RAND@.zip' '-d' '@DIR@/p/out/vendor/composer/31e1678b'
+Executing async command (CWD): 'rm' '-rf' '@DIR@/p/out/vendor/composer/31e1678b'
 Created project in @DIR@/p/out
 Reading ./composer.json (@DIR@/p/out/composer.json)
 Loading config file ./composer.json (@DIR@/p/out/composer.json)
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 Loading composer repositories with package information
-Built pool in 0.00044608116149902s
+Built pool in 0.00043892860412598s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.

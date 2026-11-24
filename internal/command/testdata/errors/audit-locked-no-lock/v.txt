@@ -1,6 +1,6 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In AuditCommand.php line 133:
+In AuditCommand.php line 136:
                                                                                
   [UnexpectedValueException]                                                   
   Valid composer.json and composer.lock files are required to run this comman  
@@ -8,7 +8,7 @@ In AuditCommand.php line 133:
                                                                                
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/AuditCommand.php:133
+  at @COMPOSER@/src/Composer/Command/AuditCommand.php:136
  Composer\Command\AuditCommand->getPackages() at @COMPOSER@/src/Composer/Command/AuditCommand.php:63
  Composer\Command\AuditCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040

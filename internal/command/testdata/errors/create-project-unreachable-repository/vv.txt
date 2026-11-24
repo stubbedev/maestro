@@ -6,7 +6,7 @@ In CurlDownloader.php line 549:
                                                                                
   [Composer\Downloader\TransportException (100)]                               
   curl error 7 while downloading http://127.0.0.1:1/packages.json: Failed to   
-  connect to 127.0.0.1:1 after 0 ms: Could not connect to server               
+  connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server          
                                                                                
 
 Exception trace:

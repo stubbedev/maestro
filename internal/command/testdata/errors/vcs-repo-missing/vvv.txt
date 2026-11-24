@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -27,11 +27,11 @@ Exception trace:
   at @COMPOSER@/src/Composer/Repository/VcsRepository.php:202
  Composer\Repository\VcsRepository->initialize() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:308
  Composer\Repository\ArrayRepository->getPackages() at @COMPOSER@/src/Composer/Repository/ArrayRepository.php:62
- Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:458
+ Composer\Repository\ArrayRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:459
  Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:294
  Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:379
- Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:537
- Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:327
+ Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Installer.php:538
+ Composer\Installer->doUpdate() at @COMPOSER@/src/Composer/Installer.php:328
  Composer\Installer->run() at @COMPOSER@/src/Composer/Command/UpdateCommand.php:308
  Composer\Command\UpdateCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
