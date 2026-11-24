@@ -129,7 +129,8 @@ func (c *FundCommand) Execute(in console.Input, _ console.Output) (int, error) {
 					prev, hasPrev = line, true
 				}
 
-				cio.Write("    "+surface.Href(ui.RoleLink, console.Escape(url.String()), url.String()), true, io.Normal)
+				escapedURL := console.Escape(url.String())
+				cio.Write("    "+surface.Href(ui.RoleLink, escapedURL, escapedURL), true, io.Normal)
 			}
 		}
 

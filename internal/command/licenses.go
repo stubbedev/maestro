@@ -60,12 +60,21 @@ func licensesOf(p pkg.PackageInterface) *php.Array {
 	return php.NewArray()
 }
 
+// licensesOrNone is `implode(', ', $licenses) ?: 'none'`.
+func licensesOrNone(licenses *php.Array) string {
+	if joined := implodeComma(licenses); php.ToBool(joined) {
+		return joined
+	}
+
+	return "none"
+}
+
 // styleLicenses is the licenses' identifiers joined by ", ", or "none"
-// (implodeComma's): on the free surface an OSI-approved licence in the
-// success role, any other in the notice role and "none" in the danger
-// role.
+// (licensesOrNone's), escaped for the formatter: on the free surface an
+// OSI-approved licence in the success role, any other in the notice role
+// and "none" in the danger role.
 func styleLicenses(surface ui.Surface, spdxLicenses *spdx.SpdxLicenses, licenses *php.Array) string {
-	if licenses == nil || licenses.Len() == 0 {
+	if !php.ToBool(implodeComma(licenses)) {
 		return surface.Style(ui.RoleDanger, "none")
 	}
 	parts := make([]string, 0, licenses.Len())
@@ -75,7 +84,7 @@ func styleLicenses(surface ui.Surface, spdxLicenses *spdx.SpdxLicenses, licenses
 		if spdxLicenses.IsOsiApprovedByIdentifier(id) {
 			role = ui.RoleSuccess
 		}
-		parts = append(parts, surface.Style(role, id))
+		parts = append(parts, surface.Style(role, console.Escape(id)))
 	}
 
 	return strings.Join(parts, ", ")
@@ -132,8 +141,7 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 		label := func(s string) string { return surface.Style(ui.RoleMuted, s) }
 		cio.Write(label("Name:")+" <comment>"+root.PrettyName()+"</comment>", true, io.Normal)
 		cio.Write(label("Version:")+" <comment>"+root.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)+"</comment>", true, io.Normal)
-		// the root's licences keep Composer's <comment> look
-		cio.Write(label("Licenses:")+" <comment>"+styleLicenses(ui.Frozen, spdxLicenses, root.License())+"</comment>", true, io.Normal)
+		cio.Write(label("Licenses:")+" <comment>"+licensesOrNone(root.License())+"</comment>", true, io.Normal)
 		cio.Write(label("Dependencies:"), true, io.Normal)
 		cio.Write("", true, io.Normal)
 
@@ -148,11 +156,11 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 				name = "<href=" + console.Escape(link.S) + ">" + p.PrettyName() + "</>"
 			}
 
-			if err := table.AddRow([]any{
+			if err := table.AddRow(sanitizedRow(
 				name,
-				p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev),
+				console.Escape(p.FullPrettyVersion(true, pkg.DisplaySourceRefIfDev)),
 				styleLicenses(surface, spdxLicenses, licensesOf(p)),
-			}); err != nil {
+			)); err != nil {
 				return 0, err
 			}
 		}
@@ -204,7 +212,7 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 
 		rows := make([]any, 0, usedLicenses.Len())
 		for usedLicense, numberOfDependencies := range usedLicenses.All() {
-			rows = append(rows, []any{usedLicense.Value(), numberOfDependencies})
+			rows = append(rows, sanitizedRow(console.Escape(usedLicense.String()), php.ToString(numberOfDependencies)))
 		}
 
 		symfonyIo := console.NewSymfonyStyle(in, out)
@@ -217,4 +225,15 @@ func (c *LicensesCommand) Execute(in console.Input, out console.Output) (int, er
 	}
 
 	return 0, nil
+}
+
+// sanitizedRow is a table row of ConsoleIO::sanitize($cells): a table
+// writes to the output directly, bypassing ConsoleIO::write().
+func sanitizedRow(cells ...string) []any {
+	row := make([]any, len(cells))
+	for i, cell := range io.SanitizeMessages(cells, true) {
+		row[i] = cell
+	}
+
+	return row
 }

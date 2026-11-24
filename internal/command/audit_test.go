@@ -316,3 +316,19 @@ func auditCreateComposerLockWithPackages(t *testing.T, packages []auditTestPacka
 	commandtest.CreateInstalledJSON(t, list, nil, true)
 	commandtest.CreateComposerLock(t, list, nil)
 }
+
+func TestAuditCommand_AbandonedReplacementIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	p := commandtest.GetPackage(t, "vendor/pkg", "1.0.0")
+	p.SetAbandoned("<fg=foo>new/pkg</>")
+	commandtest.CreateInstalledJSON(t, gbPkgs(p), nil, true)
+	commandtest.CreateComposerLock(t, gbPkgs(p), nil)
+
+	for _, format := range []string{advisory.FormatPlain, advisory.FormatTable} {
+		appTester := gbRun(t, gbParams("command", "audit", "--locked", true, "--format", format, "--abandoned", policy.AuditReport))
+
+		if display := appTester.Display(true); !strings.Contains(display, "<fg=foo>new/pkg</>") {
+			t.Errorf("%s: replacement not printed literally:\n%s", format, display)
+		}
+	}
+}

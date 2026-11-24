@@ -242,3 +242,20 @@ func TestInstallCommand_Options(t *testing.T) {
 		},
 	})
 }
+
+func TestInstallCommand_AbandonedReplacementIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, `{"require": {"vendor/pkg": "1.*"}}`, nil, nil, true)
+
+	p := commandtest.GetPackage(t, "vendor/pkg", "1.0.0")
+	p.SetType("metapackage")
+	p.SetAbandoned("<fg=foo>new/pkg</>")
+	commandtest.CreateComposerLock(t, []pkg.PackageInterface{p}, nil)
+
+	appTester := commandtest.GetApplicationTester(t)
+	if code := runAppTester(t, appTester, console.P("command", "install"), console.P("--no-progress", true)); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	display := appTester.Display(true)
+	assertDisplayContains(t, display, "Package vendor/pkg is abandoned, you should avoid using it. Use <fg=foo>new/pkg</> instead.", true)
+	assertDisplayContains(t, display, "Generating autoload files", true)
+}

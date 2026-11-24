@@ -801,7 +801,7 @@ func outputAbandonedPackages(out io.IO, packages []pkg.CompletePackageInterface,
 		for _, p := range packages {
 			replacement := "No replacement was suggested"
 			if r := p.ReplacementPackage(); r.Valid {
-				replacement = "Use " + r.S + " instead"
+				replacement = "Use " + console.Escape(r.S) + " instead"
 			}
 			out.Write(fmt.Sprintf("%s is abandoned. %s.", packageNameWithLink(p), replacement), true, io.Normal)
 		}
@@ -822,7 +822,7 @@ func outputAbandonedPackages(out io.IO, packages []pkg.CompletePackageInterface,
 	for _, p := range packages {
 		replacement := "none"
 		if r := p.ReplacementPackage(); r.Valid {
-			replacement = r.S
+			replacement = console.Escape(r.S)
 		}
 		if err := table.AddRow(io.SanitizeMessages([]string{packageNameWithLink(p), replacement}, true)); err != nil {
 			return err

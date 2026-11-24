@@ -1176,3 +1176,62 @@ func TestShowCommand_ShowingASinglePackageMentionsAReleaseStillInTheCooldownPeri
 		t.Errorf("no cooldown-available-in in %v", json)
 	}
 }
+
+func TestShowCommand_VersionIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", php.NewArray(),
+		"require", php.ArrayOf("vendor/pkg", "*"),
+	), nil, nil, true)
+	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/pkg", "dev-<fg=foo>x</>")), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "show", "package", "vendor/pkg"))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "versions : * dev-<fg=foo>x</>")
+}
+
+func TestShowCommand_PackageMetadataIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", php.NewArray(),
+		"require", php.ArrayOf("vendor/pkg", "*"),
+	), nil, nil, true)
+	p := commandtest.GetPackage(t, "vendor/pkg", "1.0.0")
+	p.SetDescription(pkg.Str("A <fg=foo>description</>"))
+	p.SetKeywords(php.ListOf("<href=https://example.org>keyword</>"))
+	p.SetHomepage(pkg.Str("<fg=foo>https://example.org</>"))
+	p.SetSupport(php.ArrayOf("issues", "<error>https://example.org</error>"))
+	p.SetSuggests(php.ArrayOf("other/pkg", "<fg=foo>reason</>"))
+	p.SetLicense(php.ListOf("<fg=foo>MIT</>"))
+	p.SetAbandoned("<fg=foo>new/pkg</>")
+	commandtest.CreateInstalledJSON(t, gbPkgs(p), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "show", "package", "vendor/pkg"))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	output := appTester.Display(true)
+	for _, want := range []string{
+		"descrip. : A <fg=foo>description</>",
+		"keywords : <href=https://example.org>keyword</>",
+		"homepage : <fg=foo>https://example.org</>",
+		"issues : <error>https://example.org</error>",
+		"other/pkg <fg=foo>reason</>",
+		"license  : <fg=foo>MIT</>",
+		"The author suggests using the <fg=foo>new/pkg</> package instead.",
+	} {
+		gbContains(t, output, want)
+	}
+
+	appTester = gbRun(t, gbParams("command", "show"))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "A <fg=foo>description</>")
+
+	appTester = gbRun(t, gbParams("command", "show", "--tree", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "vendor/pkg 1.0.0 A <fg=foo>description</>")
+}

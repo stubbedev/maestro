@@ -124,6 +124,7 @@ func (c *SearchCommand) Execute(in console.Input, out console.Output) (int, erro
 			if len(description) > remaining {
 				description = searchSubstr(description, remaining-3) + "..."
 			}
+			description = console.Escape(description)
 
 			if result.URL.Valid {
 				cio.Write("<href="+console.Escape(result.URL.S)+">"+result.Name+"</>"+strings.Repeat(" ", nameLength-len(result.Name))+warning+description, true, io.Normal)

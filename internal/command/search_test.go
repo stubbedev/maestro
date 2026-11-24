@@ -126,3 +126,23 @@ func TestSearchCommand_VerboseOutput(t *testing.T) {
 	gbContains(t, output, "vendor-1/package-1")
 	gbContains(t, output, "vendor-1/package-2")
 }
+
+func TestSearchCommand_DescriptionIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, `{
+		"repositories": [
+			{"packagist.org": false},
+			{
+				"type": "package",
+				"package": [
+					{"name": "vendor/pkg", "description": "A <fg=foo>description</>", "version": "1.0.0"}
+				]
+			}
+		]
+	}`, nil, nil, true)
+
+	appTester := gbRun(t, gbParams("command", "search", "tokens", []string{"vendor"}))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "vendor/pkg A <fg=foo>description</>")
+}
