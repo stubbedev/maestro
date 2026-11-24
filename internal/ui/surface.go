@@ -29,16 +29,32 @@ func (s Surface) String() string {
 // Style is text, formatter markup, in role on the free surface
 // (Role.Wrap) and text as it is on the frozen one. An empty text stays
 // empty, so trimming around it works as on Composer's text, and a text
-// closing a tag of its own ("</") is left as it is: inside the role's tag
-// it could close a style the formatter has not opened, which Composer's
-// text alone never does. Undecorated, the formatter drops the role's tag,
-// so the free surface's text is the frozen one's.
+// closing a tag of its own (an unescaped "</") is left as it is: inside
+// the role's tag it could close a style the formatter has not opened,
+// which Composer's text alone never does. Undecorated, the formatter drops
+// the role's tag, so the free surface's text is the frozen one's.
 func (s Surface) Style(r Role, text string) string {
-	if s != Free || text == "" || strings.Contains(text, "</") {
+	if s != Free || text == "" || closesTag(text) {
 		return text
 	}
 
 	return r.Wrap(text)
+}
+
+// closesTag reports whether text holds a "</" the formatter may read as a
+// closing tag: one whose "<" is not escaped by the backslash before it, as
+// OutputFormatter::formatAndWrap skips a tag preceded by "\".
+func closesTag(text string) bool {
+	for i := 0; ; i++ {
+		idx := strings.Index(text[i:], "</")
+		if idx < 0 {
+			return false
+		}
+		i += idx
+		if i == 0 || text[i-1] != '\\' {
+			return true
+		}
+	}
 }
 
 // Href is text linking to url (already escaped for the formatter, as
