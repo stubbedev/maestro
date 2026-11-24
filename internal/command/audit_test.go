@@ -186,6 +186,36 @@ func TestAuditCommand_AuditWithCustomListAuditReportDoesNotFail(t *testing.T) {
 	}
 }
 
+func TestAuditCommand_AuditDoesNothingWhenPolicyIsDisabledInConfig(t *testing.T) {
+	packages := []auditTestPackage{{"malicious/pkg", "1.0.0"}, {"banned/pkg", "1.0.0"}}
+	auditInitTempComposerWithFilterLists(t, packages, php.ArrayOf("config", php.ArrayOf("policy", false)))
+	auditCreateComposerLockWithPackages(t, packages)
+
+	appTester := gbRun(t, gbParams("command", "audit", "--locked", true))
+
+	gbAssertSame(t, `<warning>Dependency policies are disabled (via the "policy" config or COMPOSER_POLICY env var), so the audit does not check anything.</warning>`, gbTrim(appTester))
+	if code := appTester.StatusCode(); code != advisory.StatusOK {
+		t.Errorf("exit code %d", code)
+	}
+}
+
+func TestAuditCommand_AuditDoesNothingWhenPolicyIsDisabledViaEnv(t *testing.T) {
+	packages := []auditTestPackage{{"malicious/pkg", "1.0.0"}, {"banned/pkg", "1.0.0"}}
+	auditInitTempComposerWithFilterLists(t, packages, nil)
+	auditCreateComposerLockWithPackages(t, packages)
+
+	t.Setenv("COMPOSER_POLICY", "0")
+	appTester := gbRun(t, gbParams("command", "audit", "--locked", true, "--format", "json"))
+
+	display := appTester.Display(true)
+	gbContains(t, display, "Dependency policies are disabled")
+	gbNotContains(t, display, `"advisories"`)
+	gbNotContains(t, display, "malicious/pkg")
+	if code := appTester.StatusCode(); code != advisory.StatusOK {
+		t.Errorf("exit code %d", code)
+	}
+}
+
 func auditInitTempComposerWithFilterLists(t *testing.T, packages []auditTestPackage, extraConfig *php.Array) {
 	t.Helper()
 	config := php.ArrayOf(
