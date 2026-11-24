@@ -264,7 +264,10 @@ Taking a release in:
 3. Regenerate what is generated from Composer's sources when they changed:
    the oracles' goldens (`tools/oracle/<package>`), the shim's vendored
    libraries (`tools/shimvendor`) and its API stubs and parity golden
-   (`tools/shimgen`).
+   (`tools/shimgen`). Then run `just shim-lines` (`tools/shimlines`),
+   which fails on every `@line` annotation of the shim whose line in
+   Composer's source no longer makes the annotated call, naming the line
+   where that call now is; correct those numbers.
 4. `just check`, then `just e2e`, which compares maestro with the new
    release's phar.
 
@@ -770,6 +773,7 @@ optimises with (docs/BENCHMARKS.md).
 | `tools/oracle/<package>` | generates the goldens of differential tests from `.ref/` |
 | `tools/shimvendor` | vendors the PHP libraries Composer's phar ships into the shim (`internal/plugin/php/lib`) |
 | `tools/shimgen` | generates the shim's API-parity stubs and golden from Composer's `src/` |
+| `tools/shimlines` | checks the shim's `@line` annotations against Composer's `src/` (`just shim-lines`) |
 | `tools/fetchdists` | downloads real dist archives for the store's differential test |
 | `tools/deadcode` | fails on functions nothing reaches (`just deadcode`, CI) |
 | `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |

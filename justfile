@@ -86,6 +86,10 @@ pgo *args:
 ref:
     ref-sync
 
+# Check the shim's `@line` annotations against .ref/composer (tools/shimlines).
+shim-lines:
+    {{ compose }} test go run ./tools/shimlines
+
 # Move the pin to another Composer release (tools/upstream/bump.sh).
 bump-composer version:
     tools/upstream/bump.sh {{ version }}

@@ -349,6 +349,7 @@ internal/plugin/                      Go (ports Composer\Plugin\*; hosts the bri
 tools/shimgen/        generator: reflects .ref/composer/src (as plugins-survey/tools/apiindex.php does),
                       writes stubs for every class not hand-written, and a parity golden used by tests
 tools/shimvendor/     copies the exact library versions from .ref/composer/vendor (per .ref/composer/composer.lock)
+tools/shimlines/      checks the shim's `@line` annotations against .ref/composer/src ("Exception traces")
 ```
 
 **Vendored set.** This is exactly the phar's runtime dependencies (from
@@ -1349,6 +1350,13 @@ plugin code with an `@line N` comment (`@line path:N` for the eval() of an
 already loaded plugin class, "PluginManager.php(303) : eval()'d code"),
 and keep their own location elsewhere; so does an error PHP raises there
 (ErrorHandler names the `\ErrorException`'s location as Composer's).
+`tools/shimlines` (`just shim-lines`, and `go test ./tools/shimlines`
+when `.ref/composer` is checked out) checks every annotation against the
+release maestro ports: line N of the named Composer file (`src/` plus the
+shim file's path for a bare N, `path` from Composer's root otherwise)
+must make the annotated call, the same function or method with the same
+first string argument. It fails naming each annotation that does not,
+with the line or lines where that call now is.
 
 **Deprecation notices and warnings.** Composer has one ErrorHandler: its
 `$hasShownDeprecationNotice` is a static the sync engine keeps in step
