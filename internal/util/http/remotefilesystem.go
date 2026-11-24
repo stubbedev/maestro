@@ -486,7 +486,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 				r.io.OverwriteError("Downloading (<error>failed</error>)", false, -1, mio.Normal)
 			}
 
-			e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded (`+headers[0]+`)`, statusCode)
+			e := util.NewTransportError(`The "`+util.SanitizeURL(r.fileURL)+`" file could not be downloaded (`+headers[0]+`)`, statusCode)
 			e.Headers = headers
 
 			decoded, decodedOK, derr := r.decodeResult(result, resultOK, headers)
@@ -539,11 +539,11 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	// handle copy command if download was successful
 	if resultOK && hasFileName && !isRedirect {
 		if result == "" {
-			return "", false, util.NewTransportError(`"`+r.fileURL+`" appears broken, and returned an empty 200 response`, 400)
+			return "", false, util.NewTransportError(`"`+util.SanitizeURL(r.fileURL)+`" appears broken, and returned an empty 200 response`, 400)
 		}
 
 		if err := os.WriteFile(fileName, []byte(result), 0o666); err != nil {
-			return "", false, util.NewTransportError(`The "`+r.fileURL+`" file could not be written to `+fileName+": Failed to open stream: "+php.Strerror(err), 400)
+			return "", false, util.NewTransportError(`The "`+util.SanitizeURL(r.fileURL)+`" file could not be written to `+fileName+": Failed to open stream: "+php.Strerror(err), 400)
 		}
 
 		result = "1"
@@ -569,7 +569,7 @@ func (r *RemoteFilesystem) get(originURL, fileURL string, additionalOptions *php
 	}
 
 	if !resultOK {
-		e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded: `+errorMessage, 0)
+		e := util.NewTransportError(`The "`+util.SanitizeURL(r.fileURL)+`" file could not be downloaded: `+errorMessage, 0)
 		e.Curl = contents.curl
 		if len(headers) > 0 && headers[0] != "" {
 			e.Headers = headers
@@ -620,7 +620,7 @@ func (r *RemoteFilesystem) CallbackGet(notificationCode, _ int, message string, 
 			// This might happen if your host is secured by ssl client
 			// certificate authentication but you do not send an
 			// appropriate certificate
-			return util.NewTransportError("The '"+r.fileURL+"' URL could not be accessed: "+message, messageCode)
+			return util.NewTransportError("The '"+util.SanitizeURL(r.fileURL)+"' URL could not be accessed: "+message, messageCode)
 		}
 	case StreamNotifyFileSizeIs:
 		r.bytesMax = bytesMax
@@ -740,7 +740,7 @@ func (r *RemoteFilesystem) handleRedirect(responseHeaders []string, additionalOp
 	}
 
 	if !r.retry {
-		e := util.NewTransportError(`The "`+r.fileURL+`" file could not be downloaded, got redirect without Location (`+responseHeaders[0]+`)`, 400)
+		e := util.NewTransportError(`The "`+util.SanitizeURL(r.fileURL)+`" file could not be downloaded, got redirect without Location (`+responseHeaders[0]+`)`, 400)
 		e.Headers = responseHeaders
 
 		decoded, decodedOK, err := r.decodeResult(result, resultOK, responseHeaders)

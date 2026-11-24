@@ -249,6 +249,36 @@ func TestRemoteFilesystem_RedirectToDisallowedSchemeIsRejected(t *testing.T) {
 	}
 }
 
+func TestRemoteFilesystem_ErrorMessagesDoNotContainUrlCredentials(t *testing.T) {
+	for name, responseHeaders := range map[string][]string{
+		"not found":                 {"HTTP/1.1 404 Not Found"},
+		"redirect without location": {"HTTP/1.1 302 Found"},
+	} {
+		r := newTestRFS(t, nil, nil, nil)
+		calls := 0
+		r.getRemoteContents = func(string, string, *php.Array, int64) (remoteContents, error) {
+			calls++
+
+			return remoteContents{ok: true, headers: responseHeaders}, nil
+		}
+
+		_, err := r.GetContents("example.org", "https://user:secret@example.org/packages.json", false, nil)
+		e, ok := errors.AsType[*util.TransportError](err)
+		if !ok {
+			t.Fatalf("%s: expected a TransportError, got %v", name, err)
+		}
+		if calls != 1 {
+			t.Errorf("%s: %d requests, want 1", name, calls)
+		}
+		if strings.Contains(e.Message, "secret") {
+			t.Errorf("%s: message leaks the password: %q", name, e.Message)
+		}
+		if !strings.Contains(e.Message, "https://user:***@example.org/packages.json") {
+			t.Errorf("%s: message does not name the sanitized URL: %q", name, e.Message)
+		}
+	}
+}
+
 func TestRemoteFilesystem_CredentialHeadersAreOnlyKeptOnSameOriginRedirects(t *testing.T) {
 	for name, tc := range map[string]struct {
 		location         string
