@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file @DIR@/home/config.json
 Loading config file ./composer.json (@DIR@/p/composer.json)
@@ -36,8 +36,8 @@ Exception trace:
  Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:717
  Composer\Repository\ComposerRepository->hasSecurityAdvisories() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:313
  Composer\Repository\RepositorySet->getSecurityAdvisoriesForConstraints() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:298
- Composer\Repository\RepositorySet->getMatchingSecurityAdvisories() at @COMPOSER@/src/Composer/Advisory/Auditor.php:86
- Composer\Advisory\Auditor->audit() at @COMPOSER@/src/Composer/Command/AuditCommand.php:114
+ Composer\Repository\RepositorySet->getMatchingSecurityAdvisories() at @COMPOSER@/src/Composer/Advisory/Auditor.php:89
+ Composer\Advisory\Auditor->audit() at @COMPOSER@/src/Composer/Command/AuditCommand.php:117
  Composer\Command\AuditCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

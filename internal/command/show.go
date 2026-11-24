@@ -1277,7 +1277,7 @@ func (c *ShowCommand) printPackages(io mio.IO, packages []*php.Array, o printOpt
 				}
 			}
 
-			io.Write(" "+c.surface.Style(ui.RoleMuted, description), false, mio.Normal)
+			io.Write(" "+c.surface.Style(ui.RoleMuted, console.Escape(description)), false, mio.Normal)
 		}
 		if v, ok := p.Get("path"); ok {
 			if s, isString := v.(string); isString {
@@ -1288,7 +1288,7 @@ func (c *ShowCommand) printPackages(io mio.IO, packages []*php.Array, o printOpt
 		}
 		io.Write("", true, mio.Normal)
 		if warning, ok := str(p, "warning"); ok {
-			io.Write("<warning>"+warning+"</warning>", true, mio.Normal)
+			io.Write("<warning>"+console.Escape(warning)+"</warning>", true, mio.Normal)
 		}
 	}
 }
@@ -1415,7 +1415,7 @@ func (c *ShowCommand) printPackageInfo(p pkg.CompletePackageInterface, versions 
 	if suggests := p.Suggests(); suggests.Len() > 0 {
 		io.Write("\n<info>suggests</info>", true, mio.Normal)
 		for suggested, reason := range suggests.All() {
-			io.Write(suggested.String()+" <comment>"+php.ToString(reason)+"</comment>", true, mio.Normal)
+			io.Write(console.Escape(suggested.String())+" <comment>"+console.Escape(php.ToString(reason))+"</comment>", true, mio.Normal)
 		}
 	}
 
@@ -1442,8 +1442,8 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 
 	io := c.IO()
 	io.Write("<info>name</info>     : "+p.PrettyName(), true, mio.Normal)
-	io.Write("<info>descrip.</info> : "+p.Description().S, true, mio.Normal)
-	io.Write("<info>keywords</info> : "+implodeComma(p.Keywords()), true, mio.Normal)
+	io.Write("<info>descrip.</info> : "+console.Escape(p.Description().S), true, mio.Normal)
+	io.Write("<info>keywords</info> : "+console.Escape(implodeComma(p.Keywords())), true, mio.Normal)
 	if err := c.printVersions(p, versions, installedRepo); err != nil {
 		return err
 	}
@@ -1472,11 +1472,11 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 	} else {
 		latestPackage = p
 	}
-	io.Write("<info>type</info>     : "+p.Type(), true, mio.Normal)
+	io.Write("<info>type</info>     : "+console.Escape(p.Type()), true, mio.Normal)
 	c.printLicenses(p)
-	io.Write("<info>homepage</info> : "+p.Homepage().S, true, mio.Normal)
-	io.Write("<info>source</info>   : ["+p.SourceType().S+"] <comment>"+p.SourceURL().S+"</comment> "+p.SourceReference().S, true, mio.Normal)
-	io.Write("<info>dist</info>     : ["+p.DistType().S+"] <comment>"+p.DistURL().S+"</comment> "+p.DistReference().S, true, mio.Normal)
+	io.Write("<info>homepage</info> : "+console.Escape(p.Homepage().S), true, mio.Normal)
+	io.Write("<info>source</info>   : "+showMirror(p.SourceType(), p.SourceURL(), p.SourceReference()), true, mio.Normal)
+	io.Write("<info>dist</info>     : "+showMirror(p.DistType(), p.DistURL(), p.DistReference()), true, mio.Normal)
 	if isInstalledPackage {
 		comp, err := c.RequireComposer(nil, nil)
 		if err != nil {
@@ -1492,12 +1492,12 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 			io.Write("<info>path</info>     : null", true, mio.Normal)
 		}
 	}
-	io.Write("<info>names</info>    : "+strings.Join(p.Names(true), ", "), true, mio.Normal)
+	io.Write("<info>names</info>    : "+console.Escape(strings.Join(p.Names(true), ", ")), true, mio.Normal)
 
 	if lp, ok := latestPackage.(pkg.CompletePackageInterface); ok && lp.IsAbandoned() {
 		replacement := ""
 		if r := lp.ReplacementPackage(); r.Valid {
-			replacement = " The author suggests using the " + r.S + " package instead."
+			replacement = " The author suggests using the " + console.Escape(r.S) + " package instead."
 		}
 
 		io.WriteError("<warning>Attention: This package is abandoned and no longer maintained."+replacement+"</warning>", true, mio.Normal)
@@ -1506,7 +1506,7 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 	if support := p.Support(); support.Len() > 0 {
 		io.Write("\n<info>support</info>", true, mio.Normal)
 		for typ, value := range support.All() {
-			io.Write("<comment>"+typ.String()+"</comment> : "+php.ToString(value), true, mio.Normal)
+			io.Write("<comment>"+console.Escape(typ.String())+"</comment> : "+console.Escape(php.ToString(value)), true, mio.Normal)
 		}
 	}
 
@@ -1534,20 +1534,26 @@ func (c *ShowCommand) printMeta(p pkg.CompletePackageInterface, versions *php.Ar
 					} else {
 						shown = "."
 					}
-					io.Write(n+" => "+shown, true, mio.Normal)
+					io.Write(console.Escape(n+" => "+shown), true, mio.Normal)
 				}
 			case "classmap":
 				a, _ := autoloads.(*php.Array)
-				io.Write(implodeComma(a), true, mio.Normal)
+				io.Write(console.Escape(implodeComma(a)), true, mio.Normal)
 			}
 		}
 		if includePaths := p.IncludePaths(); includePaths.Len() > 0 {
 			io.Write("<comment>include-path</comment>", true, mio.Normal)
-			io.Write(implodeComma(includePaths), true, mio.Normal)
+			io.Write(console.Escape(implodeComma(includePaths)), true, mio.Normal)
 		}
 	}
 
 	return nil
+}
+
+// showMirror is printMeta's "[type] <comment>url</comment> reference" of
+// a source or dist, its values escaped for the formatter.
+func showMirror(typ, url, reference pkg.NullString) string {
+	return console.Escape("["+typ.S+"] ") + "<comment>" + console.Escape(url.S) + "</comment> " + console.Escape(reference.S)
 }
 
 // implodeComma is implode(", ", $array) (nil is an empty array).
@@ -1574,6 +1580,11 @@ func (c *ShowCommand) printVersions(p pkg.CompletePackageInterface, versions *ph
 		return err
 	}
 
+	formattedVersions := make([]string, len(sorted))
+	for i, v := range sorted {
+		formattedVersions[i] = console.Escape(v)
+	}
+
 	// highlight installed version
 	installedPackages, err := installedRepo.FindPackages(p.Name(), nil)
 	if err != nil {
@@ -1582,11 +1593,11 @@ func (c *ShowCommand) printVersions(p pkg.CompletePackageInterface, versions *ph
 	for _, installedPackage := range installedPackages {
 		installedVersion := installedPackage.PrettyVersion()
 		if i := slices.Index(sorted, installedVersion); i >= 0 {
-			sorted[i] = "<info>* " + installedVersion + "</info>"
+			formattedVersions[i] = "<info>* " + console.Escape(installedVersion) + "</info>"
 		}
 	}
 
-	c.IO().Write("<info>versions</info> : "+strings.Join(sorted, ", "), true, mio.Normal)
+	c.IO().Write("<info>versions</info> : "+strings.Join(formattedVersions, ", "), true, mio.Normal)
 
 	return nil
 }
@@ -1625,7 +1636,7 @@ func (c *ShowCommand) printLinks(p pkg.CompletePackageInterface, linkType, title
 		if err != nil {
 			return err
 		}
-		io.Write(link.Target()+" <comment>"+constraint+"</comment>", true, mio.Normal)
+		io.Write(console.Escape(link.Target())+" <comment>"+console.Escape(constraint)+"</comment>", true, mio.Normal)
 	}
 
 	return nil
@@ -1651,7 +1662,7 @@ func (c *ShowCommand) printLicenses(p pkg.CompletePackageInterface) {
 			out = license.Name + " (" + licenseID + ") " + license.URL
 		}
 
-		io.Write("<info>license</info>  : "+out, true, mio.Normal)
+		io.Write("<info>license</info>  : "+console.Escape(out), true, mio.Normal)
 	}
 }
 
@@ -1902,10 +1913,10 @@ func (c *ShowCommand) displayPackageTree(arrayTree []*treeNode) {
 	io := c.IO()
 	for _, p := range arrayTree {
 		io.Write("<info>"+p.name+"</info>", false, mio.Normal)
-		io.Write(" "+p.version, false, mio.Normal)
+		io.Write(" "+console.Escape(p.version), false, mio.Normal)
 		if p.hasDescription && p.description.Valid {
 			tok, _ := strtok(p.description.S)
-			io.Write(" "+c.surface.Style(ui.RoleMuted, tok), true, mio.Normal)
+			io.Write(" "+c.surface.Style(ui.RoleMuted, console.Escape(tok)), true, mio.Normal)
 		} else {
 			// output newline
 			io.Write("", true, mio.Normal)
@@ -1919,7 +1930,7 @@ func (c *ShowCommand) displayPackageTree(arrayTree []*treeNode) {
 			}
 			level := 1
 			color := c.colors[level]
-			c.writeTreeLine(treeBar + "──<" + color + ">" + require.name + "</" + color + "> " + c.surface.Style(ui.RoleMuted, require.version))
+			c.writeTreeLine(treeBar + "──<" + color + ">" + console.Escape(require.name) + "</" + color + "> " + c.surface.Style(ui.RoleMuted, console.Escape(require.version)))
 
 			treeBar = strings.ReplaceAll(treeBar, "└", " ")
 			packagesInTree := []string{p.name, require.name}
@@ -2002,7 +2013,7 @@ func (c *ShowCommand) displayTree(p *treeNode, packagesInTree []string, previous
 		if slices.Contains(currentTree, require.name) {
 			circularWarn = "(circular dependency aborted here)"
 		}
-		info := php.Rtrim(treeBar + "──<" + color + ">" + require.name + "</" + color + "> " + c.surface.Style(ui.RoleMuted, require.version) + " " + circularWarn)
+		info := php.Rtrim(treeBar + "──<" + color + ">" + console.Escape(require.name) + "</" + color + "> " + c.surface.Style(ui.RoleMuted, console.Escape(require.version)) + " " + circularWarn)
 		c.writeTreeLine(info)
 
 		treeBar = strings.ReplaceAll(treeBar, "└", " ")
@@ -2283,39 +2294,45 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 
 	var withheld *withheldRelease
 	if cooldown != nil && !strings.HasPrefix(p.Version(), "dev-") {
-		// a waiting release is only worth mentioning if it is newer than what can be installed already
-		baseline := p
-		if latest != nil && semver.VersionCompare(latest.Version(), p.Version()) > 0 {
-			baseline = latest
-		}
+		// with prefer-stable, a less stable version is only selected when every stable one in range
+		// was withheld or rejected
+		isStabilityFallback := latest != nil && comp.Package().PreferStable() && latest.StabilityPriority() > p.StabilityPriority()
+		withheldCandidates := slices.Clone(versionSelector.WithheldCandidates())
 		installedIsWithheld := false
-		var found *withheldRelease
-		for _, withheldCandidate := range versionSelector.WithheldCandidates() {
-			withheldPackage := withheldCandidate.Package
+		for i := range withheldCandidates {
 			for {
-				alias, ok := withheldPackage.(pkg.Alias)
+				alias, ok := withheldCandidates[i].Package.(pkg.Alias)
 				if !ok {
 					break
 				}
-				withheldPackage = alias.AliasOf()
+				withheldCandidates[i].Package = alias.AliasOf()
 			}
-			if withheldPackage.Version() == p.Version() {
+			if withheldCandidates[i].Package.Version() == p.Version() {
 				installedIsWithheld = true
-			}
-			// the first release to clear the cooldown period among those newer than the baseline,
-			// a withheld backport to an older branch is no update
-			if semver.VersionCompare(withheldPackage.Version(), baseline.Version()) <= 0 {
-				continue
-			}
-			if found == nil || withheldCandidate.ReleaseDate.Before(found.releaseDate) {
-				found = &withheldRelease{pkg: withheldPackage, releaseDate: withheldCandidate.ReleaseDate}
 			}
 		}
 
 		// the installed version is itself still in the cooldown period, e.g. the period was configured after
 		// installing it, so the older releases the selector fell back to are no update either
-		if installedIsWithheld && (latest == nil || semver.VersionCompare(latest.Version(), p.Version()) < 0) {
+		if installedIsWithheld && (latest == nil || isStabilityFallback || semver.VersionCompare(latest.Version(), p.Version()) < 0) {
 			latest = p
+		}
+
+		// a waiting release is only worth mentioning if it is newer than what can be installed already
+		baseline := p
+		if latest != nil && semver.VersionCompare(latest.Version(), p.Version()) > 0 {
+			baseline = latest
+		}
+		var found *withheldRelease
+		for _, withheldCandidate := range withheldCandidates {
+			// the first release to clear the cooldown period among those newer than the baseline,
+			// a withheld backport to an older branch is no update
+			if semver.VersionCompare(withheldCandidate.Package.Version(), baseline.Version()) <= 0 {
+				continue
+			}
+			if found == nil || withheldCandidate.ReleaseDate.Before(found.releaseDate) {
+				found = &withheldRelease{pkg: withheldCandidate.Package, releaseDate: withheldCandidate.ReleaseDate}
+			}
 		}
 
 		if found != nil {

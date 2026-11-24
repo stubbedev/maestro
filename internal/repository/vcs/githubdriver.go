@@ -252,10 +252,8 @@ func (d *GitHubDriver) getFundingInfo() (*php.Array, error) {
 }
 
 // fetchFundingFile returns the content of the first FUNDING.yml found,
-// the repository's or the owner's ($funding, possibly empty).
+// the repository's or the owner's, empty when neither has one.
 func (d *GitHubDriver) fetchFundingFile() (string, error) {
-	funding := ""
-
 	for _, file := range []string{d.repoAPIURL() + "/contents/.github/FUNDING.yml", d.apiURL() + "/repos/" + d.owner + "/.github/contents/FUNDING.yml"} {
 		r, err := d.httpDownloader.Get(file, php.ArrayOf("retry-auth-failure", false))
 		if err != nil {
@@ -271,20 +269,12 @@ func (d *GitHubDriver) fetchFundingFile() (string, error) {
 			return "", err
 		}
 
-		content, _ := response.Path("content").(string)
-		if !php.ToBool(response.Path("content")) || response.Path("encoding") != "base64" {
-			continue
+		if funding, ok := base64Content(response, false); ok && funding != "" {
+			return funding, nil
 		}
-
-		funding, _ = php.Base64Decode(content, false)
-		if !php.ToBool(funding) {
-			continue
-		}
-
-		break
 	}
 
-	return funding, nil
+	return "", nil
 }
 
 // parseFunding parses FUNDING.yml into [type, url] entries. The error is
@@ -462,8 +452,9 @@ func (d *GitHubDriver) FileContent(file, identifier string) (string, bool, error
 	return "", false, &util.RuntimeError{Message: "Could not retrieve " + file + " for " + identifier}
 }
 
-// base64Content is the decoded content of a contents API response: ok is
-// false unless it is set, base64 encoded and decodable.
+// base64Content ports decodeContentsResponse: the decoded content of a
+// contents API response, ok false unless it is a base64 encoded file (not
+// a directory listing, a submodule or a symlink GitHub did not resolve).
 func base64Content(resource *php.Array, strict bool) (string, bool) {
 	if resource.Path("content") == nil || resource.Path("encoding") != "base64" {
 		return "", false

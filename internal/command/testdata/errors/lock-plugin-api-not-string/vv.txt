@@ -1,7 +1,7 @@
-Fatal error: Uncaught TypeError: version_compare(): Argument #1 ($version1) must be of type string, int given in @COMPOSER@/src/Composer/Plugin/PluginManager.php:690
+Fatal error: Uncaught TypeError: version_compare(): Argument #1 ($version1) must be of type string, int given in @COMPOSER@/src/Composer/Plugin/PluginManager.php:726
 Stack trace:
-#0 @COMPOSER@/src/Composer/Plugin/PluginManager.php(690): version_compare(220, '2.2.0', '<')
-#1 @COMPOSER@/src/Composer/Plugin/PluginManager.php(90): Composer\Plugin\PluginManager->parseAllowedPlugins(Array, Object(Composer\Package\Locker))
+#0 @COMPOSER@/src/Composer/Plugin/PluginManager.php(726): version_compare(220, '2.2.0', '<')
+#1 @COMPOSER@/src/Composer/Plugin/PluginManager.php(94): Composer\Plugin\PluginManager->parseAllowedPlugins(Array, Object(Composer\Package\Locker))
 #2 @COMPOSER@/src/Composer/Factory.php(583): Composer\Plugin\PluginManager->__construct(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
 #3 @COMPOSER@/src/Composer/Factory.php(450): Composer\Factory->createPluginManager(Object(Composer\IO\ConsoleIO), Object(Composer\Composer), NULL, true)
 #4 @COMPOSER@/src/Composer/Factory.php(638): Composer\Factory->createComposer(Object(Composer\IO\ConsoleIO), Array, true, '/tmp/maestro-er...', true, false)
@@ -13,5 +13,5 @@ Stack trace:
 #10 @COMPOSER@/src/Composer/Console/Application.php(142): Symfony\Component\Console\Application->run(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
 #11 @COMPOSER@/bin/composer(113): Composer\Console\Application->run()
 #12 {main}
-  thrown in @COMPOSER@/src/Composer/Plugin/PluginManager.php on line 690
+  thrown in @COMPOSER@/src/Composer/Plugin/PluginManager.php on line 726
 exit 255

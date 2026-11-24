@@ -117,6 +117,7 @@ func getRepoSet(t *testing.T) *repository.RepositorySet {
 
 type policyOptions struct {
 	abandoned              string
+	advisoriesAudit        string
 	ignoreUnreachableAudit bool
 	filteredAudit          string // "" is null
 	filteredListName       string
@@ -140,6 +141,9 @@ func createPolicyConfig(o policyOptions) *policy.PolicyConfig {
 	if o.abandoned == "" {
 		o.abandoned = policy.AuditIgnore
 	}
+	if o.advisoriesAudit == "" {
+		o.advisoriesAudit = policy.AuditFail
+	}
 	if o.filteredListName == "" {
 		o.filteredListName = "test-list"
 	}
@@ -162,7 +166,7 @@ func createPolicyConfig(o policyOptions) *policy.PolicyConfig {
 	for _, severity := range o.ignoreSeverities {
 		severityRules.Set(severity, policy.NewIgnoreSeverityRule(severity, nil, true, true))
 	}
-	advisories := policy.NewAdvisoriesPolicyConfig(false, policy.AuditFail, packageRules, idRules, severityRules)
+	advisories := policy.NewAdvisoriesPolicyConfig(false, o.advisoriesAudit, packageRules, idRules, severityRules)
 
 	abandonedIgnore := &policy.IgnoreMap{}
 	for _, ignore := range o.ignoreAbandoned {
@@ -232,11 +236,30 @@ func TestAuditor_Audit(t *testing.T) {
 	abandonedWithReplacement := newCompletePackage("vendor/abandoned", "1.0.0", "foo/bar")
 	abandonedNoReplacement := newCompletePackage("vendor/abandoned2", "1.0.0", true)
 	abandonedPackages := []pkg.PackageInterface{abandonedWithReplacement, abandonedNoReplacement}
+	vulnerablePackage := []pkg.PackageInterface{pkg.NewPackage("vendor1/package1", "8.2.1", "8.2.1")}
+	vulnerablePackageAdvisories := `Package: vendor1/package1
+Severity: high
+Advisory ID: ID4
+CVE: CVE3
+Title: advisory4
+URL: https://advisory.example.com/advisory4
+Affected versions: >=8,<8.2.2|>=1,<2.5.6
+Reported at: 2022-05-25T13:21:00+00:00
+--------
+Package: vendor1/package1
+Severity: medium
+Advisory ID: ID5
+CVE: ` + `
+Title: advisory5
+URL: https://advisory.example.com/advisory5
+Affected versions: >=8,<8.2.2|>=1,<2.5.6
+Reported at: 2022-05-25T13:21:00+00:00`
 
 	cases := []struct {
 		name            string
 		packages        []pkg.PackageInterface
 		warningOnly     bool
+		advisories      string
 		abandoned       string
 		ignoreAbandoned []reason
 		format          string
@@ -263,24 +286,60 @@ func TestAuditor_Audit(t *testing.T) {
 			},
 			warningOnly: true,
 			expected:    advisory.StatusFailed,
-			output: `<warning>Found 2 security vulnerability advisories affecting 1 package:</warning>
-Package: vendor1/package1
-Severity: high
-Advisory ID: ID4
-CVE: CVE3
-Title: advisory4
-URL: https://advisory.example.com/advisory4
-Affected versions: >=8,<8.2.2|>=1,<2.5.6
-Reported at: 2022-05-25T13:21:00+00:00
---------
-Package: vendor1/package1
-Severity: medium
-Advisory ID: ID5
-CVE: ` + `
-Title: advisory5
-URL: https://advisory.example.com/advisory5
-Affected versions: >=8,<8.2.2|>=1,<2.5.6
-Reported at: 2022-05-25T13:21:00+00:00`,
+			output:      "<warning>Found 2 security vulnerability advisories affecting 1 package:</warning>\n" + vulnerablePackageAdvisories,
+		},
+		{
+			name:        "advisories reported only",
+			packages:    vulnerablePackage,
+			warningOnly: true,
+			advisories:  policy.AuditReport,
+			expected:    advisory.StatusOK,
+			output:      "<warning>Found 2 security vulnerability advisories affecting 1 package:</warning>\n" + vulnerablePackageAdvisories,
+		},
+		{
+			name:        "advisories failing are shown as error",
+			packages:    vulnerablePackage,
+			warningOnly: false,
+			expected:    advisory.StatusFailed,
+			output:      "Found 2 security vulnerability advisories affecting 1 package:\n" + vulnerablePackageAdvisories,
+		},
+		{
+			name:        "advisories reported only are shown as warning even if not warningOnly",
+			packages:    vulnerablePackage,
+			warningOnly: false,
+			advisories:  policy.AuditReport,
+			expected:    advisory.StatusOK,
+			output:      "<warning>Found 2 security vulnerability advisories affecting 1 package:</warning>\n" + vulnerablePackageAdvisories,
+		},
+		{
+			name:        "advisories ignored",
+			packages:    vulnerablePackage,
+			warningOnly: false,
+			advisories:  policy.AuditIgnore,
+			expected:    advisory.StatusOK,
+			output:      "",
+		},
+		{
+			name:        "advisories ignored are omitted from json",
+			packages:    vulnerablePackage,
+			warningOnly: false,
+			advisories:  policy.AuditIgnore,
+			format:      advisory.FormatJSON,
+			expected:    advisory.StatusOK,
+			output: `{
+    "abandoned": [],
+    "filter": [],
+    "cooldown": []
+}`,
+		},
+		{
+			name:        "advisories ignored with summary format",
+			packages:    vulnerablePackage,
+			warningOnly: false,
+			advisories:  policy.AuditIgnore,
+			format:      advisory.FormatSummary,
+			expected:    advisory.StatusOK,
+			output:      "",
 		},
 		{
 			name:        "abandoned packages ignored",
@@ -401,7 +460,7 @@ Found 2 abandoned packages:
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			policyConfig := createPolicyConfig(policyOptions{abandoned: tc.abandoned, ignoreAbandoned: tc.ignoreAbandoned})
+			policyConfig := createPolicyConfig(policyOptions{abandoned: tc.abandoned, advisoriesAudit: tc.advisories, ignoreAbandoned: tc.ignoreAbandoned})
 			format := tc.format
 			if format == "" {
 				format = advisory.FormatPlain

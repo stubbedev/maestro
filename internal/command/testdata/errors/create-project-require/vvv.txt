@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/plain" project at "./out"
@@ -39,7 +39,7 @@ Loading config file ./composer.json (@DIR@/p/out/composer.json)
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 
 Loading composer repositories with package information
-Built pool in 0.00052499771118164s
+Built pool in 0.00069785118103027s
 Running security advisory pool filter.
 Running filter list pool filter.
 Running pool optimizer.

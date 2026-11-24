@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -16,14 +16,14 @@ Failed to initialize global composer: Composer could not find the config file: @
 Reading ./composer.lock (@DIR@/p/composer.lock)
 Reading @DIR@/p/vendor/composer/installed.json
 
-In LicensesCommand.php line 162:
+In LicensesCommand.php line 164:
                                                               
   [RuntimeException]                                          
   Unsupported format "xml".  See help for supported formats.  
                                                               
 
 Exception trace:
-  at @COMPOSER@/src/Composer/Command/LicensesCommand.php:162
+  at @COMPOSER@/src/Composer/Command/LicensesCommand.php:164
  Composer\Command\LicensesCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040
  Symfony\Component\Console\Application->doRunCommand() at @COMPOSER@/vendor/symfony/console/Application.php:301

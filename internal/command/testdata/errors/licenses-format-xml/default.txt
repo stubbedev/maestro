@@ -1,6 +1,6 @@
 Composer could not detect the root package (acme/app) version, defaulting to '1.0.0'. See https://getcomposer.org/root-version
 
-In LicensesCommand.php line 162:
+In LicensesCommand.php line 164:
                                                               
   Unsupported format "xml".  See help for supported formats.  
                                                               

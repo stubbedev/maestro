@@ -11,13 +11,13 @@ package upstream
 
 const (
 	// ComposerVersion is Composer::VERSION.
-	ComposerVersion = "2.11.2"
+	ComposerVersion = "2.11.3"
 	// ComposerReleaseDate is Composer::RELEASE_DATE, as the phar has it.
-	ComposerReleaseDate = "2026-11-10 10:09:37"
+	ComposerReleaseDate = "2026-11-24 10:14:18"
 	// ComposerPharSHA256 is the sha256 of the release's official
 	// composer.phar (https://getcomposer.org/download/<version>/composer.phar),
 	// which the e2e tests compare maestro with.
-	ComposerPharSHA256 = "dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028"
+	ComposerPharSHA256 = "04f8b003da4e3a2459056591fbfebd02b4dc3e5adeb158616b90cf55a65113ec"
 	// PluginAPIVersion is PluginInterface::PLUGIN_API_VERSION.
 	PluginAPIVersion = "2.11.0"
 	// RuntimeAPIVersion is Composer::RUNTIME_API_VERSION.

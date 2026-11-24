@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Checked CA file @CAFILE@: valid
@@ -19,7 +19,7 @@ Exception trace:
  Composer\Repository\ComposerRepository->fetchFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1564
  Composer\Repository\ComposerRepository->loadRootServerFile() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:1186
  Composer\Repository\ComposerRepository->hasProviders() at @COMPOSER@/src/Composer/Repository/ComposerRepository.php:577
- Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:458
+ Composer\Repository\ComposerRepository->loadPackages() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:459
  Composer\DependencyResolver\PoolBuilder->loadPackagesMarkedForLoading() at @COMPOSER@/src/Composer/DependencyResolver/PoolBuilder.php:294
  Composer\DependencyResolver\PoolBuilder->buildPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:379
  Composer\Repository\RepositorySet->createPool() at @COMPOSER@/src/Composer/Repository/RepositorySet.php:446

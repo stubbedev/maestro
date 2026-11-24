@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Failed to initialize global composer: Composer could not find the config file: @DIR@/home/composer.json
 To initialize a project, please create a composer.json file. See https://getcomposer.org/basic-usage
 Creating a "x/dev" project at "./out"
@@ -16,7 +16,7 @@ Failed to initialize global composer: Composer could not find the config file: @
 
 Reading packages.json
 Reading file://@DIR@/p/packages.json
-Writing @DIR@/cache/repo/file----tmp-maestro-errors.KwXOJw-run-p-packages.json/packages.json into cache
+Writing @DIR@/cache/repo/file----tmp-maestro-errors.m89bCg-run-p-packages.json/packages.json into cache
 
 In CreateProjectCommand.php line 464:
                                                        

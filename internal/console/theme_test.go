@@ -44,6 +44,19 @@ func TestThemeTags(t *testing.T) {
 	}
 }
 
+// Text escaped for the formatter keeps its role on the free surface: an
+// escaped closing tag in it cannot close the role's tag, so it renders as
+// the literal text in the role, as an unescaped one would not.
+func TestFreeStyleOfEscapedText(t *testing.T) {
+	text := ui.Free.Style(ui.RoleMuted, Escape("<p>Fast</p>"))
+	if got := NewOutputFormatter(false, ThemeStyles()...).Format(text); got != "<p>Fast</p>" {
+		t.Errorf("undecorated %q", got)
+	}
+	if got, want := NewOutputFormatter(true, ThemeStyles()...).Format(text), ui.RoleMuted.Render("<p>Fast</p>", true); got != want {
+		t.Errorf("decorated %q, want %q", got, want)
+	}
+}
+
 // composerStyles are the styles Composer's tags have in Composer: Symfony's
 // OutputFormatter defaults and Factory::createAdditionalStyles.
 var composerStyles = map[string]*OutputFormatterStyle{

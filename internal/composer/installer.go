@@ -441,7 +441,7 @@ func (i *Installer) Run() (int, error) {
 
 		replacement := "No replacement was suggested"
 		if r := complete.ReplacementPackage(); r.Valid {
-			replacement = "Use " + r.S + " instead"
+			replacement = "Use " + console.Escape(r.S) + " instead"
 		}
 
 		i.io.WriteError(fmt.Sprintf("<warning>Package %s is abandoned, you should avoid using it. %s.</warning>", p.PrettyName(), replacement), true, io.Normal)

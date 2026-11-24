@@ -1099,6 +1099,65 @@ func TestShowCommand_OutdatedTreatsAnInstalledVersionStillInTheCooldownPeriodAsU
 	gbNotContains(t, display, "[none matched]")
 }
 
+// showRangeOnlyOptions ports provideRangeOnlyOptions.
+var showRangeOnlyOptions = []string{"--minor-only", "--patch-only"}
+
+// showDevBranchCooldownProject ports initProjectWithDevBranchAndCooldownPeriod:
+// vendor/package published at versions, required with ^1.0 under
+// minimum-stability dev, prefer-stable and a one week cooldown policy.
+func showDevBranchCooldownProject(t *testing.T, versions ...*php.Array) {
+	t.Helper()
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", gbPackageRepo(versions...),
+		"require", php.ArrayOf("vendor/package", "^1.0"),
+		"minimum-stability", "dev",
+		"prefer-stable", true,
+		"config", php.ArrayOf("policy", php.ArrayOf("cooldown", php.ArrayOf("period", "1 week"))),
+	), nil, nil, true)
+}
+
+func TestShowCommand_OutdatedRangeOnlyDoesNotOfferTheDevBranchWhenTheInstalledVersionIsStillInTheCooldownPeriod(t *testing.T) {
+	for _, option := range showRangeOnlyOptions {
+		t.Run(option, func(t *testing.T) {
+			showDevBranchCooldownProject(t,
+				gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "1.0.0", "published-time", "2020-01-01T00:00:00+00:00"),
+				gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "1.1.0", "published-time", "2999-01-01T00:00:00+00:00"),
+				gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "1.1.1", "published-time", "2999-02-01T00:00:00+00:00"),
+				gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "1.1.x-dev"),
+			)
+			commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/package", "1.1.0")), nil, true)
+
+			// no stable release in range is installable yet, so prefer-stable falls back to 1.1.x-dev, which is no update
+			appTester := gbRun(t, gbParams("command", "outdated", "--strict", true, option, true))
+			if code := appTester.StatusCode(); code != 0 {
+				t.Errorf("exit code %d", code)
+			}
+			display := appTester.Display(true)
+			gbNotContains(t, display, "1.1.x-dev")
+			showAssertMatches(t, `(?m)^vendor/package 1\.1\.0 c 1\.1\.1 \(\d+d(?: \d+h)? left\)`, display)
+		})
+	}
+}
+
+func TestShowCommand_OutdatedRangeOnlyOffersTheDevBranchWhenTheInstalledVersionIsGone(t *testing.T) {
+	for _, option := range showRangeOnlyOptions {
+		t.Run(option, func(t *testing.T) {
+			showDevBranchCooldownProject(t,
+				gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "1.1.1", "published-time", "2999-02-01T00:00:00+00:00"),
+				gbRepoPackage("name", "vendor/package", "description", "generic description", "version", "1.1.x-dev"),
+			)
+			commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/package", "1.1.0")), nil, true)
+
+			// update would move to 1.1.x-dev, and the withheld 1.1.1 is older than it so it is not mentioned
+			appTester := gbRun(t, gbParams("command", "outdated", "--strict", true, option, true))
+			if code := appTester.StatusCode(); code != 1 {
+				t.Errorf("exit code %d", code)
+			}
+			gbContains(t, appTester.Display(true), "vendor/package 1.1.0 <highlight>! 1.1.x-dev</highlight>\n")
+		})
+	}
+}
+
 func TestShowCommand_ShowingASinglePackageMentionsAReleaseStillInTheCooldownPeriod(t *testing.T) {
 	showCooldownProject(t, "1.1.0", nil)
 
@@ -1116,4 +1175,63 @@ func TestShowCommand_ShowingASinglePackageMentionsAReleaseStillInTheCooldownPeri
 	if _, ok := json["cooldown-available-in"]; !ok {
 		t.Errorf("no cooldown-available-in in %v", json)
 	}
+}
+
+func TestShowCommand_VersionIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", php.NewArray(),
+		"require", php.ArrayOf("vendor/pkg", "*"),
+	), nil, nil, true)
+	commandtest.CreateInstalledJSON(t, gbPkgs(commandtest.GetPackage(t, "vendor/pkg", "dev-<fg=foo>x</>")), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "show", "package", "vendor/pkg"))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "versions : * dev-<fg=foo>x</>")
+}
+
+func TestShowCommand_PackageMetadataIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, php.ArrayOf(
+		"repositories", php.NewArray(),
+		"require", php.ArrayOf("vendor/pkg", "*"),
+	), nil, nil, true)
+	p := commandtest.GetPackage(t, "vendor/pkg", "1.0.0")
+	p.SetDescription(pkg.Str("A <fg=foo>description</>"))
+	p.SetKeywords(php.ListOf("<href=https://example.org>keyword</>"))
+	p.SetHomepage(pkg.Str("<fg=foo>https://example.org</>"))
+	p.SetSupport(php.ArrayOf("issues", "<error>https://example.org</error>"))
+	p.SetSuggests(php.ArrayOf("other/pkg", "<fg=foo>reason</>"))
+	p.SetLicense(php.ListOf("<fg=foo>MIT</>"))
+	p.SetAbandoned("<fg=foo>new/pkg</>")
+	commandtest.CreateInstalledJSON(t, gbPkgs(p), nil, true)
+
+	appTester := gbRun(t, gbParams("command", "show", "package", "vendor/pkg"))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	output := appTester.Display(true)
+	for _, want := range []string{
+		"descrip. : A <fg=foo>description</>",
+		"keywords : <href=https://example.org>keyword</>",
+		"homepage : <fg=foo>https://example.org</>",
+		"issues : <error>https://example.org</error>",
+		"other/pkg <fg=foo>reason</>",
+		"license  : <fg=foo>MIT</>",
+		"The author suggests using the <fg=foo>new/pkg</> package instead.",
+	} {
+		gbContains(t, output, want)
+	}
+
+	appTester = gbRun(t, gbParams("command", "show"))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "A <fg=foo>description</>")
+
+	appTester = gbRun(t, gbParams("command", "show", "--tree", true))
+	if code := appTester.StatusCode(); code != 0 {
+		t.Errorf("exit code %d", code)
+	}
+	gbContains(t, appTester.Display(true), "vendor/pkg 1.0.0 A <fg=foo>description</>")
 }

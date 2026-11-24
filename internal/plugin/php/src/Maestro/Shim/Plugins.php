@@ -25,6 +25,7 @@ final class Plugins
     public static function register(): void
     {
         Server::register('plugin.load', [self::class, 'load']);
+        Server::register('plugin.autoload', [self::class, 'autoload']);
         Server::register('plugin.deactivate', [self::class, 'deactivate']);
         Server::register('plugin.uninstall', [self::class, 'uninstall']);
         Mirrors::register(new Adapter\PluginManagerAdapter());
@@ -44,30 +45,7 @@ final class Plugins
         $pm = $a['pm'];
         $package = $a['package'];
         $isGlobalPlugin = (bool) $a['isGlobal'];
-        $loaderData = $a['loader'];
-
-        $classLoader = new ClassLoader($loaderData['vendorDir']);
-        foreach ($loaderData['psr0'] as $namespace => $path) {
-            $classLoader->add($namespace, $path);
-        }
-        foreach ($loaderData['psr4'] as $namespace => $path) {
-            $classLoader->addPsr4($namespace, $path);
-        }
-        $classLoader->addClassMap($loaderData['classmap']);
-        $classLoader->register(false);
-
-        // composerRequire() is defined in AutoloadGenerator's file, which
-        // Composer has loaded by now.
-        class_exists(\Composer\Autoload\AutoloadGenerator::class);
-        foreach ($a['files'] as $fileIdentifier => $file) {
-            // exclude laminas/laminas-zendframework-bridge:src/autoload.php as it breaks Composer in some conditions
-            // see https://github.com/composer/composer/issues/10349 and https://github.com/composer/composer/issues/10401
-            // this hack can be removed once this deprecated package stop being installed
-            if ($fileIdentifier === '7e9bd612cc444b3eed788ebbe46263a0') {
-                continue;
-            }
-            \Composer\Autoload\composerRequire((string) $fileIdentifier, $file);
-        }
+        $classLoader = self::registerAutoloads($a['loader'], $a['files']);
 
         $registered = [];
         $composer = Remote::read($pm, PluginManager::class, ['composer'])['composer'];
@@ -97,7 +75,7 @@ final class Plugins
                     '__CLASS__' => var_export($class, true),
                 ]);
                 $code = Preg::replace('/^\s*<\?(php)?/i', '', $code, 1);
-                eval($code); // @line src/Composer/Plugin/PluginManager.php:305
+                eval($code); // @line src/Composer/Plugin/PluginManager.php:303
                 $class .= '_composer_tmp'.self::$classCounter;
                 self::$classCounter++;
             }
@@ -123,6 +101,53 @@ final class Plugins
         }
 
         return ['registered' => $registered];
+    }
+
+    /**
+     * `plugin.autoload`: registers the class loader and requires the
+     * `files` of the dependencies found at their install path once a
+     * plugin loaded (the end of PluginManager::registerPackage()).
+     *
+     * @param array<string, mixed> $a
+     */
+    public static function autoload(array $a): void
+    {
+        self::registerAutoloads($a['loader'], $a['files']);
+    }
+
+    /**
+     * PluginManager::registerAutoloads(): registers a class loader built
+     * from the loader contents maestro computed, then requires the files.
+     *
+     * @param array<string, mixed> $loaderData
+     * @param array<string, string> $files
+     */
+    private static function registerAutoloads(array $loaderData, array $files): ClassLoader
+    {
+        $classLoader = new ClassLoader($loaderData['vendorDir']);
+        foreach ($loaderData['psr0'] as $namespace => $path) {
+            $classLoader->add($namespace, $path);
+        }
+        foreach ($loaderData['psr4'] as $namespace => $path) {
+            $classLoader->addPsr4($namespace, $path);
+        }
+        $classLoader->addClassMap($loaderData['classmap']);
+        $classLoader->register(false);
+
+        // composerRequire() is defined in AutoloadGenerator's file, which
+        // Composer has loaded by now.
+        class_exists(\Composer\Autoload\AutoloadGenerator::class);
+        foreach ($files as $fileIdentifier => $file) {
+            // exclude laminas/laminas-zendframework-bridge:src/autoload.php as it breaks Composer in some conditions
+            // see https://github.com/composer/composer/issues/10349 and https://github.com/composer/composer/issues/10401
+            // this hack can be removed once this deprecated package stop being installed
+            if ($fileIdentifier === '7e9bd612cc444b3eed788ebbe46263a0') {
+                continue;
+            }
+            \Composer\Autoload\composerRequire((string) $fileIdentifier, $file);
+        }
+
+        return $classLoader;
     }
 
     /**

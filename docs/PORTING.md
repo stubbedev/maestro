@@ -1,6 +1,6 @@
 # maestro and Composer
 
-maestro is a Go port of Composer 2.11.2 and a drop-in replacement for it:
+maestro is a Go port of Composer 2.11.3 and a drop-in replacement for it:
 anything that drives Composer (people, CI, scripts, plugins, other tools)
 works unchanged against maestro. It never runs or embeds composer.phar.
 `php` is only used where Composer itself executes PHP code on the project's
@@ -208,7 +208,7 @@ at the pinned release:
 
 | Path | What |
 | --- | --- |
-| `.ref/composer` | composer/composer at tag 2.11.2 (`internal/upstream`), with `vendor/` installed (`--no-dev`) |
+| `.ref/composer` | composer/composer at tag 2.11.3 (`internal/upstream`), with `vendor/` installed (`--no-dev`) |
 | `.ref/semver` | composer/semver |
 | `.ref/class-map-generator` | composer/class-map-generator |
 | `.ref/spdx-licenses` | composer/spdx-licenses |
@@ -248,7 +248,8 @@ release.
 `.github/workflows/upstream-composer.yml` checks Composer's releases
 daily. It opens an `upstream` issue for each newer one (pre-releases
 included, titled as such) with its release notes, the compare link, a
-diffstat of the paths that matter, the bundled libraries its
+diffstat of every changed file under `src/` and `tests/`,
+`res/*.json` and composer.lock, grouped by area, the bundled libraries its
 composer.lock changes and what is left to port, and for the newest
 stable one opens the bump PR (`tools/upstream/bump-pr.sh`), linked from
 the issue.
@@ -264,7 +265,10 @@ Taking a release in:
 3. Regenerate what is generated from Composer's sources when they changed:
    the oracles' goldens (`tools/oracle/<package>`), the shim's vendored
    libraries (`tools/shimvendor`) and its API stubs and parity golden
-   (`tools/shimgen`).
+   (`tools/shimgen`). Then run `just shim-lines` (`tools/shimlines`),
+   which fails on every `@line` annotation of the shim whose line in
+   Composer's source no longer makes the annotated call, naming the line
+   where that call now is; correct those numbers.
 4. `just check`, then `just e2e`, which compares maestro with the new
    release's phar.
 
@@ -345,7 +349,7 @@ These change frozen behaviour on purpose; nothing else may.
    removal, and the last binary removed takes it away.
 8. **The `list` banner** (also a bare `maestro`), like deviation 6, says
    which tool runs: maestro's logo and `Maestro version X (Composer
-   2.11.2 compatible)` replace Composer's logo and long version, decorated
+   2.11.3 compatible)` replace Composer's logo and long version, decorated
    or not, piped or not. Only the banner changes: the usage, options and
    commands below it, `list --raw` and `list --format=json|xml|md` stay
    Composer's (`TestHelp_List` and the e2e tests compare all of it but the
@@ -630,7 +634,7 @@ Cycle-breaking decisions already made:
    files read-only and answer questions on stdin; see
    `tools/oracle/errors/errors.sh`.
 3. **End to end.** `cmd/maestro` tests (`MAESTRO_E2E=1`) run real Composer
-   2.11.2 (a pinned phar, downloaded into the test cache with a checksum
+   2.11.3 (a pinned phar, downloaded into the test cache with a checksum
    check, never shipped) and maestro on the same projects and compare
    exit codes, frozen output, lock files and vendor trees. They run on
    Linux and on Windows (`.github/workflows/e2e.yml`, weekly and on
@@ -770,6 +774,7 @@ optimises with (docs/BENCHMARKS.md).
 | `tools/oracle/<package>` | generates the goldens of differential tests from `.ref/` |
 | `tools/shimvendor` | vendors the PHP libraries Composer's phar ships into the shim (`internal/plugin/php/lib`) |
 | `tools/shimgen` | generates the shim's API-parity stubs and golden from Composer's `src/` |
+| `tools/shimlines` | checks the shim's `@line` annotations against Composer's `src/` (`just shim-lines`) |
 | `tools/fetchdists` | downloads real dist archives for the store's differential test |
 | `tools/deadcode` | fails on functions nothing reaches (`just deadcode`, CI) |
 | `tools/tidycheck` | fails when `go mod tidy` would change go.mod or go.sum (`just tidy-check`, CI) |

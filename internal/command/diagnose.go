@@ -895,15 +895,21 @@ func (c *DiagnoseCommand) runComposerAudit(cfg *config.Config, packages []pkg.Pa
 	if err != nil {
 		return 0, "", err
 	}
-	// $policyConfig->withAudit(ListPolicyConfig::AUDIT_IGNORE)
-	withAudit := *policyConfig
-	withAudit.Abandoned = policyConfig.Abandoned.WithAudit(policy.AuditIgnore)
+	auditPolicyConfig := &policy.PolicyConfig{
+		Enabled:           policyConfig.Enabled,
+		Advisories:        policyConfig.Advisories.WithAudit(policy.AuditFail),
+		Malware:           policyConfig.Malware,
+		Abandoned:         policyConfig.Abandoned.WithAudit(policy.AuditIgnore),
+		Cooldown:          policyConfig.Cooldown,
+		CustomLists:       policyConfig.CustomLists,
+		IgnoreUnreachable: policyConfig.IgnoreUnreachable,
+	}
 
 	bio, err := io.NewBufferIO("", 0, nil)
 	if err != nil {
 		return 0, "", err
 	}
-	result, err := advisory.Auditor{}.Audit(bio, repoSet, &withAudit, packages, advisory.FormatTable, false, nil)
+	result, err := advisory.Auditor{}.Audit(bio, repoSet, auditPolicyConfig, packages, advisory.FormatTable, false, nil)
 	if err != nil {
 		return 0, "", err
 	}

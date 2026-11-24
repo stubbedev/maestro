@@ -1,4 +1,4 @@
-Running 2.11.2 (2026-11-10 10:09:37) with PHP @PHP@ on @OS@
+Running 2.11.3 (2026-11-24 10:14:18) with PHP @PHP@ on @OS@
 Reading ./composer.json (@DIR@/p/composer.json)
 Loading config file ./composer.json (@DIR@/p/composer.json)
 Checked CA file @CAFILE@: valid
@@ -17,7 +17,7 @@ Reading ./composer.lock (@DIR@/p/composer.lock)
 Installing dependencies from lock file (including require-dev)
 Verifying lock file contents can be installed on current platform.
 Reading ./composer.lock (@DIR@/p/composer.lock)
-Built pool in 0.0021979808807373s
+Built pool in 0.00084686279296875s
 Running filter list pool filter.
 Generating rules
 Resolving dependencies through SAT
@@ -48,8 +48,8 @@ Exception trace:
  Composer\Util\Loop->wait() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:440
  Composer\Installer\InstallationManager->waitOnPromises() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:293
  Composer\Installer\InstallationManager->downloadAndExecuteBatch() at @COMPOSER@/src/Composer/Installer/InstallationManager.php:225
- Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:885
- Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:329
+ Composer\Installer\InstallationManager->execute() at @COMPOSER@/src/Composer/Installer.php:886
+ Composer\Installer->doInstall() at @COMPOSER@/src/Composer/Installer.php:330
  Composer\Installer->run() at @COMPOSER@/src/Composer/Command/InstallCommand.php:153
  Composer\Command\InstallCommand->execute() at @COMPOSER@/vendor/symfony/console/Command/Command.php:298
  Symfony\Component\Console\Command\Command->run() at @COMPOSER@/vendor/symfony/console/Application.php:1040

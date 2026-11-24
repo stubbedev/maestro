@@ -108,6 +108,9 @@ func (c *AuditCommand) Execute(in console.Input, _ console.Output) (int, error) 
 	if err != nil {
 		return 0, err
 	}
+	if !policyConfig.Enabled {
+		c.IO().WriteError(`<warning>Dependency policies are disabled (via the "policy" config or COMPOSER_POLICY env var), so the audit does not check anything.</warning>`, true, io.Normal)
+	}
 	if hasAbandoned {
 		policyConfig = policyConfig.WithAudit(abandoned)
 	}

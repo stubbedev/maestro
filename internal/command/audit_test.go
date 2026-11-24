@@ -186,6 +186,36 @@ func TestAuditCommand_AuditWithCustomListAuditReportDoesNotFail(t *testing.T) {
 	}
 }
 
+func TestAuditCommand_AuditDoesNothingWhenPolicyIsDisabledInConfig(t *testing.T) {
+	packages := []auditTestPackage{{"malicious/pkg", "1.0.0"}, {"banned/pkg", "1.0.0"}}
+	auditInitTempComposerWithFilterLists(t, packages, php.ArrayOf("config", php.ArrayOf("policy", false)))
+	auditCreateComposerLockWithPackages(t, packages)
+
+	appTester := gbRun(t, gbParams("command", "audit", "--locked", true))
+
+	gbAssertSame(t, `<warning>Dependency policies are disabled (via the "policy" config or COMPOSER_POLICY env var), so the audit does not check anything.</warning>`, gbTrim(appTester))
+	if code := appTester.StatusCode(); code != advisory.StatusOK {
+		t.Errorf("exit code %d", code)
+	}
+}
+
+func TestAuditCommand_AuditDoesNothingWhenPolicyIsDisabledViaEnv(t *testing.T) {
+	packages := []auditTestPackage{{"malicious/pkg", "1.0.0"}, {"banned/pkg", "1.0.0"}}
+	auditInitTempComposerWithFilterLists(t, packages, nil)
+	auditCreateComposerLockWithPackages(t, packages)
+
+	t.Setenv("COMPOSER_POLICY", "0")
+	appTester := gbRun(t, gbParams("command", "audit", "--locked", true, "--format", "json"))
+
+	display := appTester.Display(true)
+	gbContains(t, display, "Dependency policies are disabled")
+	gbNotContains(t, display, `"advisories"`)
+	gbNotContains(t, display, "malicious/pkg")
+	if code := appTester.StatusCode(); code != advisory.StatusOK {
+		t.Errorf("exit code %d", code)
+	}
+}
+
 func auditInitTempComposerWithFilterLists(t *testing.T, packages []auditTestPackage, extraConfig *php.Array) {
 	t.Helper()
 	config := php.ArrayOf(
@@ -285,4 +315,20 @@ func auditCreateComposerLockWithPackages(t *testing.T, packages []auditTestPacka
 
 	commandtest.CreateInstalledJSON(t, list, nil, true)
 	commandtest.CreateComposerLock(t, list, nil)
+}
+
+func TestAuditCommand_AbandonedReplacementIsPrintedLiterally(t *testing.T) {
+	commandtest.InitTempComposer(t, nil, nil, nil, true)
+	p := commandtest.GetPackage(t, "vendor/pkg", "1.0.0")
+	p.SetAbandoned("<fg=foo>new/pkg</>")
+	commandtest.CreateInstalledJSON(t, gbPkgs(p), nil, true)
+	commandtest.CreateComposerLock(t, gbPkgs(p), nil)
+
+	for _, format := range []string{advisory.FormatPlain, advisory.FormatTable} {
+		appTester := gbRun(t, gbParams("command", "audit", "--locked", true, "--format", format, "--abandoned", policy.AuditReport))
+
+		if display := appTester.Display(true); !strings.Contains(display, "<fg=foo>new/pkg</>") {
+			t.Errorf("%s: replacement not printed literally:\n%s", format, display)
+		}
+	}
 }

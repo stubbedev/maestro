@@ -134,33 +134,44 @@ func mergeAdvisories(advisories, more *Advisories) *Advisories {
 
 // Audit ports audit: it reports the advisories, abandoned packages and
 // filter list matches of the packages in format (one of the Format*
-// values), as warnings when warningOnly, else as errors, and returns
-// StatusOK or StatusFailed. filterListProviderSet may be nil (null).
+// values), and returns StatusOK or StatusFailed. Advisories are not looked
+// up when the advisories policy ignores them, and are reported as errors
+// only when it fails on them and not warningOnly. filterListProviderSet
+// may be nil (null).
 func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.PolicyConfig, packages []pkg.PackageInterface, format string, warningOnly bool, filterListProviderSet filterlist.ProviderSet) (int, error) {
 	ignoreList := policyConfig.Advisories.IgnoreListForOperation("audit")
 	ignoredSeverities := policyConfig.Advisories.IgnoreSeverityForOperation("audit")
 
-	result, err := a.MatchingAdvisories(repoSet, packages, format == FormatSummary, policyConfig.IgnoreUnreachable.Audit)
-	if err != nil {
-		return 0, err
-	}
-	allAdvisories := result.Advisories
-	unreachableRepos := result.UnreachableRepos
-
-	// we need the CVE & remote IDs set to filter ignores correctly so if we have any matches using the optimized codepath above
-	// and ignores are set then we need to query again the full data to make sure it can be filtered
-	if format == FormatSummary && a.NeedsCompleteAdvisoryLoad(allAdvisories, ignoreList) {
-		result, err = a.MatchingAdvisories(repoSet, packages, false, policyConfig.IgnoreUnreachable.Audit)
+	advisoriesAudited := policyConfig.Advisories.Audit != policy.AuditIgnore
+	allAdvisories := &Advisories{}
+	var unreachableRepos []string
+	if advisoriesAudited {
+		result, err := a.MatchingAdvisories(repoSet, packages, format == FormatSummary, policyConfig.IgnoreUnreachable.Audit)
 		if err != nil {
 			return 0, err
 		}
 		allAdvisories = result.Advisories
-		unreachableRepos = append(unreachableRepos, result.UnreachableRepos...)
+		unreachableRepos = result.UnreachableRepos
+
+		// we need the CVE & remote IDs set to filter ignores correctly so if we have any matches using the optimized codepath above
+		// and ignores are set then we need to query again the full data to make sure it can be filtered
+		if format == FormatSummary && a.NeedsCompleteAdvisoryLoad(allAdvisories, ignoreList) {
+			result, err = a.MatchingAdvisories(repoSet, packages, false, policyConfig.IgnoreUnreachable.Audit)
+			if err != nil {
+				return 0, err
+			}
+			allAdvisories = result.Advisories
+			unreachableRepos = append(unreachableRepos, result.UnreachableRepos...)
+		}
 	}
 	advisories, ignoredAdvisories := a.ProcessAdvisories(allAdvisories, ignoreList, ignoredSeverities)
 
 	abandonedCount := 0
 	affectedPackagesCount := advisories.Len()
+	failedAdvisoriesCount := 0
+	if policyConfig.Advisories.Audit == policy.AuditFail {
+		failedAdvisoriesCount = affectedPackagesCount
+	}
 	var abandonedPackages []pkg.CompletePackageInterface
 	if policyConfig.Abandoned.Audit != policy.AuditIgnore {
 		// abandonment is per package, so aliases would only report it twice
@@ -170,6 +181,7 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 				canonicalPackages = append(canonicalPackages, p)
 			}
 		}
+		var err error
 		abandonedPackages, err = a.FilterAbandonedPackages(canonicalPackages, policyConfig.Abandoned.FlatIgnoreForOperation("audit"))
 		if err != nil {
 			return 0, err
@@ -230,12 +242,15 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 	}
 
 	auditResult := StatusOK
-	if affectedPackagesCount > 0 || abandonedCount > 0 || filteredCount > 0 || cooldownCount > 0 {
+	if failedAdvisoriesCount > 0 || abandonedCount > 0 || filteredCount > 0 || cooldownCount > 0 {
 		auditResult = StatusFailed
 	}
 
 	if format == FormatJSON {
-		data := php.ArrayOf("advisories", advisoriesArray(advisories))
+		data := php.NewArray()
+		if advisoriesAudited {
+			data.Set("advisories", advisoriesArray(advisories))
+		}
 		if ignoredAdvisories.Len() > 0 {
 			data.Set("ignored-advisories", advisoriesArray(ignoredAdvisories))
 		}
@@ -275,9 +290,9 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 		return auditResult, nil
 	}
 
-	errorOrWarn := "error"
-	if warningOnly {
-		errorOrWarn = "warning"
+	errorOrWarn := "warning"
+	if !warningOnly && failedAdvisoriesCount > 0 {
+		errorOrWarn = "error"
 	}
 	if affectedPackagesCount > 0 || ignoredAdvisories.Len() > 0 {
 		versions := make(map[string]string, len(packages))
@@ -316,7 +331,7 @@ func (a Auditor) Audit(out io.IO, repoSet RepositorySet, policyConfig *policy.Po
 		if format == FormatSummary {
 			out.Write(`Run "composer audit" for a full list of advisories.`, true, io.Normal)
 		}
-	} else {
+	} else if advisoriesAudited {
 		out.Write("<info>No security vulnerability advisories found.</info>", true, io.Normal)
 	}
 
@@ -786,7 +801,7 @@ func outputAbandonedPackages(out io.IO, packages []pkg.CompletePackageInterface,
 		for _, p := range packages {
 			replacement := "No replacement was suggested"
 			if r := p.ReplacementPackage(); r.Valid {
-				replacement = "Use " + r.S + " instead"
+				replacement = "Use " + console.Escape(r.S) + " instead"
 			}
 			out.Write(fmt.Sprintf("%s is abandoned. %s.", packageNameWithLink(p), replacement), true, io.Normal)
 		}
@@ -807,7 +822,7 @@ func outputAbandonedPackages(out io.IO, packages []pkg.CompletePackageInterface,
 	for _, p := range packages {
 		replacement := "none"
 		if r := p.ReplacementPackage(); r.Valid {
-			replacement = r.S
+			replacement = console.Escape(r.S)
 		}
 		if err := table.AddRow(io.SanitizeMessages([]string{packageNameWithLink(p), replacement}, true)); err != nil {
 			return err

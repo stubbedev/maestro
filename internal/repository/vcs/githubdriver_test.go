@@ -286,6 +286,45 @@ func TestGitHubDriver_GetEmptyFileContent(t *testing.T) {
 	assertHTTPComplete(t, http)
 }
 
+func TestGitHubDriver_GetLargeFileContentViaGitBlob(t *testing.T) {
+	t.Parallel()
+
+	driver, http := newPublicGitHubDriver(t, gitHubPublicRepoData,
+		httpmock.Expectation{URL: "https://api.github.com/repos/composer/packagist/contents/composer.json?ref=main", Body: `{"type": "file", "encoding": "none", "content": "", "git_url": "https://api.github.com/repos/composer/packagist/git/blobs/abc123"}`},
+		httpmock.Expectation{URL: "https://api.github.com/repos/composer/packagist/git/blobs/abc123", Body: `{"encoding": "base64", "content": "` + b64(`{"name": "composer/packagist"}`) + `"}`},
+	)
+
+	content, ok, err := driver.FileContent("composer.json", "main")
+	if err != nil || !ok || content != `{"name": "composer/packagist"}` {
+		t.Fatalf("got %q %v %v", content, ok, err)
+	}
+
+	assertHTTPComplete(t, http)
+}
+
+func TestGitHubDriver_GetFileContentForNonFileThrows(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ name, body string }{
+		{"symlink outside the repository", `{"name": "composer.json", "path": "composer.json", "sha": "a49dac4bfab70b3b47eb16b1d5075beccf65f03b", "size": 9, "url": "https://api.github.com/repos/composer/packagist/contents/composer.json?ref=main", "html_url": "https://github.com/composer/packagist/blob/main/composer.json", "git_url": "https://api.github.com/repos/composer/packagist/git/blobs/a49dac4bfab70b3b47eb16b1d5075beccf65f03b", "download_url": "https://raw.githubusercontent.com/composer/packagist/main/composer.json", "type": "symlink", "target": "/tmp/derp", "_links": {"self": "https://api.github.com/repos/composer/packagist/contents/composer.json?ref=main", "git": "https://api.github.com/repos/composer/packagist/git/blobs/a49dac4bfab70b3b47eb16b1d5075beccf65f03b", "html": "https://github.com/composer/packagist/blob/main/composer.json"}}`},
+		{"directory", `[{"name": "packages.json", "path": "composer.json/packages.json", "sha": "3a3c2ef1e5a1b6a3b3c1e5f1f2d43c9b1d7b5a11", "size": 42, "url": "https://api.github.com/repos/composer/packagist/contents/composer.json/packages.json?ref=main", "html_url": "https://github.com/composer/packagist/blob/main/composer.json/packages.json", "git_url": "https://api.github.com/repos/composer/packagist/git/blobs/3a3c2ef1e5a1b6a3b3c1e5f1f2d43c9b1d7b5a11", "download_url": "https://raw.githubusercontent.com/composer/packagist/main/composer.json/packages.json", "type": "file", "_links": {"self": "https://api.github.com/repos/composer/packagist/contents/composer.json/packages.json?ref=main", "git": "https://api.github.com/repos/composer/packagist/git/blobs/3a3c2ef1e5a1b6a3b3c1e5f1f2d43c9b1d7b5a11", "html": "https://github.com/composer/packagist/blob/main/composer.json/packages.json"}}]`},
+		{"submodule", `{"name": "composer.json", "path": "composer.json", "sha": "5572168994a29266df6cbf12b46919498d3ece66", "size": 0, "url": "https://api.github.com/repos/composer/packagist/contents/composer.json?ref=main", "html_url": "https://github.com/composer/other/tree/5572168994a29266df6cbf12b46919498d3ece66", "git_url": "https://api.github.com/repos/composer/other/git/trees/5572168994a29266df6cbf12b46919498d3ece66", "download_url": null, "type": "submodule", "submodule_git_url": "https://github.com/composer/other.git", "_links": {"self": "https://api.github.com/repos/composer/packagist/contents/composer.json?ref=main", "git": "https://api.github.com/repos/composer/other/git/trees/5572168994a29266df6cbf12b46919498d3ece66", "html": "https://github.com/composer/other/tree/5572168994a29266df6cbf12b46919498d3ece66"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			driver, http := newPublicGitHubDriver(t, gitHubPublicRepoData,
+				httpmock.Expectation{URL: "https://api.github.com/repos/composer/packagist/contents/composer.json?ref=main", Body: tc.body},
+			)
+
+			_, _, err := driver.FileContent("composer.json", "main")
+			expectRuntimeError(t, err, "Could not retrieve composer.json for main")
+
+			assertHTTPComplete(t, http)
+		})
+	}
+}
+
 func TestGitHubDriver_RateLimitIsReportedWhenTheCloneFallbackFails(t *testing.T) {
 	pinGitVersion(t, "2.45.0")
 	t.Setenv("COMPOSER_DISABLE_NETWORK", "")

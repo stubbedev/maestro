@@ -536,6 +536,7 @@ func (b *PoolBuilder) loadPackagesMarkedForLoading(request *Request, repositorie
 			break
 		}
 
+		namesFound := false
 		for _, packageBatch := range packageBatches {
 			result, err := repo.LoadPackages(packageBatch, b.acceptableStabilities, b.stabilityFlags, b.loadedPerRepo[repoIndex])
 			if err != nil {
@@ -545,6 +546,7 @@ func (b *PoolBuilder) loadPackagesMarkedForLoading(request *Request, repositorie
 			for _, name := range result.NamesFound {
 				// avoid loading the same package again from other repositories once it has been found
 				packageBatch.Delete(name)
+				namesFound = true
 			}
 			for _, p := range result.Packages {
 				loaded := b.loadedPerRepo[repoIndex]
@@ -564,6 +566,10 @@ func (b *PoolBuilder) loadPackagesMarkedForLoading(request *Request, repositorie
 					return err
 				}
 			}
+		}
+
+		if !namesFound {
+			continue
 		}
 
 		merged := &repository.ConstraintMap{}

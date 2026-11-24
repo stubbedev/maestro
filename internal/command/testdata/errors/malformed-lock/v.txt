@@ -17,8 +17,8 @@ Exception trace:
  Composer\Json\JsonFile::parseJson() at @COMPOSER@/src/Composer/Json/JsonFile.php:130
  Composer\Json\JsonFile->read() at @COMPOSER@/src/Composer/Package/Locker.php:360
  Composer\Package\Locker->getLockData() at @COMPOSER@/src/Composer/Package/Locker.php:146
- Composer\Package\Locker->isLocked() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:690
- Composer\Plugin\PluginManager->parseAllowedPlugins() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:90
+ Composer\Package\Locker->isLocked() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:726
+ Composer\Plugin\PluginManager->parseAllowedPlugins() at @COMPOSER@/src/Composer/Plugin/PluginManager.php:94
  Composer\Plugin\PluginManager->__construct() at @COMPOSER@/src/Composer/Factory.php:583
  Composer\Factory->createPluginManager() at @COMPOSER@/src/Composer/Factory.php:450
  Composer\Factory->createComposer() at @COMPOSER@/src/Composer/Factory.php:638

@@ -9,6 +9,7 @@ package plugin
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -256,6 +257,101 @@ func TestPluginInstaller_InstallPluginWithRootPackageHavingFilesAutoload(t *test
 	}
 	if len(plugins) != 1 || prop(plugins[0], "version") != "installer-v1" {
 		t.Errorf("plugins = %+v", plugins)
+	}
+}
+
+// configureRequires ports configureLinks($package, ['require' => $requires]).
+func (pt *pluginInstallerTest) configureRequires(p pkg.PackageInterface, requires *php.Array) {
+	pt.t.Helper()
+	links, err := loader.NewArrayLoader(pkg.NewVersionParser(), false).ParseLinks(p.Name(), p.PrettyVersion(), pkg.TypeRequire, requires)
+	if err != nil {
+		pt.t.Fatal(err)
+	}
+	p.(interface{ SetRequires(pkg.Links) }).SetRequires(links)
+}
+
+func TestPluginInstaller_InstallPluginSkipsAutoloadOfDependenciesMissingFromTheirInstallPath(t *testing.T) {
+	requirePHP(t)
+
+	pt := setUpPluginInstallerTest(t)
+	dependency := pkg.NewCompletePackage("dummy/not-at-install-path", "1.0.0.0", "1.0.0")
+	dependency.SetAutoload(php.ArrayOf("classmap", php.ListOf("src/"), "files", php.ListOf("bootstrap.php")))
+	pt.configureRequires(pt.packages[0], php.ArrayOf("composer-plugin-api", "^2.0", "dummy/not-at-install-path", "*"))
+	pt.composerWith(dependency)
+	if err := pt.pm.LoadInstalledPlugins(); err != nil {
+		t.Fatal(err)
+	}
+
+	pt.install(pt.packages[0])
+
+	plugins := pt.plugins()
+	if len(plugins) != 1 || prop(plugins[0], "version") != "installer-v1" {
+		t.Errorf("plugins = %+v", plugins)
+	}
+	if got := pt.output(); got != "activate v1\n" {
+		t.Errorf("output %q", got)
+	}
+}
+
+// installedElsewhereIM is the InstallationManager mock of
+// testInstallPluginAutoloadsMissingDependenciesOnceInstallPathIsKnown:
+// the package called name is at realPath from its second lookup on, as if
+// the plugin registered an installer for it.
+type installedElsewhereIM struct {
+	fixtureIM
+	name     string
+	realPath string
+	calls    int
+}
+
+func (m *installedElsewhereIM) InstallPath(p pkg.PackageInterface) (string, bool, error) {
+	if p.Name() == m.name {
+		m.calls++
+		if m.calls > 1 {
+			return m.realPath, true, nil
+		}
+	}
+
+	return m.fixtureIM.InstallPath(p)
+}
+
+func TestPluginInstaller_InstallPluginAutoloadsMissingDependenciesOnceInstallPathIsKnown(t *testing.T) {
+	requirePHP(t)
+
+	pt := setUpPluginInstallerTest(t)
+	dependency := pkg.NewCompletePackage("dummy/installed-elsewhere", "1.0.0.0", "1.0.0")
+	dependency.SetAutoload(php.ArrayOf("classmap", php.ListOf("src/")))
+	pt.configureRequires(pt.packages[0], php.ArrayOf("composer-plugin-api", "^2.0", "dummy/installed-elsewhere", "*"))
+
+	realPath := filepath.Join(t.TempDir(), "custom", "installed-elsewhere")
+	if err := os.MkdirAll(filepath.Join(realPath, "src"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(realPath, "src", "Foo.php"), []byte("<?php class PluginDependencyInstalledElsewhere {}"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+
+	pt.composerWith(dependency)
+	im := &installedElsewhereIM{dir: pt.fixtures, name: "dummy/installed-elsewhere", realPath: realPath}
+	pt.composer.SetInstallationManager(im)
+	if err := pt.pm.LoadInstalledPlugins(); err != nil {
+		t.Fatal(err)
+	}
+
+	pt.install(pt.packages[0])
+
+	if got := pt.output(); got != "activate v1\n" {
+		t.Errorf("output %q", got)
+	}
+	if im.calls != 2 {
+		t.Errorf("getInstallPath calls = %d, want 2", im.calls)
+	}
+	classes, err := pt.rt.Call("test.classes", php.ListOf("PluginDependencyInstalledElsewhere"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded, _ := classes.(*php.Array).Get("PluginDependencyInstalledElsewhere"); loaded != true {
+		t.Error("PluginDependencyInstalledElsewhere is not autoloadable")
 	}
 }
 

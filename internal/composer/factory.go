@@ -933,8 +933,8 @@ func readLockForAllowPlugins(c *Composer) error {
 	if a, ok := allow.(*php.Array); !ok || a.Len() != 0 || c.Locker() == nil {
 		return nil
 	}
-	// $locker->isLocked() and getPluginApi() at PluginManager.php:692, in
-	// parseAllowedPlugins() called at line 90
+	// $locker->isLocked() and getPluginApi() at PluginManager.php:726, in
+	// parseAllowedPlugins() called at line 94
 	locked, err := c.Locker().IsLocked()
 	if err != nil {
 		return err

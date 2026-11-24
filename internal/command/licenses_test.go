@@ -231,3 +231,31 @@ func TestLicensesCommand_LockedWithoutLockFile(t *testing.T) {
 		t.Errorf("message %q", err.Error())
 	}
 }
+
+func TestLicensesCommand_LicenseMetadataIsPrintedLiterally(t *testing.T) {
+	licensesSetUp(t)
+	p := commandtest.GetPackage(t, "vendor/pkg", "1.0.0")
+	p.SetLicense(php.ListOf("<fg=foo>MIT</>\x1B[2J"))
+	if err := os.RemoveAll("vendor"); err != nil {
+		t.Fatal(err)
+	}
+	commandtest.CreateInstalledJSON(t, []pkg.PackageInterface{p}, nil, true)
+
+	for _, params := range [][]console.Param{
+		{console.P("command", "license")},
+		{console.P("command", "license"), console.P("--format", "summary")},
+	} {
+		appTester := commandtest.GetApplicationTester(t)
+		if code := licensesRun(t, appTester, params...); code != 0 {
+			t.Fatalf("%v: exit code %d", params, code)
+		}
+
+		output := appTester.Display(false)
+		if !strings.Contains(output, "<fg=foo>MIT</>") {
+			t.Errorf("%v: %q does not contain the literal licence", params, output)
+		}
+		if strings.Contains(output, "\x1B") {
+			t.Errorf("%v: %q contains an escape character", params, output)
+		}
+	}
+}

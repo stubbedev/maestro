@@ -13,6 +13,9 @@ func TestSurfaceStyle(t *testing.T) {
 		{Free, "MIT", "<maestro-success>MIT</maestro-success>"},
 		{Free, "", ""},
 		{Free, "a </comment> b", "a </comment> b"},
+		{Free, "</comment> b", "</comment> b"},
+		{Free, `a \</p\> b`, `<maestro-success>a \</p\> b</maestro-success>`},
+		{Free, `a \</p\> </comment>`, `a \</p\> </comment>`},
 		{Free, "<2.0 || >=3", "<maestro-success><2.0 || >=3</maestro-success>"},
 		{Frozen, "MIT", "MIT"},
 	} {
