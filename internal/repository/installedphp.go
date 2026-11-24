@@ -61,8 +61,15 @@ func InstalledVersionsFromContent(path string, content []byte) (data *php.Array,
 	if err != nil || !matched {
 		return nil, false, err
 	}
-	code, _, err := installedPhpDir.Replace(installedVersionsData, "=> "+php.VarExport(php.Dirname(path))+" . $1", -1)
+	dir := php.VarExport(php.Dirname(path))
+	code, _, err := installedPhpDir.ReplaceCallback(installedVersionsData, func(m *php.Match) string {
+		return "=> " + dir + " . " + m.Get(1)
+	}, -1)
 	if err != nil {
+		return nil, false, err
+	}
+	matched, err = installedPhpPattern.IsMatch(php.Trim(code))
+	if err != nil || !matched {
 		return nil, false, err
 	}
 	data, ok = evalInstalledPhp(code)
@@ -71,7 +78,7 @@ func InstalledVersionsFromContent(path string, content []byte) (data *php.Array,
 }
 
 // evalInstalledPhp evaluates `?>` . code for code in the grammar of
-// installedPhpPattern (once __DIR__ is replaced): <?php return <array>;
+// installedPhpPattern: <?php return <array>;
 func evalInstalledPhp(code string) (*php.Array, bool) {
 	p := &phpLiteralParser{s: code}
 	p.skipSpace()

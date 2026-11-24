@@ -272,6 +272,32 @@ func TestFilesystemRepository_RepositoryWritesInstalledPhp(t *testing.T) {
 	}
 }
 
+func TestFilesystemRepository_SafelyLoadInstalledVersionsRejectsCodeInjectedViaVendorDir(t *testing.T) {
+	vendorDir := t.TempDir() + "/v{${phpversion()}}/composer"
+	noErr(t, os.MkdirAll(vendorDir, 0o777))
+	noErr(t, os.WriteFile(vendorDir+"/installed.php", []byte("<?php return array('a' => \"=> __DIR__ . '\",);\n"), 0o666))
+
+	if data, ok := SafelyLoadInstalledVersions(vendorDir + "/installed.php"); ok {
+		got, _ := json.EncodeDefault(data)
+		t.Fatalf("loaded %s", got)
+	}
+}
+
+func TestFilesystemRepository_SafelyLoadInstalledVersionsWithBackslashAndDollarInPath(t *testing.T) {
+	vendorDir := t.TempDir() + "/a\\b$1/composer"
+	noErr(t, os.MkdirAll(vendorDir, 0o777))
+	noErr(t, os.WriteFile(vendorDir+"/installed.php", []byte("<?php return array('root' => array('install_path' => __DIR__ . '/../',),'versions' => array(),);\n"), 0o666))
+
+	data, ok := SafelyLoadInstalledVersions(vendorDir + "/installed.php")
+	if !ok {
+		t.Fatal("safelyLoadInstalledVersions")
+	}
+	root, _ := data.GetArray("root")
+	if path, _ := root.GetString("install_path"); path != vendorDir+"/../" {
+		t.Errorf("install_path %q, want %q", path, vendorDir+"/../")
+	}
+}
+
 func TestFilesystemRepository_SafelyLoadInstalledVersions(t *testing.T) {
 	fixtures := must(filepath.Abs("testdata/Fixtures"))
 	data, ok := SafelyLoadInstalledVersions(fixtures + "/installed_complex.php")
