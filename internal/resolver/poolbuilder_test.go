@@ -15,6 +15,41 @@ import (
 
 // Ports tests/Composer/Test/DependencyResolver/PoolBuilderTest.php.
 
+// batchRecorder is a repository recording the names of each batch it was
+// asked to load, and finding none of them.
+type batchRecorder struct {
+	*repository.ArrayRepository
+	batchNames [][]string
+}
+
+func (r *batchRecorder) LoadPackages(packageNameMap *repository.ConstraintMap, _, _ *php.Array, _ repository.AlreadyLoaded) (repository.LoadResult, error) {
+	r.batchNames = append(r.batchNames, packageNameMap.Keys())
+
+	return repository.LoadResult{}, nil
+}
+
+func TestPoolBuilder_EmptyRepositoryPreservesPackageBatches(t *testing.T) {
+	request := NewRequest(nil)
+	names := make([]string, 0, 101)
+	for i := range 101 {
+		name := "vendor/package-" + strconv.Itoa(i)
+		names = append(names, name)
+		requireName(t, request, name, nil)
+	}
+
+	secondRepository := &batchRecorder{ArrayRepository: newArrayRepository(t)}
+
+	builder := NewPoolBuilder(pkg.Stabilities(), nil, nil, nil, nullIO, PoolBuilderOptions{})
+	if _, err := builder.BuildPool([]repository.RepositoryInterface{newArrayRepository(t), secondRepository}, request); err != nil {
+		t.Fatal(err)
+	}
+
+	want := slices.Collect(slices.Chunk(names, loadBatchSize))
+	if !slices.EqualFunc(secondRepository.batchNames, want, slices.Equal[[]string]) {
+		t.Errorf("the second repository was asked for batches %q, want %q", secondRepository.batchNames, want)
+	}
+}
+
 func TestPoolBuilder_PoolBuilder(t *testing.T) {
 	fixturesDir, err := filepath.Abs("testdata/Fixtures/poolbuilder")
 	if err != nil {
