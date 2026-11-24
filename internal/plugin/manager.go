@@ -44,12 +44,23 @@ type Manager struct {
 	runningInGlobalDir     bool
 	autoloadedPackages     map[string]bool
 
+	// missingAutoloadPackages are the packages not found at their install
+	// path yet, by name in insertion order.
+	missingAutoloadPackages []missingAutoloadPackage
+
 	// pluginAPIVersion is getPluginApiVersion() (tests override it, as
 	// PluginInstallerTest mocks the method).
 	pluginAPIVersion func() string
 
 	mu  sync.Mutex
 	rev uint64
+}
+
+// missingAutoloadPackage is an entry of missingAutoloadPackages: the
+// package and whether it is global.
+type missingAutoloadPackage struct {
+	p      pkg.PackageInterface
+	global bool
 }
 
 // registration is registeredPlugins[$name]: the PHP objects a package
@@ -381,7 +392,15 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 		classes.Append(classValue)
 	}
 
-	loader, files, err := m.autoloadPlan(p)
+	rootPackage, err := m.autoloadRootPackage()
+	if err != nil {
+		return err
+	}
+	autoloads, err := m.autoloadPlan(p, rootPackage)
+	if err != nil {
+		return err
+	}
+	loader, files, err := m.loaderContents(autoloads, rootPackage)
 	if err != nil {
 		return err
 	}
@@ -416,8 +435,11 @@ func (m *Manager) RegisterPackage(p pkg.PackageInterface, failOnMissingClasses, 
 	if len(reg.objects) > 0 || err == nil {
 		m.registeredPlugins = append(m.registeredPlugins, reg)
 	}
+	if err != nil {
+		return err
+	}
 
-	return err
+	return m.autoloadMissingPackages(rootPackage)
 }
 
 // frame pushes the frame of Composer's PluginManager method on the stack
@@ -446,21 +468,12 @@ func pluginOptional(p pkg.PackageInterface) bool {
 	return v == true
 }
 
-// autoloadPlan is registerPackage's class loader for a plugin package: the
-// root package (without its `files`), the plugin package and its
-// installed dependencies, as Composer builds it with
-// parseAutoloads/createLoader. loader holds what the PHP ClassLoader is
-// built from; files are the `files` to require.
-func (m *Manager) autoloadPlan(p pkg.PackageInterface) (loader, files *php.Array, err error) {
-	localRepo := m.composer.RepositoryManager().LocalRepository()
-	var globalRepo repository.InstalledRepositoryInterface
-	if m.globalComposer != nil {
-		globalRepo = m.globalComposer.RepositoryManager().LocalRepository()
-	}
-
+// autoloadRootPackage is the root package registerPackage autoloads: a
+// clone with its `files` cleared.
+func (m *Manager) autoloadRootPackage() (pkg.RootPackageInterface, error) {
 	rootPackage, ok := pkg.Clone(m.composer.Package()).(pkg.RootPackageInterface)
 	if !ok {
-		return nil, nil, errors.New("plugin: the root package's clone is not a root package")
+		return nil, errors.New("plugin: the root package's clone is not a root package")
 	}
 
 	// clear files autoload rules from the root package as the root dependencies are not
@@ -472,28 +485,41 @@ func (m *Manager) autoloadPlan(p pkg.PackageInterface) (loader, files *php.Array
 	rootDevAutoload.Set("files", php.NewArray())
 	rootPackage.SetDevAutoload(rootDevAutoload)
 
+	return rootPackage, nil
+}
+
+// autoloadPlan is registerPackage's autoloads for a plugin package: the
+// root package, the plugin package and those of its installed
+// dependencies present at their install path. The others are recorded in
+// missingAutoloadPackages.
+func (m *Manager) autoloadPlan(p pkg.PackageInterface, rootPackage pkg.RootPackageInterface) ([]autoload.PackageMapEntry, error) {
+	localRepo := m.composer.RepositoryManager().LocalRepository()
+	var globalRepo repository.InstalledRepositoryInterface
+	if m.globalComposer != nil {
+		globalRepo = m.globalComposer.RepositoryManager().LocalRepository()
+	}
+
 	rootPackageRepo, err := repository.NewRootPackageRepository(rootPackage)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	repos := []repository.RepositoryInterface{localRepo, rootPackageRepo}
 	installedRepo, err := repository.NewInstalledRepository(repos)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if globalRepo != nil {
 		if err := installedRepo.AddRepository(globalRepo); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	collected := &collectedPackages{index: map[string]int{}}
 	collected.add(p)
 	if err := m.collectDependencies(installedRepo, collected, p); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	generator := m.composer.AutoloadGenerator()
 	var autoloads []autoload.PackageMapEntry
 	if m.shouldAutoloadPackage(rootPackage, "") {
 		autoloads = append(autoloads, autoload.PackageMapEntry{Package: rootPackage, InstallPath: "", Installed: true})
@@ -506,14 +532,19 @@ func (m *Manager) autoloadPlan(p pkg.PackageInterface) (loader, files *php.Array
 		global := false
 		if globalRepo != nil {
 			if global, err = globalRepo.HasPackage(autoloadPackage); err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 		}
 		installPath, ok, err := m.installPath(autoloadPackage, global)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if !ok {
+			continue
+		}
+		if autoloadPackage != p && !php.IsDir(installPath) {
+			m.addMissingAutoloadPackage(autoloadPackage, global)
+
 			continue
 		}
 
@@ -524,9 +555,71 @@ func (m *Manager) autoloadPlan(p pkg.PackageInterface) (loader, files *php.Array
 	}
 
 	if len(autoloads) == 0 {
-		return nil, nil, &util.LogicError{Message: "At least the plugin package should always be autoloaded for the code below to work"}
+		return nil, &util.LogicError{Message: "At least the plugin package should always be autoloaded for the code below to work"}
 	}
 
+	return autoloads, nil
+}
+
+// addMissingAutoloadPackage is
+// `$this->missingAutoloadPackages[$name] = [$package, $isGlobalPackage]`.
+func (m *Manager) addMissingAutoloadPackage(p pkg.PackageInterface, global bool) {
+	entry := missingAutoloadPackage{p: p, global: global}
+	for i, missing := range m.missingAutoloadPackages {
+		if missing.p.Name() == p.Name() {
+			m.missingAutoloadPackages[i] = entry
+
+			return
+		}
+	}
+	m.missingAutoloadPackages = append(m.missingAutoloadPackages, entry)
+}
+
+// autoloadMissingPackages is the end of registerPackage: it registers the
+// autoloads of the missingAutoloadPackages now present at their install
+// path (`plugin.autoload`), as the plugin may have registered the
+// installer which knows where they are.
+func (m *Manager) autoloadMissingPackages(rootPackage pkg.RootPackageInterface) error {
+	var autoloads []autoload.PackageMapEntry
+	stillMissing := make([]missingAutoloadPackage, 0, len(m.missingAutoloadPackages))
+	for i, missing := range m.missingAutoloadPackages {
+		installPath, ok, err := m.installPath(missing.p, missing.global)
+		if err != nil {
+			m.missingAutoloadPackages = append(stillMissing, m.missingAutoloadPackages[i:]...)
+
+			return err
+		}
+		if !ok || !php.IsDir(installPath) {
+			stillMissing = append(stillMissing, missing)
+
+			continue
+		}
+		if m.shouldAutoloadPackage(missing.p, installPath) {
+			autoloads = append(autoloads, autoload.PackageMapEntry{Package: missing.p, InstallPath: installPath, Installed: true})
+		}
+	}
+	m.missingAutoloadPackages = stillMissing
+	if len(autoloads) == 0 {
+		return nil
+	}
+
+	loader, files, err := m.loaderContents(autoloads, rootPackage)
+	if err != nil {
+		return err
+	}
+	_, err = m.r.Call("plugin.autoload", m.r.framed(php.ArrayOf(
+		"loader", loader,
+		"files", files,
+	)))
+
+	return err
+}
+
+// loaderContents is registerAutoloads' parseAutoloads/createLoader: loader
+// holds what the PHP ClassLoader is built from; files are the `files` to
+// require.
+func (m *Manager) loaderContents(autoloads []autoload.PackageMapEntry, rootPackage pkg.RootPackageInterface) (loader, files *php.Array, err error) {
+	generator := m.composer.AutoloadGenerator()
 	parsed, err := generator.ParseAutoloads(autoloads, rootPackage, autoload.NoDevFilter)
 	if err != nil {
 		return nil, nil, err

@@ -682,7 +682,9 @@ before instantiation:
 - Autoload plan: clone the root package with `files` cleared,
   `collectDependencies` over `InstalledRepository([local, rootPackageRepo, global?])`,
   `shouldAutoloadPackage` keys, install paths (which may call a PHP
-  installer), and `AutoloadGenerator.ParseAutoloads`. Then compute the
+  installer; a dependency other than the plugin that is not at its install
+  path yet is remembered and skipped), and `AutoloadGenerator.ParseAutoloads`.
+  Then compute the
   `createLoader` contents in Go: psr-0, psr-4, classmap (scanned by
   `internal/classmap`) and `files` (identifier → path).
 
@@ -747,6 +749,9 @@ disablePlugins and runningInGlobalDir properties Go fills), the package,
 the classes, the loader (`{vendorDir, psr0, psr4, classmap}`: the
 autoloads Go parsed and the class map Go scanned with createLoader's
 warnings) and the `files` to require; it returns the registered objects.
+Once a plugin loaded, Go looks up the skipped dependencies again, since the
+plugin may have registered the installer that knows where they live, and
+sends the autoloads of those now present through `plugin.autoload`.
 
 ### 5.5 Event dispatch
 
@@ -1341,7 +1346,7 @@ names them, under the root maestro sends at boot (`composerRoot`,
 `phperr.Root`): the bundled libraries are Composer's vendor/ files line
 for line; the shim's Composer classes name Composer's line where they call
 plugin code with an `@line N` comment (`@line path:N` for the eval() of an
-already loaded plugin class, "PluginManager.php(305) : eval()'d code"),
+already loaded plugin class, "PluginManager.php(303) : eval()'d code"),
 and keep their own location elsewhere; so does an error PHP raises there
 (ErrorHandler names the `\ErrorException`'s location as Composer's).
 
@@ -1688,6 +1693,7 @@ PHP serves these. `frames` is optional everywhere (§5.12).
 | `boot` | `argv`, `server` (`SCRIPT_NAME`, …), `io` (handle, kind, state; `null` for a runtime without an IO), `composerVersion` (`"Class::CONST" => value`, a self-test), `composerRoot` (the directory Composer's files are named under, §5.12), `terminal` (the lines and columns Symfony's Application puts in the environment), `ivPending` (InstalledVersions data waiting for PHP, §5.4), `require` (files to require last; tests). The cwd and statics come in the sync block: the child starts in maestro's cwd. | `null` |
 | `shutdown` | `code` | never returns (the child exits) |
 | `plugin.load` | `pm`, `package`, `classes[]`, `loader` (`{vendorDir, psr0, psr4, classmap}`), `files` (identifier => path), `isGlobal`, `legacyInstaller`, `failOnMissing`, `runningInGlobalDir` | `{registered: [object, …]}` |
+| `plugin.autoload` | `loader` (`{vendorDir, psr0, psr4, classmap}`), `files` (identifier => path) | `null` |
 | `plugin.deactivate` / `plugin.uninstall` | `pm`, `objects[]` | `null` |
 | `capability.commands` | `composer`, `io` | `[descriptor…]` (§5.7) |
 | `command.script` | `class`, `script`, `io` | descriptor, or `null` when the script is not a command class |

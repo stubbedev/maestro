@@ -9,7 +9,7 @@ import (
 	"github.com/stubbedev/maestro/internal/util"
 )
 
-// setIgnorePlatformRequirements raises Installer.php:1459's deprecation
+// setIgnorePlatformRequirements raises Installer.php:1483's deprecation
 // (Composer 2.10.3 on PHP 8.4.25 under ErrorHandler::register(new
 // BufferIO())) and still sets the filter. The notice's format and site are
 // free (docs/PORTING.md "The contract").
