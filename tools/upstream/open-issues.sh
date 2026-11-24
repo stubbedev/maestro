@@ -24,22 +24,27 @@ lock() {
 		jq -r '.packages[] | "\(.name) \(.version)"' | sort
 }
 
-# the changed files under the paths that matter, grouped
+# every changed file under src/ and tests/, res/*.json and composer.lock,
+# grouped; Composer's CI and docs (.github/, doc/, CHANGELOG.md) are left out
 diffstat() {
-	gh api "repos/$upstream_repo/compare/$pinned...$1" --jq '.files[] | [.filename, .additions, .deletions] | @tsv' |
+	gh api --paginate "repos/$upstream_repo/compare/$pinned...$1?per_page=100" --jq '.files[] | [.filename, .additions, .deletions] | @tsv' |
 		awk -F'\t' '
 			BEGIN {
 				n = split("Repository/ and Downloader/: wire protocol, metadata, transport|" \
 					"Package/, Installer/ and res/*.json: lock, installed.json and schema formats|" \
 					"Command/ and Console/: CLI surface, options, output|" \
 					"Plugin/ and EventDispatcher/: plugin API (and tools/shimgen'"'"'s golden)|" \
+					"The rest of src/|" \
+					"tests/: PHPUnit tests to port|" \
 					"composer.lock: bundled library versions", names, "|")
 			}
 			$1 ~ /^src\/Composer\/(Repository|Downloader)\//          { g = 1 }
 			$1 ~ /^src\/Composer\/(Package|Installer)\/|^res\/.*\.json$/ { g = 2 }
 			$1 ~ /^src\/Composer\/(Command|Console)\//                 { g = 3 }
 			$1 ~ /^src\/Composer\/(Plugin|EventDispatcher)\//          { g = 4 }
-			$1 == "composer.lock"                                       { g = 5 }
+			!g && $1 ~ /^src\//                                       { g = 5 }
+			$1 ~ /^tests\//                                            { g = 6 }
+			$1 == "composer.lock"                                       { g = 7 }
 			g { files[g]++; add[g] += $2; del[g] += $3; list[g] = list[g] sprintf("- `%s` +%d -%d\n", $1, $2, $3); g = 0 }
 			END {
 				for (i = 1; i <= n; i++) {
@@ -74,7 +79,7 @@ releases | while IFS=$'\t' read -r tag pre url; do
 		echo
 		gh api "repos/$upstream_repo/releases/tags/$tag" --jq .body
 		echo
-		echo "## Changes that matter most"
+		echo "## Changed files"
 		echo
 		diffstat "$tag"
 		echo "## Bundled libraries (composer.lock)"

@@ -248,7 +248,8 @@ release.
 `.github/workflows/upstream-composer.yml` checks Composer's releases
 daily. It opens an `upstream` issue for each newer one (pre-releases
 included, titled as such) with its release notes, the compare link, a
-diffstat of the paths that matter, the bundled libraries its
+diffstat of every changed file under `src/` and `tests/`,
+`res/*.json` and composer.lock, grouped by area, the bundled libraries its
 composer.lock changes and what is left to port, and for the newest
 stable one opens the bump PR (`tools/upstream/bump-pr.sh`), linked from
 the issue.
