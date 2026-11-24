@@ -18,7 +18,7 @@ Checking Composer and its dependencies for vulnerabilities: Downloading https://
 Retrying (1) https://repo.packagist.org/packages.json due to curl error 7
 Retrying (2) https://repo.packagist.org/packages.json due to curl error 7
 Retrying (3) https://repo.packagist.org/packages.json due to curl error 7
-Failed performing audit: curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server
+Failed performing audit: curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
 PHP version: @PHPVERSION@
 PHP binary path: @MACHINE@
 OpenSSL version: @MACHINE@
@@ -35,13 +35,13 @@ Retrying (1) http://repo.packagist.org/packages.json due to curl error 7
 Retrying (2) http://repo.packagist.org/packages.json due to curl error 7
 Retrying (3) http://repo.packagist.org/packages.json due to curl error 7
 FAIL
-[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server
+[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1:1 over proxy 127.0.0.1 after 0 ms: Could not connect to server
 Checking https connectivity to packagist: Downloading https://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
 Retrying (1) https://repo.packagist.org/packages.json due to curl error 7
 Retrying (2) https://repo.packagist.org/packages.json due to curl error 7
 Retrying (3) https://repo.packagist.org/packages.json due to curl error 7
 FAIL
-[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
 Checking connectivity to http://@SERVER@/status/500: Warning: Accessing 127.0.0.1 over http which is an insecure protocol.
 Downloading http://@SERVER@/status/500/packages.json using proxy (excluded by no_proxy)
 [500] http://@SERVER@/status/500/packages.json
@@ -58,18 +58,18 @@ Retrying (1) http://repo.packagist.org/packages.json due to curl error 7
 Retrying (2) http://repo.packagist.org/packages.json due to curl error 7
 Retrying (3) http://repo.packagist.org/packages.json due to curl error 7
 FAIL
-[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server
+[Composer\Downloader\TransportException] curl error 7 while downloading http://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1:1 over proxy 127.0.0.1 after 0 ms: Could not connect to server
 Checking HTTP proxy with https: Downloading https://repo.packagist.org/packages.json using proxy (http://127.0.0.1:1)
 Retrying (1) https://repo.packagist.org/packages.json due to curl error 7
 Retrying (2) https://repo.packagist.org/packages.json due to curl error 7
 Retrying (3) https://repo.packagist.org/packages.json due to curl error 7
 FAIL
-[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server
+[Composer\Downloader\TransportException] curl error 7 while downloading https://repo.packagist.org/packages.json: Failed to connect to repo.packagist.org:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
 Checking github.com rate limit: Downloading https://api.github.com/rate_limit using proxy (http://127.0.0.1:1)
 Retrying (1) https://api.github.com/rate_limit due to curl error 7
 Retrying (2) https://api.github.com/rate_limit due to curl error 7
 Retrying (3) https://api.github.com/rate_limit due to curl error 7
 FAIL
-[Composer\Downloader\TransportException] curl error 7 while downloading https://api.github.com/rate_limit: Failed to connect to 127.0.0.1 port 1 after 0 ms: Could not connect to server
+[Composer\Downloader\TransportException] curl error 7 while downloading https://api.github.com/rate_limit: Failed to connect to api.github.com:443 over proxy 127.0.0.1 after 0 ms: Could not connect to server
 Checking disk free space: OK
 exit 2
