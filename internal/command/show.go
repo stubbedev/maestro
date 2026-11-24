@@ -2283,39 +2283,45 @@ func (c *ShowCommand) findLatestPackage(p pkg.PackageInterface, comp *composer.C
 
 	var withheld *withheldRelease
 	if cooldown != nil && !strings.HasPrefix(p.Version(), "dev-") {
-		// a waiting release is only worth mentioning if it is newer than what can be installed already
-		baseline := p
-		if latest != nil && semver.VersionCompare(latest.Version(), p.Version()) > 0 {
-			baseline = latest
-		}
+		// with prefer-stable, a less stable version is only selected when every stable one in range
+		// was withheld or rejected
+		isStabilityFallback := latest != nil && comp.Package().PreferStable() && latest.StabilityPriority() > p.StabilityPriority()
+		withheldCandidates := slices.Clone(versionSelector.WithheldCandidates())
 		installedIsWithheld := false
-		var found *withheldRelease
-		for _, withheldCandidate := range versionSelector.WithheldCandidates() {
-			withheldPackage := withheldCandidate.Package
+		for i := range withheldCandidates {
 			for {
-				alias, ok := withheldPackage.(pkg.Alias)
+				alias, ok := withheldCandidates[i].Package.(pkg.Alias)
 				if !ok {
 					break
 				}
-				withheldPackage = alias.AliasOf()
+				withheldCandidates[i].Package = alias.AliasOf()
 			}
-			if withheldPackage.Version() == p.Version() {
+			if withheldCandidates[i].Package.Version() == p.Version() {
 				installedIsWithheld = true
-			}
-			// the first release to clear the cooldown period among those newer than the baseline,
-			// a withheld backport to an older branch is no update
-			if semver.VersionCompare(withheldPackage.Version(), baseline.Version()) <= 0 {
-				continue
-			}
-			if found == nil || withheldCandidate.ReleaseDate.Before(found.releaseDate) {
-				found = &withheldRelease{pkg: withheldPackage, releaseDate: withheldCandidate.ReleaseDate}
 			}
 		}
 
 		// the installed version is itself still in the cooldown period, e.g. the period was configured after
 		// installing it, so the older releases the selector fell back to are no update either
-		if installedIsWithheld && (latest == nil || semver.VersionCompare(latest.Version(), p.Version()) < 0) {
+		if installedIsWithheld && (latest == nil || isStabilityFallback || semver.VersionCompare(latest.Version(), p.Version()) < 0) {
 			latest = p
+		}
+
+		// a waiting release is only worth mentioning if it is newer than what can be installed already
+		baseline := p
+		if latest != nil && semver.VersionCompare(latest.Version(), p.Version()) > 0 {
+			baseline = latest
+		}
+		var found *withheldRelease
+		for _, withheldCandidate := range withheldCandidates {
+			// the first release to clear the cooldown period among those newer than the baseline,
+			// a withheld backport to an older branch is no update
+			if semver.VersionCompare(withheldCandidate.Package.Version(), baseline.Version()) <= 0 {
+				continue
+			}
+			if found == nil || withheldCandidate.ReleaseDate.Before(found.releaseDate) {
+				found = &withheldRelease{pkg: withheldCandidate.Package, releaseDate: withheldCandidate.ReleaseDate}
+			}
 		}
 
 		if found != nil {
